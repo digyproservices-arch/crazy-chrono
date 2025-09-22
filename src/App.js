@@ -1,24 +1,64 @@
-import logo from './logo.svg';
+import React, { useEffect, useState } from 'react';
 import './App.css';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import Carte from './components/Carte';
+import AdminPanel from './components/AdminPanel';
+import NavBar from './components/NavBar';
+import { DataProvider } from './context/DataContext';
+import Login from './components/Auth/Login';
+import ProgressDebug from './components/Debug/ProgressDebug';
+import Account from './components/Account';
+import ModeSelect from './components/Modes/ModeSelect';
+import SessionConfig from './components/Modes/SessionConfig';
 
 function App() {
+  const [gameMode, setGameMode] = useState(false);
+  const [auth, setAuth] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cc_auth')) || null; } catch { return null; }
+  });
+  useEffect(() => {
+    const onGame = (e) => {
+      const on = !!(e && e.detail && e.detail.on);
+      setGameMode(on);
+    };
+    window.addEventListener('cc:gameMode', onGame);
+    return () => window.removeEventListener('cc:gameMode', onGame);
+  }, []);
+  const carteVidePath = `${process.env.PUBLIC_URL}/images/carte-vide.png`;
+  const RequireAuth = ({ children }) => auth ? children : <Navigate to="/login" replace />;
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <DataProvider>
+      <Router>
+        <div className="App">
+          {!gameMode && (
+            <header className="App-header">
+              <h1>Éditeur de Carte</h1>
+              <p>Ajoutez du texte sur votre carte</p>
+            </header>
+          )}
+          {!gameMode && <NavBar />}
+          <main>
+            <Routes>
+              <Route path="/" element={<Navigate to={auth ? "/modes" : "/login"} replace />} />
+              <Route path="/login" element={<Login onLogin={(a) => { setAuth(a); try { localStorage.setItem('cc_auth', JSON.stringify(a)); } catch {}; }} />} />
+              <Route path="/modes" element={<RequireAuth><ModeSelect /></RequireAuth>} />
+              <Route path="/config/:mode" element={<RequireAuth><SessionConfig /></RequireAuth>} />
+              <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
+              <Route path="/debug/progress" element={<RequireAuth><ProgressDebug /></RequireAuth>} />
+              {/* Carte (éditeur/jeu) accessible en direct si nécessaire, sinon on y accède après config */}
+              <Route path="/carte" element={<div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div>} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+          {!gameMode && (
+            <footer>
+              <p>© 2025 - Éditeur de Carte</p>
+            </footer>
+          )}
+        </div>
+      </Router>
+    </DataProvider>
   );
 }
 

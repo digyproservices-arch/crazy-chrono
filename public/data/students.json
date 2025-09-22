@@ -1,0 +1,22 @@
+[
+  {
+    "id": "cls-6e-001",
+    "name": "Alice B.",
+    "licensed": true
+  },
+  {
+    "id": "cls-6e-002",
+    "name": "Boris C.",
+    "licensed": true
+  },
+  {
+    "id": "cls-6e-003",
+    "name": "Chloé D.",
+    "licensed": false
+  },
+  {
+    "id": "cls-6e-004",
+    "name": "David E.",
+    "licensed": true
+  }
+]

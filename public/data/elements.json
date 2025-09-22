@@ -1,0 +1,18 @@
+[
+  { "type": "image", "content": "images/2024-09-10 13-37-16 (2).jpeg", "label": "Image 1", "pairId": "img-1" },
+  { "type": "image", "content": "images/2024-09-10 13-37-16 (3).jpeg", "label": "Image 2", "pairId": "img-2" },
+  { "type": "image", "content": "images/2024-09-10 13-37-16 (4).jpeg", "label": "Image 3", "pairId": "img-3" },
+  { "type": "image", "content": "images/2024-09-10 13-37-16 (5).jpeg", "label": "Image 4", "pairId": "img-4" },
+  { "type": "image", "content": "images/2024-09-10 13-37-16 (6).jpeg", "label": "Image 5", "pairId": "img-5" },
+  { "type": "image", "content": "images/2024-09-10 13-37-16 (7).jpeg", "label": "Image 6", "pairId": "img-6" },
+  { "type": "image", "content": "images/2024-09-10 13-37-16 (8).jpeg", "label": "Image 7", "pairId": "img-7" },
+  { "type": "image", "content": "images/2024-09-10 13-37-16 (9).jpeg", "label": "Image 8", "pairId": "img-8" },
+  { "type": "image", "content": "images/2024-09-10 13-37-16 (10).jpeg", "label": "Image 9", "pairId": "img-9" },
+  { "type": "image", "content": "images/2024-09-10 13-38-10 (2).jpeg", "label": "Image 10", "pairId": "img-10" },
+  { "type": "texte", "content": "Paris", "label": "Capitale de la France", "pairId": "txt-1" },
+  { "type": "texte", "content": "Londres", "label": "Capitale du Royaume-Uni", "pairId": "txt-2" },
+  { "type": "chiffre", "content": "417", "label": "Numéro spécial", "pairId": "num-1" },
+  { "type": "chiffre", "content": "12", "label": "Douze", "pairId": "num-2" },
+  { "type": "calcul", "content": "3+4", "label": "Sept", "pairId": "calc-1" },
+  { "type": "calcul", "content": "15x2", "label": "Trente", "pairId": "calc-2" }
+]

@@ -1,70 +1,51 @@
-# Getting Started with Create React App
+# Éditeur de Carte
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Cette application React permet d'ajouter du texte sur une image de carte vide. L'utilisateur peut modifier le texte à différentes positions sur la carte.
 
-## Available Scripts
+## Installation
 
-In the project directory, you can run:
+1. Clonez ce dépôt
+2. Installez les dépendances avec `npm install`
+3. Lancez l'application avec `npm start`
+
+## Configuration des images
+
+Pour utiliser vos propres images de carte, vous devez ajouter les fichiers suivants :
+
+1. Placez votre image de carte vide dans le dossier `public/images/` et nommez-la `carte-vide.png`
+2. Si vous avez un exemple de carte remplie, placez-la également dans le dossier `public/images/` et nommez-la `carte-remplie.png`
+
+## Utilisation
+
+L'application affiche une interface avec :
+
+- Une prévisualisation de la carte avec le texte positionné
+- Des champs de texte pour modifier le contenu à chaque position
+
+Modifiez le texte dans les champs pour voir les changements en temps réel sur la carte.
+
+## Structure du projet
+
+- `src/components/Carte.js` : Composant principal pour l'affichage et l'édition de la carte
+- `src/styles/Carte.css` : Styles pour le composant Carte
+- `src/App.js` : Point d'entrée de l'application
+- `public/images/` : Dossier contenant les images de carte
+
+## Personnalisation
+
+Vous pouvez personnaliser l'apparence et le comportement de l'application en modifiant les fichiers CSS et les composants React.
+
+## Scripts disponibles
 
 ### `npm start`
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
-
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
-
-### `npm test`
-
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Lance l'application en mode développement.
+Ouvrez [http://localhost:3000](http://localhost:3000) pour la voir dans votre navigateur.
 
 ### `npm run build`
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Compile l'application pour la production dans le dossier `build`.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Licence
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Ce projet est sous licence MIT.
