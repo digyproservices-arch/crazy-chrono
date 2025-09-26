@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { isFree, getDailyCounts } from '../utils/subscription';
 
 const NavBar = () => {
   const location = useLocation();
@@ -9,6 +10,7 @@ const NavBar = () => {
     try { return JSON.parse(localStorage.getItem('cc_auth') || 'null'); } catch { return null; }
   });
   const [menuOpen, setMenuOpen] = useState(false);
+  const [quota, setQuota] = useState(() => getDailyCounts());
 
   useEffect(() => {
     const onChanged = (e) => {
@@ -21,9 +23,14 @@ const NavBar = () => {
     };
     window.addEventListener('cc:editModeChanged', onChanged);
     window.addEventListener('cc:authChanged', onAuth);
+    const onQ = () => setQuota(getDailyCounts());
+    window.addEventListener('cc:quotaChanged', onQ);
+    window.addEventListener('cc:subscriptionChanged', onQ);
     return () => {
       window.removeEventListener('cc:editModeChanged', onChanged);
       window.removeEventListener('cc:authChanged', onAuth);
+      window.removeEventListener('cc:quotaChanged', onQ);
+      window.removeEventListener('cc:subscriptionChanged', onQ);
     };
   }, []);
 
@@ -53,6 +60,15 @@ const NavBar = () => {
         <Link to="/admin" style={{ fontWeight: location.pathname === "/admin" ? "bold" : "normal" }}>Admin</Link>
       )}
       <span style={{ width: 1, height: 18, background: '#ccc', margin: '0 8px' }} />
+      {/* Global free quota badge + link to pricing */}
+      {isFree() && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span title="Quota quotidien en version gratuite" style={{ fontSize: 12, color: '#065f46', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 999, padding: '4px 8px' }}>
+            Free: {quota.sessions || 0}/3 aujourd'hui
+          </span>
+          <Link to="/pricing" style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #3b82f6', background: '#3b82f6', color: '#fff', fontWeight: 700 }}>S’abonner</Link>
+        </div>
+      )}
 
       {isAdmin && (
         <div style={{ position: 'relative' }}>

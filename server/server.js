@@ -6,10 +6,73 @@ const bodyParser = require('body-parser');
 const http = require('http');
 const { Server } = require('socket.io');
 
+// Load env (safe)
+try { require('dotenv').config({ path: require('path').join(__dirname, '.env') }); } catch {}
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
+});
+
+// ===== Usage/Quota (Mini-sprint): server-side check tied to Supabase user =====
+let supabaseAdmin = null;
+try {
+  const { createClient } = require('@supabase/supabase-js');
+  const supaUrl = process.env.SUPABASE_URL;
+  const supaSrv = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (supaUrl && supaSrv) {
+    supabaseAdmin = createClient(supaUrl, supaSrv, { auth: { persistSession: false } });
+  }
+} catch (e) {
+  console.warn('[Usage] Supabase admin not configured:', e.message);
+}
+
+// POST /usage/can-start { user_id }
+// Returns { ok:true, allow:boolean, limit:number, sessionsToday:number, reason?:string }
+app.post('/usage/can-start', async (req, res) => {
+  try {
+    const userId = String(req.body?.user_id || '').trim();
+    const FREE_LIMIT = Number(process.env.FREE_SESSIONS_PER_DAY || 3);
+    if (!userId) return res.status(400).json({ ok: false, error: 'missing_user_id' });
+
+    // If Supabase admin is not set, allow to avoid blocking; frontend still enforces local limit
+    if (!supabaseAdmin) {
+      return res.json({ ok: true, allow: true, limit: FREE_LIMIT, sessionsToday: 0, reason: 'no_admin_config' });
+    }
+
+    // If user has active subscription, allow
+    try {
+      const { data: subs, error: subErr } = await supabaseAdmin
+        .from('subscriptions')
+        .select('status')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (!subErr && Array.isArray(subs) && subs[0] && ['active', 'trialing'].includes(String(subs[0].status))) {
+        return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason: 'pro_active' });
+      }
+    } catch {}
+
+    // Count sessions today for this user
+    const now = new Date();
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
+    const startIso = start.toISOString();
+    let sessionsToday = 0;
+    try {
+      const { count, error: cntErr } = await supabaseAdmin
+        .from('sessions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .gte('created_at', startIso);
+      if (!cntErr && typeof count === 'number') sessionsToday = count;
+    } catch {}
+
+    const allow = sessionsToday < FREE_LIMIT;
+    return res.json({ ok: true, allow, limit: FREE_LIMIT, sessionsToday, reason: allow ? 'under_limit' : 'limit_reached' });
+  } catch (e) {
+    console.error('[Usage] can-start error', e);
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
 });
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) || 4000 : 4000;
 // Fenêtre d'égalité (ms): si plusieurs clics pour la même paire arrivent dans cet intervalle,
@@ -18,6 +81,7 @@ const TIE_WINDOW_MS = 200;
 
 app.use(cors());
 app.use(bodyParser.json({ limit: '10mb' }));
+// Stripe webhooks require raw body; mount a dedicated raw parser on that route below
 
 // Ajout du support upload images
 const uploadRouter = require('./upload');
@@ -98,6 +162,120 @@ app.post('/rename-image', (req, res) => {
 // Route racine pour vérification rapide
 app.get('/', (req, res) => {
   res.json({ ok: true, service: 'crazy-chrono-backend' });
+});
+
+// ===== Stripe billing: Sprint 1 skeleton =====
+// Env: STRIPE_SECRET_KEY, STRIPE_PRICE_ID, STRIPE_WEBHOOK_SECRET, STRIPE_CUSTOMER_PORTAL_RETURN_URL
+let stripe = null;
+try {
+  if (process.env.STRIPE_SECRET_KEY) stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+} catch (e) { console.warn('[Stripe] SDK not available:', e.message); }
+
+// Create Checkout Session (enhanced)
+app.post('/stripe/create-checkout-session', async (req, res) => {
+  try {
+    const priceId = req.body?.price_id || process.env.STRIPE_PRICE_ID;
+    const userId = req.body?.user_id ? String(req.body.user_id) : null;
+    const success_url = req.body?.success_url || (process.env.FRONTEND_URL || 'http://localhost:3000') + '/account?checkout=success';
+    const cancel_url = req.body?.cancel_url || (process.env.FRONTEND_URL || 'http://localhost:3000') + '/pricing?checkout=cancel';
+    if (!stripe || !priceId) {
+      // Sprint 1: ne bloque pas – renvoie une URL factice pour tester le flux
+      const mock = success_url + '&mock=1';
+      return res.json({ ok: true, url: mock, mocked: true });
+    }
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url,
+      cancel_url,
+      allow_promotion_codes: true,
+      metadata: userId ? { user_id: userId } : undefined
+    });
+    return res.json({ ok: true, url: session.url });
+  } catch (e) {
+    console.error('[Stripe] create-checkout-session error', e);
+    return res.status(500).json({ ok: false, error: 'checkout_error' });
+  }
+});
+
+// Create Customer Portal Session (skeleton)
+app.post('/stripe/create-portal-session', async (req, res) => {
+  try {
+    if (!stripe) {
+      // Fallback de démo: renvoie pricing page
+      const url = (process.env.FRONTEND_URL || 'http://localhost:3000') + '/pricing?portal=mock';
+      return res.json({ ok: true, url, mocked: true });
+    }
+    const { customer_id } = req.body || {};
+    if (!customer_id) return res.status(400).json({ ok: false, error: 'missing_customer_id' });
+    const return_url = process.env.STRIPE_CUSTOMER_PORTAL_RETURN_URL || (process.env.FRONTEND_URL || 'http://localhost:3000') + '/account';
+    const session = await stripe.billingPortal.sessions.create({ customer: customer_id, return_url });
+    return res.json({ ok: true, url: session.url });
+  } catch (e) {
+    console.error('[Stripe] create-portal-session error', e);
+    return res.status(500).json({ ok: false, error: 'portal_error' });
+  }
+});
+
+// Webhook Stripe (sprint 1: stub + signature check si dispo)
+const rawParser = bodyParser.raw({ type: 'application/json' });
+app.post('/webhooks/stripe', rawParser, async (req, res) => {
+  try {
+    const sig = req.headers['stripe-signature'];
+    const whSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    let event = null;
+    if (stripe && whSecret && sig) {
+      try {
+        event = stripe.webhooks.constructEvent(req.body, sig, whSecret);
+      } catch (err) {
+        console.error('[Stripe] webhook signature verification failed', err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+      }
+    } else {
+      // Pas de vérification en Sprint 1
+      event = { id: 'evt_mock', type: 'mock.event', data: { object: {} } };
+    }
+    console.log('[Stripe] webhook received:', event.type);
+    // Sprint 2 minimal: upsert subscriptions on key events if supabaseAdmin available
+    try {
+      if (supabaseAdmin && event && event.type) {
+        if (event.type === 'checkout.session.completed') {
+          const s = event.data.object;
+          const userId = s?.metadata?.user_id || null;
+          const subscriptionId = s?.subscription || null;
+          if (userId && subscriptionId) {
+            const sub = await stripe.subscriptions.retrieve(subscriptionId);
+            const payload = {
+              user_id: userId,
+              stripe_subscription_id: sub.id,
+              price_id: sub.items?.data?.[0]?.price?.id || null,
+              status: sub.status,
+              current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
+            };
+            await supabaseAdmin.from('subscriptions').upsert(payload, { onConflict: 'stripe_subscription_id' });
+          }
+        }
+        if (event.type.startsWith('customer.subscription.')) {
+          const sub = event.data.object;
+          // We need user_id: fetch latest checkout session metadata if possible is complex; if we already have row, update by stripe_subscription_id
+          if (sub?.id) {
+            const payload = {
+              stripe_subscription_id: sub.id,
+              price_id: sub.items?.data?.[0]?.price?.id || null,
+              status: sub.status,
+              current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
+              updated_at: new Date().toISOString(),
+            };
+            await supabaseAdmin.from('subscriptions').update(payload).eq('stripe_subscription_id', sub.id);
+          }
+        }
+      }
+    } catch (e) { console.error('[Stripe] webhook handling error', e); }
+    return res.json({ received: true });
+  } catch (e) {
+    console.error('[Stripe] webhook error', e);
+    return res.status(500).end();
+  }
 });
 
 // Endpoint: liste d'élèves (avec option de filtrage licensed=true)

@@ -7,6 +7,7 @@ import NavBar from './components/NavBar';
 import { DataProvider } from './context/DataContext';
 import Login from './components/Auth/Login';
 import ProgressDebug from './components/Debug/ProgressDebug';
+import Pricing from './components/Billing/Pricing';
 import Account from './components/Account';
 import ModeSelect from './components/Modes/ModeSelect';
 import SessionConfig from './components/Modes/SessionConfig';
@@ -45,6 +46,7 @@ function App() {
               <Route path="/config/:mode" element={<RequireAuth><SessionConfig /></RequireAuth>} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
+              <Route path="/pricing" element={<RequireAuth><Pricing /></RequireAuth>} />
               <Route path="/debug/progress" element={<RequireAuth><ProgressDebug /></RequireAuth>} />
               {/* Carte (éditeur/jeu) accessible en direct si nécessaire, sinon on y accède après config */}
               <Route path="/carte" element={<div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div>} />

@@ -5,6 +5,7 @@ import '../styles/Carte.css';
 import { pointToSvgCoords, polygonToPointsStr, segmentsToSvgPath, pointsToBezierPath } from './CarteUtils';
 import { assignElementsToZones, fetchElements } from '../utils/elementsLoader';
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts } from '../utils/progress';
+import { isFree, canStartSessionToday, incrementSessionCount } from '../utils/subscription';
 
 // Single shared AudioContext for smoother audio on low devices
 let __audioCtx = null;
@@ -567,6 +568,31 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
     setPanelCollapsed(true);
   }), []);
 
+  // ===== Freemium helpers (Sprint A) =====
+  const applyFreeLimits = (sock) => {
+    try {
+      if (!isFree() || !sock) return;
+      // force 3 rounds per session for Free users
+      sock.emit && sock.emit('room:setRounds', 3);
+    } catch {}
+  };
+
+  // Mini-sprint: server-side quota check
+  const getLocalUserId = () => {
+    try { const a = JSON.parse(localStorage.getItem('cc_auth') || 'null'); return a?.id || null; } catch { return null; }
+  };
+  const serverAllowsStart = async (userId) => {
+    try {
+      if (!userId) return { ok: true, allow: true };
+      const resp = await fetch(`${window.location.protocol}//${window.location.hostname}:4000/usage/can-start`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId })
+      });
+      const json = await resp.json().catch(() => ({}));
+      if (!resp.ok) return { ok: false, allow: true }; // ne pas bloquer si erreur serveur
+      return json;
+    } catch { return { ok: false, allow: true }; }
+  };
+
   const exitGameFullscreen = useMemo(() => (async () => {
     try {
       if (document.fullscreenElement) {
@@ -712,6 +738,14 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
       let cfg = null;
       try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
       const isOnline = cfg && cfg.mode === 'online';
+      // Freemium guard: Free plan is solo only
+      if (isOnline && isFree()) {
+        try { alert('Le mode en ligne est réservé aux abonnés Pro.'); } catch {}
+        try { navigate('/pricing'); } catch {}
+        // Rejoindre quand même une salle locale par défaut pour éviter un état incohérent
+        try { s.emit('joinRoom', { roomId, name: cfg.playerName || playerName }); } catch {}
+        return;
+      }
       if (isOnline) {
         // Appliquer le pseudo si fourni
         try {
@@ -727,7 +761,14 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
             try { s.emit('joinRoom', { roomId: code, name: cfg.playerName || playerName }); } catch {}
             // Auto-prêt + démarrage immédiat (session solo si seul joueur)
             setTimeout(() => { try { s.emit('ready:toggle', { ready: true }); } catch {} }, 150);
-            setTimeout(() => { try { s.emit('startGame'); } catch {} }, 350);
+            setTimeout(() => {
+              // Freemium guard: limit daily sessions for Free users
+              if (isFree()) {
+                if (!canStartSessionToday(3)) { try { alert("Limite quotidienne atteinte (3 sessions/jour en version gratuite). Passe à la version Pro pour continuer."); } catch {}; try { navigate('/pricing'); } catch {}; return; }
+                incrementSessionCount();
+              }
+              try { s.emit('startGame'); } catch {}
+            }, 350);
           } else {
             // Demander au serveur de créer une salle et la rejoindre
             try {
@@ -736,7 +777,13 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
                   setRoomId(res.roomCode);
                   s.emit('joinRoom', { roomId: res.roomCode, name: cfg.playerName || playerName });
                   setTimeout(() => { try { s.emit('ready:toggle', { ready: true }); } catch {} }, 150);
-                  setTimeout(() => { try { s.emit('startGame'); } catch {} }, 350);
+                  setTimeout(() => {
+                    if (isFree()) {
+                      if (!canStartSessionToday(3)) { try { alert("Limite quotidienne atteinte (3 sessions/jour en version gratuite)."); } catch {}; try { navigate('/pricing'); } catch {}; return; }
+                      incrementSessionCount();
+                    }
+                    try { s.emit('startGame'); } catch {}
+                  }, 350);
                 } else {
                   // fallback: rejoindre la salle par défaut
                   s.emit('joinRoom', { roomId, name: cfg.playerName || playerName });
@@ -1171,7 +1218,40 @@ useEffect(() => {
 }, [gameDuration]);
 
 function startGame() {
-  // Si connecté au serveur, lancer une session SOLO via le backend
+  // Freemium: check serveur si dispo (lié au user), puis fallback local
+  try {
+    if (isFree()) {
+      const uid = getLocalUserId();
+      // Vérif serveur (non bloquante si serveur non configuré)
+      // Note: startGame n'est pas async; on enchaîne via then()
+      serverAllowsStart(uid).then((res) => {
+        try {
+          if (res && res.ok && res.allow === false) {
+            alert("Limite quotidienne atteinte sur votre compte Free. Passez à la version Pro pour continuer.");
+            navigate('/pricing');
+            return;
+          }
+          // Après validation serveur, appliquer le fallback local
+          if (!canStartSessionToday(3)) {
+            alert('Limite quotidienne atteinte (3 sessions/jour en version gratuite). Passe à la version Pro pour continuer.');
+            navigate('/pricing');
+            return;
+          }
+          incrementSessionCount();
+          // Poursuivre le démarrage réel
+          doStart();
+        } catch { /* ignore */ }
+      });
+      return; // attendre la réponse asynchrone
+    }
+  } catch {}
+  // Pro: démarrage direct
+  doStart();
+}
+
+function doStart() {
+  try {
+    // Si connecté au serveur, lancer une session SOLO via le backend
   if (socket && socket.connected) {
     try {
       // Démarrer une session de progression côté Supabase aussi en mode socket
@@ -1184,6 +1264,8 @@ function startGame() {
           duration_seconds: Number(gameDuration) || null,
         });
       } catch {}
+      // Appliquer limite Free: 3 manches par session
+      try { applyFreeLimits(socket); } catch {}
       socket.emit('startGame');
       setMpMsg('Nouvelle manche');
     } catch {}
@@ -1207,6 +1289,7 @@ function startGame() {
     });
   } catch {}
   safeHandleAutoAssign();
+  } catch {}
 }
 
 // Hôte: changer la durée de la salle

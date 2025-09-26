@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import supabase from '../../utils/supabaseClient';
+import { isFree, getDailyCounts } from '../../utils/subscription';
 
 export default function ProgressDebug() {
   const [auth, setAuth] = useState(() => {
@@ -55,6 +56,15 @@ export default function ProgressDebug() {
     })();
   }, [auth]);
 
+  // Refresh badge on quota change
+  const [quota, setQuota] = useState(() => getDailyCounts());
+  useEffect(() => {
+    const onQ = () => setQuota(getDailyCounts());
+    window.addEventListener('cc:quotaChanged', onQ);
+    window.addEventListener('cc:subscriptionChanged', onQ);
+    return () => { window.removeEventListener('cc:quotaChanged', onQ); window.removeEventListener('cc:subscriptionChanged', onQ); };
+  }, []);
+
   return (
     <div style={{ padding: 20 }}>
       <h2 style={{ marginTop: 0 }}>Debug Progress</h2>
@@ -76,6 +86,11 @@ export default function ProgressDebug() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div style={{ padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff' }}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Dernière session</div>
+          {isFree() && (
+            <div style={{ marginBottom: 8, fontSize: 12, color: '#065f46', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 6, padding: '6px 8px' }}>
+              Free: {quota.sessions || 0}/3 sessions aujourd'hui
+            </div>
+          )}
           {loading ? (
             <div>Chargement…</div>
           ) : latestSession ? (
@@ -93,7 +108,7 @@ export default function ProgressDebug() {
             <div>Chargement…</div>
           ) : attempts && attempts.length ? (
             <div style={{ maxHeight: 360, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {attempts.map((a) => (
+              {(isFree() ? attempts.slice(0, 10) : attempts.slice(0, 20)).map((a) => (
                 <div key={a.id} style={{ border: '1px solid #f3f4f6', borderRadius: 6, padding: 8, background: '#fafafa' }}>
                   <div style={{ fontSize: 12 }}><strong>correct:</strong> {String(a.correct)}</div>
                   <div style={{ fontSize: 12 }}><strong>item_type:</strong> {a.item_type}</div>
