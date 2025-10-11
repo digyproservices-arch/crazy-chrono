@@ -88,21 +88,38 @@ app.get('/webhooks/revenuecat', (req, res) => {
 // Env: REVENUECAT_WEBHOOK_SECRET (Authorization: Bearer <secret>)
 app.post('/webhooks/revenuecat', async (req, res) => {
   try {
+    // 1) Auth normalisée (accepte "Bearer SECRET" et "SECRET")
     const shared = process.env.REVENUECAT_WEBHOOK_SECRET || '';
-    if (shared) {
-      const auth = String(req.headers['authorization'] || '');
-      if (!auth.startsWith('Bearer ') || auth.slice(7) !== shared) {
-        return res.status(401).json({ ok: false, error: 'unauthorized' });
-      }
+    const rawAuth = String(req.headers['authorization'] || '').trim();
+    const provided = rawAuth.startsWith('Bearer ')
+      ? rawAuth.slice(7).trim()
+      : rawAuth;
+    if (shared && (!provided || provided !== shared)) {
+      return res.status(401).json({ ok: false, error: 'unauthorized' });
     }
-    if (!supabaseAdmin) return res.json({ ok: true, skipped: 'no_admin_config' });
 
+    // 2) Prépare le payload
     const payload = req.body && req.body.event ? req.body.event : (req.body || {});
     const type = String(payload.type || '').toLowerCase();
+    const env = payload.environment || null;
+    const eventId = String(payload.id || req.body?.id || '').trim();
     const userId = payload.app_user_id || req.body?.app_user_id || req.body?.subscriber?.app_user_id;
     if (!userId) return res.status(400).json({ ok: false, error: 'missing_app_user_id' });
 
-    // Champs utiles
+    // 3) Idempotence optionnelle (si table webhook_events existe)
+    if (supabaseAdmin && eventId) {
+      try {
+        await supabaseAdmin.from('webhook_events').insert({ event_id: eventId });
+      } catch (e) {
+        // Si contrainte unique violée => déjà traité
+        if (String(e?.message || '').toLowerCase().includes('duplicate')) {
+          return res.json({ ok: true, duplicate: true });
+        }
+        // Sinon, continuer (table peut ne pas exister en dev)
+      }
+    }
+
+    // 4) Champs utiles pour subscriptions
     const entitlement = payload.entitlement_id || (Array.isArray(payload.entitlement_ids) ? payload.entitlement_ids[0] : null) || 'pro';
     const productId = payload.product_id || payload.product_identifier || null;
     const expMs = payload.expiration_at_ms || payload.expires_at_ms || null;
@@ -114,21 +131,26 @@ app.post('/webhooks/revenuecat', async (req, res) => {
     else if (['cancellation', 'subscriber_alias', 'billing_issue', 'subscription_paused'].includes(type)) status = 'past_due';
     else if (['expiration'].includes(type)) status = 'expired';
 
-    // Fallback: si on a une échéance future, considère active/trialing
+    // Fallback: si on a une échéance future, considère active
     if (!status) {
       if (current_period_end && Date.parse(current_period_end) > Date.now()) status = 'active';
       else status = 'expired';
     }
 
+    // 5) Si pas de Supabase admin, on s'arrête ici en OK (pour ne pas bloquer)
+    if (!supabaseAdmin) {
+      console.log('[RevenueCat] no_admin_config - received:', { type, env, userId, entitlement, productId });
+      return res.json({ ok: true, skipped: 'no_admin_config' });
+    }
+
+    // 6) Upsert subscriptions par user_id
     const row = {
       user_id: userId,
-      price_id: productId || entitlement, // stocke l'ID produit/entitlement dans price_id faute de champ dédié
+      price_id: productId || entitlement,
       status,
       current_period_end,
       updated_at: new Date().toISOString(),
     };
-
-    // Upsert manuel par user_id (sans contrainte unique): update si existe, sinon insert
     try {
       const { data: found, error: selErr } = await supabaseAdmin
         .from('subscriptions')
@@ -145,7 +167,7 @@ app.post('/webhooks/revenuecat', async (req, res) => {
       console.error('[RevenueCat] upsert error', e);
     }
 
-    console.log('[RevenueCat] webhook synced:', { type, userId, status, entitlement, productId });
+    console.log('[RevenueCat] webhook synced:', { type, env, userId, status, entitlement, productId });
     return res.json({ ok: true });
   } catch (e) {
     console.error('[RevenueCat] webhook error', e);
@@ -261,6 +283,11 @@ app.post('/rename-image', (req, res) => {
 // Route racine pour vérification rapide
 app.get('/', (req, res) => {
   res.json({ ok: true, service: 'crazy-chrono-backend' });
+});
+
+// Endpoint de santé pour éviter les 502 à froid et diagnostiquer
+app.get('/healthz', (req, res) => {
+  res.json({ ok: true, ts: new Date().toISOString(), uptime: process.uptime() });
 });
 
 // ===== Stripe billing: Sprint 1 skeleton =====
