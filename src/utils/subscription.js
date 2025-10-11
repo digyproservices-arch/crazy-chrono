@@ -2,6 +2,7 @@
 // Storage keys
 const KEY_STATUS = 'cc_subscription_status'; // 'free' | 'pro'
 const KEY_QUOTA = 'cc_free_quota'; // { dayISO:string, sessions:number }
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com';
 
 export function getSubscriptionStatus() {
   try {
@@ -49,3 +50,22 @@ export function isPro() {
 }
 
 export function isFree() { return !isPro(); }
+
+// Fetch real status from backend and sync local storage
+export async function fetchAndSyncStatus(userId) {
+  try {
+    const uid = String(userId || '').trim();
+    if (!uid) return { ok: false, error: 'missing_user_id' };
+    const url = `${BACKEND_URL}/me/subscription?user_id=${encodeURIComponent(uid)}`;
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    const json = await res.json().catch(() => ({}));
+    const active = !!(json && json.ok && (json.status === 'active' || json.status === 'trialing'));
+    setSubscriptionStatus(active ? 'pro' : 'free');
+    return { ok: true, status: active ? 'active' : (json?.status || null), raw: json };
+  } catch (e) {
+    // Network error: do not flip status to free aggressively; keep previous value
+    return { ok: false, error: e?.message || 'fetch_failed' };
+  }
+}
+
+export function getBackendUrl() { return BACKEND_URL; }

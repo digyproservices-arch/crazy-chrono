@@ -143,26 +143,19 @@ app.post('/webhooks/revenuecat', async (req, res) => {
       return res.json({ ok: true, skipped: 'no_admin_config' });
     }
 
-    // 6) Upsert subscriptions par user_id
+    // 6) Upsert subscriptions par user_id (requiert un index unique sur user_id)
     const row = {
       user_id: userId,
       price_id: productId || entitlement,
+      entitlement,
       status,
       current_period_end,
       updated_at: new Date().toISOString(),
     };
     try {
-      const { data: found, error: selErr } = await supabaseAdmin
+      await supabaseAdmin
         .from('subscriptions')
-        .select('id')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      if (!selErr && Array.isArray(found) && found[0]?.id) {
-        await supabaseAdmin.from('subscriptions').update(row).eq('id', found[0].id);
-      } else {
-        await supabaseAdmin.from('subscriptions').insert(row);
-      }
+        .upsert(row, { onConflict: 'user_id' });
     } catch (e) {
       console.error('[RevenueCat] upsert error', e);
     }

@@ -11,6 +11,7 @@ import Pricing from './components/Billing/Pricing';
 import Account from './components/Account';
 import ModeSelect from './components/Modes/ModeSelect';
 import SessionConfig from './components/Modes/SessionConfig';
+import { fetchAndSyncStatus } from './utils/subscription';
 
 function App() {
   const [gameMode, setGameMode] = useState(false);
@@ -24,6 +25,19 @@ function App() {
     };
     window.addEventListener('cc:gameMode', onGame);
     return () => window.removeEventListener('cc:gameMode', onGame);
+  }, []);
+  useEffect(() => {
+    const sync = async () => {
+      try { if (auth && auth.id) await fetchAndSyncStatus(auth.id); } catch {}
+    };
+    sync();
+  }, [auth]);
+  useEffect(() => {
+    const onAuth = () => {
+      try { setAuth(JSON.parse(localStorage.getItem('cc_auth') || 'null')); } catch { setAuth(null); }
+    };
+    window.addEventListener('cc:authChanged', onAuth);
+    return () => window.removeEventListener('cc:authChanged', onAuth);
   }, []);
   const carteVidePath = `${process.env.PUBLIC_URL}/images/carte-vide.png`;
   const RequireAuth = ({ children }) => auth ? children : <Navigate to="/login" replace />;
