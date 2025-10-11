@@ -14,6 +14,10 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
+// Early middleware: enable CORS and JSON parsing before defining routes (including webhooks)
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+
 // ===== Usage/Quota (Mini-sprint): server-side check tied to Supabase user =====
 let supabaseAdmin = null;
 try {
@@ -71,6 +75,101 @@ app.post('/usage/can-start', async (req, res) => {
     return res.json({ ok: true, allow, limit: FREE_LIMIT, sessionsToday, reason: allow ? 'under_limit' : 'limit_reached' });
   } catch (e) {
     console.error('[Usage] can-start error', e);
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+// Debug endpoint to verify path is correct (GET should return 200; real webhook uses POST)
+app.get('/webhooks/revenuecat', (req, res) => {
+  return res.status(200).json({ ok: true, path: '/webhooks/revenuecat', method: 'GET', note: 'Use POST for RevenueCat webhooks' });
+});
+
+// Webhook RevenueCat: valide le bearer secret et synchronise public.subscriptions
+// Env: REVENUECAT_WEBHOOK_SECRET (Authorization: Bearer <secret>)
+app.post('/webhooks/revenuecat', async (req, res) => {
+  try {
+    const shared = process.env.REVENUECAT_WEBHOOK_SECRET || '';
+    if (shared) {
+      const auth = String(req.headers['authorization'] || '');
+      if (!auth.startsWith('Bearer ') || auth.slice(7) !== shared) {
+        return res.status(401).json({ ok: false, error: 'unauthorized' });
+      }
+    }
+    if (!supabaseAdmin) return res.json({ ok: true, skipped: 'no_admin_config' });
+
+    const payload = req.body && req.body.event ? req.body.event : (req.body || {});
+    const type = String(payload.type || '').toLowerCase();
+    const userId = payload.app_user_id || req.body?.app_user_id || req.body?.subscriber?.app_user_id;
+    if (!userId) return res.status(400).json({ ok: false, error: 'missing_app_user_id' });
+
+    // Champs utiles
+    const entitlement = payload.entitlement_id || (Array.isArray(payload.entitlement_ids) ? payload.entitlement_ids[0] : null) || 'pro';
+    const productId = payload.product_id || payload.product_identifier || null;
+    const expMs = payload.expiration_at_ms || payload.expires_at_ms || null;
+    const current_period_end = expMs ? new Date(Number(expMs)).toISOString() : null;
+
+    // Map type -> status
+    let status = null;
+    if (['initial_purchase', 'renewal', 'product_change', 'non_renewing_purchase', 'uncancellation', 'subscription_resumed'].includes(type)) status = 'active';
+    else if (['cancellation', 'subscriber_alias', 'billing_issue', 'subscription_paused'].includes(type)) status = 'past_due';
+    else if (['expiration'].includes(type)) status = 'expired';
+
+    // Fallback: si on a une échéance future, considère active/trialing
+    if (!status) {
+      if (current_period_end && Date.parse(current_period_end) > Date.now()) status = 'active';
+      else status = 'expired';
+    }
+
+    const row = {
+      user_id: userId,
+      price_id: productId || entitlement, // stocke l'ID produit/entitlement dans price_id faute de champ dédié
+      status,
+      current_period_end,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Upsert manuel par user_id (sans contrainte unique): update si existe, sinon insert
+    try {
+      const { data: found, error: selErr } = await supabaseAdmin
+        .from('subscriptions')
+        .select('id')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      if (!selErr && Array.isArray(found) && found[0]?.id) {
+        await supabaseAdmin.from('subscriptions').update(row).eq('id', found[0].id);
+      } else {
+        await supabaseAdmin.from('subscriptions').insert(row);
+      }
+    } catch (e) {
+      console.error('[RevenueCat] upsert error', e);
+    }
+
+    console.log('[RevenueCat] webhook synced:', { type, userId, status, entitlement, productId });
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error('[RevenueCat] webhook error', e);
+    return res.status(500).json({ ok: false });
+  }
+});
+
+// GET /me/subscription?user_id=...  -> { ok:true, status, current_period_end }
+app.get('/me/subscription', async (req, res) => {
+  try {
+    const userId = String(req.query.user_id || req.headers['x-user-id'] || '').trim();
+    if (!userId) return res.status(400).json({ ok: false, error: 'missing_user_id' });
+    if (!supabaseAdmin) return res.json({ ok: true, status: null, current_period_end: null });
+    const { data: rows, error } = await supabaseAdmin
+      .from('subscriptions')
+      .select('status,current_period_end,updated_at')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+    if (error) return res.status(500).json({ ok: false, error: 'db_error' });
+    const row = Array.isArray(rows) && rows[0] ? rows[0] : null;
+    return res.json({ ok: true, status: row?.status || null, current_period_end: row?.current_period_end || null });
+  } catch (e) {
+    console.error('/me/subscription error', e);
     return res.status(500).json({ ok: false, error: 'server_error' });
   }
 });
