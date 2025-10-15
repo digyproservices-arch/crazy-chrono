@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import '../styles/Carte.css';
 import { pointToSvgCoords, polygonToPointsStr, segmentsToSvgPath, pointsToBezierPath } from './CarteUtils';
+import { getBackendUrl } from '../utils/subscription';
 import { assignElementsToZones, fetchElements } from '../utils/elementsLoader';
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts } from '../utils/progress';
 import { isFree, canStartSessionToday, incrementSessionCount } from '../utils/subscription';
@@ -1646,7 +1647,7 @@ const handleEditGreenZone = (zone) => {
     const load = async () => {
       try {
         setIsLoadingPositions(true);
-        const apiBase = `${window.location.protocol}//${window.location.hostname}:4000`;
+        const apiBase = getBackendUrl();
         const res = await fetch(`${apiBase}/math-positions`, { method: 'GET' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
