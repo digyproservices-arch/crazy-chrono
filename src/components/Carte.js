@@ -475,6 +475,11 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
   const [historyExpanded, setHistoryExpanded] = useState(true);
   const autoStartRef = useRef(false);
 
+  // Prewarm backend (non-blocking) to reduce cold-start latency
+  useEffect(() => {
+    fetchWithTimeout(`${getBackendUrl()}/healthz`, { cache: 'no-store' }, 1500).catch(() => {});
+  }, []);
+
   // Invalidation du cache des centres (resize/scroll)
   useEffect(() => {
     const onViewportChange = () => { try { invalidateZoneCenterCache(); } catch {} };
