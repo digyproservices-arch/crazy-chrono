@@ -107,6 +107,20 @@ function mulberry32(seed) {
   };
 }
 
+// Small helper: fetch with timeout (ms)
+async function fetchWithTimeout(url, options = {}, timeoutMs = 1500) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort('timeout'), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: ctrl.signal });
+    clearTimeout(t);
+    return res;
+  } catch (e) {
+    clearTimeout(t);
+    throw e;
+  }
+}
+
 function makeRngFromSeed(seed) {
   const s = Number(seed);
   return Number.isFinite(s) ? mulberry32(s) : Math.random;
@@ -583,12 +597,20 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
   const getLocalUserId = () => {
     try { const a = JSON.parse(localStorage.getItem('cc_auth') || 'null'); return a?.id || null; } catch { return null; }
   };
+  const fetchWithTimeout = (url, options, timeout = 5000) => {
+    return Promise.race([
+      fetch(url, options),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout')), timeout)
+      ),
+    ]);
+  };
   const serverAllowsStart = async (userId) => {
     try {
       if (!userId) return { ok: true, allow: true };
-      const resp = await fetch(`${window.location.protocol}//${window.location.hostname}:4000/usage/can-start`, {
+      const resp = await fetchWithTimeout(`${window.location.protocol}//${window.location.hostname}:4000/usage/can-start`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId })
-      });
+      }, 1500);
       const json = await resp.json().catch(() => ({}));
       if (!resp.ok) return { ok: false, allow: true }; // ne pas bloquer si erreur serveur
       return json;
