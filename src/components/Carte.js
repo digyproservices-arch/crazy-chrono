@@ -459,6 +459,7 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
   const socket = socketRef.current;
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(true);
+  const autoStartRef = useRef(false);
 
   // Invalidation du cache des centres (resize/scroll)
   useEffect(() => {
@@ -726,6 +727,13 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
     window.addEventListener('resize', applyMobile);
     // Cleanup resize listener will be returned later with socket cleanup
     const cleanupResize = () => window.removeEventListener('resize', applyMobile);
+    // Auto-start on first mount if not already started and not in edit mode
+    try {
+      if (!autoStartRef.current && !gameActive && !editMode) {
+        autoStartRef.current = true;
+        startGame();
+      }
+    } catch {}
     // Avoid double-connect in strict mode by checking existing
     if (socketRef.current && socketRef.current.connected) return;
     const url = `${window.location.protocol}//${window.location.hostname}:4000`;
@@ -734,6 +742,12 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
 
     const onConnect = () => {
       setSocketConnected(true);
+      try {
+        if (!autoStartRef.current && !gameActive && !editMode) {
+          autoStartRef.current = true;
+          startGame();
+        }
+      } catch {}
       console.debug('[CC][client] socket connected', { id: s.id });
       // Lire la config de session (si définie par l'écran Modes/SessionConfig)
       let cfg = null;
@@ -1273,6 +1287,7 @@ function doStart() {
     return;
   }
   // Fallback: mode local (sans serveur)
+  try { handleAutoAssign(); } catch {}
   setScore(0);
   setGameActive(true);
   setGameSelectedIds([]);
@@ -3916,22 +3931,6 @@ setZones(dataWithRandomTexts);
       {/* BLOC BOUTONS TOUJOURS AFFICHÉS (masqué en plein écran jeu) */}
       {!hasSidebar && (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '24px 0 24px 0', gap: 10 }}>
-  <button
-    style={{
-      background: '#007bff',
-      color: '#fff',
-      fontWeight: 'bold',
-      border: '2px solid #333',
-      borderRadius: 8,
-      padding: '10px 24px',
-      fontSize: 18,
-      marginBottom: 8,
-      cursor: 'pointer'
-    }}
-    onClick={handleAutoAssign}
-  >
-    Charger et attribuer les éléments automatiquement
-  </button>
           {/* (Supprimé) Bannière zone 417 + bouton de duplication */}
         {!gameActive && editMode && (
         <div style={{ display: 'flex', gap: 12 }}>
@@ -3981,34 +3980,14 @@ setZones(dataWithRandomTexts);
         <hr style={{ margin: '16px 0', border: 0, borderTop: '2px dashed #ffc107' }} />
         {/* --- MODE JEU --- */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0', flexWrap: 'wrap' }}>
-          {!gameActive ? (
-            <>
-              <button
-                style={{ background: '#00b894', color: '#fff', fontWeight: 'bold', border: '2px solid #333', borderRadius: 8, padding: '8px 16px', cursor: 'pointer' }}
-                onClick={startGame}
-              >
-                {`Lancer le mode solo (${gameDuration >= 60 ? Math.round(gameDuration/60) + ' min' : gameDuration + 's'})`}
-              </button>
-              <select
-                value={gameDuration}
-                onChange={e => setGameDuration(parseInt(e.target.value, 10))}
-                style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid #333' }}
-                title="Durée de jeu"
-              >
-                <option value={30}>30s</option>
-                <option value={60}>1 min</option>
-                <option value={90}>1 min 30</option>
-                <option value={120}>2 min</option>
-              </select>
-            </>
-          ) : (
+          {gameActive ? (
             <button
               style={{ background: '#d63031', color: '#fff', fontWeight: 'bold', border: '2px solid #333', borderRadius: 8, padding: '8px 16px', cursor: 'pointer' }}
               onClick={() => setGameActive(false)}
             >
               Stop
             </button>
-          )}
+          ) : null}
           <div style={{ fontSize: 18, fontWeight: 'bold' }}>Temps: {timeLeft}s</div>
           <div style={{ fontSize: 18, fontWeight: 'bold' }}>Score: {score}</div>
           <div style={{ fontSize: 18, fontWeight: 'bold' }}>
