@@ -56,6 +56,7 @@ const NavBar = () => {
   return (
     <nav style={{ display: 'flex', gap: 16, marginBottom: 24, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', position: 'relative' }}>
       <Link to="/" style={{ fontWeight: location.pathname === "/" ? "bold" : "normal" }}>Carte</Link>
+      <a href="https://crazy-chrono.com" style={{ marginLeft: 12, textDecoration: 'none', color: '#1f2937' }}>Retour boutique</a>
       {isAdmin && (
         <Link to="/admin" style={{ fontWeight: location.pathname === "/admin" ? "bold" : "normal" }}>Admin</Link>
       )}
