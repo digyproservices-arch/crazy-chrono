@@ -78,6 +78,69 @@ app.post('/usage/can-start', async (req, res) => {
     return res.status(500).json({ ok: false, error: 'server_error' });
   }
 });
+// GET /me  -> { ok:true, user:{id,email}, role, subscription }
+app.get('/me', async (req, res) => {
+  try {
+    // 1) Try to authenticate via Supabase JWT if provided
+    const authz = String(req.headers['authorization'] || '').trim();
+    let user = null;
+    if (supabaseAdmin && authz && authz.startsWith('Bearer ')) {
+      const token = authz.slice(7).trim();
+      try {
+        const { data, error } = await supabaseAdmin.auth.getUser(token);
+        if (!error && data && data.user) {
+          user = { id: data.user.id, email: data.user.email };
+        }
+      } catch {}
+    }
+    // 2) Bootstrap fallback: allow lookup by email query for initial admin setup only
+    if (!user) {
+      const qEmail = String(req.query.email || '').trim().toLowerCase();
+      if (supabaseAdmin && qEmail) {
+        const { data, error } = await supabaseAdmin
+          .from('auth.users')
+          .select('id,email')
+          .eq('email', qEmail)
+          .limit(1);
+        if (!error && Array.isArray(data) && data[0]) {
+          user = { id: data[0].id, email: data[0].email };
+        }
+      }
+    }
+    if (!user) return res.status(401).json({ ok: false, error: 'unauthorized' });
+
+    // 3) Role from user_profiles (default: 'user')
+    let role = 'user';
+    try {
+      if (supabaseAdmin) {
+        const { data: prof, error: perr } = await supabaseAdmin
+          .from('user_profiles')
+          .select('role')
+          .eq('id', user.id)
+          .limit(1);
+        if (!perr && Array.isArray(prof) && prof[0] && prof[0].role) role = prof[0].role;
+      }
+    } catch {}
+
+    // 4) Subscription status from subscriptions table
+    let subscription = null;
+    try {
+      if (supabaseAdmin) {
+        const { data: rows, error: sErr } = await supabaseAdmin
+          .from('subscriptions')
+          .select('status,updated_at')
+          .eq('user_id', user.id)
+          .order('updated_at', { ascending: false })
+          .limit(1);
+        if (!sErr && Array.isArray(rows) && rows[0]) subscription = rows[0].status || null;
+      }
+    } catch {}
+
+    return res.json({ ok: true, user, role, subscription });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
 
 // Debug endpoint to verify path is correct (GET should return 200; real webhook uses POST)
 app.get('/webhooks/revenuecat', (req, res) => {
