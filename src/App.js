@@ -11,7 +11,8 @@ import Pricing from './components/Billing/Pricing';
 import Account from './components/Account';
 import ModeSelect from './components/Modes/ModeSelect';
 import SessionConfig from './components/Modes/SessionConfig';
-import { fetchAndSyncStatus } from './utils/subscription';
+import { fetchAndSyncStatus, getBackendUrl } from './utils/subscription';
+import supabase from './utils/supabaseClient';
 
 function App() {
   const [gameMode, setGameMode] = useState(false);
@@ -28,7 +29,27 @@ function App() {
   }, []);
   useEffect(() => {
     const sync = async () => {
-      try { if (auth && auth.id) await fetchAndSyncStatus(auth.id); } catch {}
+      try {
+        // 1) Try full sync from backend /me using Supabase JWT if available
+        if (supabase) {
+          const { data } = await supabase.auth.getSession();
+          const token = data?.session?.access_token || null;
+          if (token) {
+            try {
+              const res = await fetch(`${getBackendUrl()}/me`, { headers: { Authorization: `Bearer ${token}` } });
+              const json = await res.json().catch(() => ({}));
+              if (json && json.ok && json.user) {
+                const role = json.role || 'user';
+                try { localStorage.setItem('cc_subscription_status', (json.subscription === 'active' || json.subscription === 'trialing') ? 'pro' : 'free'); } catch {}
+                try { localStorage.setItem('cc_auth', JSON.stringify({ id: json.user.id, email: json.user.email, role, isAdmin: role === 'admin', isEditor: role !== 'user' })); } catch {}
+                try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
+              }
+            } catch {}
+          }
+        }
+        // 2) Fallback: keep previous behavior to sync subscription by user id if already known
+        if (auth && auth.id) await fetchAndSyncStatus(auth.id);
+      } catch {}
     };
     sync();
   }, [auth]);
