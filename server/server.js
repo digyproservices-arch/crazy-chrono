@@ -14,6 +14,60 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
+// Admin-only: change a user's role by email
+// POST /admin/users/role { target_email, role }
+app.post('/admin/users/role', async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(500).json({ ok: false, error: 'supabase_not_configured' });
+    const authz = String(req.headers['authorization'] || '').trim();
+    if (!authz.startsWith('Bearer ')) return res.status(401).json({ ok: false, error: 'missing_token' });
+    const token = authz.slice(7).trim();
+
+    // Authenticate caller
+    const { data: who, error: whoErr } = await supabaseAdmin.auth.getUser(token);
+    if (whoErr || !who?.user) return res.status(401).json({ ok: false, error: 'invalid_token' });
+    const caller = { id: who.user.id, email: who.user.email };
+
+    // Check caller is admin
+    const { data: cProf, error: cErr } = await supabaseAdmin
+      .from('user_profiles')
+      .select('role')
+      .eq('id', caller.id)
+      .limit(1);
+    const callerRole = (!cErr && Array.isArray(cProf) && cProf[0]?.role) ? cProf[0].role : 'user';
+    if (callerRole !== 'admin') return res.status(403).json({ ok: false, error: 'forbidden' });
+
+    // Validate payload
+    const targetEmail = String(req.body?.target_email || '').trim().toLowerCase();
+    const newRole = String(req.body?.role || '').trim().toLowerCase();
+    if (!targetEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail)) {
+      return res.status(400).json({ ok: false, error: 'invalid_target_email' });
+    }
+    if (!['admin','editor','user'].includes(newRole)) {
+      return res.status(400).json({ ok: false, error: 'invalid_role' });
+    }
+
+    // Find target user id in auth.users
+    const { data: tgt, error: tErr } = await supabaseAdmin
+      .from('auth.users')
+      .select('id,email')
+      .eq('email', targetEmail)
+      .limit(1);
+    if (tErr || !Array.isArray(tgt) || !tgt[0]) return res.status(404).json({ ok: false, error: 'user_not_found' });
+    const target = { id: tgt[0].id, email: tgt[0].email };
+
+    // Upsert role in user_profiles
+    const { error: upErr } = await supabaseAdmin
+      .from('user_profiles')
+      .upsert({ id: target.id, email: target.email, role: newRole }, { onConflict: 'id' });
+    if (upErr) return res.status(500).json({ ok: false, error: 'update_failed' });
+
+    return res.json({ ok: true, target: { id: target.id, email: target.email }, role: newRole });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
 // Early middleware: enable CORS and JSON parsing before defining routes (including webhooks)
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
