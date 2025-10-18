@@ -11,6 +11,7 @@ import Pricing from './components/Billing/Pricing';
 import Account from './components/Account';
 import ModeSelect from './components/Modes/ModeSelect';
 import SessionConfig from './components/Modes/SessionConfig';
+import AdminRoles from './components/Admin/AdminRoles';
 import { fetchAndSyncStatus, getBackendUrl } from './utils/subscription';
 import supabase from './utils/supabaseClient';
 
@@ -62,6 +63,13 @@ function App() {
   }, []);
   const carteVidePath = `${process.env.PUBLIC_URL}/images/carte-vide.png`;
   const RequireAuth = ({ children }) => auth ? children : <Navigate to="/login" replace />;
+  const RequireAdmin = ({ children }) => {
+    try {
+      const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
+      if (a && (a.role === 'admin' || a.isAdmin)) return children;
+    } catch {}
+    return <Navigate to="/modes" replace />;
+  };
   return (
     <DataProvider>
       <Router>
@@ -80,6 +88,7 @@ function App() {
               <Route path="/modes" element={<RequireAuth><ModeSelect /></RequireAuth>} />
               <Route path="/config/:mode" element={<RequireAuth><SessionConfig /></RequireAuth>} />
               <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/admin/roles" element={<RequireAdmin><AdminRoles /></RequireAdmin>} />
               <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
               <Route path="/pricing" element={<RequireAuth><Pricing /></RequireAuth>} />
               <Route path="/debug/progress" element={<RequireAuth><ProgressDebug /></RequireAuth>} />
