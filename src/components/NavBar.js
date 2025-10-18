@@ -58,7 +58,10 @@ const NavBar = () => {
       <Link to="/" style={{ fontWeight: location.pathname === "/" ? "bold" : "normal" }}>Carte</Link>
       <a href="https://crazy-chrono.com" style={{ marginLeft: 12, textDecoration: 'none', color: '#1f2937' }}>Retour boutique</a>
       {isAdmin && (
-        <Link to="/admin" style={{ fontWeight: location.pathname === "/admin" ? "bold" : "normal" }}>Admin</Link>
+        <>
+          <Link to="/admin" style={{ fontWeight: location.pathname === "/admin" ? "bold" : "normal" }}>Admin</Link>
+          <Link to="/admin/roles" style={{ fontWeight: location.pathname === "/admin/roles" ? "bold" : "normal", marginLeft: 12 }}>Gestion des rôles</Link>
+        </>
       )}
       <span style={{ width: 1, height: 18, background: '#ccc', margin: '0 8px' }} />
       {/* Global free quota badge + link to pricing */}
