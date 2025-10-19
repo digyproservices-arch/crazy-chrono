@@ -147,18 +147,18 @@ app.get('/me', async (req, res) => {
         }
       } catch {}
     }
-    // 2) Bootstrap fallback: allow lookup by email query for initial admin setup only
+    // 2) Bootstrap fallback: lookup by email using Supabase Admin API
+    //    Note: querying auth.users via PostgREST is not supported; use auth.admin.listUsers
     if (!user) {
       const qEmail = String(req.query.email || '').trim().toLowerCase();
       if (supabaseAdmin && qEmail) {
-        const { data, error } = await supabaseAdmin
-          .from('auth.users')
-          .select('id,email')
-          .eq('email', qEmail)
-          .limit(1);
-        if (!error && Array.isArray(data) && data[0]) {
-          user = { id: data[0].id, email: data[0].email };
-        }
+        try {
+          const { data: usersPage, error: lErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+          if (!lErr && usersPage && Array.isArray(usersPage.users)) {
+            const found = usersPage.users.find(u => String(u.email || '').toLowerCase() === qEmail);
+            if (found) user = { id: found.id, email: found.email };
+          }
+        } catch {}
       }
     }
     if (!user) return res.status(401).json({ ok: false, error: 'unauthorized' });
