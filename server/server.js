@@ -407,6 +407,18 @@ app.get('/healthz', (req, res) => {
   res.json({ ok: true, ts: new Date().toISOString(), uptime: process.uptime() });
 });
 
+// Debug: expose whether Supabase admin is configured (no secrets leaked)
+app.get('/debug/supabase', (req, res) => {
+  try {
+    const hasUrl = !!process.env.SUPABASE_URL;
+    const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const adminConfigured = !!supabaseAdmin;
+    return res.json({ ok: true, hasUrl, hasServiceKey, adminConfigured });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'debug_error' });
+  }
+});
+
 // ===== Stripe billing: Sprint 1 skeleton =====
 // Env: STRIPE_SECRET_KEY, STRIPE_PRICE_ID, STRIPE_WEBHOOK_SECRET, STRIPE_CUSTOMER_PORTAL_RETURN_URL
 let stripe = null;
