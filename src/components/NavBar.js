@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { isFree, getDailyCounts } from '../utils/subscription';
+import supabase from '../utils/supabaseClient';
 
 const NavBar = () => {
   const location = useLocation();
@@ -38,7 +39,8 @@ const NavBar = () => {
   const isAdmin = useMemo(() => !!(auth && (auth.isAdmin || auth.isEditor || auth.role === 'admin' || auth.role === 'editor')), [auth]);
   const isLogged = !!auth;
 
-  const onLogout = () => {
+  const onLogout = async () => {
+    try { await supabase?.auth?.signOut?.(); } catch {}
     try { localStorage.removeItem('cc_auth'); } catch {}
     try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
     navigate('/login', { replace: true });

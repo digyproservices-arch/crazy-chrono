@@ -190,6 +190,13 @@ app.get('/me', async (req, res) => {
       }
     } catch {}
 
+    // 5) Business rule: Admins are PRO by default
+    try {
+      if (role === 'admin' && !['active','trialing'].includes(String(subscription || '').toLowerCase())) {
+        subscription = 'active';
+      }
+    } catch {}
+
     return res.json({ ok: true, user, role, subscription });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'server_error' });
