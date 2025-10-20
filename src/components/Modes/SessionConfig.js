@@ -171,6 +171,38 @@ export default function SessionConfig() {
     return { textImage: ti, calcNum: cn };
   }, [data, selectedClasses, selectedThemes]);
 
+  // Prefill depuis une éventuelle config stockée
+  useEffect(() => {
+    try {
+      const prev = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+      if (prev && typeof prev === 'object') {
+        if (Array.isArray(prev.classes) && prev.classes.length) setSelectedClasses(prev.classes);
+        if (Array.isArray(prev.themes)) setSelectedThemes(prev.themes);
+        if (prev.rounds != null) setRounds(String(prev.rounds));
+        if (prev.duration != null) setDuration(String(prev.duration));
+        if (typeof prev.allowEmptyMathWhenNoData === 'boolean') setAllowEmptyMath(prev.allowEmptyMathWhenNoData);
+      }
+    } catch {}
+  }, []);
+
+  // Persister les modifications pendant la saisie (léger debounce)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        const payload = {
+          mode,
+          classes: selectedClasses,
+          themes: selectedThemes,
+          rounds,
+          duration,
+          allowEmptyMathWhenNoData: !!allowEmptyMath,
+        };
+        localStorage.setItem('cc_session_cfg', JSON.stringify(payload));
+      } catch {}
+    }, 200);
+    return () => clearTimeout(t);
+  }, [mode, selectedClasses, selectedThemes, rounds, duration, allowEmptyMath]);
+
   const clampInt = (val, lo, hi, fallback) => {
     const n = parseInt(String(val), 10);
     if (!Number.isFinite(n)) return fallback;
