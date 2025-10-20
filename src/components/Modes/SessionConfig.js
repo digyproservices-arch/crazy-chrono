@@ -12,8 +12,9 @@ export default function SessionConfig() {
   // Sélections
   const [selectedClasses, setSelectedClasses] = useState(["CP","CE1","CE2","CM1","CM2"]);
   const [selectedThemes, setSelectedThemes] = useState([]);
-  const [rounds, setRounds] = useState(3);
-  const [duration, setDuration] = useState(60);
+  // Garder des strings pour permettre la saisie sans "saut" (ex: vide, 1 puis 10, etc.)
+  const [rounds, setRounds] = useState('3');
+  const [duration, setDuration] = useState('60');
   const [allowEmptyMath, setAllowEmptyMath] = useState(true);
 
   // Helper dans le scope du composant: déterminer si un thème a des données pour les classes sélectionnées
@@ -170,9 +171,17 @@ export default function SessionConfig() {
     return { textImage: ti, calcNum: cn };
   }, [data, selectedClasses, selectedThemes]);
 
+  const clampInt = (val, lo, hi, fallback) => {
+    const n = parseInt(String(val), 10);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(hi, Math.max(lo, n));
+  };
+
   const onStart = () => {
     // Règle simple: si des thèmes sont sélectionnés, on ne garde QUE ceux-ci; sinon, tout est autorisé
-    const payload = { mode, classes: selectedClasses, themes: selectedThemes, rounds, duration, allowEmptyMathWhenNoData: !!allowEmptyMath };
+    const r = clampInt(rounds, 1, 20, 3);
+    const d = clampInt(duration, 15, 600, 60);
+    const payload = { mode, classes: selectedClasses, themes: selectedThemes, rounds: r, duration: d, allowEmptyMathWhenNoData: !!allowEmptyMath };
     if (mode === 'online') {
       payload.playerName = playerName || 'Joueur';
       payload.room = { type: roomMode, code: (roomCode||'').toUpperCase() };
@@ -292,12 +301,27 @@ export default function SessionConfig() {
       <section style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))', gap: 12 }}>
         <div>
           <label>Nombre de manches</label>
-          <input type="number" min={1} max={20} value={rounds} onChange={(e)=>setRounds(parseInt(e.target.value||'3',10))}
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={20}
+            value={rounds}
+            onChange={(e)=>setRounds(e.target.value)}
+            onBlur={(e)=>setRounds(String(clampInt(e.target.value, 1, 20, 3)))}
             style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8 }} />
         </div>
         <div>
           <label>Durée (secondes)</label>
-          <input type="number" min={15} max={600} step={5} value={duration} onChange={(e)=>setDuration(parseInt(e.target.value||'60',10))}
+          <input
+            type="number"
+            inputMode="numeric"
+            min={15}
+            max={600}
+            step={5}
+            value={duration}
+            onChange={(e)=>setDuration(e.target.value)}
+            onBlur={(e)=>setDuration(String(clampInt(e.target.value, 15, 600, 60)))}
             style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8 }} />
         </div>
       </section>
