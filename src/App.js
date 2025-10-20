@@ -31,6 +31,7 @@ function App() {
   useEffect(() => {
     const sync = async () => {
       try {
+        let syncedFromMe = false;
         // 1) Try full sync from backend /me using Supabase JWT if available
         if (supabase) {
           const { data } = await supabase.auth.getSession();
@@ -41,15 +42,17 @@ function App() {
               const json = await res.json().catch(() => ({}));
               if (json && json.ok && json.user) {
                 const role = json.role || 'user';
-                try { localStorage.setItem('cc_subscription_status', (json.subscription === 'active' || json.subscription === 'trialing') ? 'pro' : 'free'); } catch {}
+                const isPro = (json.subscription === 'active' || json.subscription === 'trialing' || role === 'admin');
+                try { localStorage.setItem('cc_subscription_status', isPro ? 'pro' : 'free'); } catch {}
                 try { localStorage.setItem('cc_auth', JSON.stringify({ id: json.user.id, email: json.user.email, role, isAdmin: role === 'admin', isEditor: role !== 'user' })); } catch {}
                 try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
+                syncedFromMe = true;
               }
             } catch {}
           }
         }
-        // 2) Fallback: keep previous behavior to sync subscription by user id if already known
-        if (auth && auth.id) await fetchAndSyncStatus(auth.id);
+        // 2) Fallback: only if NOT already synced from /me (prevents flicker and overrides)
+        if (!syncedFromMe && auth && auth.id) await fetchAndSyncStatus(auth.id);
       } catch {}
     };
     sync();
