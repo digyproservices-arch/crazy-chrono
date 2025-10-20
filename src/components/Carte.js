@@ -471,6 +471,8 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
   const roundNewTimerRef = useRef(null);
   // Expose a stable alias so existing handlers using `socket` keep working
   const socket = socketRef.current;
+  // Apply session config (rounds/duration) once when we are host
+  const configAppliedRef = useRef(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(true);
   const autoStartRef = useRef(false);
@@ -776,6 +778,27 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
         }
       } catch {}
       console.debug('[CC][client] socket connected', { id: s.id });
+      // Listen room:state to know when we are host, then apply config once
+      const onRoomState = (payload) => {
+        try {
+          if (!payload || !Array.isArray(payload.players)) return;
+          const me = payload.players.find(p => p && p.isHost);
+          if (!me) return; // we are not host
+          if (configAppliedRef.current) return;
+          let cfg = null; try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
+          const rounds = parseInt(cfg?.rounds, 10);
+          const duration = parseInt(cfg?.duration, 10);
+          // Emit server-side settings with basic guards
+          if (Number.isFinite(duration) && duration >= 10 && duration <= 600) {
+            try { s.emit('room:duration:set', { duration }); } catch {}
+          }
+          if (Number.isFinite(rounds) && rounds >= 1 && rounds <= 20) {
+            try { s.emit('room:setRounds', rounds); } catch {}
+          }
+          configAppliedRef.current = true;
+        } catch {}
+      };
+      s.on('room:state', onRoomState);
       // Lire la config de session (si définie par l'écran Modes/SessionConfig)
       let cfg = null;
       try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
@@ -809,7 +832,18 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
                 if (!canStartSessionToday(3)) { try { alert("Limite quotidienne atteinte (3 sessions/jour en version gratuite). Passe à la version Pro pour continuer."); } catch {}; try { navigate('/pricing'); } catch {}; return; }
                 incrementSessionCount();
               }
-              try { s.emit('startGame'); } catch {}
+              try {
+                // Ensure config applied at start time if not yet via room:state
+                if (!configAppliedRef.current) {
+                  let cfg2 = null; try { cfg2 = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
+                  const r2 = parseInt(cfg2?.rounds, 10);
+                  const d2 = parseInt(cfg2?.duration, 10);
+                  if (Number.isFinite(d2) && d2 >= 10 && d2 <= 600) s.emit('room:duration:set', { duration: d2 });
+                  if (Number.isFinite(r2) && r2 >= 1 && r2 <= 20) s.emit('room:setRounds', r2);
+                  configAppliedRef.current = true;
+                }
+                s.emit('startGame');
+              } catch {}
             }, 350);
           } else {
             // Demander au serveur de créer une salle et la rejoindre
@@ -820,11 +854,22 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
                   s.emit('joinRoom', { roomId: res.roomCode, name: cfg.playerName || playerName });
                   setTimeout(() => { try { s.emit('ready:toggle', { ready: true }); } catch {} }, 150);
                   setTimeout(() => {
+                    // Freemium guard
                     if (isFree()) {
                       if (!canStartSessionToday(3)) { try { alert("Limite quotidienne atteinte (3 sessions/jour en version gratuite)."); } catch {}; try { navigate('/pricing'); } catch {}; return; }
                       incrementSessionCount();
                     }
-                    try { s.emit('startGame'); } catch {}
+                    try {
+                      if (!configAppliedRef.current) {
+                        let cfg3 = null; try { cfg3 = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
+                        const r3 = parseInt(cfg3?.rounds, 10);
+                        const d3 = parseInt(cfg3?.duration, 10);
+                        if (Number.isFinite(d3) && d3 >= 10 && d3 <= 600) s.emit('room:duration:set', { duration: d3 });
+                        if (Number.isFinite(r3) && r3 >= 1 && r3 <= 20) s.emit('room:setRounds', r3);
+                        configAppliedRef.current = true;
+                      }
+                      s.emit('startGame');
+                    } catch {}
                   }, 350);
                 } else {
                   // fallback: rejoindre la salle par défaut
