@@ -980,6 +980,19 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
       safeHandleAutoAssign(seed, zonesFile);
       // Ensure game state is active
       setGameActive(true);
+      // Prendre la durée côté serveur et initialiser le timer d'affichage
+      try {
+        const d = parseInt(payload?.duration, 10);
+        if (Number.isFinite(d) && d > 0) {
+          setGameDuration(d);
+          setTimeLeft(d);
+        }
+      } catch {}
+      // Synchroniser l'index de manche si fourni
+      try {
+        const idx = parseInt(payload?.roundIndex, 10);
+        if (Number.isFinite(idx) && idx >= 0) setRoundsPlayed(idx);
+      } catch {}
       setGameSelectedIds([]);
       setGameMsg('');
       // Reset de la paire cible côté client en attendant round:target
@@ -3957,7 +3970,9 @@ setZones(dataWithRandomTexts);
               <div>Manche: {Number.isFinite(roundsPerSession) ? `${Math.max(0, roundsPlayed||0)} / ${roundsPerSession}` : Math.max(0, roundsPlayed||0)}</div>
             </div>
             <div className="hud-row">
-              <button onClick={handleEndSessionNow} style={{ background: '#d63031', color: '#fff', border: '1px solid #333', borderRadius: 6, padding: '6px 10px', fontWeight: 'bold' }}>Terminer</button>
+              {isHost && (
+                <button onClick={handleEndSessionNow} style={{ background: '#d63031', color: '#fff', border: '1px solid #333', borderRadius: 6, padding: '6px 10px', fontWeight: 'bold' }}>Terminer</button>
+              )}
               <div style={{ fontSize: 16, fontWeight: 'bold' }}>Temps: {timeLeft}s</div>
             </div>
             {lastWonPair && (
