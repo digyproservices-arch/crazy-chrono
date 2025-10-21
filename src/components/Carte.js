@@ -3969,6 +3969,9 @@ setZones(dataWithRandomTexts);
               <div>Salle: {roomId || '—'}</div>
               <div>Manche: {Number.isFinite(roundsPerSession) ? `${Math.max(0, roundsPlayed||0)} / ${roundsPerSession}` : Math.max(0, roundsPlayed||0)}</div>
             </div>
+            <div className="hud-row" style={{ fontSize: 12, color: '#374151' }}>
+              <div style={{ opacity: 0.8 }}>Paramètres: {Number.isFinite(roundsPerSession) ? `${roundsPerSession} manches` : 'manches ∞'} · {gameDuration}s</div>
+            </div>
             <div className="hud-row">
               {isHost && (
                 <button onClick={handleEndSessionNow} style={{ background: '#d63031', color: '#fff', border: '1px solid #333', borderRadius: 6, padding: '6px 10px', fontWeight: 'bold' }}>Terminer</button>
