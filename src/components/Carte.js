@@ -782,20 +782,27 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
       const onRoomState = (payload) => {
         try {
           if (!payload || !Array.isArray(payload.players)) return;
-          const me = payload.players.find(p => p && p.isHost);
-          if (!me) return; // we are not host
-          if (configAppliedRef.current) return;
+          // Vérifier que NOUS sommes l'hôte
+          const self = payload.players.find(p => p && p.id === s.id);
+          const amHost = !!self?.isHost;
+          // Charger la config souhaitée
           let cfg = null; try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
-          const rounds = parseInt(cfg?.rounds, 10);
-          const duration = parseInt(cfg?.duration, 10);
-          // Emit server-side settings with basic guards
-          if (Number.isFinite(duration) && duration >= 10 && duration <= 600) {
-            try { s.emit('room:duration:set', { duration }); } catch {}
+          const wantRounds = parseInt(cfg?.rounds, 10);
+          const wantDuration = parseInt(cfg?.duration, 10);
+          const hasWanted = (Number.isFinite(payload.roundsPerSession) ? payload.roundsPerSession === wantRounds : false)
+            && (Number.isFinite(payload.duration) ? payload.duration === wantDuration : false);
+          // Si l'état reflète déjà la config, marquer appliqué
+          if (hasWanted) { configAppliedRef.current = true; return; }
+          // Sinon, si nous sommes l'hôte, tenter d'appliquer
+          if (!configAppliedRef.current && amHost) {
+            if (Number.isFinite(wantDuration) && wantDuration >= 10 && wantDuration <= 600) {
+              try { s.emit('room:duration:set', { duration: wantDuration }); } catch {}
+            }
+            if (Number.isFinite(wantRounds) && wantRounds >= 1 && wantRounds <= 20) {
+              try { s.emit('room:setRounds', wantRounds); } catch {}
+            }
+            // Ne pas marquer comme appliqué tant que le room:state ne correspond pas
           }
-          if (Number.isFinite(rounds) && rounds >= 1 && rounds <= 20) {
-            try { s.emit('room:setRounds', rounds); } catch {}
-          }
-          configAppliedRef.current = true;
         } catch {}
       };
       s.on('room:state', onRoomState);
@@ -1366,6 +1373,20 @@ function doStart() {
       } catch {}
       // Appliquer limite Free: 3 manches par session
       try { applyFreeLimits(socket); } catch {}
+      // Pousser explicitement la configuration souhaitée juste avant le démarrage
+      try {
+        const cfg2 = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+        const wantRounds = parseInt(cfg2?.rounds, 10);
+        const wantDuration = parseInt(cfg2?.duration, 10);
+        if (Number.isFinite(wantDuration) && wantDuration >= 10 && wantDuration <= 600) {
+          try { socket.emit('room:duration:set', { duration: wantDuration }); } catch {}
+          try { setGameDuration(wantDuration); setTimeLeft(wantDuration); } catch {}
+        }
+        if (Number.isFinite(wantRounds) && wantRounds >= 1 && wantRounds <= 20) {
+          try { socket.emit('room:setRounds', wantRounds); } catch {}
+          try { setRoundsPerSession(wantRounds); } catch {}
+        }
+      } catch {}
       socket.emit('startGame');
       setMpMsg('Nouvelle manche');
     } catch {}
@@ -3973,9 +3994,7 @@ setZones(dataWithRandomTexts);
               <div style={{ opacity: 0.8 }}>Paramètres: {Number.isFinite(roundsPerSession) ? `${roundsPerSession} manches` : 'manches ∞'} · {gameDuration}s</div>
             </div>
             <div className="hud-row">
-              {isHost && (
-                <button onClick={handleEndSessionNow} style={{ background: '#d63031', color: '#fff', border: '1px solid #333', borderRadius: 6, padding: '6px 10px', fontWeight: 'bold' }}>Terminer</button>
-              )}
+              <button onClick={handleEndSessionNow} style={{ background: '#d63031', color: '#fff', border: '1px solid #333', borderRadius: 6, padding: '6px 10px', fontWeight: 'bold' }}>Terminer</button>
               <div style={{ fontSize: 16, fontWeight: 'bold' }}>Temps: {timeLeft}s</div>
             </div>
             {lastWonPair && (
