@@ -209,6 +209,14 @@ export default function SessionConfig() {
     return Math.min(hi, Math.max(lo, n));
   };
 
+  // Steppers for better UX (no focus issues on mobile)
+  const stepRounds = (delta) => {
+    setRounds(prev => String(clampInt((parseInt(prev, 10) || 3) + delta, 1, 20, 3)));
+  };
+  const stepDuration = (delta) => {
+    setDuration(prev => String(clampInt((parseInt(prev, 10) || 60) + delta, 15, 600, 60)));
+  };
+
   const onStart = () => {
     // Règle simple: si des thèmes sont sélectionnés, on ne garde QUE ceux-ci; sinon, tout est autorisé
     const r = clampInt(rounds, 1, 20, 3);
@@ -330,31 +338,24 @@ export default function SessionConfig() {
         </div>
       </section>
 
-      <section style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))', gap: 12 }}>
+      <section style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px,1fr))', gap: 12 }}>
         <div>
           <label>Nombre de manches</label>
-          <input
-            type="number"
-            inputMode="numeric"
-            min={1}
-            max={20}
-            value={rounds}
-            onChange={(e)=>setRounds(e.target.value)}
-            onBlur={(e)=>setRounds(String(clampInt(e.target.value, 1, 20, 3)))}
-            style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button onClick={() => stepRounds(-1)} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db' }}>−</button>
+            <div style={{ flex: 1, textAlign: 'center', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, background: '#f9fafb', fontWeight: 700 }}>{rounds}</div>
+            <button onClick={() => stepRounds(+1)} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db' }}>+</button>
+          </div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>Entre 1 et 20 manches.</div>
         </div>
         <div>
           <label>Durée (secondes)</label>
-          <input
-            type="number"
-            inputMode="numeric"
-            min={15}
-            max={600}
-            step={5}
-            value={duration}
-            onChange={(e)=>setDuration(e.target.value)}
-            onBlur={(e)=>setDuration(String(clampInt(e.target.value, 15, 600, 60)))}
-            style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button onClick={() => stepDuration(-5)} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db' }}>−5</button>
+            <div style={{ flex: 1, textAlign: 'center', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, background: '#f9fafb', fontWeight: 700 }}>{duration}</div>
+            <button onClick={() => stepDuration(+5)} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db' }}>+5</button>
+          </div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>Entre 15 et 600 secondes.</div>
         </div>
       </section>
 
