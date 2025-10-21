@@ -1030,7 +1030,6 @@ io.on('connection', (socket) => {
   socket.on('session:end', () => {
     if (!currentRoom) return;
     const room = getRoom(currentRoom);
-    if (socket.id !== room.hostId) return;
     endSession(currentRoom);
   });
 
