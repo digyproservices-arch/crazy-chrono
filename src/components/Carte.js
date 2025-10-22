@@ -121,6 +121,64 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 1500) {
   }
 }
 
+// Préchargement d'un lot d'images à partir des classes/thèmes sélectionnés
+function preloadAssets(cfg, data, onProgress, abortRef) {
+  try {
+    const dataStr = localStorage.getItem('data_cache'); // optionnel selon ton app, fallback DataContext sinon
+  } catch {}
+  // Utilise les données passées en paramètre
+  const pool = Array.isArray(data?.associations) ? data.associations : [];
+  // Filtrer par classes/themes si fournis
+  const classSet = new Set((cfg?.classes||[]).map(String));
+  const themeSet = new Set((cfg?.themes||[]).map(String));
+  const fit = (a) => {
+    const levels = (a?.levels||a?.classes||a?.classLevels||[]).map(String);
+    const lc = a?.levelClass ? [String(a.levelClass)] : [];
+    const L = [...levels, ...lc];
+    const okClass = classSet.size ? L.some(v => classSet.has(v)) : true;
+    const ts = (a?.themes||[]).map(String);
+    const okTheme = themeSet.size ? ts.some(t => themeSet.has(t)) : true;
+    return okClass && okTheme;
+  };
+  const selected = pool.filter(fit);
+  // Extraire URLs d'images candidates (texte-image et calc-num peuvent pointer vers images)
+  const urls = [];
+  for (const a of selected) {
+    const u1 = a?.imageUrl || a?.imgUrl || a?.image?.url;
+    if (u1) urls.push(String(u1));
+    const u2 = a?.chiffreImgUrl || a?.calcImgUrl;
+    if (u2) urls.push(String(u2));
+  }
+  // Limiter la taille pour mémoire (ex. 60 premières)
+  const uniq = Array.from(new Set(urls)).slice(0, 60);
+  if (!uniq.length) return Promise.resolve(true);
+  const total = uniq.length;
+  let done = 0;
+  const update = () => { try { onProgress && onProgress(Math.round((done/total)*100)); } catch {} };
+  update();
+  // Charger par petits lots en parallèle
+  const loadImage = (u) => new Promise((resolve) => {
+    if (abortRef?.current?.aborted) return resolve();
+    try {
+      const img = new Image();
+      img.onload = () => { done++; update(); resolve(); };
+      img.onerror = () => { done++; update(); resolve(); };
+      img.referrerPolicy = 'no-referrer';
+      img.decoding = 'async';
+      img.src = u;
+    } catch { done++; update(); resolve(); }
+  });
+  const concurrency = 8;
+  let i = 0;
+  const runners = new Array(concurrency).fill(0).map(async () => {
+    while (i < uniq.length) {
+      const idx = i++; // atomique assez pour notre usage
+      await loadImage(uniq[idx]);
+    }
+  });
+  return Promise.all(runners).then(() => true);
+}
+
 function makeRngFromSeed(seed) {
   const s = Number(seed);
   return Number.isFinite(s) ? mulberry32(s) : Math.random;
@@ -473,6 +531,11 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
   const socket = socketRef.current;
   // Apply session config (rounds/duration) once when we are host
   const configAppliedRef = useRef(false);
+  // Preload + gating state
+  const [preparing, setPreparing] = useState(false);
+  const [prepProgress, setPrepProgress] = useState(0);
+  const preloadAbortRef = useRef({ aborted: false });
+  const lastRoomStateRef = useRef(null);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(true);
   const autoStartRef = useRef(false);
@@ -771,12 +834,6 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
 
     const onConnect = () => {
       setSocketConnected(true);
-      try {
-        if (!autoStartRef.current && !gameActive && !editMode) {
-          autoStartRef.current = true;
-          startGame();
-        }
-      } catch {}
       console.debug('[CC][client] socket connected', { id: s.id });
       // Listen room:state to know when we are host, then apply config once
       const onRoomState = (payload) => {
@@ -937,9 +994,8 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
     s.on('room:state', (data) => {
       console.debug('[CC][client] room:state', data);
       try {
-        if (data && typeof data === 'object') {
-          if (data.roomCode && data.roomCode !== roomId) setRoomId(data.roomCode);
-          if (typeof data.status === 'string') setRoomStatus(data.status);
+        lastRoomStateRef.current = data;
+        if (data) {
           if (Array.isArray(data.players)) {
             setRoomPlayers(data.players);
             roomPlayersRef.current = data.players;
@@ -1373,27 +1429,56 @@ function doStart() {
       } catch {}
       // Appliquer limite Free: 3 manches par session
       try { applyFreeLimits(socket); } catch {}
-      // S'assurer d'être dans la salle avant de pousser la config et démarrer
+      // Phase de préparation: préchargement + handshake de paramètres
+      setPreparing(true);
+      setPrepProgress(0);
+      preloadAbortRef.current = { aborted: false };
+      const cfg2 = (() => { try { return JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch { return null; } })();
+      const wantRounds = parseInt(cfg2?.rounds, 10);
+      const wantDuration = parseInt(cfg2?.duration, 10);
+      // 1) Joindre la salle et pousser la config demandée
       try { socket.emit('joinRoom', { roomId, name: playerName }); } catch {}
-      setTimeout(() => {
+      try {
+        if (Number.isFinite(wantDuration) && wantDuration >= 10 && wantDuration <= 600) {
+          console.debug('[CC][client] emit room:duration:set', wantDuration);
+          socket.emit('room:duration:set', { duration: wantDuration });
+        }
+        if (Number.isFinite(wantRounds) && wantRounds >= 1 && wantRounds <= 20) {
+          console.debug('[CC][client] emit room:setRounds', wantRounds);
+          socket.emit('room:setRounds', wantRounds);
+        }
+      } catch {}
+      // 2) Handshake: attendre room:state qui reflète duration/rounds souhaités et hôte actif
+      const handshakePromise = new Promise((resolve) => {
+        const t0 = Date.now();
+        const timeoutMs = 3000;
+        const tick = () => {
+          const st = lastRoomStateRef.current;
+          const okDur = Number.isFinite(wantDuration) ? (st && st.duration === wantDuration) : true;
+          const okR = Number.isFinite(wantRounds) ? (st && st.roundsPerSession === wantRounds) : true;
+          let amHost = false;
+          try { amHost = !!(st?.players||[]).find(p => p.id === socketRef.current?.id)?.isHost; } catch {}
+          if (okDur && okR && amHost) { return resolve(true); }
+          if (Date.now() - t0 > timeoutMs) { return resolve(false); }
+          setTimeout(tick, 80);
+        };
+        tick();
+      });
+      // 3) Préchargement d'actifs (images) basé sur les thèmes/classes
+      const preloadPromise = preloadAssets(cfg2, setPrepProgress, preloadAbortRef);
+      Promise.all([handshakePromise, preloadPromise]).then(() => {
         try {
-          const cfg2 = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
-          const wantRounds = parseInt(cfg2?.rounds, 10);
-          const wantDuration = parseInt(cfg2?.duration, 10);
-          if (Number.isFinite(wantDuration) && wantDuration >= 10 && wantDuration <= 600) {
-            try { socket.emit('room:duration:set', { duration: wantDuration }); } catch {}
-            try { setGameDuration(wantDuration); setTimeLeft(wantDuration); } catch {}
-          }
-          if (Number.isFinite(wantRounds) && wantRounds >= 1 && wantRounds <= 20) {
-            try { socket.emit('room:setRounds', wantRounds); } catch {}
-            try { setRoundsPerSession(wantRounds); } catch {}
-          }
+          setPreparing(false);
+          // Ajuster les états locaux durée/rounds
+          if (Number.isFinite(wantDuration)) { setGameDuration(wantDuration); setTimeLeft(wantDuration); }
+          if (Number.isFinite(wantRounds)) { setRoundsPerSession(wantRounds); }
+          console.debug('[CC][client] startGame after handshake+preload');
+          socket.emit('startGame');
+          setMpMsg('Nouvelle manche');
         } catch {}
-        try { socket.emit('startGame'); } catch {}
-      }, 150);
-      setMpMsg('Nouvelle manche');
-    } catch {}
-    return;
+      });
+      } catch {}
+      return;
   }
   // Fallback: mode local (sans serveur)
   try { handleAutoAssign(); } catch {}
