@@ -1465,7 +1465,7 @@ function doStart() {
         tick();
       });
       // 3) Préchargement d'actifs (images) basé sur les thèmes/classes
-      const preloadPromise = preloadAssets(cfg2, setPrepProgress, preloadAbortRef);
+      const preloadPromise = preloadAssets(cfg2, data, setPrepProgress, preloadAbortRef);
       Promise.all([handshakePromise, preloadPromise]).then(() => {
         try {
           setPreparing(false);
@@ -3956,6 +3956,17 @@ setZones(dataWithRandomTexts);
 
  return (
     <div className={`carte-container ${hasSidebar ? 'game-with-sidebar' : ''}`} style={{ position: 'relative' }}>
+      {preparing && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#111827', color: '#fff', padding: 18, borderRadius: 10, width: 280, textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.4)' }}>
+            <div style={{ fontWeight: 'bold', marginBottom: 8 }}>Préparation de la session…</div>
+            <div style={{ height: 8, background: 'rgba(255,255,255,0.2)', borderRadius: 999 }}>
+              <div style={{ width: `${Math.max(0, Math.min(100, prepProgress))}%`, height: '100%', background: '#10b981', borderRadius: 999, transition: 'width .2s ease' }} />
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12, opacity: 0.85 }}>{Math.max(0, Math.min(100, prepProgress))}%</div>
+          </div>
+        </div>
+      )}
       {Array.isArray(activeThemes) && activeThemes.length > 0 && (
         <div
           title={activeThemes.join(', ')}
