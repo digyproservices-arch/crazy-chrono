@@ -819,17 +819,11 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
     window.addEventListener('resize', applyMobile);
     // Cleanup resize listener will be returned later with socket cleanup
     const cleanupResize = () => window.removeEventListener('resize', applyMobile);
-    // Auto-start on first mount if not already started and not in edit mode
-    try {
-      if (!autoStartRef.current && !gameActive && !editMode) {
-        autoStartRef.current = true;
-        startGame();
-      }
-    } catch {}
+    // Supprimer tout autostart pour éviter les courses avant le handshake/preload
     // Avoid double-connect in strict mode by checking existing
     if (socketRef.current && socketRef.current.connected) return;
-    const url = `${window.location.protocol}//${window.location.hostname}:4000`;
-    const s = io(url, { transports: ['websocket'], withCredentials: false });
+    const base = getBackendUrl();
+    const s = io(base, { transports: ['websocket'], withCredentials: false });
     socketRef.current = s;
 
     const onConnect = () => {
