@@ -1373,21 +1373,24 @@ function doStart() {
       } catch {}
       // Appliquer limite Free: 3 manches par session
       try { applyFreeLimits(socket); } catch {}
-      // Pousser explicitement la configuration souhaitée juste avant le démarrage
-      try {
-        const cfg2 = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
-        const wantRounds = parseInt(cfg2?.rounds, 10);
-        const wantDuration = parseInt(cfg2?.duration, 10);
-        if (Number.isFinite(wantDuration) && wantDuration >= 10 && wantDuration <= 600) {
-          try { socket.emit('room:duration:set', { duration: wantDuration }); } catch {}
-          try { setGameDuration(wantDuration); setTimeLeft(wantDuration); } catch {}
-        }
-        if (Number.isFinite(wantRounds) && wantRounds >= 1 && wantRounds <= 20) {
-          try { socket.emit('room:setRounds', wantRounds); } catch {}
-          try { setRoundsPerSession(wantRounds); } catch {}
-        }
-      } catch {}
-      socket.emit('startGame');
+      // S'assurer d'être dans la salle avant de pousser la config et démarrer
+      try { socket.emit('joinRoom', { roomId, name: playerName }); } catch {}
+      setTimeout(() => {
+        try {
+          const cfg2 = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+          const wantRounds = parseInt(cfg2?.rounds, 10);
+          const wantDuration = parseInt(cfg2?.duration, 10);
+          if (Number.isFinite(wantDuration) && wantDuration >= 10 && wantDuration <= 600) {
+            try { socket.emit('room:duration:set', { duration: wantDuration }); } catch {}
+            try { setGameDuration(wantDuration); setTimeLeft(wantDuration); } catch {}
+          }
+          if (Number.isFinite(wantRounds) && wantRounds >= 1 && wantRounds <= 20) {
+            try { socket.emit('room:setRounds', wantRounds); } catch {}
+            try { setRoundsPerSession(wantRounds); } catch {}
+          }
+        } catch {}
+        try { socket.emit('startGame'); } catch {}
+      }, 150);
       setMpMsg('Nouvelle manche');
     } catch {}
     return;
