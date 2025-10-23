@@ -123,60 +123,96 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 1500) {
 
 // Préchargement d'un lot d'images à partir des classes/thèmes sélectionnés
 function preloadAssets(cfg, data, onProgress, abortRef) {
-  try {
-    const dataStr = localStorage.getItem('data_cache'); // optionnel selon ton app, fallback DataContext sinon
-  } catch {}
-  // Utilise les données passées en paramètre
-  const pool = Array.isArray(data?.associations) ? data.associations : [];
-  // Filtrer par classes/themes si fournis
-  const classSet = new Set((cfg?.classes||[]).map(String));
-  const themeSet = new Set((cfg?.themes||[]).map(String));
-  const fit = (a) => {
-    const levels = (a?.levels||a?.classes||a?.classLevels||[]).map(String);
-    const lc = a?.levelClass ? [String(a.levelClass)] : [];
-    const L = [...levels, ...lc];
-    const okClass = classSet.size ? L.some(v => classSet.has(v)) : true;
-    const ts = (a?.themes||[]).map(String);
-    const okTheme = themeSet.size ? ts.some(t => themeSet.has(t)) : true;
-    return okClass && okTheme;
-  };
-  const selected = pool.filter(fit);
-  // Extraire URLs d'images candidates (texte-image et calc-num peuvent pointer vers images)
-  const urls = [];
-  for (const a of selected) {
-    const u1 = a?.imageUrl || a?.imgUrl || a?.image?.url;
-    if (u1) urls.push(String(u1));
-    const u2 = a?.chiffreImgUrl || a?.calcImgUrl;
-    if (u2) urls.push(String(u2));
-  }
-  // Limiter la taille pour mémoire (ex. 60 premières)
-  const uniq = Array.from(new Set(urls)).slice(0, 60);
-  if (!uniq.length) return Promise.resolve(true);
-  const total = uniq.length;
-  let done = 0;
-  const update = () => { try { onProgress && onProgress(Math.round((done/total)*100)); } catch {} };
-  update();
-  // Charger par petits lots en parallèle
-  const loadImage = (u) => new Promise((resolve) => {
-    if (abortRef?.current?.aborted) return resolve();
-    try {
-      const img = new Image();
-      img.onload = () => { done++; update(); resolve(); };
-      img.onerror = () => { done++; update(); resolve(); };
-      img.referrerPolicy = 'no-referrer';
-      img.decoding = 'async';
-      img.src = u;
-    } catch { done++; update(); resolve(); }
-  });
-  const concurrency = 8;
-  let i = 0;
-  const runners = new Array(concurrency).fill(0).map(async () => {
-    while (i < uniq.length) {
-      const idx = i++; // atomique assez pour notre usage
-      await loadImage(uniq[idx]);
+  // Helper: shuffle Fisher-Yates
+  const shuffle = (arr) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
     }
+    return a;
+  };
+  const diag = (label, payload) => { try { if (window && typeof window.ccAddDiag === 'function') window.ccAddDiag(label, payload); } catch {} };
+  const tryBuildUrls = (pool, cfg) => {
+    const classSet = new Set((cfg?.classes||[]).map(String));
+    const themeSet = new Set((cfg?.themes||[]).map(String));
+    const fit = (a) => {
+      const levels = (a?.levels||a?.classes||a?.classLevels||[]).map(String);
+      const lc = a?.levelClass ? [String(a.levelClass)] : [];
+      const L = [...levels, ...lc];
+      const okClass = classSet.size ? L.some(v => classSet.has(v)) : true;
+      const ts = (a?.themes||[]).map(String);
+      const okTheme = themeSet.size ? ts.some(t => themeSet.has(t)) : true;
+      return okClass && okTheme;
+    };
+    const sel = Array.isArray(pool) ? pool.filter(fit) : [];
+    const urls = [];
+    for (const a of sel) {
+      const u1 = a?.imageUrl || a?.imgUrl || a?.image?.url;
+      if (u1) urls.push(String(u1));
+      const u2 = a?.chiffreImgUrl || a?.calcImgUrl;
+      if (u2) urls.push(String(u2));
+    }
+    // unique + shuffle + éviter répétition adjacente à la fin
+    const uniq = Array.from(new Set(urls));
+    const shuf = shuffle(uniq);
+    // Post-traitement: garantir pas de doublon adjacents par erreur de normalisation
+    const ordered = [];
+    let last = null;
+    for (const u of shuf) {
+      if (u === last) continue;
+      ordered.push(u); last = u;
+    }
+    return ordered.slice(0, 60);
+  };
+  return new Promise(async (resolve) => {
+    try {
+      // Construire la liste d'URLs
+      let urls = [];
+      if (Array.isArray(data?.associations) && data.associations.length) {
+        urls = tryBuildUrls(data.associations, cfg);
+      } else {
+        // fallback: DataContext via localStorage cache, sinon fetch du JSON public
+        try {
+          const cached = localStorage.getItem('cc_data_associations');
+          if (cached) urls = tryBuildUrls(JSON.parse(cached), cfg);
+        } catch {}
+        if (!urls.length) {
+          try {
+            const res = await fetch(`${process.env.PUBLIC_URL || ''}/data/associations.json`, { cache: 'no-store' });
+            const j = await res.json();
+            if (Array.isArray(j?.associations)) {
+              try { localStorage.setItem('cc_data_associations', JSON.stringify(j.associations)); } catch {}
+              urls = tryBuildUrls(j.associations, cfg);
+            }
+          } catch {}
+        }
+      }
+      if (!urls.length) { diag('preload:skip', { reason: 'no-urls' }); onProgress && onProgress(100); return resolve(true); }
+      diag('preload:list', { count: urls.length });
+      const total = urls.length; let done = 0;
+      const update = () => { try { onProgress && onProgress(Math.max(0, Math.min(100, Math.round((done/total)*100)))); } catch {} };
+      update();
+      const loadImage = (u) => new Promise((res) => {
+        if (abortRef?.current?.aborted) return res();
+        try {
+          const img = new Image();
+          img.onload = () => { done++; update(); res(); };
+          img.onerror = () => { done++; update(); res(); };
+          img.referrerPolicy = 'no-referrer';
+          img.decoding = 'async';
+          img.src = u;
+        } catch { done++; update(); res(); }
+      });
+      const concurrency = 8; let i = 0;
+      const runners = new Array(concurrency).fill(0).map(async () => {
+        while (i < urls.length) { const idx = i++; await loadImage(urls[idx]); }
+      });
+      await Promise.all(runners);
+      diag('preload:done', { count: total });
+      resolve(true);
+    } catch { resolve(true); }
   });
-  return Promise.all(runners).then(() => true);
 }
 
 function makeRngFromSeed(seed) {
@@ -1513,6 +1549,7 @@ function doStart() {
       try { applyFreeLimits(socket); } catch {}
       // Phase de préparation: préchargement + handshake de paramètres
       setPreparing(true);
+      try { window.ccAddDiag && window.ccAddDiag('prep:start'); } catch {}
       setPrepProgress(0);
       preloadAbortRef.current = { aborted: false };
       const cfg2 = (() => { try { return JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch { return null; } })();
@@ -1549,9 +1586,13 @@ function doStart() {
       // 3) Préchargement d'actifs (images) basé sur les thèmes/classes
       // Note: on passe null si aucune donnée globale n'est disponible ici
       const preloadPromise = preloadAssets(cfg2, null, setPrepProgress, preloadAbortRef);
+      const prepT0 = Date.now();
       Promise.all([handshakePromise, preloadPromise]).then(() => {
         try {
-          setPreparing(false);
+          const elapsed = Date.now() - prepT0;
+          const minMs = 700; // afficher au moins 700ms pour être visible
+          const finish = () => { setPreparing(false); try { window.ccAddDiag && window.ccAddDiag('prep:done', { elapsed: Date.now()-prepT0 }); } catch {} };
+          if (elapsed < minMs) { setTimeout(finish, minMs - elapsed); } else { finish(); }
           // Ajuster les états locaux durée/rounds
           if (Number.isFinite(wantDuration)) { setGameDuration(wantDuration); setTimeLeft(wantDuration); }
           if (Number.isFinite(wantRounds)) { setRoundsPerSession(wantRounds); }
