@@ -1545,7 +1545,8 @@ function doStart() {
         tick();
       });
       // 3) Préchargement d'actifs (images) basé sur les thèmes/classes
-      const preloadPromise = preloadAssets(cfg2, data, setPrepProgress, preloadAbortRef);
+      // Note: on passe null si aucune donnée globale n'est disponible ici
+      const preloadPromise = preloadAssets(cfg2, null, setPrepProgress, preloadAbortRef);
       Promise.all([handshakePromise, preloadPromise]).then(() => {
         try {
           setPreparing(false);
