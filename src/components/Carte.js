@@ -583,6 +583,8 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
         const arr = Array.isArray(prev) ? [...prev, line] : [line];
         return arr.slice(Math.max(0, arr.length - 199));
       });
+      // Forward to global recorder if present
+      try { if (window && typeof window.ccAddDiag === 'function') window.ccAddDiag(label, payload); } catch {}
       // Also capture into recording buffer if active
       if (diagRecordingRef.current) {
         setDiagRecLines(prev => {
