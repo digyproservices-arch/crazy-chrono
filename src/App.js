@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import './App.css';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Carte from './components/Carte';
@@ -17,6 +17,13 @@ import supabase from './utils/supabaseClient';
 
 function App() {
   const [gameMode, setGameMode] = useState(false);
+  // Global Diagnostic UI state
+  const [diagOpen, setDiagOpen] = useState(false);
+  const [diagLines, setDiagLines] = useState([]);
+  const [diagRecording, setDiagRecording] = useState(false);
+  const diagRecRef = useRef(false);
+  const [diagRecLines, setDiagRecLines] = useState([]);
+  const [isAdminUI, setIsAdminUI] = useState(false);
   const [auth, setAuth] = useState(() => {
     try { return JSON.parse(localStorage.getItem('cc_auth')) || null; } catch { return null; }
   });
@@ -27,6 +34,62 @@ function App() {
     };
     window.addEventListener('cc:gameMode', onGame);
     return () => window.removeEventListener('cc:gameMode', onGame);
+  }, []);
+
+  // Admin auto-detection (URL admin=1, localStorage cc_admin_ui=1, or backend /me?email=...)
+  useEffect(() => {
+    const urlHasAdmin = () => {
+      try { return new URLSearchParams(window.location.search).get('admin') === '1'; } catch { return false; }
+    };
+    const lsAdmin = () => { try { return localStorage.getItem('cc_admin_ui') === '1'; } catch { return false; } };
+    const pre = urlHasAdmin() || lsAdmin();
+    if (pre) { setIsAdminUI(true); return; }
+    let email = null;
+    try { email = (JSON.parse(localStorage.getItem('cc_auth')||'null')||{}).email || localStorage.getItem('cc_profile_email') || localStorage.getItem('user_email') || localStorage.getItem('email'); } catch {}
+    if (!email) return;
+    try {
+      fetch(`${getBackendUrl()}/me?email=${encodeURIComponent(email)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(j => { if (j && j.ok && String(j.role||'').toLowerCase()==='admin') setIsAdminUI(true); })
+        .catch(() => {});
+    } catch {}
+  }, []);
+
+  // Recording ref sync
+  useEffect(() => { diagRecRef.current = !!diagRecording; }, [diagRecording]);
+
+  // Global addDiag exposed on window
+  useEffect(() => {
+    const add = (label, payload) => {
+      try {
+        const ts = new Date().toISOString();
+        const line = payload!==undefined ? `${ts} | ${label} | ${JSON.stringify(payload)}` : `${ts} | ${label}`;
+        setDiagLines(prev => {
+          const arr = Array.isArray(prev)? [...prev, line] : [line];
+          return arr.slice(Math.max(0, arr.length - 199));
+        });
+        if (diagRecRef.current) {
+          setDiagRecLines(prev => {
+            const arr = Array.isArray(prev)? [...prev, line] : [line];
+            return arr.slice(Math.max(0, arr.length - 999));
+          });
+        }
+      } catch {}
+    };
+    try { window.ccAddDiag = add; } catch {}
+    return () => { try { delete window.ccAddDiag; } catch {} };
+  }, []);
+
+  // Keyboard shortcut Ctrl+Alt+D to toggle panel
+  useEffect(() => {
+    const onKey = (e) => {
+      try {
+        const k = String(e.key||'').toLowerCase();
+        if (e.ctrlKey && e.altKey && k==='d') { e.preventDefault(); setDiagOpen(v=>!v); }
+      } catch {}
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
   useEffect(() => {
     const sync = async () => {
@@ -104,6 +167,44 @@ function App() {
             <footer>
               <p>© 2025 - Éditeur de Carte</p>
             </footer>
+          )}
+          {/* Global Diagnostic floating button and panel */}
+          <button
+            onClick={() => setDiagOpen(v=>!v)}
+            title="Diagnostic"
+            style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 10000, background: '#111827', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, padding: '8px 12px', boxShadow: '0 6px 18px rgba(0,0,0,0.25)', opacity: 0.9 }}
+          >Diagnostic</button>
+          {diagOpen && (
+            <div style={{ position: 'fixed', right: 12, bottom: 56, width: 420, maxWidth: '90vw', maxHeight: '70vh', overflow: 'auto', zIndex: 10000, background: '#111827', color: '#e5e7eb', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, boxShadow: '0 10px 30px rgba(0,0,0,0.4)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 10, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ fontWeight: 'bold' }}>Diagnostic (global)</div>
+                <button onClick={() => setDiagOpen(false)} style={{ color: '#e5e7eb', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', borderRadius: 6, padding: '4px 8px' }}>Fermer</button>
+              </div>
+              {isAdminUI ? (
+                <div style={{ padding: 10 }}>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                    <button onClick={() => { setDiagRecLines([]); setDiagRecording(true); try { window.ccAddDiag && window.ccAddDiag('recording:start'); } catch {} }} disabled={diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: diagRecording ? '#064e3b' : '#065f46', color: '#ecfdf5' }}>Démarrer</button>
+                    <button onClick={() => { setDiagRecording(false); try { window.ccAddDiag && window.ccAddDiag('recording:stop', { count: diagRecLines.length }); } catch {} }} disabled={!diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: '#7f1d1d', color: '#fee2e2' }}>Arrêter</button>
+                    <button onClick={async()=>{ try { await navigator.clipboard.writeText((diagRecLines||[]).join('\n')); } catch {} }} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb' }}>Copier</button>
+                    <button onClick={()=>{ setDiagLines([]); setDiagRecLines([]); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb' }}>Vider</button>
+                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>Derniers évènements</div>
+                  <div style={{ maxHeight: 180, overflow: 'auto', background: '#0b1220', padding: 8, borderRadius: 6 }}>
+                    {(diagLines||[]).slice(-120).map((l,i)=>(<div key={i} style={{ whiteSpace: 'pre-wrap' }}>{l}</div>))}
+                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.8, margin: '6px 0 4px' }}>Enregistrement ({diagRecLines.length} lignes)</div>
+                  <div style={{ maxHeight: 160, overflow: 'auto', background: '#0b1220', padding: 8, borderRadius: 6 }}>
+                    {(diagRecLines||[]).map((l,i)=>(<div key={i} style={{ whiteSpace: 'pre-wrap' }}>{l}</div>))}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ padding: 10, fontSize: 14 }}>
+                  <div style={{ marginBottom: 6, fontWeight: 'bold' }}>Accès restreint</div>
+                  <div style={{ opacity: 0.9, marginBottom: 8 }}>Panneau réservé aux administrateurs. Connectez‑vous avec un compte admin.</div>
+                  <div style={{ fontSize: 12, opacity: 0.75 }}>Raccourci: Ctrl+Alt+D</div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </Router>
