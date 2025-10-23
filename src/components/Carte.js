@@ -558,7 +558,21 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
       try { return new URLSearchParams(window.location.search).get('admin') === '1'; } catch { return false; }
     };
     const lsAdmin = () => { try { return localStorage.getItem('cc_admin_ui') === '1'; } catch { return false; } };
-    setIsAdminUI(urlHasAdmin() || lsAdmin());
+    const pre = urlHasAdmin() || lsAdmin();
+    if (pre) { setIsAdminUI(true); return; }
+    // Tentative auto: si on trouve un email utilisateur en localStorage, vérifier /me côté backend
+    let email = null;
+    try { email = localStorage.getItem('cc_profile_email') || localStorage.getItem('user_email') || localStorage.getItem('email'); } catch {}
+    if (!email) return; // pas d'email connu, on n'active pas
+    const backend = getBackendUrl();
+    try {
+      fetch(`${backend}/me?email=${encodeURIComponent(email)}`, { credentials: 'omit' })
+        .then(r => r.ok ? r.json() : null)
+        .then(j => {
+          if (j && j.ok && String(j.role||'').toLowerCase() === 'admin') setIsAdminUI(true);
+        })
+        .catch(() => {});
+    } catch {}
   }, []);
 
   const addDiag = (label, payload) => {
