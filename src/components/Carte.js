@@ -622,6 +622,21 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
     };
   }, []);
 
+  // Raccourci clavier: Ctrl+Alt+D pour ouvrir/fermer le panneau Diagnostic
+  useEffect(() => {
+    const onKeyDiag = (e) => {
+      try {
+        const k = String(e.key || '').toLowerCase();
+        if (e.ctrlKey && e.altKey && k === 'd') {
+          e.preventDefault();
+          setDiagOpen(v => !v);
+        }
+      } catch {}
+    };
+    window.addEventListener('keydown', onKeyDiag);
+    return () => window.removeEventListener('keydown', onKeyDiag);
+  }, []);
+
   // ===== Helpers: niveau principal et génération de calculs adaptés au niveau =====
   const CLASS_ORDER = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"]; // ordre croissant
   const pickPrimaryLevel = () => {
@@ -4022,6 +4037,52 @@ setZones(dataWithRandomTexts);
 
  return (
     <div className={`carte-container ${hasSidebar ? 'game-with-sidebar' : ''}`} style={{ position: 'relative' }}>
+      {/* Bouton Diagnostic flottant (toujours visible) */}
+      <button
+        onClick={() => setDiagOpen(v => !v)}
+        title="Diagnostic"
+        style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 10000, background: '#111827', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, padding: '8px 12px', boxShadow: '0 6px 18px rgba(0,0,0,0.25)', opacity: 0.9 }}
+      >
+        Diagnostic
+      </button>
+
+      {/* Panneau Diagnostic fixe (contenu admin-gaté) */}
+      {diagOpen && (
+        <div style={{ position: 'fixed', right: 12, bottom: 56, width: 420, maxWidth: '90vw', maxHeight: '70vh', overflow: 'auto', zIndex: 10000, background: '#111827', color: '#e5e7eb', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, boxShadow: '0 10px 30px rgba(0,0,0,0.4)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 10, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ fontWeight: 'bold' }}>Diagnostic</div>
+            <button onClick={() => setDiagOpen(false)} style={{ color: '#e5e7eb', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', borderRadius: 6, padding: '4px 8px' }}>Fermer</button>
+          </div>
+          {isAdminUI ? (
+            <div style={{ padding: 10 }}>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                <button onClick={startDiagRecording} disabled={diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: diagRecording ? '#064e3b' : '#065f46', color: '#ecfdf5' }}>Démarrer enregistrement</button>
+                <button onClick={stopDiagRecording} disabled={!diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: '#7f1d1d', color: '#fee2e2' }}>Arrêter</button>
+                <button onClick={copyDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb' }}>Copier</button>
+                <button onClick={() => { setDiagLines([]); setDiagRecLines([]); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb' }}>Vider</button>
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>Derniers évènements</div>
+              <div style={{ maxHeight: 180, overflow: 'auto', background: '#0b1220', padding: 8, borderRadius: 6 }}>
+                {(diagLines || []).slice(-120).map((l, i) => (
+                  <div key={i} style={{ whiteSpace: 'pre-wrap' }}>{l}</div>
+                ))}
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.8, margin: '6px 0 4px' }}>Enregistrement ({diagRecLines.length} lignes)</div>
+              <div style={{ maxHeight: 160, overflow: 'auto', background: '#0b1220', padding: 8, borderRadius: 6 }}>
+                {(diagRecLines || []).map((l, i) => (
+                  <div key={i} style={{ whiteSpace: 'pre-wrap' }}>{l}</div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: 10, fontSize: 14 }}>
+              <div style={{ marginBottom: 6, fontWeight: 'bold' }}>Accès restreint</div>
+              <div style={{ opacity: 0.9, marginBottom: 8 }}>Ce panneau est réservé aux administrateurs. Demandez à un admin d’activer votre accès, ou connectez‑vous avec un compte admin.</div>
+              <div style={{ fontSize: 12, opacity: 0.75 }}>Astuce: appuyez sur Ctrl+Alt+D pour ouvrir/fermer rapidement.</div>
+            </div>
+          )}
+        </div>
+      )}
       {preparing && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ background: '#111827', color: '#fff', padding: 18, borderRadius: 10, width: 280, textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.4)' }}>
