@@ -536,6 +536,13 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
   const [prepProgress, setPrepProgress] = useState(0);
   const preloadAbortRef = useRef({ aborted: false });
   const lastRoomStateRef = useRef(null);
+  // Admin-only diagnostic panel
+  const [diagOpen, setDiagOpen] = useState(false);
+  const [diagLines, setDiagLines] = useState([]);
+  const [isAdminUI, setIsAdminUI] = useState(false);
+  const [diagRecording, setDiagRecording] = useState(false);
+  const diagRecordingRef = useRef(false);
+  const [diagRecLines, setDiagRecLines] = useState([]);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(true);
   const autoStartRef = useRef(false);
@@ -544,6 +551,50 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
   useEffect(() => {
     fetchWithTimeout(`${getBackendUrl()}/healthz`, { cache: 'no-store' }, 1500).catch(() => {});
   }, []);
+
+  // Determine if diagnostic UI is allowed (admin-only toggle)
+  useEffect(() => {
+    const urlHasAdmin = () => {
+      try { return new URLSearchParams(window.location.search).get('admin') === '1'; } catch { return false; }
+    };
+    const lsAdmin = () => { try { return localStorage.getItem('cc_admin_ui') === '1'; } catch { return false; } };
+    setIsAdminUI(urlHasAdmin() || lsAdmin());
+  }, []);
+
+  const addDiag = (label, payload) => {
+    try {
+      const ts = new Date().toISOString();
+      const line = payload !== undefined ? `${ts} | ${label} | ${JSON.stringify(payload)}` : `${ts} | ${label}`;
+      setDiagLines(prev => {
+        const arr = Array.isArray(prev) ? [...prev, line] : [line];
+        return arr.slice(Math.max(0, arr.length - 199));
+      });
+      // Also capture into recording buffer if active
+      if (diagRecordingRef.current) {
+        setDiagRecLines(prev => {
+          const arr = Array.isArray(prev) ? [...prev, line] : [line];
+          return arr.slice(Math.max(0, arr.length - 999));
+        });
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    diagRecordingRef.current = !!diagRecording;
+  }, [diagRecording]);
+
+  const startDiagRecording = () => {
+    try { setDiagRecLines([]); } catch {}
+    setDiagRecording(true);
+    addDiag('recording:start');
+  };
+  const stopDiagRecording = () => {
+    setDiagRecording(false);
+    addDiag('recording:stop', { count: diagRecLines.length });
+  };
+  const copyDiagRecording = async () => {
+    try { await navigator.clipboard.writeText((diagRecLines || []).join('\n')); } catch {}
+  };
 
   // Invalidation du cache des centres (resize/scroll)
   useEffect(() => {
@@ -823,11 +874,13 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
     // Avoid double-connect in strict mode by checking existing
     if (socketRef.current && socketRef.current.connected) return;
     const base = getBackendUrl();
+    addDiag('socket:init', { url: base });
     const s = io(base, { transports: ['websocket'], withCredentials: false });
     socketRef.current = s;
 
     const onConnect = () => {
       setSocketConnected(true);
+      addDiag('socket:connected', { id: s.id });
       console.debug('[CC][client] socket connected', { id: s.id });
       // Listen room:state to know when we are host, then apply config once
       const onRoomState = (payload) => {
@@ -847,9 +900,11 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
           // Sinon, si nous sommes l'hôte, tenter d'appliquer
           if (!configAppliedRef.current && amHost) {
             if (Number.isFinite(wantDuration) && wantDuration >= 10 && wantDuration <= 600) {
+              addDiag('emit room:duration:set', { duration: wantDuration });
               try { s.emit('room:duration:set', { duration: wantDuration }); } catch {}
             }
             if (Number.isFinite(wantRounds) && wantRounds >= 1 && wantRounds <= 20) {
+              addDiag('emit room:setRounds', { rounds: wantRounds });
               try { s.emit('room:setRounds', wantRounds); } catch {}
             }
             // Ne pas marquer comme appliqué tant que le room:state ne correspond pas
@@ -987,6 +1042,7 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
     // Nouvel état de salle complet
     s.on('room:state', (data) => {
       console.debug('[CC][client] room:state', data);
+      addDiag('room:state', { duration: data?.duration, roundsPerSession: data?.roundsPerSession, roundsPlayed: data?.roundsPlayed, status: data?.status });
       try {
         lastRoomStateRef.current = data;
         if (data) {
@@ -1028,6 +1084,7 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
 
     s.on('round:new', (payload) => {
       console.debug('[CC][client] round:new', payload);
+      addDiag('round:new', { duration: payload?.duration, roundIndex: payload?.roundIndex, roundsTotal: payload?.roundsTotal });
       // Clear waiting timer, if any
       try { if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } } catch {}
       const seed = Number.isFinite(payload?.seed) ? payload.seed : undefined;
@@ -1467,6 +1524,7 @@ function doStart() {
           if (Number.isFinite(wantDuration)) { setGameDuration(wantDuration); setTimeLeft(wantDuration); }
           if (Number.isFinite(wantRounds)) { setRoundsPerSession(wantRounds); }
           console.debug('[CC][client] startGame after handshake+preload');
+          addDiag('startGame after handshake+preload');
           socket.emit('startGame');
           setMpMsg('Nouvelle manche');
         } catch {}
@@ -4090,6 +4148,33 @@ setZones(dataWithRandomTexts);
               <button onClick={handleEndSessionNow} style={{ background: '#d63031', color: '#fff', border: '1px solid #333', borderRadius: 6, padding: '6px 10px', fontWeight: 'bold' }}>Terminer</button>
               <div style={{ fontSize: 16, fontWeight: 'bold' }}>Temps: {timeLeft}s</div>
             </div>
+            {isAdminUI && (
+              <div style={{ marginTop: 8, padding: 8, border: '1px dashed #9ca3af', borderRadius: 8 }}>
+                <div className="hud-row" style={{ gap: 6 }}>
+                  <button onClick={() => setDiagOpen(v => !v)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db' }}>{diagOpen ? 'Masquer diagnostic' : 'Diagnostic'}</button>
+                  <button onClick={startDiagRecording} disabled={diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: diagRecording ? '#d1fae5' : '#ecfdf5', color: '#065f46' }}>Démarrer enregistrement</button>
+                  <button onClick={stopDiagRecording} disabled={!diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: !diagRecording ? '#fee2e2' : '#fef2f2', color: '#991b1b' }}>Arrêter</button>
+                  <button onClick={copyDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db' }}>Copier l'enregistrement</button>
+                  <button onClick={() => { setDiagLines([]); setDiagRecLines([]); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db' }}>Vider</button>
+                </div>
+                {diagOpen && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>Derniers évènements (live)</div>
+                    <div style={{ maxHeight: 180, overflow: 'auto', background: '#111827', color: '#e5e7eb', padding: 8, borderRadius: 6, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace', fontSize: 12 }}>
+                      {(diagLines || []).slice(-120).map((l, i) => (
+                        <div key={i} style={{ whiteSpace: 'pre-wrap' }}>{l}</div>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: 12, color: '#374151', margin: '6px 0 4px' }}>Enregistrement courant ({diagRecLines.length} lignes)</div>
+                    <div style={{ maxHeight: 140, overflow: 'auto', background: '#111827', color: '#e5e7eb', padding: 8, borderRadius: 6, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace', fontSize: 12 }}>
+                      {(diagRecLines || []).map((l, i) => (
+                        <div key={i} style={{ whiteSpace: 'pre-wrap' }}>{l}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {lastWonPair && (
               <div>
                 <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Dernière paire</div>
