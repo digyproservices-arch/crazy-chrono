@@ -2711,7 +2711,21 @@ setZones(dataWithRandomTexts);
             try { localStorage.setItem('cc_recent_image_ids', JSON.stringify(capped)); } catch {}
             try { window.ccRecentImages = capped; } catch {}
           };
+          // Mémoire courte des dernières URLs normalisées
+          const getRecentUrls = () => {
+            try {
+              const raw = localStorage.getItem('cc_recent_image_urls');
+              const arr = raw ? JSON.parse(raw) : [];
+              return Array.isArray(arr) ? arr.map(String) : [];
+            } catch { return []; }
+          };
+          const setRecentUrls = (arr) => {
+            const capped = arr.slice(-20);
+            try { localStorage.setItem('cc_recent_image_urls', JSON.stringify(capped)); } catch {}
+            try { window.ccRecentImageUrls = capped; } catch {}
+          };
           const recentImages = new Set(getRecentImages());
+          const recentUrls = new Set(getRecentUrls());
           let textImageArr = Array.isArray(assocRoot)
             ? assocRoot.filter(a => a && a.imageId && a.texteId)
             : (assocRoot.textImage || []);
@@ -2934,8 +2948,14 @@ setZones(dataWithRandomTexts);
                 const usedTxtContents = new Set([norm(txInfo.content || '')]);
                 // Conserver la liste des images présentes pour éviter de former d'autres paires valides
                 const presentImageIds = new Set([String(imInfo.id)]);
+                // Séquence d'images de la manche (ordre de pose)
+                const roundImageSeq = [];
                 // Ajouter l'image principale à la mémoire courte (persistée plus bas)
-                try { recentImages.add(String(imInfo.id)); } catch {}
+                try {
+                  recentImages.add(String(imInfo.id));
+                  const mainUrlNorm = normUrl(imInfo.url || imInfo.path || imInfo.src || '');
+                  if (mainUrlNorm) { recentUrls.add(mainUrlNorm); roundImageSeq.push({ id: String(imInfo.id), url: mainUrlNorm }); }
+                } catch {}
                 const otherImageSpots = imagesIdx.filter(o => o !== imgSpot);
 
                 // Préférence: placer au moins UNE image stricte-meta (extraStrictImages) si disponible et éligible
@@ -2973,28 +2993,38 @@ setZones(dataWithRandomTexts);
                     const idStr = String(cand.id);
                     const urlNorm = normUrl(cand.url || cand.path || cand.src || '');
                     // Ne pas choisir une image qui formerait une paire valide avec le texte principal (ou futurs textes, pris en charge côté textes)
-                    // Éviter aussi les images récemment utilisées (no-near-repeat entre manches)
-                    if (!usedImgIds.has(idStr) && urlNorm && !usedImgUrls.has(urlNorm) && !imgTxtPairs.has(`${idStr}|${txInfo.id}`) && !recentImages.has(idStr)) { pick = cand; break; }
+                    // Éviter aussi les images récemment utilisées (no-near-repeat entre manches) par ID et par URL
+                    if (!usedImgIds.has(idStr) && urlNorm && !usedImgUrls.has(urlNorm) && !imgTxtPairs.has(`${idStr}|${txInfo.id}`) && !recentImages.has(idStr) && !recentUrls.has(urlNorm)) { pick = cand; break; }
                   }
                   if (pick) {
                     usedImgIds.add(String(pick.id));
-                    usedImgUrls.add(normUrl(pick.url || pick.path || pick.src || ''));
+                    const pUrlNorm = normUrl(pick.url || pick.path || pick.src || '');
+                    usedImgUrls.add(pUrlNorm);
                     presentImageIds.add(String(pick.id));
                     post[o.i] = { ...post[o.i], content: pick.url || pick.path || pick.src || post[o.i].content, pairId: '' };
-                    // Marquer pour la mémoire courte
-                    try { recentImages.add(String(pick.id)); } catch {}
+                    // Marquer pour la mémoire courte et séquence
+                    try {
+                      recentImages.add(String(pick.id));
+                      if (pUrlNorm) { recentUrls.add(pUrlNorm); roundImageSeq.push({ id: String(pick.id), url: pUrlNorm }); }
+                    } catch {}
                   } else {
                     // Placeholder neutre si aucun candidat sûr (évite zone vide)
                     const ph = 'images/carte-vide.png';
                     usedImgUrls.add(normUrl(ph));
                     post[o.i] = { ...post[o.i], content: ph, pairId: '' };
+                    try { roundImageSeq.push({ id: '', url: normUrl(ph) }); } catch {}
                   }
                 }
                 // Persister la mémoire courte (ids) et tracer
                 try {
                   const uniqArr = Array.from(new Set(Array.from(recentImages)));
                   setRecentImages(uniqArr);
-                  if (window && typeof window.ccAddDiag === 'function') window.ccAddDiag('round:images:recent:update', { recentCount: uniqArr.length });
+                  const uniqUrls = Array.from(new Set(Array.from(recentUrls)));
+                  setRecentUrls(uniqUrls);
+                  if (window && typeof window.ccAddDiag === 'function') {
+                    window.ccAddDiag('round:images:recent:update', { recentCount: uniqArr.length, recentUrlCount: uniqUrls.length });
+                    window.ccAddDiag('round:images:seq', { items: roundImageSeq });
+                  }
                 } catch {}
                 // Choisir des textes qui ne forment aucune association valide avec les images présentes
                 const pickTextAvoidingPairs = () => {
