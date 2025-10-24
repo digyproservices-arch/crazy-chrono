@@ -24,6 +24,9 @@ function App() {
   const diagRecRef = useRef(false);
   const [diagRecLines, setDiagRecLines] = useState([]);
   const [isAdminUI, setIsAdminUI] = useState(false);
+  const consoleOrigRef = useRef({ log: null, warn: null, error: null });
+  const fetchOrigRef = useRef(null);
+  const detachHandlersRef = useRef(() => {});
   const [auth, setAuth] = useState(() => {
     try { return JSON.parse(localStorage.getItem('cc_auth')) || null; } catch { return null; }
   });
@@ -58,6 +61,71 @@ function App() {
   // Recording ref sync
   useEffect(() => { diagRecRef.current = !!diagRecording; }, [diagRecording]);
 
+  // When recording is ON, capture console, errors, and fetch
+  useEffect(() => {
+    if (!diagRecording) {
+      // restore
+      try {
+        if (consoleOrigRef.current.log) console.log = consoleOrigRef.current.log;
+        if (consoleOrigRef.current.warn) console.warn = consoleOrigRef.current.warn;
+        if (consoleOrigRef.current.error) console.error = consoleOrigRef.current.error;
+        if (fetchOrigRef.current) window.fetch = fetchOrigRef.current;
+      } catch {}
+      try { detachHandlersRef.current && detachHandlersRef.current(); } catch {}
+      return;
+    }
+    // install
+    try {
+      // console hooks
+      consoleOrigRef.current = { log: console.log, warn: console.warn, error: console.error };
+      const mk = (type) => (...args) => {
+        try { window.ccAddDiag && window.ccAddDiag(`console:${type}`, { args: args.map(a => serializeSafe(a)).slice(0, 5) }); } catch {}
+        try { (type==='log'? consoleOrigRef.current.log : type==='warn'? consoleOrigRef.current.warn : consoleOrigRef.current.error).apply(console, args); } catch {}
+      };
+      console.log = mk('log');
+      console.warn = mk('warn');
+      console.error = mk('error');
+      // error handlers
+      const onErr = (e) => {
+        try { window.ccAddDiag && window.ccAddDiag('window:error', { msg: String(e?.message||''), src: e?.filename, lineno: e?.lineno, colno: e?.colno }); } catch {}
+      };
+      const onRej = (e) => {
+        try { window.ccAddDiag && window.ccAddDiag('window:unhandledrejection', { reason: String(e?.reason||'') }); } catch {}
+      };
+      window.addEventListener('error', onErr);
+      window.addEventListener('unhandledrejection', onRej);
+      // fetch wrapper
+      if (!fetchOrigRef.current) fetchOrigRef.current = window.fetch.bind(window);
+      window.fetch = async (input, init) => {
+        const started = Date.now();
+        const url = typeof input === 'string' ? input : (input && input.url) || 'unknown';
+        try { window.ccAddDiag && window.ccAddDiag('fetch:start', { url, method: init?.method||'GET' }); } catch {}
+        try {
+          const res = await fetchOrigRef.current(input, init);
+          try { window.ccAddDiag && window.ccAddDiag('fetch:end', { url, status: res.status, ms: Date.now()-started }); } catch {}
+          return res;
+        } catch (err) {
+          try { window.ccAddDiag && window.ccAddDiag('fetch:error', { url, ms: Date.now()-started, error: String(err) }); } catch {}
+          throw err;
+        }
+      };
+      detachHandlersRef.current = () => {
+        try { window.removeEventListener('error', onErr); } catch {}
+        try { window.removeEventListener('unhandledrejection', onRej); } catch {}
+      };
+    } catch {}
+    // cleanup when recording toggles off
+    return () => {
+      try {
+        if (consoleOrigRef.current.log) console.log = consoleOrigRef.current.log;
+        if (consoleOrigRef.current.warn) console.warn = consoleOrigRef.current.warn;
+        if (consoleOrigRef.current.error) console.error = consoleOrigRef.current.error;
+        if (fetchOrigRef.current) window.fetch = fetchOrigRef.current;
+      } catch {}
+      try { detachHandlersRef.current && detachHandlersRef.current(); } catch {}
+    };
+  }, [diagRecording]);
+
   // Global addDiag exposed on window
   useEffect(() => {
     const add = (label, payload) => {
@@ -79,6 +147,14 @@ function App() {
     try { window.ccAddDiag = add; } catch {}
     return () => { try { delete window.ccAddDiag; } catch {} };
   }, []);
+
+  function serializeSafe(v) {
+    try {
+      if (v instanceof Error) return { name: v.name, message: v.message, stack: v.stack?.slice(0, 400) };
+      if (typeof v === 'object') return JSON.parse(JSON.stringify(v));
+      return v;
+    } catch { return String(v); }
+  }
 
   // Keyboard shortcut Ctrl+Alt+D to toggle panel
   useEffect(() => {
