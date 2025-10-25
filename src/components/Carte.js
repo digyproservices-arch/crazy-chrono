@@ -3195,19 +3195,43 @@ setZones(dataWithRandomTexts);
                 const usedNumIds = new Set([String(nuInfo.id)]);
                 // Conserver la liste des calculs présents pour éviter de former d'autres paires valides
                 const presentCalcIds = new Set([String(caInfo.id)]);
+                const presentCalcResults = new Set();
+                try {
+                  const p = parseOperation(caInfo.content);
+                  if (p && Number.isFinite(p.result)) presentCalcResults.add(p.result);
+                  if (window && typeof window.ccAddDiag === 'function') window.ccAddDiag('round:guard:calcnum:mainResult', { result: p?.result ?? null });
+                } catch {}
                 // Préparer ensembles d'unicité pour fallback
                 const existingCalcContents = new Set(
                   post.filter(z => normType(z?.type) === 'calcul').map(z => String(z.content || '').trim())
                 );
+                const existingNumContents = new Set(
+                  post.filter(z => normType(z?.type) === 'chiffre').map(z => String(z.content ?? '').trim())
+                );
+                const numbersOnCardSet = new Set(
+                  Array.from(existingNumContents).map(s => parseInt(String(s).replace(/\s+/g, ''), 10)).filter(n => Number.isFinite(n))
+                );
+                let filteredCalcsByResult = 0;
                 for (const o of calculsIdx) {
                   // Ne pas toucher au calcul apparié (pairId non vide)
                   if ((post[o.i]?.pairId || '').trim()) continue;
-                  const pick = pickUnique(allCalcs, usedCalcIds);
+                  let pick = null;
+                  for (const cand of allCalcs) {
+                    const idStr = String(cand.id);
+                    if (usedCalcIds.has(idStr)) continue;
+                    const parsed = parseOperation(cand.content || '');
+                    const res = parsed && Number.isFinite(parsed.result) ? parsed.result : null;
+                    // Exclure tout calcul qui donnerait un résultat déjà présent (dont le résultat principal)
+                    if (res != null && (presentCalcResults.has(res) || numbersOnCardSet.has(res))) { filteredCalcsByResult++; continue; }
+                    pick = cand; break;
+                  }
                   if (pick) {
                     usedCalcIds.add(String(pick.id));
                     presentCalcIds.add(String(pick.id));
                     post[o.i] = { ...post[o.i], content: pick.content || post[o.i].content, label: pick.content || post[o.i].label, pairId: '' };
                     existingCalcContents.add(String(pick.content || '').trim());
+                    const parsed = parseOperation(pick.content || '');
+                    if (parsed && Number.isFinite(parsed.result)) presentCalcResults.add(parsed.result);
                   } else {
                     // Fallback: générer un calcul adapté au niveau sélectionné
                     let tries = 0;
@@ -3216,15 +3240,22 @@ setZones(dataWithRandomTexts);
                       if (!existingCalcContents.has(expr)) {
                         existingCalcContents.add(expr);
                         post[o.i] = { ...post[o.i], content: expr, label: expr, pairId: '' };
+                        const parsed = parseOperation(expr);
+                        if (parsed && Number.isFinite(parsed.result)) presentCalcResults.add(parsed.result);
                         break;
                       }
                       tries++;
                     }
                   }
                 }
+                if (window && typeof window.ccAddDiag === 'function') try { window.ccAddDiag('round:guard:calcnum:filtered', { calcFilteredByResult: filteredCalcsByResult }); } catch {}
                 const pickNumberAvoidingPairs = () => {
                   const pool = allNums.filter(n => !usedNumIds.has(String(n.id)));
                   const safe = pool.filter(n => {
+                    const v = parseInt(String(n.content).replace(/\s+/g, ''), 10);
+                    if (Number.isFinite(v)) {
+                      if (presentCalcResults.has(v)) return false; // ne pas créer de nouvelle vérité calc->num
+                    }
                     for (const calcId of presentCalcIds) {
                       if (calcNumPairs.has(`${calcId}|${n.id}`)) return false;
                     }
@@ -3233,9 +3264,6 @@ setZones(dataWithRandomTexts);
                   if (!safe.length) return null;
                   return safe[Math.floor(rng() * safe.length)];
                 };
-                const existingNumContents = new Set(
-                  post.filter(z => normType(z?.type) === 'chiffre').map(z => String(z.content ?? '').trim())
-                );
                 for (const o of chiffresIdx) {
                   // Ne pas toucher au chiffre apparié (pairId non vide)
                   if ((post[o.i]?.pairId || '').trim()) continue;
@@ -3248,7 +3276,7 @@ setZones(dataWithRandomTexts);
                     // Fallback: générer un nombre unique
                     let n = 8 + Math.floor(rng() * 90); // 8..97
                     let tries = 0;
-                    while (tries < 50 && existingNumContents.has(String(n))) { n = 8 + Math.floor(rng() * 90); tries++; }
+                    while (tries < 50 && (existingNumContents.has(String(n)) || presentCalcResults.has(n))) { n = 8 + Math.floor(rng() * 90); tries++; }
                     const ns = String(n);
                     if (!existingNumContents.has(ns)) {
                       existingNumContents.add(ns);

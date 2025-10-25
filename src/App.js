@@ -258,12 +258,23 @@ function App() {
               </div>
               {isAdminUI ? (
                 <div style={{ padding: 10 }}>
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                    <button onClick={() => { setDiagRecLines([]); setDiagRecording(true); try { window.ccAddDiag && window.ccAddDiag('recording:start'); } catch {} }} disabled={diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: diagRecording ? '#064e3b' : '#065f46', color: '#ecfdf5' }}>Démarrer</button>
-                    <button onClick={() => { setDiagRecording(false); try { window.ccAddDiag && window.ccAddDiag('recording:stop', { count: diagRecLines.length }); } catch {} }} disabled={!diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: '#7f1d1d', color: '#fee2e2' }}>Arrêter</button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    {!diagRecording && (
+                      <button onClick={() => { setDiagRecLines([]); setDiagRecording(true); try { window.ccAddDiag && window.ccAddDiag('recording:start'); } catch {} }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: '#065f46', color: '#ecfdf5' }}>Démarrer</button>
+                    )}
+                    {diagRecording && (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ width: 10, height: 10, borderRadius: 20, background: '#10b981', boxShadow: '0 0 0 0 rgba(16,185,129,0.7)', animation: 'cc-blink 1s infinite' }} />
+                          <span style={{ fontSize: 13, color: '#a7f3d0' }}>Enregistrement global en cours…</span>
+                        </div>
+                        <button onClick={() => { setDiagRecording(false); try { window.ccAddDiag && window.ccAddDiag('recording:stop', { count: diagRecLines.length }); } catch {} }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: '#7f1d1d', color: '#fee2e2' }}>Arrêter</button>
+                      </>
+                    )}
                     <button onClick={async()=>{ try { await navigator.clipboard.writeText((diagRecLines||[]).join('\n')); } catch {} }} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb' }}>Copier</button>
                     <button onClick={()=>{ setDiagLines([]); setDiagRecLines([]); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb' }}>Vider</button>
                   </div>
+                  <style>{`@keyframes cc-blink { 0%{opacity:1} 50%{opacity:0.3} 100%{opacity:1} }`}</style>
                   <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>Derniers évènements</div>
                   <div style={{ maxHeight: 180, overflow: 'auto', background: '#0b1220', padding: 8, borderRadius: 6 }}>
                     {(diagLines||[]).slice(-120).map((l,i)=>(<div key={i} style={{ whiteSpace: 'pre-wrap' }}>{l}</div>))}
