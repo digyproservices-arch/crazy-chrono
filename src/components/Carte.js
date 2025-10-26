@@ -606,7 +606,10 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
       const now = Date.now();
       try {
         const last = parseInt(localStorage.getItem(THROTTLE_KEY) || '0', 10);
-        if (Number.isFinite(last) && now - last < 60000) return; // 60s throttle
+        if (Number.isFinite(last) && now - last < 60000) {
+          try { window.ccAddDiag && window.ccAddDiag('me:email:carte:throttled', { lastMs: now - last }); } catch {}
+          return; // 60s throttle
+        }
         localStorage.setItem(THROTTLE_KEY, String(now));
       } catch {}
       fetch(`${backend}/me?email=${encodeURIComponent(email)}`, { credentials: 'omit' })
@@ -880,6 +883,9 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
       .finally(() => {
         assignInFlightRef.current = false;
         setAssignBusy(false);
+        // Hide preload overlay after assignment completes
+        setPreparing(false);
+        try { window.ccAddDiag && window.ccAddDiag('prep:done:round'); } catch {}
         const next = pendingAssignRef.current;
         pendingAssignRef.current = null;
         if (next) {
@@ -1161,6 +1167,10 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
       addDiag('round:new', { duration: payload?.duration, roundIndex: payload?.roundIndex, roundsTotal: payload?.roundsTotal });
       // Clear waiting timer, if any
       try { if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } } catch {}
+      // Show preload overlay at start of each round
+      setPreparing(true);
+      try { window.ccAddDiag && window.ccAddDiag('prep:start:round', { roundIndex: payload?.roundIndex }); } catch {}
+      setPrepProgress(0);
       const seed = Number.isFinite(payload?.seed) ? payload.seed : undefined;
       const zonesFile = payload?.zonesFile || 'zones2';
       if (typeof setMpMsg === 'function') setMpMsg('Nouvelle manche');
@@ -1539,6 +1549,7 @@ function startGame() {
 
 function doStart() {
   try {
+    try { window.ccAddDiag && window.ccAddDiag('doStart:called'); } catch {}
     // Si connecté au serveur, lancer une session SOLO via le backend
   if (socket && socket.connected) {
     try {
@@ -2996,12 +3007,22 @@ setZones(dataWithRandomTexts);
                   // pick unique by id and by normalized url
                   let pick = null;
                   const poolImgs = [...allImages, ...(extraStrictImages || [])];
+                  // Pass 1: try to pick non-recent, non-used, non-pairing image
                   for (const cand of poolImgs) {
                     const idStr = String(cand.id);
                     const urlNorm = normUrl(cand.url || cand.path || cand.src || '');
                     // Ne pas choisir une image qui formerait une paire valide avec le texte principal (ou futurs textes, pris en charge côté textes)
                     // Éviter aussi les images récemment utilisées (no-near-repeat entre manches) par ID et par URL
                     if (!usedImgIds.has(idStr) && urlNorm && !usedImgUrls.has(urlNorm) && !imgTxtPairs.has(`${idStr}|${txInfo.id}`) && !recentImages.has(idStr) && !recentUrls.has(urlNorm)) { pick = cand; break; }
+                  }
+                  // Pass 2: if pool exhausted (all recent), allow reuse but still avoid pairs and duplicates on same card
+                  if (!pick) {
+                    try { window.ccAddDiag && window.ccAddDiag('round:images:pool:exhausted', { spot: o.i }); } catch {}
+                    for (const cand of poolImgs) {
+                      const idStr = String(cand.id);
+                      const urlNorm = normUrl(cand.url || cand.path || cand.src || '');
+                      if (!usedImgIds.has(idStr) && urlNorm && !usedImgUrls.has(urlNorm) && !imgTxtPairs.has(`${idStr}|${txInfo.id}`)) { pick = cand; break; }
+                    }
                   }
                   if (pick) {
                     usedImgIds.add(String(pick.id));

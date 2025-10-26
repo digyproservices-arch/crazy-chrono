@@ -55,7 +55,10 @@ function App() {
       const now = Date.now();
       try {
         const last = parseInt(localStorage.getItem(THROTTLE_KEY) || '0', 10);
-        if (Number.isFinite(last) && now - last < 60000) return; // 60s throttle
+        if (Number.isFinite(last) && now - last < 60000) {
+          try { window.ccAddDiag && window.ccAddDiag('me:email:throttled', { lastMs: now - last }); } catch {}
+          return; // 60s throttle
+        }
         localStorage.setItem(THROTTLE_KEY, String(now));
       } catch {}
       fetch(`${getBackendUrl()}/me?email=${encodeURIComponent(email)}`)
@@ -201,7 +204,10 @@ function App() {
               const now = Date.now();
               try {
                 const last = parseInt(localStorage.getItem(ME_THROTTLE_KEY) || '0', 10);
-                if (Number.isFinite(last) && now - last < 30000) { throw new Error('me_throttled'); }
+                if (Number.isFinite(last) && now - last < 30000) { 
+                  try { window.ccAddDiag && window.ccAddDiag('me:throttled', { lastMs: now - last }); } catch {}
+                  return; // STOP: do not fetch
+                }
                 localStorage.setItem(ME_THROTTLE_KEY, String(now));
               } catch {}
               const res = await fetch(`${getBackendUrl()}/me`, { headers: { Authorization: `Bearer ${token}` } });
