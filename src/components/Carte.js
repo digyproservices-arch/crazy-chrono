@@ -602,6 +602,13 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
     if (!email) return; // pas d'email connu, on n'active pas
     const backend = getBackendUrl();
     try {
+      const THROTTLE_KEY = 'cc_last_me_email_fetch_ts_carte';
+      const now = Date.now();
+      try {
+        const last = parseInt(localStorage.getItem(THROTTLE_KEY) || '0', 10);
+        if (Number.isFinite(last) && now - last < 60000) return; // 60s throttle
+        localStorage.setItem(THROTTLE_KEY, String(now));
+      } catch {}
       fetch(`${backend}/me?email=${encodeURIComponent(email)}`, { credentials: 'omit' })
         .then(r => r.ok ? r.json() : null)
         .then(j => {

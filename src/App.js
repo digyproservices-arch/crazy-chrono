@@ -39,7 +39,7 @@ function App() {
     return () => window.removeEventListener('cc:gameMode', onGame);
   }, []);
 
-  // Admin auto-detection (URL admin=1, localStorage cc_admin_ui=1, or backend /me?email=...)
+  // Admin auto-detection (URL admin=1, localStorage cc_admin_ui=1, or backend /me?email=...) with throttle
   useEffect(() => {
     const urlHasAdmin = () => {
       try { return new URLSearchParams(window.location.search).get('admin') === '1'; } catch { return false; }
@@ -51,6 +51,13 @@ function App() {
     try { email = (JSON.parse(localStorage.getItem('cc_auth')||'null')||{}).email || localStorage.getItem('cc_profile_email') || localStorage.getItem('user_email') || localStorage.getItem('email'); } catch {}
     if (!email) return;
     try {
+      const THROTTLE_KEY = 'cc_last_me_email_fetch_ts';
+      const now = Date.now();
+      try {
+        const last = parseInt(localStorage.getItem(THROTTLE_KEY) || '0', 10);
+        if (Number.isFinite(last) && now - last < 60000) return; // 60s throttle
+        localStorage.setItem(THROTTLE_KEY, String(now));
+      } catch {}
       fetch(`${getBackendUrl()}/me?email=${encodeURIComponent(email)}`)
         .then(r => r.ok ? r.json() : null)
         .then(j => { if (j && j.ok && String(j.role||'').toLowerCase()==='admin') setIsAdminUI(true); })
@@ -60,6 +67,18 @@ function App() {
 
   // Recording ref sync
   useEffect(() => { diagRecRef.current = !!diagRecording; }, [diagRecording]);
+
+  // Auto-start recording via ?rec=1
+  useEffect(() => {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get('rec') === '1') {
+        setDiagRecLines([]);
+        setDiagRecording(true);
+        try { window.ccAddDiag && window.ccAddDiag('recording:auto:start'); } catch {}
+      }
+    } catch {}
+  }, []);
 
   // When recording is ON, capture console, errors, and fetch
   useEffect(() => {
@@ -177,6 +196,14 @@ function App() {
           const token = data?.session?.access_token || null;
           if (token) {
             try {
+              // Throttle /me to avoid rapid loops
+              const ME_THROTTLE_KEY = 'cc_last_me_fetch_ts';
+              const now = Date.now();
+              try {
+                const last = parseInt(localStorage.getItem(ME_THROTTLE_KEY) || '0', 10);
+                if (Number.isFinite(last) && now - last < 30000) { throw new Error('me_throttled'); }
+                localStorage.setItem(ME_THROTTLE_KEY, String(now));
+              } catch {}
               const res = await fetch(`${getBackendUrl()}/me`, { headers: { Authorization: `Bearer ${token}` } });
               const json = await res.json().catch(() => ({}));
               if (json && json.ok && json.user) {
