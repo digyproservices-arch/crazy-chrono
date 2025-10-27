@@ -1763,8 +1763,11 @@ function handleGameClick(zone) {
         console.log('[GAME] OK pair', { a, b, ZA: { id: ZA.id, type: ZA.type, pairId: ZA.pairId }, ZB: { id: ZB.id, type: ZB.type, pairId: ZB.pairId } });
         // Ajouter le pairId au Set des paires validées
         if (pairKey) {
-          setValidatedPairIds(prev => new Set([...prev, pairKey]));
-          try { window.ccAddDiag && window.ccAddDiag('pair:validated', { pairKey, totalValidated: validatedPairIdsRef.current.size + 1 }); } catch {}
+          setValidatedPairIds(prev => {
+            const newSet = new Set([...prev, pairKey]);
+            try { window.ccAddDiag && window.ccAddDiag('pair:validated', { pairKey, totalValidated: newSet.size }); } catch {}
+            return newSet;
+          });
         }
         // Effets visuels immédiats pour garantir le feedback, même en multijoueur
         setGameMsg('Bravo !');
@@ -1813,11 +1816,9 @@ function handleGameClick(zone) {
           setTimeout(() => {
             setGameSelectedIds([]);
             setGameMsg('');
-            // En multi, on ne reshuffle pas localement pour garder la sync entre joueurs
-            if (!(socket && socket.connected)) {
-              // Mode solo/local
-              safeHandleAutoAssign();
-            }
+            // CORRECTION: Toujours régénérer la carte après une paire validée
+            // Le serveur ne gère pas la régénération automatique par paire
+            safeHandleAutoAssign();
           }, 450);
       } else {
         console.log('[GAME] BAD pair', { a, b, ZA: ZA && { id: ZA.id, type: ZA.type, pairId: ZA.pairId }, ZB: ZB && { id: ZB.id, type: ZB.type, pairId: ZB.pairId } });
@@ -3168,7 +3169,8 @@ setZones(dataWithRandomTexts);
                     usedCalcIds.add(String(pick.id));
                     usedCalcContents.add(normCalc(pick.content || ''));
                     presentCalcIds.add(String(pick.id));
-                    post[o.i] = { ...post[o.i], content: pick.content || post[o.i].content, label: pick.content || post[o.i].label, pairId: '' };
+                    const calcContent = pick.content || post[o.i].content;
+                    post[o.i] = { ...post[o.i], content: calcContent, label: calcContent, pairId: '' };
                   }
                 }
                 if (!enableMathFill) {
@@ -3199,7 +3201,8 @@ setZones(dataWithRandomTexts);
                   if (pick) {
                     usedNumIds.add(String(pick.id));
                     usedNumContents.add(normNum(pick.content));
-                    post[o.i] = { ...post[o.i], content: String(pick.content ?? post[o.i].content), label: String(pick.content ?? post[o.i].label), pairId: '' };
+                    const numContent = String(pick.content ?? post[o.i].content);
+                    post[o.i] = { ...post[o.i], content: numContent, label: numContent, pairId: '' };
                   }
                 }
                 break; // on a posé notre paire
@@ -3269,7 +3272,8 @@ setZones(dataWithRandomTexts);
                   if (pick) {
                     usedCalcIds.add(String(pick.id));
                     presentCalcIds.add(String(pick.id));
-                    post[o.i] = { ...post[o.i], content: pick.content || post[o.i].content, label: pick.content || post[o.i].label, pairId: '' };
+                    const calcContent = pick.content || post[o.i].content;
+                    post[o.i] = { ...post[o.i], content: calcContent, label: calcContent, pairId: '' };
                     existingCalcContents.add(String(pick.content || '').trim());
                     const parsed = parseOperation(pick.content || '');
                     if (parsed && Number.isFinite(parsed.result)) presentCalcResults.add(parsed.result);
@@ -3311,7 +3315,8 @@ setZones(dataWithRandomTexts);
                   const pick = pickNumberAvoidingPairs();
                   if (pick) {
                     usedNumIds.add(String(pick.id));
-                    post[o.i] = { ...post[o.i], content: String(pick.content ?? post[o.i].content), label: String(pick.content ?? post[o.i].label), pairId: '' };
+                    const numContent = String(pick.content ?? post[o.i].content);
+                    post[o.i] = { ...post[o.i], content: numContent, label: numContent, pairId: '' };
                     existingNumContents.add(String(pick.content ?? '').trim());
                   } else {
                     // Fallback: générer un nombre unique
