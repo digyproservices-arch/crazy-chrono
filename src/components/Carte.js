@@ -3060,11 +3060,15 @@ setZones(dataWithRandomTexts);
                 // Persister la mémoire courte (ids) et tracer
                 try {
                   const uniqArr = Array.from(new Set(Array.from(recentImages)));
-                  setRecentImages(uniqArr);
                   const uniqUrls = Array.from(new Set(Array.from(recentUrls)));
-                  setRecentUrls(uniqUrls);
+                  // CORRECTION: Limiter la taille pour éviter la saturation (garder seulement les 12 dernières)
+                  const MAX_RECENT = 12;
+                  const trimmedArr = uniqArr.slice(-MAX_RECENT);
+                  const trimmedUrls = uniqUrls.slice(-MAX_RECENT);
+                  setRecentImages(trimmedArr);
+                  setRecentUrls(trimmedUrls);
                   if (window && typeof window.ccAddDiag === 'function') {
-                    window.ccAddDiag('round:images:recent:update', { recentCount: uniqArr.length, recentUrlCount: uniqUrls.length });
+                    window.ccAddDiag('round:images:recent:update', { recentCount: trimmedArr.length, recentUrlCount: trimmedUrls.length, maxRecent: MAX_RECENT });
                     window.ccAddDiag('round:images:seq', { items: roundImageSeq });
                   }
                 } catch {}
@@ -3340,16 +3344,31 @@ setZones(dataWithRandomTexts);
                 for (const o of imagesIdx) {
                   if ((post[o.i]?.pairId || '').trim()) continue;
                   let pick = null;
+                  // Pass 1: éviter les images récentes
                   for (const cand of allImages) {
                     const idStr = String(cand.id);
                     const urlNorm = normUrl(cand.url || cand.path || cand.src || '');
-                    if (!usedImgIds.has(idStr) && urlNorm && !usedImgUrls.has(urlNorm)) { pick = cand; break; }
+                    if (!usedImgIds.has(idStr) && urlNorm && !usedImgUrls.has(urlNorm) && !recentImages.has(idStr) && !recentUrls.has(urlNorm)) { pick = cand; break; }
+                  }
+                  // Pass 2: si pool épuisé, autoriser réutilisation mais éviter duplicatas sur même carte
+                  if (!pick) {
+                    for (const cand of allImages) {
+                      const idStr = String(cand.id);
+                      const urlNorm = normUrl(cand.url || cand.path || cand.src || '');
+                      if (!usedImgIds.has(idStr) && urlNorm && !usedImgUrls.has(urlNorm)) { pick = cand; break; }
+                    }
                   }
                   if (pick) {
                     usedImgIds.add(String(pick.id));
-                    usedImgUrls.add(normUrl(pick.url || pick.path || pick.src || ''));
+                    const pUrlNorm = normUrl(pick.url || pick.path || pick.src || '');
+                    usedImgUrls.add(pUrlNorm);
                     presentImageIds.add(String(pick.id));
                     post[o.i] = { ...post[o.i], content: pick.url || pick.path || pick.src || post[o.i].content, pairId: '' };
+                    // Ajouter à la mémoire courte
+                    try {
+                      recentImages.add(String(pick.id));
+                      if (pUrlNorm) recentUrls.add(pUrlNorm);
+                    } catch {}
                   } else {
                     const ph = 'images/carte-vide.png';
                     usedImgUrls.add(normUrl(ph));
@@ -3389,6 +3408,19 @@ setZones(dataWithRandomTexts);
                     }
                   }
                 }
+                // Persister la mémoire courte (calcnum branch)
+                try {
+                  const uniqArr = Array.from(new Set(Array.from(recentImages)));
+                  const uniqUrls = Array.from(new Set(Array.from(recentUrls)));
+                  const MAX_RECENT = 12;
+                  const trimmedArr = uniqArr.slice(-MAX_RECENT);
+                  const trimmedUrls = uniqUrls.slice(-MAX_RECENT);
+                  setRecentImages(trimmedArr);
+                  setRecentUrls(trimmedUrls);
+                  if (window && typeof window.ccAddDiag === 'function') {
+                    window.ccAddDiag('round:images:recent:update:calcnum', { recentCount: trimmedArr.length, recentUrlCount: trimmedUrls.length, maxRecent: MAX_RECENT });
+                  }
+                } catch {}
                 break; // on a posé notre paire
               }
             }
