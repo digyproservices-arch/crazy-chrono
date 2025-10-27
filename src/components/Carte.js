@@ -3224,7 +3224,7 @@ setZones(dataWithRandomTexts);
               const numSpot = freeNums.length ? freeNums[Math.floor(rng() * freeNums.length)] : chiffresIdx[0];
               if (caInfo && nuInfo && calcSpot && numSpot) {
                 const key = `assoc-calc-${caInfo.id}-num-${nuInfo.id}`;
-                post[calcSpot.i] = { ...post[calcSpot.i], content: caInfo.content || post[calcSpot.i].content, label: caInfo.content || post[calcSpot.i].label, pairId: key };
+                post[calcSpot.i] = { ...post[calcSpot.i], content: caInfo.content || post[calcSpot.i].content, label: String(nuInfo.content ?? post[calcSpot.i].label), pairId: key };
                 post[numSpot.i] = { ...post[numSpot.i], content: String(nuInfo.content ?? post[numSpot.i].content), label: String(nuInfo.content ?? post[numSpot.i].label), pairId: key };
                 selectedCalcIdxs.add(calcSpot.i);
                 hadAnyAdminPairAssigned = true;
