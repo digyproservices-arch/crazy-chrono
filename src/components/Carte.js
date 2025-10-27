@@ -866,6 +866,11 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
   const currentTargetPairKeyRef = useRef(null);
   useEffect(() => { currentTargetPairKeyRef.current = currentTargetPairKey; }, [currentTargetPairKey]);
 
+  // --- Tracking des paires validées pendant la session ---
+  const [validatedPairIds, setValidatedPairIds] = useState(new Set());
+  const validatedPairIdsRef = useRef(new Set());
+  useEffect(() => { validatedPairIdsRef.current = validatedPairIds; }, [validatedPairIds]);
+
   // --- Assignment guard to avoid overlapping reshuffles ---
   const assignInFlightRef = useRef(false);
   const pendingAssignRef = useRef(null);
@@ -1550,6 +1555,9 @@ function startGame() {
 function doStart() {
   try {
     try { window.ccAddDiag && window.ccAddDiag('doStart:called'); } catch {}
+    // Réinitialiser le Set des paires validées au début d'une nouvelle session
+    setValidatedPairIds(new Set());
+    try { window.ccAddDiag && window.ccAddDiag('session:reset:validatedPairs'); } catch {}
     // Si connecté au serveur, lancer une session SOLO via le backend
   if (socket && socket.connected) {
     try {
@@ -1753,6 +1761,11 @@ function handleGameClick(zone) {
       } catch {}
       if (okPair) {
         console.log('[GAME] OK pair', { a, b, ZA: { id: ZA.id, type: ZA.type, pairId: ZA.pairId }, ZB: { id: ZB.id, type: ZB.type, pairId: ZB.pairId } });
+        // Ajouter le pairId au Set des paires validées
+        if (pairKey) {
+          setValidatedPairIds(prev => new Set([...prev, pairKey]));
+          try { window.ccAddDiag && window.ccAddDiag('pair:validated', { pairKey, totalValidated: validatedPairIdsRef.current.size + 1 }); } catch {}
+        }
         // Effets visuels immédiats pour garantir le feedback, même en multijoueur
         setGameMsg('Bravo !');
         playCorrectSound();
@@ -2489,7 +2502,7 @@ setZones(dataWithRandomTexts);
       console.log('ZONES CHARGED', dataWithRandomTexts.filter(z => z.id === 1752571493404 || z.id === 1752571661490));
       console.log('DEBUG ZONES AVANT ATTRIB', dataWithRandomTexts.filter(z => z.id === 1752571493404 || z.id === 1752571661490));
       const elementsData = await fetchElements();
-      let updatedZones = await assignElementsToZones(dataWithRandomTexts, elementsData, undefined, rng);
+      let updatedZones = await assignElementsToZones(dataWithRandomTexts, elementsData, undefined, rng, validatedPairIdsRef.current);
       // Éviter toute divergence en multi: ne pas faire de post-traitements dépendants du réseau
       if (!deterministicSync) {
         // Filtrer les images qui ne sont plus listées dans l'Admin (associations.json)
@@ -2554,7 +2567,7 @@ setZones(dataWithRandomTexts);
           return; // éviter divergence si un client échoue
         }
       }
-      let validated = await assignElementsToZones(updatedZones, elementsData, assocData, rng);
+      let validated = await assignElementsToZones(updatedZones, elementsData, assocData, rng, validatedPairIdsRef.current);
       if (!deterministicSync) {
         // Vérification et auto-réparation des URLs d'images (réseau): uniquement en mode local/legacy
         async function verifyImageUrl(url) {

@@ -13,7 +13,7 @@ export async function fetchElements() {
   }
 }
 
-export async function assignElementsToZones(zones, _elements, assocData, rng = Math.random) {
+export async function assignElementsToZones(zones, _elements, assocData, rng = Math.random, excludedPairIds = new Set()) {
   // Utiliser uniquement les éléments présents dans associations.json
   const data = assocData || {};
   let textes = Array.isArray(data.textes) ? data.textes : [];
@@ -67,6 +67,22 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       if (hasCN) return C.has(a.calculId) && N.has(a.chiffreId);
       return false;
     });
+  }
+
+  // ===== Filtrage des paires déjà validées =====
+  // Construire les pairIds pour chaque association et exclure celles déjà validées
+  // Format: assoc-img-{imageId}-txt-{texteId} ou assoc-calc-{calculId}-num-{chiffreId}
+  if (excludedPairIds && excludedPairIds.size > 0) {
+    const buildPairId = (a) => {
+      if (a.texteId && a.imageId) return `assoc-img-${a.imageId}-txt-${a.texteId}`;
+      if (a.calculId && a.chiffreId) return `assoc-calc-${a.calculId}-num-${a.chiffreId}`;
+      return null;
+    };
+    associations = associations.filter(a => {
+      const pairId = buildPairId(a);
+      return !pairId || !excludedPairIds.has(pairId);
+    });
+    console.log('[elementsLoader] Filtered out validated pairs:', excludedPairIds.size, 'remaining associations:', associations.length);
   }
 
   const byId = (arr, key='id') => Object.fromEntries(arr.map(x => [x[key], x]));
