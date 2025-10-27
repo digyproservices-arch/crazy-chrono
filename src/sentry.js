@@ -21,10 +21,9 @@ export const initSentry = () => {
     // 0.1 = 10% des transactions (économise le quota gratuit)
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
     
-    // Intégrations
+    // Intégrations - Version simplifiée sans BrowserTracing
     integrations: [
-      new Sentry.BrowserTracing(),
-      new Sentry.Replay({
+      Sentry.replayIntegration({
         // Session replay pour reproduire les bugs
         maskAllText: false,
         blockAllMedia: false,
