@@ -2739,7 +2739,7 @@ setZones(dataWithRandomTexts);
             } catch { return []; }
           };
           const setRecentImages = (arr) => {
-            const capped = arr.slice(-6);
+            const capped = arr.slice(-3);
             try { localStorage.setItem('cc_recent_image_ids', JSON.stringify(capped)); } catch {}
             try { window.ccRecentImages = capped; } catch {}
           };
@@ -2752,7 +2752,7 @@ setZones(dataWithRandomTexts);
             } catch { return []; }
           };
           const setRecentUrls = (arr) => {
-            const capped = arr.slice(-6);
+            const capped = arr.slice(-3);
             try { localStorage.setItem('cc_recent_image_urls', JSON.stringify(capped)); } catch {}
             try { window.ccRecentImageUrls = capped; } catch {}
           };
@@ -3061,8 +3061,8 @@ setZones(dataWithRandomTexts);
                 try {
                   const uniqArr = Array.from(new Set(Array.from(recentImages)));
                   const uniqUrls = Array.from(new Set(Array.from(recentUrls)));
-                  // CORRECTION: Limiter la taille pour éviter la saturation (garder seulement les 12 dernières)
-                  const MAX_RECENT = 6;
+                  // CORRECTION: Limiter la taille pour éviter la saturation (garder seulement les 3 dernières)
+                  const MAX_RECENT = 3;
                   const trimmedArr = uniqArr.slice(-MAX_RECENT);
                   const trimmedUrls = uniqUrls.slice(-MAX_RECENT);
                   setRecentImages(trimmedArr);
@@ -3412,7 +3412,7 @@ setZones(dataWithRandomTexts);
                 try {
                   const uniqArr = Array.from(new Set(Array.from(recentImages)));
                   const uniqUrls = Array.from(new Set(Array.from(recentUrls)));
-                  const MAX_RECENT = 6;
+                  const MAX_RECENT = 3;
                   const trimmedArr = uniqArr.slice(-MAX_RECENT);
                   const trimmedUrls = uniqUrls.slice(-MAX_RECENT);
                   setRecentImages(trimmedArr);
