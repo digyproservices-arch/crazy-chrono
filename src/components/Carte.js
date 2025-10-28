@@ -3160,6 +3160,7 @@ setZones(dataWithRandomTexts);
                 const usedCalcContents = new Set();
                 const usedNumContents = new Set();
                 const presentCalcIds = new Set();
+                const presentCalcResults = new Set();
                 if (enableMathFill) for (const o of calculsIdx) {
                   if ((post[o.i]?.pairId || '').trim()) continue;
                   // ensure unique by content as well
@@ -3167,7 +3168,14 @@ setZones(dataWithRandomTexts);
                   for (const cand of allCalcs) {
                     const idStr = String(cand.id);
                     const contNorm = normCalc(cand.content || '');
-                    if (!usedCalcIds.has(idStr) && contNorm && !usedCalcContents.has(contNorm)) { pick = cand; break; }
+                    if (!usedCalcIds.has(idStr) && contNorm && !usedCalcContents.has(contNorm)) {
+                      // Vérifier que le résultat n'est pas déjà utilisé
+                      const parsed = parseOperation(cand.content || '');
+                      const res = parsed && Number.isFinite(parsed.result) ? parsed.result : null;
+                      if (res != null && presentCalcResults.has(res)) continue;
+                      pick = cand;
+                      break;
+                    }
                   }
                   if (pick) {
                     usedCalcIds.add(String(pick.id));
@@ -3175,6 +3183,9 @@ setZones(dataWithRandomTexts);
                     presentCalcIds.add(String(pick.id));
                     const calcContent = pick.content || post[o.i].content;
                     post[o.i] = { ...post[o.i], content: calcContent, label: calcContent, pairId: '' };
+                    // Ajouter le résultat aux résultats utilisés
+                    const parsed = parseOperation(pick.content || '');
+                    if (parsed && Number.isFinite(parsed.result)) presentCalcResults.add(parsed.result);
                   }
                 }
                 if (!enableMathFill) {
@@ -3191,6 +3202,9 @@ setZones(dataWithRandomTexts);
                 const pickNumberAvoidingPairsImgBranch = () => {
                   const pool = allNums.filter(n => !usedNumIds.has(String(n.id)) && !usedNumContents.has(normNum(n.content)));
                   const safe = pool.filter(n => {
+                    // Éviter les chiffres qui correspondent aux résultats des calculs présents
+                    const v = parseInt(String(n.content).replace(/\s+/g, ''), 10);
+                    if (Number.isFinite(v) && presentCalcResults.has(v)) return false;
                     for (const calcId of presentCalcIds) {
                       if (calcNumPairs.has(`${calcId}|${n.id}`)) return false;
                     }
