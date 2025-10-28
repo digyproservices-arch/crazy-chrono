@@ -3108,18 +3108,26 @@ setZones(dataWithRandomTexts);
                   const uniqArr = Array.from(new Set(Array.from(recentImages)));
                   const uniqUrls = Array.from(new Set(Array.from(recentUrls)));
                   const uniqTexts = Array.from(new Set(Array.from(recentTexts)));
+                  const uniqCalcs = Array.from(new Set(Array.from(recentCalcs)));
+                  const uniqNums = Array.from(new Set(Array.from(recentNums)));
                   // CORRECTION: Limiter la taille pour éviter la saturation (garder seulement les 3 dernières)
                   const MAX_RECENT = 3;
                   const trimmedArr = uniqArr.slice(-MAX_RECENT);
                   const trimmedUrls = uniqUrls.slice(-MAX_RECENT);
                   const trimmedTexts = uniqTexts.slice(-MAX_RECENT);
+                  const trimmedCalcs = uniqCalcs.slice(-MAX_RECENT);
+                  const trimmedNums = uniqNums.slice(-MAX_RECENT);
                   setRecentImages(trimmedArr);
                   setRecentUrls(trimmedUrls);
                   setRecentTexts(trimmedTexts);
+                  setRecentCalcs(trimmedCalcs);
+                  setRecentNums(trimmedNums);
                   if (window && typeof window.ccAddDiag === 'function') {
                     window.ccAddDiag('round:images:recent:update', { recentCount: trimmedArr.length, recentUrlCount: trimmedUrls.length, maxRecent: MAX_RECENT });
                     window.ccAddDiag('round:images:seq', { items: roundImageSeq });
                     window.ccAddDiag('round:texts:recent:update', { recentCount: trimmedTexts.length, maxRecent: MAX_RECENT });
+                    window.ccAddDiag('round:calcs:recent:update', { recentCount: trimmedCalcs.length, maxRecent: MAX_RECENT });
+                    window.ccAddDiag('round:nums:recent:update', { recentCount: trimmedNums.length, maxRecent: MAX_RECENT });
                   }
                 } catch {}
                 // Choisir des textes qui ne forment aucune association valide avec les images présentes
@@ -3227,13 +3235,12 @@ setZones(dataWithRandomTexts);
                 const presentCalcResults = new Set();
                 if (enableMathFill) for (const o of calculsIdx) {
                   if ((post[o.i]?.pairId || '').trim()) continue;
-                  // ensure unique by content as well
                   let pick = null;
+                  // Pass 1: éviter calculs récents
                   for (const cand of allCalcs) {
                     const idStr = String(cand.id);
                     const contNorm = normCalc(cand.content || '');
-                    if (!usedCalcIds.has(idStr) && contNorm && !usedCalcContents.has(contNorm)) {
-                      // Vérifier que le résultat n'est pas déjà utilisé
+                    if (!usedCalcIds.has(idStr) && contNorm && !usedCalcContents.has(contNorm) && !recentCalcs.has(contNorm)) {
                       const parsed = parseOperation(cand.content || '');
                       const res = parsed && Number.isFinite(parsed.result) ? parsed.result : null;
                       if (res != null && presentCalcResults.has(res)) continue;
@@ -3241,13 +3248,27 @@ setZones(dataWithRandomTexts);
                       break;
                     }
                   }
+                  // Pass 2: si épuisé, autoriser réutilisation
+                  if (!pick) {
+                    for (const cand of allCalcs) {
+                      const idStr = String(cand.id);
+                      const contNorm = normCalc(cand.content || '');
+                      if (!usedCalcIds.has(idStr) && contNorm && !usedCalcContents.has(contNorm)) {
+                        const parsed = parseOperation(cand.content || '');
+                        const res = parsed && Number.isFinite(parsed.result) ? parsed.result : null;
+                        if (res != null && presentCalcResults.has(res)) continue;
+                        pick = cand;
+                        break;
+                      }
+                    }
+                  }
                   if (pick) {
                     usedCalcIds.add(String(pick.id));
                     usedCalcContents.add(normCalc(pick.content || ''));
+                    recentCalcs.add(normCalc(pick.content || ''));
                     presentCalcIds.add(String(pick.id));
                     const calcContent = pick.content || post[o.i].content;
                     post[o.i] = { ...post[o.i], content: calcContent, label: calcContent, pairId: '' };
-                    // Ajouter le résultat aux résultats utilisés
                     const parsed = parseOperation(pick.content || '');
                     if (parsed && Number.isFinite(parsed.result)) presentCalcResults.add(parsed.result);
                   }
@@ -3264,9 +3285,9 @@ setZones(dataWithRandomTexts);
                   }
                 }
                 const pickNumberAvoidingPairsImgBranch = () => {
-                  const pool = allNums.filter(n => !usedNumIds.has(String(n.id)) && !usedNumContents.has(normNum(n.content)));
+                  // Pass 1: éviter chiffres récents
+                  const pool = allNums.filter(n => !usedNumIds.has(String(n.id)) && !usedNumContents.has(normNum(n.content)) && !recentNums.has(String(n.content)));
                   const safe = pool.filter(n => {
-                    // Éviter les chiffres qui correspondent aux résultats des calculs présents
                     const v = parseInt(String(n.content).replace(/\s+/g, ''), 10);
                     if (Number.isFinite(v) && presentCalcResults.has(v)) return false;
                     for (const calcId of presentCalcIds) {
@@ -3274,8 +3295,19 @@ setZones(dataWithRandomTexts);
                     }
                     return true;
                   });
-                  if (!safe.length) return null;
-                  return safe[Math.floor(rng() * safe.length)];
+                  if (safe.length) return safe[Math.floor(rng() * safe.length)];
+                  // Pass 2: si épuisé, autoriser réutilisation
+                  const pool2 = allNums.filter(n => !usedNumIds.has(String(n.id)) && !usedNumContents.has(normNum(n.content)));
+                  const safe2 = pool2.filter(n => {
+                    const v = parseInt(String(n.content).replace(/\s+/g, ''), 10);
+                    if (Number.isFinite(v) && presentCalcResults.has(v)) return false;
+                    for (const calcId of presentCalcIds) {
+                      if (calcNumPairs.has(`${calcId}|${n.id}`)) return false;
+                    }
+                    return true;
+                  });
+                  if (!safe2.length) return null;
+                  return safe2[Math.floor(rng() * safe2.length)];
                 };
                 if (enableMathFill) for (const o of chiffresIdx) {
                   if ((post[o.i]?.pairId || '').trim()) continue;
@@ -3283,6 +3315,7 @@ setZones(dataWithRandomTexts);
                   if (pick) {
                     usedNumIds.add(String(pick.id));
                     usedNumContents.add(normNum(pick.content));
+                    recentNums.add(String(pick.content));
                     const numContent = String(pick.content ?? post[o.i].content);
                     post[o.i] = { ...post[o.i], content: numContent, label: numContent, pairId: '' };
                   }
@@ -3325,6 +3358,8 @@ setZones(dataWithRandomTexts);
                 try {
                   const p = parseOperation(caInfo.content);
                   if (p && Number.isFinite(p.result)) presentCalcResults.add(p.result);
+                  recentCalcs.add(normCalc(caInfo.content || ''));
+                  recentNums.add(String(nuInfo.content ?? ''));
                   if (window && typeof window.ccAddDiag === 'function') window.ccAddDiag('round:guard:calcnum:mainResult', { result: p?.result ?? null });
                 } catch {}
                 // Préparer ensembles d'unicité pour fallback
@@ -3342,18 +3377,31 @@ setZones(dataWithRandomTexts);
                   // Ne pas toucher au calcul apparié (pairId non vide)
                   if ((post[o.i]?.pairId || '').trim()) continue;
                   let pick = null;
+                  // Pass 1: éviter calculs récents
                   for (const cand of allCalcs) {
                     const idStr = String(cand.id);
-                    if (usedCalcIds.has(idStr)) continue;
+                    const contNorm = normCalc(cand.content || '');
+                    if (usedCalcIds.has(idStr) || recentCalcs.has(contNorm)) continue;
                     const parsed = parseOperation(cand.content || '');
                     const res = parsed && Number.isFinite(parsed.result) ? parsed.result : null;
-                    // Exclure tout calcul qui donnerait un résultat déjà présent (dont le résultat principal)
                     if (res != null && (presentCalcResults.has(res) || numbersOnCardSet.has(res))) { filteredCalcsByResult++; continue; }
                     pick = cand; break;
+                  }
+                  // Pass 2: si épuisé, autoriser réutilisation
+                  if (!pick) {
+                    for (const cand of allCalcs) {
+                      const idStr = String(cand.id);
+                      if (usedCalcIds.has(idStr)) continue;
+                      const parsed = parseOperation(cand.content || '');
+                      const res = parsed && Number.isFinite(parsed.result) ? parsed.result : null;
+                      if (res != null && (presentCalcResults.has(res) || numbersOnCardSet.has(res))) { filteredCalcsByResult++; continue; }
+                      pick = cand; break;
+                    }
                   }
                   if (pick) {
                     usedCalcIds.add(String(pick.id));
                     presentCalcIds.add(String(pick.id));
+                    recentCalcs.add(normCalc(pick.content || ''));
                     const calcContent = pick.content || post[o.i].content;
                     post[o.i] = { ...post[o.i], content: calcContent, label: calcContent, pairId: '' };
                     existingCalcContents.add(String(pick.content || '').trim());
@@ -3377,19 +3425,33 @@ setZones(dataWithRandomTexts);
                 }
                 if (window && typeof window.ccAddDiag === 'function') try { window.ccAddDiag('round:guard:calcnum:filtered', { calcFilteredByResult: filteredCalcsByResult }); } catch {}
                 const pickNumberAvoidingPairs = () => {
-                  const pool = allNums.filter(n => !usedNumIds.has(String(n.id)));
+                  // Pass 1: éviter chiffres récents
+                  const pool = allNums.filter(n => !usedNumIds.has(String(n.id)) && !recentNums.has(String(n.content)));
                   const safe = pool.filter(n => {
                     const v = parseInt(String(n.content).replace(/\s+/g, ''), 10);
                     if (Number.isFinite(v)) {
-                      if (presentCalcResults.has(v)) return false; // ne pas créer de nouvelle vérité calc->num
+                      if (presentCalcResults.has(v)) return false;
                     }
                     for (const calcId of presentCalcIds) {
                       if (calcNumPairs.has(`${calcId}|${n.id}`)) return false;
                     }
                     return true;
                   });
-                  if (!safe.length) return null;
-                  return safe[Math.floor(rng() * safe.length)];
+                  if (safe.length) return safe[Math.floor(rng() * safe.length)];
+                  // Pass 2: si épuisé, autoriser réutilisation
+                  const pool2 = allNums.filter(n => !usedNumIds.has(String(n.id)));
+                  const safe2 = pool2.filter(n => {
+                    const v = parseInt(String(n.content).replace(/\s+/g, ''), 10);
+                    if (Number.isFinite(v)) {
+                      if (presentCalcResults.has(v)) return false;
+                    }
+                    for (const calcId of presentCalcIds) {
+                      if (calcNumPairs.has(`${calcId}|${n.id}`)) return false;
+                    }
+                    return true;
+                  });
+                  if (!safe2.length) return null;
+                  return safe2[Math.floor(rng() * safe2.length)];
                 };
                 for (const o of chiffresIdx) {
                   // Ne pas toucher au chiffre apparié (pairId non vide)
@@ -3397,6 +3459,7 @@ setZones(dataWithRandomTexts);
                   const pick = pickNumberAvoidingPairs();
                   if (pick) {
                     usedNumIds.add(String(pick.id));
+                    recentNums.add(String(pick.content));
                     const numContent = String(pick.content ?? post[o.i].content);
                     post[o.i] = { ...post[o.i], content: numContent, label: numContent, pairId: '' };
                     existingNumContents.add(String(pick.content ?? '').trim());
@@ -3502,16 +3565,24 @@ setZones(dataWithRandomTexts);
                   const uniqArr = Array.from(new Set(Array.from(recentImages)));
                   const uniqUrls = Array.from(new Set(Array.from(recentUrls)));
                   const uniqTexts = Array.from(new Set(Array.from(recentTexts)));
+                  const uniqCalcs = Array.from(new Set(Array.from(recentCalcs)));
+                  const uniqNums = Array.from(new Set(Array.from(recentNums)));
                   const MAX_RECENT = 3;
                   const trimmedArr = uniqArr.slice(-MAX_RECENT);
                   const trimmedUrls = uniqUrls.slice(-MAX_RECENT);
                   const trimmedTexts = uniqTexts.slice(-MAX_RECENT);
+                  const trimmedCalcs = uniqCalcs.slice(-MAX_RECENT);
+                  const trimmedNums = uniqNums.slice(-MAX_RECENT);
                   setRecentImages(trimmedArr);
                   setRecentUrls(trimmedUrls);
                   setRecentTexts(trimmedTexts);
+                  setRecentCalcs(trimmedCalcs);
+                  setRecentNums(trimmedNums);
                   if (window && typeof window.ccAddDiag === 'function') {
                     window.ccAddDiag('round:images:recent:update:calcnum', { recentCount: trimmedArr.length, recentUrlCount: trimmedUrls.length, maxRecent: MAX_RECENT });
                     window.ccAddDiag('round:texts:recent:update:calcnum', { recentCount: trimmedTexts.length, maxRecent: MAX_RECENT });
+                    window.ccAddDiag('round:calcs:recent:update:calcnum', { recentCount: trimmedCalcs.length, maxRecent: MAX_RECENT });
+                    window.ccAddDiag('round:nums:recent:update:calcnum', { recentCount: trimmedNums.length, maxRecent: MAX_RECENT });
                   }
                 } catch {}
                 break; // on a posé notre paire
