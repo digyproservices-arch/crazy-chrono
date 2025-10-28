@@ -2758,6 +2758,51 @@ setZones(dataWithRandomTexts);
           };
           const recentImages = new Set(getRecentImages());
           const recentUrls = new Set(getRecentUrls());
+          
+          // Mémoire courte des derniers textes utilisés (éviter répétitions rapprochées entre manches)
+          const getRecentTexts = () => {
+            try {
+              const raw = localStorage.getItem('cc_recent_texts');
+              const arr = raw ? JSON.parse(raw) : [];
+              return Array.isArray(arr) ? arr.map(String) : [];
+            } catch { return []; }
+          };
+          const setRecentTexts = (arr) => {
+            const capped = arr.slice(-3);
+            try { localStorage.setItem('cc_recent_texts', JSON.stringify(capped)); } catch {}
+            try { window.ccRecentTexts = capped; } catch {}
+          };
+          const recentTexts = new Set(getRecentTexts());
+          
+          // Mémoire courte des derniers calculs utilisés (éviter répétitions rapprochées entre manches)
+          const getRecentCalcs = () => {
+            try {
+              const raw = localStorage.getItem('cc_recent_calcs');
+              const arr = raw ? JSON.parse(raw) : [];
+              return Array.isArray(arr) ? arr.map(String) : [];
+            } catch { return []; }
+          };
+          const setRecentCalcs = (arr) => {
+            const capped = arr.slice(-3);
+            try { localStorage.setItem('cc_recent_calcs', JSON.stringify(capped)); } catch {}
+            try { window.ccRecentCalcs = capped; } catch {}
+          };
+          const recentCalcs = new Set(getRecentCalcs());
+          
+          // Mémoire courte des derniers chiffres utilisés (éviter répétitions rapprochées entre manches)
+          const getRecentNums = () => {
+            try {
+              const raw = localStorage.getItem('cc_recent_nums');
+              const arr = raw ? JSON.parse(raw) : [];
+              return Array.isArray(arr) ? arr.map(String) : [];
+            } catch { return []; }
+          };
+          const setRecentNums = (arr) => {
+            const capped = arr.slice(-3);
+            try { localStorage.setItem('cc_recent_nums', JSON.stringify(capped)); } catch {}
+            try { window.ccRecentNums = capped; } catch {}
+          };
+          const recentNums = new Set(getRecentNums());
           let textImageArr = Array.isArray(assocRoot)
             ? assocRoot.filter(a => a && a.imageId && a.texteId)
             : (assocRoot.textImage || []);
@@ -2982,11 +3027,12 @@ setZones(dataWithRandomTexts);
                 const presentImageIds = new Set([String(imInfo.id)]);
                 // Séquence d'images de la manche (ordre de pose)
                 const roundImageSeq = [];
-                // Ajouter l'image principale à la mémoire courte (persistée plus bas)
+                // Ajouter l'image principale et le texte principal à la mémoire courte (persistée plus bas)
                 try {
                   recentImages.add(String(imInfo.id));
                   const mainUrlNorm = normUrl(imInfo.url || imInfo.path || imInfo.src || '');
                   if (mainUrlNorm) { recentUrls.add(mainUrlNorm); roundImageSeq.push({ id: String(imInfo.id), url: mainUrlNorm }); }
+                  recentTexts.add(norm(txInfo.content || ''));
                 } catch {}
                 const otherImageSpots = imagesIdx.filter(o => o !== imgSpot);
 
@@ -3061,21 +3107,26 @@ setZones(dataWithRandomTexts);
                 try {
                   const uniqArr = Array.from(new Set(Array.from(recentImages)));
                   const uniqUrls = Array.from(new Set(Array.from(recentUrls)));
+                  const uniqTexts = Array.from(new Set(Array.from(recentTexts)));
                   // CORRECTION: Limiter la taille pour éviter la saturation (garder seulement les 3 dernières)
                   const MAX_RECENT = 3;
                   const trimmedArr = uniqArr.slice(-MAX_RECENT);
                   const trimmedUrls = uniqUrls.slice(-MAX_RECENT);
+                  const trimmedTexts = uniqTexts.slice(-MAX_RECENT);
                   setRecentImages(trimmedArr);
                   setRecentUrls(trimmedUrls);
+                  setRecentTexts(trimmedTexts);
                   if (window && typeof window.ccAddDiag === 'function') {
                     window.ccAddDiag('round:images:recent:update', { recentCount: trimmedArr.length, recentUrlCount: trimmedUrls.length, maxRecent: MAX_RECENT });
                     window.ccAddDiag('round:images:seq', { items: roundImageSeq });
+                    window.ccAddDiag('round:texts:recent:update', { recentCount: trimmedTexts.length, maxRecent: MAX_RECENT });
                   }
                 } catch {}
                 // Choisir des textes qui ne forment aucune association valide avec les images présentes
                 const pickTextAvoidingPairs = () => {
-                  const poolBase = allTextes.filter(t => !usedTxtIds.has(String(t.id)) && !usedTxtContents.has(norm(t.content)));
-                  const poolExtra = (extraStrictTextes || []).filter(t => !usedTxtIds.has(String(t.id)) && !usedTxtContents.has(norm(t.content)));
+                  // Pass 1: éviter les textes récents
+                  const poolBase = allTextes.filter(t => !usedTxtIds.has(String(t.id)) && !usedTxtContents.has(norm(t.content)) && !recentTexts.has(norm(t.content)));
+                  const poolExtra = (extraStrictTextes || []).filter(t => !usedTxtIds.has(String(t.id)) && !usedTxtContents.has(norm(t.content)) && !recentTexts.has(norm(t.content)));
                   // Préférer un texte strict si possible
                   const ordered = [...poolExtra, ...poolBase];
                   const safe = ordered.filter(t => {
@@ -3084,8 +3135,19 @@ setZones(dataWithRandomTexts);
                     }
                     return true;
                   });
-                  if (!safe.length) return null;
-                  return safe[Math.floor(rng() * safe.length)];
+                  if (safe.length) return safe[Math.floor(rng() * safe.length)];
+                  // Pass 2: si pool épuisé (tous récents), autoriser réutilisation mais éviter paires et doublons
+                  const poolBase2 = allTextes.filter(t => !usedTxtIds.has(String(t.id)) && !usedTxtContents.has(norm(t.content)));
+                  const poolExtra2 = (extraStrictTextes || []).filter(t => !usedTxtIds.has(String(t.id)) && !usedTxtContents.has(norm(t.content)));
+                  const ordered2 = [...poolExtra2, ...poolBase2];
+                  const safe2 = ordered2.filter(t => {
+                    for (const imgId of presentImageIds) {
+                      if (imgTxtPairs.has(`${imgId}|${t.id}`)) return false;
+                    }
+                    return true;
+                  });
+                  if (!safe2.length) return null;
+                  return safe2[Math.floor(rng() * safe2.length)];
                 };
                 const otherTextSpots = textesIdx.filter(o => o !== txtSpot);
                 // Préférence: placer au moins UN texte strict-meta si disponible et éligible
@@ -3111,6 +3173,7 @@ setZones(dataWithRandomTexts);
                     if (pickPrefT) {
                       usedTxtIds.add(String(pickPrefT.id));
                       usedTxtContents.add(norm(pickPrefT.content || ''));
+                      recentTexts.add(norm(pickPrefT.content || ''));
                       post[tSpot.i] = { ...post[tSpot.i], content: pickPrefT.content, label: pickPrefT.content, pairId: '' };
                       // Sync customTextSettings for texte distractor
                       if (tSpot?.z?.id != null) {
@@ -3131,6 +3194,7 @@ setZones(dataWithRandomTexts);
                   if (pick) {
                     usedTxtIds.add(String(pick.id));
                     usedTxtContents.add(norm(pick.content || ''));
+                    recentTexts.add(norm(pick.content || ''));
                     post[o.i] = { ...post[o.i], content: pick.content, label: pick.content, pairId: '' };
                     // Keep customTextSettings in sync for texte distractors
                     if (o?.z?.id != null) {
@@ -3390,15 +3454,25 @@ setZones(dataWithRandomTexts);
                   }
                 }
                 const pickTextAvoidingPairsCalcBranch = () => {
-                  const pool = allTextes.filter(t => !usedTxtIds.has(String(t.id)) && !usedTxtContents.has(norm(t.content)));
+                  // Pass 1: éviter les textes récents
+                  const pool = allTextes.filter(t => !usedTxtIds.has(String(t.id)) && !usedTxtContents.has(norm(t.content)) && !recentTexts.has(norm(t.content)));
                   const safe = pool.filter(t => {
                     for (const imgId of presentImageIds) {
                       if (imgTxtPairs.has(`${imgId}|${t.id}`)) return false;
                     }
                     return true;
                   });
-                  if (!safe.length) return null;
-                  return safe[Math.floor(rng() * safe.length)];
+                  if (safe.length) return safe[Math.floor(rng() * safe.length)];
+                  // Pass 2: si pool épuisé, autoriser réutilisation
+                  const pool2 = allTextes.filter(t => !usedTxtIds.has(String(t.id)) && !usedTxtContents.has(norm(t.content)));
+                  const safe2 = pool2.filter(t => {
+                    for (const imgId of presentImageIds) {
+                      if (imgTxtPairs.has(`${imgId}|${t.id}`)) return false;
+                    }
+                    return true;
+                  });
+                  if (!safe2.length) return null;
+                  return safe2[Math.floor(rng() * safe2.length)];
                 };
                 for (const o of textesIdx) {
                   if ((post[o.i]?.pairId || '').trim()) continue;
@@ -3406,6 +3480,7 @@ setZones(dataWithRandomTexts);
                   if (pick) {
                     usedTxtIds.add(String(pick.id));
                     usedTxtContents.add(norm(pick.content || ''));
+                    recentTexts.add(norm(pick.content || ''));
                     post[o.i] = { ...post[o.i], content: pick.content, label: pick.content, pairId: '' };
                     // Keep customTextSettings in sync for texte distractors in calcnum branch
                     if (o?.z?.id != null) {
@@ -3426,13 +3501,17 @@ setZones(dataWithRandomTexts);
                 try {
                   const uniqArr = Array.from(new Set(Array.from(recentImages)));
                   const uniqUrls = Array.from(new Set(Array.from(recentUrls)));
+                  const uniqTexts = Array.from(new Set(Array.from(recentTexts)));
                   const MAX_RECENT = 3;
                   const trimmedArr = uniqArr.slice(-MAX_RECENT);
                   const trimmedUrls = uniqUrls.slice(-MAX_RECENT);
+                  const trimmedTexts = uniqTexts.slice(-MAX_RECENT);
                   setRecentImages(trimmedArr);
                   setRecentUrls(trimmedUrls);
+                  setRecentTexts(trimmedTexts);
                   if (window && typeof window.ccAddDiag === 'function') {
                     window.ccAddDiag('round:images:recent:update:calcnum', { recentCount: trimmedArr.length, recentUrlCount: trimmedUrls.length, maxRecent: MAX_RECENT });
+                    window.ccAddDiag('round:texts:recent:update:calcnum', { recentCount: trimmedTexts.length, maxRecent: MAX_RECENT });
                   }
                 } catch {}
                 break; // on a posé notre paire
