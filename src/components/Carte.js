@@ -581,6 +581,9 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
   const [diagRecLines, setDiagRecLines] = useState([]);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(true);
+  // Image analysis panel
+  const [imageAnalysisOpen, setImageAnalysisOpen] = useState(false);
+  const [imageStats, setImageStats] = useState(null);
   const autoStartRef = useRef(false);
 
   // Prewarm backend (non-blocking) to reduce cold-start latency
@@ -658,6 +661,77 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
     try { await navigator.clipboard.writeText((diagRecLines || []).join('\n')); } catch {}
   };
 
+  // Fonction d'analyse des images utilisées
+  const analyzeImageUsage = async () => {
+    try {
+      // Charger associations.json
+      const resp = await fetch(process.env.PUBLIC_URL + '/data/associations.json');
+      const assocData = await resp.json();
+      
+      // Extraire les images botaniques
+      const botanicalImages = (assocData.images || []).filter(img => {
+        const themes = img.themes || [];
+        return themes.includes('botanique');
+      });
+
+      // Extraire les logs du diagnostic
+      const logs = diagRecLines.join('\n');
+      
+      // Parser les événements zones:assigned pour compter les images
+      const imageCount = {};
+      botanicalImages.forEach(img => {
+        const filename = (img.url || '').split('/').pop().replace('.jpeg', '');
+        imageCount[filename] = {
+          id: img.id,
+          url: img.url,
+          level: img.levelClass || 'Non spécifié',
+          count: 0,
+          themes: img.themes || []
+        };
+      });
+
+      // Compter les utilisations dans les logs
+      const imageMatches = logs.match(/"content":"images\/[^"]+\.jpeg"/g);
+      if (imageMatches) {
+        imageMatches.forEach(match => {
+          const fullPath = match.match(/"content":"images\/([^"]+)\.jpeg"/);
+          if (fullPath && fullPath[1]) {
+            const filename = fullPath[1];
+            if (imageCount[filename]) {
+              imageCount[filename].count++;
+            }
+          }
+        });
+      }
+
+      // Calculer les statistiques
+      const sorted = Object.entries(imageCount).sort((a, b) => b[1].count - a[1].count);
+      const used = sorted.filter(([_, info]) => info.count > 0);
+      const notUsed = sorted.filter(([_, info]) => info.count === 0);
+      
+      const totalUsages = used.reduce((sum, [_, info]) => sum + info.count, 0);
+      const avgUsage = used.length > 0 ? totalUsages / used.length : 0;
+      const maxUsage = used.length > 0 ? Math.max(...used.map(([_, info]) => info.count)) : 0;
+      const minUsage = used.length > 0 ? Math.min(...used.map(([_, info]) => info.count)) : 0;
+
+      setImageStats({
+        total: botanicalImages.length,
+        used: used.length,
+        notUsed: notUsed.length,
+        totalUsages,
+        avgUsage,
+        maxUsage,
+        minUsage,
+        distribution: sorted,
+        usedImages: used,
+        notUsedImages: notUsed
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'analyse des images:', error);
+      setImageStats({ error: 'Erreur lors de l\'analyse. Assurez-vous d\'avoir des logs enregistrés.' });
+    }
+  };
+
   // Invalidation du cache des centres (resize/scroll)
   useEffect(() => {
     const onViewportChange = () => { try { invalidateZoneCenterCache(); } catch {} };
@@ -671,6 +745,7 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
   }, []);
 
   // Raccourci clavier: Ctrl+Alt+D pour ouvrir/fermer le panneau Diagnostic
+  // Raccourci clavier: Ctrl+Alt+I pour ouvrir/fermer le panneau d'analyse des images
   useEffect(() => {
     const onKeyDiag = (e) => {
       try {
@@ -678,6 +753,10 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
         if (e.ctrlKey && e.altKey && k === 'd') {
           e.preventDefault();
           setDiagOpen(v => !v);
+        }
+        if (e.ctrlKey && e.altKey && k === 'i') {
+          e.preventDefault();
+          setImageAnalysisOpen(v => !v);
         }
       } catch {}
     };
@@ -4408,14 +4487,23 @@ setZones(dataWithRandomTexts);
 
  return (
     <div className={`carte-container ${hasSidebar ? 'game-with-sidebar' : ''}`} style={{ position: 'relative' }}>
-      {/* Bouton Diagnostic flottant (toujours visible) */}
-      <button
-        onClick={() => setDiagOpen(v => !v)}
-        title="Diagnostic"
-        style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 10000, background: '#111827', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, padding: '8px 12px', boxShadow: '0 6px 18px rgba(0,0,0,0.25)', opacity: 0.9 }}
-      >
-        Diagnostic
-      </button>
+      {/* Boutons flottants (toujours visibles) */}
+      <div style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 10000, display: 'flex', gap: 8 }}>
+        <button
+          onClick={() => setImageAnalysisOpen(v => !v)}
+          title="Analyse des images (Ctrl+Alt+I)"
+          style={{ background: '#111827', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, padding: '8px 12px', boxShadow: '0 6px 18px rgba(0,0,0,0.25)', opacity: 0.9 }}
+        >
+          📊 Images
+        </button>
+        <button
+          onClick={() => setDiagOpen(v => !v)}
+          title="Diagnostic (Ctrl+Alt+D)"
+          style={{ background: '#111827', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, padding: '8px 12px', boxShadow: '0 6px 18px rgba(0,0,0,0.25)', opacity: 0.9 }}
+        >
+          Diagnostic
+        </button>
+      </div>
 
       {/* Panneau Diagnostic fixe (contenu admin-gaté) */}
       {diagOpen && (
@@ -4450,6 +4538,56 @@ setZones(dataWithRandomTexts);
               <div style={{ marginBottom: 6, fontWeight: 'bold' }}>Accès restreint</div>
               <div style={{ opacity: 0.9, marginBottom: 8 }}>Ce panneau est réservé aux administrateurs. Demandez à un admin d’activer votre accès, ou connectez‑vous avec un compte admin.</div>
               <div style={{ fontSize: 12, opacity: 0.75 }}>Astuce: appuyez sur Ctrl+Alt+D pour ouvrir/fermer rapidement.</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Panneau Analyse des Images */}
+      {imageAnalysisOpen && (
+        <div style={{ position: 'fixed', right: 12, bottom: 56, width: 500, maxWidth: '90vw', maxHeight: '75vh', overflow: 'auto', zIndex: 10000, background: '#111827', color: '#e5e7eb', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, boxShadow: '0 10px 30px rgba(0,0,0,0.4)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 10, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ fontWeight: 'bold' }}>📊 Analyse Images Botaniques</div>
+            <button onClick={() => setImageAnalysisOpen(false)} style={{ color: '#e5e7eb', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', borderRadius: 6, padding: '4px 8px' }}>Fermer</button>
+          </div>
+          {isAdminUI ? (
+            <div style={{ padding: 10 }}>
+              <button onClick={analyzeImageUsage} disabled={!diagRecLines.length} style={{ padding: '8px 14px', borderRadius: 6, border: '1px solid #10b981', background: diagRecLines.length ? '#065f46' : '#374151', color: diagRecLines.length ? '#ecfdf5' : '#9ca3af', marginBottom: 12 }}>Analyser les logs</button>
+              {!diagRecLines.length && <div style={{ padding: 12, background: '#1f2937', borderRadius: 6, fontSize: 13, marginBottom: 12 }}>⚠️ Démarrez l'enregistrement dans le panneau Diagnostic puis jouez quelques manches.</div>}
+              {imageStats && imageStats.error && <div style={{ padding: 12, background: '#7f1d1d', borderRadius: 6, color: '#fee2e2' }}>{imageStats.error}</div>}
+              {imageStats && !imageStats.error && (
+                <div style={{ fontSize: 13 }}>
+                  <div style={{ padding: 10, background: '#1f2937', borderRadius: 6, marginBottom: 10 }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: 8 }}>📈 Statistiques</div>
+                    <div>Total images: {imageStats.total}</div>
+                    <div>Utilisées: {imageStats.used} ({((imageStats.used/imageStats.total)*100).toFixed(0)}%)</div>
+                    <div>Non utilisées: {imageStats.notUsed}</div>
+                    <div>Total utilisations: {imageStats.totalUsages}</div>
+                    <div>Moyenne: {imageStats.avgUsage.toFixed(2)}</div>
+                    <div>Max: {imageStats.maxUsage} | Min: {imageStats.minUsage}</div>
+                  </div>
+                  <div style={{ fontWeight: 'bold', marginBottom: 6 }}>✅ Images utilisées ({imageStats.used})</div>
+                  <div style={{ maxHeight: 200, overflow: 'auto', background: '#0b1220', padding: 8, borderRadius: 6, marginBottom: 10 }}>
+                    {imageStats.usedImages.map(([name, info]) => (
+                      <div key={name} style={{ marginBottom: 4, fontSize: 12 }}>
+                        {info.count}x {'█'.repeat(info.count)} {name} ({info.level})
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontWeight: 'bold', marginBottom: 6 }}>❌ Images jamais utilisées ({imageStats.notUsed})</div>
+                  <div style={{ maxHeight: 150, overflow: 'auto', background: '#0b1220', padding: 8, borderRadius: 6 }}>
+                    {imageStats.notUsedImages.map(([name, info]) => (
+                      <div key={name} style={{ fontSize: 12, opacity: 0.7, marginBottom: 2 }}>{name} ({info.level})</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ padding: 10, fontSize: 14 }}>
+              <div style={{ marginBottom: 6, fontWeight: 'bold' }}>Accès restreint</div>
+              <div style={{ opacity: 0.9 }}>Ce panneau est réservé aux administrateurs.</div>
+              <div style={{ fontSize: 12, opacity: 0.75, marginTop: 8 }}>Astuce: Ctrl+Alt+I pour ouvrir/fermer.</div>
             </div>
           )}
         </div>
