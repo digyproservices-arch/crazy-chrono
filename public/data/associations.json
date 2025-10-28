@@ -224,7 +224,11 @@
     },
     {
       "id": "i12",
-      "url": "images/pomme-surette.jpeg"
+      "url": "images/pomme-surette.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CP"
     },
     {
       "id": "i1754579810850berq",
@@ -232,7 +236,11 @@
     },
     {
       "id": "i1754579810850k1r7",
-      "url": "images/pois-d-angole.jpeg"
+      "url": "images/pois-d-angole.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CE1"
     },
     {
       "id": "i1754579810850v7un",
@@ -264,11 +272,19 @@
     },
     {
       "id": "i17545798108509av3",
-      "url": "images/patate-douce.jpeg"
+      "url": "images/patate-douce.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CE1"
     },
     {
       "id": "i1754579810850pucr",
-      "url": "images/pomme-malaka.jpeg"
+      "url": "images/pomme-malaka.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CP"
     },
     {
       "id": "i1754579810850ljmx",
@@ -312,7 +328,11 @@
     },
     {
       "id": "i1754579810850p76v",
-      "url": "images/herbe-charpentier.jpeg"
+      "url": "images/herbe-charpentier.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
     },
     {
       "id": "i1754579810850x51f",
@@ -360,11 +380,19 @@
     },
     {
       "id": "i1754579810850bq7v",
-      "url": "images/gwo-ten.jpeg"
+      "url": "images/gwo-ten.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
     },
     {
       "id": "i1754579810850tdtf",
-      "url": "images/simen-kontra.jpeg"
+      "url": "images/simen-kontra.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
     },
     {
       "id": "i17545798108509dt9",
@@ -396,7 +424,11 @@
     },
     {
       "id": "i1754579810850upfg",
-      "url": "images/soulier-zombie.jpeg"
+      "url": "images/soulier-zombie.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
     },
     {
       "id": "i1754579810850bwvp",
@@ -404,11 +436,19 @@
     },
     {
       "id": "i1754579810850yj17",
-      "url": "images/patate-chandelier.jpeg"
+      "url": "images/patate-chandelier.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
     },
     {
       "id": "i1754579810850ya9j",
-      "url": "images/ti-poul-bwa.jpeg"
+      "url": "images/ti-poul-bwa.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
     },
     {
       "id": "i1754579810850hu4a",
