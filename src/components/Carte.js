@@ -4298,6 +4298,8 @@ setZones(dataWithRandomTexts);
       setCustomTextSettings(newTextSettings);
       localStorage.setItem('zones', JSON.stringify(post));
       console.log('Zones après attribution automatique (post-traitées) :', post);
+      // Enregistrer dans le diagnostic global pour analyse
+      try { window.ccAddDiag && window.ccAddDiag('zones:assigned', post); } catch {}
     } catch (error) {
       alert('Erreur lors du chargement des éléments ou des zones.');
     }
