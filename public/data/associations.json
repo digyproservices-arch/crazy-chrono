@@ -42,11 +42,19 @@
     },
     {
       "id": "t7",
-      "content": "Patate Chandelier"
+      "content": "Patate Chandelier",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
     },
     {
       "id": "t8",
-      "content": "Soulier zombie"
+      "content": "Soulier zombie",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
     },
     {
       "id": "t9",
@@ -154,7 +162,11 @@
     },
     {
       "id": "t26",
-      "content": "Gwo Ten"
+      "content": "Gwo Ten",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
     },
     {
       "id": "t27",
@@ -171,6 +183,62 @@
         "botanique"
       ],
       "levelClass": "CP"
+    },
+    {
+      "id": "t1761691305732",
+      "content": "Pomme Surette",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "t1761691305733",
+      "content": "Pois d'Angole",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "t1761691305734",
+      "content": "Patate Douce",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "t1761691305735",
+      "content": "Pomme Malaka",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "t1761691305736",
+      "content": "Herbe Charpentier",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "t1761691305737",
+      "content": "Simen Kontra",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "t1761691305738",
+      "content": "Ti Poul Bwa",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
     }
   ],
   "images": [
@@ -1505,6 +1573,86 @@
       "levelClass": "CE2",
       "themes": [
         "multiplication"
+      ]
+    },
+    {
+      "texteId": "t7",
+      "imageId": "i1754579810850yj17",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t8",
+      "imageId": "i1754579810850upfg",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t1761691305732",
+      "imageId": "i12",
+      "levelClass": "CP",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t1761691305733",
+      "imageId": "i1754579810850k1r7",
+      "levelClass": "CE1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t1761691305734",
+      "imageId": "i17545798108509av3",
+      "levelClass": "CE1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t1761691305735",
+      "imageId": "i1754579810850pucr",
+      "levelClass": "CP",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t1761691305736",
+      "imageId": "i1754579810850p76v",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t26",
+      "imageId": "i1754579810850bq7v",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t1761691305737",
+      "imageId": "i1754579810850tdtf",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t1761691305738",
+      "imageId": "i1754579810850ya9j",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
       ]
     }
   ]
