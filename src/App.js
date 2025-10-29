@@ -3,6 +3,7 @@ import './App.css';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Carte from './components/Carte';
 import AdminPanel from './components/AdminPanel';
+import AdminDashboard from './components/AdminDashboard';
 import NavBar from './components/NavBar';
 import { DataProvider } from './context/DataContext';
 import Login from './components/Auth/Login';
@@ -263,6 +264,7 @@ function App() {
               <Route path="/modes" element={<RequireAuth><ModeSelect /></RequireAuth>} />
               <Route path="/config/:mode" element={<RequireAuth><SessionConfig /></RequireAuth>} />
               <Route path="/admin" element={<AdminPanel />} />
+              <Route path="/admin/dashboard" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
               <Route path="/admin/roles" element={<RequireAdmin><AdminRoles /></RequireAdmin>} />
               <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
               <Route path="/pricing" element={<RequireAuth><Pricing /></RequireAuth>} />
