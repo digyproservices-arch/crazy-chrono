@@ -8,13 +8,13 @@ CREATE TABLE IF NOT EXISTS image_usage_logs (
   image_filename TEXT NOT NULL,
   pair_id TEXT,
   is_main_pair BOOLEAN DEFAULT false,
-  timestamp TIMESTAMPTZ DEFAULT NOW(),
-  
-  -- Index pour optimiser les requêtes
-  INDEX idx_image_filename (image_filename),
-  INDEX idx_timestamp (timestamp),
-  INDEX idx_session_id (session_id)
+  timestamp TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Index pour optimiser les requêtes
+CREATE INDEX IF NOT EXISTS idx_image_filename ON image_usage_logs (image_filename);
+CREATE INDEX IF NOT EXISTS idx_timestamp ON image_usage_logs (timestamp);
+CREATE INDEX IF NOT EXISTS idx_session_id ON image_usage_logs (session_id);
 
 -- Activer Row Level Security
 ALTER TABLE image_usage_logs ENABLE ROW LEVEL SECURITY;
