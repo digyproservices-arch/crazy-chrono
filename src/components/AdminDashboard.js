@@ -21,14 +21,16 @@ function AdminDashboard() {
           .from('user_profiles')
           .select('*', { count: 'exact', head: true });
 
-        // Utilisateurs actifs aujourd'hui (dernière connexion < 24h)
+        // Utilisateurs actifs = ceux qui ont joué aujourd'hui
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
         
-        const { count: activeToday } = await supabase
-          .from('user_profiles')
-          .select('*', { count: 'exact', head: true })
-          .gte('last_sign_in_at', yesterday.toISOString());
+        const { data: activeUsersData } = await supabase
+          .from('image_usage_logs')
+          .select('user_id')
+          .gte('timestamp', yesterday.toISOString());
+        
+        const activeToday = new Set(activeUsersData?.map(u => u.user_id).filter(Boolean) || []).size;
 
         // Sessions de jeu (depuis image_usage_logs)
         const today = new Date();
@@ -50,7 +52,7 @@ function AdminDashboard() {
         // Derniers utilisateurs inscrits
         const { data: users } = await supabase
           .from('user_profiles')
-          .select('id, email, role, created_at, last_sign_in_at')
+          .select('id, email, role, created_at')
           .order('created_at', { ascending: false })
           .limit(10);
 
@@ -165,7 +167,6 @@ function AdminDashboard() {
                     <th style={{ padding: '10px', textAlign: 'left', color: '#94a3b8' }}>Email</th>
                     <th style={{ padding: '10px', textAlign: 'left', color: '#94a3b8' }}>Rôle</th>
                     <th style={{ padding: '10px', textAlign: 'left', color: '#94a3b8' }}>Inscrit le</th>
-                    <th style={{ padding: '10px', textAlign: 'left', color: '#94a3b8' }}>Dernière connexion</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -185,9 +186,6 @@ function AdminDashboard() {
                       </td>
                       <td style={{ padding: '10px', color: '#94a3b8' }}>
                         {new Date(user.created_at).toLocaleDateString('fr-FR')}
-                      </td>
-                      <td style={{ padding: '10px', color: '#94a3b8' }}>
-                        {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString('fr-FR') : 'Jamais'}
                       </td>
                     </tr>
                   ))}
