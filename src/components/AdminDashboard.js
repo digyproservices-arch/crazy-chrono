@@ -1,8 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import supabase from '../utils/supabaseClient';
 
 function AdminDashboard() {
   const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeToday: 0,
+    loading: true
+  });
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        // Total utilisateurs
+        const { count: totalUsers } = await supabase
+          .from('user_profiles')
+          .select('*', { count: 'exact', head: true });
+
+        // Utilisateurs actifs aujourd'hui (dernière connexion < 24h)
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        const { count: activeToday } = await supabase
+          .from('user_profiles')
+          .select('*', { count: 'exact', head: true })
+          .gte('last_sign_in_at', yesterday.toISOString());
+
+        setStats({ totalUsers: totalUsers || 0, activeToday: activeToday || 0, loading: false });
+      } catch (error) {
+        console.error('Erreur stats:', error);
+        setStats({ totalUsers: 0, activeToday: 0, loading: false });
+      }
+    }
+    fetchStats();
+  }, []);
 
   return (
     <div style={{ minHeight: '100vh', background: '#0f172a', color: '#e2e8f0', padding: '20px' }}>
@@ -35,9 +67,20 @@ function AdminDashboard() {
             <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#60a5fa' }}>
               👥 Vue d'ensemble
             </h2>
-            <div style={{ fontSize: '14px', color: '#94a3b8' }}>
-              Statistiques à venir...
-            </div>
+            {stats.loading ? (
+              <div style={{ fontSize: '14px', color: '#94a3b8' }}>Chargement...</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '14px', color: '#94a3b8' }}>Total utilisateurs</span>
+                  <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#fff' }}>{stats.totalUsers}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '14px', color: '#94a3b8' }}>Actifs aujourd'hui</span>
+                  <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>{stats.activeToday}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Section 2: Utilisation du jeu */}
