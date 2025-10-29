@@ -11,6 +11,7 @@ function AdminDashboard() {
     totalSessions: 0,
     loading: true
   });
+  const [recentUsers, setRecentUsers] = useState([]);
 
   useEffect(() => {
     async function fetchStats() {
@@ -46,6 +47,13 @@ function AdminDashboard() {
         
         const totalSessions = new Set(allSessions?.map(s => s.session_id) || []).size;
 
+        // Derniers utilisateurs inscrits
+        const { data: users } = await supabase
+          .from('user_profiles')
+          .select('id, email, role, created_at, last_sign_in_at')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
         setStats({ 
           totalUsers: totalUsers || 0, 
           activeToday: activeToday || 0,
@@ -53,9 +61,10 @@ function AdminDashboard() {
           totalSessions: totalSessions,
           loading: false 
         });
+        setRecentUsers(users || []);
       } catch (error) {
         console.error('Erreur stats:', error);
-        setStats({ totalUsers: 0, activeToday: 0, loading: false });
+        setStats({ totalUsers: 0, activeToday: 0, sessionsToday: 0, totalSessions: 0, loading: false });
       }
     }
     fetchStats();
@@ -139,6 +148,53 @@ function AdminDashboard() {
             </div>
           </div>
 
+        </div>
+
+        {/* Liste des utilisateurs récents */}
+        <div style={{ marginTop: '30px', background: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#60a5fa' }}>
+            👤 Utilisateurs récents
+          </h2>
+          {stats.loading ? (
+            <div style={{ fontSize: '14px', color: '#94a3b8' }}>Chargement...</div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', fontSize: '14px', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #334155' }}>
+                    <th style={{ padding: '10px', textAlign: 'left', color: '#94a3b8' }}>Email</th>
+                    <th style={{ padding: '10px', textAlign: 'left', color: '#94a3b8' }}>Rôle</th>
+                    <th style={{ padding: '10px', textAlign: 'left', color: '#94a3b8' }}>Inscrit le</th>
+                    <th style={{ padding: '10px', textAlign: 'left', color: '#94a3b8' }}>Dernière connexion</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentUsers.map(user => (
+                    <tr key={user.id} style={{ borderBottom: '1px solid #334155' }}>
+                      <td style={{ padding: '10px', color: '#e2e8f0' }}>{user.email}</td>
+                      <td style={{ padding: '10px' }}>
+                        <span style={{ 
+                          padding: '4px 8px', 
+                          borderRadius: '4px', 
+                          fontSize: '12px',
+                          background: user.role === 'admin' ? '#7c3aed' : user.role === 'editor' ? '#0891b2' : '#334155',
+                          color: '#fff'
+                        }}>
+                          {user.role || 'user'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px', color: '#94a3b8' }}>
+                        {new Date(user.created_at).toLocaleDateString('fr-FR')}
+                      </td>
+                      <td style={{ padding: '10px', color: '#94a3b8' }}>
+                        {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleDateString('fr-FR') : 'Jamais'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>
