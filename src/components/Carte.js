@@ -4379,6 +4379,24 @@ setZones(dataWithRandomTexts);
       console.log('Zones après attribution automatique (post-traitées) :', post);
       // Enregistrer dans le diagnostic global pour analyse
       try { window.ccAddDiag && window.ccAddDiag('zones:assigned', post); } catch {}
+      
+      // Enregistrer dans le monitoring backend automatiquement
+      try {
+        const sessionId = localStorage.getItem('cc_session_id') || `session_${Date.now()}`;
+        const userId = localStorage.getItem('cc_user_id') || null;
+        const roundIdx = (window.__CC_ROUND_INDEX__ || 0);
+        
+        fetch(`${getBackendUrl()}/api/monitoring/record-images`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            userId,
+            roundIndex: roundIdx,
+            zones: post
+          })
+        }).catch(err => console.warn('[Monitoring] Erreur enregistrement:', err));
+      } catch {}
     } catch (error) {
       alert('Erreur lors du chargement des éléments ou des zones.');
     }

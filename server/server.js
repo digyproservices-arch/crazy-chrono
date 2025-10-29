@@ -72,6 +72,11 @@ app.post('/admin/users/role', async (req, res) => {
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// ===== Image Monitoring System =====
+const monitoringRoutes = require('./routes/monitoring');
+const { startWeeklyMonitoring, startDailyMonitoring } = require('./cronJobs');
+app.use('/api/monitoring', monitoringRoutes);
+
 // ===== Usage/Quota (Mini-sprint): server-side check tied to Supabase user =====
 let supabaseAdmin = null;
 try {
@@ -1063,4 +1068,12 @@ io.on('connection', (socket) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend lancé sur http://localhost:${PORT}`);
+  
+  // Démarrer les tâches cron de monitoring
+  try {
+    startWeeklyMonitoring();
+    startDailyMonitoring();
+  } catch (err) {
+    console.warn('[Monitoring] Erreur démarrage cron:', err.message);
+  }
 });
