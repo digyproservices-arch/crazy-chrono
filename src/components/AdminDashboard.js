@@ -7,6 +7,8 @@ function AdminDashboard() {
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeToday: 0,
+    sessionsToday: 0,
+    totalSessions: 0,
     loading: true
   });
 
@@ -27,7 +29,30 @@ function AdminDashboard() {
           .select('*', { count: 'exact', head: true })
           .gte('last_sign_in_at', yesterday.toISOString());
 
-        setStats({ totalUsers: totalUsers || 0, activeToday: activeToday || 0, loading: false });
+        // Sessions de jeu (depuis image_usage_logs)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const { data: sessionsData } = await supabase
+          .from('image_usage_logs')
+          .select('session_id')
+          .gte('timestamp', today.toISOString());
+        
+        const uniqueSessionsToday = new Set(sessionsData?.map(s => s.session_id) || []).size;
+        
+        const { data: allSessions } = await supabase
+          .from('image_usage_logs')
+          .select('session_id');
+        
+        const totalSessions = new Set(allSessions?.map(s => s.session_id) || []).size;
+
+        setStats({ 
+          totalUsers: totalUsers || 0, 
+          activeToday: activeToday || 0,
+          sessionsToday: uniqueSessionsToday,
+          totalSessions: totalSessions,
+          loading: false 
+        });
       } catch (error) {
         console.error('Erreur stats:', error);
         setStats({ totalUsers: 0, activeToday: 0, loading: false });
@@ -88,9 +113,20 @@ function AdminDashboard() {
             <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#34d399' }}>
               🎮 Utilisation du jeu
             </h2>
-            <div style={{ fontSize: '14px', color: '#94a3b8' }}>
-              Statistiques à venir...
-            </div>
+            {stats.loading ? (
+              <div style={{ fontSize: '14px', color: '#94a3b8' }}>Chargement...</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '14px', color: '#94a3b8' }}>Sessions aujourd'hui</span>
+                  <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#34d399' }}>{stats.sessionsToday}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '14px', color: '#94a3b8' }}>Total sessions</span>
+                  <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#fff' }}>{stats.totalSessions}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Section 3: Monitoring */}
