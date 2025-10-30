@@ -1101,16 +1101,9 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
             // Utiliser le code fourni puis rejoindre
             try { setRoomId(code); } catch {}
             try { s.emit('joinRoom', { roomId: code, name: cfg.playerName || playerName }); } catch {}
-            // Auto-prêt + démarrage immédiat (session solo si seul joueur)
-            setTimeout(() => { try { s.emit('ready:toggle', { ready: true }); } catch {} }, 150);
+            // Appliquer la config mais ne pas auto-start en multijoueur
             setTimeout(() => {
-              // Freemium guard: limit daily sessions for Free users
-              if (isFree()) {
-                if (!canStartSessionToday(3)) { try { alert("Limite quotidienne atteinte (3 sessions/jour en version gratuite). Passe à la version Pro pour continuer."); } catch {}; try { navigate('/pricing'); } catch {}; return; }
-                incrementSessionCount();
-              }
               try {
-                // Ensure config applied at start time if not yet via room:state
                 if (!configAppliedRef.current) {
                   let cfg2 = null; try { cfg2 = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
                   const r2 = parseInt(cfg2?.rounds, 10);
@@ -1119,9 +1112,8 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
                   if (Number.isFinite(r2) && r2 >= 1 && r2 <= 20) s.emit('room:setRounds', r2);
                   configAppliedRef.current = true;
                 }
-                s.emit('startGame');
               } catch {}
-            }, 350);
+            }, 150);
           } else {
             // Demander au serveur de créer une salle et la rejoindre
             try {
@@ -1129,13 +1121,8 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
                 if (res && res.ok && res.roomCode) {
                   setRoomId(res.roomCode);
                   s.emit('joinRoom', { roomId: res.roomCode, name: cfg.playerName || playerName });
-                  setTimeout(() => { try { s.emit('ready:toggle', { ready: true }); } catch {} }, 150);
+                  // Appliquer la config mais ne pas auto-start
                   setTimeout(() => {
-                    // Freemium guard
-                    if (isFree()) {
-                      if (!canStartSessionToday(3)) { try { alert("Limite quotidienne atteinte (3 sessions/jour en version gratuite)."); } catch {}; try { navigate('/pricing'); } catch {}; return; }
-                      incrementSessionCount();
-                    }
                     try {
                       if (!configAppliedRef.current) {
                         let cfg3 = null; try { cfg3 = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
@@ -1145,9 +1132,8 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
                         if (Number.isFinite(r3) && r3 >= 1 && r3 <= 20) s.emit('room:setRounds', r3);
                         configAppliedRef.current = true;
                       }
-                      s.emit('startGame');
                     } catch {}
-                  }, 350);
+                  }, 150);
                 } else {
                   // fallback: rejoindre la salle par défaut
                   s.emit('joinRoom', { roomId, name: cfg.playerName || playerName });
@@ -1162,10 +1148,8 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
           if (code) {
             try { setRoomId(code); } catch {}
             try { s.emit('joinRoom', { roomId: code, name: cfg.playerName || playerName }); } catch {}
-            setTimeout(() => { try { s.emit('ready:toggle', { ready: true }); } catch {} }, 150);
           } else {
             try { s.emit('joinRoom', { roomId, name: cfg.playerName || playerName }); } catch {}
-            setTimeout(() => { try { s.emit('ready:toggle', { ready: true }); } catch {} }, 150);
           }
         }
       } else {
