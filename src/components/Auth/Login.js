@@ -7,6 +7,8 @@ export default function Login({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -122,6 +124,13 @@ export default function Login({ onLogin }) {
     try {
       setLoading(true);
       const em = email.trim();
+      const fn = firstName.trim();
+      const ln = lastName.trim();
+      
+      if (!fn || !ln) {
+        setError('Nom et prénom requis');
+        return;
+      }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
         setError('Email invalide');
         return;
@@ -137,7 +146,10 @@ export default function Login({ onLogin }) {
       const { data, error: err } = await supabase.auth.signUp({
         email: em,
         password,
-        options: { emailRedirectTo: window.location.origin + '/login' }
+        options: { 
+          emailRedirectTo: window.location.origin + '/login',
+          data: { first_name: fn, last_name: ln }
+        }
       });
       if (err) throw err;
       const user = data?.user;
@@ -162,13 +174,14 @@ export default function Login({ onLogin }) {
     } finally { setLoading(false); }
   };
 
-  const handleGuest = () => {
-    const pseudo = 'Invité-' + Math.floor(Math.random()*1000);
-    const auth = { id: 'guest:' + Date.now(), name: pseudo, role: 'guest' };
-    saveAuth(auth);
-    onLogin && onLogin(auth);
-    navigate('/modes', { replace: true });
-  };
+  // Mode invité désactivé - inscription obligatoire
+  // const handleGuest = () => {
+  //   const pseudo = 'Invité-' + Math.floor(Math.random()*1000);
+  //   const auth = { id: 'guest:' + Date.now(), name: pseudo, role: 'guest' };
+  //   saveAuth(auth);
+  //   onLogin && onLogin(auth);
+  //   navigate('/modes', { replace: true });
+  // };
 
   // Stable component for password strength to help React reconciliation
   const PasswordStrength = ({ pwd }) => {
@@ -200,6 +213,14 @@ export default function Login({ onLogin }) {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <form onSubmit={handleLogin} style={{ width: 380, maxWidth: '92vw', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, boxShadow: '0 8px 28px rgba(0,0,0,0.08)' }}>
         <h2 style={{ marginTop: 0, marginBottom: 12 }}>Connexion</h2>
+        {signupMode && (
+          <>
+            <label style={{ display: 'block', marginBottom: 6 }}>Prénom *</label>
+            <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Jean" style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', marginBottom: 10 }} />
+            <label style={{ display: 'block', marginBottom: 6 }}>Nom *</label>
+            <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Dupont" style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', marginBottom: 10 }} />
+          </>
+        )}
         <label style={{ display: 'block', marginBottom: 6 }}>Email</label>
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@exemple.com" style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db' }} />
         <label style={{ display: 'block', margin: '10px 0 6px' }}>
@@ -249,10 +270,6 @@ export default function Login({ onLogin }) {
             </button>
           </div>
         )}
-        <div style={{ marginTop: 10, textAlign: 'center', color: '#6b7280' }}>— ou —</div>
-        <button type="button" onClick={handleGuest} style={{ marginTop: 8, width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#f9fafb', color: '#111827', fontWeight: 600 }}>
-          Continuer en invité
-        </button>
       </form>
     </div>
   );
