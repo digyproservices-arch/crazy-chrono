@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import supabase from '../../utils/supabaseClient';
 
 export default function Login({ onLogin }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -14,10 +15,32 @@ export default function Login({ onLogin }) {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [signupMode, setSignupMode] = useState(false);
+  const [inviteToken, setInviteToken] = useState('');
+  const [inviteRole, setInviteRole] = useState('');
 
   useEffect(() => {
     (async () => {
       try {
+        // Vérifier invitation
+        const token = searchParams.get('invite');
+        if (token) {
+          const { data: inv } = await supabase
+            .from('invitations')
+            .select('*')
+            .eq('token', token)
+            .eq('used', false)
+            .single();
+          
+          if (inv && new Date(inv.expires_at) > new Date()) {
+            setInviteToken(token);
+            setInviteRole(inv.role);
+            setEmail(inv.email);
+            setSignupMode(true);
+            setInfo(`Invitation pour ${inv.email} en tant que ${inv.role}`);
+            return;
+          }
+        }
+        
         if (supabase) {
           const { data } = await supabase.auth.getSession();
           if (data?.session?.user) {
@@ -37,7 +60,7 @@ export default function Login({ onLogin }) {
         }
       } catch {}
     })();
-  }, [navigate, onLogin]);
+  }, [navigate, onLogin, searchParams]);
 
   const saveAuth = (auth) => {
     try { if (remember) localStorage.setItem('cc_auth', JSON.stringify(auth)); } catch {}
@@ -154,10 +177,24 @@ export default function Login({ onLogin }) {
       if (err) throw err;
       const user = data?.user;
       const session = data?.session;
+      
+      // Si invitation, attribuer le rôle et marquer comme utilisée
+      if (inviteToken && user) {
+        await supabase
+          .from('user_profiles')
+          .update({ role: inviteRole })
+          .eq('id', user.id);
+        
+        await supabase
+          .from('invitations')
+          .update({ used: true, used_at: new Date().toISOString() })
+          .eq('token', inviteToken);
+      }
+      
       if (session && session.user) {
         // Cas où la confirmation email est désactivée côté projet
         const u = session.user;
-        const profile = { id: u.id, email: u.email, name: u.user_metadata?.name || u.email?.split('@')[0], role: 'user' };
+        const profile = { id: u.id, email: u.email, name: u.user_metadata?.name || u.email?.split('@')[0], role: inviteRole || 'user' };
         saveAuth(profile);
         onLogin && onLogin(profile);
         navigate('/modes', { replace: true });

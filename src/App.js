@@ -13,6 +13,7 @@ import Account from './components/Account';
 import ModeSelect from './components/Modes/ModeSelect';
 import SessionConfig from './components/Modes/SessionConfig';
 import AdminRoles from './components/Admin/AdminRoles';
+import AdminInvite from './components/Admin/AdminInvite';
 import { fetchAndSyncStatus, getBackendUrl } from './utils/subscription';
 import supabase from './utils/supabaseClient';
 
@@ -266,6 +267,7 @@ function App() {
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/admin/dashboard" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
               <Route path="/admin/roles" element={<RequireAdmin><AdminRoles /></RequireAdmin>} />
+              <Route path="/admin/invite" element={<RequireAdmin><AdminInvite /></RequireAdmin>} />
               <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
               <Route path="/pricing" element={<RequireAuth><Pricing /></RequireAuth>} />
               <Route path="/debug/progress" element={<RequireAuth><ProgressDebug /></RequireAuth>} />
