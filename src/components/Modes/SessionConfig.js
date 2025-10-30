@@ -43,6 +43,8 @@ export default function SessionConfig() {
   const [playerName, setPlayerName] = useState('');
   const [roomMode, setRoomMode] = useState('create'); // 'create' | 'join'
   const [roomCode, setRoomCode] = useState('');
+  const [inLobby, setInLobby] = useState(false); // Salle d'attente
+  const [lobbyPlayers, setLobbyPlayers] = useState([]); // Joueurs dans la salle
   const genCode = () => {
     const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
     let code = '';
@@ -215,6 +217,15 @@ export default function SessionConfig() {
   };
   const stepDuration = (delta) => {
     setDuration(prev => String(clampInt((parseInt(prev, 10) || 60) + delta, 15, 600, 60)));
+  };
+
+  const onJoinLobby = () => {
+    // Mode online: entrer dans la salle d'attente au lieu de démarrer directement
+    if (mode === 'online') {
+      setInLobby(true);
+      setLobbyPlayers([{ name: playerName || 'Joueur', isHost: roomMode === 'create' }]);
+      // TODO: Socket.io pour synchroniser les joueurs
+    }
   };
 
   const onStart = () => {
@@ -420,9 +431,28 @@ export default function SessionConfig() {
         </section>
       )}
 
+      {/* Salle d'attente */}
+      {mode === 'online' && inLobby && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#fff', padding: 30, borderRadius: 12, maxWidth: 500, width: '90%' }}>
+            <h2>🎮 Salle : {roomCode}</h2>
+            <div style={{ marginBottom: 16 }}>
+              <strong>Joueurs ({lobbyPlayers.length}) :</strong>
+              {lobbyPlayers.map((p, i) => <div key={i}>{p.isHost ? '👑' : '👤'} {p.name}</div>)}
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => setInLobby(false)} style={{ flex: 1, padding: '10px', borderRadius: 8, border: '1px solid #ddd' }}>Annuler</button>
+              {roomMode === 'create' && <button onClick={onStart} style={{ flex: 1, padding: '10px', borderRadius: 8, background: '#10b981', color: '#fff' }}>Démarrer</button>}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ marginTop: 20, display: 'flex', gap: 12 }}>
         <button onClick={() => navigate('/modes')} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff' }}>Retour</button>
-        <button onClick={onStart} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #10b981', background: '#10b981', color: '#fff', fontWeight: 700 }}>Démarrer</button>
+        <button onClick={mode === 'online' ? onJoinLobby : onStart} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #10b981', background: '#10b981', color: '#fff', fontWeight: 700 }}>
+          {mode === 'online' ? 'Rejoindre la salle' : 'Démarrer'}
+        </button>
       </div>
     </div>
   );
