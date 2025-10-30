@@ -25,17 +25,22 @@ export default function AdminRoles() {
     if (!supabase) { setErr('Supabase non configuré'); return; }
     try {
       setLoading(true);
-      const { data } = await supabase.auth.getSession();
-      const token = data?.session?.access_token;
-      if (!token) { setErr('Non connecté'); return; }
-      const resp = await fetch(`${getBackendUrl()}/admin/users/role`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ target_email: em, role })
-      });
-      const json = await resp.json().catch(()=>({ ok:false, error:'invalid_json' }));
-      if (!resp.ok || !json.ok) throw new Error(json.error || 'Erreur serveur');
-      setMsg(`Rôle mis à jour: ${json.target.email} → ${json.role}`);
+      
+      // Mise à jour directe dans Supabase
+      const { data: updated, error } = await supabase
+        .from('user_profiles')
+        .update({ role })
+        .eq('email', em)
+        .select();
+      
+      if (error) throw error;
+      if (!updated || updated.length === 0) {
+        setErr('Utilisateur non trouvé');
+        return;
+      }
+      
+      setMsg(`Rôle mis à jour: ${em} → ${role}`);
+      setEmail('');
     } catch (e1) {
       setErr(e1.message || 'Echec de mise à jour');
     } finally { setLoading(false); }
