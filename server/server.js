@@ -842,6 +842,18 @@ io.on('connection', (socket) => {
       room.status = 'lobby';
     }
     emitRoomState(currentRoom);
+    
+    // Si une manche est en cours, envoyer immédiatement les données au joueur qui rejoint
+    if (room.sessionActive && room.status === 'playing' && room.roundSeed) {
+      socket.emit('round:new', {
+        seed: room.roundSeed,
+        duration: room.duration || 60,
+        roundIndex: room.roundsPlayed,
+        roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
+        zonesFile: 'zones2'
+      });
+      console.log(`[MP] Late joiner ${socket.id} synced to ongoing round ${room.roundsPlayed} in room ${currentRoom}`);
+    }
   });
 
   // Hôte: définir la durée par manche (secondes)
