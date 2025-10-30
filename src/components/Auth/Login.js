@@ -130,7 +130,19 @@ export default function Login({ onLogin }) {
       if (err) throw err;
       const user = data?.user || data?.session?.user;
       if (user) {
-        const profile = { id: user.id, email: user.email, name: user.user_metadata?.name || user.email?.split('@')[0], role: 'user' };
+        // Charger le profil depuis user_profiles
+        const { data: userProfile } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        const profile = {
+          id: user.id,
+          email: user.email,
+          name: userProfile?.first_name || user.user_metadata?.name || user.email?.split('@')[0],
+          role: userProfile?.role || 'user'
+        };
         saveAuth(profile);
         onLogin && onLogin(profile);
         navigate('/modes', { replace: true });
@@ -178,17 +190,28 @@ export default function Login({ onLogin }) {
       const user = data?.user;
       const session = data?.session;
       
-      // Si invitation, attribuer le rôle et marquer comme utilisée
-      if (inviteToken && user) {
+      // Créer ou mettre à jour le profil utilisateur
+      if (user) {
+        const roleToAssign = inviteRole || 'user';
+        
+        // Créer le profil dans user_profiles
         await supabase
           .from('user_profiles')
-          .update({ role: inviteRole })
-          .eq('id', user.id);
+          .upsert({
+            id: user.id,
+            email: em,
+            first_name: fn,
+            last_name: ln,
+            role: roleToAssign
+          }, { onConflict: 'id' });
         
-        await supabase
-          .from('invitations')
-          .update({ used: true, used_at: new Date().toISOString() })
-          .eq('token', inviteToken);
+        // Si invitation, marquer comme utilisée
+        if (inviteToken) {
+          await supabase
+            .from('invitations')
+            .update({ used: true, used_at: new Date().toISOString() })
+            .eq('token', inviteToken);
+        }
       }
       
       if (session && session.user) {
