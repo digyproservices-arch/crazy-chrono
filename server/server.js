@@ -837,7 +837,10 @@ io.on('connection', (socket) => {
     if (!room.hostId || !room.players.has(room.hostId)) {
       room.hostId = socket.id; // premier connecté devient hôte
     }
-    room.status = 'lobby';
+    // Ne réinitialiser le statut à 'lobby' que si aucune session n'est active
+    if (!room.sessionActive) {
+      room.status = 'lobby';
+    }
     emitRoomState(currentRoom);
   });
 
