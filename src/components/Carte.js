@@ -5638,20 +5638,32 @@ setZones(dataWithRandomTexts);
                 ))}
             </div>
             )}
-            {!panelCollapsed && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-              <button onClick={handleToggleReady} style={{ flex: 1, background: myReady ? '#fef3c7' : '#dcfce7', border: '1px solid #a3a3a3', borderRadius: 8, padding: '8px 10px', fontWeight: 700 }}>
-                {myReady ? 'Pas prêt' : 'Je suis prêt'}
-              </button>
-              {(() => {
-                const allReady = roomPlayers.length >= 2 && roomPlayers.every(p => p.ready);
-                return (
-                  <button onClick={handleStartRoom} disabled={!isHost || !allReady} title={!isHost ? 'Réservé à l\'hôte' : (allReady ? '' : 'Tous les joueurs doivent être prêts')} style={{ flex: 1, background: isHost && allReady ? '#fde68a' : '#e5e7eb', border: '1px solid #a3a3a3', borderRadius: 8, padding: '8px 10px', fontWeight: 700 }}>
-                    Démarrer
-                  </button>
-                );
-              })()}
-            </div>
+            {!panelCollapsed && roomStatus === 'lobby' && (
+            <>
+              <div style={{ marginTop: 10, padding: 8, borderRadius: 8, background: '#eff6ff', border: '1px solid #3b82f6', fontSize: 12, color: '#1e40af', textAlign: 'center' }}>
+                {(() => {
+                  const allReady = roomPlayers.length >= 2 && roomPlayers.every(p => p.ready);
+                  if (roomPlayers.length < 2) return '⏳ En attente d\'autres joueurs...';
+                  if (!myReady) return '👉 Cliquez sur "Je suis prêt" !';
+                  if (!allReady) return '⏳ En attente des autres joueurs...';
+                  if (isHost) return '✅ Tous prêts ! Vous pouvez démarrer !';
+                  return '✅ Tous prêts ! L\'hôte va démarrer.';
+                })()}
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <button onClick={handleToggleReady} style={{ flex: 1, background: myReady ? '#fef3c7' : '#dcfce7', border: '2px solid ' + (myReady ? '#f59e0b' : '#22c55e'), borderRadius: 8, padding: '10px', fontWeight: 700, fontSize: 14 }}>
+                  {myReady ? '❌ Pas prêt' : '✅ Je suis prêt'}
+                </button>
+                {(() => {
+                  const allReady = roomPlayers.length >= 2 && roomPlayers.every(p => p.ready);
+                  return (
+                    <button onClick={handleStartRoom} disabled={!isHost || !allReady} title={!isHost ? 'Réservé à l\'hôte' : (allReady ? 'Lancer la partie' : 'Tous les joueurs doivent être prêts')} style={{ flex: 1, background: isHost && allReady ? '#fde68a' : '#e5e7eb', border: '2px solid ' + (isHost && allReady ? '#f59e0b' : '#9ca3af'), borderRadius: 8, padding: '10px', fontWeight: 700, fontSize: 14, cursor: !isHost || !allReady ? 'not-allowed' : 'pointer', opacity: !isHost || !allReady ? 0.6 : 1 }}>
+                      🚀 Démarrer
+                    </button>
+                  );
+                })()}
+              </div>
+            </>
             )}
             {mpMsg && !panelCollapsed && (
               <div style={{ marginTop: 8, fontSize: 12, color: '#333' }}>{mpMsg}</div>
