@@ -1110,6 +1110,13 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
                   const d2 = parseInt(cfg2?.duration, 10);
                   if (Number.isFinite(d2) && d2 >= 10 && d2 <= 600) s.emit('room:duration:set', { duration: d2 });
                   if (Number.isFinite(r2) && r2 >= 1 && r2 <= 20) s.emit('room:setRounds', r2);
+                  
+                  // Envoyer les thématiques et classes au serveur
+                  const themes2 = Array.isArray(cfg2?.themes) ? cfg2.themes : [];
+                  const classes2 = Array.isArray(cfg2?.classes) ? cfg2.classes : [];
+                  s.emit('room:setConfig', { themes: themes2, classes: classes2 });
+                  console.log('[MP] Sent config to server:', { themes: themes2, classes: classes2 });
+                  
                   configAppliedRef.current = true;
                 }
               } catch {}
@@ -1130,6 +1137,13 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
                         const d3 = parseInt(cfg3?.duration, 10);
                         if (Number.isFinite(d3) && d3 >= 10 && d3 <= 600) s.emit('room:duration:set', { duration: d3 });
                         if (Number.isFinite(r3) && r3 >= 1 && r3 <= 20) s.emit('room:setRounds', r3);
+                        
+                        // Envoyer les thématiques et classes au serveur
+                        const themes = Array.isArray(cfg3?.themes) ? cfg3.themes : [];
+                        const classes = Array.isArray(cfg3?.classes) ? cfg3.classes : [];
+                        s.emit('room:setConfig', { themes, classes });
+                        console.log('[MP] Sent config to server:', { themes, classes });
+                        
                         configAppliedRef.current = true;
                       }
                     } catch {}
