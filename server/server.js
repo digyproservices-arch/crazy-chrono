@@ -907,6 +907,20 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Hôte: définir les thématiques et classes pour la génération de zones
+  socket.on('room:setConfig', ({ themes, classes }) => {
+    if (!currentRoom) return;
+    const room = getRoom(currentRoom);
+    if (socket.id !== room.hostId) return;
+    
+    room.selectedThemes = Array.isArray(themes) ? themes : [];
+    room.selectedClasses = Array.isArray(classes) ? classes : [];
+    
+    console.log(`[MP] setConfig room=${currentRoom} themes=${room.selectedThemes.length} classes=${room.selectedClasses.length}`);
+    console.log(`[MP] Themes:`, room.selectedThemes);
+    console.log(`[MP] Classes:`, room.selectedClasses);
+  });
+
   // Toggle prêt/pas prêt
   socket.on('ready:toggle', ({ ready }) => {
     if (!currentRoom) return;
