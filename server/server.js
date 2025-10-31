@@ -5,6 +5,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const http = require('http');
 const { Server } = require('socket.io');
+const { generateRoundZones } = require('./utils/serverZoneGenerator');
 
 // Load env (safe)
 try { require('dotenv').config({ path: require('path').join(__dirname, '.env') }); } catch {}
@@ -652,9 +653,12 @@ app.post('/purge-elements', async (req, res) => {
 const rooms = new Map();
 
 function getRoom(roomCode) {
-  if (!rooms.has(roomCode)) rooms.set(roomCode, { players: new Map(), resolved: false, status: 'lobby', hostId: null, duration: 60, sessionActive: false, sessions: [], roundsPerSession: 3, roundsPlayed: 0, roundTimer: null, pendingClaims: new Map() });
+  if (!rooms.has(roomCode)) rooms.set(roomCode, { players: new Map(), resolved: false, status: 'lobby', hostId: null, duration: 60, sessionActive: false, sessions: [], roundsPerSession: 3, roundsPlayed: 0, roundTimer: null, pendingClaims: new Map(), validatedPairIds: new Set(), selectedThemes: [], selectedClasses: [] });
   const r = rooms.get(roomCode);
   if (!r.pendingClaims) r.pendingClaims = new Map();
+  if (!r.validatedPairIds) r.validatedPairIds = new Set();
+  if (!r.selectedThemes) r.selectedThemes = [];
+  if (!r.selectedClasses) r.selectedClasses = [];
   return r;
 }
 
@@ -721,12 +725,25 @@ function startRound(roomCode) {
   const seed = Math.floor(Date.now() % 2147483647);
   room.roundSeed = seed;
   room.pairsValidated = 0;
+  
+  // Générer les zones côté serveur pour synchronisation multijoueur
+  const zones = generateRoundZones(seed, {
+    themes: room.selectedThemes || [],
+    classes: room.selectedClasses || [],
+    excludedPairIds: room.validatedPairIds || new Set()
+  });
+  
+  // Stocker les zones dans la room pour validation ultérieure
+  room.currentZones = zones;
+  
+  console.log(`[MP] Generated ${zones.length} zones for room=${roomCode}`);
+  
   io.to(roomCode).emit('round:new', {
     seed,
     duration: room.duration || 60,
     roundIndex: room.roundsPlayed,
     roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
-    zonesFile: 'zones2'
+    zones: zones // Envoyer les zones complètes
   });
   // Timer d'expiration pour annoncer le résultat si personne n'a gagné
   room.roundTimer = setTimeout(() => {
@@ -1010,6 +1027,26 @@ io.on('connection', (socket) => {
         // Marquer la paire comme prise pour bloquer les futurs clics
         room.foundPairs.add(claimKey);
         const claimants = Array.from(pend?.claimants || []);
+        
+        // Extraire le pairId des zones et l'ajouter au Set des paires validées
+        try {
+          if (room.currentZones && Array.isArray(room.currentZones)) {
+            const zoneA = room.currentZones.find(z => String(z.id) === String(a));
+            const zoneB = room.currentZones.find(z => String(z.id) === String(b));
+            const pairIdA = zoneA?.pairId || '';
+            const pairIdB = zoneB?.pairId || '';
+            
+            // Si les deux zones ont le même pairId non vide, l'ajouter au Set
+            if (pairIdA && pairIdB && pairIdA === pairIdB) {
+              if (!room.validatedPairIds) room.validatedPairIds = new Set();
+              room.validatedPairIds.add(pairIdA);
+              console.log(`[MP] Added validated pairId: ${pairIdA} (total: ${room.validatedPairIds.size})`);
+            }
+          }
+        } catch (e) {
+          console.error('[MP] Error extracting pairId:', e);
+        }
+        
         // Incrémenter le compteur de paires validées une seule fois
         room.pairsValidated = (room.pairsValidated || 0) + 1;
         // Attribuer +1 à tous les joueurs concernés
