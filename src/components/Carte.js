@@ -1246,18 +1246,27 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
 
     s.on('round:new', (payload) => {
       console.debug('[CC][client] round:new', payload);
-      addDiag('round:new', { duration: payload?.duration, roundIndex: payload?.roundIndex, roundsTotal: payload?.roundsTotal });
+      addDiag('round:new', { duration: payload?.duration, roundIndex: payload?.roundIndex, roundsTotal: payload?.roundsTotal, hasZones: !!payload?.zones });
       // Clear waiting timer, if any
       try { if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } } catch {}
       // Show preload overlay at start of each round
       setPreparing(true);
       try { window.ccAddDiag && window.ccAddDiag('prep:start:round', { roundIndex: payload?.roundIndex }); } catch {}
       setPrepProgress(0);
-      const seed = Number.isFinite(payload?.seed) ? payload.seed : undefined;
-      const zonesFile = payload?.zonesFile || 'zones2';
       if (typeof setMpMsg === 'function') setMpMsg('Nouvelle manche');
-      // Deterministic assignment based on seed and zones file
-      safeHandleAutoAssign(seed, zonesFile);
+      
+      // Si le serveur envoie les zones, les utiliser directement
+      if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
+        console.log('[CC][client] Using server-generated zones:', payload.zones.length);
+        setZones(payload.zones);
+        setPreparing(false);
+      } else {
+        // Sinon, fallback sur génération locale déterministe
+        const seed = Number.isFinite(payload?.seed) ? payload.seed : undefined;
+        const zonesFile = payload?.zonesFile || 'zones2';
+        console.log('[CC][client] Generating zones locally with seed:', seed);
+        safeHandleAutoAssign(seed, zonesFile);
+      }
       // Ensure game state is active
       setGameActive(true);
       // Prendre la durée côté serveur et initialiser le timer d'affichage
