@@ -1,0 +1,1659 @@
+{
+  "textes": [
+    {
+      "id": "t1",
+      "content": "Cannelle",
+      "levelClass": "CP",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "id": "t2",
+      "content": "Gingembre",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "t3",
+      "content": "Paris"
+    },
+    {
+      "id": "t4",
+      "content": "Londres"
+    },
+    {
+      "id": "t5",
+      "content": "FARINE CHAUD",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "t6",
+      "content": "Orthosiphon",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "t7",
+      "content": "Patate Chandelier",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "t8",
+      "content": "Soulier zombie",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "t9",
+      "content": "Raifort"
+    },
+    {
+      "id": "t10",
+      "content": "Consoude",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "t11",
+      "content": "Ti poul bwa"
+    },
+    {
+      "id": "t12",
+      "content": "Douvan Nèg"
+    },
+    {
+      "id": "t13",
+      "content": "Tajétes"
+    },
+    {
+      "id": "t14",
+      "content": "Plantain"
+    },
+    {
+      "id": "t15",
+      "content": "Koklaya"
+    },
+    {
+      "id": "t16",
+      "content": "Bleuets",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "6e"
+    },
+    {
+      "id": "t17",
+      "content": "Mélisse",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "t18",
+      "content": "Herbe charpentier"
+    },
+    {
+      "id": "t19",
+      "content": "Simen kontra"
+    },
+    {
+      "id": "t20",
+      "content": "Paroka",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "t21",
+      "content": "Atoumo",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "t22",
+      "content": "Curcuma",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "t23",
+      "content": "Grenn anba fey",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "t24",
+      "content": "Romarin",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "t25",
+      "content": "Aloé Vera",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "t26",
+      "content": "Gwo Ten",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "t27",
+      "content": "Malnommée",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "t1754619592818",
+      "content": "Fruit à Pain",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "t1761691305732",
+      "content": "Pomme Surette",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "t1761691305733",
+      "content": "Pois d'Angole",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "t1761691305734",
+      "content": "Patate Douce",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "t1761691305735",
+      "content": "Pomme Malaka",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "t1761691305736",
+      "content": "Herbe Charpentier",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "t1761691305737",
+      "content": "Simen Kontra",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "t1761691305738",
+      "content": "Ti Poul Bwa",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    }
+  ],
+  "images": [
+    {
+      "id": "i3",
+      "url": "images/fruit-a-pain.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "i4",
+      "url": "images/cerise-peyi.jpeg",
+      "levelClass": "CE1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "id": "i5",
+      "url": "images/carambole.jpeg",
+      "levelClass": "CP",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "id": "i6",
+      "url": "images/sapotille.jpeg"
+    },
+    {
+      "id": "i7",
+      "url": "images/nefle.jpeg"
+    },
+    {
+      "id": "i8",
+      "url": "images/tamarin.jpeg"
+    },
+    {
+      "id": "i9",
+      "url": "images/quenette.jpeg"
+    },
+    {
+      "id": "i10",
+      "url": "images/corossol.jpeg"
+    },
+    {
+      "id": "i11",
+      "url": "images/christophine.jpeg"
+    },
+    {
+      "id": "i12",
+      "url": "images/pomme-surette.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "i1754579810850berq",
+      "url": "images/giraumon.jpeg"
+    },
+    {
+      "id": "i1754579810850k1r7",
+      "url": "images/pois-d-angole.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "i1754579810850v7un",
+      "url": "images/manioc.jpeg"
+    },
+    {
+      "id": "i1754579810850qk05",
+      "url": "images/gombo.jpeg"
+    },
+    {
+      "id": "i1754579810850xzsb",
+      "url": "images/cythere.jpeg"
+    },
+    {
+      "id": "i1754579810850f3vf",
+      "url": "images/maracuja.jpeg"
+    },
+    {
+      "id": "i17545798108503tl0",
+      "url": "images/madere.jpeg"
+    },
+    {
+      "id": "i1754579810850mgcp",
+      "url": "images/igname.jpeg"
+    },
+    {
+      "id": "i1754579810850tsef",
+      "url": "images/papaye.jpeg"
+    },
+    {
+      "id": "i17545798108509av3",
+      "url": "images/patate-douce.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "i1754579810850pucr",
+      "url": "images/pomme-malaka.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "i1754579810850ljmx",
+      "url": "images/corossol.jpeg"
+    },
+    {
+      "id": "i1754579810850kpy4",
+      "url": "images/goyave.jpeg"
+    },
+    {
+      "id": "i175457981085011fe",
+      "url": "images/melisse.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "i1754579810850ah7e",
+      "url": "images/malnommee.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "i17545798108507zn0",
+      "url": "images/farine-chaud.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "i1754579810850say6",
+      "url": "images/aloe-vera.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "i1754579810850p76v",
+      "url": "images/herbe-charpentier.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "i1754579810850x51f",
+      "url": "images/gingembre.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "i1754579810850f3d6",
+      "url": "images/orthosiphon.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "i17545798108501vem",
+      "url": "images/tajetes.jpeg"
+    },
+    {
+      "id": "i1754579810850ljuo",
+      "url": "images/paroka.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "i1754579810850hhgl",
+      "url": "images/cannelle.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "i17545798108507u7h",
+      "url": "images/grenn-anba-fey.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "i1754579810850bq7v",
+      "url": "images/gwo-ten.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "i1754579810850tdtf",
+      "url": "images/simen-kontra.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "i17545798108509dt9",
+      "url": "images/curcuma.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "i1754579810850qeb6",
+      "url": "images/2024-08-16-13-05-08-(23).jpeg"
+    },
+    {
+      "id": "i1754579810850ojzt",
+      "url": "images/atoumo.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "i1754579810850trt6",
+      "url": "images/romarin.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "i1754579810850upfg",
+      "url": "images/soulier-zombie.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "i1754579810850bwvp",
+      "url": "images/raifort.jpeg"
+    },
+    {
+      "id": "i1754579810850yj17",
+      "url": "images/patate-chandelier.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "i1754579810850ya9j",
+      "url": "images/ti-poul-bwa.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "i1754579810850hu4a",
+      "url": "images/bleuets.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "6e"
+    },
+    {
+      "id": "i1754579810850h6md",
+      "url": "images/2024-08-16-13-05-08-(9).jpeg"
+    },
+    {
+      "id": "i1754579810850ikhk",
+      "url": "images/consoude.jpeg",
+      "themes": [
+        "botanique"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "i1754579810850nqok",
+      "url": "images/zandoli.jpeg"
+    },
+    {
+      "id": "i1754579810850p3uq",
+      "url": "images/2024-09-10-13-37-16-(11).jpeg"
+    },
+    {
+      "id": "i1754579810850al10",
+      "url": "images/2024-09-10-13-37-16-(12).jpeg"
+    },
+    {
+      "id": "i1754579810850hjpg",
+      "url": "images/2024-09-10-13-37-16-(13).jpeg"
+    },
+    {
+      "id": "i1754579810850uebc",
+      "url": "images/2024-09-10-13-37-16-(14).jpeg"
+    },
+    {
+      "id": "i1754579810850585z",
+      "url": "images/2024-09-10-13-37-16-(15).jpeg"
+    },
+    {
+      "id": "i1754579810850x95g",
+      "url": "images/2024-09-10-13-37-16-(16).jpeg"
+    },
+    {
+      "id": "i1754579810850jxaw",
+      "url": "images/2024-09-10-13-37-16-(17).jpeg"
+    },
+    {
+      "id": "i1754579810850moua",
+      "url": "images/2024-09-10-13-37-16-(18).jpeg"
+    },
+    {
+      "id": "i1754579810850cqro",
+      "url": "images/2024-09-10-13-37-16-(19).jpeg"
+    },
+    {
+      "id": "i1754579810850evmn",
+      "url": "images/2024-09-10-13-37-16-(2).jpeg"
+    },
+    {
+      "id": "i1754579810850heoz",
+      "url": "images/2024-09-10-13-37-16-(20).jpeg"
+    },
+    {
+      "id": "i1754579810850ay9g",
+      "url": "images/2024-09-10-13-37-16-(21).jpeg"
+    },
+    {
+      "id": "i1754579810850qyln",
+      "url": "images/2024-09-10-13-37-16-(3).jpeg"
+    },
+    {
+      "id": "i1754579810850092a",
+      "url": "images/2024-09-10-13-37-16-(4).jpeg"
+    },
+    {
+      "id": "i1754579810850n464",
+      "url": "images/2024-09-10-13-37-16-(5).jpeg"
+    },
+    {
+      "id": "i17545798108503qib",
+      "url": "images/2024-09-10-13-37-16-(6).jpeg"
+    },
+    {
+      "id": "i1754579810850cto2",
+      "url": "images/2024-09-10-13-37-16-(8).jpeg"
+    },
+    {
+      "id": "i1754579810850cu13",
+      "url": "images/2024-09-10-13-37-16-(9).jpeg"
+    },
+    {
+      "id": "i175457981085078jn",
+      "url": "images/2024-09-10-13-37-16.jpeg"
+    },
+    {
+      "id": "i1754579810850vy7k",
+      "url": "images/2024-09-10-13-38-10-(2).jpeg"
+    },
+    {
+      "id": "i1754579810850ec9m",
+      "url": "images/2024-09-10-13-38-10-(3).jpeg"
+    },
+    {
+      "id": "i175457981085054ts",
+      "url": "images/2024-09-10-13-38-10-(4).jpeg"
+    },
+    {
+      "id": "i17545798108501wob",
+      "url": "images/2024-09-10-13-38-10-(5).jpeg"
+    },
+    {
+      "id": "i1754579810850w3ov",
+      "url": "images/2024-09-10-13-38-10-(6).jpeg"
+    },
+    {
+      "id": "i1754579810850bx7w",
+      "url": "images/2024-09-10-13-38-10-(7).jpeg"
+    },
+    {
+      "id": "i17545798108503rlz",
+      "url": "images/2024-09-10-13-38-10.jpeg"
+    },
+    {
+      "id": "i1754579810850udsj",
+      "url": "images/2024-09-10-13-38-11-(10).jpeg"
+    },
+    {
+      "id": "i1754579810850uce7",
+      "url": "images/2024-09-10-13-38-11-(2).jpeg"
+    },
+    {
+      "id": "i1754579810850gu16",
+      "url": "images/2024-09-10-13-38-11-(3).jpeg"
+    },
+    {
+      "id": "i1754579810850q9ps",
+      "url": "images/2024-09-10-13-38-11-(4).jpeg"
+    },
+    {
+      "id": "i1754579810850drql",
+      "url": "images/2024-09-10-13-38-11-(5).jpeg"
+    },
+    {
+      "id": "i1754579810850gdy2",
+      "url": "images/2024-09-10-13-38-11-(6).jpeg"
+    },
+    {
+      "id": "i1754579810850a26e",
+      "url": "images/2024-09-10-13-38-11-(7).jpeg"
+    },
+    {
+      "id": "i1754579810850ud63",
+      "url": "images/2024-09-10-13-38-11-(8).jpeg"
+    },
+    {
+      "id": "i1754579810850np2x",
+      "url": "images/2024-09-10-13-38-11-(9).jpeg"
+    },
+    {
+      "id": "i1754579810850xphg",
+      "url": "images/2024-09-10-13-38-11.jpeg"
+    },
+    {
+      "id": "i1754579810850fb9q",
+      "url": "images/2024-09-10-13-38-12-(2).jpeg"
+    },
+    {
+      "id": "i1754579810850o2vj",
+      "url": "images/2024-09-10-13-38-12-(3).jpeg"
+    },
+    {
+      "id": "i1754579810850w00a",
+      "url": "images/2024-09-10-13-38-12-(4).jpeg"
+    },
+    {
+      "id": "i1754579810850wcas",
+      "url": "images/2024-09-10-13-38-12-(5).jpeg"
+    },
+    {
+      "id": "i175457981085024ai",
+      "url": "images/2024-09-10-13-38-12.jpeg"
+    }
+  ],
+  "calculs": [
+    {
+      "id": "c1",
+      "content": "5+7",
+      "levelClass": "CP"
+    },
+    {
+      "id": "c2",
+      "content": "3+4",
+      "levelClass": "CP"
+    },
+    {
+      "id": "c3",
+      "content": "15x2",
+      "levelClass": "CM1"
+    },
+    {
+      "id": "c1754621357628_0",
+      "content": "2 × 2",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_1",
+      "content": "2 × 3",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_2",
+      "content": "2 × 4",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_3",
+      "content": "2 × 5",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_4",
+      "content": "2 × 6",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_5",
+      "content": "3 × 2",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_6",
+      "content": "3 × 3",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_7",
+      "content": "3 × 4",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_8",
+      "content": "3 × 5",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_9",
+      "content": "3 × 6",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_10",
+      "content": "4 × 2",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_11",
+      "content": "4 × 3",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_12",
+      "content": "4 × 4",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_13",
+      "content": "4 × 5",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_14",
+      "content": "4 × 6",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_15",
+      "content": "5 × 2",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_16",
+      "content": "5 × 3",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_17",
+      "content": "5 × 4",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_18",
+      "content": "5 × 5",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_19",
+      "content": "5 × 6",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_20",
+      "content": "6 × 2",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_21",
+      "content": "6 × 3",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_22",
+      "content": "6 × 4",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_23",
+      "content": "6 × 5",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_24",
+      "content": "6 × 6",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_25",
+      "content": "7 × 2",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_26",
+      "content": "7 × 3",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_27",
+      "content": "7 × 4",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_28",
+      "content": "7 × 5",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "c1754621357628_29",
+      "content": "7 × 6",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    }
+  ],
+  "chiffres": [
+    {
+      "id": "n1",
+      "content": "12"
+    },
+    {
+      "id": "n2",
+      "content": "417"
+    },
+    {
+      "id": "n1754621357628_0",
+      "content": "4",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_1",
+      "content": "6",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_2",
+      "content": "8",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_3",
+      "content": "10",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_4",
+      "content": "12",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_5",
+      "content": "6",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_6",
+      "content": "9",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_7",
+      "content": "12",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_8",
+      "content": "15",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_9",
+      "content": "18",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_10",
+      "content": "8",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_11",
+      "content": "12",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_12",
+      "content": "16",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_13",
+      "content": "20",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_14",
+      "content": "24",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_15",
+      "content": "10",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_16",
+      "content": "15",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_17",
+      "content": "20",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_18",
+      "content": "25",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_19",
+      "content": "30",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_20",
+      "content": "12",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_21",
+      "content": "18",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_22",
+      "content": "24",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_23",
+      "content": "30",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_24",
+      "content": "36",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_25",
+      "content": "14",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_26",
+      "content": "21",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_27",
+      "content": "28",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_28",
+      "content": "35",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "n1754621357628_29",
+      "content": "42",
+      "themes": [
+        "multiplication"
+      ],
+      "levelClass": "CE2"
+    }
+  ],
+  "associations": [
+    {
+      "texteId": "t1754619592818",
+      "imageId": "i3",
+      "levelClass": "CP",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t1",
+      "imageId": "i1754579810850hhgl",
+      "levelClass": "CP",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t20",
+      "imageId": "i1754579810850ljuo",
+      "levelClass": "CE1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t25",
+      "imageId": "i1754579810850say6",
+      "levelClass": "CE1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t21",
+      "imageId": "i1754579810850ojzt",
+      "levelClass": "CE1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t10",
+      "imageId": "i1754579810850ikhk",
+      "levelClass": "CM2",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t16",
+      "imageId": "i1754579810850hu4a",
+      "levelClass": "6e",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t22",
+      "imageId": "i17545798108509dt9",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t27",
+      "imageId": "i1754579810850ah7e",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t17",
+      "imageId": "i175457981085011fe",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t5",
+      "imageId": "i17545798108507zn0",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t2",
+      "imageId": "i1754579810850x51f",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t6",
+      "imageId": "i1754579810850f3d6",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t23",
+      "imageId": "i17545798108507u7h",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t24",
+      "imageId": "i1754579810850trt6",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_0",
+      "chiffreId": "n1754621357628_0",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_1",
+      "chiffreId": "n1754621357628_1",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_2",
+      "chiffreId": "n1754621357628_2",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_3",
+      "chiffreId": "n1754621357628_3",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_4",
+      "chiffreId": "n1754621357628_4",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_5",
+      "chiffreId": "n1754621357628_5",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_6",
+      "chiffreId": "n1754621357628_6",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_7",
+      "chiffreId": "n1754621357628_7",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_8",
+      "chiffreId": "n1754621357628_8",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_9",
+      "chiffreId": "n1754621357628_9",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_10",
+      "chiffreId": "n1754621357628_10",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_11",
+      "chiffreId": "n1754621357628_11",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_12",
+      "chiffreId": "n1754621357628_12",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_13",
+      "chiffreId": "n1754621357628_13",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_14",
+      "chiffreId": "n1754621357628_14",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_15",
+      "chiffreId": "n1754621357628_15",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_16",
+      "chiffreId": "n1754621357628_16",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_17",
+      "chiffreId": "n1754621357628_17",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_18",
+      "chiffreId": "n1754621357628_18",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_19",
+      "chiffreId": "n1754621357628_19",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_20",
+      "chiffreId": "n1754621357628_20",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_21",
+      "chiffreId": "n1754621357628_21",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_22",
+      "chiffreId": "n1754621357628_22",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_23",
+      "chiffreId": "n1754621357628_23",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_24",
+      "chiffreId": "n1754621357628_24",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_25",
+      "chiffreId": "n1754621357628_25",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_26",
+      "chiffreId": "n1754621357628_26",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_27",
+      "chiffreId": "n1754621357628_27",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_28",
+      "chiffreId": "n1754621357628_28",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "calculId": "c1754621357628_29",
+      "chiffreId": "n1754621357628_29",
+      "levelClass": "CE2",
+      "themes": [
+        "multiplication"
+      ]
+    },
+    {
+      "texteId": "t7",
+      "imageId": "i1754579810850yj17",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t8",
+      "imageId": "i1754579810850upfg",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t1761691305732",
+      "imageId": "i12",
+      "levelClass": "CP",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t1761691305733",
+      "imageId": "i1754579810850k1r7",
+      "levelClass": "CE1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t1761691305734",
+      "imageId": "i17545798108509av3",
+      "levelClass": "CE1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t1761691305735",
+      "imageId": "i1754579810850pucr",
+      "levelClass": "CP",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t1761691305736",
+      "imageId": "i1754579810850p76v",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t26",
+      "imageId": "i1754579810850bq7v",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t1761691305737",
+      "imageId": "i1754579810850tdtf",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    },
+    {
+      "texteId": "t1761691305738",
+      "imageId": "i1754579810850ya9j",
+      "levelClass": "CM1",
+      "themes": [
+        "botanique"
+      ]
+    }
+  ]
+}

@@ -5,6 +5,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const http = require('http');
 const { Server } = require('socket.io');
+const { generateRoundZones } = require('./utils/serverZoneGenerator');
 
 // Load env (safe)
 try { require('dotenv').config({ path: require('path').join(__dirname, '.env') }); } catch {}
@@ -721,8 +722,26 @@ function startRound(roomCode) {
   const seed = Math.floor(Date.now() % 2147483647);
   room.roundSeed = seed;
   room.pairsValidated = 0;
+  
+  // Générer les zones côté serveur avec filtrage thématique
+  let zones = [];
+  try {
+    const config = {
+      themes: room.selectedThemes || [],
+      classes: room.selectedClasses || [],
+      excludedPairIds: room.validatedPairIds || new Set()
+    };
+    zones = generateRoundZones(seed, config);
+    console.log(`[MP] Generated ${zones.length} zones for room=${roomCode} with themes=${config.themes.length} classes=${config.classes.length}`);
+  } catch (err) {
+    console.error(`[MP] Failed to generate zones for room=${roomCode}:`, err);
+    // Fallback: envoyer juste le seed et laisser le client générer
+    zones = null;
+  }
+  
   io.to(roomCode).emit('round:new', {
     seed,
+    zones: zones || undefined,
     duration: room.duration || 60,
     roundIndex: room.roundsPlayed,
     roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
@@ -888,6 +907,20 @@ io.on('connection', (socket) => {
     if (typeof cb === 'function') {
       try { cb({ ok: true, roundsPerSession: room.roundsPerSession }); } catch {}
     }
+  });
+
+  // Hôte: définir les thématiques et classes pour le filtrage des zones
+  socket.on('room:setConfig', ({ themes, classes }) => {
+    if (!currentRoom) return;
+    const room = getRoom(currentRoom);
+    if (socket.id !== room.hostId) return;
+
+    room.selectedThemes = Array.isArray(themes) ? themes : [];
+    room.selectedClasses = Array.isArray(classes) ? classes : [];
+
+    console.log(`[MP] setConfig room=${currentRoom} themes=${room.selectedThemes.length} classes=${room.selectedClasses.length}`);
+    console.log(`[MP] Themes:`, room.selectedThemes);
+    console.log(`[MP] Classes:`, room.selectedClasses);
   });
 
   // Toggle prêt/pas prêt

@@ -1110,6 +1110,11 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
                   const d2 = parseInt(cfg2?.duration, 10);
                   if (Number.isFinite(d2) && d2 >= 10 && d2 <= 600) s.emit('room:duration:set', { duration: d2 });
                   if (Number.isFinite(r2) && r2 >= 1 && r2 <= 20) s.emit('room:setRounds', r2);
+                  // Envoyer les thématiques et classes au serveur
+                  const themes = Array.isArray(cfg2?.themes) ? cfg2.themes : [];
+                  const classes = Array.isArray(cfg2?.classes) ? cfg2.classes : [];
+                  s.emit('room:setConfig', { themes, classes });
+                  console.log('[MP] Sent config to server:', { themes, classes });
                   configAppliedRef.current = true;
                 }
               } catch {}
@@ -1130,6 +1135,11 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
                         const d3 = parseInt(cfg3?.duration, 10);
                         if (Number.isFinite(d3) && d3 >= 10 && d3 <= 600) s.emit('room:duration:set', { duration: d3 });
                         if (Number.isFinite(r3) && r3 >= 1 && r3 <= 20) s.emit('room:setRounds', r3);
+                        // Envoyer les thématiques et classes au serveur
+                        const themes = Array.isArray(cfg3?.themes) ? cfg3.themes : [];
+                        const classes = Array.isArray(cfg3?.classes) ? cfg3.classes : [];
+                        s.emit('room:setConfig', { themes, classes });
+                        console.log('[MP] Sent config to server:', { themes, classes });
                         configAppliedRef.current = true;
                       }
                     } catch {}
@@ -1232,18 +1242,28 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
 
     s.on('round:new', (payload) => {
       console.debug('[CC][client] round:new', payload);
-      addDiag('round:new', { duration: payload?.duration, roundIndex: payload?.roundIndex, roundsTotal: payload?.roundsTotal });
+      addDiag('round:new', { duration: payload?.duration, roundIndex: payload?.roundIndex, roundsTotal: payload?.roundsTotal, hasZones: !!payload?.zones });
       // Clear waiting timer, if any
       try { if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } } catch {}
       // Show preload overlay at start of each round
       setPreparing(true);
       try { window.ccAddDiag && window.ccAddDiag('prep:start:round', { roundIndex: payload?.roundIndex }); } catch {}
       setPrepProgress(0);
-      const seed = Number.isFinite(payload?.seed) ? payload.seed : undefined;
-      const zonesFile = payload?.zonesFile || 'zones2';
       if (typeof setMpMsg === 'function') setMpMsg('Nouvelle manche');
-      // Deterministic assignment based on seed and zones file
-      safeHandleAutoAssign(seed, zonesFile);
+      
+      // Si le serveur envoie les zones, les utiliser directement
+      if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
+        console.log('[CC][client] Using server-generated zones:', payload.zones.length);
+        setZones(payload.zones);
+        setPreparing(false);
+      } else {
+        // Sinon, fallback sur génération locale déterministe
+        const seed = Number.isFinite(payload?.seed) ? payload.seed : undefined;
+        const zonesFile = payload?.zonesFile || 'zones2';
+        console.log('[CC][client] Generating zones locally with seed:', seed);
+        safeHandleAutoAssign(seed, zonesFile);
+      }
+      
       // Ensure game state is active
       setGameActive(true);
       // Prendre la durée côté serveur et initialiser le timer d'affichage
