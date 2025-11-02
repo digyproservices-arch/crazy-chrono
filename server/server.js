@@ -1073,10 +1073,35 @@ io.on('connection', (socket) => {
         }
         const scores = Array.from(room.players.entries()).map(([id, pl]) => ({ id, name: pl.name, score: pl.score || 0 }));
         io.to(currentRoom).emit('score:update', { scores });
-        // Calculer une seed déterministe identique pour tous
-        const base = Number.isFinite(room.roundSeed) ? room.roundSeed : Math.floor(Date.now() % 2147483647);
-        const count = room.pairsValidated;
-        const seedNext = (Math.imul((base ^ 0x9E3779B1) + count * 10007, 2654435761) >>> 0) % 2147483647;
+        
+        // Régénérer une nouvelle carte avec les paires validées exclues
+        const newSeed = Math.floor(Date.now() % 2147483647);
+        room.roundSeed = newSeed;
+        
+        let newZones = [];
+        try {
+          const config = {
+            themes: room.selectedThemes || [],
+            classes: room.selectedClasses || [],
+            excludedPairIds: room.validatedPairIds || new Set()
+          };
+          newZones = generateRoundZones(newSeed, config);
+          room.currentZones = newZones;
+          console.log(`[MP] Regenerated ${newZones.length} zones after pair validation (excluded: ${config.excludedPairIds.size})`);
+        } catch (err) {
+          console.error(`[MP] Failed to regenerate zones:`, err);
+        }
+        
+        // Envoyer la nouvelle carte à tous les joueurs
+        io.to(currentRoom).emit('round:new', {
+          seed: newSeed,
+          zones: newZones,
+          duration: room.duration || 60,
+          roundIndex: room.roundsPlayed,
+          roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
+          zonesFile: 'zones2'
+        });
+        
         // Compat: 'by' = premier cliqueur; ajoute tie + winners si égalité
         const first = claimants[0] || socket.id;
         const isTie = claimants.length >= 2;
@@ -1084,9 +1109,7 @@ io.on('connection', (socket) => {
           by: first,
           a, b,
           ts: Date.now(),
-          count,
-          seedNext,
-          zonesFile: 'zones2',
+          count: room.pairsValidated,
           tie: isTie,
           winners: claimants
         });

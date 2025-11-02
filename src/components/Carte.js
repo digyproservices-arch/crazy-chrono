@@ -1902,9 +1902,12 @@ function handleGameClick(zone) {
           setTimeout(() => {
             setGameSelectedIds([]);
             setGameMsg('');
-            // CORRECTION: Toujours régénérer la carte après une paire validée
-            // Le serveur ne gère pas la régénération automatique par paire
-            safeHandleAutoAssign();
+            // En mode multiplayer, le serveur gère la régénération après pair:valid
+            // En mode solo, on régénère localement
+            if (!socketConnected) {
+              safeHandleAutoAssign();
+            }
+            // Sinon, attendre que le serveur envoie round:new avec les nouvelles zones
           }, 450);
       } else {
         console.log('[GAME] BAD pair', { a, b, ZA: ZA && { id: ZA.id, type: ZA.type, pairId: ZA.pairId }, ZB: ZB && { id: ZB.id, type: ZB.type, pairId: ZB.pairId } });
