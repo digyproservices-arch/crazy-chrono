@@ -737,6 +737,7 @@ function startRound(roomCode) {
   room.currentZones = zones;
   
   console.log(`[MP] Generated ${zones.length} zones for room=${roomCode}`);
+  console.log(`[MP] Sample zone:`, zones[0] ? { id: zones[0].id, type: zones[0].type, hasContent: !!zones[0].content, pairId: zones[0].pairId } : 'NONE');
   
   io.to(roomCode).emit('round:new', {
     seed,
