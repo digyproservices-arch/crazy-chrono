@@ -325,6 +325,12 @@ function generateRoundZones(seed, config = {}) {
           z.content = encodedImageUrl(imagesById[imgId]?.url || '');
           z.pairId = ''; // Pas de pairId pour les distracteurs
           used.image.add(imgId);
+          // Ajouter tous les textes associés à cette image aux interdits
+          if (imageToTextes.has(imgId)) {
+            for (const tId of imageToTextes.get(imgId)) {
+              forbiddenTextIds.add(tId);
+            }
+          }
         }
       } else if (type === 'texte' && !z.content) {
         const tId = pickTexteDistractor(forbiddenImageIds);
@@ -333,6 +339,12 @@ function generateRoundZones(seed, config = {}) {
           z.label = textesById[tId]?.content || '';
           z.pairId = ''; // Pas de pairId pour les distracteurs
           used.texte.add(tId);
+          // Ajouter toutes les images associées à ce texte aux interdits
+          if (texteToImages.has(tId)) {
+            for (const imgId of texteToImages.get(tId)) {
+              forbiddenImageIds.add(imgId);
+            }
+          }
         }
       } else if (type === 'calcul' && !z.content) {
         const cId = pickCalculDistractor(forbiddenChiffreIds);
@@ -340,6 +352,12 @@ function generateRoundZones(seed, config = {}) {
           z.content = calculsById[cId]?.content || '';
           z.pairId = ''; // Pas de pairId pour les distracteurs
           used.calcul.add(cId);
+          // Ajouter tous les chiffres associés à ce calcul aux interdits
+          if (calculToChiffres.has(cId)) {
+            for (const nId of calculToChiffres.get(cId)) {
+              forbiddenChiffreIds.add(nId);
+            }
+          }
         }
       } else if (type === 'chiffre' && !z.content) {
         const nId = pickChiffreDistractor(forbiddenCalculIds);
@@ -348,6 +366,12 @@ function generateRoundZones(seed, config = {}) {
           z.label = chiffresById[nId]?.content || '';
           z.pairId = ''; // Pas de pairId pour les distracteurs
           used.chiffre.add(nId);
+          // Ajouter tous les calculs associés à ce chiffre aux interdits
+          if (chiffreToCalculs.has(nId)) {
+            for (const cId of chiffreToCalculs.get(nId)) {
+              forbiddenCalculIds.add(cId);
+            }
+          }
         }
       }
     }
