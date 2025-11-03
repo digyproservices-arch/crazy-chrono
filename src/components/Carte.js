@@ -2492,10 +2492,11 @@ setZones(dataWithRandomTexts);
         alert(msg);
       }
     };
-    // Priorité au localStorage si présent (ex: nettoyages faits depuis l'Admin)
+    // MODE SOLO : Priorité au localStorage si présent (ex: nettoyages faits depuis l'Admin)
+    // MODE MULTIJOUEUR : Ne PAS charger depuis localStorage (zones viennent du serveur)
     try {
       const saved = localStorage.getItem('zones');
-      if (saved) {
+      if (saved && isSoloMode) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
           // Log hash pour debug
@@ -2517,7 +2518,15 @@ setZones(dataWithRandomTexts);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('zones', JSON.stringify(zones));
+    // En mode multijoueur, ne PAS sauvegarder les zones dans localStorage
+    // car elles viennent du serveur et doivent être synchronisées
+    try {
+      const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+      const isSoloMode = cfg && cfg.mode === 'solo';
+      if (isSoloMode) {
+        localStorage.setItem('zones', JSON.stringify(zones));
+      }
+    } catch {}
   }, [zones]);
 
   useEffect(() => {
