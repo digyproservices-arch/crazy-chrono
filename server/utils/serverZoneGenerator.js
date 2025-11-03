@@ -315,74 +315,77 @@ function generateRoundZones(seed, config = {}) {
     const forbiddenCalculIds = new Set(goodPairIds?.calculId ? [goodPairIds.calculId] : []);
     const forbiddenChiffreIds = new Set(goodPairIds?.chiffreId ? [goodPairIds.chiffreId] : []);
     
-    // Collecter tous les éléments déjà utilisés (de la paire correcte)
-    const usedInPair = new Set();
-    if (goodPairIds?.texteId) usedInPair.add(goodPairIds.texteId);
-    if (goodPairIds?.imageId) usedInPair.add(goodPairIds.imageId);
-    if (goodPairIds?.calculId) usedInPair.add(goodPairIds.calculId);
-    if (goodPairIds?.chiffreId) usedInPair.add(goodPairIds.chiffreId);
+    // Remplir le reste des zones (EXACTEMENT comme le mode solo)
+    for (const z of result) {
+      const type = z.type || 'image';
+      if (type === 'image' && !z.content) {
+        const imgId = pickImageDistractor(forbiddenTextIds);
+        if (imgId) { 
+          z.content = encodedImageUrl(imagesById[imgId]?.url || ''); 
+          z.pairId = '';
+          used.image.add(imgId); 
+        }
+      } else if (type === 'texte' && !z.content) {
+        const tId = pickTexteDistractor(forbiddenImageIds);
+        if (tId) { 
+          z.content = textesById[tId]?.content || ''; 
+          z.label = textesById[tId]?.content || '';
+          z.pairId = '';
+          used.texte.add(tId); 
+        }
+      } else if (type === 'calcul' && !z.content) {
+        const cId = pickCalculDistractor(forbiddenChiffreIds);
+        if (cId) { 
+          z.content = calculsById[cId]?.content || ''; 
+          z.pairId = '';
+          used.calcul.add(cId); 
+        }
+      } else if (type === 'chiffre' && !z.content) {
+        const nId = pickChiffreDistractor(forbiddenCalculIds);
+        if (nId) { 
+          z.content = chiffresById[nId]?.content || ''; 
+          z.label = chiffresById[nId]?.content || '';
+          z.pairId = '';
+          used.chiffre.add(nId); 
+        }
+      }
+    }
     
-    // Remplir les zones restantes - TRAITER PAR TYPE pour éviter les paires accidentelles
-    // D'abord tous les calculs, puis tous les chiffres, puis images, puis textes
-    const typeOrder = ['calcul', 'chiffre', 'image', 'texte'];
+    // ===== SANITISATION: Garantir EXACTEMENT UNE paire valide =====
+    // Collecter toutes les paires potentielles présentes
+    const allPairs = [];
     
-    for (const targetType of typeOrder) {
-      for (const z of result) {
-        const type = z.type || 'image';
-        if (type !== targetType || z.content) continue;
-        
-        if (type === 'image') {
-          const imgId = pickImageDistractor(forbiddenTextIds);
-          if (imgId) {
-            z.content = encodedImageUrl(imagesById[imgId]?.url || '');
-            z.pairId = '';
-            used.image.add(imgId);
-            if (imageToTextes.has(imgId)) {
-              for (const tId of imageToTextes.get(imgId)) {
-                forbiddenTextIds.add(tId);
-              }
-            }
-          }
-        } else if (type === 'texte') {
-          const tId = pickTexteDistractor(forbiddenImageIds);
-          if (tId) {
-            z.content = textesById[tId]?.content || '';
-            z.label = textesById[tId]?.content || '';
-            z.pairId = '';
-            used.texte.add(tId);
-            if (texteToImages.has(tId)) {
-              for (const imgId of texteToImages.get(tId)) {
-                forbiddenImageIds.add(imgId);
-              }
-            }
-          }
-        } else if (type === 'calcul') {
-          const cId = pickCalculDistractor(forbiddenChiffreIds);
-          if (cId) {
-            z.content = calculsById[cId]?.content || '';
-            z.pairId = '';
-            used.calcul.add(cId);
-            if (calculToChiffres.has(cId)) {
-              for (const nId of calculToChiffres.get(cId)) {
-                forbiddenChiffreIds.add(nId);
-              }
-            }
-          }
-        } else if (type === 'chiffre') {
-          const nId = pickChiffreDistractor(forbiddenCalculIds);
-          if (nId) {
-            z.content = chiffresById[nId]?.content || '';
-            z.label = chiffresById[nId]?.content || '';
-            z.pairId = '';
-            used.chiffre.add(nId);
-            if (chiffreToCalculs.has(nId)) {
-              for (const cId of chiffreToCalculs.get(nId)) {
-                forbiddenCalculIds.add(cId);
-              }
-            }
+    // Paires Image-Texte
+    for (const z1 of result) {
+      if (z1.type === 'image' && z1.pairId) {
+        for (const z2 of result) {
+          if (z2.type === 'texte' && z2.pairId === z1.pairId) {
+            allPairs.push({ key: z1.pairId, kind: 'IT', zones: [z1.id, z2.id] });
           }
         }
       }
+    }
+    
+    // Paires Calcul-Chiffre
+    for (const z1 of result) {
+      if (z1.type === 'calcul' && z1.pairId) {
+        for (const z2 of result) {
+          if (z2.type === 'chiffre' && z2.pairId === z1.pairId) {
+            allPairs.push({ key: z1.pairId, kind: 'CC', zones: [z1.id, z2.id] });
+          }
+        }
+      }
+    }
+    
+    // Ne garder QUE la première paire trouvée, vider les pairId des autres
+    if (allPairs.length > 0) {
+      const kept = allPairs[0];
+      result = result.map(z => {
+        if (z.pairId && !kept.zones.includes(z.id)) {
+          return { ...z, pairId: '' };
+        }
+        return z;
+      });
     }
     
     console.log('[ServerZoneGen] Generated zones:', result.length, 'with good pair:', goodPairIds?.pairId || 'NONE');
