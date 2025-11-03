@@ -41,7 +41,17 @@ function generateRoundZones(seed, config = {}) {
     const selectedClasses = Array.isArray(config.classes) ? new Set(config.classes.filter(Boolean)) : null;
     const excludedPairIds = config.excludedPairIds || new Set();
     
-    if (selectedThemes.length > 0 || selectedClasses) {
+    console.log('[ServerZoneGen] Filter config:', {
+      themes: selectedThemes,
+      classes: selectedClasses ? Array.from(selectedClasses) : null,
+      hasThemes: selectedThemes.length > 0,
+      hasClasses: selectedClasses && selectedClasses.size > 0
+    });
+    
+    // Ne filtrer QUE si des thématiques ou classes sont RÉELLEMENT sélectionnées
+    const shouldFilter = selectedThemes.length > 0 || (selectedClasses && selectedClasses.size > 0);
+    
+    if (shouldFilter) {
       const hasClass = (el) => !selectedClasses || selectedClasses.has(el?.levelClass);
       const hasThemes = (el) => {
         const tags = Array.isArray(el?.themes) ? el.themes : [];
