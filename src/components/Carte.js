@@ -1255,16 +1255,30 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
       setPrepProgress(0);
       if (typeof setMpMsg === 'function') setMpMsg('Nouvelle manche');
       
-      // Si le serveur envoie les zones, les utiliser directement
-      if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
-        console.log('[CC][client] Using server-generated zones:', payload.zones.length);
+      // Détecter le mode (solo vs multijoueur)
+      let isSoloMode = false;
+      try {
+        const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+        isSoloMode = cfg && cfg.mode === 'solo';
+      } catch {}
+      
+      // MODE SOLO : Toujours générer localement (ne jamais utiliser les zones serveur)
+      if (isSoloMode) {
+        console.log('[CC][client] SOLO MODE: Generating zones locally');
+        const seed = Number.isFinite(payload?.seed) ? payload.seed : undefined;
+        const zonesFile = payload?.zonesFile || 'zones2';
+        safeHandleAutoAssign(seed, zonesFile);
+      }
+      // MODE MULTIJOUEUR : Utiliser les zones serveur si disponibles
+      else if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
+        console.log('[CC][client] MULTIPLAYER MODE: Using server-generated zones:', payload.zones.length);
         setZones(payload.zones);
         setPreparing(false);
       } else {
-        // Sinon, fallback sur génération locale déterministe
+        // Fallback sur génération locale si le serveur n'envoie pas de zones
         const seed = Number.isFinite(payload?.seed) ? payload.seed : undefined;
         const zonesFile = payload?.zonesFile || 'zones2';
-        console.log('[CC][client] Generating zones locally with seed:', seed);
+        console.log('[CC][client] MULTIPLAYER MODE: Fallback to local generation with seed:', seed);
         safeHandleAutoAssign(seed, zonesFile);
       }
       // Ensure game state is active
