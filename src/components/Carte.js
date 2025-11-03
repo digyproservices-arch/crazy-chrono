@@ -2417,6 +2417,22 @@ const handleEditGreenZone = (zone) => {
   }, []);
 
   useEffect(() => {
+    // Détecter le mode (solo vs multijoueur)
+    let isSoloMode = false;
+    try {
+      const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+      isSoloMode = cfg && cfg.mode === 'solo';
+    } catch {}
+    
+    // En mode MULTIJOUEUR, ne PAS générer de zones au chargement
+    // Le serveur enverra les zones via round:new
+    if (!isSoloMode) {
+      console.log('[CC][client] MULTIPLAYER: Skipping initial zone generation, waiting for server');
+      setLoading(false);
+      return;
+    }
+    
+    // MODE SOLO UNIQUEMENT : Génération locale au chargement
     const fetchZones = async () => {
       try {
         setError(null); // ou setError("")
@@ -2465,7 +2481,7 @@ if (zonesCalcul.length && zonesChiffre.length) {
   const zoneChiffre = shuffleArray(zonesChiffre)[0];
   correspondanceCalculChiffre = { calculId: zoneCalcul.id, chiffreId: zoneChiffre.id };
 }
-// Tu peux stocker ces correspondances dans le state si tu veux les exploiter dans l’UI
+// Tu peux stocker ces correspondances dans le state si tu veux les exploiter dans l'UI
 console.log('Attribution aléatoire appliquée :', dataWithRandomTexts);
 setZones(dataWithRandomTexts);
         setLoading(false);
