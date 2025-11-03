@@ -315,61 +315,70 @@ function generateRoundZones(seed, config = {}) {
     const forbiddenCalculIds = new Set(goodPairIds?.calculId ? [goodPairIds.calculId] : []);
     const forbiddenChiffreIds = new Set(goodPairIds?.chiffreId ? [goodPairIds.chiffreId] : []);
     
-    // Remplir les zones restantes
-    for (const z of result) {
-      const type = z.type || 'image';
-      
-      if (type === 'image' && !z.content) {
-        const imgId = pickImageDistractor(forbiddenTextIds);
-        if (imgId) {
-          z.content = encodedImageUrl(imagesById[imgId]?.url || '');
-          z.pairId = ''; // Pas de pairId pour les distracteurs
-          used.image.add(imgId);
-          // Ajouter tous les textes associés à cette image aux interdits
-          if (imageToTextes.has(imgId)) {
-            for (const tId of imageToTextes.get(imgId)) {
-              forbiddenTextIds.add(tId);
+    // Collecter tous les éléments déjà utilisés (de la paire correcte)
+    const usedInPair = new Set();
+    if (goodPairIds?.texteId) usedInPair.add(goodPairIds.texteId);
+    if (goodPairIds?.imageId) usedInPair.add(goodPairIds.imageId);
+    if (goodPairIds?.calculId) usedInPair.add(goodPairIds.calculId);
+    if (goodPairIds?.chiffreId) usedInPair.add(goodPairIds.chiffreId);
+    
+    // Remplir les zones restantes - TRAITER PAR TYPE pour éviter les paires accidentelles
+    // D'abord tous les calculs, puis tous les chiffres, puis images, puis textes
+    const typeOrder = ['calcul', 'chiffre', 'image', 'texte'];
+    
+    for (const targetType of typeOrder) {
+      for (const z of result) {
+        const type = z.type || 'image';
+        if (type !== targetType || z.content) continue;
+        
+        if (type === 'image') {
+          const imgId = pickImageDistractor(forbiddenTextIds);
+          if (imgId) {
+            z.content = encodedImageUrl(imagesById[imgId]?.url || '');
+            z.pairId = '';
+            used.image.add(imgId);
+            if (imageToTextes.has(imgId)) {
+              for (const tId of imageToTextes.get(imgId)) {
+                forbiddenTextIds.add(tId);
+              }
             }
           }
-        }
-      } else if (type === 'texte' && !z.content) {
-        const tId = pickTexteDistractor(forbiddenImageIds);
-        if (tId) {
-          z.content = textesById[tId]?.content || '';
-          z.label = textesById[tId]?.content || '';
-          z.pairId = ''; // Pas de pairId pour les distracteurs
-          used.texte.add(tId);
-          // Ajouter toutes les images associées à ce texte aux interdits
-          if (texteToImages.has(tId)) {
-            for (const imgId of texteToImages.get(tId)) {
-              forbiddenImageIds.add(imgId);
+        } else if (type === 'texte') {
+          const tId = pickTexteDistractor(forbiddenImageIds);
+          if (tId) {
+            z.content = textesById[tId]?.content || '';
+            z.label = textesById[tId]?.content || '';
+            z.pairId = '';
+            used.texte.add(tId);
+            if (texteToImages.has(tId)) {
+              for (const imgId of texteToImages.get(tId)) {
+                forbiddenImageIds.add(imgId);
+              }
             }
           }
-        }
-      } else if (type === 'calcul' && !z.content) {
-        const cId = pickCalculDistractor(forbiddenChiffreIds);
-        if (cId) {
-          z.content = calculsById[cId]?.content || '';
-          z.pairId = ''; // Pas de pairId pour les distracteurs
-          used.calcul.add(cId);
-          // Ajouter tous les chiffres associés à ce calcul aux interdits
-          if (calculToChiffres.has(cId)) {
-            for (const nId of calculToChiffres.get(cId)) {
-              forbiddenChiffreIds.add(nId);
+        } else if (type === 'calcul') {
+          const cId = pickCalculDistractor(forbiddenChiffreIds);
+          if (cId) {
+            z.content = calculsById[cId]?.content || '';
+            z.pairId = '';
+            used.calcul.add(cId);
+            if (calculToChiffres.has(cId)) {
+              for (const nId of calculToChiffres.get(cId)) {
+                forbiddenChiffreIds.add(nId);
+              }
             }
           }
-        }
-      } else if (type === 'chiffre' && !z.content) {
-        const nId = pickChiffreDistractor(forbiddenCalculIds);
-        if (nId) {
-          z.content = chiffresById[nId]?.content || '';
-          z.label = chiffresById[nId]?.content || '';
-          z.pairId = ''; // Pas de pairId pour les distracteurs
-          used.chiffre.add(nId);
-          // Ajouter tous les calculs associés à ce chiffre aux interdits
-          if (chiffreToCalculs.has(nId)) {
-            for (const cId of chiffreToCalculs.get(nId)) {
-              forbiddenCalculIds.add(cId);
+        } else if (type === 'chiffre') {
+          const nId = pickChiffreDistractor(forbiddenCalculIds);
+          if (nId) {
+            z.content = chiffresById[nId]?.content || '';
+            z.label = chiffresById[nId]?.content || '';
+            z.pairId = '';
+            used.chiffre.add(nId);
+            if (chiffreToCalculs.has(nId)) {
+              for (const cId of chiffreToCalculs.get(nId)) {
+                forbiddenCalculIds.add(cId);
+              }
             }
           }
         }
