@@ -185,7 +185,7 @@ function generateRoundZones(seed, config = {}) {
     const calculIds = [...calculToChiffres.keys()];
     const chiffreIds = [...chiffreToCalculs.keys()];
     
-    const result = zonesData.map(z => ({ ...z }));
+    let result = zonesData.map(z => ({ ...z }));
     const used = { image: new Set(), texte: new Set(), calcul: new Set(), chiffre: new Set() };
     
     // ===== Choisir le type de paire à placer =====
@@ -402,7 +402,8 @@ function generateRoundZones(seed, config = {}) {
     return result;
     
   } catch (error) {
-    console.error('[ServerZoneGen] Error:', error);
+    console.error('[ServerZoneGen] FATAL ERROR:', error);
+    console.error('[ServerZoneGen] Stack:', error.stack);
     return [];
   }
 }
