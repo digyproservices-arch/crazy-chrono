@@ -1244,6 +1244,35 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
       });
     });
 
+    // Logs serveur (pour l'enregistrement global)
+    s.on('server:log', (logData) => {
+      try {
+        const { timestamp, level, message, data } = logData;
+        const prefix = `[SERVER][${level.toUpperCase()}]`;
+        
+        // Afficher dans la console avec le bon niveau
+        if (level === 'error') {
+          console.error(prefix, message, data);
+        } else if (level === 'warn') {
+          console.warn(prefix, message, data);
+        } else if (level === 'debug') {
+          console.debug(prefix, message, data);
+        } else {
+          console.log(prefix, message, data);
+        }
+        
+        // Ajouter au diagnostic pour l'enregistrement global
+        addDiag('server:log', {
+          timestamp,
+          level,
+          message,
+          ...data
+        });
+      } catch (err) {
+        console.error('[CC][client] Failed to handle server:log:', err);
+      }
+    });
+
     s.on('round:new', (payload) => {
       console.debug('[CC][client] round:new', payload);
       console.log('[CC][client] round:new zones check:', {

@@ -662,6 +662,21 @@ function getRoom(roomCode) {
   return r;
 }
 
+// Helper: Émettre un log serveur aux clients d'une room (pour l'enregistrement global)
+function emitServerLog(roomCode, level, message, data = {}) {
+  try {
+    const timestamp = new Date().toISOString();
+    io.to(roomCode).emit('server:log', {
+      timestamp,
+      level, // 'info', 'warn', 'error', 'debug'
+      message,
+      data
+    });
+  } catch (err) {
+    console.error('[ServerLog] Failed to emit log:', err);
+  }
+}
+
 function genRoomCode() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
@@ -727,6 +742,13 @@ function startRound(roomCode) {
   room.pairsValidated = 0;
   
   // Générer les zones côté serveur pour synchronisation multijoueur
+  emitServerLog(roomCode, 'info', '[MP] Starting zone generation', {
+    seed,
+    themesCount: (room.selectedThemes || []).length,
+    classesCount: (room.selectedClasses || []).length,
+    excludedPairsCount: (room.validatedPairIds || new Set()).size
+  });
+  
   const zones = generateRoundZones(seed, {
     themes: room.selectedThemes || [],
     classes: room.selectedClasses || [],
@@ -738,6 +760,11 @@ function startRound(roomCode) {
   
   console.log(`[MP] Generated ${zones.length} zones for room=${roomCode}`);
   console.log(`[MP] Sample zone:`, zones[0] ? { id: zones[0].id, type: zones[0].type, hasContent: !!zones[0].content, pairId: zones[0].pairId } : 'NONE');
+  
+  emitServerLog(roomCode, 'info', '[MP] Zones generated', {
+    zonesCount: zones.length,
+    sampleZone: zones[0] ? { id: zones[0].id, type: zones[0].type, hasContent: !!zones[0].content, pairId: zones[0].pairId } : null
+  });
   
   const payload = {
     seed,
@@ -755,6 +782,17 @@ function startRound(roomCode) {
     hasZones: !!payload.zones,
     zonesCount: payload.zones?.length || 0,
     zonesIsArray: Array.isArray(payload.zones)
+  });
+  
+  emitServerLog(roomCode, 'info', '[MP] Emitting round:new', {
+    seed: payload.seed,
+    duration: payload.duration,
+    roundIndex: payload.roundIndex,
+    roundsTotal: payload.roundsTotal,
+    hasZones: !!payload.zones,
+    zonesCount: payload.zones?.length || 0,
+    zonesIsArray: Array.isArray(payload.zones),
+    firstZoneId: payload.zones?.[0]?.id || null
   });
   
   io.to(roomCode).emit('round:new', payload);
