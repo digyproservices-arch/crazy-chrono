@@ -7,11 +7,12 @@ const path = require('path');
 /**
  * Génère les zones avec contenu pour une manche multijoueur
  * @param {number} seed - Seed pour RNG déterministe
- * @param {Object} config - Configuration { themes, classes, excludedPairIds }
+ * @param {Object} config - Configuration { themes, classes, excludedPairIds, logFn }
  * @returns {Array} Zones avec contenu et pairId
  */
 function generateRoundZones(seed, config = {}) {
   try {
+    const logFn = config.logFn || (() => {}); // Callback optionnel pour logs
     console.log('[ServerZoneGen] Starting with seed:', seed, 'config:', config);
     
     // Charger les données
@@ -388,18 +389,36 @@ function generateRoundZones(seed, config = {}) {
     }
     
     console.log('[ServerZoneGen] Found pairs before sanitization:', allPairs.length, allPairs.map(p => p.key));
+    logFn('debug', '[ZoneGen] Pairs found before sanitization', {
+      count: allPairs.length,
+      pairKeys: allPairs.map(p => p.key)
+    });
     
     // Ne garder QUE la première paire trouvée, vider les pairId des autres
     if (allPairs.length > 0) {
       const kept = allPairs[0];
       console.log('[ServerZoneGen] Keeping only pair:', kept.key, 'zones:', kept.zones);
+      logFn('info', '[ZoneGen] Keeping only one pair', {
+        keptPairKey: kept.key,
+        keptZones: kept.zones,
+        removedCount: allPairs.length - 1
+      });
+      
+      const removedPairs = [];
       result = result.map(z => {
         if (z.pairId && !kept.zones.includes(z.id)) {
           console.log('[ServerZoneGen] Removing pairId from zone:', z.id, z.type, 'old pairId:', z.pairId);
+          removedPairs.push({ zoneId: z.id, type: z.type, pairId: z.pairId });
           return { ...z, pairId: '' };
         }
         return z;
       });
+      
+      if (removedPairs.length > 0) {
+        logFn('debug', '[ZoneGen] Removed pairIds from zones', {
+          removedPairs
+        });
+      }
     }
     
     console.log('[ServerZoneGen] Generated zones:', result.length, 'with good pair:', goodPairIds?.pairId || 'NONE');

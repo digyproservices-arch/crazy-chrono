@@ -752,7 +752,8 @@ function startRound(roomCode) {
   const zones = generateRoundZones(seed, {
     themes: room.selectedThemes || [],
     classes: room.selectedClasses || [],
-    excludedPairIds: room.validatedPairIds || new Set()
+    excludedPairIds: room.validatedPairIds || new Set(),
+    logFn: (level, message, data) => emitServerLog(roomCode, level, message, data)
   });
   
   // Stocker les zones dans la room pour validation ultérieure
