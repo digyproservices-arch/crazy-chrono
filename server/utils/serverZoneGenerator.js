@@ -387,11 +387,15 @@ function generateRoundZones(seed, config = {}) {
       }
     }
     
+    console.log('[ServerZoneGen] Found pairs before sanitization:', allPairs.length, allPairs.map(p => p.key));
+    
     // Ne garder QUE la première paire trouvée, vider les pairId des autres
     if (allPairs.length > 0) {
       const kept = allPairs[0];
+      console.log('[ServerZoneGen] Keeping only pair:', kept.key, 'zones:', kept.zones);
       result = result.map(z => {
         if (z.pairId && !kept.zones.includes(z.id)) {
+          console.log('[ServerZoneGen] Removing pairId from zone:', z.id, z.type, 'old pairId:', z.pairId);
           return { ...z, pairId: '' };
         }
         return z;
