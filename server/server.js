@@ -739,13 +739,25 @@ function startRound(roomCode) {
   console.log(`[MP] Generated ${zones.length} zones for room=${roomCode}`);
   console.log(`[MP] Sample zone:`, zones[0] ? { id: zones[0].id, type: zones[0].type, hasContent: !!zones[0].content, pairId: zones[0].pairId } : 'NONE');
   
-  io.to(roomCode).emit('round:new', {
+  const payload = {
     seed,
     duration: room.duration || 60,
     roundIndex: room.roundsPlayed,
     roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
     zones: zones // Envoyer les zones complètes
+  };
+  
+  console.log(`[MP] Emitting round:new with payload:`, {
+    seed: payload.seed,
+    duration: payload.duration,
+    roundIndex: payload.roundIndex,
+    roundsTotal: payload.roundsTotal,
+    hasZones: !!payload.zones,
+    zonesCount: payload.zones?.length || 0,
+    zonesIsArray: Array.isArray(payload.zones)
   });
+  
+  io.to(roomCode).emit('round:new', payload);
   // Timer d'expiration pour annoncer le résultat si personne n'a gagné
   room.roundTimer = setTimeout(() => {
     // A l'expiration, invalider toute fenêtre d'égalité en cours

@@ -1246,7 +1246,13 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
 
     s.on('round:new', (payload) => {
       console.debug('[CC][client] round:new', payload);
-      addDiag('round:new', { duration: payload?.duration, roundIndex: payload?.roundIndex, roundsTotal: payload?.roundsTotal, hasZones: !!payload?.zones });
+      console.log('[CC][client] round:new zones check:', {
+        hasZones: !!payload?.zones,
+        zonesIsArray: Array.isArray(payload?.zones),
+        zonesLength: payload?.zones?.length,
+        firstZone: payload?.zones?.[0]
+      });
+      addDiag('round:new', { duration: payload?.duration, roundIndex: payload?.roundIndex, roundsTotal: payload?.roundsTotal, hasZones: !!payload?.zones, zonesCount: payload?.zones?.length || 0 });
       // Clear waiting timer, if any
       try { if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } } catch {}
       // Show preload overlay at start of each round
