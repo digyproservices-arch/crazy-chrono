@@ -419,6 +419,13 @@ function generateRoundZones(seed, config = {}) {
         const cId = pickCalculDistractor(allForbiddenChiffreIds, usedCalculContents);
         if (cId) {
           const content = calculsById[cId]?.content || '';
+          logFn('info', '[ZoneGen] Placing calcul distractor', {
+            zoneId: z.id,
+            calculId: cId,
+            content,
+            forbiddenChiffreIds: Array.from(allForbiddenChiffreIds),
+            placedChiffresCount: placedDistractorChiffreIds.size
+          });
           z.content = content; 
           z.pairId = '';
           used.calcul.add(cId);
@@ -431,6 +438,13 @@ function generateRoundZones(seed, config = {}) {
         const nId = pickChiffreDistractor(allForbiddenCalculIds, usedChiffreContents);
         if (nId) {
           const content = chiffresById[nId]?.content || '';
+          logFn('info', '[ZoneGen] Placing chiffre distractor', {
+            zoneId: z.id,
+            chiffreId: nId,
+            content,
+            forbiddenCalculIds: Array.from(allForbiddenCalculIds),
+            placedCalculsCount: placedDistractorCalculIds.size
+          });
           z.content = content; 
           z.label = content;
           z.pairId = '';
