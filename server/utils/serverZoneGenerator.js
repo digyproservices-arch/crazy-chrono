@@ -326,6 +326,12 @@ function generateRoundZones(seed, config = {}) {
     const forbiddenCalculIds = new Set(goodPairIds?.calculId ? [goodPairIds.calculId] : []);
     const forbiddenChiffreIds = new Set(goodPairIds?.chiffreId ? [goodPairIds.chiffreId] : []);
     
+    // Compter les zones avec pairId avant remplissage
+    const pairsBeforeFill = result.filter(z => z.pairId).length;
+    logFn('debug', '[ZoneGen] Before filling distractors', {
+      zonesWithPairId: pairsBeforeFill
+    });
+    
     // Remplir le reste des zones (EXACTEMENT comme le mode solo)
     for (const z of result) {
       const type = z.type || 'image';
@@ -361,6 +367,12 @@ function generateRoundZones(seed, config = {}) {
         }
       }
     }
+    
+    // Compter les zones avec pairId après remplissage
+    const pairsAfterFill = result.filter(z => z.pairId).length;
+    logFn('debug', '[ZoneGen] After filling distractors', {
+      zonesWithPairId: pairsAfterFill
+    });
     
     // ===== SANITISATION: Garantir EXACTEMENT UNE paire valide =====
     // Collecter toutes les paires potentielles présentes
@@ -421,7 +433,17 @@ function generateRoundZones(seed, config = {}) {
       }
     }
     
+    // Log final: toutes les zones avec pairId
+    const finalPairIds = result
+      .filter(z => z.pairId)
+      .map(z => ({ id: z.id, type: z.type, pairId: z.pairId, content: String(z.content || z.label || '').substring(0, 20) }));
+    
     console.log('[ServerZoneGen] Generated zones:', result.length, 'with good pair:', goodPairIds?.pairId || 'NONE');
+    logFn('info', '[ZoneGen] Final zones with pairId', {
+      count: finalPairIds.length,
+      zones: finalPairIds
+    });
+    
     return result;
     
   } catch (error) {
