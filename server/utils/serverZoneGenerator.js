@@ -341,10 +341,17 @@ function generateRoundZones(seed, config = {}) {
       );
     };
     
+    // Interdire les éléments de la paire correcte
     const forbiddenTextIds = new Set(goodPairIds?.texteId ? [goodPairIds.texteId] : []);
     const forbiddenImageIds = new Set(goodPairIds?.imageId ? [goodPairIds.imageId] : []);
     const forbiddenCalculIds = new Set(goodPairIds?.calculId ? [goodPairIds.calculId] : []);
     const forbiddenChiffreIds = new Set(goodPairIds?.chiffreId ? [goodPairIds.chiffreId] : []);
+    
+    // Suivre les IDs des distracteurs déjà placés pour éviter les associations entre eux
+    const placedDistractorTextIds = new Set();
+    const placedDistractorImageIds = new Set();
+    const placedDistractorCalculIds = new Set();
+    const placedDistractorChiffreIds = new Set();
     
     // Compter les zones avec pairId avant remplissage
     const pairsBeforeFill = result.filter(z => z.pairId);
@@ -358,38 +365,50 @@ function generateRoundZones(seed, config = {}) {
       }))
     });
     
-    // Remplir le reste des zones (EXACTEMENT comme le mode solo)
+    // Remplir le reste des zones en évitant les associations entre distracteurs
     for (const z of result) {
       const type = z.type || 'image';
       if (type === 'image' && !z.content) {
-        const imgId = pickImageDistractor(forbiddenTextIds);
+        // Interdire les textes de la paire correcte ET les textes des distracteurs déjà placés
+        const allForbiddenTextIds = new Set([...forbiddenTextIds, ...placedDistractorTextIds]);
+        const imgId = pickImageDistractor(allForbiddenTextIds);
         if (imgId) { 
           z.content = encodedImageUrl(imagesById[imgId]?.url || ''); 
           z.pairId = '';
-          used.image.add(imgId); 
+          used.image.add(imgId);
+          placedDistractorImageIds.add(imgId);
         }
       } else if (type === 'texte' && !z.content) {
-        const tId = pickTexteDistractor(forbiddenImageIds);
+        // Interdire les images de la paire correcte ET les images des distracteurs déjà placés
+        const allForbiddenImageIds = new Set([...forbiddenImageIds, ...placedDistractorImageIds]);
+        const tId = pickTexteDistractor(allForbiddenImageIds);
         if (tId) { 
           z.content = textesById[tId]?.content || ''; 
           z.label = textesById[tId]?.content || '';
           z.pairId = '';
-          used.texte.add(tId); 
+          used.texte.add(tId);
+          placedDistractorTextIds.add(tId);
         }
       } else if (type === 'calcul' && !z.content) {
-        const cId = pickCalculDistractor(forbiddenChiffreIds);
+        // Interdire les chiffres de la paire correcte ET les chiffres des distracteurs déjà placés
+        const allForbiddenChiffreIds = new Set([...forbiddenChiffreIds, ...placedDistractorChiffreIds]);
+        const cId = pickCalculDistractor(allForbiddenChiffreIds);
         if (cId) { 
           z.content = calculsById[cId]?.content || ''; 
           z.pairId = '';
-          used.calcul.add(cId); 
+          used.calcul.add(cId);
+          placedDistractorCalculIds.add(cId);
         }
       } else if (type === 'chiffre' && !z.content) {
-        const nId = pickChiffreDistractor(forbiddenCalculIds);
+        // Interdire les calculs de la paire correcte ET les calculs des distracteurs déjà placés
+        const allForbiddenCalculIds = new Set([...forbiddenCalculIds, ...placedDistractorCalculIds]);
+        const nId = pickChiffreDistractor(allForbiddenCalculIds);
         if (nId) { 
           z.content = chiffresById[nId]?.content || ''; 
           z.label = chiffresById[nId]?.content || '';
           z.pairId = '';
-          used.chiffre.add(nId); 
+          used.chiffre.add(nId);
+          placedDistractorChiffreIds.add(nId);
         }
       }
     }
