@@ -14,6 +14,12 @@ function generateRoundZones(seed, config = {}) {
   try {
     const logFn = config.logFn || (() => {}); // Callback optionnel pour logs
     console.log('[ServerZoneGen] Starting with seed:', seed, 'config:', config);
+    logFn('info', '[ZoneGen] Starting generation', {
+      seed,
+      themesCount: (config.themes || []).length,
+      classesCount: (config.classes || []).length,
+      excludedPairsCount: (config.excludedPairIds || new Set()).size
+    });
     
     // Charger les données
     const zonesPath = path.join(__dirname, '..', 'data', 'zones2.json');
@@ -247,6 +253,13 @@ function generateRoundZones(seed, config = {}) {
           used.image.add(chosen.imgId);
           goodPairIds = { texteId: chosen.tId, imageId: chosen.imgId, pairId };
           console.log('[ServerZoneGen] Placed TI pair:', pairId);
+          logFn('info', '[ZoneGen] Placed Image-Texte pair', {
+            pairId,
+            texteZoneId: tzId,
+            imageZoneId: izId,
+            texteContent: textesById[chosen.tId]?.content || '',
+            imageId: chosen.imgId
+          });
         }
       }
     } else if (placedPairType === 'CC') {
@@ -280,6 +293,13 @@ function generateRoundZones(seed, config = {}) {
           used.chiffre.add(chosen.nId);
           goodPairIds = { calculId: chosen.cId, chiffreId: chosen.nId, pairId };
           console.log('[ServerZoneGen] Placed CC pair:', pairId);
+          logFn('info', '[ZoneGen] Placed Calcul-Chiffre pair', {
+            pairId,
+            calculZoneId: czId,
+            chiffreZoneId: nzId,
+            calculContent: calculsById[chosen.cId]?.content || '',
+            chiffreContent: chiffresById[chosen.nId]?.content || ''
+          });
         }
       }
     }
@@ -327,9 +347,15 @@ function generateRoundZones(seed, config = {}) {
     const forbiddenChiffreIds = new Set(goodPairIds?.chiffreId ? [goodPairIds.chiffreId] : []);
     
     // Compter les zones avec pairId avant remplissage
-    const pairsBeforeFill = result.filter(z => z.pairId).length;
-    logFn('debug', '[ZoneGen] Before filling distractors', {
-      zonesWithPairId: pairsBeforeFill
+    const pairsBeforeFill = result.filter(z => z.pairId);
+    logFn('info', '[ZoneGen] Before filling distractors', {
+      zonesWithPairId: pairsBeforeFill.length,
+      zones: pairsBeforeFill.map(z => ({ 
+        id: z.id, 
+        type: z.type, 
+        pairId: z.pairId,
+        content: String(z.content || z.label || '').substring(0, 30)
+      }))
     });
     
     // Remplir le reste des zones (EXACTEMENT comme le mode solo)
@@ -369,9 +395,15 @@ function generateRoundZones(seed, config = {}) {
     }
     
     // Compter les zones avec pairId après remplissage
-    const pairsAfterFill = result.filter(z => z.pairId).length;
-    logFn('debug', '[ZoneGen] After filling distractors', {
-      zonesWithPairId: pairsAfterFill
+    const pairsAfterFill = result.filter(z => z.pairId);
+    logFn('info', '[ZoneGen] After filling distractors', {
+      zonesWithPairId: pairsAfterFill.length,
+      zones: pairsAfterFill.map(z => ({ 
+        id: z.id, 
+        type: z.type, 
+        pairId: z.pairId,
+        content: String(z.content || z.label || '').substring(0, 30)
+      }))
     });
     
     // ===== SANITISATION: Garantir EXACTEMENT UNE paire valide =====
@@ -401,9 +433,13 @@ function generateRoundZones(seed, config = {}) {
     }
     
     console.log('[ServerZoneGen] Found pairs before sanitization:', allPairs.length, allPairs.map(p => p.key));
-    logFn('debug', '[ZoneGen] Pairs found before sanitization', {
+    logFn('info', '[ZoneGen] Pairs found before sanitization', {
       count: allPairs.length,
-      pairKeys: allPairs.map(p => p.key)
+      pairs: allPairs.map(p => ({
+        pairId: p.key,
+        type: p.kind,
+        zoneIds: p.zones
+      }))
     });
     
     // Ne garder QUE la première paire trouvée, vider les pairId des autres

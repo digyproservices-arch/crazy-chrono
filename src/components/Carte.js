@@ -1307,6 +1307,20 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
       // MODE MULTIJOUEUR : Utiliser les zones serveur si disponibles
       else if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
         console.log('[CC][client] MULTIPLAYER MODE: Using server-generated zones:', payload.zones.length);
+        
+        // Log détaillé des zones reçues avec pairId
+        const zonesWithPairId = payload.zones.filter(z => z.pairId);
+        addDiag('zones:received', {
+          totalZones: payload.zones.length,
+          zonesWithPairId: zonesWithPairId.length,
+          pairIds: zonesWithPairId.map(z => ({
+            id: z.id,
+            type: z.type,
+            pairId: z.pairId,
+            content: String(z.content || z.label || '').substring(0, 30)
+          }))
+        });
+        
         setZones(payload.zones);
         setPreparing(false);
       } else {
