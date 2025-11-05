@@ -305,13 +305,15 @@ function generateRoundZones(seed, config = {}) {
     }
     
     // ===== Remplir avec des distracteurs (sans pairId) =====
-    const pickImageDistractor = (forbiddenTextIds) => {
+    const pickImageDistractor = (forbiddenTextIds, usedContents) => {
       const pool = shuffle(imageIds.slice());
-      return pool.find(imgId => 
-        !used.image.has(imgId) && 
-        (!forbiddenTextIds || !imageToTextes.get(imgId) || 
-         ![...imageToTextes.get(imgId)].some(t => forbiddenTextIds.has(t)))
-      );
+      return pool.find(imgId => {
+        const url = imagesById[imgId]?.url;
+        return !used.image.has(imgId) && 
+               !usedContents.has(url) &&
+               (!forbiddenTextIds || !imageToTextes.get(imgId) || 
+                ![...imageToTextes.get(imgId)].some(t => forbiddenTextIds.has(t)));
+      });
     };
     
     const pickTexteDistractor = (forbiddenImageIds, usedContents) => {
@@ -389,12 +391,14 @@ function generateRoundZones(seed, config = {}) {
       if (type === 'image' && !z.content) {
         // Interdire les textes de la paire correcte ET les textes des distracteurs déjà placés
         const allForbiddenTextIds = new Set([...forbiddenTextIds, ...placedDistractorTextIds]);
-        const imgId = pickImageDistractor(allForbiddenTextIds);
-        if (imgId) { 
-          z.content = encodedImageUrl(imagesById[imgId]?.url || ''); 
+        const imgId = pickImageDistractor(allForbiddenTextIds, usedImageContents);
+        if (imgId) {
+          const url = imagesById[imgId]?.url || '';
+          z.content = encodedImageUrl(url); 
           z.pairId = '';
           used.image.add(imgId);
           placedDistractorImageIds.add(imgId);
+          usedImageContents.add(url);
         }
       } else if (type === 'texte' && !z.content) {
         // Interdire les images de la paire correcte ET les images des distracteurs déjà placés
