@@ -772,6 +772,7 @@ function startRound(roomCode) {
     duration: room.duration || 60,
     roundIndex: room.roundsPlayed,
     roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
+    hasZones: true,
     zones: zones // Envoyer les zones complètes
   };
   
@@ -1151,9 +1152,18 @@ io.on('connection', (socket) => {
         }
         
         // Envoyer la nouvelle carte à tous les joueurs
+        console.log(`[MP] About to emit round:new after validation with ${newZones.length} zones`);
+        emitServerLog(currentRoom, 'info', '[MP] Emitting round:new after validation', {
+          zonesCount: newZones.length,
+          seed: newSeed,
+          roundIndex: room.roundsPlayed,
+          firstZoneId: newZones[0]?.id || null,
+          lastZoneId: newZones[newZones.length - 1]?.id || null
+        });
         io.to(currentRoom).emit('round:new', {
           seed: newSeed,
           zones: newZones,
+          hasZones: true,
           duration: room.duration || 60,
           roundIndex: room.roundsPlayed,
           roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
