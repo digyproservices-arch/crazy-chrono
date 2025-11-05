@@ -1135,11 +1135,17 @@ io.on('connection', (socket) => {
           const config = {
             themes: room.selectedThemes || [],
             classes: room.selectedClasses || [],
-            excludedPairIds: room.validatedPairIds || new Set()
+            excludedPairIds: room.validatedPairIds || new Set(),
+            logFn: (level, message, data) => emitServerLog(currentRoom, level, message, data)
           };
           newZones = generateRoundZones(newSeed, config);
           room.currentZones = newZones;
           console.log(`[MP] Regenerated ${newZones.length} zones after pair validation (excluded: ${config.excludedPairIds.size})`);
+          emitServerLog(currentRoom, 'info', '[MP] Zones regenerated after validation', {
+            zonesCount: newZones.length,
+            excludedPairsCount: config.excludedPairIds.size,
+            seed: newSeed
+          });
         } catch (err) {
           console.error(`[MP] Failed to regenerate zones:`, err);
         }
