@@ -1487,18 +1487,23 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
       } catch (e) {
         console.warn('[CC][client] pair:valid post-UI failed', e);
       }
-      // Reshuffle immédiat et déterministe pour tous les clients (sans délai)
-      const sn = Number(payload?.seedNext);
-      const zf = payload?.zonesFile || 'zones2';
-      if (Number.isFinite(sn)) {
-        try {
-          console.debug('[CC][client] reshuffle with seedNext (immediate)', { seedNext: sn, zonesFile: zf });
-          safeHandleAutoAssign(sn, zf);
-        } catch (e) {
-          console.error('[CC][client] handleAutoAssign(seedNext) failed', e);
+      // MODE SOLO : Reshuffle immédiat et déterministe
+      // MODE MULTIJOUEUR : Attendre round:new du serveur (ne PAS générer localement)
+      if (isSoloMode) {
+        const sn = Number(payload?.seedNext);
+        const zf = payload?.zonesFile || 'zones2';
+        if (Number.isFinite(sn)) {
+          try {
+            console.debug('[CC][client] SOLO: reshuffle with seedNext (immediate)', { seedNext: sn, zonesFile: zf });
+            safeHandleAutoAssign(sn, zf);
+          } catch (e) {
+            console.error('[CC][client] handleAutoAssign(seedNext) failed', e);
+          }
+        } else {
+          console.warn('[CC][client] SOLO: pair:valid without valid seedNext; skip reshuffle');
         }
       } else {
-        console.warn('[CC][client] pair:valid without valid seedNext; skip reshuffle to keep sync');
+        console.log('[CC][client] MULTIPLAYER: Waiting for round:new from server (not generating locally)');
       }
     });
 
