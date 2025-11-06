@@ -5,6 +5,45 @@ const fs = require('fs');
 const path = require('path');
 
 /**
+ * Évalue un calcul mathématique simple (multiplication uniquement)
+ * @param {string} calcul - Ex: "3 × 4" ou "2 × 5"
+ * @returns {number|null} Résultat ou null si invalide
+ */
+function evaluateCalcul(calcul) {
+  if (!calcul || typeof calcul !== 'string') return null;
+  
+  // Nettoyer et normaliser (× ou x)
+  const normalized = calcul.trim().replace(/\s+/g, ' ').replace(/x/gi, '×');
+  
+  // Extraire les nombres autour du ×
+  const match = normalized.match(/^(\d+)\s*×\s*(\d+)$/);
+  if (!match) return null;
+  
+  const a = parseInt(match[1], 10);
+  const b = parseInt(match[2], 10);
+  
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  
+  return a * b;
+}
+
+/**
+ * Vérifie si un calcul et un chiffre forment une paire valide
+ * @param {string} calculContent - Ex: "3 × 4"
+ * @param {string} chiffreContent - Ex: "12"
+ * @returns {boolean} true si c'est une paire valide
+ */
+function isValidMathPair(calculContent, chiffreContent) {
+  const result = evaluateCalcul(calculContent);
+  if (result === null) return false;
+  
+  const chiffre = parseInt(String(chiffreContent).trim(), 10);
+  if (!Number.isFinite(chiffre)) return false;
+  
+  return result === chiffre;
+}
+
+/**
  * Génère les zones avec contenu pour une manche multijoueur
  * @param {number} seed - Seed pour RNG déterministe
  * @param {Object} config - Configuration { themes, classes, excludedPairIds, logFn }
@@ -327,10 +366,20 @@ function generateRoundZones(seed, config = {}) {
       });
     };
     
-    const pickCalculDistractor = (forbiddenChiffreIds, usedContents) => {
+    const pickCalculDistractor = (forbiddenChiffreIds, usedContents, placedChiffreContents) => {
       const pool = shuffle(calculIds.slice());
       return pool.find(cId => {
         const content = calculsById[cId]?.content;
+        
+        // Vérifier qu'aucun chiffre déjà placé ne forme une paire valide avec ce calcul
+        if (placedChiffreContents && placedChiffreContents.size > 0) {
+          for (const chiffreContent of placedChiffreContents) {
+            if (isValidMathPair(content, chiffreContent)) {
+              return false; // Ce calcul formerait une paire valide avec un chiffre déjà placé
+            }
+          }
+        }
+        
         return !used.calcul.has(cId) && 
                !usedContents.has(content) &&
                (!forbiddenChiffreIds || !calculToChiffres.get(cId) || 
@@ -338,10 +387,20 @@ function generateRoundZones(seed, config = {}) {
       });
     };
     
-    const pickChiffreDistractor = (forbiddenCalculIds, usedContents) => {
+    const pickChiffreDistractor = (forbiddenCalculIds, usedContents, placedCalculContents) => {
       const pool = shuffle(chiffreIds.slice());
       return pool.find(nId => {
         const content = chiffresById[nId]?.content;
+        
+        // Vérifier qu'aucun calcul déjà placé ne forme une paire valide avec ce chiffre
+        if (placedCalculContents && placedCalculContents.size > 0) {
+          for (const calculContent of placedCalculContents) {
+            if (isValidMathPair(calculContent, content)) {
+              return false; // Ce chiffre formerait une paire valide avec un calcul déjà placé
+            }
+          }
+        }
+        
         return !used.chiffre.has(nId) && 
                !usedContents.has(content) &&
                (!forbiddenCalculIds || !chiffreToCalculs.get(nId) || 
@@ -416,7 +475,7 @@ function generateRoundZones(seed, config = {}) {
       } else if (type === 'calcul' && !z.content) {
         // Interdire les chiffres de la paire correcte ET les chiffres des distracteurs déjà placés
         const allForbiddenChiffreIds = new Set([...forbiddenChiffreIds, ...placedDistractorChiffreIds]);
-        const cId = pickCalculDistractor(allForbiddenChiffreIds, usedCalculContents);
+        const cId = pickCalculDistractor(allForbiddenChiffreIds, usedCalculContents, usedChiffreContents);
         if (cId) {
           const content = calculsById[cId]?.content || '';
           logFn('info', '[ZoneGen] Placing calcul distractor', {
@@ -424,7 +483,8 @@ function generateRoundZones(seed, config = {}) {
             calculId: cId,
             content,
             forbiddenChiffreIds: Array.from(allForbiddenChiffreIds),
-            placedChiffresCount: placedDistractorChiffreIds.size
+            placedChiffresCount: placedDistractorChiffreIds.size,
+            placedChiffreContents: Array.from(usedChiffreContents)
           });
           z.content = content; 
           z.pairId = '';
@@ -435,7 +495,7 @@ function generateRoundZones(seed, config = {}) {
       } else if (type === 'chiffre' && !z.content) {
         // Interdire les calculs de la paire correcte ET les calculs des distracteurs déjà placés
         const allForbiddenCalculIds = new Set([...forbiddenCalculIds, ...placedDistractorCalculIds]);
-        const nId = pickChiffreDistractor(allForbiddenCalculIds, usedChiffreContents);
+        const nId = pickChiffreDistractor(allForbiddenCalculIds, usedChiffreContents, usedCalculContents);
         if (nId) {
           const content = chiffresById[nId]?.content || '';
           logFn('info', '[ZoneGen] Placing chiffre distractor', {
@@ -443,7 +503,8 @@ function generateRoundZones(seed, config = {}) {
             chiffreId: nId,
             content,
             forbiddenCalculIds: Array.from(allForbiddenCalculIds),
-            placedCalculsCount: placedDistractorCalculIds.size
+            placedCalculsCount: placedDistractorCalculIds.size,
+            placedCalculContents: Array.from(usedCalculContents)
           });
           z.content = content; 
           z.label = content;
