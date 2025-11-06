@@ -1487,6 +1487,12 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
       } catch (e) {
         console.warn('[CC][client] pair:valid post-UI failed', e);
       }
+      // Détecter le mode (solo vs multijoueur)
+      let isSoloMode = false;
+      try {
+        const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+        isSoloMode = cfg && cfg.mode === 'solo';
+      } catch {}
       // MODE SOLO : Reshuffle immédiat et déterministe
       // MODE MULTIJOUEUR : Attendre round:new du serveur (ne PAS générer localement)
       if (isSoloMode) {
