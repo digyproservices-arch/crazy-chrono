@@ -62,7 +62,10 @@ const NavBar = () => {
       {isAdmin && (
         <>
           <Link to="/admin" style={{ fontWeight: location.pathname === "/admin" ? "bold" : "normal" }}>Admin</Link>
-          <Link to="/admin/roles" style={{ fontWeight: location.pathname === "/admin/roles" ? "bold" : "normal", marginLeft: 12 }}>Gestion des rôles</Link>
+          <Link to="/admin/dashboard" style={{ fontWeight: location.pathname === "/admin/dashboard" ? "bold" : "normal", marginLeft: 12 }}>📊 Dashboard</Link>
+          <Link to="/admin/roles" style={{ fontWeight: location.pathname === "/admin/roles" ? "bold" : "normal", marginLeft: 12 }}>👥 Rôles</Link>
+          <Link to="/admin/invite" style={{ fontWeight: location.pathname === "/admin/invite" ? "bold" : "normal", marginLeft: 12 }}>✉️ Invitations</Link>
+          <Link to="/debug/progress" style={{ fontWeight: location.pathname === "/debug/progress" ? "bold" : "normal", marginLeft: 12 }}>🔍 Debug</Link>
         </>
       )}
       <span style={{ width: 1, height: 18, background: '#ccc', margin: '0 8px' }} />

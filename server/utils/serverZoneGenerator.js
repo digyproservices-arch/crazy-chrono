@@ -267,8 +267,17 @@ function generateRoundZones(seed, config = {}) {
       for (const [tId, imgSet] of texteToImages.entries()) {
         for (const imgId of imgSet) links.push({ tId, imgId });
       }
-      shuffle(links);
-      const chosen = links.find(l => imageIds.includes(l.imgId) && texteIds.includes(l.tId));
+      // Filtrer d'abord les paires valides, puis choisir aléatoirement
+      const validLinks = links.filter(l => imageIds.includes(l.imgId) && texteIds.includes(l.tId));
+      const chosen = validLinks.length > 0 ? validLinks[Math.floor(rng() * validLinks.length)] : null;
+      
+      console.log('[ServerZoneGen] Image-Texte pairs available:', validLinks.length);
+      logFn('info', '[ZoneGen] Image-Texte selection', {
+        availablePairs: validLinks.length,
+        chosenTexteId: chosen?.tId,
+        chosenImageId: chosen?.imgId,
+        chosenTexteContent: chosen ? textesById[chosen.tId]?.content : null
+      });
       
       if (chosen) {
         const pairId = `assoc-img-${chosen.imgId}-txt-${chosen.tId}`;
@@ -307,8 +316,18 @@ function generateRoundZones(seed, config = {}) {
       for (const [cId, nSet] of calculToChiffres.entries()) {
         for (const nId of nSet) links.push({ cId, nId });
       }
-      shuffle(links);
-      const chosen = links.find(l => calculIds.includes(l.cId) && chiffreIds.includes(l.nId));
+      // Filtrer d'abord les paires valides, puis choisir aléatoirement
+      const validLinks = links.filter(l => calculIds.includes(l.cId) && chiffreIds.includes(l.nId));
+      const chosen = validLinks.length > 0 ? validLinks[Math.floor(rng() * validLinks.length)] : null;
+      
+      console.log('[ServerZoneGen] Calcul-Chiffre pairs available:', validLinks.length);
+      logFn('info', '[ZoneGen] Calcul-Chiffre selection', {
+        availablePairs: validLinks.length,
+        chosenCalculId: chosen?.cId,
+        chosenChiffreId: chosen?.nId,
+        chosenCalculContent: chosen ? calculsById[chosen.cId]?.content : null,
+        chosenChiffreContent: chosen ? chiffresById[chosen.nId]?.content : null
+      });
       
       if (chosen) {
         const pairId = `assoc-calc-${chosen.cId}-num-${chosen.nId}`;

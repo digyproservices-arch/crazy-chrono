@@ -80,19 +80,35 @@ function AdminDashboard() {
           <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#fff' }}>
             📊 Dashboard Admin
           </h1>
-          <button
-            onClick={() => navigate('/')}
-            style={{ 
-              padding: '10px 20px', 
-              background: '#1e293b', 
-              border: '1px solid #334155', 
-              borderRadius: '8px',
-              color: '#e2e8f0',
-              cursor: 'pointer'
-            }}
-          >
-            ← Retour au jeu
-          </button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={() => navigate('/admin')}
+              style={{ 
+                padding: '10px 20px', 
+                background: '#3b82f6', 
+                border: '1px solid #2563eb', 
+                borderRadius: '8px',
+                color: '#fff',
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+            >
+              ⚙️ Admin Panel
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              style={{ 
+                padding: '10px 20px', 
+                background: '#1e293b', 
+                border: '1px solid #334155', 
+                borderRadius: '8px',
+                color: '#e2e8f0',
+                cursor: 'pointer'
+              }}
+            >
+              ← Retour au jeu
+            </button>
+          </div>
         </div>
 
         {/* Grid de sections */}
