@@ -1162,6 +1162,10 @@ io.on('connection', (socket) => {
           console.error(`[MP] Failed to regenerate zones:`, err);
         }
         
+        // Réinitialiser l'état pour permettre la validation de la nouvelle carte
+        room.resolved = false;
+        room.foundPairs.clear();
+        
         // Envoyer la nouvelle carte à tous les joueurs
         console.log(`[MP] About to emit round:new after validation with ${newZones.length} zones`);
         emitServerLog(currentRoom, 'info', '[MP] Emitting round:new after validation', {
