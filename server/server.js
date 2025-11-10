@@ -1106,8 +1106,19 @@ io.on('connection', (socket) => {
             // Si les deux zones ont le même pairId non vide, l'ajouter au Set
             if (pairIdA && pairIdB && pairIdA === pairIdB) {
               if (!room.validatedPairIds) room.validatedPairIds = new Set();
+              
+              // FIFO Rotation: Garder seulement les 15 dernières paires validées
+              const MAX_EXCLUDED_PAIRS = 15;
+              if (room.validatedPairIds.size >= MAX_EXCLUDED_PAIRS) {
+                // Convertir le Set en Array pour accéder au premier élément (le plus ancien)
+                const pairIdsArray = Array.from(room.validatedPairIds);
+                const oldestPairId = pairIdsArray[0];
+                room.validatedPairIds.delete(oldestPairId);
+                console.log(`[MP] FIFO: Removed oldest pairId: ${oldestPairId} (was at position 0/${pairIdsArray.length})`);
+              }
+              
               room.validatedPairIds.add(pairIdA);
-              console.log(`[MP] Added validated pairId: ${pairIdA} (total: ${room.validatedPairIds.size})`);
+              console.log(`[MP] Added validated pairId: ${pairIdA} (total: ${room.validatedPairIds.size}/${MAX_EXCLUDED_PAIRS})`);
             }
           }
         } catch (e) {
