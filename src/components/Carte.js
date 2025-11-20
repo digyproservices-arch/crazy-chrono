@@ -352,9 +352,28 @@ function resolveImageSrc(raw) {
   return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
 }
 
+const PLAYER_PRIMARY_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899', '#0ea5e9'];
+const PLAYER_BORDER_COLORS = ['#ffffff', '#111827', '#fbbf24'];
+
+function getPlayerColorComboByIndex(idx) {
+  const safe = Number.isFinite(idx) ? idx : 0;
+  const base = safe < 0 ? 0 : safe;
+  const primary = PLAYER_PRIMARY_COLORS[base % PLAYER_PRIMARY_COLORS.length];
+  const group = Math.floor(base / PLAYER_PRIMARY_COLORS.length);
+  const border = PLAYER_BORDER_COLORS[group % PLAYER_BORDER_COLORS.length];
+  return { primary, border };
+}
+
+function getInitials(name) {
+  const str = String(name || '').trim();
+  if (!str) return '';
+  const parts = str.split(/\s+/).slice(0, 2);
+  return parts.map(p => (p && p[0] ? p[0].toUpperCase() : '')).join('');
+}
+
 // Anti-doublon: empêche de lancer deux fois l'animation pour la même paire en <800ms
 let __lastBubbleSig = { sig: '', ts: 0 };
-export function animateBubblesFromZones(aId, bId, color = '#3b82f6', ZA = null, ZB = null) {
+export function animateBubblesFromZones(aId, bId, color = '#3b82f6', ZA = null, ZB = null, borderColor = null, label = '') {
   try {
     const ids = [aId, bId].filter(v => v !== undefined && v !== null).map(v => String(v));
     const sig = ids.sort().join('-');
@@ -391,6 +410,9 @@ export function animateBubblesFromZones(aId, bId, color = '#3b82f6', ZA = null, 
         el.style.height = `${sizePx}px`;
         el.style.borderRadius = '999px';
         el.style.background = color;
+        if (borderColor) {
+          el.style.border = `2px solid ${borderColor}`;
+        }
         el.style.boxShadow = `0 0 16px 8px ${color}88, 0 0 40px 14px ${color}55, 0 0 72px 28px ${color}33`;
         el.style.opacity = String(startOpacity);
         el.style.pointerEvents = 'none';
@@ -427,7 +449,29 @@ export function animateBubblesFromZones(aId, bId, color = '#3b82f6', ZA = null, 
           });
           el.appendChild(span);
         }
-        
+
+        if (label && typeof label === 'string' && label.trim()) {
+          const badge = document.createElement('div');
+          badge.textContent = label.trim().slice(0, 3);
+          Object.assign(badge.style, {
+            position: 'absolute',
+            bottom: '-4px',
+            right: '-4px',
+            minWidth: '18px',
+            minHeight: '18px',
+            padding: '0 4px',
+            borderRadius: '999px',
+            background: borderColor || '#111827',
+            color: '#fff',
+            fontSize: `${Math.max(9, sizePx * 0.22)}px`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 0 8px rgba(0,0,0,0.4)',
+            border: '2px solid #ffffff'
+          });
+          el.appendChild(badge);
+        }
 
       document.body.appendChild(el);
       const dx = tx - sx;
@@ -1024,12 +1068,12 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
 
   // Initialize socket connection and listeners
   useEffect(() => {
-    // Détection mobile + auto-réduction du panneau pour maximiser la carte
+    // Détection mobile (sans forcer la réduction du panneau, l'utilisateur choisit)
     const applyMobile = () => {
       const mobile = window.innerWidth <= 640;
       setIsMobile(mobile);
-      if (mobile) setPanelCollapsed(true);
     };
+
     applyMobile();
     window.addEventListener('resize', applyMobile);
     // Cleanup resize listener will be returned later with socket cleanup
@@ -1284,18 +1328,19 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
       addDiag('round:new', { duration: payload?.duration, roundIndex: payload?.roundIndex, roundsTotal: payload?.roundsTotal, hasZones: !!payload?.zones, zonesCount: payload?.zones?.length || 0 });
       // Clear waiting timer, if any
       try { if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } } catch {}
-      // Show preload overlay at start of each round
-      setPreparing(true);
-      try { window.ccAddDiag && window.ccAddDiag('prep:start:round', { roundIndex: payload?.roundIndex }); } catch {}
-      setPrepProgress(0);
-      if (typeof setMpMsg === 'function') setMpMsg('Nouvelle manche');
-      
       // Détecter le mode (solo vs multijoueur)
       let isSoloMode = false;
       try {
         const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
         isSoloMode = cfg && cfg.mode === 'solo';
       } catch {}
+      // Show preload overlay au début de chaque manche uniquement en multijoueur
+      if (!isSoloMode) {
+        setPreparing(true);
+        try { window.ccAddDiag && window.ccAddDiag('prep:start:round', { roundIndex: payload?.roundIndex }); } catch {}
+      }
+      setPrepProgress(0);
+      if (typeof setMpMsg === 'function') setMpMsg('Nouvelle manche');
       
       // MODE SOLO : Toujours générer localement (ne jamais utiliser les zones serveur)
       if (isSoloMode) {
@@ -1459,10 +1504,12 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
         };
         const winnerId = byId || (winners.length ? winners[0] : null);
         const winnerName = winnerId ? pickNameById(winnerId) : 'Joueur';
-        // Couleur déterministe par index
+        // Couleur déterministe par index (fond + contour) pour le joueur gagnant
         const idx = Math.max(0, (Array.isArray(players) ? players.findIndex(x => x.id === winnerId) : 0));
-        const palette = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
-        const color = palette[idx % palette.length];
+        const { primary, border } = getPlayerColorComboByIndex(idx);
+        const color = primary;
+        const initials = getInitials(winnerName);
+
         const textFor = (Z) => {
           const t = (Z?.label || Z?.content || Z?.text || Z?.value || '').toString();
           if (t && t.trim()) return t;
@@ -1472,7 +1519,8 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
         };
         const textA = textFor(ZA);
         const textB = textFor(ZB);
-        const entry = { a: aId, b: bId, winnerId, winnerName, color, text: `${textA || '…'} ↔ ${textB || '…'}`, tie };
+        const entry = { a: aId, b: bId, winnerId, winnerName, color, borderColor: border, initials, text: `${textA || '…'} ↔ ${textB || '…'}`, tie };
+
         setLastWonPair(entry);
         setWonPairsHistory(h => [entry, ...(Array.isArray(h) ? h : [])].slice(0, 25));
         // Message si égalité
@@ -1483,7 +1531,8 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
           } catch {}
         }
         // Déclenche deux bulles depuis les zones réelles (fallback => une bulle générique)
-        animateBubblesFromZones(aId, bId, color, ZA, ZB);
+        animateBubblesFromZones(aId, bId, color, ZA, ZB, border, initials);
+
       } catch (e) {
         console.warn('[CC][client] pair:valid post-UI failed', e);
       }
@@ -1859,11 +1908,7 @@ function showAssocToast(kind, text) {
     clearTimeout(assocToastTimerRef.current);
     assocToastTimerRef.current = null;
   }
-  setAssocToast({ kind, text });
-  assocToastTimerRef.current = setTimeout(() => {
-    setAssocToast(null);
-    assocToastTimerRef.current = null;
-  }, 1600);
+  setAssocToast(null);
 }
 
 // Fin de drag: on nettoie les états pour permettre de nouveaux drags
@@ -4790,7 +4835,7 @@ setZones(dataWithRandomTexts);
             </div>
           </div>
           <div className="hud-vignette" data-cc-vignette="last-pair" ref={mpLastPairRef} title={lastWonPair?.text || ''}>
-            <span style={{ width: 12, height: 12, borderRadius: 999, display: 'inline-block', marginRight: 6, background: lastWonPair?.color || '#e5e7eb', boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none' }} />
+            <span style={{ width: 12, height: 12, borderRadius: 999, display: 'inline-block', marginRight: 6, background: lastWonPair?.color || '#e5e7eb', boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none', border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none' }} />
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {lastWonPair ? (
                 <><b>{lastWonPair.winnerName}</b>: {lastWonPair.text}{lastWonPair.tie && (
@@ -4805,7 +4850,7 @@ setZones(dataWithRandomTexts);
         <div className="mobile-history-strip" aria-label="Historique des paires">
           {wonPairsHistory.slice(0, 10).map((e, i) => (
             <div key={i} className="hist-item" title={e.text}>
-              <span className="dot" style={{ background: e.color || '#e5e7eb' }} />
+              <span className="dot" style={{ background: e.color || '#e5e7eb', border: e.borderColor ? `2px solid ${e.borderColor}` : 'none' }} />
               <span style={{ maxWidth: '52vw', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 <b style={{ marginRight: 4 }}>{e.winnerName || 'Joueur'}</b>
                 <span>{e.text}</span>
@@ -5673,7 +5718,7 @@ setZones(dataWithRandomTexts);
                 </div>
                 <div data-cc-vignette="last-pair" ref={mpLastPairRef} style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                    <span style={{ width: 12, height: 12, borderRadius: 999, background: lastWonPair?.color || '#e5e7eb', boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none' }} />
+                    <span style={{ width: 12, height: 12, borderRadius: 999, background: lastWonPair?.color || '#e5e7eb', boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none', border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none' }} />
                     <span style={{ fontSize: 12, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {lastWonPair ? (<><b>{lastWonPair.winnerName}</b>: {lastWonPair.text} {lastWonPair.tie && (<span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: '#fef3c7', border: '1px solid #f59e0b', color: '#92400e' }}>Égalité</span>)}</>) : 'Dernière paire: —'}
                     </span>
@@ -5811,8 +5856,10 @@ setZones(dataWithRandomTexts);
                   height: 18,
                   borderRadius: 999,
                   background: lastWonPair?.color || '#e5e7eb',
-                  boxShadow: lastWonPair ? `0 0 6px 3px ${(lastWonPair.color || '#e5e7eb')}55` : 'none'
+                  boxShadow: lastWonPair ? `0 0 6px 3px ${(lastWonPair.color || '#e5e7eb')}55` : 'none',
+                  border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none'
                 }} />
+
                 <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {lastWonPair ? `${lastWonPair.winnerName} a trouvé:` : 'Aucune paire trouvée'}
