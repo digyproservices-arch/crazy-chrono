@@ -4764,17 +4764,26 @@ setZones(dataWithRandomTexts);
           )}
         </div>
       )}
-      {preparing && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#111827', color: '#fff', padding: 18, borderRadius: 10, width: 280, textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.4)' }}>
-            <div style={{ fontWeight: 'bold', marginBottom: 8 }}>Préparation de la session…</div>
-            <div style={{ height: 8, background: 'rgba(255,255,255,0.2)', borderRadius: 999 }}>
-              <div style={{ width: `${Math.max(0, Math.min(100, prepProgress))}%`, height: '100%', background: '#10b981', borderRadius: 999, transition: 'width .2s ease' }} />
+      {(() => {
+        if (!preparing) return null;
+        let isSoloMode = false;
+        try {
+          const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+          isSoloMode = cfg && cfg.mode === 'solo';
+        } catch {}
+        if (isSoloMode) return null;
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: '#111827', color: '#fff', padding: 18, borderRadius: 10, width: 280, textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.4)' }}>
+              <div style={{ fontWeight: 'bold', marginBottom: 8 }}>Préparation de la session…</div>
+              <div style={{ height: 8, background: 'rgba(255,255,255,0.2)', borderRadius: 999 }}>
+                <div style={{ width: `${Math.max(0, Math.min(100, prepProgress))}%`, height: '100%', background: '#10b981', borderRadius: 999, transition: 'width .2s ease' }} />
+              </div>
+              <div style={{ marginTop: 8, fontSize: 12, opacity: 0.85 }}>{Math.max(0, Math.min(100, prepProgress))}%</div>
             </div>
-            <div style={{ marginTop: 8, fontSize: 12, opacity: 0.85 }}>{Math.max(0, Math.min(100, prepProgress))}%</div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       {Array.isArray(activeThemes) && activeThemes.length > 0 && (
         <div
           title={activeThemes.join(', ')}
@@ -4860,33 +4869,6 @@ setZones(dataWithRandomTexts);
               </span>
             </div>
           ))}
-        </div>
-      )}
-      {assocToast && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 16,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            maxWidth: 520,
-            background: assocToast.kind === 'fallback' ? 'rgba(255, 183, 77, 0.96)' : 'rgba(76, 175, 80, 0.96)',
-            color: '#fff',
-            padding: '12px 16px',
-            borderRadius: 10,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.28)',
-            zIndex: 9999,
-            fontSize: 15,
-            lineHeight: 1.4,
-            backdropFilter: 'blur(2px)'
-          }}
-        >
-          <strong style={{ display: 'block', marginBottom: 4 }}>
-            {assocToast.kind === 'imgtxt' && 'Association choisie (image-texte)'}
-            {assocToast.kind === 'calcnum' && 'Association choisie (calcul-chiffre)'}
-            {assocToast.kind === 'fallback' && 'Fallback utilisé'}
-          </strong>
-          <span>{assocToast.text}</span>
         </div>
       )}
       {/* Sidebar fixe en mode jeu plein écran */}
