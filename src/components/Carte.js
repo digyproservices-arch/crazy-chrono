@@ -353,7 +353,7 @@ function resolveImageSrc(raw) {
 }
 
 const PLAYER_PRIMARY_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899', '#0ea5e9'];
-const PLAYER_BORDER_COLORS = ['#ffffff', '#111827', '#fbbf24'];
+const PLAYER_BORDER_COLORS = ['#111827', '#fbbf24', '#dc2626'];
 
 function getPlayerColorComboByIndex(idx) {
   const safe = Number.isFinite(idx) ? idx : 0;
@@ -1543,8 +1543,25 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
         
         if ((typeA === 'calcul' && typeB === 'chiffre') || (typeA === 'chiffre' && typeB === 'calcul')) {
           kind = 'calcnum';
-          const calcZone = typeA === 'calcul' ? ZA : ZB;
-          const numZone = typeA === 'chiffre' ? ZA : ZB;
+          // Détection intelligente : le calcul contient des opérateurs, le chiffre est juste un nombre
+          const contentA = String(ZA?.content || ZA?.label || '');
+          const contentB = String(ZB?.content || ZB?.label || '');
+          const hasOperatorA = /[\+\-\×\*\/x]/.test(contentA);
+          const hasOperatorB = /[\+\-\×\*\/x]/.test(contentB);
+          
+          let calcZone, numZone;
+          if (hasOperatorA && !hasOperatorB) {
+            calcZone = ZA;
+            numZone = ZB;
+          } else if (hasOperatorB && !hasOperatorA) {
+            calcZone = ZB;
+            numZone = ZA;
+          } else {
+            // Fallback sur les types déclarés
+            calcZone = typeA === 'calcul' ? ZA : ZB;
+            numZone = typeA === 'chiffre' ? ZA : ZB;
+          }
+          
           calcExpr = textFor(calcZone);
           calcResult = textFor(numZone);
           displayText = (calcExpr && calcResult) ? `${calcExpr} = ${calcResult}` : `${textA || '…'} ↔ ${textB || '…'}`;
@@ -2032,7 +2049,16 @@ function handleGameClick(zone) {
         setGameMsg('Bravo !');
         playCorrectSound();
         showConfetti();
-        try { animateBubblesFromZones(a, b, '#22c55e', ZA, ZB); } catch {}
+        // Utiliser la vraie couleur du joueur local
+        try {
+          const players = Array.isArray(roomPlayersRef.current) ? roomPlayersRef.current : [];
+          const myId = socket?.id || null;
+          const myIdx = myId ? players.findIndex(p => p.id === myId) : -1;
+          const { primary, border } = myIdx >= 0 ? getPlayerColorComboByIndex(myIdx) : { primary: '#22c55e', border: '#ffffff' };
+          const myName = myId ? (players.find(p => p.id === myId)?.nickname || playerName) : playerName;
+          const initials = getInitials(myName);
+          animateBubblesFromZones(a, b, primary, ZA, ZB, border, initials);
+        } catch {}
         if (socket && socket.connected) {
           try { socket.emit('attemptPair', { a, b }); } catch {}
         }
