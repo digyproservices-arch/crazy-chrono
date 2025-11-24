@@ -1519,7 +1519,61 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
         };
         const textA = textFor(ZA);
         const textB = textFor(ZB);
-        const entry = { a: aId, b: bId, winnerId, winnerName, color, borderColor: border, initials, text: `${textA || '…'} ↔ ${textB || '…'}`, tie };
+        
+        // Déterminer le type de paire (calcnum ou imgtxt)
+        const typeA = ZA?.type || '';
+        const typeB = ZB?.type || '';
+        let kind = null;
+        let calcExpr = null;
+        let calcResult = null;
+        let imageSrc = null;
+        let imageLabel = null;
+        let displayText = `${textA || '…'} ↔ ${textB || '…'}`;
+        
+        // Helper pour résoudre l'URL de l'image
+        const resolveImageSrc = (raw) => {
+          if (!raw) return null;
+          const normalized = String(raw).startsWith('http')
+            ? String(raw)
+            : process.env.PUBLIC_URL + '/' + (String(raw).startsWith('/') 
+                ? String(raw).slice(1) 
+                : (String(raw).startsWith('images/') ? String(raw) : 'images/' + String(raw)));
+          return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
+        };
+        
+        if ((typeA === 'calcul' && typeB === 'chiffre') || (typeA === 'chiffre' && typeB === 'calcul')) {
+          kind = 'calcnum';
+          const calcZone = typeA === 'calcul' ? ZA : ZB;
+          const numZone = typeA === 'chiffre' ? ZA : ZB;
+          calcExpr = textFor(calcZone);
+          calcResult = textFor(numZone);
+          displayText = (calcExpr && calcResult) ? `${calcExpr} = ${calcResult}` : `${textA || '…'} ↔ ${textB || '…'}`;
+        } else if ((typeA === 'image' && typeB === 'texte') || (typeA === 'texte' && typeB === 'image')) {
+          kind = 'imgtxt';
+          const imgZone = typeA === 'image' ? ZA : ZB;
+          const txtZone = typeA === 'texte' ? ZA : ZB;
+          const raw = imgZone?.content || imgZone?.url || imgZone?.path || imgZone?.src || '';
+          if (raw) imageSrc = resolveImageSrc(String(raw));
+          imageLabel = textFor(txtZone);
+          displayText = imageLabel || `${textA || '…'} ↔ ${textB || '…'}`;
+        }
+        
+        const entry = { 
+          a: aId, 
+          b: bId, 
+          winnerId, 
+          winnerName, 
+          color, 
+          borderColor: border, 
+          initials, 
+          text: displayText, 
+          tie,
+          kind,
+          calcExpr,
+          calcResult,
+          imageSrc,
+          imageLabel
+        };
 
         setLastWonPair(entry);
         setWonPairsHistory(h => [entry, ...(Array.isArray(h) ? h : [])].slice(0, 25));
@@ -4941,11 +4995,32 @@ setZones(dataWithRandomTexts);
               </div>
               {historyExpanded && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 200, overflowY: 'auto' }}>
-                  {(wonPairsHistory || []).map((h, i) => (
-                    <div key={i} style={{ fontSize: 13, padding: '6px 8px', border: '1px solid #eee', borderRadius: 6, background: '#fff' }}>
-                      {h.text}
-                    </div>
-                  ))}
+                  {(wonPairsHistory || []).map((h, i) => {
+                    const label = (() => {
+                      if (h.kind === 'calcnum' && h.calcExpr && h.calcResult) return `${h.calcExpr} = ${h.calcResult}`;
+                      if (h.kind === 'imgtxt' && h.imageLabel) return h.imageLabel;
+                      return h.text || '';
+                    })();
+                    return (
+                      <div key={i} style={{ fontSize: 13, padding: '6px 8px', border: '1px solid ' + (h.borderColor || '#eee'), borderRadius: 6, background: '#fff', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ width: 10, height: 10, borderRadius: 999, background: h.color || '#e5e7eb', border: h.borderColor ? `2px solid ${h.borderColor}` : 'none', flexShrink: 0 }} />
+                          <span style={{ fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.winnerName || 'Joueur'}</span>
+                        </div>
+                        <div style={{ marginLeft: 16, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                          {h.kind === 'imgtxt' && h.imageSrc && (
+                            <img src={h.imageSrc} alt={h.imageLabel || label || 'Image'} style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+                          )}
+                          <span style={{ fontSize: 12, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {label}
+                            {h.tie && (
+                              <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: '#fef3c7', border: '1px solid #f59e0b', color: '#92400e' }}>Égalité</span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
