@@ -645,7 +645,7 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
     if (pre) { setIsAdminUI(true); return; }
     // Tentative auto: si on trouve un email utilisateur en localStorage, vérifier /me côté backend
     let email = null;
-    try { email = localStorage.getItem('cc_profile_email') || localStorage.getItem('user_email') || localStorage.getItem('email'); } catch {}
+    try { email = (JSON.parse(localStorage.getItem('cc_auth')||'null')||{}).email || localStorage.getItem('cc_profile_email') || localStorage.getItem('user_email') || localStorage.getItem('email'); } catch {}
     if (!email) return; // pas d'email connu, on n'active pas
     const backend = getBackendUrl();
     try {
