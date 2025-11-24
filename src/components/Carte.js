@@ -1517,6 +1517,13 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
           const pid = getPairId(Z);
           return pid ? `[${pid}]` : '…';
         };
+        // Version spéciale pour calcul/chiffre qui priorise content (expression mathématique)
+        const textForCalc = (Z) => {
+          const t = (Z?.content || Z?.label || Z?.text || Z?.value || '').toString();
+          if (t && t.trim()) return t;
+          const pid = getPairId(Z);
+          return pid ? `[${pid}]` : '…';
+        };
         const textA = textFor(ZA);
         const textB = textFor(ZB);
         
@@ -1543,27 +1550,13 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
         
         if ((typeA === 'calcul' && typeB === 'chiffre') || (typeA === 'chiffre' && typeB === 'calcul')) {
           kind = 'calcnum';
-          // Détection intelligente : le calcul contient des opérateurs, le chiffre est juste un nombre
-          const contentA = String(ZA?.content || ZA?.label || '');
-          const contentB = String(ZB?.content || ZB?.label || '');
-          const hasOperatorA = /[\+\-\×\*\/x]/.test(contentA);
-          const hasOperatorB = /[\+\-\×\*\/x]/.test(contentB);
+          // Prioriser les types déclarés pour identifier calcul vs chiffre
+          const calcZone = typeA === 'calcul' ? ZA : ZB;
+          const numZone = typeA === 'chiffre' ? ZA : ZB;
           
-          let calcZone, numZone;
-          if (hasOperatorA && !hasOperatorB) {
-            calcZone = ZA;
-            numZone = ZB;
-          } else if (hasOperatorB && !hasOperatorA) {
-            calcZone = ZB;
-            numZone = ZA;
-          } else {
-            // Fallback sur les types déclarés
-            calcZone = typeA === 'calcul' ? ZA : ZB;
-            numZone = typeA === 'chiffre' ? ZA : ZB;
-          }
-          
-          calcExpr = textFor(calcZone);
-          calcResult = textFor(numZone);
+          // Utiliser textForCalc qui priorise content (où se trouve l'expression)
+          calcExpr = textForCalc(calcZone);
+          calcResult = textForCalc(numZone);
           displayText = (calcExpr && calcResult) ? `${calcExpr} = ${calcResult}` : `${textA || '…'} ↔ ${textB || '…'}`;
         } else if ((typeA === 'image' && typeB === 'texte') || (typeA === 'texte' && typeB === 'image')) {
           kind = 'imgtxt';
