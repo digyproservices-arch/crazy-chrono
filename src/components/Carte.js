@@ -2256,10 +2256,10 @@ const handleEditGreenZone = (zone) => {
     const handleResize = () => {
       const mobile = window.innerWidth <= 768;
       setIsMobile(mobile);
-      // Par défaut sur mobile, réduire le panneau et masquer l'historique
-      setPanelCollapsed(mobile);
+      // Par défaut sur mobile, masquer l'historique
       setHistoryExpanded(!mobile);
     };
+
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
