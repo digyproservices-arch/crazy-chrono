@@ -82,6 +82,10 @@ const monitoringRoutes = require('./routes/monitoring');
 const { startWeeklyMonitoring, startDailyMonitoring } = require('./cronJobs');
 app.use('/api/monitoring', monitoringRoutes);
 
+// ===== Tournament / Battle Royale Routes =====
+const tournamentRoutes = require('./routes/tournament');
+app.use('/api/tournament', tournamentRoutes);
+
 // ===== Usage/Quota (Mini-sprint): server-side check tied to Supabase user =====
 let supabaseAdmin = null;
 try {
