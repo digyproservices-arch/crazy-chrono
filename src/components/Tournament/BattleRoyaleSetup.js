@@ -6,6 +6,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+const getBackendUrl = () => {
+  return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
+};
+
 export default function BattleRoyaleSetup() {
   const navigate = useNavigate();
   
@@ -26,9 +30,10 @@ export default function BattleRoyaleSetup() {
     try {
       setLoading(true);
       
-      // TODO: Remplacer par vos vraies requêtes API
+      const backendUrl = getBackendUrl();
+      
       // 1. Récupérer le tournoi actif
-      const tournamentRes = await fetch('/api/tournament/tournaments/tour_2025_gp');
+      const tournamentRes = await fetch(`${backendUrl}/api/tournament/tournaments/tour_2025_gp`);
       const tournamentData = await tournamentRes.json();
       setTournament(tournamentData.tournament);
       
@@ -36,13 +41,13 @@ export default function BattleRoyaleSetup() {
       const classConfig = JSON.parse(localStorage.getItem('cc_session_cfg') || '{}');
       const classId = classConfig.classId || 'ce1_a_lamentin'; // Exemple
       
-      // TODO: Fetch students from API
-      const studentsRes = await fetch(`/api/tournament/classes/${classId}/students`);
+      // Fetch students from API
+      const studentsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/students`);
       const studentsData = await studentsRes.json();
       setStudents(studentsData.students || []);
       
       // 3. Récupérer les groupes déjà créés pour cette classe
-      const groupsRes = await fetch(`/api/tournament/classes/${classId}/groups`);
+      const groupsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/groups`);
       const groupsData = await groupsRes.json();
       setGroups(groupsData.groups || []);
       
@@ -80,8 +85,9 @@ export default function BattleRoyaleSetup() {
     try {
       const classConfig = JSON.parse(localStorage.getItem('cc_session_cfg') || '{}');
       const classId = classConfig.classId || 'ce1_a_lamentin';
+      const backendUrl = getBackendUrl();
       
-      const res = await fetch('/api/tournament/groups', {
+      const res = await fetch(`${backendUrl}/api/tournament/groups`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -112,9 +118,10 @@ export default function BattleRoyaleSetup() {
   const launchMatch = async (group) => {
     try {
       const classConfig = JSON.parse(localStorage.getItem('cc_session_cfg') || '{}');
+      const backendUrl = getBackendUrl();
       
       // Créer le match
-      const res = await fetch('/api/tournament/matches', {
+      const res = await fetch(`${backendUrl}/api/tournament/matches`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -159,7 +166,8 @@ export default function BattleRoyaleSetup() {
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce groupe ?')) return;
     
     try {
-      const res = await fetch(`/api/tournament/groups/${groupId}`, {
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/tournament/groups/${groupId}`, {
         method: 'DELETE'
       });
       
