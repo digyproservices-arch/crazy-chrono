@@ -15,6 +15,10 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
+// Battle Royale Manager pour tournois (groupes de 4)
+const BattleRoyaleManager = require('./battleRoyaleManager');
+const battleRoyale = new BattleRoyaleManager(io);
+
 // Admin-only: change a user's role by email
 // POST /admin/users/role { target_email, role }
 app.post('/admin/users/role', async (req, res) => {
@@ -1220,7 +1224,36 @@ io.on('connection', (socket) => {
 
   // (removed duplicate room:setRounds handler)
 
+  // ===== BATTLE ROYALE EVENTS (Tournoi groupes de 4) =====
+  
+  socket.on('battle:join', ({ matchId, studentData }, cb) => {
+    const success = battleRoyale.joinMatch(socket, matchId, studentData);
+    if (typeof cb === 'function') {
+      cb({ ok: success });
+    }
+  });
+
+  socket.on('battle:ready', ({ studentId }) => {
+    battleRoyale.playerReady(socket, studentId);
+  });
+
+  socket.on('battle:pair-validated', (data) => {
+    battleRoyale.pairValidated(socket, data);
+  });
+
+  socket.on('battle:force-start', ({ matchId }) => {
+    // Forcer le démarrage (enseignant uniquement)
+    const match = battleRoyale.getMatchState(matchId);
+    if (match && match.players.length >= 2) {
+      battleRoyale.startCountdown(matchId);
+    }
+  });
+
   socket.on('disconnect', () => {
+    // Gérer déconnexion Battle Royale
+    battleRoyale.handleDisconnect(socket);
+    
+    // Gérer déconnexion multijoueur classique
     if (!currentRoom) return;
     const room = getRoom(currentRoom);
     room.players.delete(socket.id);

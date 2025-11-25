@@ -232,8 +232,16 @@ export default function SessionConfig() {
       payload.classroom = { teacherName: teacherName || '', studentIds: selectedStudentIds };
     }
     try { localStorage.setItem('cc_session_cfg', JSON.stringify(payload)); } catch {}
-    // Rediriger vers la carte
-    navigate('/carte');
+    
+    // Redirection selon le mode
+    if (mode === 'tournament') {
+      // Mode tournoi : rediriger vers Battle Royale Setup
+      navigate('/tournament/setup');
+    } else {
+      // Autres modes : rediriger vers la carte normale
+      navigate('/carte');
+    }
+    
     // Un event global si utile
     try { window.dispatchEvent(new CustomEvent('cc:sessionConfigured', { detail: payload })); } catch {}
   };

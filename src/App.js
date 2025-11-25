@@ -12,6 +12,9 @@ import Pricing from './components/Billing/Pricing';
 import Account from './components/Account';
 import ModeSelect from './components/Modes/ModeSelect';
 import SessionConfig from './components/Modes/SessionConfig';
+import BattleRoyaleSetup from './components/Tournament/BattleRoyaleSetup';
+import BattleRoyaleLobby from './components/Tournament/BattleRoyaleLobby';
+import BattleRoyaleGame from './components/Tournament/BattleRoyaleGame';
 import AdminRoles from './components/Admin/AdminRoles';
 import AdminInvite from './components/Admin/AdminInvite';
 import { fetchAndSyncStatus, getBackendUrl } from './utils/subscription';
@@ -271,6 +274,10 @@ function App() {
               <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
               <Route path="/pricing" element={<RequireAuth><Pricing /></RequireAuth>} />
               <Route path="/debug/progress" element={<RequireAuth><ProgressDebug /></RequireAuth>} />
+              {/* Battle Royale (Tournoi) */}
+              <Route path="/tournament/setup" element={<RequireAuth><BattleRoyaleSetup /></RequireAuth>} />
+              <Route path="/battle-royale/lobby/:roomCode" element={<RequireAuth><BattleRoyaleLobby /></RequireAuth>} />
+              <Route path="/battle-royale/game" element={<RequireAuth><BattleRoyaleGame /></RequireAuth>} />
               {/* Carte (éditeur/jeu) accessible en direct si nécessaire, sinon on y accède après config */}
               <Route path="/carte" element={<div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div>} />
               <Route path="*" element={<Navigate to="/" replace />} />
