@@ -1334,8 +1334,9 @@ const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélect
         const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
         isSoloMode = cfg && cfg.mode === 'solo';
       } catch {}
-      // Show preload overlay au début de chaque manche uniquement en multijoueur
-      if (!isSoloMode) {
+      // Show preload overlay seulement pour la première manche (roundIndex=0), pas lors des changements de carte
+      const isFirstRound = (payload?.roundIndex || 0) === 0;
+      if (!isSoloMode && isFirstRound) {
         setPreparing(true);
         try { window.ccAddDiag && window.ccAddDiag('prep:start:round', { roundIndex: payload?.roundIndex }); } catch {}
       }
