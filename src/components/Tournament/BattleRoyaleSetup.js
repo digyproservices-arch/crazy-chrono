@@ -3,7 +3,7 @@
 // Interface enseignant pour créer des groupes et lancer les matchs
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const getBackendUrl = () => {
@@ -12,6 +12,7 @@ const getBackendUrl = () => {
 
 export default function BattleRoyaleSetup() {
   const navigate = useNavigate();
+  const loadedRef = useRef(false);
   
   // État
   const [students, setStudents] = useState([]); // Liste des élèves de la classe
@@ -21,8 +22,10 @@ export default function BattleRoyaleSetup() {
   const [loading, setLoading] = useState(true);
   const [tournament, setTournament] = useState(null);
   
-  // Charger les données au montage
+  // Charger les données au montage (avec protection contre les boucles infinies)
   useEffect(() => {
+    if (loadedRef.current) return;
+    loadedRef.current = true;
     loadTournamentData();
   }, []);
   
