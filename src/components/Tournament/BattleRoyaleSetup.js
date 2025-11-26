@@ -10,6 +10,10 @@ const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
 };
 
+// Variable globale pour éviter les chargements multiples même si le composant se démonte/remonte
+let globalLoadLock = false;
+let globalLoadTimeout = null;
+
 export default function BattleRoyaleSetup() {
   const navigate = useNavigate();
   const loadedRef = useRef(false);
@@ -22,10 +26,19 @@ export default function BattleRoyaleSetup() {
   const [loading, setLoading] = useState(true);
   const [tournament, setTournament] = useState(null);
   
-  // Charger les données au montage (avec protection contre les boucles infinies)
+  // Charger les données au montage (avec protection GLOBALE contre les boucles infinies)
   useEffect(() => {
-    if (loadedRef.current) return;
+    // Protection double : useRef local + variable globale
+    if (loadedRef.current || globalLoadLock) return;
     loadedRef.current = true;
+    globalLoadLock = true;
+    
+    // Réinitialiser le lock après 5 secondes pour permettre un refresh manuel
+    if (globalLoadTimeout) clearTimeout(globalLoadTimeout);
+    globalLoadTimeout = setTimeout(() => {
+      globalLoadLock = false;
+    }, 5000);
+    
     loadTournamentData();
   }, []);
   
