@@ -1,16 +1,31 @@
 // ==========================================
-// ROUTES API - TOURNOI CRAZY CHRONO
+// ROUTES API - TOURNOI CRAZY CHRONO (Version Supabase)
 // Gestion des tournois, matchs Battle Royale, groupes, élèves
 // ==========================================
 
 const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
+const { createClient } = require('@supabase/supabase-js');
 
-// Helper: Connexion BDD (à adapter selon votre config)
-const getDB = () => {
-  // TODO: Remplacer par votre connexion DB réelle (Supabase, PostgreSQL, etc.)
-  return global.tournamentDB || null;
+// Connexion Supabase
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+let supabase = null;
+
+if (supabaseUrl && supabaseKey) {
+  supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
+  console.log('[Tournament Routes] Supabase connected');
+} else {
+  console.warn('[Tournament Routes] Supabase not configured');
+}
+
+// Middleware pour vérifier la connexion Supabase
+const requireSupabase = (req, res, next) => {
+  if (!supabase) {
+    return res.status(500).json({ success: false, error: 'Database not configured' });
+  }
+  next();
 };
 
 // ==========================================
@@ -21,11 +36,16 @@ const getDB = () => {
  * GET /api/tournament/tournaments
  * Liste tous les tournois
  */
-router.get('/tournaments', async (req, res) => {
+router.get('/tournaments', requireSupabase, async (req, res) => {
   try {
-    const db = getDB();
-    const tournaments = await db.query('SELECT * FROM tournaments ORDER BY created_at DESC');
-    res.json({ success: true, tournaments: tournaments.rows });
+    const { data, error } = await supabase
+      .from('tournaments')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    res.json({ success: true, tournaments: data });
   } catch (error) {
     console.error('[Tournament API] Error fetching tournaments:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -36,39 +56,32 @@ router.get('/tournaments', async (req, res) => {
  * GET /api/tournament/tournaments/:id
  * Détails d'un tournoi spécifique
  */
-router.get('/tournaments/:id', async (req, res) => {
+router.get('/tournaments/:id', requireSupabase, async (req, res) => {
   try {
     const { id } = req.params;
-    const db = getDB();
     
-    // Tournoi
-    const tournament = await db.query('SELECT * FROM tournaments WHERE id = $1', [id]);
-    if (tournament.rows.length === 0) {
+    // Récupérer le tournoi
+    const { data: tournament, error: tournamentError } = await supabase
+      .from('tournaments')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (tournamentError || !tournament) {
       return res.status(404).json({ success: false, error: 'Tournoi non trouvé' });
     }
     
-    // Phases
-    const phases = await db.query('SELECT * FROM tournament_phases WHERE tournament_id = $1 ORDER BY level', [id]);
-    
-    // Stats globales
-    const stats = await db.query(`
-      SELECT 
-        COUNT(DISTINCT s.id) as total_students,
-        COUNT(DISTINCT tg.id) as total_groups,
-        COUNT(DISTINCT tm.id) as total_matches,
-        COUNT(DISTINCT CASE WHEN tm.status = 'finished' THEN tm.id END) as matches_finished
-      FROM tournaments t
-      LEFT JOIN tournament_groups tg ON t.id = tg.tournament_id
-      LEFT JOIN tournament_matches tm ON t.id = tm.tournament_id
-      LEFT JOIN students s ON s.id = ANY(string_to_array(tg.student_ids::text, ','))
-      WHERE t.id = $1
-    `, [id]);
+    // Récupérer les phases
+    const { data: phases, error: phasesError } = await supabase
+      .from('tournament_phases')
+      .select('*')
+      .eq('tournament_id', id)
+      .order('level', { ascending: true });
     
     res.json({
       success: true,
-      tournament: tournament.rows[0],
-      phases: phases.rows,
-      stats: stats.rows[0]
+      tournament,
+      phases: phases || []
     });
   } catch (error) {
     console.error('[Tournament API] Error fetching tournament:', error);
@@ -76,267 +89,90 @@ router.get('/tournaments/:id', async (req, res) => {
   }
 });
 
-/**
- * POST /api/tournament/tournaments
- * Créer un nouveau tournoi
- */
-router.post('/tournaments', async (req, res) => {
-  try {
-    const { name, academyCode, config, startDate, endDate, createdBy } = req.body;
-    const db = getDB();
-    
-    const id = `tour_${Date.now()}_${academyCode.toLowerCase()}`;
-    
-    await db.query(`
-      INSERT INTO tournaments (id, name, academy_code, status, config, start_date, end_date, created_by)
-      VALUES ($1, $2, $3, 'draft', $4, $5, $6, $7)
-    `, [id, name, academyCode, JSON.stringify(config), startDate, endDate, createdBy]);
-    
-    // Créer les 4 phases automatiquement
-    const phaseNames = [
-      'CRAZY WINNER CLASSE',
-      'CRAZY WINNER ÉCOLE',
-      'CRAZY WINNER CIRCONSCRIPTION',
-      'CRAZY WINNER ACADÉMIQUE'
-    ];
-    
-    for (let i = 0; i < 4; i++) {
-      const phaseId = `phase_${i + 1}_${id}`;
-      await db.query(`
-        INSERT INTO tournament_phases (id, tournament_id, level, name, status)
-        VALUES ($1, $2, $3, $4, 'pending')
-      `, [phaseId, id, i + 1, phaseNames[i]]);
-    }
-    
-    res.json({ success: true, tournamentId: id });
-  } catch (error) {
-    console.error('[Tournament API] Error creating tournament:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * PATCH /api/tournament/tournaments/:id/phase
- * Changer la phase active du tournoi
- */
-router.patch('/tournaments/:id/phase', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { newPhase } = req.body; // 1-4
-    const db = getDB();
-    
-    // Clôturer la phase actuelle
-    await db.query(`
-      UPDATE tournament_phases SET status = 'finished'
-      WHERE tournament_id = $1 AND level < $2
-    `, [id, newPhase]);
-    
-    // Activer la nouvelle phase
-    await db.query(`
-      UPDATE tournament_phases SET status = 'active', start_date = NOW()
-      WHERE tournament_id = $1 AND level = $2
-    `, [id, newPhase]);
-    
-    // Mettre à jour le tournoi
-    await db.query(`
-      UPDATE tournaments SET current_phase = $1 WHERE id = $2
-    `, [newPhase, id]);
-    
-    res.json({ success: true, currentPhase: newPhase });
-  } catch (error) {
-    console.error('[Tournament API] Error changing phase:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 // ==========================================
-// MATCHS BATTLE ROYALE
+// CLASSES ET ÉLÈVES
 // ==========================================
 
 /**
- * POST /api/tournament/matches
- * Créer un match Battle Royale pour un groupe de 4
+ * GET /api/tournament/classes/:classId/students
+ * Liste des élèves d'une classe
  */
-router.post('/matches', async (req, res) => {
+router.get('/classes/:classId/students', requireSupabase, async (req, res) => {
   try {
-    const { tournamentId, phaseId, groupId, config } = req.body;
-    const db = getDB();
+    const { classId } = req.params;
     
-    const matchId = `match_${uuidv4()}`;
-    const roomCode = generateRoomCode();
+    const { data, error } = await supabase
+      .from('students')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        full_name,
+        avatar_url,
+        class_id,
+        school_id
+      `)
+      .eq('class_id', classId)
+      .order('last_name', { ascending: true });
     
-    await db.query(`
-      INSERT INTO tournament_matches (id, tournament_id, phase_id, group_id, status, room_code, config)
-      VALUES ($1, $2, $3, $4, 'pending', $5, $6)
-    `, [matchId, tournamentId, phaseId, groupId, roomCode, JSON.stringify(config)]);
+    if (error) throw error;
     
-    // Associer le match au groupe
-    await db.query(`
-      UPDATE tournament_groups SET match_id = $1 WHERE id = $2
-    `, [matchId, groupId]);
-    
-    res.json({ success: true, matchId, roomCode });
+    res.json({ success: true, students: data || [] });
   } catch (error) {
-    console.error('[Tournament API] Error creating match:', error);
+    console.error('[Tournament API] Error fetching students:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 /**
- * GET /api/tournament/matches/:id
- * Détails d'un match
+ * GET /api/tournament/classes/:classId/groups
+ * Liste des groupes créés pour une classe
  */
-router.get('/matches/:id', async (req, res) => {
+router.get('/classes/:classId/groups', requireSupabase, async (req, res) => {
   try {
-    const { id } = req.params;
-    const db = getDB();
+    const { classId } = req.params;
     
-    const match = await db.query('SELECT * FROM tournament_matches WHERE id = $1', [id]);
-    if (match.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Match non trouvé' });
-    }
+    const { data, error } = await supabase
+      .from('tournament_groups')
+      .select('*')
+      .eq('class_id', classId)
+      .order('created_at', { ascending: false });
     
-    // Résultats des joueurs
-    const results = await db.query(`
-      SELECT mr.*, s.full_name, s.avatar_url
-      FROM match_results mr
-      JOIN students s ON mr.student_id = s.id
-      WHERE mr.match_id = $1
-      ORDER BY mr.position ASC
-    `, [id]);
+    if (error) throw error;
     
-    res.json({
-      success: true,
-      match: match.rows[0],
-      results: results.rows
-    });
+    res.json({ success: true, groups: data || [] });
   } catch (error) {
-    console.error('[Tournament API] Error fetching match:', error);
+    console.error('[Tournament API] Error fetching groups:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 /**
- * POST /api/tournament/matches/:id/join
- * Un élève rejoint un match via le code de salle
+ * GET /api/tournament/students/:id
+ * Profil d'un élève
  */
-router.post('/matches/:id/join', async (req, res) => {
+router.get('/students/:id', requireSupabase, async (req, res) => {
   try {
     const { id } = req.params;
-    const { studentId } = req.body;
-    const db = getDB();
     
-    // Vérifier que le match existe et est en attente
-    const match = await db.query('SELECT * FROM tournament_matches WHERE id = $1', [id]);
-    if (match.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Match non trouvé' });
+    const { data, error } = await supabase
+      .from('students')
+      .select(`
+        *,
+        student_stats (*),
+        schools (name),
+        classes (name)
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error || !data) {
+      return res.status(404).json({ success: false, error: 'Élève non trouvé' });
     }
     
-    if (match.rows[0].status !== 'pending') {
-      return res.status(400).json({ success: false, error: 'Match déjà commencé' });
-    }
-    
-    // Vérifier que l'élève fait partie du groupe
-    const group = await db.query('SELECT * FROM tournament_groups WHERE id = $1', [match.rows[0].group_id]);
-    const studentIds = JSON.parse(group.rows[0].student_ids);
-    
-    if (!studentIds.includes(studentId)) {
-      return res.status(403).json({ success: false, error: 'Élève non autorisé pour ce match' });
-    }
-    
-    res.json({ success: true, match: match.rows[0] });
+    res.json({ success: true, student: data });
   } catch (error) {
-    console.error('[Tournament API] Error joining match:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * PATCH /api/tournament/matches/:id/start
- * Démarrer un match
- */
-router.patch('/matches/:id/start', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const db = getDB();
-    
-    await db.query(`
-      UPDATE tournament_matches 
-      SET status = 'in_progress', started_at = NOW()
-      WHERE id = $1
-    `, [id]);
-    
-    await db.query(`
-      UPDATE tournament_groups SET status = 'playing' WHERE match_id = $1
-    `, [id]);
-    
-    res.json({ success: true });
-  } catch (error) {
-    console.error('[Tournament API] Error starting match:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-/**
- * PATCH /api/tournament/matches/:id/finish
- * Terminer un match et enregistrer les résultats
- */
-router.patch('/matches/:id/finish', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { results } = req.body; // Array de { studentId, score, timeMs, pairsValidated, errors }
-    const db = getDB();
-    
-    // Trier les résultats par score DESC, puis temps ASC
-    results.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return a.timeMs - b.timeMs;
-    });
-    
-    const winner = results[0];
-    
-    // Enregistrer les résultats
-    for (let i = 0; i < results.length; i++) {
-      const r = results[i];
-      const resultId = `result_${uuidv4()}`;
-      
-      await db.query(`
-        INSERT INTO match_results (id, match_id, student_id, position, score, time_ms, pairs_validated, errors)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      `, [resultId, id, r.studentId, i + 1, r.score, r.timeMs, r.pairsValidated || 0, r.errors || 0]);
-      
-      // Mettre à jour les stats de l'élève
-      await db.query(`
-        UPDATE student_stats SET
-          total_matches = total_matches + 1,
-          total_wins = total_wins + $1,
-          best_score = GREATEST(best_score, $2),
-          total_score = total_score + $3,
-          updated_at = NOW()
-        WHERE student_id = $4
-      `, [i === 0 ? 1 : 0, r.score, r.score, r.studentId]);
-    }
-    
-    // Mettre à jour le match
-    await db.query(`
-      UPDATE tournament_matches 
-      SET status = 'finished', 
-          finished_at = NOW(),
-          players = $1,
-          winner = $2
-      WHERE id = $3
-    `, [JSON.stringify(results), JSON.stringify(winner), id]);
-    
-    // Mettre à jour le groupe
-    await db.query(`
-      UPDATE tournament_groups 
-      SET status = 'finished', winner_id = $1
-      WHERE match_id = $2
-    `, [winner.studentId, id]);
-    
-    res.json({ success: true, winner });
-  } catch (error) {
-    console.error('[Tournament API] Error finishing match:', error);
+    console.error('[Tournament API] Error fetching student:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -349,10 +185,9 @@ router.patch('/matches/:id/finish', async (req, res) => {
  * POST /api/tournament/groups
  * Créer un groupe de 4 élèves
  */
-router.post('/groups', async (req, res) => {
+router.post('/groups', requireSupabase, async (req, res) => {
   try {
     const { tournamentId, phaseLevel, classId, name, studentIds } = req.body;
-    const db = getDB();
     
     if (!Array.isArray(studentIds) || studentIds.length !== 4) {
       return res.status(400).json({ success: false, error: 'Un groupe doit contenir exactement 4 élèves' });
@@ -360,80 +195,203 @@ router.post('/groups', async (req, res) => {
     
     const groupId = `group_${uuidv4()}`;
     
-    await db.query(`
-      INSERT INTO tournament_groups (id, tournament_id, phase_level, class_id, name, student_ids, status)
-      VALUES ($1, $2, $3, $4, $5, $6, 'pending')
-    `, [groupId, tournamentId, phaseLevel, classId, name, JSON.stringify(studentIds)]);
+    const { data, error } = await supabase
+      .from('tournament_groups')
+      .insert({
+        id: groupId,
+        tournament_id: tournamentId,
+        phase_level: phaseLevel,
+        class_id: classId,
+        name: name,
+        student_ids: JSON.stringify(studentIds),
+        status: 'pending'
+      })
+      .select()
+      .single();
     
-    res.json({ success: true, groupId });
+    if (error) throw error;
+    
+    res.json({ success: true, groupId, group: data });
   } catch (error) {
     console.error('[Tournament API] Error creating group:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
+/**
+ * DELETE /api/tournament/groups/:id
+ * Supprimer un groupe
+ */
+router.delete('/groups/:id', requireSupabase, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const { error } = await supabase
+      .from('tournament_groups')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Tournament API] Error deleting group:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ==========================================
-// ÉLÈVES
+// MATCHS BATTLE ROYALE
 // ==========================================
 
 /**
- * GET /api/tournament/students/:id
- * Profil d'un élève
+ * POST /api/tournament/matches
+ * Créer un match Battle Royale pour un groupe de 4
  */
-router.get('/students/:id', async (req, res) => {
+router.post('/matches', requireSupabase, async (req, res) => {
   try {
-    const { id } = req.params;
-    const db = getDB();
+    const { tournamentId, phaseId, groupId, config } = req.body;
     
-    const student = await db.query(`
-      SELECT s.*, ss.*, sc.name as school_name, c.name as class_name
-      FROM students s
-      LEFT JOIN student_stats ss ON s.id = ss.student_id
-      LEFT JOIN schools sc ON s.school_id = sc.id
-      LEFT JOIN classes c ON s.class_id = c.id
-      WHERE s.id = $1
-    `, [id]);
+    const matchId = `match_${uuidv4()}`;
+    const roomCode = generateRoomCode();
     
-    if (student.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Élève non trouvé' });
-    }
+    const { data, error } = await supabase
+      .from('tournament_matches')
+      .insert({
+        id: matchId,
+        tournament_id: tournamentId,
+        phase_id: phaseId,
+        group_id: groupId,
+        status: 'pending',
+        room_code: roomCode,
+        config: JSON.stringify(config)
+      })
+      .select()
+      .single();
     
-    res.json({ success: true, student: student.rows[0] });
+    if (error) throw error;
+    
+    // Mettre à jour le groupe
+    await supabase
+      .from('tournament_groups')
+      .update({ match_id: matchId })
+      .eq('id', groupId);
+    
+    res.json({ success: true, matchId, roomCode, match: data });
   } catch (error) {
-    console.error('[Tournament API] Error fetching student:', error);
+    console.error('[Tournament API] Error creating match:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 /**
- * GET /api/tournament/students/:id/matches
- * Historique des matchs d'un élève
+ * GET /api/tournament/matches/:id
+ * Détails d'un match
  */
-router.get('/students/:id/matches', async (req, res) => {
+router.get('/matches/:id', requireSupabase, async (req, res) => {
   try {
     const { id } = req.params;
-    const db = getDB();
     
-    const matches = await db.query(`
-      SELECT 
-        tm.id,
-        tm.status,
-        tm.started_at,
-        tm.finished_at,
-        mr.position,
-        mr.score,
-        mr.time_ms,
-        tp.name as phase_name
-      FROM match_results mr
-      JOIN tournament_matches tm ON mr.match_id = tm.id
-      JOIN tournament_phases tp ON tm.phase_id = tp.id
-      WHERE mr.student_id = $1
-      ORDER BY tm.finished_at DESC
-    `, [id]);
+    const { data: match, error: matchError } = await supabase
+      .from('tournament_matches')
+      .select('*')
+      .eq('id', id)
+      .single();
     
-    res.json({ success: true, matches: matches.rows });
+    if (matchError || !match) {
+      return res.status(404).json({ success: false, error: 'Match non trouvé' });
+    }
+    
+    // Récupérer les résultats
+    const { data: results, error: resultsError } = await supabase
+      .from('match_results')
+      .select(`
+        *,
+        students (full_name, avatar_url)
+      `)
+      .eq('match_id', id)
+      .order('position', { ascending: true });
+    
+    res.json({
+      success: true,
+      match,
+      results: results || []
+    });
   } catch (error) {
-    console.error('[Tournament API] Error fetching student matches:', error);
+    console.error('[Tournament API] Error fetching match:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PATCH /api/tournament/matches/:id/finish
+ * Terminer un match et enregistrer les résultats
+ */
+router.patch('/matches/:id/finish', requireSupabase, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { results } = req.body;
+    
+    // Trier les résultats
+    results.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.timeMs - b.timeMs;
+    });
+    
+    const winner = results[0];
+    
+    // Enregistrer les résultats
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      const resultId = `result_${uuidv4()}`;
+      
+      await supabase
+        .from('match_results')
+        .insert({
+          id: resultId,
+          match_id: id,
+          student_id: r.studentId,
+          position: i + 1,
+          score: r.score,
+          time_ms: r.timeMs,
+          pairs_validated: r.pairsValidated || 0,
+          errors: r.errors || 0
+        });
+      
+      // Mettre à jour les stats (à implémenter via fonction PostgreSQL pour éviter les race conditions)
+    }
+    
+    // Mettre à jour le match
+    await supabase
+      .from('tournament_matches')
+      .update({
+        status: 'finished',
+        finished_at: new Date().toISOString(),
+        players: JSON.stringify(results),
+        winner: JSON.stringify(winner)
+      })
+      .eq('id', id);
+    
+    // Mettre à jour le groupe
+    const { data: match } = await supabase
+      .from('tournament_matches')
+      .select('group_id')
+      .eq('id', id)
+      .single();
+    
+    if (match) {
+      await supabase
+        .from('tournament_groups')
+        .update({
+          status: 'finished',
+          winner_id: winner.studentId
+        })
+        .eq('id', match.group_id);
+    }
+    
+    res.json({ success: true, winner });
+  } catch (error) {
+    console.error('[Tournament API] Error finishing match:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -446,25 +404,24 @@ router.get('/students/:id/matches', async (req, res) => {
  * GET /api/tournament/leaderboard
  * Classement général
  */
-router.get('/leaderboard', async (req, res) => {
+router.get('/leaderboard', requireSupabase, async (req, res) => {
   try {
     const { level, limit = 100 } = req.query;
-    const db = getDB();
     
-    let query = 'SELECT * FROM leaderboard';
-    const params = [];
+    let query = supabase
+      .from('leaderboard')
+      .select('*')
+      .limit(parseInt(limit));
     
     if (level) {
-      query += ' WHERE level = $1';
-      params.push(level);
+      query = query.eq('level', level);
     }
     
-    query += ' LIMIT $' + (params.length + 1);
-    params.push(parseInt(limit));
+    const { data, error } = await query;
     
-    const leaderboard = await db.query(query, params);
+    if (error) throw error;
     
-    res.json({ success: true, leaderboard: leaderboard.rows });
+    res.json({ success: true, leaderboard: data || [] });
   } catch (error) {
     console.error('[Tournament API] Error fetching leaderboard:', error);
     res.status(500).json({ success: false, error: error.message });
