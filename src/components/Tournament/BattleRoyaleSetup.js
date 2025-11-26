@@ -44,33 +44,43 @@ export default function BattleRoyaleSetup() {
   
   const loadTournamentData = async () => {
     try {
+      console.log('[BattleRoyale] 🔄 Chargement des données...');
       setLoading(true);
       
       const backendUrl = getBackendUrl();
+      console.log('[BattleRoyale] 🌐 Backend URL:', backendUrl);
       
       // 1. Récupérer le tournoi actif
       const tournamentRes = await fetch(`${backendUrl}/api/tournament/tournaments/tour_2025_gp`);
       const tournamentData = await tournamentRes.json();
+      console.log('[BattleRoyale] 🏆 Tournament data:', tournamentData);
       setTournament(tournamentData.tournament);
       
-      // 2. Récupérer les élèves de la classe (depuis config ou localStorage)
+      // 2. Récupérer la liste des élèves de la classe
       const classConfig = JSON.parse(localStorage.getItem('cc_session_cfg') || '{}');
-      const classId = classConfig.classId || 'ce1_a_lamentin'; // Exemple
+      const classId = classConfig.classId || 'ce1_a_lamentin';
+      console.log('[BattleRoyale] 📚 Class ID:', classId);
       
-      // Fetch students from API
       const studentsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/students`);
       const studentsData = await studentsRes.json();
+      console.log('[BattleRoyale] 👥 Students data:', studentsData);
+      console.log('[BattleRoyale] 👥 Students count:', studentsData.students?.length || 0);
       setStudents(studentsData.students || []);
       
-      // 3. Récupérer les groupes déjà créés pour cette classe
+      // 3. Récupérer les groupes déjà créés
       const groupsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/groups`);
       const groupsData = await groupsRes.json();
+      console.log('[BattleRoyale] 👥 Groups data:', groupsData);
+      console.log('[BattleRoyale] 👥 Groups count:', groupsData.groups?.length || 0);
       setGroups(groupsData.groups || []);
       
+      console.log('[BattleRoyale] ✅ Chargement terminé!');
+      console.log('[BattleRoyale] 📊 État final - Students:', studentsData.students?.length, 'Groups:', groupsData.groups?.length);
     } catch (error) {
-      console.error('[BattleRoyale] Error loading data:', error);
+      console.error('[BattleRoyale] ❌ Error loading data:', error);
     } finally {
       setLoading(false);
+      console.log('[BattleRoyale] 🏁 Loading = false');
     }
   };
   
