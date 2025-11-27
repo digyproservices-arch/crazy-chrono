@@ -42,15 +42,31 @@ export default function BattleRoyaleSetup() {
       const cachedGroups = sessionStorage.getItem(CACHE_KEY_GROUPS);
       
       if (cachedTournament && cachedStudents && cachedGroups) {
-        console.log('[BattleRoyale] 📦 Données trouvées dans le cache');
-        setTournament(JSON.parse(cachedTournament));
-        setStudents(JSON.parse(cachedStudents));
-        setGroups(JSON.parse(cachedGroups));
-        setLoading(false);
-        return;
+        const tournamentData = JSON.parse(cachedTournament);
+        const studentsData = JSON.parse(cachedStudents);
+        const groupsData = JSON.parse(cachedGroups);
+        
+        // VÉRIFIER que le cache n'est pas VIDE (bug critique !)
+        if (studentsData && studentsData.length > 0) {
+          console.log('[BattleRoyale] 📦 Cache VALIDE - Students:', studentsData.length, 'Groups:', groupsData.length);
+          setTournament(tournamentData);
+          setStudents(studentsData);
+          setGroups(groupsData);
+          setLoading(false);
+          return;
+        } else {
+          console.error('[BattleRoyale] ❌ Cache VIDE détecté ! Suppression...');
+          sessionStorage.removeItem(CACHE_KEY_TOURNAMENT);
+          sessionStorage.removeItem(CACHE_KEY_STUDENTS);
+          sessionStorage.removeItem(CACHE_KEY_GROUPS);
+        }
       }
     } catch (e) {
       console.log('[BattleRoyale] ⚠️ Erreur lecture cache:', e);
+      // Vider le cache en cas d'erreur
+      sessionStorage.removeItem(CACHE_KEY_TOURNAMENT);
+      sessionStorage.removeItem(CACHE_KEY_STUDENTS);
+      sessionStorage.removeItem(CACHE_KEY_GROUPS);
     }
     
     // Protection double : useRef local + variable globale
@@ -119,11 +135,9 @@ export default function BattleRoyaleSetup() {
     } catch (error) {
       console.error('[BattleRoyale] ❌ Error loading data:', error);
     } finally {
-      // Petit délai pour s'assurer que React traite les setState précédents
-      setTimeout(() => {
-        setLoading(false);
-        console.log('[BattleRoyale] 🏁 Loading = false (avec setTimeout)');
-      }, 100);
+      // IMPORTANT : setLoading(false) IMMÉDIAT sans setTimeout !
+      setLoading(false);
+      console.log('[BattleRoyale] 🏁 Loading = false');
     }
   };
   
