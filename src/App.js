@@ -195,9 +195,26 @@ function App() {
   function serializeSafe(v) {
     try {
       if (v instanceof Error) return { name: v.name, message: v.message, stack: v.stack?.slice(0, 400) };
-      if (typeof v === 'object') return JSON.parse(JSON.stringify(v));
+      if (typeof v === 'object' && v !== null) {
+        // Utiliser replacer pour filtrer les valeurs invalides
+        const jsonStr = JSON.stringify(v, (key, val) => {
+          // Ignorer les fonctions, undefined, et symboles
+          if (typeof val === 'function' || typeof val === 'undefined' || typeof val === 'symbol') {
+            return '[Filtered]';
+          }
+          // Limiter les strings très longues (potentiellement des coordonnées)
+          if (typeof val === 'string' && val.length > 500) {
+            return val.substring(0, 500) + '...[truncated]';
+          }
+          return val;
+        });
+        return JSON.parse(jsonStr);
+      }
       return v;
-    } catch { return String(v); }
+    } catch (err) { 
+      // Si erreur, retourner une représentation sûre
+      return '[Serialization Error: ' + (err.message || 'Unknown') + ']';
+    }
   }
 
   // Keyboard shortcut Ctrl+Alt+D to toggle panel
