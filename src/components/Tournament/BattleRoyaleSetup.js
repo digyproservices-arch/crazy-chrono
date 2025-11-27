@@ -23,50 +23,65 @@ export default function BattleRoyaleSetup() {
   const navigate = useNavigate();
   const loadedRef = useRef(false);
   
-  // État
-  const [students, setStudents] = useState([]); // Liste des élèves de la classe
-  const [groups, setGroups] = useState([]); // Groupes de 4 créés
-  const [selectedStudents, setSelectedStudents] = useState([]); // Élèves sélectionnés pour former un groupe
-  const [groupName, setGroupName] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [tournament, setTournament] = useState(null);
-  
-  // Charger les données au montage (avec cache sessionStorage pour survivre aux remontages)
-  useEffect(() => {
-    console.log('[BattleRoyale] 🔵 useEffect montage - loadedRef:', loadedRef.current, 'globalLoadLock:', globalLoadLock);
-    
-    // Essayer de charger depuis le cache d'abord
+  // INITIALISATION SYNCHRONE depuis cache pour survivre aux remontages rapides
+  const [students, setStudents] = useState(() => {
     try {
-      const cachedTournament = sessionStorage.getItem(CACHE_KEY_TOURNAMENT);
+      const cached = sessionStorage.getItem(CACHE_KEY_STUDENTS);
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  
+  const [groups, setGroups] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem(CACHE_KEY_GROUPS);
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  
+  const [tournament, setTournament] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem(CACHE_KEY_TOURNAMENT);
+      return cached ? JSON.parse(cached) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+  
+  // Déterminer loading en fonction du cache
+  const [loading, setLoading] = useState(() => {
+    try {
       const cachedStudents = sessionStorage.getItem(CACHE_KEY_STUDENTS);
       const cachedGroups = sessionStorage.getItem(CACHE_KEY_GROUPS);
+      const cachedTournament = sessionStorage.getItem(CACHE_KEY_TOURNAMENT);
       
-      if (cachedTournament && cachedStudents && cachedGroups) {
-        const tournamentData = JSON.parse(cachedTournament);
-        const studentsData = JSON.parse(cachedStudents);
-        const groupsData = JSON.parse(cachedGroups);
-        
-        // VÉRIFIER que le cache n'est pas VIDE (bug critique !)
-        if (studentsData && studentsData.length > 0) {
-          console.log('[BattleRoyale] 📦 Cache VALIDE - Students:', studentsData.length, 'Groups:', groupsData.length);
-          setTournament(tournamentData);
-          setStudents(studentsData);
-          setGroups(groupsData);
-          setLoading(false);
-          return;
-        } else {
-          console.error('[BattleRoyale] ❌ Cache VIDE détecté ! Suppression...');
-          sessionStorage.removeItem(CACHE_KEY_TOURNAMENT);
-          sessionStorage.removeItem(CACHE_KEY_STUDENTS);
-          sessionStorage.removeItem(CACHE_KEY_GROUPS);
+      // Si cache complet ET valide → pas de loading
+      if (cachedStudents && cachedGroups && cachedTournament) {
+        const students = JSON.parse(cachedStudents);
+        if (students && students.length > 0) {
+          return false; // Cache valide → pas de loading
         }
       }
+      return true; // Pas de cache → loading
     } catch (e) {
-      console.log('[BattleRoyale] ⚠️ Erreur lecture cache:', e);
-      // Vider le cache en cas d'erreur
-      sessionStorage.removeItem(CACHE_KEY_TOURNAMENT);
-      sessionStorage.removeItem(CACHE_KEY_STUDENTS);
-      sessionStorage.removeItem(CACHE_KEY_GROUPS);
+      return true;
+    }
+  });
+  
+  const [selectedStudents, setSelectedStudents] = useState([]);
+  const [groupName, setGroupName] = useState('');
+  
+  // Charger les données au montage UNIQUEMENT si pas de cache (loading=true)
+  useEffect(() => {
+    console.log('[BattleRoyale] 🔵 useEffect montage - loading:', loading, 'students:', students.length, 'globalLoadLock:', globalLoadLock);
+    
+    // Si on a déjà les données du cache → ne rien faire
+    if (!loading) {
+      console.log('[BattleRoyale] ✅ Données déjà chargées depuis cache - skip fetch');
+      return;
     }
     
     // Protection double : useRef local + variable globale
