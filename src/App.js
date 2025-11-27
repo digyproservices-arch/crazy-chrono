@@ -44,13 +44,19 @@ function App() {
     return () => window.removeEventListener('cc:gameMode', onGame);
   }, []);
 
-  // Admin auto-detection (URL admin=1, localStorage cc_admin_ui=1, or backend /me?email=...) with throttle
+  // Admin auto-detection (URL admin=1, localStorage cc_admin_ui=1, cc_auth role, or backend /me?email=...) with throttle
   useEffect(() => {
     const urlHasAdmin = () => {
       try { return new URLSearchParams(window.location.search).get('admin') === '1'; } catch { return false; }
     };
     const lsAdmin = () => { try { return localStorage.getItem('cc_admin_ui') === '1'; } catch { return false; } };
-    const pre = urlHasAdmin() || lsAdmin();
+    const authIsAdmin = () => {
+      try {
+        const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
+        return a && (a.role === 'admin' || a.isAdmin === true);
+      } catch { return false; }
+    };
+    const pre = urlHasAdmin() || lsAdmin() || authIsAdmin();
     if (pre) { setIsAdminUI(true); return; }
     let email = null;
     try { email = (JSON.parse(localStorage.getItem('cc_auth')||'null')||{}).email || localStorage.getItem('cc_profile_email') || localStorage.getItem('user_email') || localStorage.getItem('email'); } catch {}
@@ -236,7 +242,16 @@ function App() {
   }, [auth]);
   useEffect(() => {
     const onAuth = () => {
-      try { setAuth(JSON.parse(localStorage.getItem('cc_auth') || 'null')); } catch { setAuth(null); }
+      try {
+        const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
+        setAuth(a);
+        // Mettre à jour isAdminUI si l'auth change et que l'utilisateur est admin
+        if (a && (a.role === 'admin' || a.isAdmin === true)) {
+          setIsAdminUI(true);
+        }
+      } catch {
+        setAuth(null);
+      }
     };
     window.addEventListener('cc:authChanged', onAuth);
     return () => window.removeEventListener('cc:authChanged', onAuth);
