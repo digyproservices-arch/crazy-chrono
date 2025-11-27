@@ -195,25 +195,21 @@ function App() {
   function serializeSafe(v) {
     try {
       if (v instanceof Error) return { name: v.name, message: v.message, stack: v.stack?.slice(0, 400) };
+      // Simplification radicale : juste convertir en string pour éviter toute erreur JSON
       if (typeof v === 'object' && v !== null) {
-        // Utiliser replacer pour filtrer les valeurs invalides
-        const jsonStr = JSON.stringify(v, (key, val) => {
-          // Ignorer les fonctions, undefined, et symboles
-          if (typeof val === 'function' || typeof val === 'undefined' || typeof val === 'symbol') {
-            return '[Filtered]';
-          }
-          // Limiter les strings très longues (potentiellement des coordonnées)
-          if (typeof val === 'string' && val.length > 500) {
-            return val.substring(0, 500) + '...[truncated]';
-          }
-          return val;
-        });
-        return JSON.parse(jsonStr);
+        try {
+          return JSON.parse(JSON.stringify(v, (key, val) => {
+            if (typeof val === 'function' || typeof val === 'undefined' || typeof val === 'symbol') return null;
+            if (typeof val === 'string' && val.length > 300) return val.substring(0, 300) + '...';
+            return val;
+          }));
+        } catch {
+          return '[Object - Cannot serialize]';
+        }
       }
       return v;
-    } catch (err) { 
-      // Si erreur, retourner une représentation sûre
-      return '[Serialization Error: ' + (err.message || 'Unknown') + ']';
+    } catch { 
+      return '[Error]';
     }
   }
 

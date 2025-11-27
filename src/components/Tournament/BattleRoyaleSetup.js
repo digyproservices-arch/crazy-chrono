@@ -31,42 +31,19 @@ export default function BattleRoyaleSetup() {
   const [loading, setLoading] = useState(true);
   const [tournament, setTournament] = useState(null);
   
-  // Charger les données au montage (avec cache sessionStorage pour survivre aux remontages)
+  // Charger les données au montage (CACHE DÉSACTIVÉ pour stabilité)
   useEffect(() => {
     console.log('[BattleRoyale] 🔵 useEffect montage - loadedRef:', loadedRef.current, 'globalLoadLock:', globalLoadLock);
     
-    // Essayer de charger depuis le cache d'abord
+    // ⚠️ CACHE TEMPORAIREMENT DÉSACTIVÉ pour résoudre erreur de parsing JSON
+    // Vider tout cache existant au montage
     try {
-      const cachedTournament = sessionStorage.getItem(CACHE_KEY_TOURNAMENT);
-      const cachedStudents = sessionStorage.getItem(CACHE_KEY_STUDENTS);
-      const cachedGroups = sessionStorage.getItem(CACHE_KEY_GROUPS);
-      
-      if (cachedTournament && cachedStudents && cachedGroups) {
-        const tournamentData = JSON.parse(cachedTournament);
-        const studentsData = JSON.parse(cachedStudents);
-        const groupsData = JSON.parse(cachedGroups);
-        
-        // VÉRIFIER que le cache n'est pas VIDE (bug critique !)
-        if (studentsData && studentsData.length > 0) {
-          console.log('[BattleRoyale] 📦 Cache VALIDE - Students:', studentsData.length, 'Groups:', groupsData.length);
-          setTournament(tournamentData);
-          setStudents(studentsData);
-          setGroups(groupsData);
-          setLoading(false);
-          return;
-        } else {
-          console.error('[BattleRoyale] ❌ Cache VIDE détecté ! Suppression...');
-          sessionStorage.removeItem(CACHE_KEY_TOURNAMENT);
-          sessionStorage.removeItem(CACHE_KEY_STUDENTS);
-          sessionStorage.removeItem(CACHE_KEY_GROUPS);
-        }
-      }
-    } catch (e) {
-      console.log('[BattleRoyale] ⚠️ Erreur lecture cache:', e);
-      // Vider le cache en cas d'erreur
       sessionStorage.removeItem(CACHE_KEY_TOURNAMENT);
       sessionStorage.removeItem(CACHE_KEY_STUDENTS);
       sessionStorage.removeItem(CACHE_KEY_GROUPS);
+      console.log('[BattleRoyale] 🗑️ Cache vidé (désactivé temporairement)');
+    } catch (e) {
+      console.log('[BattleRoyale] ⚠️ Erreur vidage cache:', e);
     }
     
     // Protection double : useRef local + variable globale
@@ -123,24 +100,8 @@ export default function BattleRoyaleSetup() {
       console.log('[BattleRoyale] ✅ Chargement terminé!');
       console.log('[BattleRoyale] 📊 État final - Students:', studentsData.students?.length, 'Groups:', groupsData.groups?.length);
       
-      // Sauvegarder dans le cache sessionStorage (avec validation stricte)
-      try {
-        // Nettoyer les données avant stringify pour éviter les valeurs invalides
-        const cleanTournament = JSON.parse(JSON.stringify(tournamentData.tournament || null));
-        const cleanStudents = JSON.parse(JSON.stringify(studentsData.students || []));
-        const cleanGroups = JSON.parse(JSON.stringify(groupsData.groups || []));
-        
-        sessionStorage.setItem(CACHE_KEY_TOURNAMENT, JSON.stringify(cleanTournament));
-        sessionStorage.setItem(CACHE_KEY_STUDENTS, JSON.stringify(cleanStudents));
-        sessionStorage.setItem(CACHE_KEY_GROUPS, JSON.stringify(cleanGroups));
-        console.log('[BattleRoyale] 💾 Données sauvegardées dans le cache');
-      } catch (e) {
-        console.error('[BattleRoyale] ⚠️ Erreur sauvegarde cache:', e);
-        // Si erreur de sérialisation, vider le cache pour éviter corruption
-        sessionStorage.removeItem(CACHE_KEY_TOURNAMENT);
-        sessionStorage.removeItem(CACHE_KEY_STUDENTS);
-        sessionStorage.removeItem(CACHE_KEY_GROUPS);
-      }
+      // ⚠️ CACHE DÉSACTIVÉ TEMPORAIREMENT - Ne pas sauvegarder pour éviter erreurs parsing
+      console.log('[BattleRoyale] ℹ️ Cache désactivé - données non sauvegardées');
     } catch (error) {
       console.error('[BattleRoyale] ❌ Error loading data:', error);
     } finally {
