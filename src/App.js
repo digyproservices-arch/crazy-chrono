@@ -93,8 +93,14 @@ function App() {
   // Recording ref sync
   useEffect(() => { diagRecRef.current = !!diagRecording; }, [diagRecording]);
 
-  // Auto-start recording via ?rec=1
+  // Auto-start recording via ?rec=1 (DÉSACTIVÉ EN PRODUCTION pour éviter boucles infinies)
   useEffect(() => {
+    // ⚠️ Recording désactivé en production pour éviter les boucles infinies
+    if (process.env.NODE_ENV === 'production') {
+      console.log('[App] ⚠️ Recording désactivé en production');
+      return;
+    }
+    
     try {
       const sp = new URLSearchParams(window.location.search);
       if (sp.get('rec') === '1') {
@@ -107,6 +113,13 @@ function App() {
 
   // When recording is ON, capture console, errors, and fetch
   useEffect(() => {
+    // ⚠️ Forcer désactivation du recording en production
+    if (process.env.NODE_ENV === 'production' && diagRecording) {
+      console.log('[App] 🚫 Forcing recording OFF in production');
+      setDiagRecording(false);
+      return;
+    }
+    
     if (!diagRecording) {
       // restore
       try {
