@@ -3,7 +3,7 @@
 // Interface enseignant pour créer des groupes et lancer les matchs
 // ==========================================
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const getBackendUrl = () => {
@@ -235,16 +235,17 @@ export default function BattleRoyaleSetup() {
     }
   };
   
-  // Élèves déjà dans des groupes
-  const studentsInGroups = new Set();
-  groups.forEach(g => {
-    try {
-      const ids = JSON.parse(g.student_ids);
-      ids.forEach(id => studentsInGroups.add(id));
-    } catch {}
-  });
-  
-  const availableStudents = students.filter(s => !studentsInGroups.has(s.id));
+  // Élèves déjà dans des groupes (useMemo pour éviter recalcul à chaque render)
+  const availableStudents = useMemo(() => {
+    const studentsInGroups = new Set();
+    groups.forEach(g => {
+      try {
+        const ids = JSON.parse(g.student_ids);
+        ids.forEach(id => studentsInGroups.add(id));
+      } catch {}
+    });
+    return students.filter(s => !studentsInGroups.has(s.id));
+  }, [students, groups]);
   
   // Log pour tracer les renders
   console.log('[BattleRoyale] 🔄 RENDER - loading:', loading, 'students:', students.length, 'groups:', groups.length);
