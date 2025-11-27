@@ -14,6 +14,11 @@ const getBackendUrl = () => {
 let globalLoadLock = false;
 let globalLoadTimeout = null;
 
+// Clés sessionStorage pour cache
+const CACHE_KEY_TOURNAMENT = 'br_cache_tournament';
+const CACHE_KEY_STUDENTS = 'br_cache_students';
+const CACHE_KEY_GROUPS = 'br_cache_groups';
+
 export default function BattleRoyaleSetup() {
   const navigate = useNavigate();
   const loadedRef = useRef(false);
@@ -26,10 +31,34 @@ export default function BattleRoyaleSetup() {
   const [loading, setLoading] = useState(true);
   const [tournament, setTournament] = useState(null);
   
-  // Charger les données au montage (avec protection GLOBALE contre les boucles infinies)
+  // Charger les données au montage (avec cache sessionStorage pour survivre aux remontages)
   useEffect(() => {
+    console.log('[BattleRoyale] 🔵 useEffect montage - loadedRef:', loadedRef.current, 'globalLoadLock:', globalLoadLock);
+    
+    // Essayer de charger depuis le cache d'abord
+    try {
+      const cachedTournament = sessionStorage.getItem(CACHE_KEY_TOURNAMENT);
+      const cachedStudents = sessionStorage.getItem(CACHE_KEY_STUDENTS);
+      const cachedGroups = sessionStorage.getItem(CACHE_KEY_GROUPS);
+      
+      if (cachedTournament && cachedStudents && cachedGroups) {
+        console.log('[BattleRoyale] 📦 Données trouvées dans le cache');
+        setTournament(JSON.parse(cachedTournament));
+        setStudents(JSON.parse(cachedStudents));
+        setGroups(JSON.parse(cachedGroups));
+        setLoading(false);
+        return;
+      }
+    } catch (e) {
+      console.log('[BattleRoyale] ⚠️ Erreur lecture cache:', e);
+    }
+    
     // Protection double : useRef local + variable globale
-    if (loadedRef.current || globalLoadLock) return;
+    if (loadedRef.current || globalLoadLock) {
+      console.log('[BattleRoyale] 🚫 Chargement bloqué par lock');
+      return;
+    }
+    
     loadedRef.current = true;
     globalLoadLock = true;
     
@@ -37,6 +66,7 @@ export default function BattleRoyaleSetup() {
     if (globalLoadTimeout) clearTimeout(globalLoadTimeout);
     globalLoadTimeout = setTimeout(() => {
       globalLoadLock = false;
+      console.log('[BattleRoyale] 🔓 globalLoadLock libéré');
     }, 5000);
     
     loadTournamentData();
@@ -76,11 +106,24 @@ export default function BattleRoyaleSetup() {
       
       console.log('[BattleRoyale] ✅ Chargement terminé!');
       console.log('[BattleRoyale] 📊 État final - Students:', studentsData.students?.length, 'Groups:', groupsData.groups?.length);
+      
+      // Sauvegarder dans le cache sessionStorage
+      try {
+        sessionStorage.setItem(CACHE_KEY_TOURNAMENT, JSON.stringify(tournamentData.tournament));
+        sessionStorage.setItem(CACHE_KEY_STUDENTS, JSON.stringify(studentsData.students || []));
+        sessionStorage.setItem(CACHE_KEY_GROUPS, JSON.stringify(groupsData.groups || []));
+        console.log('[BattleRoyale] 💾 Données sauvegardées dans le cache');
+      } catch (e) {
+        console.log('[BattleRoyale] ⚠️ Erreur sauvegarde cache:', e);
+      }
     } catch (error) {
       console.error('[BattleRoyale] ❌ Error loading data:', error);
     } finally {
-      setLoading(false);
-      console.log('[BattleRoyale] 🏁 Loading = false');
+      // Petit délai pour s'assurer que React traite les setState précédents
+      setTimeout(() => {
+        setLoading(false);
+        console.log('[BattleRoyale] 🏁 Loading = false (avec setTimeout)');
+      }, 100);
     }
   };
   
@@ -219,13 +262,19 @@ export default function BattleRoyaleSetup() {
   
   const availableStudents = students.filter(s => !studentsInGroups.has(s.id));
   
+  // Log pour tracer les renders
+  console.log('[BattleRoyale] 🔄 RENDER - loading:', loading, 'students:', students.length, 'groups:', groups.length);
+  
   if (loading) {
+    console.log('[BattleRoyale] 🕒 Affichage "Chargement..."');
     return (
       <div style={{ maxWidth: 980, margin: '24px auto', padding: '0 16px', textAlign: 'center' }}>
         <p>Chargement...</p>
       </div>
     );
   }
+  
+  console.log('[BattleRoyale] ✅ Affichage de l\'UI complète');
   
   return (
     <div style={{ maxWidth: 980, margin: '24px auto', padding: '0 16px' }}>
