@@ -236,16 +236,20 @@ export default function BattleRoyaleSetup() {
   };
   
   // Élèves déjà dans des groupes (useMemo pour éviter recalcul à chaque render)
-  const availableStudents = useMemo(() => {
-    const studentsInGroups = new Set();
+  const studentsInGroups = useMemo(() => {
+    const inGroups = new Set();
     groups.forEach(g => {
       try {
         const ids = JSON.parse(g.student_ids);
-        ids.forEach(id => studentsInGroups.add(id));
+        ids.forEach(id => inGroups.add(id));
       } catch {}
     });
+    return inGroups;
+  }, [groups]);
+  
+  const availableStudents = useMemo(() => {
     return students.filter(s => !studentsInGroups.has(s.id));
-  }, [students, groups]);
+  }, [students, studentsInGroups]);
   
   // Log pour tracer les renders
   console.log('[BattleRoyale] 🔄 RENDER - loading:', loading, 'students:', students.length, 'groups:', groups.length);
