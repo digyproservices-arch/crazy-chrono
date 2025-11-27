@@ -254,36 +254,54 @@ export default function BattleRoyaleSetup() {
         </div>
         
         <div style={{ marginBottom: 12 }}>
-          <label>Sélectionner 4 élèves ({selectedStudents.length}/4)</label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8, marginTop: 8 }}>
-            {availableStudents.map(s => (
-              <label 
-                key={s.id} 
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 8, 
-                  padding: '8px 12px', 
-                  border: '1px solid #d1d5db', 
-                  borderRadius: 8, 
-                  background: selectedStudents.includes(s.id) ? '#10b981' : '#fff',
-                  color: selectedStudents.includes(s.id) ? '#fff' : '#111',
-                  cursor: 'pointer'
-                }}
-              >
-                <input 
-                  type="checkbox" 
-                  checked={selectedStudents.includes(s.id)} 
-                  onChange={() => toggleStudentSelection(s.id)}
-                  disabled={!selectedStudents.includes(s.id) && selectedStudents.length >= 4}
-                />
-                <span>{s.full_name || s.first_name}</span>
-              </label>
-            ))}
-          </div>
-          {availableStudents.length === 0 && (
-            <p style={{ color: '#6b7280', marginTop: 8 }}>Tous les élèves sont déjà dans des groupes.</p>
+          <label>Liste des élèves ({students.length} au total)</label>
+          
+          {availableStudents.length > 0 && (
+            <div style={{ marginTop: 8, marginBottom: 8, padding: 8, background: '#dbeafe', borderRadius: 6 }}>
+              <strong>✅ {availableStudents.length} élève(s) disponible(s)</strong> - Sélectionnez 4 élèves pour créer un groupe ({selectedStudents.length}/4)
+            </div>
           )}
+          
+          {availableStudents.length === 0 && (
+            <div style={{ marginTop: 8, marginBottom: 8, padding: 8, background: '#fef3c7', borderRadius: 6 }}>
+              <strong>⚠️ Tous les élèves sont déjà dans des groupes</strong> - Supprimez un groupe pour libérer des élèves
+            </div>
+          )}
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8, marginTop: 8 }}>
+            {students.map(s => {
+              const isInGroup = studentsInGroups.has(s.id);
+              const isSelected = selectedStudents.includes(s.id);
+              const isDisabled = isInGroup || (!isSelected && selectedStudents.length >= 4);
+              
+              return (
+                <label 
+                  key={s.id} 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 8, 
+                    padding: '8px 12px', 
+                    border: '1px solid #d1d5db', 
+                    borderRadius: 8, 
+                    background: isSelected ? '#10b981' : isInGroup ? '#f3f4f6' : '#fff',
+                    color: isSelected ? '#fff' : isInGroup ? '#9ca3af' : '#111',
+                    cursor: isDisabled ? 'not-allowed' : 'pointer',
+                    opacity: isInGroup ? 0.6 : 1
+                  }}
+                >
+                  <input 
+                    type="checkbox" 
+                    checked={isSelected} 
+                    onChange={() => toggleStudentSelection(s.id)}
+                    disabled={isDisabled}
+                  />
+                  <span>{s.full_name || s.first_name}</span>
+                  {isInGroup && <span style={{ fontSize: 11, marginLeft: 'auto' }}>📦 Déjà groupé</span>}
+                </label>
+              );
+            })}
+          </div>
         </div>
         
         <button 
