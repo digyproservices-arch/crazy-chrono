@@ -20,6 +20,17 @@ import AdminInvite from './components/Admin/AdminInvite';
 import { fetchAndSyncStatus, getBackendUrl } from './utils/subscription';
 import supabase from './utils/supabaseClient';
 
+// ✅ AUTH WRAPPERS (outside App to prevent remount loops!)
+const RequireAuth = ({ children, auth }) => auth ? children : <Navigate to="/login" replace />;
+
+const RequireAdmin = ({ children }) => {
+  try {
+    const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
+    if (a && (a.role === 'admin' || a.isAdmin)) return children;
+  } catch {}
+  return <Navigate to="/modes" replace />;
+};
+
 function App() {
   const [gameMode, setGameMode] = useState(false);
   // Global Diagnostic UI state
@@ -257,14 +268,7 @@ function App() {
     return () => window.removeEventListener('cc:authChanged', onAuth);
   }, []);
   const carteVidePath = `${process.env.PUBLIC_URL}/images/carte-vide.png`;
-  const RequireAuth = ({ children }) => auth ? children : <Navigate to="/login" replace />;
-  const RequireAdmin = ({ children }) => {
-    try {
-      const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
-      if (a && (a.role === 'admin' || a.isAdmin)) return children;
-    } catch {}
-    return <Navigate to="/modes" replace />;
-  };
+  
   return (
     <DataProvider>
       <Router>
@@ -280,19 +284,19 @@ function App() {
             <Routes>
               <Route path="/" element={<Navigate to={auth ? "/modes" : "/login"} replace />} />
               <Route path="/login" element={<Login onLogin={(a) => { setAuth(a); try { localStorage.setItem('cc_auth', JSON.stringify(a)); } catch {}; }} />} />
-              <Route path="/modes" element={<RequireAuth><ModeSelect /></RequireAuth>} />
-              <Route path="/config/:mode" element={<RequireAuth><SessionConfig /></RequireAuth>} />
+              <Route path="/modes" element={<RequireAuth auth={auth}><ModeSelect /></RequireAuth>} />
+              <Route path="/config/:mode" element={<RequireAuth auth={auth}><SessionConfig /></RequireAuth>} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/admin/dashboard" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
               <Route path="/admin/roles" element={<RequireAdmin><AdminRoles /></RequireAdmin>} />
               <Route path="/admin/invite" element={<RequireAdmin><AdminInvite /></RequireAdmin>} />
-              <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
-              <Route path="/pricing" element={<RequireAuth><Pricing /></RequireAuth>} />
-              <Route path="/debug/progress" element={<RequireAuth><ProgressDebug /></RequireAuth>} />
+              <Route path="/account" element={<RequireAuth auth={auth}><Account /></RequireAuth>} />
+              <Route path="/pricing" element={<RequireAuth auth={auth}><Pricing /></RequireAuth>} />
+              <Route path="/debug/progress" element={<RequireAuth auth={auth}><ProgressDebug /></RequireAuth>} />
               {/* Battle Royale (Tournoi) */}
-              <Route path="/tournament/setup" element={<RequireAuth><BattleRoyaleSetup /></RequireAuth>} />
-              <Route path="/battle-royale/lobby/:roomCode" element={<RequireAuth><BattleRoyaleLobby /></RequireAuth>} />
-              <Route path="/battle-royale/game" element={<RequireAuth><BattleRoyaleGame /></RequireAuth>} />
+              <Route path="/tournament/setup" element={<RequireAuth auth={auth}><BattleRoyaleSetup /></RequireAuth>} />
+              <Route path="/battle-royale/lobby/:roomCode" element={<RequireAuth auth={auth}><BattleRoyaleLobby /></RequireAuth>} />
+              <Route path="/battle-royale/game" element={<RequireAuth auth={auth}><BattleRoyaleGame /></RequireAuth>} />
               {/* Carte (éditeur/jeu) accessible en direct si nécessaire, sinon on y accède après config */}
               <Route path="/carte" element={<div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div>} />
               <Route path="*" element={<Navigate to="/" replace />} />
