@@ -193,13 +193,24 @@ export default function BattleRoyaleSetup() {
       const classConfig = JSON.parse(localStorage.getItem('cc_session_cfg') || '{}');
       const backendUrl = getBackendUrl();
       
+      // Mapper le numéro de phase vers l'ID réel dans Supabase
+      const phaseNames = {
+        1: 'phase_1_classe',
+        2: 'phase_2_ecole',
+        3: 'phase_3_circ',
+        4: 'phase_4_acad'
+      };
+      const phaseId = phaseNames[tournament.current_phase] || 'phase_1_classe';
+      
+      console.log('[BattleRoyale] 🚀 Lancement match - Phase:', tournament.current_phase, '→ ID:', phaseId);
+      
       // Créer le match
       const res = await fetch(`${backendUrl}/api/tournament/matches`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tournamentId: tournament.id,
-          phaseId: `phase_${tournament.current_phase}_${tournament.id}`,
+          phaseId: phaseId,
           groupId: group.id,
           config: {
             rounds: 3,
