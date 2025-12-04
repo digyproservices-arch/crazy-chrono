@@ -10,6 +10,26 @@ const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
 };
 
+// Helper : Parser student_ids avec support multi-format
+const parseStudentIds = (studentIds) => {
+  try {
+    if (Array.isArray(studentIds)) {
+      return studentIds; // Déjà un array
+    }
+    if (typeof studentIds === 'string') {
+      if (studentIds.startsWith('[')) {
+        return JSON.parse(studentIds); // Format JSON array
+      } else {
+        return studentIds.split(',').map(id => id.trim()).filter(id => id); // Format string avec virgules
+      }
+    }
+    return [];
+  } catch (err) {
+    console.error('[BattleRoyale] Error parsing student_ids:', studentIds, err);
+    return [];
+  }
+};
+
 // Variable globale pour éviter les chargements multiples même si le composant se démonte/remonte
 let globalLoadLock = false;
 let globalLoadTimeout = null;
@@ -201,7 +221,7 @@ export default function BattleRoyaleSetup() {
           matchId: data.matchId,
           roomCode: data.roomCode,
           groupId: group.id,
-          studentIds: JSON.parse(group.student_ids)
+          studentIds: parseStudentIds(group.student_ids)
         }));
         
         // Rediriger vers la salle d'attente Battle Royale
@@ -239,27 +259,8 @@ export default function BattleRoyaleSetup() {
   const studentsInGroups = useMemo(() => {
     const inGroups = new Set();
     groups.forEach(g => {
-      try {
-        let ids;
-        // Gérer les deux formats : "s001,s002" OU ["s001","s002"]
-        if (typeof g.student_ids === 'string') {
-          if (g.student_ids.startsWith('[')) {
-            // Format JSON array
-            ids = JSON.parse(g.student_ids);
-          } else {
-            // Format string avec virgules
-            ids = g.student_ids.split(',').map(id => id.trim()).filter(id => id);
-          }
-        } else if (Array.isArray(g.student_ids)) {
-          // Déjà un array
-          ids = g.student_ids;
-        } else {
-          ids = [];
-        }
-        ids.forEach(id => inGroups.add(id));
-      } catch (err) {
-        console.error('[BattleRoyale] Error parsing student_ids:', g.student_ids, err);
-      }
+      const ids = parseStudentIds(g.student_ids);
+      ids.forEach(id => inGroups.add(id));
     });
     return inGroups;
   }, [groups]);
@@ -387,7 +388,7 @@ export default function BattleRoyaleSetup() {
         
         <div style={{ display: 'grid', gap: 12 }}>
           {groups.map(group => {
-            const studentIds = JSON.parse(group.student_ids);
+            const studentIds = parseStudentIds(group.student_ids);
             const groupStudents = students.filter(s => studentIds.includes(s.id));
             
             return (
