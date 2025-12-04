@@ -240,9 +240,26 @@ export default function BattleRoyaleSetup() {
     const inGroups = new Set();
     groups.forEach(g => {
       try {
-        const ids = JSON.parse(g.student_ids);
+        let ids;
+        // Gérer les deux formats : "s001,s002" OU ["s001","s002"]
+        if (typeof g.student_ids === 'string') {
+          if (g.student_ids.startsWith('[')) {
+            // Format JSON array
+            ids = JSON.parse(g.student_ids);
+          } else {
+            // Format string avec virgules
+            ids = g.student_ids.split(',').map(id => id.trim()).filter(id => id);
+          }
+        } else if (Array.isArray(g.student_ids)) {
+          // Déjà un array
+          ids = g.student_ids;
+        } else {
+          ids = [];
+        }
         ids.forEach(id => inGroups.add(id));
-      } catch {}
+      } catch (err) {
+        console.error('[BattleRoyale] Error parsing student_ids:', g.student_ids, err);
+      }
     });
     return inGroups;
   }, [groups]);
