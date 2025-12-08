@@ -89,6 +89,9 @@ app.use('/api/monitoring', monitoringRoutes);
 const tournamentRoutes = require('./routes/tournament');
 app.use('/api/tournament', tournamentRoutes);
 
+// ===== Auth Routes (Licences professionnelles) =====
+const authRoutes = require('./routes/auth');
+
 // ===== Usage/Quota (Mini-sprint): server-side check tied to Supabase user =====
 let supabaseAdmin = null;
 try {
@@ -97,10 +100,17 @@ try {
   const supaSrv = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (supaUrl && supaSrv) {
     supabaseAdmin = createClient(supaUrl, supaSrv, { auth: { persistSession: false } });
+    console.log('[Server] Supabase Admin client initialized');
   }
 } catch (e) {
   console.warn('[Usage] Supabase admin not configured:', e.message);
 }
+
+// Exposer supabaseAdmin pour les routes
+app.locals.supabaseAdmin = supabaseAdmin;
+
+// Monter les routes auth (après création de supabaseAdmin)
+app.use('/api/auth', authRoutes);
 
 // POST /usage/can-start { user_id }
 // Returns { ok:true, allow:boolean, limit:number, sessionsToday:number, reason?:string }
