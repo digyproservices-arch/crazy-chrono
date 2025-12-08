@@ -5,6 +5,10 @@
       "dest": "/static/$1"
     },
     {
+      "src": "/data/(.*)",
+      "dest": "/data/$1"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
