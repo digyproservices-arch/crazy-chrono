@@ -19,6 +19,9 @@ const io = new Server(server, {
 const BattleRoyaleManager = require('./battleRoyaleManager');
 const battleRoyale = new BattleRoyaleManager(io);
 
+// Exposer battleRoyale pour les routes (tournament.js)
+global.battleRoyale = battleRoyale;
+
 // Admin-only: change a user's role by email
 // POST /admin/users/role { target_email, role }
 app.post('/admin/users/role', async (req, res) => {

@@ -277,6 +277,14 @@ router.post('/matches', requireSupabase, async (req, res) => {
       .update({ match_id: matchId })
       .eq('id', groupId);
     
+    // Créer le match dans le BattleRoyaleManager pour Socket.IO
+    if (global.battleRoyale) {
+      global.battleRoyale.createMatch(matchId, roomCode, config);
+      console.log(`[Tournament API] Match créé dans BattleRoyaleManager: ${matchId}`);
+    } else {
+      console.warn('[Tournament API] BattleRoyaleManager not available');
+    }
+    
     res.json({ success: true, matchId, roomCode, match: data });
   } catch (error) {
     console.error('[Tournament API] Error creating match:', error);
