@@ -1,5 +1,5 @@
 // ==========================================
-// COMPOSANT: JEU BATTLE ROYALE
+// COMPOSANT: JEU CRAZY ARENA
 // Interface de jeu avec scores temps réel des 4 joueurs
 // Réutilise la logique de Carte.js mais en mode compétitif
 // ==========================================
@@ -12,7 +12,7 @@ const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
 };
 
-export default function BattleRoyaleGame() {
+export default function CrazyArenaGame() {
   const navigate = useNavigate();
   const socketRef = useRef(null);
   const svgOverlayRef = useRef(null);
@@ -30,7 +30,7 @@ export default function BattleRoyaleGame() {
   
   useEffect(() => {
     // Récupérer les infos de la partie
-    const gameInfo = JSON.parse(localStorage.getItem('cc_battle_royale_game') || '{}');
+    const gameInfo = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
     
     if (!gameInfo.matchId || !gameInfo.zones) {
       navigate('/tournament/setup');
@@ -51,15 +51,15 @@ export default function BattleRoyaleGame() {
     socketRef.current = socket;
     
     socket.on('connect', () => {
-      console.log('[BattleRoyale] Connecté pour la partie');
+      console.log('[CrazyArena] Connecté pour la partie');
     });
     
-    socket.on('battle:scores-update', ({ scores }) => {
+    socket.on('arena:scores-update', ({ scores }) => {
       setPlayers(scores);
     });
     
-    socket.on('battle:game-end', ({ ranking: finalRanking, winner: finalWinner }) => {
-      console.log('[BattleRoyale] Partie terminée !', finalWinner);
+    socket.on('arena:game-end', ({ ranking: finalRanking, winner: finalWinner }) => {
+      console.log('[CrazyArena] Partie terminée !', finalWinner);
       setGameEnded(true);
       setRanking(finalRanking);
       setWinner(finalWinner);
@@ -142,7 +142,7 @@ export default function BattleRoyaleGame() {
       setSelectedZones([]);
       
       // Notifier le serveur
-      socketRef.current?.emit('battle:pair-validated', {
+      socketRef.current?.emit('arena:pair-validated', {
         studentId: myStudentId,
         isCorrect: true,
         timeMs
@@ -157,7 +157,7 @@ export default function BattleRoyaleGame() {
       }, 500);
       
       // Notifier le serveur
-      socketRef.current?.emit('battle:pair-validated', {
+      socketRef.current?.emit('arena:pair-validated', {
         studentId: myStudentId,
         isCorrect: false,
         timeMs
@@ -168,7 +168,7 @@ export default function BattleRoyaleGame() {
   const showPodium = (finalRanking, finalWinner) => {
     // Créer un overlay podium
     const overlay = document.createElement('div');
-    overlay.id = 'battle-podium';
+    overlay.id = 'crazy-arena-podium';
     overlay.style.cssText = `
       position: fixed;
       top: 0;
@@ -256,12 +256,12 @@ export default function BattleRoyaleGame() {
   
   const showSuccessAnimation = (ZA, ZB) => {
     // TODO: Animation bulles (réutiliser animateBubblesFromZones si disponible)
-    console.log('[BattleRoyale] Bonne paire validée !', ZA, ZB);
+    console.log('[CrazyArena] Bonne paire validée !', ZA, ZB);
   };
   
   const showErrorAnimation = (ZA, ZB) => {
     // TODO: Animation d'erreur (shake)
-    console.log('[BattleRoyale] Mauvaise paire', ZA, ZB);
+    console.log('[CrazyArena] Mauvaise paire', ZA, ZB);
   };
   
   // Rendu SVG des zones
