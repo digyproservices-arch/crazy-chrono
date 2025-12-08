@@ -15,12 +15,12 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
-// Battle Royale Manager pour tournois (groupes de 4)
-const BattleRoyaleManager = require('./battleRoyaleManager');
-const battleRoyale = new BattleRoyaleManager(io);
+// Crazy Arena Manager pour tournois (groupes de 4)
+const CrazyArenaManager = require('./crazyArenaManager');
+const crazyArena = new CrazyArenaManager(io);
 
-// Exposer battleRoyale pour les routes (tournament.js)
-global.battleRoyale = battleRoyale;
+// Exposer crazyArena pour les routes (tournament.js)
+global.crazyArena = crazyArena;
 
 // Admin-only: change a user's role by email
 // POST /admin/users/role { target_email, role }
@@ -1231,34 +1231,34 @@ io.on('connection', (socket) => {
 
   // (removed duplicate room:setRounds handler)
 
-  // ===== BATTLE ROYALE EVENTS (Tournoi groupes de 4) =====
+  // ===== CRAZY ARENA EVENTS (Tournoi groupes de 4) =====
   
-  socket.on('battle:join', ({ matchId, studentData }, cb) => {
-    const success = battleRoyale.joinMatch(socket, matchId, studentData);
+  socket.on('arena:join', ({ matchId, studentData }, cb) => {
+    const success = crazyArena.joinMatch(socket, matchId, studentData);
     if (typeof cb === 'function') {
       cb({ ok: success });
     }
   });
 
-  socket.on('battle:ready', ({ studentId }) => {
-    battleRoyale.playerReady(socket, studentId);
+  socket.on('arena:ready', ({ studentId }) => {
+    crazyArena.playerReady(socket, studentId);
   });
 
-  socket.on('battle:pair-validated', (data) => {
-    battleRoyale.pairValidated(socket, data);
+  socket.on('arena:pair-validated', (data) => {
+    crazyArena.pairValidated(socket, data);
   });
 
-  socket.on('battle:force-start', ({ matchId }) => {
+  socket.on('arena:force-start', ({ matchId }) => {
     // Forcer le démarrage (enseignant uniquement)
-    const match = battleRoyale.getMatchState(matchId);
+    const match = crazyArena.getMatchState(matchId);
     if (match && match.players.length >= 2) {
-      battleRoyale.startCountdown(matchId);
+      crazyArena.startCountdown(matchId);
     }
   });
 
   socket.on('disconnect', () => {
-    // Gérer déconnexion Battle Royale
-    battleRoyale.handleDisconnect(socket);
+    // Gérer déconnexion Crazy Arena
+    crazyArena.handleDisconnect(socket);
     
     // Gérer déconnexion multijoueur classique
     if (!currentRoom) return;

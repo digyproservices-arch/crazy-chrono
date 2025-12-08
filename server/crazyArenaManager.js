@@ -1,9 +1,9 @@
 // ==========================================
-// BATTLE ROYALE MANAGER - Socket.IO
+// CRAZY ARENA MANAGER - Socket.IO
 // Gestion des matchs 4 joueurs en temps réel
 // ==========================================
 
-class BattleRoyaleManager {
+class CrazyArenaManager {
   constructor(io) {
     this.io = io;
     this.matches = new Map(); // matchId -> { players, status, scores, zones, config }
@@ -28,7 +28,7 @@ class BattleRoyaleManager {
       gameTimeout: null
     });
 
-    console.log(`[BattleRoyale] Match créé: ${matchId} (code: ${roomCode})`);
+    console.log(`[CrazyArena] Match créé: ${matchId} (code: ${roomCode})`);
     return this.matches.get(matchId);
   }
 
@@ -39,24 +39,24 @@ class BattleRoyaleManager {
     const match = this.matches.get(matchId);
     
     if (!match) {
-      socket.emit('battle:error', { message: 'Match introuvable' });
+      socket.emit('arena:error', { message: 'Match introuvable' });
       return false;
     }
 
     if (match.status !== 'waiting') {
-      socket.emit('battle:error', { message: 'Match déjà commencé' });
+      socket.emit('arena:error', { message: 'Match déjà commencé' });
       return false;
     }
 
     if (match.players.length >= 4) {
-      socket.emit('battle:error', { message: 'Match complet (4/4)' });
+      socket.emit('arena:error', { message: 'Match complet (4/4)' });
       return false;
     }
 
     // Vérifier que le joueur n'est pas déjà dans le match
     const alreadyJoined = match.players.find(p => p.studentId === studentData.studentId);
     if (alreadyJoined) {
-      socket.emit('battle:error', { message: 'Vous êtes déjà dans ce match' });
+      socket.emit('arena:error', { message: 'Vous êtes déjà dans ce match' });
       return false;
     }
 
@@ -79,10 +79,10 @@ class BattleRoyaleManager {
     // Rejoindre la room Socket.IO
     socket.join(matchId);
 
-    console.log(`[BattleRoyale] ${studentData.name} a rejoint le match ${matchId} (${match.players.length}/4)`);
+    console.log(`[CrazyArena] ${studentData.name} a rejoint le match ${matchId} (${match.players.length}/4)`);
 
     // Notifier tous les joueurs
-    this.io.to(matchId).emit('battle:player-joined', {
+    this.io.to(matchId).emit('arena:player-joined', {
       players: match.players.map(p => ({
         studentId: p.studentId,
         name: p.name,
@@ -114,7 +114,7 @@ class BattleRoyaleManager {
     if (player) {
       player.ready = true;
       
-      this.io.to(matchId).emit('battle:player-ready', {
+      this.io.to(matchId).emit('arena:player-ready', {
         studentId,
         players: match.players.map(p => ({ studentId: p.studentId, name: p.name, ready: p.ready }))
       });
@@ -135,11 +135,11 @@ class BattleRoyaleManager {
     if (!match || match.status !== 'waiting') return;
 
     match.status = 'countdown';
-    console.log(`[BattleRoyale] Countdown démarré pour match ${matchId}`);
+    console.log(`[CrazyArena] Countdown démarré pour match ${matchId}`);
 
     let count = 3;
     const interval = setInterval(() => {
-      this.io.to(matchId).emit('battle:countdown', { count });
+      this.io.to(matchId).emit('arena:countdown', { count });
       count--;
 
       if (count < 0) {
@@ -159,7 +159,7 @@ class BattleRoyaleManager {
     match.status = 'playing';
     match.startTime = Date.now();
 
-    console.log(`[BattleRoyale] Partie démarrée pour match ${matchId}`);
+    console.log(`[CrazyArena] Partie démarrée pour match ${matchId}`);
 
     // Générer les zones (utiliser la même logique que le mode multijoueur classique)
     const zones = await this.generateZones(match.config);
@@ -171,7 +171,7 @@ class BattleRoyaleManager {
     });
 
     // Notifier le démarrage avec les zones
-    this.io.to(matchId).emit('battle:game-start', {
+    this.io.to(matchId).emit('arena:game-start', {
       zones,
       duration: match.config.duration || 60,
       startTime: match.startTime,
@@ -208,7 +208,7 @@ class BattleRoyaleManager {
       });
       return zones;
     } catch (error) {
-      console.error('[BattleRoyale] Erreur génération zones:', error);
+      console.error('[CrazyArena] Erreur génération zones:', error);
       return [];
     }
   }
@@ -250,7 +250,7 @@ class BattleRoyaleManager {
     };
 
     // Diffuser les scores à tous les joueurs
-    this.io.to(matchId).emit('battle:scores-update', {
+    this.io.to(matchId).emit('arena:scores-update', {
       scores: match.players.map(p => ({
         studentId: p.studentId,
         name: p.name,
@@ -274,7 +274,7 @@ class BattleRoyaleManager {
       clearTimeout(match.gameTimeout);
     }
 
-    console.log(`[BattleRoyale] Partie terminée pour match ${matchId}`);
+    console.log(`[CrazyArena] Partie terminée pour match ${matchId}`);
 
     // Calculer les temps finaux
     match.players.forEach(p => {
@@ -303,7 +303,7 @@ class BattleRoyaleManager {
     const winner = ranking[0];
 
     // Envoyer le podium
-    this.io.to(matchId).emit('battle:game-end', {
+    this.io.to(matchId).emit('arena:game-end', {
       ranking,
       winner,
       duration: match.endTime - match.startTime
@@ -313,7 +313,7 @@ class BattleRoyaleManager {
     try {
       await this.saveResults(matchId, ranking);
     } catch (error) {
-      console.error('[BattleRoyale] Erreur sauvegarde résultats:', error);
+      console.error('[CrazyArena] Erreur sauvegarde résultats:', error);
     }
 
     // Nettoyer après 30s
@@ -345,9 +345,9 @@ class BattleRoyaleManager {
       });
       
       const data = await res.json();
-      console.log('[BattleRoyale] Résultats sauvegardés:', data);
+      console.log('[CrazyArena] Résultats sauvegardés:', data);
     } catch (error) {
-      console.error('[BattleRoyale] Erreur sauvegarde API:', error);
+      console.error('[CrazyArena] Erreur sauvegarde API:', error);
     }
   }
 
@@ -365,7 +365,7 @@ class BattleRoyaleManager {
 
     // Supprimer le match
     this.matches.delete(matchId);
-    console.log(`[BattleRoyale] Match ${matchId} nettoyé`);
+    console.log(`[CrazyArena] Match ${matchId} nettoyé`);
   }
 
   /**
@@ -382,7 +382,7 @@ class BattleRoyaleManager {
     if (playerIndex === -1) return;
 
     const player = match.players[playerIndex];
-    console.log(`[BattleRoyale] ${player.name} s'est déconnecté du match ${matchId}`);
+    console.log(`[CrazyArena] ${player.name} s'est déconnecté du match ${matchId}`);
 
     // Retirer le joueur
     match.players.splice(playerIndex, 1);
@@ -390,7 +390,7 @@ class BattleRoyaleManager {
 
     // Notifier les autres joueurs
     if (match.players.length > 0) {
-      this.io.to(matchId).emit('battle:player-left', {
+      this.io.to(matchId).emit('arena:player-left', {
         studentId: player.studentId,
         name: player.name,
         remainingPlayers: match.players.length
@@ -411,4 +411,4 @@ class BattleRoyaleManager {
   }
 }
 
-module.exports = BattleRoyaleManager;
+module.exports = CrazyArenaManager;
