@@ -25,7 +25,7 @@ const parseStudentIds = (studentIds) => {
     }
     return [];
   } catch (err) {
-    console.error('[BattleRoyale] Error parsing student_ids:', studentIds, err);
+    console.error('[CrazyArena] Error parsing student_ids:', studentIds, err);
     return [];
   }
 };
@@ -39,7 +39,7 @@ const CACHE_KEY_TOURNAMENT = 'br_cache_tournament';
 const CACHE_KEY_STUDENTS = 'br_cache_students';
 const CACHE_KEY_GROUPS = 'br_cache_groups';
 
-export default function BattleRoyaleSetup() {
+export default function CrazyArenaSetup() {
   const navigate = useNavigate();
   const loadedRef = useRef(false);
   
@@ -53,7 +53,7 @@ export default function BattleRoyaleSetup() {
   
   // Charger les données au montage (CACHE DÉSACTIVÉ pour stabilité)
   useEffect(() => {
-    console.log('[BattleRoyale] 🔵 useEffect montage - loadedRef:', loadedRef.current, 'globalLoadLock:', globalLoadLock);
+    console.log('[CrazyArena] 🔵 useEffect montage - loadedRef:', loadedRef.current, 'globalLoadLock:', globalLoadLock);
     
     // ⚠️ CACHE TEMPORAIREMENT DÉSACTIVÉ pour résoudre erreur de parsing JSON
     // Vider tout cache existant au montage
@@ -61,14 +61,14 @@ export default function BattleRoyaleSetup() {
       sessionStorage.removeItem(CACHE_KEY_TOURNAMENT);
       sessionStorage.removeItem(CACHE_KEY_STUDENTS);
       sessionStorage.removeItem(CACHE_KEY_GROUPS);
-      console.log('[BattleRoyale] 🗑️ Cache vidé (désactivé temporairement)');
+      console.log('[CrazyArena] 🗑️ Cache vidé (désactivé temporairement)');
     } catch (e) {
-      console.log('[BattleRoyale] ⚠️ Erreur vidage cache:', e);
+      console.log('[CrazyArena] ⚠️ Erreur vidage cache:', e);
     }
     
     // Protection double : useRef local + variable globale
     if (loadedRef.current || globalLoadLock) {
-      console.log('[BattleRoyale] 🚫 Chargement bloqué par lock');
+      console.log('[CrazyArena] 🚫 Chargement bloqué par lock');
       return;
     }
     
@@ -79,7 +79,7 @@ export default function BattleRoyaleSetup() {
     if (globalLoadTimeout) clearTimeout(globalLoadTimeout);
     globalLoadTimeout = setTimeout(() => {
       globalLoadLock = false;
-      console.log('[BattleRoyale] 🔓 globalLoadLock libéré');
+      console.log('[CrazyArena] 🔓 globalLoadLock libéré');
     }, 5000);
     
     loadTournamentData();
@@ -87,47 +87,47 @@ export default function BattleRoyaleSetup() {
   
   const loadTournamentData = async () => {
     try {
-      console.log('[BattleRoyale] 🔄 Chargement des données...');
+      console.log('[CrazyArena] 🔄 Chargement des données...');
       setLoading(true);
       
       const backendUrl = getBackendUrl();
-      console.log('[BattleRoyale] 🌐 Backend URL:', backendUrl);
+      console.log('[CrazyArena] 🌐 Backend URL:', backendUrl);
       
       // 1. Récupérer le tournoi actif
       const tournamentRes = await fetch(`${backendUrl}/api/tournament/tournaments/tour_2025_gp`);
       const tournamentData = await tournamentRes.json();
-      console.log('[BattleRoyale] 🏆 Tournament data:', tournamentData);
+      console.log('[CrazyArena] 🏆 Tournament data:', tournamentData);
       setTournament(tournamentData.tournament);
       
       // 2. Récupérer la liste des élèves de la classe
       const classConfig = JSON.parse(localStorage.getItem('cc_session_cfg') || '{}');
       const classId = classConfig.classId || 'ce1_a_lamentin';
-      console.log('[BattleRoyale] 📚 Class ID:', classId);
+      console.log('[CrazyArena] 📚 Class ID:', classId);
       
       const studentsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/students`);
       const studentsData = await studentsRes.json();
-      console.log('[BattleRoyale] 👥 Students data:', studentsData);
-      console.log('[BattleRoyale] 👥 Students count:', studentsData.students?.length || 0);
+      console.log('[CrazyArena] 👥 Students data:', studentsData);
+      console.log('[CrazyArena] 👥 Students count:', studentsData.students?.length || 0);
       setStudents(studentsData.students || []);
       
       // 3. Récupérer les groupes déjà créés
       const groupsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/groups`);
       const groupsData = await groupsRes.json();
-      console.log('[BattleRoyale] 👥 Groups data:', groupsData);
-      console.log('[BattleRoyale] 👥 Groups count:', groupsData.groups?.length || 0);
+      console.log('[CrazyArena] 👥 Groups data:', groupsData);
+      console.log('[CrazyArena] 👥 Groups count:', groupsData.groups?.length || 0);
       setGroups(groupsData.groups || []);
       
-      console.log('[BattleRoyale] ✅ Chargement terminé!');
-      console.log('[BattleRoyale] 📊 État final - Students:', studentsData.students?.length, 'Groups:', groupsData.groups?.length);
+      console.log('[CrazyArena] ✅ Chargement terminé!');
+      console.log('[CrazyArena] 📊 État final - Students:', studentsData.students?.length, 'Groups:', groupsData.groups?.length);
       
       // ⚠️ CACHE DÉSACTIVÉ TEMPORAIREMENT - Ne pas sauvegarder pour éviter erreurs parsing
-      console.log('[BattleRoyale] ℹ️ Cache désactivé - données non sauvegardées');
+      console.log('[CrazyArena] ℹ️ Cache désactivé - données non sauvegardées');
     } catch (error) {
-      console.error('[BattleRoyale] ❌ Error loading data:', error);
+      console.error('[CrazyArena] ❌ Error loading data:', error);
     } finally {
       // IMPORTANT : setLoading(false) IMMÉDIAT sans setTimeout !
       setLoading(false);
-      console.log('[BattleRoyale] 🏁 Loading = false');
+      console.log('[CrazyArena] 🏁 Loading = false');
     }
   };
   
@@ -183,7 +183,7 @@ export default function BattleRoyaleSetup() {
         alert('Erreur lors de la création du groupe: ' + data.error);
       }
     } catch (error) {
-      console.error('[BattleRoyale] Error creating group:', error);
+      console.error('[CrazyArena] Error creating group:', error);
       alert('Erreur réseau lors de la création du groupe.');
     }
   };
@@ -202,7 +202,7 @@ export default function BattleRoyaleSetup() {
       };
       const phaseId = phaseNames[tournament.current_phase] || 'phase_1_classe';
       
-      console.log('[BattleRoyale] 🚀 Lancement match - Phase:', tournament.current_phase, '→ ID:', phaseId);
+      console.log('[CrazyArena] 🚀 Lancement match - Phase:', tournament.current_phase, '→ ID:', phaseId);
       
       // Créer le match
       const res = await fetch(`${backendUrl}/api/tournament/matches`, {
@@ -227,21 +227,21 @@ export default function BattleRoyaleSetup() {
         // Afficher le code de salle
         alert(`Match créé ! Code de salle: ${data.roomCode}\n\nLes 4 élèves doivent rejoindre avec ce code.`);
         
-        // Stocker l'info du match pour le mode Battle Royale
-        localStorage.setItem('cc_battle_royale_match', JSON.stringify({
+        // Stocker l'info du match pour le mode Crazy Arena
+        localStorage.setItem('cc_crazy_arena_match', JSON.stringify({
           matchId: data.matchId,
           roomCode: data.roomCode,
           groupId: group.id,
           studentIds: parseStudentIds(group.student_ids)
         }));
         
-        // Rediriger vers la salle d'attente Battle Royale
-        navigate(`/battle-royale/lobby/${data.roomCode}`);
+        // Rediriger vers la salle d'attente Crazy Arena
+        navigate(`/crazy-arena/lobby/${data.roomCode}`);
       } else {
         alert('Erreur lors de la création du match: ' + data.error);
       }
     } catch (error) {
-      console.error('[BattleRoyale] Error launching match:', error);
+      console.error('[CrazyArena] Error launching match:', error);
       alert('Erreur réseau lors du lancement du match.');
     }
   };
@@ -262,7 +262,7 @@ export default function BattleRoyaleSetup() {
         loadTournamentData();
       }
     } catch (error) {
-      console.error('[BattleRoyale] Error deleting group:', error);
+      console.error('[CrazyArena] Error deleting group:', error);
     }
   };
   
@@ -281,10 +281,10 @@ export default function BattleRoyaleSetup() {
   }, [students, studentsInGroups]);
   
   // Log pour tracer les renders
-  console.log('[BattleRoyale] 🔄 RENDER - loading:', loading, 'students:', students.length, 'groups:', groups.length);
+  console.log('[CrazyArena] 🔄 RENDER - loading:', loading, 'students:', students.length, 'groups:', groups.length);
   
   if (loading) {
-    console.log('[BattleRoyale] 🕒 Affichage "Chargement..."');
+    console.log('[CrazyArena] 🕒 Affichage "Chargement..."');
     return (
       <div style={{ maxWidth: 980, margin: '24px auto', padding: '0 16px', textAlign: 'center' }}>
         <p>Chargement...</p>
@@ -292,11 +292,11 @@ export default function BattleRoyaleSetup() {
     );
   }
   
-  console.log('[BattleRoyale] ✅ Affichage de l\'UI complète');
+  console.log('[CrazyArena] ✅ Affichage de l\'UI complète');
   
   return (
     <div style={{ maxWidth: 980, margin: '24px auto', padding: '0 16px' }}>
-      <h2>🏆 Configuration Battle Royale - Groupes de 4</h2>
+      <h2>🏆 Configuration Crazy Arena - Groupes de 4</h2>
       
       {tournament && (
         <div style={{ padding: '12px 16px', background: '#eff6ff', borderRadius: 8, marginBottom: 16, border: '1px solid #3b82f6' }}>

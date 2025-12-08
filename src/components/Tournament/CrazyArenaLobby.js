@@ -1,5 +1,5 @@
 // ==========================================
-// COMPOSANT: LOBBY BATTLE ROYALE
+// COMPOSANT: LOBBY CRAZY ARENA
 // Salle d'attente pour 4 joueurs avec countdown
 // ==========================================
 
@@ -11,7 +11,7 @@ const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
 };
 
-export default function BattleRoyaleLobby() {
+export default function CrazyArenaLobby() {
   const { roomCode } = useParams();
   const navigate = useNavigate();
   const socketRef = useRef(null);
@@ -25,7 +25,7 @@ export default function BattleRoyaleLobby() {
   
   useEffect(() => {
     // Récupérer les infos du match depuis localStorage
-    const matchInfo = JSON.parse(localStorage.getItem('cc_battle_royale_match') || '{}');
+    const matchInfo = JSON.parse(localStorage.getItem('cc_crazy_arena_match') || '{}');
     const studentId = localStorage.getItem('cc_student_id') || 's001'; // TODO: Vraie auth
     const studentName = localStorage.getItem('cc_student_name') || 'Joueur';
     
@@ -39,10 +39,10 @@ export default function BattleRoyaleLobby() {
     socketRef.current = socket;
     
     socket.on('connect', () => {
-      console.log('[BattleRoyale] Connecté au serveur');
+      console.log('[CrazyArena] Connecté au serveur');
       
       // Rejoindre le match
-      socket.emit('battle:join', {
+      socket.emit('arena:join', {
         matchId: matchInfo.matchId,
         studentData: {
           studentId,
@@ -56,24 +56,24 @@ export default function BattleRoyaleLobby() {
       });
     });
     
-    socket.on('battle:error', ({ message }) => {
+    socket.on('arena:error', ({ message }) => {
       setError(message);
     });
     
-    socket.on('battle:player-joined', ({ players: updatedPlayers, count }) => {
+    socket.on('arena:player-joined', ({ players: updatedPlayers, count }) => {
       setPlayers(updatedPlayers);
-      console.log(`[BattleRoyale] ${count}/4 joueurs connectés`);
+      console.log(`[CrazyArena] ${count}/4 joueurs connectés`);
     });
     
-    socket.on('battle:player-ready', ({ players: updatedPlayers }) => {
+    socket.on('arena:player-ready', ({ players: updatedPlayers }) => {
       setPlayers(updatedPlayers);
     });
     
-    socket.on('battle:player-left', ({ name, remainingPlayers }) => {
-      console.log(`[BattleRoyale] ${name} est parti (${remainingPlayers}/4)`);
+    socket.on('arena:player-left', ({ name, remainingPlayers }) => {
+      console.log(`[CrazyArena] ${name} est parti (${remainingPlayers}/4)`);
     });
     
-    socket.on('battle:countdown', ({ count }) => {
+    socket.on('arena:countdown', ({ count }) => {
       setCountdown(count);
       if (count === 0) {
         // Sons et effets
@@ -81,11 +81,11 @@ export default function BattleRoyaleLobby() {
       }
     });
     
-    socket.on('battle:game-start', ({ zones, duration, startTime, players: gamePlayers }) => {
-      console.log('[BattleRoyale] Partie démarrée !');
+    socket.on('arena:game-start', ({ zones, duration, startTime, players: gamePlayers }) => {
+      console.log('[CrazyArena] Partie démarrée !');
       
       // Stocker les infos de la partie
-      localStorage.setItem('cc_battle_royale_game', JSON.stringify({
+      localStorage.setItem('cc_crazy_arena_game', JSON.stringify({
         matchId: matchInfo.matchId,
         zones,
         duration,
@@ -95,7 +95,7 @@ export default function BattleRoyaleLobby() {
       }));
       
       // Rediriger vers l'interface de jeu
-      navigate('/battle-royale/game');
+      navigate('/crazy-arena/game');
     });
     
     return () => {
@@ -106,7 +106,7 @@ export default function BattleRoyaleLobby() {
   const handleReady = () => {
     if (!socketRef.current || isReady) return;
     
-    socketRef.current.emit('battle:ready', { studentId: myStudentId });
+    socketRef.current.emit('arena:ready', { studentId: myStudentId });
     setIsReady(true);
   };
   
@@ -236,7 +236,7 @@ export default function BattleRoyaleLobby() {
       {/* En-tête */}
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <h1 style={{ margin: 0, fontSize: 36, marginBottom: 8 }}>
-          🏆 Battle Royale
+          🏆 Crazy Arena
         </h1>
         <div style={{ fontSize: 18, color: '#6b7280', marginBottom: 16 }}>
           Code de salle : <span style={{ 

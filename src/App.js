@@ -12,9 +12,9 @@ import Pricing from './components/Billing/Pricing';
 import Account from './components/Account';
 import ModeSelect from './components/Modes/ModeSelect';
 import SessionConfig from './components/Modes/SessionConfig';
-import BattleRoyaleSetup from './components/Tournament/BattleRoyaleSetup';
-import BattleRoyaleLobby from './components/Tournament/BattleRoyaleLobby';
-import BattleRoyaleGame from './components/Tournament/BattleRoyaleGame';
+import CrazyArenaSetup from './components/Tournament/CrazyArenaSetup';
+import CrazyArenaLobby from './components/Tournament/CrazyArenaLobby';
+import CrazyArenaGame from './components/Tournament/CrazyArenaGame';
 import AdminRoles from './components/Admin/AdminRoles';
 import AdminInvite from './components/Admin/AdminInvite';
 import { fetchAndSyncStatus, getBackendUrl } from './utils/subscription';
@@ -319,10 +319,10 @@ function App() {
               <Route path="/account" element={<RequireAuth auth={auth}><Account /></RequireAuth>} />
               <Route path="/pricing" element={<RequireAuth auth={auth}><Pricing /></RequireAuth>} />
               <Route path="/debug/progress" element={<RequireAuth auth={auth}><ProgressDebug /></RequireAuth>} />
-              {/* Battle Royale (Tournoi) */}
-              <Route path="/tournament/setup" element={<RequireAuth auth={auth}><BattleRoyaleSetup /></RequireAuth>} />
-              <Route path="/battle-royale/lobby/:roomCode" element={<RequireAuth auth={auth}><BattleRoyaleLobby /></RequireAuth>} />
-              <Route path="/battle-royale/game" element={<RequireAuth auth={auth}><BattleRoyaleGame /></RequireAuth>} />
+              {/* Crazy Arena (Tournoi 4 joueurs) */}
+              <Route path="/tournament/setup" element={<RequireAuth auth={auth}><CrazyArenaSetup /></RequireAuth>} />
+              <Route path="/crazy-arena/lobby/:roomCode" element={<RequireAuth auth={auth}><CrazyArenaLobby /></RequireAuth>} />
+              <Route path="/crazy-arena/game" element={<RequireAuth auth={auth}><CrazyArenaGame /></RequireAuth>} />
               {/* Carte (éditeur/jeu) accessible en direct si nécessaire, sinon on y accède après config */}
               <Route path="/carte" element={<div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div>} />
               <Route path="*" element={<Navigate to="/" replace />} />
