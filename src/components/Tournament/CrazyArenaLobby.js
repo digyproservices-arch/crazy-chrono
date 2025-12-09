@@ -19,88 +19,140 @@ export default function CrazyArenaLobby() {
   // État
   const [players, setPlayers] = useState([]);
   const [myStudentId, setMyStudentId] = useState(null);
+  const [studentName, setStudentName] = useState('Joueur');
   const [countdown, setCountdown] = useState(null);
   const [error, setError] = useState(null);
   const [isReady, setIsReady] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   useEffect(() => {
+    // Fonction pour récupérer les données utilisateur depuis l'API
+    const fetchUserData = async () => {
+      try {
+        const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+        
+        if (!auth.token) {
+          // Fallback localStorage pour compatibilité
+          console.warn('[CrazyArena] Pas de token auth, utilisation localStorage');
+          const fallbackId = localStorage.getItem('cc_student_id') || 's001';
+          const fallbackName = localStorage.getItem('cc_student_name') || 'Joueur';
+          setMyStudentId(fallbackId);
+          setStudentName(fallbackName);
+          setLoading(false);
+          return { studentId: fallbackId, studentName: fallbackName };
+        }
+
+        // Appel API pour récupérer student_id
+        const response = await fetch(`${getBackendUrl()}/api/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${auth.token}`
+          }
+        });
+
+        const data = await response.json();
+        
+        if (data.ok && data.student) {
+          console.log('[CrazyArena] ✅ Student ID récupéré depuis API:', data.student.id);
+          setMyStudentId(data.student.id);
+          setStudentName(data.student.fullName || data.student.firstName || 'Joueur');
+          setLoading(false);
+          return { studentId: data.student.id, studentName: data.student.fullName || data.student.firstName };
+        } else {
+          console.error('[CrazyArena] ❌ Aucun élève lié à ce compte');
+          setError('Votre compte n\'est pas lié à un élève. Contactez l\'administrateur.');
+          setLoading(false);
+          return null;
+        }
+      } catch (err) {
+        console.error('[CrazyArena] Erreur récupération données:', err);
+        // Fallback localStorage en cas d'erreur
+        const fallbackId = localStorage.getItem('cc_student_id') || 's001';
+        const fallbackName = localStorage.getItem('cc_student_name') || 'Joueur';
+        setMyStudentId(fallbackId);
+        setStudentName(fallbackName);
+        setLoading(false);
+        return { studentId: fallbackId, studentName: fallbackName };
+      }
+    };
+
     // Récupérer les infos du match depuis localStorage
     const matchInfo = JSON.parse(localStorage.getItem('cc_crazy_arena_match') || '{}');
-    const studentId = localStorage.getItem('cc_student_id') || 's001'; // TODO: Vraie auth
-    const studentName = localStorage.getItem('cc_student_name') || 'Joueur';
     
-    setMyStudentId(studentId);
-    
-    // Connexion Socket.IO
-    const socket = io(getBackendUrl(), {
-      transports: ['websocket'],
-      reconnection: true
-    });
-    socketRef.current = socket;
-    
-    socket.on('connect', () => {
-      console.log('[CrazyArena] Connecté au serveur');
+    // Récupérer student_id puis connecter socket
+    fetchUserData().then((userData) => {
+      if (!userData) return; // Erreur, pas de student lié
       
-      // Rejoindre le match
-      socket.emit('arena:join', {
-        matchId: matchInfo.matchId,
-        studentData: {
-          studentId,
-          name: studentName,
-          avatar: '/avatars/default.png'
-        }
-      }, (response) => {
-        if (!response.ok) {
-          setError('Impossible de rejoindre le match');
+      const { studentId, studentName } = userData;
+    
+      // Connexion Socket.IO
+      const socket = io(getBackendUrl(), {
+        transports: ['websocket'],
+        reconnection: true
+      });
+      socketRef.current = socket;
+      
+      socket.on('connect', () => {
+        console.log('[CrazyArena] Connecté au serveur');
+        
+        // Rejoindre le match
+        socket.emit('arena:join', {
+          matchId: matchInfo.matchId,
+          studentData: {
+            studentId,
+            name: studentName,
+            avatar: '/avatars/default.png'
+          }
+        }, (response) => {
+          if (!response.ok) {
+            setError('Impossible de rejoindre le match');
+          }
+        });
+      });
+    
+      socket.on('arena:error', ({ message }) => {
+        setError(message);
+      });
+      
+      socket.on('arena:player-joined', ({ players: updatedPlayers, count }) => {
+        setPlayers(updatedPlayers);
+        console.log(`[CrazyArena] ${count}/4 joueurs connectés`);
+      });
+      
+      socket.on('arena:player-ready', ({ players: updatedPlayers }) => {
+        setPlayers(updatedPlayers);
+      });
+      
+      socket.on('arena:player-left', ({ name, remainingPlayers }) => {
+        console.log(`[CrazyArena] ${name} est parti (${remainingPlayers}/4)`);
+      });
+      
+      socket.on('arena:countdown', ({ count }) => {
+        setCountdown(count);
+        if (count === 0) {
+          // Sons et effets
+          playCountdownSound();
         }
       });
-    });
-    
-    socket.on('arena:error', ({ message }) => {
-      setError(message);
-    });
-    
-    socket.on('arena:player-joined', ({ players: updatedPlayers, count }) => {
-      setPlayers(updatedPlayers);
-      console.log(`[CrazyArena] ${count}/4 joueurs connectés`);
-    });
-    
-    socket.on('arena:player-ready', ({ players: updatedPlayers }) => {
-      setPlayers(updatedPlayers);
-    });
-    
-    socket.on('arena:player-left', ({ name, remainingPlayers }) => {
-      console.log(`[CrazyArena] ${name} est parti (${remainingPlayers}/4)`);
-    });
-    
-    socket.on('arena:countdown', ({ count }) => {
-      setCountdown(count);
-      if (count === 0) {
-        // Sons et effets
-        playCountdownSound();
-      }
-    });
-    
-    socket.on('arena:game-start', ({ zones, duration, startTime, players: gamePlayers }) => {
-      console.log('[CrazyArena] Partie démarrée !');
       
-      // Stocker les infos de la partie
-      localStorage.setItem('cc_crazy_arena_game', JSON.stringify({
-        matchId: matchInfo.matchId,
-        zones,
-        duration,
-        startTime,
-        players: gamePlayers,
-        myStudentId: studentId
-      }));
+      socket.on('arena:game-start', ({ zones, duration, startTime, players: gamePlayers }) => {
+        console.log('[CrazyArena] Partie démarrée !');
+        
+        // Stocker les infos de la partie
+        localStorage.setItem('cc_crazy_arena_game', JSON.stringify({
+          matchId: matchInfo.matchId,
+          zones,
+          duration,
+          startTime,
+          players: gamePlayers,
+          myStudentId: studentId
+        }));
+        
+        // Rediriger vers l'interface de jeu
+        navigate('/crazy-arena/game');
+      });
       
-      // Rediriger vers l'interface de jeu
-      navigate('/crazy-arena/game');
+      return () => socket.disconnect();
     });
-    
-    return () => {
-      socket.disconnect();
-    };
   }, [roomCode, navigate]);
   
   const handleReady = () => {
@@ -193,6 +245,18 @@ export default function CrazyArenaLobby() {
             </div>
           </>
         )}
+      </div>
+    );
+  }
+  
+  // État de chargement pendant récupération student_id
+  if (loading) {
+    return (
+      <div style={{ maxWidth: 600, margin: '80px auto', padding: '0 16px', textAlign: 'center' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
+        <div style={{ fontSize: 18, fontWeight: 600, color: '#6b7280' }}>
+          Chargement de vos informations...
+        </div>
       </div>
     );
   }
