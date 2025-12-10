@@ -45,7 +45,13 @@ export default function Login({ onLogin }) {
           const { data } = await supabase.auth.getSession();
           if (data?.session?.user) {
             const user = data.session.user;
-            const profile = { id: user.id, email: user.email, name: user.user_metadata?.name || user.email?.split('@')[0], role: 'user' };
+            const profile = { 
+              id: user.id, 
+              email: user.email, 
+              name: user.user_metadata?.name || user.email?.split('@')[0], 
+              role: 'user',
+              token: data.session.access_token // Ajouter le token pour les API calls
+            };
             try { localStorage.setItem('cc_auth', JSON.stringify(profile)); } catch {}
             onLogin && onLogin(profile);
             navigate('/modes', { replace: true });
@@ -141,7 +147,8 @@ export default function Login({ onLogin }) {
           id: user.id,
           email: user.email,
           name: userProfile?.first_name || user.user_metadata?.name || user.email?.split('@')[0],
-          role: userProfile?.role || 'user'
+          role: userProfile?.role || 'user',
+          token: data?.session?.access_token // Ajouter le token pour les API calls
         };
         saveAuth(profile);
         onLogin && onLogin(profile);
@@ -217,7 +224,13 @@ export default function Login({ onLogin }) {
       if (session && session.user) {
         // Cas où la confirmation email est désactivée côté projet
         const u = session.user;
-        const profile = { id: u.id, email: u.email, name: u.user_metadata?.name || u.email?.split('@')[0], role: inviteRole || 'user' };
+        const profile = { 
+          id: u.id, 
+          email: u.email, 
+          name: u.user_metadata?.name || u.email?.split('@')[0], 
+          role: inviteRole || 'user',
+          token: session.access_token // Ajouter le token pour les API calls
+        };
         saveAuth(profile);
         onLogin && onLogin(profile);
         navigate('/modes', { replace: true });
