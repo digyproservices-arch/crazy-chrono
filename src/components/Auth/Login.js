@@ -300,6 +300,13 @@ export default function Login({ onLogin }) {
             {password ? <PasswordStrength pwd={password} /> : null}
           </>
         )}
+        {!signupMode && (
+          <div style={{ marginTop: 8, textAlign: 'right' }}>
+            <a href="/forgot-password" style={{ fontSize: 14, color: '#2563eb', textDecoration: 'none', fontWeight: 500 }}>
+              Mot de passe oublié ?
+            </a>
+          </div>
+        )}
         <div style={{ marginTop: 10 }}>
           <label><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Se souvenir de moi</label>
         </div>

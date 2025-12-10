@@ -7,6 +7,8 @@ import AdminDashboard from './components/AdminDashboard';
 import NavBar from './components/NavBar';
 import { DataProvider } from './context/DataContext';
 import Login from './components/Auth/Login';
+import ForgotPassword from './components/Auth/ForgotPassword';
+import ResetPassword from './components/Auth/ResetPassword';
 import ProgressDebug from './components/Debug/ProgressDebug';
 import Pricing from './components/Billing/Pricing';
 import Account from './components/Account';
@@ -310,6 +312,8 @@ function App() {
             <Routes>
               <Route path="/" element={<Navigate to={auth ? "/modes" : "/login"} replace />} />
               <Route path="/login" element={<Login onLogin={(a) => { setAuth(a); try { localStorage.setItem('cc_auth', JSON.stringify(a)); } catch {}; }} />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/modes" element={<RequireAuth auth={auth}><ModeSelect /></RequireAuth>} />
               <Route path="/config/:mode" element={<RequireAuth auth={auth}><SessionConfig /></RequireAuth>} />
               <Route path="/admin" element={<AdminPanel />} />
