@@ -266,7 +266,18 @@ function App() {
                 const role = json.role || 'user';
                 const isPro = (json.subscription === 'active' || json.subscription === 'trialing' || role === 'admin');
                 try { localStorage.setItem('cc_subscription_status', isPro ? 'pro' : 'free'); } catch {}
-                try { localStorage.setItem('cc_auth', JSON.stringify({ id: json.user.id, email: json.user.email, role, isAdmin: role === 'admin', isEditor: role !== 'user' })); } catch {}
+                // IMPORTANT: Préserver le token existant !
+                try { 
+                  const existingAuth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+                  localStorage.setItem('cc_auth', JSON.stringify({ 
+                    ...existingAuth, // Préserver toutes les propriétés existantes (dont le token)
+                    id: json.user.id, 
+                    email: json.user.email, 
+                    role, 
+                    isAdmin: role === 'admin', 
+                    isEditor: role !== 'user' 
+                  })); 
+                } catch {}
                 try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
                 syncedFromMe = true;
               }
