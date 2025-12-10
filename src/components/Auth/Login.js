@@ -1,3 +1,4 @@
+// Build timestamp: 2025-12-10T12:48:00 - Force Vercel rebuild with token fix
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import supabase from '../../utils/supabaseClient';
