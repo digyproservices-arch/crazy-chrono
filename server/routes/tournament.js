@@ -293,6 +293,31 @@ router.post('/matches', requireSupabase, async (req, res) => {
 });
 
 /**
+ * GET /api/tournament/match-by-code/:roomCode
+ * Récupérer le matchId depuis un room code (pour les élèves qui rejoignent)
+ */
+router.get('/match-by-code/:roomCode', requireSupabase, async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+    
+    const { data, error } = await supabase
+      .from('tournament_matches')
+      .select('id, status')
+      .eq('room_code', roomCode)
+      .single();
+    
+    if (error || !data) {
+      return res.status(404).json({ success: false, error: 'Match not found' });
+    }
+    
+    res.json({ success: true, matchId: data.id, status: data.status });
+  } catch (error) {
+    console.error('[Tournament API] Error fetching match by code:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * GET /api/tournament/matches/:id
  * Détails d'un match
  */

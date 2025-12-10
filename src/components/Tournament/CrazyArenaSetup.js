@@ -225,9 +225,9 @@ export default function CrazyArenaSetup() {
       
       if (data.success) {
         // Afficher le code de salle
-        alert(`Match créé ! Code de salle: ${data.roomCode}\n\nLes 4 élèves doivent rejoindre avec ce code.`);
+        alert(`✅ Match créé avec succès!\n\nCode de salle: ${data.roomCode}\n\n📋 Donnez ce code aux 4 élèves pour qu'ils rejoignent le match.\n\nURL pour les élèves:\nhttps://app.crazy-chrono.com/crazy-arena/lobby/${data.roomCode}`);
         
-        // Stocker l'info du match pour le mode Crazy Arena
+        // Stocker l'info du match pour le mode Crazy Arena (au cas où)
         localStorage.setItem('cc_crazy_arena_match', JSON.stringify({
           matchId: data.matchId,
           roomCode: data.roomCode,
@@ -235,8 +235,9 @@ export default function CrazyArenaSetup() {
           studentIds: parseStudentIds(group.student_ids)
         }));
         
-        // Rediriger vers la salle d'attente Crazy Arena
-        navigate(`/crazy-arena/lobby/${data.roomCode}`);
+        // NE PAS rediriger le professeur - il reste ici pour créer d'autres matchs
+        // Les élèves vont sur /crazy-arena/lobby/${roomCode}
+        loadTournamentData(); // Refresh pour voir le match créé
       } else {
         alert('Erreur lors de la création du match: ' + data.error);
       }

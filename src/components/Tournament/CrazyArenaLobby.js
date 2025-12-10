@@ -75,14 +75,33 @@ export default function CrazyArenaLobby() {
       }
     };
 
-    // Récupérer les infos du match depuis localStorage
-    const matchInfo = JSON.parse(localStorage.getItem('cc_crazy_arena_match') || '{}');
+    // Fonction pour récupérer le matchId depuis le roomCode
+    const getMatchIdFromRoomCode = async (roomCode) => {
+      try {
+        const response = await fetch(`${getBackendUrl()}/api/tournament/match-by-code/${roomCode}`);
+        const data = await response.json();
+        if (data.success && data.matchId) {
+          return data.matchId;
+        }
+        throw new Error('Match non trouvé');
+      } catch (err) {
+        console.error('[CrazyArena] Erreur récupération matchId:', err);
+        return null;
+      }
+    };
     
     // Récupérer student_id puis connecter socket
-    fetchUserData().then((userData) => {
+    fetchUserData().then(async (userData) => {
       if (!userData) return; // Erreur, pas de student lié
       
       const { studentId, studentName } = userData;
+      
+      // Récupérer le matchId depuis le roomCode
+      const matchId = await getMatchIdFromRoomCode(roomCode);
+      if (!matchId) {
+        setError('Code de salle invalide ou match introuvable');
+        return;
+      }
     
       // Connexion Socket.IO
       const socket = io(getBackendUrl(), {
@@ -96,7 +115,7 @@ export default function CrazyArenaLobby() {
         
         // Rejoindre le match
         socket.emit('arena:join', {
-          matchId: matchInfo.matchId,
+          matchId: matchId,
           studentData: {
             studentId,
             name: studentName,
