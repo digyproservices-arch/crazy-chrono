@@ -136,6 +136,17 @@ export default function Login({ onLogin }) {
       setLoading(true);
       const { data, error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (err) throw err;
+      
+      // DEBUG: Vérifier la structure de data
+      console.log('[Login DEBUG] data structure:', {
+        hasData: !!data,
+        hasUser: !!data?.user,
+        hasSession: !!data?.session,
+        hasSessionUser: !!data?.session?.user,
+        hasAccessToken: !!data?.session?.access_token,
+        accessTokenValue: data?.session?.access_token ? data.session.access_token.substring(0, 20) + '...' : 'UNDEFINED'
+      });
+      
       const user = data?.user || data?.session?.user;
       if (user) {
         // Charger le profil depuis user_profiles
@@ -152,6 +163,14 @@ export default function Login({ onLogin }) {
           role: userProfile?.role || 'user',
           token: data?.session?.access_token // Ajouter le token pour les API calls
         };
+        
+        // DEBUG: Vérifier le profil avant sauvegarde
+        console.log('[Login DEBUG] profile created:', {
+          hasToken: !!profile.token,
+          tokenPreview: profile.token ? profile.token.substring(0, 20) + '...' : 'UNDEFINED',
+          email: profile.email
+        });
+        
         saveAuth(profile);
         onLogin && onLogin(profile);
         navigate('/modes', { replace: true });
