@@ -1,0 +1,3 @@
+Force Vercel CDN cache invalidation
+Timestamp: 2025-12-10 12:40
+Build must include token fix from commit b1228c3
