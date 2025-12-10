@@ -70,7 +70,8 @@ export default function Login({ onLogin }) {
   }, [navigate, onLogin, searchParams]);
 
   const saveAuth = (auth) => {
-    try { if (remember) localStorage.setItem('cc_auth', JSON.stringify(auth)); } catch {}
+    // TOUJOURS sauvegarder le token pour les API calls, même si remember=false
+    try { localStorage.setItem('cc_auth', JSON.stringify(auth)); } catch {}
     try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
   };
 
