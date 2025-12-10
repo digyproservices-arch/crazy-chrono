@@ -158,7 +158,7 @@ export default function CrazyArenaLobby() {
         
         // Stocker les infos de la partie
         localStorage.setItem('cc_crazy_arena_game', JSON.stringify({
-          matchId: matchInfo.matchId,
+          matchId: matchId,  // Utiliser matchId directement
           zones,
           duration,
           startTime,
