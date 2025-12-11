@@ -90,16 +90,23 @@ export default function CrazyArenaGame() {
     // Récupérer les infos de la partie
     const gameInfo = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
     
+    console.log('[CrazyArena] GameInfo complet:', gameInfo);
+    console.log('[CrazyArena] Type de zones:', typeof gameInfo.zones, 'isArray:', Array.isArray(gameInfo.zones));
+    
     if (!gameInfo.matchId || !gameInfo.zones) {
+      console.error('[CrazyArena] Données manquantes, redirection');
       navigate('/tournament/setup');
       return;
     }
     
-    console.log('[CrazyArena] Zones reçues:', gameInfo.zones);
-    console.log('[CrazyArena] Zones avec content:', gameInfo.zones.filter(z => z.content));
-    console.log('[CrazyArena] Zones SANS content:', gameInfo.zones.filter(z => !z.content));
+    // Convertir zones en tableau si nécessaire
+    const zonesArray = Array.isArray(gameInfo.zones) ? gameInfo.zones : (gameInfo.zones?.zones || []);
     
-    setZones(gameInfo.zones);
+    console.log('[CrazyArena] Zones finales (array):', zonesArray);
+    console.log('[CrazyArena] Zones avec content:', zonesArray.filter(z => z.content));
+    console.log('[CrazyArena] Zones SANS content:', zonesArray.filter(z => !z.content));
+    
+    setZones(zonesArray);
     setPlayers(gameInfo.players);
     setMyStudentId(gameInfo.myStudentId);
     setGameStartTime(gameInfo.startTime);
