@@ -4,11 +4,53 @@
 // Réutilise la logique de Carte.js mais en mode compétitif
 // ==========================================
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { getBackendUrl } from '../../utils/subscription';
-import CarteRenderer from '../CarteRenderer';
+import { pointsToBezierPath } from '../CarteUtils';
+
+// Calcule un arc entre deux points, mais avec une marge en pixels sur chaque extrémité
+function interpolateArc(points, idxStart, idxEnd, marginPx) {
+  const start = points[idxStart];
+  const end = points[idxEnd];
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+  const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const r = (Math.hypot(start.x - centerX, start.y - centerY) + Math.hypot(end.x - centerX, end.y - centerY)) / 2;
+  const angleStart = Math.atan2(start.y - centerY, start.x - centerX);
+  const angleEnd = Math.atan2(end.y - centerY, end.x - centerX);
+  let delta = angleEnd - angleStart;
+  if (delta < 0) delta += 2 * Math.PI;
+  const arcLen = r * delta;
+  const marginAngle = marginPx / r;
+  const newAngleStart = angleStart + marginAngle;
+  const newAngleEnd = angleEnd - marginAngle;
+  const newStart = {
+    x: centerX + r * Math.cos(newAngleStart),
+    y: centerY + r * Math.sin(newAngleStart)
+  };
+  const newEnd = {
+    x: centerX + r * Math.cos(newAngleEnd),
+    y: centerY + r * Math.sin(newAngleEnd)
+  };
+  return { newStart, newEnd, r, centerX, centerY, largeArcFlag: 0, sweepFlag: 1, arcLen, delta };
+}
+
+function getArcPathFromZonePoints(points, zoneId, arcPointsFromZone, marginPx = 0) {
+  if (!points || points.length < 2) return '';
+  let idxStart, idxEnd;
+  if (Array.isArray(arcPointsFromZone) && arcPointsFromZone.length === 2) {
+    idxStart = arcPointsFromZone[0];
+    idxEnd = arcPointsFromZone[1];
+  } else {
+    idxStart = 0;
+    idxEnd = 1;
+  }
+  const { newStart, newEnd, r, centerX, centerY, largeArcFlag, sweepFlag } = interpolateArc(points, idxStart, idxEnd, marginPx);
+  return `M ${newStart.x},${newStart.y} A ${r},${r} 0 ${largeArcFlag},${sweepFlag} ${newEnd.x},${newEnd.y}`;
+}
 
 export default function CrazyArenaGame() {
   const navigate = useNavigate();
@@ -20,7 +62,24 @@ export default function CrazyArenaGame() {
   const [selectedZones, setSelectedZones] = useState([]);
   const [players, setPlayers] = useState([]);
   const [myStudentId, setMyStudentId] = useState(null);
-  const [calcAngles, setCalcAngles] = useState({});
+  
+  // Référence de taille moyenne des zones chiffre pour homogénéiser leur taille (COPIE EXACTE Carte.js ligne 2533)
+  const chiffreRefBase = useMemo(() => {
+    try {
+      if (!Array.isArray(zones) || zones.length === 0) return null;
+      const bases = zones
+        .filter(z => z?.type === 'chiffre' && Array.isArray(z.points) && z.points.length)
+        .map(z => {
+          const b = getZoneBoundingBox(z.points);
+          return Math.max(12, Math.min(b.width, b.height));
+        });
+      if (!bases.length) return null;
+      const avg = bases.reduce((a, b) => a + b, 0) / bases.length;
+      return avg;
+    } catch {
+      return null;
+    }
+  }, [zones]);
   const [timeLeft, setTimeLeft] = useState(60);
   const [gameStartTime, setGameStartTime] = useState(null);
   const [gameEnded, setGameEnded] = useState(false);
@@ -52,18 +111,6 @@ export default function CrazyArenaGame() {
     setMyStudentId(gameInfo.myStudentId);
     setGameStartTime(gameInfo.startTime);
     setTimeLeft(gameInfo.duration || 60);
-    
-    // Charger les angles depuis localStorage (CRITIQUE pour rotation calculs)
-    try {
-      const savedAngles = localStorage.getItem('cc_calc_angles');
-      if (savedAngles) {
-        const parsed = JSON.parse(savedAngles);
-        setCalcAngles(parsed);
-        console.log('[CrazyArena] Angles chargés depuis localStorage:', parsed);
-      }
-    } catch (e) {
-      console.warn('[CrazyArena] Erreur chargement angles:', e);
-    }
     
     // Connexion Socket.IO
     const socket = io(getBackendUrl(), {
@@ -286,10 +333,176 @@ export default function CrazyArenaGame() {
     console.log('[CrazyArena] Mauvaise paire', ZA, ZB);
   };
   
-  // Handler pour les clics sur les zones
-  const handleZoneClickFromRenderer = (zone) => {
-    if (gameEnded) return;
-    handleZoneClick(zone.id);
+  // Calculer la bounding box d'une zone
+  const getZoneBoundingBox = (points) => {
+    if (!points || points.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
+    const xs = points.map(p => p.x);
+    const ys = points.map(p => p.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  };
+
+  // Rendu SVG des zones (COPIE DU MODE CLASSIQUE)
+  const renderZones = () => {
+    if (!zones || zones.length === 0) return null;
+    
+    return zones.map(zone => {
+      const isSelected = selectedZones.includes(zone.id);
+      const points = zone.points || [];
+      
+      if (points.length === 0) return null;
+      
+      return (
+        <g key={zone.id}>
+          {/* Image si type=image */}
+          {zone.type === 'image' && zone.content && (() => {
+            const raw = zone.content;
+            const normalized = raw.startsWith('http')
+              ? raw
+              : process.env.PUBLIC_URL + '/' + (raw.startsWith('/')
+                ? raw.slice(1)
+                : (raw.startsWith('images/') ? raw : 'images/' + raw));
+            const src = encodeURI(normalized)
+              .replace(/ /g, '%20')
+              .replace(/\(/g, '%28')
+              .replace(/\)/g, '%29');
+            const bbox = getZoneBoundingBox(points);
+            return (
+              <image
+                href={src}
+                xlinkHref={src}
+                x={bbox.x}
+                y={bbox.y}
+                width={bbox.width}
+                height={bbox.height}
+                style={{ pointerEvents: 'none' }}
+                preserveAspectRatio="xMidYMid slice"
+                clipPath={`url(#clip-zone-${zone.id})`}
+                onError={(e) => {
+                  console.warn('[CrazyArena] Erreur chargement image:', src);
+                }}
+              />
+            );
+          })()}
+          
+          {/* Path de la zone */}
+          <path
+            d={pointsToBezierPath(points)}
+            fill={(() => {
+              if (zone.type === 'image') {
+                return isSelected ? 'rgba(255, 214, 0, 0.55)' : 'rgba(255, 214, 0, 0.01)';
+              }
+              if (zone.type === 'texte' || zone.type === 'chiffre' || zone.type === 'calcul') {
+                return isSelected ? 'rgba(40, 167, 69, 0.55)' : 'rgba(40, 167, 69, 0.01)';
+              }
+              return 'transparent';
+            })()}
+            stroke={'none'}
+            style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+            pointerEvents="all"
+            onClick={() => handleZoneClick(zone.id)}
+          />
+          
+          {/* Texte type=texte - AVEC ARC COURBÉ */}
+          {zone.type === 'texte' && zone.content && (() => {
+            let idxStart, idxEnd;
+            if (Array.isArray(zone.arcPoints) && zone.arcPoints.length === 2) {
+              idxStart = zone.arcPoints[0];
+              idxEnd = zone.arcPoints[1];
+            } else {
+              idxStart = 0;
+              idxEnd = 1;
+            }
+            const pointsArr = Array.isArray(zone.points) && zone.points.length >= 2 ? zone.points : [{x:0,y:0},{x:1,y:1}];
+            const { r, delta } = interpolateArc(pointsArr, idxStart, idxEnd, 0);
+            const arcLen = r * delta;
+            const textValue = zone.content || '';
+            const baseFontSize = 32;
+            const safeTextValue = typeof textValue === 'string' ? textValue : String(textValue);
+            const textLen = safeTextValue.length * baseFontSize * 0.6;
+            const marginPx = 24;
+            const fontSize = textLen > arcLen - 2 * marginPx
+              ? Math.max(12, (arcLen - 2 * marginPx) / (safeTextValue.length * 0.6))
+              : baseFontSize;
+            return (
+              <text
+                fontSize={fontSize}
+                fontFamily="Arial"
+                fill="#fff"
+                fontWeight="bold"
+                pointerEvents="none"
+                style={{ userSelect: 'none' }}
+              >
+                <textPath xlinkHref={`#text-curve-${zone.id}`} startOffset="50%" textAnchor="middle" dominantBaseline="middle">
+                  {textValue}
+                </textPath>
+              </text>
+            );
+          })()}
+          
+          {/* Chiffres et Calculs - CENTRÉS (COPIE EXACTE Carte.js ligne 5586) */}
+          {(zone.type === 'calcul' || zone.type === 'chiffre') && zone.content && (() => {
+            const bbox = getZoneBoundingBox(zone.points);
+            const cx = bbox.x + bbox.width / 2;
+            const cy = bbox.y + bbox.height / 2;
+            const base = Math.max(12, Math.min(bbox.width, bbox.height));
+            // Pour les chiffres, garantissons une taille minimale basée sur la moyenne des zones chiffre
+            const chiffreBaseMin = chiffreRefBase ? 0.95 * chiffreRefBase : base;
+            const effectiveBase = (zone.type === 'chiffre') ? Math.max(base, chiffreBaseMin) : base;
+            const fontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * effectiveBase;
+            const angle = zone.angle || 0;
+            const contentStr = String(zone.content ?? '').trim();
+            const isSix = (zone.type === 'chiffre') && contentStr === '6';
+            const offsetX = isSix ? (-0.04 * fontSize) : 0;
+            const isMath = zone.type === 'calcul' || zone.type === 'chiffre';
+            const isChiffre = zone.type === 'chiffre';
+            return (
+              <g transform={`rotate(${angle} ${cx} ${cy})`}>
+                <text
+                  x={cx}
+                  y={cy}
+                  transform={offsetX ? `translate(${offsetX} 0)` : undefined}
+                  textAnchor="middle"
+                  alignmentBaseline="middle"
+                  fontSize={fontSize}
+                  fill={isMath ? '#456451' : '#222'}
+                  fontWeight="bold"
+                  stroke={isMath ? 'none' : '#fff'}
+                  strokeWidth={isMath ? 0 : 4}
+                  paintOrder="stroke"
+                  pointerEvents="none"
+                  style={{ userSelect: 'none' }}
+                >
+                  {zone.content}
+                </text>
+                {isChiffre && (() => {
+                  const underLen = 0.5 * fontSize;
+                  const half = underLen / 2;
+                  const uy = cy + 0.54 * fontSize;
+                  const strokeW = Math.max(1, 0.09 * fontSize);
+                  const digitColor = '#456451';
+                  const cxAdj = cx + (offsetX || 0);
+                  return (
+                    <line
+                      x1={cxAdj - half}
+                      y1={uy}
+                      x2={cxAdj + half}
+                      y2={uy}
+                      stroke={digitColor}
+                      strokeWidth={strokeW}
+                      strokeLinecap="round"
+                    />
+                  );
+                })()}
+              </g>
+            );
+          })()}
+        </g>
+      );
+    });
   };
   
   if (gameEnded) {
@@ -363,15 +576,47 @@ export default function CrazyArenaGame() {
         </div>
       </div>
       
-      {/* Carte SVG avec CarteRenderer */}
+      {/* Carte SVG */}
       <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-        <CarteRenderer
-          zones={zones}
-          onZoneClick={handleZoneClickFromRenderer}
-          calcAngles={calcAngles}
-          gameSelectedIds={selectedZones}
-          gameActive={!gameEnded}
-        />
+        <object
+          type="image/svg+xml"
+          data={`${process.env.PUBLIC_URL}/images/carte-svg.svg`}
+          style={{
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none'
+          }}
+        >
+          Votre navigateur ne supporte pas les SVG
+        </object>
+        <svg
+          ref={svgOverlayRef}
+          viewBox="0 0 1000 1000"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'auto',
+            zIndex: 2
+          }}
+        >
+          {/* Définitions SVG */}
+          <defs>
+            {/* ClipPaths pour zones images */}
+            {zones.filter(z => z.type === 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
+              <clipPath id={`clip-zone-${zone.id}`} key={`clip-${zone.id}`} clipPathUnits="userSpaceOnUse">
+                <path d={pointsToBezierPath(zone.points)} />
+              </clipPath>
+            ))}
+            {/* Paths pour texte courbé (tous types sauf image) */}
+            {zones.filter(z => z.type !== 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
+              <path id={`text-curve-${zone.id}`} key={`textcurve-${zone.id}`} d={getArcPathFromZonePoints(zone.points, zone.id, zone.arcPoints)} fill="none" />
+            ))}
+          </defs>
+          {renderZones()}
+        </svg>
       </div>
       
       <style>{`
