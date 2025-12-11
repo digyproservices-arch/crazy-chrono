@@ -4,13 +4,11 @@
 // Réutilise la logique de Carte.js mais en mode compétitif
 // ==========================================
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import io from 'socket.io-client';
-
-const getBackendUrl = () => {
-  return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
-};
+import { io } from 'socket.io-client';
+import { getBackendUrl } from '../../utils/subscription';
+import { pointsToBezierPath } from '../CarteUtils';
 
 export default function CrazyArenaGame() {
   const navigate = useNavigate();
@@ -264,7 +262,19 @@ export default function CrazyArenaGame() {
     console.log('[CrazyArena] Mauvaise paire', ZA, ZB);
   };
   
-  // Rendu SVG des zones
+  // Calculer la bounding box d'une zone
+  const getZoneBoundingBox = (points) => {
+    if (!points || points.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
+    const xs = points.map(p => p.x);
+    const ys = points.map(p => p.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  };
+
+  // Rendu SVG des zones (COPIE DU MODE CLASSIQUE)
   const renderZones = () => {
     if (!zones || zones.length === 0) return null;
     
@@ -274,40 +284,78 @@ export default function CrazyArenaGame() {
       
       if (points.length === 0) return null;
       
-      // Construire le path SVG
-      let d = `M ${points[0].x} ${points[0].y}`;
-      for (let i = 1; i < points.length; i++) {
-        const p = points[i];
-        if (p.handleOut) {
-          d += ` C ${p.handleOut.x} ${p.handleOut.y}, ${p.handleIn?.x || p.x} ${p.handleIn?.y || p.y}, ${p.x} ${p.y}`;
-        } else {
-          d += ` L ${p.x} ${p.y}`;
-        }
-      }
-      d += ' Z';
-      
       return (
-        <path
-          key={zone.id}
-          d={d}
-          fill={isSelected ? '#3b82f6' : 'transparent'}
-          fillOpacity={isSelected ? 0.3 : 0}
-          stroke={isSelected ? '#3b82f6' : '#6b7280'}
-          strokeWidth={isSelected ? 3 : 1}
-          style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-          onClick={() => handleZoneClick(zone.id)}
-          onMouseEnter={(e) => {
-            if (!isSelected) {
-              e.target.setAttribute('fill-opacity', '0.1');
-              e.target.setAttribute('fill', '#10b981');
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isSelected) {
-              e.target.setAttribute('fill-opacity', '0');
-            }
-          }}
-        />
+        <g key={zone.id}>
+          {/* Image si type=image */}
+          {zone.type === 'image' && zone.content && (() => {
+            const raw = zone.content;
+            const normalized = raw.startsWith('http')
+              ? raw
+              : process.env.PUBLIC_URL + '/' + (raw.startsWith('/')
+                ? raw.slice(1)
+                : (raw.startsWith('images/') ? raw : 'images/' + raw));
+            const src = encodeURI(normalized)
+              .replace(/ /g, '%20')
+              .replace(/\(/g, '%28')
+              .replace(/\)/g, '%29');
+            const bbox = getZoneBoundingBox(points);
+            return (
+              <image
+                href={src}
+                xlinkHref={src}
+                x={bbox.x}
+                y={bbox.y}
+                width={bbox.width}
+                height={bbox.height}
+                style={{ pointerEvents: 'none' }}
+                preserveAspectRatio="xMidYMid slice"
+                clipPath={`url(#clip-zone-${zone.id})`}
+                onError={(e) => {
+                  console.warn('[CrazyArena] Erreur chargement image:', src);
+                }}
+              />
+            );
+          })()}
+          
+          {/* Path de la zone */}
+          <path
+            d={pointsToBezierPath(points)}
+            fill={(() => {
+              if (zone.type === 'image') {
+                return isSelected ? 'rgba(255, 214, 0, 0.55)' : 'rgba(255, 214, 0, 0.01)';
+              }
+              if (zone.type === 'texte' || zone.type === 'chiffre' || zone.type === 'calcul') {
+                return isSelected ? 'rgba(40, 167, 69, 0.55)' : 'rgba(40, 167, 69, 0.01)';
+              }
+              return 'transparent';
+            })()}
+            stroke={'none'}
+            style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+            pointerEvents="all"
+            onClick={() => handleZoneClick(zone.id)}
+          />
+          
+          {/* Texte si type=texte/chiffre/calcul */}
+          {(zone.type === 'texte' || zone.type === 'chiffre' || zone.type === 'calcul') && zone.content && (() => {
+            const bbox = getZoneBoundingBox(points);
+            return (
+              <text
+                x={bbox.x + bbox.width / 2}
+                y={bbox.y + bbox.height / 2}
+                fontSize={32}
+                fontFamily="Arial"
+                fill="#fff"
+                fontWeight="bold"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                pointerEvents="none"
+                style={{ userSelect: 'none' }}
+              >
+                {zone.content}
+              </text>
+            );
+          })()}
+        </g>
       );
     });
   };
@@ -410,6 +458,14 @@ export default function CrazyArenaGame() {
             zIndex: 2
           }}
         >
+          {/* Définitions SVG - clipPaths pour zones images */}
+          <defs>
+            {zones.filter(z => z.type === 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
+              <clipPath id={`clip-zone-${zone.id}`} key={`clip-${zone.id}`} clipPathUnits="userSpaceOnUse">
+                <path d={pointsToBezierPath(zone.points)} />
+              </clipPath>
+            ))}
+          </defs>
           {renderZones()}
         </svg>
       </div>
