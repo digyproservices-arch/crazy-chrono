@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Socket.IO - Crazy Chrono Backend</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #1a1a1a; color: #fff; }
+    h1 { color: #10b981; }
+    .status { padding: 15px; margin: 10px 0; border-radius: 8px; }
+    .success { background: #065f46; border: 2px solid #10b981; }
+    .error { background: #7f1d1d; border: 2px solid #ef4444; }
+    .warning { background: #78350f; border: 2px solid #f59e0b; }
+    .info { background: #1e3a8a; border: 2px solid #3b82f6; }
+    button { padding: 10px 20px; margin: 5px; cursor: pointer; background: #10b981; color: white; border: none; border-radius: 5px; font-size: 16px; }
+    button:hover { background: #059669; }
+    #logs { background: #0a0a0a; padding: 15px; border-radius: 8px; margin-top: 20px; max-height: 400px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 14px; }
+    .log-line { margin: 5px 0; }
+    .log-success { color: #10b981; }
+    .log-error { color: #ef4444; }
+    .log-info { color: #3b82f6; }
+  </style>
+</head>
+<body>
+  <h1>🔌 Test Socket.IO - Crazy Chrono Backend</h1>
+  
+  <div id="status" class="status warning">
+    <strong>Status:</strong> <span id="statusText">Initialisation...</span>
+  </div>
+
+  <div style="margin: 20px 0;">
+    <button onclick="testConnection()">🔄 Tester la connexion</button>
+    <button onclick="testArenaJoin()">🎮 Tester arena:join</button>
+    <button onclick="clearLogs()">🗑️ Effacer les logs</button>
+  </div>
+
+  <div id="logs"></div>
+
+  <script>
+    const BACKEND_URL = 'https://crazy-chrono-backend.onrender.com';
+    let socket = null;
+    let connectionAttempts = 0;
+
+    function log(message, type = 'info') {
+      const logsDiv = document.getElementById('logs');
+      const logLine = document.createElement('div');
+      logLine.className = `log-line log-${type}`;
+      const timestamp = new Date().toLocaleTimeString();
+      logLine.textContent = `[${timestamp}] ${message}`;
+      logsDiv.appendChild(logLine);
+      logsDiv.scrollTop = logsDiv.scrollHeight;
+    }
+
+    function updateStatus(text, type) {
+      const statusDiv = document.getElementById('status');
+      const statusText = document.getElementById('statusText');
+      statusText.textContent = text;
+      statusDiv.className = `status ${type}`;
+    }
+
+    function clearLogs() {
+      document.getElementById('logs').innerHTML = '';
+      log('Logs effacés', 'info');
+    }
+
+    function testConnection() {
+      connectionAttempts++;
+      log(`🔄 Tentative de connexion #${connectionAttempts} à ${BACKEND_URL}`, 'info');
+      updateStatus('Connexion en cours...', 'warning');
+
+      if (socket) {
+        log('⚠️ Fermeture de la connexion précédente', 'info');
+        socket.disconnect();
+      }
+
+      socket = io(BACKEND_URL, {
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 3,
+        timeout: 10000
+      });
+
+      socket.on('connect', () => {
+        log('✅ CONNEXION RÉUSSIE !', 'success');
+        log(`   Socket ID: ${socket.id}`, 'success');
+        log(`   Transport: ${socket.io.engine.transport.name}`, 'info');
+        updateStatus('✅ Connecté au backend !', 'success');
+      });
+
+      socket.on('connect_error', (error) => {
+        log(`❌ ERREUR DE CONNEXION: ${error.message}`, 'error');
+        log(`   Type: ${error.type}`, 'error');
+        log(`   Description: ${error.description || 'N/A'}`, 'error');
+        updateStatus('❌ Erreur de connexion', 'error');
+      });
+
+      socket.on('disconnect', (reason) => {
+        log(`🔴 Déconnecté: ${reason}`, 'error');
+        updateStatus('Déconnecté', 'warning');
+      });
+
+      socket.on('error', (error) => {
+        log(`❌ Socket Error: ${error}`, 'error');
+      });
+
+      // Test des événements Crazy Arena
+      socket.on('arena:error', ({ message }) => {
+        log(`⚠️ Arena Error: ${message}`, 'error');
+      });
+
+      socket.on('arena:player-joined', (data) => {
+        log(`👤 Joueur rejoint: ${JSON.stringify(data)}`, 'success');
+      });
+    }
+
+    function testArenaJoin() {
+      if (!socket || !socket.connected) {
+        log('❌ Pas de connexion active. Cliquez sur "Tester la connexion" d\'abord.', 'error');
+        return;
+      }
+
+      const testData = {
+        matchId: 'test-match-001',
+        studentData: {
+          studentId: 's001',
+          name: 'Test Player',
+          avatar: '/avatars/default.png'
+        }
+      };
+
+      log('🎮 Envoi de arena:join...', 'info');
+      log(`   Data: ${JSON.stringify(testData, null, 2)}`, 'info');
+
+      socket.emit('arena:join', testData, (response) => {
+        if (response && response.ok) {
+          log('✅ arena:join accepté !', 'success');
+          log(`   Response: ${JSON.stringify(response)}`, 'success');
+        } else {
+          log('⚠️ arena:join refusé', 'error');
+          log(`   Response: ${JSON.stringify(response)}`, 'error');
+        }
+      });
+    }
+
+    // Auto-test au chargement
+    window.addEventListener('load', () => {
+      log('🚀 Page chargée - Prêt à tester', 'info');
+      log(`📡 Backend URL: ${BACKEND_URL}`, 'info');
+    });
+  </script>
+</body>
+</html>

@@ -15,9 +15,23 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
-// Crazy Arena Manager pour tournois (groupes de 4)
+// Initialiser Supabase Admin AVANT CrazyArenaManager
+let supabaseAdmin = null;
+try {
+  const { createClient } = require('@supabase/supabase-js');
+  const supaUrl = process.env.SUPABASE_URL;
+  const supaSrv = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (supaUrl && supaSrv) {
+    supabaseAdmin = createClient(supaUrl, supaSrv, { auth: { persistSession: false } });
+    console.log('[Server] Supabase Admin client initialized');
+  }
+} catch (e) {
+  console.warn('[Server] Supabase admin not configured:', e.message);
+}
+
+// Crazy Arena Manager pour tournois (groupes de 4) - AVEC Supabase
 const CrazyArenaManager = require('./crazyArenaManager');
-const crazyArena = new CrazyArenaManager(io);
+const crazyArena = new CrazyArenaManager(io, supabaseAdmin);
 
 // Exposer crazyArena pour les routes (tournament.js)
 global.crazyArena = crazyArena;
@@ -91,20 +105,6 @@ app.use('/api/tournament', tournamentRoutes);
 
 // ===== Auth Routes (Licences professionnelles) =====
 const authRoutes = require('./routes/auth');
-
-// ===== Usage/Quota (Mini-sprint): server-side check tied to Supabase user =====
-let supabaseAdmin = null;
-try {
-  const { createClient } = require('@supabase/supabase-js');
-  const supaUrl = process.env.SUPABASE_URL;
-  const supaSrv = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (supaUrl && supaSrv) {
-    supabaseAdmin = createClient(supaUrl, supaSrv, { auth: { persistSession: false } });
-    console.log('[Server] Supabase Admin client initialized');
-  }
-} catch (e) {
-  console.warn('[Usage] Supabase admin not configured:', e.message);
-}
 
 // Exposer supabaseAdmin pour les routes
 app.locals.supabaseAdmin = supabaseAdmin;
@@ -1243,8 +1243,8 @@ io.on('connection', (socket) => {
 
   // ===== CRAZY ARENA EVENTS (Tournoi groupes de 4) =====
   
-  socket.on('arena:join', ({ matchId, studentData }, cb) => {
-    const success = crazyArena.joinMatch(socket, matchId, studentData);
+  socket.on('arena:join', async ({ matchId, studentData }, cb) => {
+    const success = await crazyArena.joinMatch(socket, matchId, studentData);
     if (typeof cb === 'function') {
       cb({ ok: success });
     }

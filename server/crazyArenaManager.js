@@ -4,10 +4,44 @@
 // ==========================================
 
 class CrazyArenaManager {
-  constructor(io) {
+  constructor(io, supabase = null) {
     this.io = io;
+    this.supabase = supabase;
     this.matches = new Map(); // matchId -> { players, status, scores, zones, config }
     this.playerMatches = new Map(); // socketId -> matchId
+  }
+
+  /**
+   * Charger un match depuis Supabase (en cas de redémarrage du backend)
+   */
+  async loadMatchFromDatabase(matchId) {
+    if (!this.supabase) {
+      console.warn('[CrazyArena] Supabase non configuré, impossible de récupérer le match');
+      return null;
+    }
+
+    try {
+      const { data, error } = await this.supabase
+        .from('tournament_matches')
+        .select('*, tournament_groups(students_ids)')
+        .eq('id', matchId)
+        .eq('status', 'pending')
+        .single();
+
+      if (error || !data) {
+        console.log(`[CrazyArena] Match ${matchId} non trouvé en base:`, error?.message);
+        return null;
+      }
+
+      // Recréer le match en RAM
+      const config = typeof data.config === 'string' ? JSON.parse(data.config) : data.config;
+      this.createMatch(matchId, data.room_code, config);
+      
+      return this.matches.get(matchId);
+    } catch (err) {
+      console.error('[CrazyArena] Erreur chargement match depuis Supabase:', err);
+      return null;
+    }
   }
 
   /**
@@ -35,12 +69,21 @@ class CrazyArenaManager {
   /**
    * Un joueur rejoint un match
    */
-  joinMatch(socket, matchId, studentData) {
-    const match = this.matches.get(matchId);
+  async joinMatch(socket, matchId, studentData) {
+    let match = this.matches.get(matchId);
     
+    // Si le match n'existe pas en RAM, essayer de le récupérer depuis Supabase
     if (!match) {
-      socket.emit('arena:error', { message: 'Match introuvable' });
-      return false;
+      console.log(`[CrazyArena] Match ${matchId} introuvable en RAM, tentative récupération depuis Supabase...`);
+      match = await this.loadMatchFromDatabase(matchId);
+      
+      if (!match) {
+        console.error(`[CrazyArena] Match ${matchId} introuvable dans Supabase`);
+        socket.emit('arena:error', { message: 'Match introuvable' });
+        return false;
+      }
+      
+      console.log(`[CrazyArena] Match ${matchId} récupéré depuis Supabase avec succès`);
     }
 
     if (match.status !== 'waiting') {
