@@ -381,8 +381,8 @@ export default function CrazyArenaGame() {
             onClick={() => handleZoneClick(zone.id)}
           />
           
-          {/* Texte type=texte - AVEC ARC COURBÉ */}
-          {zone.type === 'texte' && zone.content && (() => {
+          {/* Texte type=texte zones VERTES - AVEC ARC COURBÉ */}
+          {zone.type === 'texte' && zone.color === 'green' && zone.content && (() => {
             let idxStart, idxEnd;
             if (Array.isArray(zone.arcPoints) && zone.arcPoints.length === 2) {
               idxStart = zone.arcPoints[0];
@@ -418,45 +418,57 @@ export default function CrazyArenaGame() {
             );
           })()}
           
-          {/* Chiffres et Calculs - CENTRÉS avec couleur #456451 */}
-          {(zone.type === 'chiffre' || zone.type === 'calcul') && zone.content && (() => {
+          {/* Chiffres et Calculs zones JAUNES - SUR ARC COURBÉ */}
+          {(zone.type === 'chiffre' || zone.type === 'calcul') && zone.color === 'yellow' && zone.content && (() => {
+            let idxStart, idxEnd;
+            if (Array.isArray(zone.arcPoints) && zone.arcPoints.length === 2) {
+              idxStart = zone.arcPoints[0];
+              idxEnd = zone.arcPoints[1];
+            } else {
+              idxStart = 0;
+              idxEnd = 1;
+            }
+            const pointsArr = Array.isArray(zone.points) && zone.points.length >= 2 ? zone.points : [{x:0,y:0},{x:1,y:1}];
+            const { r, delta } = interpolateArc(pointsArr, idxStart, idxEnd, 0);
+            const arcLen = r * delta;
+            const textValue = zone.content || '';
             const bbox = getZoneBoundingBox(points);
-            const cx = bbox.x + bbox.width / 2;
-            const cy = bbox.y + bbox.height / 2;
             const base = Math.max(12, Math.min(bbox.width, bbox.height));
-            const fontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * base;
-            const angle = zone.angle || 0;
-            const contentStr = String(zone.content ?? '').trim();
-            const isSix = (zone.type === 'chiffre') && contentStr === '6';
-            const offsetX = isSix ? (-0.04 * fontSize) : 0;
+            const baseFontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * base;
+            const safeTextValue = typeof textValue === 'string' ? textValue : String(textValue);
+            const textLen = safeTextValue.length * baseFontSize * 0.6;
+            const marginPx = 24;
+            const fontSize = textLen > arcLen - 2 * marginPx
+              ? Math.max(12, (arcLen - 2 * marginPx) / (safeTextValue.length * 0.6))
+              : baseFontSize;
             const isChiffre = zone.type === 'chiffre';
             return (
-              <g transform={`rotate(${angle} ${cx} ${cy})`}>
+              <g>
                 <text
-                  x={cx}
-                  y={cy}
-                  transform={offsetX ? `translate(${offsetX} 0)` : undefined}
-                  textAnchor="middle"
-                  alignmentBaseline="middle"
                   fontSize={fontSize}
+                  fontFamily="Arial"
                   fill="#456451"
                   fontWeight="bold"
                   pointerEvents="none"
                   style={{ userSelect: 'none' }}
                 >
-                  {zone.content}
+                  <textPath xlinkHref={`#text-curve-${zone.id}`} startOffset="50%" textAnchor="middle" dominantBaseline="middle">
+                    {textValue}
+                  </textPath>
                 </text>
                 {isChiffre && (() => {
+                  const bbox = getZoneBoundingBox(points);
+                  const cx = bbox.x + bbox.width / 2;
+                  const cy = bbox.y + bbox.height / 2;
                   const underLen = 0.5 * fontSize;
                   const half = underLen / 2;
                   const uy = cy + 0.54 * fontSize;
                   const strokeW = Math.max(1, 0.09 * fontSize);
-                  const cxAdj = cx + (offsetX || 0);
                   return (
                     <line
-                      x1={cxAdj - half}
+                      x1={cx - half}
                       y1={uy}
-                      x2={cxAdj + half}
+                      x2={cx + half}
                       y2={uy}
                       stroke="#456451"
                       strokeWidth={strokeW}
@@ -577,8 +589,13 @@ export default function CrazyArenaGame() {
                 <path d={pointsToBezierPath(zone.points)} />
               </clipPath>
             ))}
-            {/* Paths pour texte courbé (zones non-image) */}
-            {zones.filter(z => z.type !== 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
+            {/* Paths pour texte courbé (zones vertes texte + zones jaunes calcul/chiffre) */}
+            {zones.filter(z => {
+              if (z.type === 'image') return false;
+              if (z.type === 'texte' && z.color === 'green') return true;
+              if ((z.type === 'calcul' || z.type === 'chiffre') && z.color === 'yellow') return true;
+              return false;
+            }).map(zone => (
               <path id={`text-curve-${zone.id}`} key={`textcurve-${zone.id}`} d={getArcPathFromZonePoints(zone.points, zone.id, zone.arcPoints)} fill="none" />
             ))}
           </defs>
