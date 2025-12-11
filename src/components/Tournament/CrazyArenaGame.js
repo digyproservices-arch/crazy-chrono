@@ -10,6 +10,48 @@ import { io } from 'socket.io-client';
 import { getBackendUrl } from '../../utils/subscription';
 import { pointsToBezierPath } from '../CarteUtils';
 
+// Calcule un arc entre deux points, mais avec une marge en pixels sur chaque extrémité
+function interpolateArc(points, idxStart, idxEnd, marginPx) {
+  const start = points[idxStart];
+  const end = points[idxEnd];
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+  const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const r = (Math.hypot(start.x - centerX, start.y - centerY) + Math.hypot(end.x - centerX, end.y - centerY)) / 2;
+  const angleStart = Math.atan2(start.y - centerY, start.x - centerX);
+  const angleEnd = Math.atan2(end.y - centerY, end.x - centerX);
+  let delta = angleEnd - angleStart;
+  if (delta < 0) delta += 2 * Math.PI;
+  const arcLen = r * delta;
+  const marginAngle = marginPx / r;
+  const newAngleStart = angleStart + marginAngle;
+  const newAngleEnd = angleEnd - marginAngle;
+  const newStart = {
+    x: centerX + r * Math.cos(newAngleStart),
+    y: centerY + r * Math.sin(newAngleStart)
+  };
+  const newEnd = {
+    x: centerX + r * Math.cos(newAngleEnd),
+    y: centerY + r * Math.sin(newAngleEnd)
+  };
+  return { newStart, newEnd, r, centerX, centerY, largeArcFlag: 0, sweepFlag: 1, arcLen, delta };
+}
+
+function getArcPathFromZonePoints(points, zoneId, arcPointsFromZone, marginPx = 0) {
+  if (!points || points.length < 2) return '';
+  let idxStart, idxEnd;
+  if (Array.isArray(arcPointsFromZone) && arcPointsFromZone.length === 2) {
+    idxStart = arcPointsFromZone[0];
+    idxEnd = arcPointsFromZone[1];
+  } else {
+    idxStart = 0;
+    idxEnd = 1;
+  }
+  const { newStart, newEnd, r, centerX, centerY, largeArcFlag, sweepFlag } = interpolateArc(points, idxStart, idxEnd, marginPx);
+  return `M ${newStart.x},${newStart.y} A ${r},${r} 0 ${largeArcFlag},${sweepFlag} ${newEnd.x},${newEnd.y}`;
+}
+
 export default function CrazyArenaGame() {
   const navigate = useNavigate();
   const socketRef = useRef(null);
@@ -335,23 +377,40 @@ export default function CrazyArenaGame() {
             onClick={() => handleZoneClick(zone.id)}
           />
           
-          {/* Texte si type=texte/chiffre/calcul */}
+          {/* Texte si type=texte/chiffre/calcul - AVEC ARC COURBÉ */}
           {(zone.type === 'texte' || zone.type === 'chiffre' || zone.type === 'calcul') && zone.content && (() => {
-            const bbox = getZoneBoundingBox(points);
+            // Adaptation dynamique de la taille du texte si trop long
+            let idxStart, idxEnd;
+            if (Array.isArray(zone.arcPoints) && zone.arcPoints.length === 2) {
+              idxStart = zone.arcPoints[0];
+              idxEnd = zone.arcPoints[1];
+            } else {
+              idxStart = 0;
+              idxEnd = 1;
+            }
+            const pointsArr = Array.isArray(zone.points) && zone.points.length >= 2 ? zone.points : [{x:0,y:0},{x:1,y:1}];
+            const { r, delta } = interpolateArc(pointsArr, idxStart, idxEnd, 0);
+            const arcLen = r * delta;
+            const textValue = zone.content || '';
+            const baseFontSize = 32;
+            const safeTextValue = typeof textValue === 'string' ? textValue : String(textValue);
+            const textLen = safeTextValue.length * baseFontSize * 0.6;
+            const marginPx = 24;
+            const fontSize = textLen > arcLen - 2 * marginPx
+              ? Math.max(12, (arcLen - 2 * marginPx) / (safeTextValue.length * 0.6))
+              : baseFontSize;
             return (
               <text
-                x={bbox.x + bbox.width / 2}
-                y={bbox.y + bbox.height / 2}
-                fontSize={32}
+                fontSize={fontSize}
                 fontFamily="Arial"
                 fill="#fff"
                 fontWeight="bold"
-                textAnchor="middle"
-                dominantBaseline="middle"
                 pointerEvents="none"
                 style={{ userSelect: 'none' }}
               >
-                {zone.content}
+                <textPath xlinkHref={`#text-curve-${zone.id}`} startOffset="50%" textAnchor="middle" dominantBaseline="middle">
+                  {textValue}
+                </textPath>
               </text>
             );
           })()}
@@ -458,12 +517,17 @@ export default function CrazyArenaGame() {
             zIndex: 2
           }}
         >
-          {/* Définitions SVG - clipPaths pour zones images */}
+          {/* Définitions SVG */}
           <defs>
+            {/* ClipPaths pour zones images */}
             {zones.filter(z => z.type === 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
               <clipPath id={`clip-zone-${zone.id}`} key={`clip-${zone.id}`} clipPathUnits="userSpaceOnUse">
                 <path d={pointsToBezierPath(zone.points)} />
               </clipPath>
+            ))}
+            {/* Paths pour texte courbé (zones non-image) */}
+            {zones.filter(z => z.type !== 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
+              <path id={`text-curve-${zone.id}`} key={`textcurve-${zone.id}`} d={getArcPathFromZonePoints(zone.points, zone.id, zone.arcPoints)} fill="none" />
             ))}
           </defs>
           {renderZones()}
