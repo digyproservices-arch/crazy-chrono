@@ -401,30 +401,29 @@ export default function CrazyArenaGame() {
       </div>
       
       {/* Carte SVG */}
-      <div style={{ width: '100%', height: '100%', position: 'relative', background: '#f5f5f5' }}>
-        {cardImage && (
-          <img 
-            src={cardImage}
-            alt="Carte"
-            style={{ 
-              width: '100%', 
-              height: '100%', 
-              objectFit: 'contain',
-              pointerEvents: 'none',
-              userSelect: 'none'
-            }}
-          />
-        )}
+      <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <object
+          type="image/svg+xml"
+          data={`${process.env.PUBLIC_URL}/images/carte-svg.svg`}
+          style={{
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none'
+          }}
+        >
+          Votre navigateur ne supporte pas les SVG
+        </object>
         <svg
           ref={svgOverlayRef}
-          viewBox={`0 0 ${cardDimensions.width} ${cardDimensions.height}`}
+          viewBox="0 0 1000 1000"
           style={{
             position: 'absolute',
             top: 0,
             left: 0,
             width: '100%',
             height: '100%',
-            pointerEvents: 'auto'
+            pointerEvents: 'auto',
+            zIndex: 2
           }}
         >
           {renderZones()}
