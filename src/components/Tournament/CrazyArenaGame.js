@@ -77,6 +77,10 @@ export default function CrazyArenaGame() {
       return;
     }
     
+    console.log('[CrazyArena] Zones reçues:', gameInfo.zones);
+    console.log('[CrazyArena] Zones avec content:', gameInfo.zones.filter(z => z.content));
+    console.log('[CrazyArena] Zones SANS content:', gameInfo.zones.filter(z => !z.content));
+    
     setZones(gameInfo.zones);
     setPlayers(gameInfo.players);
     setMyStudentId(gameInfo.myStudentId);
@@ -377,9 +381,8 @@ export default function CrazyArenaGame() {
             onClick={() => handleZoneClick(zone.id)}
           />
           
-          {/* Texte si type=texte/chiffre/calcul - AVEC ARC COURBÉ */}
-          {(zone.type === 'texte' || zone.type === 'chiffre' || zone.type === 'calcul') && zone.content && (() => {
-            // Adaptation dynamique de la taille du texte si trop long
+          {/* Texte type=texte - AVEC ARC COURBÉ */}
+          {zone.type === 'texte' && zone.content && (() => {
             let idxStart, idxEnd;
             if (Array.isArray(zone.arcPoints) && zone.arcPoints.length === 2) {
               idxStart = zone.arcPoints[0];
@@ -412,6 +415,56 @@ export default function CrazyArenaGame() {
                   {textValue}
                 </textPath>
               </text>
+            );
+          })()}
+          
+          {/* Chiffres et Calculs - CENTRÉS avec couleur #456451 */}
+          {(zone.type === 'chiffre' || zone.type === 'calcul') && zone.content && (() => {
+            const bbox = getZoneBoundingBox(points);
+            const cx = bbox.x + bbox.width / 2;
+            const cy = bbox.y + bbox.height / 2;
+            const base = Math.max(12, Math.min(bbox.width, bbox.height));
+            const fontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * base;
+            const angle = zone.angle || 0;
+            const contentStr = String(zone.content ?? '').trim();
+            const isSix = (zone.type === 'chiffre') && contentStr === '6';
+            const offsetX = isSix ? (-0.04 * fontSize) : 0;
+            const isChiffre = zone.type === 'chiffre';
+            return (
+              <g transform={`rotate(${angle} ${cx} ${cy})`}>
+                <text
+                  x={cx}
+                  y={cy}
+                  transform={offsetX ? `translate(${offsetX} 0)` : undefined}
+                  textAnchor="middle"
+                  alignmentBaseline="middle"
+                  fontSize={fontSize}
+                  fill="#456451"
+                  fontWeight="bold"
+                  pointerEvents="none"
+                  style={{ userSelect: 'none' }}
+                >
+                  {zone.content}
+                </text>
+                {isChiffre && (() => {
+                  const underLen = 0.5 * fontSize;
+                  const half = underLen / 2;
+                  const uy = cy + 0.54 * fontSize;
+                  const strokeW = Math.max(1, 0.09 * fontSize);
+                  const cxAdj = cx + (offsetX || 0);
+                  return (
+                    <line
+                      x1={cxAdj - half}
+                      y1={uy}
+                      x2={cxAdj + half}
+                      y2={uy}
+                      stroke="#456451"
+                      strokeWidth={strokeW}
+                      strokeLinecap="round"
+                    />
+                  );
+                })()}
+              </g>
             );
           })()}
         </g>
