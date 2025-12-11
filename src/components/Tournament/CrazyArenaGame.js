@@ -526,8 +526,7 @@ export default function CrazyArenaGame() {
       <div style={{
         position: 'absolute',
         top: 20,
-        left: '50%',
-        transform: 'translateX(-50%)',
+        left: 20,
         background: timeLeft < 10 ? '#fee2e2' : 'rgba(255,255,255,0.95)',
         borderRadius: 12,
         padding: '12px 24px',
