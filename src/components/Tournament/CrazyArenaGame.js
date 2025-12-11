@@ -27,8 +27,6 @@ export default function CrazyArenaGame() {
   const [gameEnded, setGameEnded] = useState(false);
   const [ranking, setRanking] = useState([]);
   const [winner, setWinner] = useState(null);
-  const [cardImage, setCardImage] = useState(null);
-  const [cardDimensions, setCardDimensions] = useState({ width: 1754, height: 987 });
   
   useEffect(() => {
     // Récupérer les infos de la partie
@@ -44,20 +42,6 @@ export default function CrazyArenaGame() {
     setMyStudentId(gameInfo.myStudentId);
     setGameStartTime(gameInfo.startTime);
     setTimeLeft(gameInfo.duration || 60);
-    
-    // Extraire l'image de la carte et ses dimensions depuis les zones
-    if (gameInfo.zones && gameInfo.zones.length > 0) {
-      const firstZone = gameInfo.zones[0];
-      if (firstZone.cardImage) {
-        setCardImage(firstZone.cardImage);
-      }
-      if (firstZone.cardWidth && firstZone.cardHeight) {
-        setCardDimensions({ 
-          width: firstZone.cardWidth, 
-          height: firstZone.cardHeight 
-        });
-      }
-    }
     
     // Connexion Socket.IO
     const socket = io(getBackendUrl(), {

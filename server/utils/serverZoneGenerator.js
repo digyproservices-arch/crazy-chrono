@@ -621,20 +621,6 @@ function generateRoundZones(seed, config = {}) {
       zones: finalPairIds
     });
     
-    // Ajouter les métadonnées de la carte à chaque zone
-    const cardImage = '/images/carte-svg.svg';
-    const cardWidth = 1754;
-    const cardHeight = 987;
-    
-    result = result.map(z => ({
-      ...z,
-      cardImage,
-      cardWidth,
-      cardHeight
-    }));
-    
-    console.log('[ServerZoneGen] Added card metadata:', { cardImage, cardWidth, cardHeight });
-    
     return result;
     
   } catch (error) {
