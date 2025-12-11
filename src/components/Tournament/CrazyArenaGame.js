@@ -381,8 +381,8 @@ export default function CrazyArenaGame() {
             onClick={() => handleZoneClick(zone.id)}
           />
           
-          {/* Texte type=texte zones VERTES - AVEC ARC COURBÉ */}
-          {zone.type === 'texte' && zone.color === 'green' && zone.content && (() => {
+          {/* Texte type=texte - AVEC ARC COURBÉ */}
+          {zone.type === 'texte' && zone.content && (() => {
             let idxStart, idxEnd;
             if (Array.isArray(zone.arcPoints) && zone.arcPoints.length === 2) {
               idxStart = zone.arcPoints[0];
@@ -418,8 +418,8 @@ export default function CrazyArenaGame() {
             );
           })()}
           
-          {/* Chiffres et Calculs zones JAUNES - SUR ARC COURBÉ */}
-          {(zone.type === 'chiffre' || zone.type === 'calcul') && zone.color === 'yellow' && zone.content && (() => {
+          {/* Chiffres et Calculs - SUR ARC COURBÉ */}
+          {(zone.type === 'chiffre' || zone.type === 'calcul') && zone.content && (() => {
             let idxStart, idxEnd;
             if (Array.isArray(zone.arcPoints) && zone.arcPoints.length === 2) {
               idxStart = zone.arcPoints[0];
@@ -589,13 +589,8 @@ export default function CrazyArenaGame() {
                 <path d={pointsToBezierPath(zone.points)} />
               </clipPath>
             ))}
-            {/* Paths pour texte courbé (zones vertes texte + zones jaunes calcul/chiffre) */}
-            {zones.filter(z => {
-              if (z.type === 'image') return false;
-              if (z.type === 'texte' && z.color === 'green') return true;
-              if ((z.type === 'calcul' || z.type === 'chiffre') && z.color === 'yellow') return true;
-              return false;
-            }).map(zone => (
+            {/* Paths pour texte courbé (tous types sauf image) */}
+            {zones.filter(z => z.type !== 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
               <path id={`text-curve-${zone.id}`} key={`textcurve-${zone.id}`} d={getArcPathFromZonePoints(zone.points, zone.id, zone.arcPoints)} fill="none" />
             ))}
           </defs>
