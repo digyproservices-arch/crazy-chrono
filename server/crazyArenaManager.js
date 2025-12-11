@@ -23,7 +23,7 @@ class CrazyArenaManager {
     try {
       const { data, error } = await this.supabase
         .from('tournament_matches')
-        .select('*, tournament_groups(students_ids)')
+        .select('*')
         .eq('id', matchId)
         .eq('status', 'pending')
         .single();
@@ -237,13 +237,12 @@ class CrazyArenaManager {
    * Générer les zones (réutiliser la logique existante)
    */
   async generateZones(config) {
-    // TODO: Importer votre générateur de zones existant
-    // Pour l'instant, retourner des zones factices
-    const zonesGenerator = require('./zonesGenerator');
+    // Utiliser le générateur de zones du serveur
+    const { generateRoundZones } = require('./utils/serverZoneGenerator');
     const seed = Math.floor(Math.random() * 1000000000);
     
     try {
-      const zones = await zonesGenerator.generateZones({
+      const zones = generateRoundZones({
         seed,
         classes: config.classes || ['CE1'],
         themes: config.themes || [],
