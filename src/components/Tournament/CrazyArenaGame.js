@@ -418,59 +418,52 @@ export default function CrazyArenaGame() {
             );
           })()}
           
-          {/* Chiffres et Calculs - SUR ARC COURBÉ */}
-          {(zone.type === 'chiffre' || zone.type === 'calcul') && zone.content && (() => {
-            let idxStart, idxEnd;
-            if (Array.isArray(zone.arcPoints) && zone.arcPoints.length === 2) {
-              idxStart = zone.arcPoints[0];
-              idxEnd = zone.arcPoints[1];
-            } else {
-              idxStart = 0;
-              idxEnd = 1;
-            }
-            const pointsArr = Array.isArray(zone.points) && zone.points.length >= 2 ? zone.points : [{x:0,y:0},{x:1,y:1}];
-            const { r, delta } = interpolateArc(pointsArr, idxStart, idxEnd, 0);
-            const arcLen = r * delta;
-            const textValue = zone.content || '';
-            const bbox = getZoneBoundingBox(points);
+          {/* Chiffres et Calculs - CENTRÉS (COPIE EXACTE Carte.js ligne 5586) */}
+          {(zone.type === 'calcul' || zone.type === 'chiffre') && zone.content && (() => {
+            const bbox = getZoneBoundingBox(zone.points);
+            const cx = bbox.x + bbox.width / 2;
+            const cy = bbox.y + bbox.height / 2;
             const base = Math.max(12, Math.min(bbox.width, bbox.height));
-            const baseFontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * base;
-            const safeTextValue = typeof textValue === 'string' ? textValue : String(textValue);
-            const textLen = safeTextValue.length * baseFontSize * 0.6;
-            const marginPx = 24;
-            const fontSize = textLen > arcLen - 2 * marginPx
-              ? Math.max(12, (arcLen - 2 * marginPx) / (safeTextValue.length * 0.6))
-              : baseFontSize;
+            const fontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * base;
+            const angle = zone.angle || 0;
+            const contentStr = String(zone.content ?? '').trim();
+            const isSix = (zone.type === 'chiffre') && contentStr === '6';
+            const offsetX = isSix ? (-0.04 * fontSize) : 0;
+            const isMath = zone.type === 'calcul' || zone.type === 'chiffre';
             const isChiffre = zone.type === 'chiffre';
             return (
-              <g>
+              <g transform={`rotate(${angle} ${cx} ${cy})`}>
                 <text
+                  x={cx}
+                  y={cy}
+                  transform={offsetX ? `translate(${offsetX} 0)` : undefined}
+                  textAnchor="middle"
+                  alignmentBaseline="middle"
                   fontSize={fontSize}
-                  fontFamily="Arial"
-                  fill="#456451"
+                  fill={isMath ? '#456451' : '#222'}
                   fontWeight="bold"
+                  stroke={isMath ? 'none' : '#fff'}
+                  strokeWidth={isMath ? 0 : 4}
+                  paintOrder="stroke"
                   pointerEvents="none"
                   style={{ userSelect: 'none' }}
                 >
-                  <textPath xlinkHref={`#text-curve-${zone.id}`} startOffset="50%" textAnchor="middle" dominantBaseline="middle">
-                    {textValue}
-                  </textPath>
+                  {zone.content}
                 </text>
                 {isChiffre && (() => {
-                  const bbox = getZoneBoundingBox(points);
-                  const cx = bbox.x + bbox.width / 2;
-                  const cy = bbox.y + bbox.height / 2;
                   const underLen = 0.5 * fontSize;
                   const half = underLen / 2;
                   const uy = cy + 0.54 * fontSize;
                   const strokeW = Math.max(1, 0.09 * fontSize);
+                  const digitColor = '#456451';
+                  const cxAdj = cx + (offsetX || 0);
                   return (
                     <line
-                      x1={cx - half}
+                      x1={cxAdj - half}
                       y1={uy}
-                      x2={cx + half}
+                      x2={cxAdj + half}
                       y2={uy}
-                      stroke="#456451"
+                      stroke={digitColor}
                       strokeWidth={strokeW}
                       strokeLinecap="round"
                     />
