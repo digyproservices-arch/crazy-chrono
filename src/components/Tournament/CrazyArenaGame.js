@@ -4,7 +4,7 @@
 // Réutilise la logique de Carte.js mais en mode compétitif
 // ==========================================
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { getBackendUrl } from '../../utils/subscription';
@@ -62,6 +62,24 @@ export default function CrazyArenaGame() {
   const [selectedZones, setSelectedZones] = useState([]);
   const [players, setPlayers] = useState([]);
   const [myStudentId, setMyStudentId] = useState(null);
+  
+  // Référence de taille moyenne des zones chiffre pour homogénéiser leur taille (COPIE EXACTE Carte.js ligne 2533)
+  const chiffreRefBase = useMemo(() => {
+    try {
+      if (!Array.isArray(zones) || zones.length === 0) return null;
+      const bases = zones
+        .filter(z => z?.type === 'chiffre' && Array.isArray(z.points) && z.points.length)
+        .map(z => {
+          const b = getZoneBoundingBox(z.points);
+          return Math.max(12, Math.min(b.width, b.height));
+        });
+      if (!bases.length) return null;
+      const avg = bases.reduce((a, b) => a + b, 0) / bases.length;
+      return avg;
+    } catch {
+      return null;
+    }
+  }, [zones]);
   const [timeLeft, setTimeLeft] = useState(60);
   const [gameStartTime, setGameStartTime] = useState(null);
   const [gameEnded, setGameEnded] = useState(false);
@@ -424,7 +442,10 @@ export default function CrazyArenaGame() {
             const cx = bbox.x + bbox.width / 2;
             const cy = bbox.y + bbox.height / 2;
             const base = Math.max(12, Math.min(bbox.width, bbox.height));
-            const fontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * base;
+            // Pour les chiffres, garantissons une taille minimale basée sur la moyenne des zones chiffre
+            const chiffreBaseMin = chiffreRefBase ? 0.95 * chiffreRefBase : base;
+            const effectiveBase = (zone.type === 'chiffre') ? Math.max(base, chiffreBaseMin) : base;
+            const fontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * effectiveBase;
             const angle = zone.angle || 0;
             const contentStr = String(zone.content ?? '').trim();
             const isSix = (zone.type === 'chiffre') && contentStr === '6';
