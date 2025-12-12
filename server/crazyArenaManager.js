@@ -211,11 +211,12 @@ class CrazyArenaManager {
       match.scores[p.studentId] = { score: 0, pairsValidated: 0, errors: 0, timeMs: 0 };
     });
 
-    // Notifier le démarrage avec les zones
+    // Notifier le démarrage avec les zones ET la config
     this.io.to(matchId).emit('arena:game-start', {
       zones,
       duration: match.config.duration || 60,
       startTime: match.startTime,
+      config: match.config,  // ✅ Transmettre config (themes, classes, etc.)
       players: match.players.map(p => ({
         studentId: p.studentId,
         name: p.name,
