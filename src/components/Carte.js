@@ -1081,10 +1081,57 @@ const Carte = () => {
     // Cleanup resize listener will be returned later with socket cleanup
     const cleanupResize = () => window.removeEventListener('resize', applyMobile);
     
-    // MODE ARENA: Ne PAS connecter Socket.IO (jeu local standalone)
+    // MODE ARENA: Connexion Socket.IO ARENA (pas mode multijoueur classique)
     if (arenaMatchId) {
-      console.log('[ARENA] Socket.IO désactivé en mode arena');
-      return cleanupResize;
+      console.log('[ARENA] Connexion Socket.IO Arena pour match:', arenaMatchId);
+      if (socketRef.current && socketRef.current.connected) return cleanupResize;
+      
+      const base = getBackendUrl();
+      const s = io(base, { transports: ['websocket'], withCredentials: false });
+      socketRef.current = s;
+      
+      s.on('connect', () => {
+        console.log('[ARENA] Socket connecté, ID:', s.id);
+        setSocketConnected(true);
+      });
+      
+      // Écouter paire validée par un autre joueur
+      s.on('arena:pair-validated', ({ pairId, zoneAId, zoneBId, playerName }) => {
+        console.log('[ARENA] Paire validée par', playerName, ':', pairId);
+        
+        // Masquer les zones validées pour tous les joueurs
+        setZones(prevZones => 
+          prevZones.map(z => {
+            if (z.id === zoneAId || z.id === zoneBId) {
+              return { ...z, validated: true };
+            }
+            return z;
+          })
+        );
+        
+        // Ajouter à l'historique paires validées
+        setValidatedPairIds(prev => new Set([...prev, pairId]));
+      });
+      
+      // Écouter chrono synchronisé
+      s.on('arena:timer-tick', ({ timeLeft }) => {
+        setTimeLeft(timeLeft);
+      });
+      
+      // Écouter scores
+      s.on('arena:scores-update', ({ scores }) => {
+        setScoresMP(scores);
+      });
+      
+      s.on('disconnect', () => {
+        console.log('[ARENA] Socket déconnecté');
+        setSocketConnected(false);
+      });
+      
+      return () => {
+        cleanupResize();
+        s.disconnect();
+      };
     }
     
     // Supprimer tout autostart pour éviter les courses avant le handshake/preload
@@ -2063,7 +2110,25 @@ function handleGameClick(zone) {
           animateBubblesFromZones(a, b, primary, ZA, ZB, border, initials);
         } catch {}
         if (socket && socket.connected) {
-          try { socket.emit('attemptPair', { a, b }); } catch {}
+          // Mode Arena : émettre event spécifique arena:pair-validated
+          if (arenaMatchId) {
+            try {
+              const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
+              socket.emit('arena:pair-validated', {
+                studentId: arenaData.myStudentId,
+                isCorrect: true,
+                timeMs: Date.now() - (arenaData.startTime || Date.now()),
+                pairId: pairKey,
+                zoneAId: a,
+                zoneBId: b
+              });
+            } catch (e) {
+              console.error('[ARENA] Erreur émission arena:pair-validated:', e);
+            }
+          } else {
+            // Mode multijoueur classique
+            try { socket.emit('attemptPair', { a, b }); } catch {}
+          }
         }
           // Enregistrer tentative OK
           try { pgRecordAttempt({ item_type, item_id: pairKey || `${ZA?.id}|${ZB?.id}`, objective_key: `${levelClass}:${theme}`, correct: true, latency_ms: latency, level_class: levelClass, theme, round_index: Number(roundsPlayed)||0 }); } catch {}

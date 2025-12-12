@@ -234,11 +234,30 @@ class CrazyArenaManager {
     
     this.io.to(matchId).emit('arena:game-start', gameStartPayload);
 
+    // ⏱️ CHRONO: Diffuser le temps restant toutes les secondes
+    const duration = match.config.duration || 60;
+    match.timerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - match.startTime) / 1000);
+      const timeLeft = Math.max(0, duration - elapsed);
+      
+      this.io.to(matchId).emit('arena:timer-tick', {
+        timeLeft,
+        elapsed,
+        duration
+      });
+      
+      if (timeLeft === 0) {
+        clearInterval(match.timerInterval);
+      }
+    }, 1000);
+
     // Timer auto-fin de partie
-    const duration = (match.config.duration || 60) * 1000;
     match.gameTimeout = setTimeout(() => {
+      if (match.timerInterval) {
+        clearInterval(match.timerInterval);
+      }
       this.endGame(matchId);
-    }, duration);
+    }, duration * 1000);
   }
 
   /**
@@ -294,7 +313,7 @@ class CrazyArenaManager {
     const player = match.players.find(p => p.socketId === socket.id);
     if (!player) return;
 
-    const { studentId, isCorrect, timeMs } = data;
+    const { studentId, isCorrect, timeMs, pairId, zoneAId, zoneBId } = data;
 
     // Mettre à jour le score
     if (isCorrect) {
@@ -317,6 +336,18 @@ class CrazyArenaManager {
       timeMs: Date.now() - match.startTime
     };
 
+    // ✅ SYNCHRONISER la paire validée à TOUS les joueurs
+    if (isCorrect && pairId) {
+      this.io.to(matchId).emit('arena:pair-validated', {
+        studentId,
+        playerName: player.name,
+        pairId,
+        zoneAId,
+        zoneBId,
+        timestamp: Date.now()
+      });
+    }
+
     // Diffuser les scores à tous les joueurs
     this.io.to(matchId).emit('arena:scores-update', {
       scores: match.players.map(p => ({
@@ -338,8 +369,12 @@ class CrazyArenaManager {
     match.status = 'finished';
     match.endTime = Date.now();
 
+    // Nettoyer les timers
     if (match.gameTimeout) {
       clearTimeout(match.gameTimeout);
+    }
+    if (match.timerInterval) {
+      clearInterval(match.timerInterval);
     }
 
     console.log(`[CrazyArena] Partie terminée pour match ${matchId}`);
