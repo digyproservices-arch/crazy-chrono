@@ -2612,6 +2612,13 @@ const handleEditGreenZone = (zone) => {
         const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
         if (arenaData.zones && Array.isArray(arenaData.zones)) {
           console.log('[ARENA] Zones chargées depuis localStorage:', arenaData.zones.length);
+          // Compter les zones calcul/chiffre pour éviter message "zones vides"
+          const calcCount = arenaData.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length;
+          const imageCount = arenaData.zones.filter(z => z.type === 'image' || z.type === 'texte').length;
+          try {
+            window.__CC_LAST_FILTER_COUNTS__ = { calcNum: calcCount, textImage: imageCount };
+            console.log('[ARENA] Filter counts set:', { calcNum: calcCount, textImage: imageCount });
+          } catch {}
           setZones(arenaData.zones);
           setGameActive(true);
           setTimeLeft(arenaData.duration || 60);
