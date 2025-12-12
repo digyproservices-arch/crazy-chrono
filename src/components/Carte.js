@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import '../styles/Carte.css';
 import { pointToSvgCoords, polygonToPointsStr, segmentsToSvgPath, pointsToBezierPath } from './CarteUtils';
@@ -584,14 +584,16 @@ function getArcPathFromZonePoints(points, zoneId, selectedArcPoints, arcPointsFr
 
 const Carte = () => {
   const navigate = useNavigate();
-  // ...
+  const [searchParams] = useSearchParams();
+  const arenaMatchId = searchParams.get('arena');
+  
   // Mode plein écran de jeu
   const [fullScreen, setFullScreen] = useState(false);
   // Thèmes actifs de la session (pour badge UI)
   const [activeThemes, setActiveThemes] = useState([]);
   // Sélection interactive des deux points d'arc pour chaque zone texte
   const [selectedArcPoints, setSelectedArcPoints] = useState({}); // { [zoneId]: [idx1, idx2] }
-const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélection d'arc
+  const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélection d'arc
   // --- GAME STATE ---
   const [gameActive, setGameActive] = useState(false);
   const [timeLeft, setTimeLeft] = useState(60);
@@ -2596,6 +2598,24 @@ const handleEditGreenZone = (zone) => {
   }, []);
 
   useEffect(() => {
+    // MODE ARENA: Charger zones depuis localStorage
+    if (arenaMatchId) {
+      console.log('[ARENA] Détection mode arena, matchId:', arenaMatchId);
+      try {
+        const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
+        if (arenaData.zones && Array.isArray(arenaData.zones)) {
+          console.log('[ARENA] Zones chargées depuis localStorage:', arenaData.zones.length);
+          setZones(arenaData.zones);
+          setGameActive(true);
+          setTimeLeft(arenaData.duration || 60);
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        console.error('[ARENA] Erreur chargement zones:', e);
+      }
+    }
+    
     // Détecter le mode (solo vs multijoueur)
     let isSoloMode = false;
     try {

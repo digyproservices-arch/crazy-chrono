@@ -154,11 +154,11 @@ export default function CrazyArenaLobby() {
       });
       
       socket.on('arena:game-start', ({ zones, duration, startTime, players: gamePlayers }) => {
-        console.log('[CrazyArena] Partie démarrée !');
+        console.log('[CrazyArena] Partie démarrée ! Redirection vers mode multijoueur');
         
-        // Stocker les infos de la partie
+        // Stocker les infos de la partie pour Carte.js
         localStorage.setItem('cc_crazy_arena_game', JSON.stringify({
-          matchId: matchId,  // Utiliser matchId directement
+          matchId: matchId,
           zones,
           duration,
           startTime,
@@ -166,8 +166,8 @@ export default function CrazyArenaLobby() {
           myStudentId: studentId
         }));
         
-        // Rediriger vers l'interface de jeu
-        navigate('/crazy-arena/game');
+        // Rediriger vers le mode multijoueur classique avec paramètre arena
+        navigate(`/carte?arena=${matchId}`);
       });
       
       return () => socket.disconnect();
