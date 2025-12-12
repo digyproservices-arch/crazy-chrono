@@ -153,8 +153,9 @@ export default function CrazyArenaLobby() {
         }
       });
       
-      socket.on('arena:game-start', ({ zones, duration, startTime, players: gamePlayers }) => {
-        console.log('[CrazyArena] Partie démarrée ! Redirection vers mode multijoueur');
+      socket.on('arena:game-start', ({ zones, duration, startTime, config, players: gamePlayers }) => {
+        console.log('[CrazyArena] Partie démarrée ! Config reçue:', config);
+        console.log('[CrazyArena] Redirection vers mode multijoueur');
         
         // Stocker les infos de la partie pour Carte.js
         localStorage.setItem('cc_crazy_arena_game', JSON.stringify({
@@ -162,6 +163,7 @@ export default function CrazyArenaLobby() {
           zones,
           duration,
           startTime,
+          config,  // ✅ Stocker config avec themes et classes
           players: gamePlayers,
           myStudentId: studentId
         }));
