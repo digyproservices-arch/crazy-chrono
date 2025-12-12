@@ -1126,8 +1126,8 @@ const Carte = () => {
       let cfg = null;
       try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
       const isOnline = cfg && cfg.mode === 'online';
-      // Freemium guard: Free plan is solo only
-      if (isOnline && isFree()) {
+      // Freemium guard: Free plan is solo only (EXCEPTION: mode arena bypass)
+      if (isOnline && isFree() && !arenaMatchId) {
         try { alert('Le mode en ligne est réservé aux abonnés Pro.'); } catch {}
         try { navigate('/pricing'); } catch {}
         // Rejoindre quand même une salle locale par défaut pour éviter un état incohérent
@@ -2609,6 +2609,9 @@ const handleEditGreenZone = (zone) => {
           setGameActive(true);
           setTimeLeft(arenaData.duration || 60);
           setLoading(false);
+          setRoomStatus('playing');
+          setFullScreen(true);
+          console.log('[ARENA] Mode jeu activé - bypass lobby');
           return;
         }
       } catch (e) {
