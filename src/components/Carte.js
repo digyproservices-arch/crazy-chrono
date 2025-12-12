@@ -1093,6 +1093,18 @@ const Carte = () => {
       s.on('connect', () => {
         console.log('[ARENA] Socket connecté, ID:', s.id);
         setSocketConnected(true);
+        
+        // Rejoindre la room Arena avec matchId et studentId
+        try {
+          const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
+          console.log('[ARENA] Émission arena:join', { matchId: arenaMatchId, studentId: arenaData.myStudentId });
+          s.emit('arena:join', {
+            matchId: arenaMatchId,
+            studentId: arenaData.myStudentId
+          });
+        } catch (e) {
+          console.error('[ARENA] Erreur émission arena:join:', e);
+        }
       });
       
       // Écouter paire validée par un autre joueur
