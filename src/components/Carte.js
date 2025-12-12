@@ -1094,13 +1094,26 @@ const Carte = () => {
         console.log('[ARENA] Socket connecté, ID:', s.id);
         setSocketConnected(true);
         
-        // Rejoindre la room Arena avec matchId et studentId
+        // Rejoindre la room Arena avec matchId et studentData complet
         try {
           const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
-          console.log('[ARENA] Émission arena:join', { matchId: arenaMatchId, studentId: arenaData.myStudentId });
+          const myPlayer = (arenaData.players || []).find(p => p.studentId === arenaData.myStudentId);
+          
+          if (!myPlayer) {
+            console.error('[ARENA] Joueur introuvable dans arenaData.players');
+            return;
+          }
+          
+          const studentData = {
+            studentId: myPlayer.studentId,
+            name: myPlayer.name,
+            avatar: myPlayer.avatar || '/avatars/default.png'
+          };
+          
+          console.log('[ARENA] Émission arena:join', { matchId: arenaMatchId, studentData });
           s.emit('arena:join', {
             matchId: arenaMatchId,
-            studentId: arenaData.myStudentId
+            studentData
           });
         } catch (e) {
           console.error('[ARENA] Erreur émission arena:join:', e);
