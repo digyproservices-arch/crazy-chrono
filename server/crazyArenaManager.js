@@ -135,10 +135,8 @@ class CrazyArenaManager {
       count: match.players.length
     });
 
-    // Si 4 joueurs, démarrer le countdown automatiquement
-    if (match.players.length === 4) {
-      setTimeout(() => this.startCountdown(matchId), 1000);
-    }
+    // Ne PAS démarrer automatiquement - attendre que tous soient prêts
+    // Le countdown se lancera via playerReady() quand tous seront prêts
 
     return true;
   }
