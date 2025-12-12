@@ -212,7 +212,7 @@ class CrazyArenaManager {
     });
 
     // Notifier le démarrage avec les zones ET la config
-    this.io.to(matchId).emit('arena:game-start', {
+    const gameStartPayload = {
       zones,
       duration: match.config.duration || 60,
       startTime: match.startTime,
@@ -223,7 +223,16 @@ class CrazyArenaManager {
         avatar: p.avatar,
         score: 0
       }))
+    };
+    
+    console.log('[CrazyArena] 🚀 Émission arena:game-start avec config:', {
+      hasConfig: !!gameStartPayload.config,
+      configThemes: gameStartPayload.config?.themes,
+      configClasses: gameStartPayload.config?.classes,
+      zonesCount: zones.length
     });
+    
+    this.io.to(matchId).emit('arena:game-start', gameStartPayload);
 
     // Timer auto-fin de partie
     const duration = (match.config.duration || 60) * 1000;
