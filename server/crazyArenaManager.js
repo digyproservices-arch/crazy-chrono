@@ -240,12 +240,20 @@ class CrazyArenaManager {
     const seed = Math.floor(Math.random() * 1000000000);
     
     try {
-      const zones = generateRoundZones({
+      console.log('[CrazyArena] Génération zones avec config:', {
         seed,
         classes: config.classes || ['CE1'],
-        themes: config.themes || [],
-        excludedPairs: []
+        themes: config.themes || []
       });
+      
+      // IMPORTANT: seed est le 1er paramètre, config le 2ème
+      const zones = generateRoundZones(seed, {
+        classes: config.classes || ['CE1'],
+        themes: config.themes || [],
+        excludedPairIds: new Set()
+      });
+      
+      console.log('[CrazyArena] Zones générées:', zones.length);
       return zones;
     } catch (error) {
       console.error('[CrazyArena] Erreur génération zones:', error);
