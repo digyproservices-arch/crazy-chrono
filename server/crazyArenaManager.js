@@ -120,11 +120,14 @@ class CrazyArenaManager {
     this.playerMatches.set(socket.id, matchId);
 
     // Rejoindre la room Socket.IO
+    console.log(`[CrazyArena] AVANT socket.join(${matchId}) pour ${studentData.name}`);
     socket.join(matchId);
+    console.log(`[CrazyArena] APRÈS socket.join(${matchId}) - socket.rooms:`, Array.from(socket.rooms));
 
     console.log(`[CrazyArena] ${studentData.name} a rejoint le match ${matchId} (${match.players.length}/4)`);
 
     // Notifier tous les joueurs
+    console.log(`[CrazyArena] Émission arena:player-joined à room ${matchId}, count=${match.players.length}`);
     this.io.to(matchId).emit('arena:player-joined', {
       players: match.players.map(p => ({
         studentId: p.studentId,
@@ -134,6 +137,7 @@ class CrazyArenaManager {
       })),
       count: match.players.length
     });
+    console.log(`[CrazyArena] arena:player-joined émis avec succès`);
 
     // Ne PAS démarrer automatiquement - attendre que tous soient prêts
     // Le countdown se lancera via playerReady() quand tous seront prêts
@@ -236,10 +240,12 @@ class CrazyArenaManager {
 
     // ⏱️ CHRONO: Diffuser le temps restant toutes les secondes
     const duration = match.config.duration || 60;
+    console.log(`[CrazyArena] Démarrage timer pour match ${matchId}, duration=${duration}s`);
     match.timerInterval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - match.startTime) / 1000);
       const timeLeft = Math.max(0, duration - elapsed);
       
+      console.log(`[CrazyArena] Émission arena:timer-tick à room ${matchId}: timeLeft=${timeLeft}s`);
       this.io.to(matchId).emit('arena:timer-tick', {
         timeLeft,
         elapsed,
@@ -247,6 +253,7 @@ class CrazyArenaManager {
       });
       
       if (timeLeft === 0) {
+        console.log(`[CrazyArena] Timer terminé pour match ${matchId}`);
         clearInterval(match.timerInterval);
       }
     }, 1000);
@@ -338,6 +345,7 @@ class CrazyArenaManager {
 
     // ✅ SYNCHRONISER la paire validée à TOUS les joueurs
     if (isCorrect && pairId) {
+      console.log(`[CrazyArena] Émission arena:pair-validated à room ${matchId}: player=${player.name}, pairId=${pairId}`);
       this.io.to(matchId).emit('arena:pair-validated', {
         studentId,
         playerName: player.name,
@@ -346,6 +354,7 @@ class CrazyArenaManager {
         zoneBId,
         timestamp: Date.now()
       });
+      console.log(`[CrazyArena] arena:pair-validated émis avec succès`);
     }
 
     // Diffuser les scores à tous les joueurs

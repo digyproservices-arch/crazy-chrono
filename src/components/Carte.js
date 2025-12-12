@@ -1114,10 +1114,21 @@ const Carte = () => {
           s.emit('arena:join', {
             matchId: arenaMatchId,
             studentData
+          }, (response) => {
+            console.log('[ARENA] Callback arena:join reçu:', response);
           });
         } catch (e) {
           console.error('[ARENA] Erreur émission arena:join:', e);
         }
+      });
+      
+      // Écouter confirmation join room
+      s.on('arena:player-joined', ({ players, count }) => {
+        console.log('[ARENA] ✅ Player joined confirmé - Joueurs dans la room:', count, players);
+      });
+      
+      s.on('arena:error', ({ message }) => {
+        console.error('[ARENA] ❌ Erreur backend:', message);
       });
       
       // Écouter paire validée par un autre joueur
