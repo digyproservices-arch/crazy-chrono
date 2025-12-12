@@ -202,15 +202,13 @@ export default function CrazyArenaSetup() {
       };
       const phaseId = phaseNames[tournament.current_phase] || 'phase_1_classe';
       
-      // Configuration par défaut si cc_session_cfg est vide
-      const defaultClasses = ['CP', 'CE1', 'CE2', 'CM1', 'CM2', '6e', '5e', '4e', '3e'];
-      const defaultThemes = ['botanique', 'multiplication'];
-      
+      // FORCER classes et themes en dur pour mode tournoi
+      // Ne pas utiliser localStorage qui peut être vide ou mal configuré
       const matchConfig = {
-        rounds: classConfig.rounds || 3,
-        duration: classConfig.duration || 60,
-        classes: (classConfig.classes && classConfig.classes.length > 0) ? classConfig.classes : defaultClasses,
-        themes: (classConfig.themes && classConfig.themes.length > 0) ? classConfig.themes : defaultThemes
+        rounds: 3,
+        duration: 60,
+        classes: ['CP', 'CE1', 'CE2', 'CM1', 'CM2', '6e', '5e', '4e', '3e'],
+        themes: ['botanique', 'multiplication']
       };
       
       console.log('[CrazyArena] 🚀 Lancement match - Phase:', tournament.current_phase, '→ ID:', phaseId);
