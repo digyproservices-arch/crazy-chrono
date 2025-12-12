@@ -1080,6 +1080,13 @@ const Carte = () => {
     window.addEventListener('resize', applyMobile);
     // Cleanup resize listener will be returned later with socket cleanup
     const cleanupResize = () => window.removeEventListener('resize', applyMobile);
+    
+    // MODE ARENA: Ne PAS connecter Socket.IO (jeu local standalone)
+    if (arenaMatchId) {
+      console.log('[ARENA] Socket.IO désactivé en mode arena');
+      return cleanupResize;
+    }
+    
     // Supprimer tout autostart pour éviter les courses avant le handshake/preload
     // Avoid double-connect in strict mode by checking existing
     if (socketRef.current && socketRef.current.connected) return;
