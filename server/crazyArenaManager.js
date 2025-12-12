@@ -264,11 +264,14 @@ class CrazyArenaManager {
       });
       
       // IMPORTANT: seed est le 1er paramètre, config le 2ème
-      const zones = generateRoundZones(seed, {
+      const result = generateRoundZones(seed, {
         classes: finalClasses,
         themes: finalThemes,
         excludedPairIds: new Set()
       });
+      
+      // generateRoundZones retourne {zones: [], goodPairIds: {}}
+      const zones = result.zones || [];
       
       console.log('[CrazyArena] Zones générées:', zones.length);
       return zones;
