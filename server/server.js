@@ -639,6 +639,62 @@ app.delete('/delete-image', async (req, res) => {
   }
 });
 
+// Endpoint pour recevoir les logs depuis le frontend
+app.post('/api/logs', async (req, res) => {
+  try {
+    const { logs, timestamp, source, matchId, userAgent } = req.body;
+    
+    if (!logs || typeof logs !== 'string') {
+      return res.status(400).json({ ok: false, error: 'Missing logs' });
+    }
+    
+    // Créer dossier logs/ s'il n'existe pas
+    const logsDir = path.join(__dirname, 'logs');
+    try {
+      await fs.promises.mkdir(logsDir, { recursive: true });
+    } catch {}
+    
+    // Nom fichier avec timestamp
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const filename = `logs-${ts}-${source || 'unknown'}.txt`;
+    const filepath = path.join(logsDir, filename);
+    
+    // Contenu enrichi
+    const header = `=== CRAZY CHRONO LOGS ===
+Source: ${source || 'unknown'}
+Match ID: ${matchId || 'N/A'}
+Timestamp: ${timestamp || new Date().toISOString()}
+User Agent: ${userAgent || 'N/A'}
+Log Lines: ${logs.split('\n').length}
+==============================
+
+`;
+    
+    const fullContent = header + logs;
+    
+    // Écrire dans fichier
+    await fs.promises.writeFile(filepath, fullContent, 'utf8');
+    
+    // Afficher dans console serveur (premières lignes)
+    console.log('\n[LOGS REÇUS] ==================');
+    console.log(`Source: ${source}, Match: ${matchId}`);
+    console.log(`Fichier: ${filename}`);
+    console.log('Aperçu (50 premières lignes):');
+    console.log(logs.split('\n').slice(0, 50).join('\n'));
+    console.log('==============================\n');
+    
+    res.json({ 
+      ok: true, 
+      message: 'Logs reçus et enregistrés',
+      filename,
+      lines: logs.split('\n').length
+    });
+  } catch (err) {
+    console.error('[LOGS] Erreur réception:', err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // Purge globale: enlève de elements.json toutes les images non listées dans associations.json
 app.post('/purge-elements', async (req, res) => {
   try {
