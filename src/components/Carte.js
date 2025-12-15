@@ -625,6 +625,7 @@ const Carte = () => {
   const [diagRecording, setDiagRecording] = useState(false);
   const diagRecordingRef = useRef(false);
   const [diagRecLines, setDiagRecLines] = useState([]);
+  const [logsCopied, setLogsCopied] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(true);
   // Image analysis panel
@@ -704,7 +705,31 @@ const Carte = () => {
     addDiag('recording:stop', { count: diagRecLines.length });
   };
   const copyDiagRecording = async () => {
-    try { await navigator.clipboard.writeText((diagRecLines || []).join('\n')); } catch {}
+    try {
+      const text = (diagRecLines || []).join('\n');
+      
+      // Tentative avec Clipboard API moderne
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback: méthode textarea pour navigateurs anciens
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      
+      // Feedback visuel
+      setLogsCopied(true);
+      setTimeout(() => setLogsCopied(false), 2000);
+    } catch (err) {
+      console.error('[LOGS] Erreur copie:', err);
+      alert('Erreur lors de la copie. Essayez de sélectionner manuellement le texte ci-dessous.');
+    }
   };
 
   // Fonction d'analyse des images utilisées
@@ -4926,7 +4951,7 @@ setZones(dataWithRandomTexts);
               <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                 <button onClick={startDiagRecording} disabled={diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: diagRecording ? '#064e3b' : '#065f46', color: '#ecfdf5' }}>Démarrer enregistrement</button>
                 <button onClick={stopDiagRecording} disabled={!diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: '#7f1d1d', color: '#fee2e2' }}>Arrêter</button>
-                <button onClick={copyDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb' }}>Copier</button>
+                <button onClick={copyDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: logsCopied ? '#10b981' : 'transparent', color: logsCopied ? '#ecfdf5' : '#e5e7eb', transition: 'all 0.2s' }}>{logsCopied ? '✓ Copié !' : 'Copier'}</button>
                 <button onClick={() => { setDiagLines([]); setDiagRecLines([]); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb' }}>Vider</button>
               </div>
               <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>Derniers évènements</div>
@@ -5129,7 +5154,7 @@ setZones(dataWithRandomTexts);
                   <button onClick={() => setDiagOpen(v => !v)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db' }}>{diagOpen ? 'Masquer diagnostic' : 'Diagnostic'}</button>
                   <button onClick={startDiagRecording} disabled={diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: diagRecording ? '#d1fae5' : '#ecfdf5', color: '#065f46' }}>Démarrer enregistrement</button>
                   <button onClick={stopDiagRecording} disabled={!diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: !diagRecording ? '#fee2e2' : '#fef2f2', color: '#991b1b' }}>Arrêter</button>
-                  <button onClick={copyDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db' }}>Copier l'enregistrement</button>
+                  <button onClick={copyDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: logsCopied ? '1px solid #10b981' : '1px solid #d1d5db', background: logsCopied ? '#d1fae5' : 'white', color: logsCopied ? '#065f46' : '#374151', transition: 'all 0.2s', fontWeight: logsCopied ? 'bold' : 'normal' }}>{logsCopied ? '✓ Copié !' : 'Copier l\'enregistrement'}</button>
                   <button onClick={() => { setDiagLines([]); setDiagRecLines([]); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db' }}>Vider</button>
                 </div>
                 {diagOpen && (
