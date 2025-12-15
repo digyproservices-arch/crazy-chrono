@@ -5489,7 +5489,7 @@ setZones(dataWithRandomTexts);
               strokeWidth={2}
             />
           )}
-          {zones.filter(z => z && typeof z === 'object').map((zone, idx) => (
+          {zones.filter(z => z && typeof z === 'object' && !z.validated).map((zone, idx) => (
             <g
               key={zone.id}
               data-zone-id={zone.id}
