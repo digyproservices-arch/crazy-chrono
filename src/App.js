@@ -41,6 +41,8 @@ function App() {
   const [diagRecording, setDiagRecording] = useState(false);
   const diagRecRef = useRef(false);
   const [diagRecLines, setDiagRecLines] = useState([]);
+  const [logsCopied, setLogsCopied] = useState(false);
+  const [logsSent, setLogsSent] = useState(false);
   const [isAdminUI, setIsAdminUI] = useState(false);
   const consoleOrigRef = useRef({ log: null, warn: null, error: null });
   const fetchOrigRef = useRef(null);
@@ -94,6 +96,83 @@ function App() {
 
   // Recording ref sync
   useEffect(() => { diagRecRef.current = !!diagRecording; }, [diagRecording]);
+
+  // Télécharger les logs en fichier .txt
+  const downloadDiagRecording = () => {
+    try {
+      const text = (diagRecLines || []).join('\n');
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      a.download = `crazy-chrono-logs-${timestamp}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('[LOGS] Erreur téléchargement:', err);
+      alert('Erreur lors du téléchargement.');
+    }
+  };
+
+  // Envoyer les logs au backend
+  const sendLogsToBackend = async () => {
+    try {
+      const text = (diagRecLines || []).join('\n');
+      if (!text || text.length < 10) {
+        alert('Aucun log à envoyer. Démarrez l\'enregistrement d\'abord.');
+        return;
+      }
+      const response = await fetch(`${getBackendUrl()}/api/logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          logs: text,
+          timestamp: new Date().toISOString(),
+          source: 'app-diagnostic-global',
+          matchId: 'N/A',
+          userAgent: navigator.userAgent
+        })
+      });
+      if (response.ok) {
+        const result = await response.json();
+        console.log('[LOGS] Envoyé au backend:', result);
+        setLogsSent(true);
+        setTimeout(() => setLogsSent(false), 3000);
+      } else {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    } catch (err) {
+      console.error('[LOGS] Erreur envoi backend:', err);
+      alert(`Erreur envoi logs: ${err.message}. Essayez le téléchargement à la place.`);
+    }
+  };
+
+  // Copier avec feedback
+  const copyDiagRecording = async () => {
+    try {
+      const text = (diagRecLines || []).join('\n');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setLogsCopied(true);
+      setTimeout(() => setLogsCopied(false), 2000);
+    } catch (err) {
+      console.error('[LOGS] Erreur copie:', err);
+      alert('Erreur lors de la copie.');
+    }
+  };
 
   // Auto-start recording via ?rec=1
   useEffect(() => {
@@ -349,22 +428,22 @@ function App() {
               </div>
               {isAdminUI ? (
                 <div style={{ padding: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    {!diagRecording && (
-                      <button onClick={() => { setDiagRecLines([]); setDiagRecording(true); try { window.ccAddDiag && window.ccAddDiag('recording:start'); } catch {} }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: '#065f46', color: '#ecfdf5' }}>Démarrer</button>
-                    )}
-                    {diagRecording && (
-                      <>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ width: 10, height: 10, borderRadius: 20, background: '#10b981', boxShadow: '0 0 0 0 rgba(16,185,129,0.7)', animation: 'cc-blink 1s infinite' }} />
-                          <span style={{ fontSize: 13, color: '#a7f3d0' }}>Enregistrement global en cours…</span>
-                        </div>
-                        <button onClick={() => { setDiagRecording(false); try { window.ccAddDiag && window.ccAddDiag('recording:stop', { count: diagRecLines.length }); } catch {} }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: '#7f1d1d', color: '#fee2e2' }}>Arrêter</button>
-                      </>
-                    )}
-                    <button onClick={async()=>{ try { await navigator.clipboard.writeText((diagRecLines||[]).join('\n')); } catch {} }} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb' }}>Copier</button>
-                    <button onClick={()=>{ setDiagLines([]); setDiagRecLines([]); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb' }}>Vider</button>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                    <button onClick={() => { setDiagRecLines([]); setDiagRecording(true); try { window.ccAddDiag && window.ccAddDiag('recording:start'); } catch {} }} disabled={diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: diagRecording ? '#064e3b' : '#065f46', color: '#ecfdf5', fontSize: 12 }}>▶ Démarrer</button>
+                    <button onClick={() => { setDiagRecording(false); try { window.ccAddDiag && window.ccAddDiag('recording:stop', { count: diagRecLines.length }); } catch {} }} disabled={!diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: '#7f1d1d', color: '#fee2e2', fontSize: 12 }}>■ Arrêter</button>
+                    <button onClick={downloadDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #3b82f6', background: '#1e3a8a', color: '#dbeafe', fontSize: 12 }}>📥 Télécharger</button>
+                    <button onClick={sendLogsToBackend} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: logsSent ? '1px solid #10b981' : '1px solid #8b5cf6', background: logsSent ? '#065f46' : '#5b21b6', color: '#ede9fe', fontSize: 12, transition: 'all 0.2s' }}>{logsSent ? '✓ Envoyé !' : '📤 Envoyer backend'}</button>
                   </div>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                    <button onClick={copyDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: logsCopied ? '#10b981' : 'transparent', color: logsCopied ? '#ecfdf5' : '#e5e7eb', transition: 'all 0.2s', fontSize: 12 }}>{logsCopied ? '✓ Copié !' : '📋 Copier'}</button>
+                    <button onClick={()=>{ setDiagLines([]); setDiagRecLines([]); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb', fontSize: 12 }}>🗑️ Vider</button>
+                  </div>
+                  {diagRecording && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 10px', background: 'rgba(16,185,129,0.1)', borderRadius: 6, border: '1px solid rgba(16,185,129,0.3)' }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 20, background: '#10b981', boxShadow: '0 0 0 0 rgba(16,185,129,0.7)', animation: 'cc-blink 1s infinite' }} />
+                      <span style={{ fontSize: 12, color: '#a7f3d0' }}>Enregistrement en cours… ({diagRecLines.length} lignes)</span>
+                    </div>
+                  )}
                   <style>{`@keyframes cc-blink { 0%{opacity:1} 50%{opacity:0.3} 100%{opacity:1} }`}</style>
                   <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>Derniers évènements</div>
                   <div style={{ maxHeight: 180, overflow: 'auto', background: '#0b1220', padding: 8, borderRadius: 6 }}>
