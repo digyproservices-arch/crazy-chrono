@@ -5556,14 +5556,14 @@ setZones(dataWithRandomTexts);
         >
         {/* Définitions SVG */}
         <defs>
-          {/* ClipPaths pour zones images */}
-          {zones.filter(z => z.type === 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
+          {/* ClipPaths pour zones images (seulement non-validées) */}
+          {zones.filter(z => !z.validated && z.type === 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
             <clipPath id={`clip-zone-${zone.id}`} key={`clip-${zone.id}`} clipPathUnits="userSpaceOnUse">
               <path d={pointsToBezierPath(zone.points)} />
             </clipPath>
           ))}
-          {/* Paths pour texte courbé (zones non-image) */}
-          {zones.filter(z => z.type !== 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
+          {/* Paths pour texte courbé (zones non-image, seulement non-validées) */}
+          {zones.filter(z => !z.validated && z.type !== 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
             <path id={`text-curve-${zone.id}`} key={`textcurve-${zone.id}`} d={getArcPathFromZonePoints(zone.points, zone.id, selectedArcPoints, zone.arcPoints)} fill="none" />
           ))}
         </defs>
