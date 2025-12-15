@@ -1139,16 +1139,23 @@ const Carte = () => {
       // Écouter paire validée par un autre joueur
       s.on('arena:pair-validated', ({ pairId, zoneAId, zoneBId, playerName }) => {
         console.log('[ARENA] Paire validée par', playerName, ':', pairId);
+        console.log('[ARENA] 🔍 DEBUG - zoneAId:', zoneAId, 'zoneBId:', zoneBId);
         
         // Masquer les zones validées pour tous les joueurs
-        setZones(prevZones => 
-          prevZones.map(z => {
+        setZones(prevZones => {
+          console.log('[ARENA] 🔍 Zones AVANT setZones:', prevZones.length, 'validées:', prevZones.filter(z => z.validated).length);
+          
+          const updatedZones = prevZones.map(z => {
             if (z.id === zoneAId || z.id === zoneBId) {
+              console.log('[ARENA] ✅ Marquage zone', z.id, 'comme validated=true');
               return { ...z, validated: true };
             }
             return z;
-          })
-        );
+          });
+          
+          console.log('[ARENA] 🔍 Zones APRÈS setZones - validées:', updatedZones.filter(z => z.validated).length, 'visibles:', updatedZones.filter(z => !z.validated).length);
+          return updatedZones;
+        });
         
         // Ajouter à l'historique paires validées
         setValidatedPairIds(prev => new Set([...prev, pairId]));
