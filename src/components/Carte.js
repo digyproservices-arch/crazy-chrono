@@ -1087,11 +1087,16 @@ const Carte = () => {
       if (socketRef.current && socketRef.current.connected) return cleanupResize;
       
       const base = getBackendUrl();
+      console.log('[ARENA] Tentative connexion Socket.IO vers:', base);
       const s = io(base, { transports: ['websocket'], withCredentials: false });
       socketRef.current = s;
       
+      s.on('connecting', () => {
+        console.log('[ARENA] 🔄 Socket en cours de connexion...');
+      });
+      
       s.on('connect', () => {
-        console.log('[ARENA] Socket connecté, ID:', s.id);
+        console.log('[ARENA] ✅ Socket connecté, ID:', s.id);
         setSocketConnected(true);
         
         // Rejoindre la room Arena avec matchId et studentData complet
@@ -1162,6 +1167,19 @@ const Carte = () => {
       s.on('disconnect', () => {
         console.log('[ARENA] Socket déconnecté');
         setSocketConnected(false);
+      });
+      
+      s.on('connect_error', (err) => {
+        console.error('[ARENA] ❌ Erreur connexion Socket.IO:', err?.message || err);
+        console.error('[ARENA] Détails erreur:', { name: err?.name, type: err?.type, description: err?.description });
+      });
+      
+      s.on('reconnect_attempt', (attemptNumber) => {
+        console.log('[ARENA] 🔄 Tentative de reconnexion #', attemptNumber);
+      });
+      
+      s.on('reconnect_error', (err) => {
+        console.error('[ARENA] ❌ Échec reconnexion:', err?.message || err);
       });
       
       return () => {
