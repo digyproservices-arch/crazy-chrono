@@ -86,20 +86,37 @@ class CrazyArenaManager {
       console.log(`[CrazyArena] Match ${matchId} récupéré depuis Supabase avec succès`);
     }
 
+    // Vérifier si le joueur fait déjà partie du match (reconnexion)
+    const existingPlayer = match.players.find(p => p.studentId === studentData.studentId);
+    
+    if (existingPlayer) {
+      // RECONNEXION : Mettre à jour le socketId et rejoindre la room
+      console.log(`[CrazyArena] 🔄 Reconnexion de ${studentData.name} (status=${match.status})`);
+      existingPlayer.socketId = socket.id;
+      this.playerMatches.set(socket.id, matchId);
+      
+      // Rejoindre la room Socket.IO
+      console.log(`[CrazyArena] AVANT socket.join(${matchId}) [RECONNECT] pour ${studentData.name}`);
+      socket.join(matchId);
+      console.log(`[CrazyArena] APRÈS socket.join(${matchId}) [RECONNECT] - socket.rooms:`, Array.from(socket.rooms));
+      
+      // Notifier la reconnexion
+      this.io.to(matchId).emit('arena:player-joined', {
+        players: match.players.map(p => ({ studentId: p.studentId, name: p.name, score: p.score })),
+        count: match.players.length
+      });
+      
+      return true;
+    }
+
+    // NOUVEAU JOUEUR : Vérifier les conditions d'entrée
     if (match.status !== 'waiting') {
-      socket.emit('arena:error', { message: 'Match déjà commencé' });
+      socket.emit('arena:error', { message: 'Match déjà commencé - impossible de rejoindre' });
       return false;
     }
 
     if (match.players.length >= 4) {
       socket.emit('arena:error', { message: 'Match complet (4/4)' });
-      return false;
-    }
-
-    // Vérifier que le joueur n'est pas déjà dans le match
-    const alreadyJoined = match.players.find(p => p.studentId === studentData.studentId);
-    if (alreadyJoined) {
-      socket.emit('arena:error', { message: 'Vous êtes déjà dans ce match' });
       return false;
     }
 
