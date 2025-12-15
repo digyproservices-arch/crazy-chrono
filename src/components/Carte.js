@@ -5496,7 +5496,13 @@ setZones(dataWithRandomTexts);
               strokeWidth={2}
             />
           )}
-          {zones.filter(z => z && typeof z === 'object' && !z.validated).map((zone, idx) => (
+          {(() => {
+            const filteredZones = zones.filter(z => z && typeof z === 'object' && !z.validated);
+            if (arenaMatchId) {
+              console.log('[ARENA] 🎨 RENDU SVG - Total zones:', zones.length, 'Validées:', zones.filter(z => z.validated).length, 'À afficher:', filteredZones.length);
+            }
+            return filteredZones;
+          })().map((zone, idx) => (
             <g
               key={zone.id}
               data-zone-id={zone.id}
