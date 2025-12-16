@@ -1247,6 +1247,31 @@ const Carte = () => {
         setScoresMP(scores);
       });
       
+      // Écouter nouvelle carte (après que toutes les paires sont trouvées)
+      s.on('arena:round-new', ({ zones, roundIndex, totalRounds }) => {
+        console.log('[ARENA] 🎯 Nouvelle carte reçue!', { 
+          zonesCount: zones?.length, 
+          roundIndex, 
+          totalRounds 
+        });
+        
+        // Mettre à jour les zones
+        if (Array.isArray(zones)) {
+          setZones(zones);
+          console.log('[ARENA] ✅ Zones mises à jour:', zones.length);
+        }
+        
+        // Réinitialiser l'état du jeu pour la nouvelle carte
+        setValidatedPairIds(new Set());
+        setGameSelectedIds([]);
+        setGameMsg('');
+        
+        // Mettre à jour le compteur de manches si fourni
+        if (Number.isFinite(roundIndex)) {
+          setRoundsPlayed(roundIndex);
+        }
+      });
+      
       s.on('disconnect', () => {
         console.log('[ARENA] Socket déconnecté');
         setSocketConnected(false);

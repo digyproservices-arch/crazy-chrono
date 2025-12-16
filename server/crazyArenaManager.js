@@ -220,12 +220,17 @@ class CrazyArenaManager {
 
     match.status = 'playing';
     match.startTime = Date.now();
+    match.roundsPlayed = 0;
+    match.validatedPairIds = new Set();
 
     console.log(`[CrazyArena] Partie démarrée pour match ${matchId}`);
 
     // Générer les zones (utiliser la même logique que le mode multijoueur classique)
     const zones = await this.generateZones(match.config);
     match.zones = zones;
+    match.totalPairs = Math.floor(zones.length / 2);
+    
+    console.log(`[CrazyArena] 🎯 Carte générée: ${zones.length} zones, ${match.totalPairs} paires à trouver`);
 
     // Initialiser les scores
     match.players.forEach(p => {
@@ -372,6 +377,46 @@ class CrazyArenaManager {
         timestamp: Date.now()
       });
       console.log(`[CrazyArena] arena:pair-validated émis avec succès`);
+      
+      // Tracker les paires validées
+      if (!match.validatedPairIds) match.validatedPairIds = new Set();
+      match.validatedPairIds.add(pairId);
+      
+      console.log(`[CrazyArena] 📊 Progression: ${match.validatedPairIds.size}/${match.totalPairs} paires trouvées`);
+      
+      // ✅ TOUTES LES PAIRES TROUVÉES → NOUVELLE CARTE
+      if (match.validatedPairIds.size >= match.totalPairs) {
+        console.log(`[CrazyArena] 🎉 Toutes les paires trouvées! Génération nouvelle carte...`);
+        
+        // Incrémenter rounds
+        match.roundsPlayed = (match.roundsPlayed || 0) + 1;
+        
+        // Réinitialiser tracking
+        match.validatedPairIds.clear();
+        
+        // Générer nouvelle carte
+        setTimeout(async () => {
+          try {
+            const newZones = await this.generateZones(match.config);
+            match.zones = newZones;
+            match.totalPairs = Math.floor(newZones.length / 2);
+            
+            console.log(`[CrazyArena] 🎯 Nouvelle carte générée: ${newZones.length} zones, ${match.totalPairs} paires`);
+            
+            // Émettre nouvelle carte à tous les joueurs
+            this.io.to(matchId).emit('arena:round-new', {
+              zones: newZones,
+              roundIndex: match.roundsPlayed,
+              totalRounds: match.config.rounds || null,
+              timestamp: Date.now()
+            });
+            
+            console.log(`[CrazyArena] ✅ arena:round-new émis - Manche ${match.roundsPlayed}`);
+          } catch (err) {
+            console.error('[CrazyArena] Erreur génération nouvelle carte:', err);
+          }
+        }, 1500); // Délai 1.5s pour laisser temps aux joueurs de voir la dernière paire
+      }
     }
 
     // Diffuser les scores à tous les joueurs
