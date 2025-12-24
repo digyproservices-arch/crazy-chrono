@@ -1252,6 +1252,12 @@ const Carte = () => {
         try {
           const ZA = zones.find(z => z.id === zoneAId);
           const ZB = zones.find(z => z.id === zoneBId);
+          console.log('[ARENA] 🖼️ Diagnostic images historique:', { 
+            ZA_type: ZA?.type, 
+            ZA_content: ZA?.content, 
+            ZB_type: ZB?.type, 
+            ZB_content: ZB?.content 
+          });
           const textFor = (Z) => {
             const t = (Z?.label || Z?.content || Z?.text || Z?.value || '').toString();
             if (t && t.trim()) return t;
