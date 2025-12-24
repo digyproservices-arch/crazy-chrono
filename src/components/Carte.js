@@ -1223,8 +1223,8 @@ const Carte = () => {
       s.on('arena:pair-validated', ({ pairId, zoneAId, zoneBId, playerName, studentId }) => {
         console.log('[ARENA] Paire validée par', playerName, ':', pairId);
         
-        // ✅ CRITIQUE: Capturer zones IMMÉDIATEMENT avant toute modification React state
-        const currentZones = zones;
+        // ✅ CRITIQUE: Utiliser zonesRef.current pour accéder à la version actuelle (pas stale closure)
+        const currentZones = zonesRef.current || [];
         const ZA = currentZones.find(z => z.id === zoneAId);
         const ZB = currentZones.find(z => z.id === zoneBId);
         
@@ -1980,6 +1980,9 @@ const Carte = () => {
   const [roundOverlay, setRoundOverlay] = useState(null); // { text, until }
   // Zones must be declared before any effects that read them
   const [zones, setZones] = useState([]);
+  // ✅ CRITIQUE: Ref mutable pour zones (évite stale closure dans Socket handlers)
+  const zonesRef = useRef([]);
+  useEffect(() => { zonesRef.current = zones; }, [zones]);
   // Map rapide id -> zone pour récupérer les textes même après reshuffle
   const zonesByIdRef = useRef(new Map());
   useEffect(() => {
