@@ -29,7 +29,7 @@ Racine/ (fichiers critiques uniquement)
 
 ## 📚 FICHIERS PAR CATÉGORIE
 
-### 🔴 **RACINE (Fichiers critiques - 8 fichiers)**
+### 🔴 **RACINE (Fichiers critiques - 5 fichiers)**
 
 **À consulter AVANT toute modification:**
 
@@ -43,17 +43,16 @@ Racine/ (fichiers critiques uniquement)
    - Matrice de décision
    - Format analyse obligatoire
 
-3. **DEBUG_PROCESS.md** - Processus de débogage systématique
+3. **TRAVAIL_EN_COURS.md** - TODO et tâches prioritaires
 
-4. **COMMITS_FONCTIONNELS.md** - Commits stables (a7665f5 = référence)
+4. **INDEX_SESSIONS.md** - Index rapide des 8 sessions
 
-5. **REFONTE_CARTE_ANALYSE.md** - Architecture Carte.js (6109 lignes)
+5. **README.md** - Documentation générale projet
 
-6. **TRAVAIL_EN_COURS.md** - TODO et tâches prioritaires
-
-7. **INDEX_SESSIONS.md** - Index rapide des 8 sessions
-
-8. **README.md** - Documentation générale projet
+**⚠️ DÉPLACÉS vers docs/guides/ :**
+- DEBUG_PROCESS.md → docs/guides/
+- COMMITS_FONCTIONNELS.md → docs/guides/
+- REFONTE_CARTE_ANALYSE.md → docs/guides/
 
 ---
 
@@ -77,7 +76,7 @@ Racine/ (fichiers critiques uniquement)
 
 ---
 
-### 🛠️ **docs/guides/ (Guides techniques - 8 fichiers)**
+### 🛠️ **docs/guides/ (Guides techniques - 15 fichiers)**
 
 **Guides setup et déploiement:**
 
@@ -89,6 +88,19 @@ Racine/ (fichiers critiques uniquement)
 6. **RENDER_ENV_SETUP.md** - Variables env Render
 7. **SENTRY_INSTALLATION.md** - Installation Sentry
 8. **SENTRY_SETUP.md** - Configuration Sentry
+
+**Guides projet et process:**
+
+9. **BUDGET_MONITORING.md** - Stack monitoring gratuite (Sentry, Playwright, GA4)
+10. **COMMITS_FONCTIONNELS.md** - Commits stables et rollback (a7665f5)
+11. **DEBUG_PROCESS.md** - Processus de débogage systématique
+12. **REFONTE_CARTE_ANALYSE.md** - Architecture Carte.js (6109 lignes)
+
+**Comptes et démos:**
+
+13. **COMPTES_DEMO_RECTORAT.md** - Comptes démo pour présentation Rectorat
+14. **COMPTES_REELS_DEMO.md** - Comptes réels de test
+15. **MIGRATION_LICENCES_PROFESSIONNELLES.md** - Migration licences
 
 ---
 
