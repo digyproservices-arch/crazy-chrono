@@ -1224,6 +1224,10 @@ const Carte = () => {
         console.log('[ARENA] Paire validée par', playerName, ':', pairId);
         
         // ✅ CORRECTION Bug #3: Animation bulle avec couleur du joueur
+        let playerColor = '#22c55e';
+        let borderColor = '#ffffff';
+        let playerInitials = '';
+        
         try {
           const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
           const players = Array.isArray(arenaData.players) ? arenaData.players : [];
@@ -1231,15 +1235,40 @@ const Carte = () => {
           
           if (playerIdx >= 0) {
             const { primary, border } = getPlayerColorComboByIndex(playerIdx);
-            const initials = getInitials(playerName || players[playerIdx]?.name || 'Joueur');
+            playerColor = primary;
+            borderColor = border;
+            playerInitials = getInitials(playerName || players[playerIdx]?.name || 'Joueur');
             const ZA = zones.find(z => z.id === zoneAId);
             const ZB = zones.find(z => z.id === zoneBId);
             
             // Lancer animation bulle avec couleur du joueur
-            animateBubblesFromZones(zoneAId, zoneBId, primary, ZA, ZB, border, initials);
+            animateBubblesFromZones(zoneAId, zoneBId, playerColor, ZA, ZB, borderColor, playerInitials);
           }
         } catch (e) {
           console.warn('[ARENA] Erreur animation bulle:', e);
+        }
+        
+        // ✅ BUG FIX: Ajouter à l'historique pédagogique (comme mode MP classique)
+        try {
+          const ZA = zones.find(z => z.id === zoneAId);
+          const ZB = zones.find(z => z.id === zoneBId);
+          const pairText = pairId || 'Paire validée';
+          
+          const entry = {
+            a: zoneAId,
+            b: zoneBId,
+            winnerId: studentId,
+            winnerName: playerName || 'Joueur',
+            color: playerColor,
+            borderColor: borderColor,
+            text: `✔️ ${pairText}`,
+            kind: (ZA?.type === 'calcul' || ZA?.type === 'chiffre') ? 'calcnum' : 'imgtxt'
+          };
+          
+          setLastWonPair(entry);
+          setWonPairsHistory(h => [entry, ...(Array.isArray(h) ? h : [])].slice(0, 25));
+        } catch (e) {
+          console.warn('[ARENA] Erreur mise à jour historique:', e);
         }
         
         // Masquer les zones validées pour tous les joueurs
@@ -1279,6 +1308,9 @@ const Carte = () => {
           setZones(zones);
           console.log('[ARENA] ✅ Zones mises à jour:', zones.length);
         }
+        
+        // ✅ BUG FIX: Réactiver le jeu pour pouvoir cliquer sur les nouvelles zones
+        setGameActive(true);
         
         // Réinitialiser l'état du jeu pour la nouvelle carte
         setValidatedPairIds(new Set());
