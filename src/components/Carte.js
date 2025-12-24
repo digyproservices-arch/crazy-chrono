@@ -1252,7 +1252,53 @@ const Carte = () => {
         try {
           const ZA = zones.find(z => z.id === zoneAId);
           const ZB = zones.find(z => z.id === zoneBId);
-          const pairText = pairId || 'Paire validée';
+          const textFor = (Z) => {
+            const t = (Z?.label || Z?.content || Z?.text || Z?.value || '').toString();
+            if (t && t.trim()) return t;
+            const pid = Z?.pairId || pairId;
+            return pid ? `[${pid}]` : '…';
+          };
+          
+          const textForCalc = (Z) => {
+            const t = (Z?.content || Z?.label || Z?.text || Z?.value || '').toString();
+            if (t && t.trim()) return t;
+            const pid = Z?.pairId || pairId;
+            return pid ? `[${pid}]` : '…';
+          };
+          
+          const textA = textFor(ZA);
+          const textB = textFor(ZB);
+          const typeA = ZA?.type || '';
+          const typeB = ZB?.type || '';
+          let kind = null;
+          let calcExpr = null;
+          let calcResult = null;
+          let imageSrc = null;
+          let imageLabel = null;
+          let displayText = `${textA || '…'} ↔ ${textB || '…'}`;
+          
+          const resolveImageSrc = (raw) => {
+            if (!raw) return null;
+            const normalized = String(raw).startsWith('http') ? String(raw) : process.env.PUBLIC_URL + '/' + (String(raw).startsWith('/') ? String(raw).slice(1) : (String(raw).startsWith('images/') ? String(raw) : 'images/' + String(raw)));
+            return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
+          };
+          
+          if ((typeA === 'calcul' && typeB === 'chiffre') || (typeA === 'chiffre' && typeB === 'calcul')) {
+            kind = 'calcnum';
+            const calcZone = typeA === 'calcul' ? ZA : ZB;
+            const numZone = typeA === 'chiffre' ? ZA : ZB;
+            calcExpr = textForCalc(calcZone);
+            calcResult = textForCalc(numZone);
+            displayText = (calcExpr && calcResult) ? `${calcExpr} = ${calcResult}` : `${textA || '…'} ↔ ${textB || '…'}`;
+          } else if ((typeA === 'image' && typeB === 'texte') || (typeA === 'texte' && typeB === 'image')) {
+            kind = 'imgtxt';
+            const imgZone = typeA === 'image' ? ZA : ZB;
+            const txtZone = typeA === 'texte' ? ZA : ZB;
+            const raw = imgZone?.content || imgZone?.url || imgZone?.path || imgZone?.src || '';
+            if (raw) imageSrc = resolveImageSrc(String(raw));
+            imageLabel = textFor(txtZone);
+            displayText = imageLabel || `${textA || '…'} ↔ ${textB || '…'}`;
+          }
           
           const entry = {
             a: zoneAId,
@@ -1261,8 +1307,13 @@ const Carte = () => {
             winnerName: playerName || 'Joueur',
             color: playerColor,
             borderColor: borderColor,
-            text: `✔️ ${pairText}`,
-            kind: (ZA?.type === 'calcul' || ZA?.type === 'chiffre') ? 'calcnum' : 'imgtxt'
+            initials: playerInitials,
+            text: displayText,
+            kind,
+            calcExpr,
+            calcResult,
+            imageSrc,
+            imageLabel
           };
           
           setLastWonPair(entry);
