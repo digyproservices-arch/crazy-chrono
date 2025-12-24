@@ -1223,6 +1223,11 @@ const Carte = () => {
       s.on('arena:pair-validated', ({ pairId, zoneAId, zoneBId, playerName, studentId }) => {
         console.log('[ARENA] Paire validée par', playerName, ':', pairId);
         
+        // ✅ CRITIQUE: Capturer zones IMMÉDIATEMENT avant toute modification React state
+        const currentZones = zones;
+        const ZA = currentZones.find(z => z.id === zoneAId);
+        const ZB = currentZones.find(z => z.id === zoneBId);
+        
         // ✅ CORRECTION Bug #3: Animation bulle avec couleur du joueur
         let playerColor = '#22c55e';
         let borderColor = '#ffffff';
@@ -1238,8 +1243,6 @@ const Carte = () => {
             playerColor = primary;
             borderColor = border;
             playerInitials = getInitials(playerName || players[playerIdx]?.name || 'Joueur');
-            const ZA = zones.find(z => z.id === zoneAId);
-            const ZB = zones.find(z => z.id === zoneBId);
             
             // Lancer animation bulle avec couleur du joueur
             animateBubblesFromZones(zoneAId, zoneBId, playerColor, ZA, ZB, borderColor, playerInitials);
@@ -1250,8 +1253,6 @@ const Carte = () => {
         
         // ✅ BUG FIX: Ajouter à l'historique pédagogique (comme mode MP classique)
         try {
-          const ZA = zones.find(z => z.id === zoneAId);
-          const ZB = zones.find(z => z.id === zoneBId);
           console.log('[ARENA] 🖼️ Diagnostic images historique:', { 
             ZA_type: ZA?.type, 
             ZA_content: ZA?.content, 
