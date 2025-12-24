@@ -1338,6 +1338,7 @@ const Carte = () => {
       
       // Écouter chrono synchronisé
       s.on('arena:timer-tick', ({ timeLeft }) => {
+        console.log('[ARENA] ⏱️ Timer tick:', timeLeft);
         setTimeLeft(timeLeft);
       });
       
