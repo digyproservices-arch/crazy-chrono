@@ -271,15 +271,42 @@ class CrazyArenaManager {
       const elapsed = Math.floor((Date.now() - match.startTime) / 1000);
       const timeLeft = Math.max(0, totalDuration - elapsed);
       
-      console.log(`[CrazyArena] Émission arena:timer-tick à room ${matchId}: timeLeft=${timeLeft}s`);
+      // ✅ NOUVELLE MANCHE toutes les durationPerRound secondes (60s, 120s, etc.)
+      const currentRound = Math.floor(elapsed / durationPerRound);
+      if (currentRound > match.roundsPlayed && currentRound < roundsPerMatch) {
+        match.roundsPlayed = currentRound;
+        console.log(`[CrazyArena] 🔔 Nouvelle manche #${match.roundsPlayed + 1} démarrée (${elapsed}s écoulées)`);
+        
+        // Générer nouvelle carte pour la nouvelle manche
+        this.generateZones(match.config).then(newZones => {
+          match.zones = newZones;
+          console.log(`[CrazyArena] 🎯 Nouvelle carte pour manche ${match.roundsPlayed + 1}: ${newZones.length} zones`);
+          
+          // Émettre nouvelle carte à tous les joueurs
+          this.io.to(matchId).emit('arena:round-new', {
+            zones: newZones,
+            roundIndex: match.roundsPlayed,
+            totalRounds: roundsPerMatch,
+            timestamp: Date.now()
+          });
+          
+          console.log(`[CrazyArena] ✅ Manche ${match.roundsPlayed + 1}/${roundsPerMatch} démarrée`);
+        }).catch(err => {
+          console.error('[CrazyArena] Erreur génération nouvelle carte manche:', err);
+        });
+      }
+      
+      console.log(`[CrazyArena] Émission arena:timer-tick: timeLeft=${timeLeft}s, manche=${match.roundsPlayed + 1}/${roundsPerMatch}`);
       this.io.to(matchId).emit('arena:timer-tick', {
         timeLeft,
         elapsed,
-        duration: totalDuration
+        duration: totalDuration,
+        currentRound: match.roundsPlayed + 1,
+        totalRounds: roundsPerMatch
       });
       
       if (timeLeft === 0) {
-        console.log(`[CrazyArena] Timer terminé pour match ${matchId}`);
+        console.log(`[CrazyArena] ⏰ Timer terminé pour match ${matchId}`);
         clearInterval(match.timerInterval);
       }
     }, 1000);
@@ -397,11 +424,8 @@ class CrazyArenaManager {
       match.validatedPairIds.add(pairId);
       console.log(`[CrazyArena] 📊 Paire validée ajoutée au FIFO: ${pairId} (total: ${match.validatedPairIds.size}/${MAX_EXCLUDED_PAIRS})`);
       
-      // ✅ NOUVELLE CARTE IMMÉDIATEMENT (règle: 1 paire/carte → nouvelle carte après CHAQUE validation)
+      // ✅ NOUVELLE CARTE IMMÉDIATEMENT (REGLES_CRITIQUES.md ligne 159)
       console.log(`[CrazyArena] 🎉 Paire trouvée! Génération nouvelle carte...`);
-      
-      // Incrémenter rounds
-      match.roundsPlayed = (match.roundsPlayed || 0) + 1;
       
       // Générer nouvelle carte avec exclusion FIFO
       setTimeout(async () => {
@@ -409,7 +433,7 @@ class CrazyArenaManager {
           const newZones = await this.generateZones(match.config);
           match.zones = newZones;
           
-          console.log(`[CrazyArena] 🎯 Nouvelle carte générée: ${newZones.length} zones, 1 paire (manche ${match.roundsPlayed})`);
+          console.log(`[CrazyArena] 🎯 Nouvelle carte générée: ${newZones.length} zones, 1 paire`);
           
           // Émettre nouvelle carte à tous les joueurs
           this.io.to(matchId).emit('arena:round-new', {
@@ -419,7 +443,7 @@ class CrazyArenaManager {
             timestamp: Date.now()
           });
           
-          console.log(`[CrazyArena] ✅ arena:round-new émis - Manche ${match.roundsPlayed}`);
+          console.log(`[CrazyArena] ✅ arena:round-new émis`);
         } catch (err) {
           console.error('[CrazyArena] Erreur génération nouvelle carte:', err);
         }
