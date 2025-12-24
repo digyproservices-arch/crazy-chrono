@@ -1993,6 +1993,8 @@ const Carte = () => {
   // ✅ CRITIQUE: Ref mutable pour zones (évite stale closure dans Socket handlers)
   const zonesRef = useRef([]);
   useEffect(() => { zonesRef.current = zones; }, [zones]);
+  // ✅ CRITIQUE: Ref pour setTimeout de setGameActive (clearTimeout si double arena:round-new)
+  const gameActiveTimeoutRef = useRef(null);
   // Map rapide id -> zone pour récupérer les textes même après reshuffle
   const zonesByIdRef = useRef(new Map());
   useEffect(() => {
