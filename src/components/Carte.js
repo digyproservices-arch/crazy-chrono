@@ -1329,6 +1329,10 @@ const Carte = () => {
           console.warn('[ARENA] Erreur mise à jour historique:', e);
         }
         
+        // ✅ FIX DISPARITÉ: Désactiver gameActive pendant transition (1.5s backend)
+        setGameActive(false);
+        console.log('[ARENA] ⚠️ gameActive=false (paire validée, attente nouvelle carte)');
+        
         // Masquer les zones validées pour tous les joueurs
         setZones(prevZones => {
           return prevZones.map(z => {
@@ -1940,30 +1944,26 @@ const Carte = () => {
       } catch (e) {
         console.warn('[CC][client] pair:valid post-UI failed', e);
       }
-      // Détecter le mode (solo vs multijoueur)
-      let isSoloMode = false;
-      try {
-        const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
-        isSoloMode = cfg && cfg.mode === 'solo';
-      } catch {}
-      // MODE SOLO : Reshuffle immédiat et déterministe
-      // MODE MULTIJOUEUR : Attendre round:new du serveur (ne PAS générer localement)
-      if (isSoloMode) {
-        const sn = Number(payload?.seedNext);
-        const zf = payload?.zonesFile || 'zones2';
-        if (Number.isFinite(sn)) {
-          try {
-            console.debug('[CC][client] SOLO: reshuffle with seedNext (immediate)', { seedNext: sn, zonesFile: zf });
-            safeHandleAutoAssign(sn, zf);
-          } catch (e) {
-            console.error('[CC][client] handleAutoAssign(seedNext) failed', e);
+      // ✅ FIX DISPARITÉ: Désactiver gameActive pendant transition (1.5s backend)
+      setGameActive(false);
+      console.log('[CC][client] ⚠️ gameActive=false (paire validée, attente nouvelle carte)');
+      
+      // ✅ FIX DISPARITÉ: Ignorer zones déjà validées (masquées)
+      setZones(prevZones => {
+        return prevZones.map(z => {
+          if (z.id === aId || z.id === bId) {
+            return { ...z, validated: true };
           }
-        } else {
-          console.warn('[CC][client] SOLO: pair:valid without valid seedNext; skip reshuffle');
-        }
-      } else {
-        console.log('[CC][client] MULTIPLAYER: Waiting for round:new from server (not generating locally)');
-      }
+          return z;
+        });
+      });
+      
+      // ✅ FIX DISPARITÉ: Activer verrou pendant traitement
+      processingPairRef.current = true;
+      setTimeout(() => { processingPairRef.current = false; }, 800);
+      
+      // Ajouter à l'historique paires validées
+      setValidatedPairIds(prev => new Set([...prev, payload.pairId]));
     });
 
     return () => {
@@ -2334,6 +2334,11 @@ function handleGameClick(zone) {
   // Ignore clicks during assignment transition to avoid race conditions
   if (assignInFlightRef.current || assignBusy) return;
   if (!gameActive || !zone) return;
+  // ✅ FIX DISPARITÉ: Ignorer zones déjà validées (masquées)
+  if (zone.validated) {
+    console.log('[GAME] Zone déjà validée, clic ignoré:', zone.id);
+    return;
+  }
   if (processingPairRef.current) return; // verrou anti-double-clic
   // si déjà 2, réinitialiser avant de prendre un nouveau clic
   if (gameSelectedIds.length >= 2) {
@@ -2375,6 +2380,9 @@ function handleGameClick(zone) {
       } catch {}
       if (okPair) {
         console.log('[GAME] OK pair', { a, b, ZA: { id: ZA.id, type: ZA.type, pairId: ZA.pairId }, ZB: { id: ZB.id, type: ZB.type, pairId: ZB.pairId } });
+        // ✅ FIX DISPARITÉ: Activer verrou pendant traitement
+        processingPairRef.current = true;
+        setTimeout(() => { processingPairRef.current = false; }, 800);
         // Ajouter le pairId au Set des paires validées
         if (pairKey) {
           setValidatedPairIds(prev => {
