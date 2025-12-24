@@ -1362,6 +1362,12 @@ const Carte = () => {
           totalRounds 
         });
         
+        // ✅ CRITIQUE: Annuler tout setTimeout précédent pour éviter race condition
+        if (gameActiveTimeoutRef.current) {
+          clearTimeout(gameActiveTimeoutRef.current);
+          console.log('[ARENA] ⚠️ setTimeout précédent annulé (double arena:round-new)');
+        }
+        
         // Mettre à jour les zones - FORCER validated=false pour éviter héritage entre manches
         if (Array.isArray(zones)) {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
@@ -1369,8 +1375,12 @@ const Carte = () => {
           console.log('[ARENA] ✅ Zones mises à jour (validated=false forcé):', cleanZones.length);
         }
         
-        // ✅ BUG FIX: Réactiver le jeu pour pouvoir cliquer sur les nouvelles zones
-        setGameActive(true);
+        // ✅ BUG FIX: Réactiver le jeu AVEC setTimeout pour garantir synchro React state
+        gameActiveTimeoutRef.current = setTimeout(() => {
+          setGameActive(true);
+          gameActiveTimeoutRef.current = null;
+          console.log('[ARENA] ✅ gameActive=true (après setTimeout)');
+        }, 50);
         
         // Réinitialiser l'état du jeu pour la nouvelle carte
         setValidatedPairIds(new Set());
