@@ -260,17 +260,22 @@ class CrazyArenaManager {
     this.io.to(matchId).emit('arena:game-start', gameStartPayload);
 
     // ⏱️ CHRONO: Diffuser le temps restant toutes les secondes
-    const duration = match.config.duration || 60;
-    console.log(`[CrazyArena] Démarrage timer pour match ${matchId}, duration=${duration}s`);
+    // ✅ CORRECTION: Timer TOTAL = rounds × duration (ex: 3 × 60s = 180s)
+    const roundsPerMatch = match.config.rounds || match.config.roundsPerMatch || 3;
+    const durationPerRound = match.config.duration || match.config.durationPerRound || 60;
+    const totalDuration = roundsPerMatch * durationPerRound;
+    
+    console.log(`[CrazyArena] ⏱️  Timer configuré: ${roundsPerMatch} rounds × ${durationPerRound}s = ${totalDuration}s TOTAL`);
+    
     match.timerInterval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - match.startTime) / 1000);
-      const timeLeft = Math.max(0, duration - elapsed);
+      const timeLeft = Math.max(0, totalDuration - elapsed);
       
       console.log(`[CrazyArena] Émission arena:timer-tick à room ${matchId}: timeLeft=${timeLeft}s`);
       this.io.to(matchId).emit('arena:timer-tick', {
         timeLeft,
         elapsed,
-        duration
+        duration: totalDuration
       });
       
       if (timeLeft === 0) {
@@ -279,13 +284,13 @@ class CrazyArenaManager {
       }
     }, 1000);
 
-    // Timer auto-fin de partie
+    // Timer auto-fin de partie (durée TOTALE)
     match.gameTimeout = setTimeout(() => {
       if (match.timerInterval) {
         clearInterval(match.timerInterval);
       }
       this.endGame(matchId);
-    }, duration * 1000);
+    }, totalDuration * 1000);
   }
 
   /**
@@ -345,7 +350,8 @@ class CrazyArenaManager {
 
     // Mettre à jour le score
     if (isCorrect) {
-      player.score += 10;
+      // ✅ CORRECTION: +1 point par validation (selon REGLES_CRITIQUES.md ligne 157)
+      player.score += 1;
       player.pairsValidated += 1;
       
       // Bonus vitesse (< 3s)

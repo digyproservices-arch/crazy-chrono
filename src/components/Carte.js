@@ -1220,8 +1220,27 @@ const Carte = () => {
       });
       
       // Écouter paire validée par un autre joueur
-      s.on('arena:pair-validated', ({ pairId, zoneAId, zoneBId, playerName }) => {
+      s.on('arena:pair-validated', ({ pairId, zoneAId, zoneBId, playerName, studentId }) => {
         console.log('[ARENA] Paire validée par', playerName, ':', pairId);
+        
+        // ✅ CORRECTION Bug #3: Animation bulle avec couleur du joueur
+        try {
+          const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
+          const players = Array.isArray(arenaData.players) ? arenaData.players : [];
+          const playerIdx = players.findIndex(p => p.studentId === studentId);
+          
+          if (playerIdx >= 0) {
+            const { primary, border } = getPlayerColorComboByIndex(playerIdx);
+            const initials = getInitials(playerName || players[playerIdx]?.name || 'Joueur');
+            const ZA = zones.find(z => z.id === zoneAId);
+            const ZB = zones.find(z => z.id === zoneBId);
+            
+            // Lancer animation bulle avec couleur du joueur
+            animateBubblesFromZones(zoneAId, zoneBId, primary, ZA, ZB, border, initials);
+          }
+        } catch (e) {
+          console.warn('[ARENA] Erreur animation bulle:', e);
+        }
         
         // Masquer les zones validées pour tous les joueurs
         setZones(prevZones => {
