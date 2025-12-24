@@ -1,3 +1,17 @@
+# ⚠️ DOCUMENT OBSOLÈTE - Voir TOURNOI_SPECIFICATIONS.md
+
+> **ATTENTION:** Ce document utilise l'ancienne nomenclature "Battle Royale" qui a été renommée en "Crazy Arena" le 9 décembre 2025.
+> 
+> **Pour les spécifications à jour:**
+> - Voir `TOURNOI_SPECIFICATIONS.md` (specs complètes mode Arena)
+> - Voir `PLAN_CRAZY_ARENA_09_DEC.md` (détails renommage)
+> - Événements Socket.IO: `arena:*` (plus `battle:*`)
+> - Fichiers: `crazyArenaManager.js` (plus `battleRoyaleManager.js`)
+>
+> **Archivé le:** 16 décembre 2025
+
+---
+
 # 🎮 BATTLE ROYALE - Implémentation complète
 
 ## ✅ Ce qui a été implémenté (Session actuelle)
