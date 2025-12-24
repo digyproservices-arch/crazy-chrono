@@ -1355,10 +1355,11 @@ const Carte = () => {
           totalRounds 
         });
         
-        // Mettre à jour les zones
+        // Mettre à jour les zones - FORCER validated=false pour éviter héritage entre manches
         if (Array.isArray(zones)) {
-          setZones(zones);
-          console.log('[ARENA] ✅ Zones mises à jour:', zones.length);
+          const cleanZones = zones.map(z => ({ ...z, validated: false }));
+          setZones(cleanZones);
+          console.log('[ARENA] ✅ Zones mises à jour (validated=false forcé):', cleanZones.length);
         }
         
         // ✅ BUG FIX: Réactiver le jeu pour pouvoir cliquer sur les nouvelles zones
