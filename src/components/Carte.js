@@ -2282,11 +2282,28 @@ function handleGameClick(zone) {
         showConfetti();
         // Utiliser la vraie couleur du joueur local
         try {
-          const players = Array.isArray(roomPlayersRef.current) ? roomPlayersRef.current : [];
-          const myId = socket?.id || null;
-          const myIdx = myId ? players.findIndex(p => p.id === myId) : -1;
+          let myIdx = -1;
+          let myName = playerName;
+          
+          // Mode Arena: utiliser arenaData.players
+          if (arenaMatchId) {
+            const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
+            const players = Array.isArray(arenaData.players) ? arenaData.players : [];
+            myIdx = players.findIndex(p => p.studentId === arenaData.myStudentId);
+            if (myIdx >= 0) {
+              myName = players[myIdx]?.name || playerName;
+            }
+          } else {
+            // Mode multijoueur classique: utiliser roomPlayersRef
+            const players = Array.isArray(roomPlayersRef.current) ? roomPlayersRef.current : [];
+            const myId = socket?.id || null;
+            myIdx = myId ? players.findIndex(p => p.id === myId) : -1;
+            if (myIdx >= 0) {
+              myName = players.find(p => p.id === myId)?.nickname || playerName;
+            }
+          }
+          
           const { primary, border } = myIdx >= 0 ? getPlayerColorComboByIndex(myIdx) : { primary: '#22c55e', border: '#ffffff' };
-          const myName = myId ? (players.find(p => p.id === myId)?.nickname || playerName) : playerName;
           const initials = getInitials(myName);
           animateBubblesFromZones(a, b, primary, ZA, ZB, border, initials);
         } catch {}
