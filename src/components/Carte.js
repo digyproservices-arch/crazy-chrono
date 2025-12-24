@@ -1370,7 +1370,7 @@ const Carte = () => {
         
         // Mettre à jour le compteur de manches si fourni
         if (Number.isFinite(roundIndex)) {
-          setRoundsPlayed(roundIndex);
+          setRoundsPlayed(roundIndex + 1);
         }
       });
       
@@ -5321,9 +5321,12 @@ setZones(dataWithRandomTexts);
           {wonPairsHistory.slice(0, 10).map((e, i) => (
             <div key={i} className="hist-item" title={e.text}>
               <span className="dot" style={{ background: e.color || '#e5e7eb', border: e.borderColor ? `2px solid ${e.borderColor}` : 'none' }} />
+              {e.kind === 'imgtxt' && e.imageSrc && (
+                <img src={e.imageSrc} alt={e.imageLabel || e.text || 'Image'} style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover', flexShrink: 0, marginRight: 4 }} />
+              )}
               <span style={{ maxWidth: '52vw', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 <b style={{ marginRight: 4 }}>{e.winnerName || 'Joueur'}</b>
-                <span>{e.text}</span>
+                <span>{e.kind === 'calcnum' && e.calcExpr && e.calcResult ? `${e.calcExpr} = ${e.calcResult}` : (e.kind === 'imgtxt' && e.imageLabel ? e.imageLabel : e.text)}</span>
                 {e.tie && (
                   <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: '#fef3c7', border: '1px solid #f59e0b', color: '#92400e' }}>Égalité</span>
                 )}
