@@ -1059,6 +1059,8 @@ const Carte = () => {
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   // Overlay gagnant de session
   const [winnerOverlay, setWinnerOverlay] = useState(null); // { text: string, until: number }
+  // Overlay fin de partie Arena (podium + classement)
+  const [arenaGameEndOverlay, setArenaGameEndOverlay] = useState(null); // { ranking: [], winner: {}, duration: number }
   // Rounds/session
   const [roundsPerSession, setRoundsPerSession] = useState(null); // null => infini
   // Dernière paire gagnée + historique pour le bandeau multi réduit
@@ -1356,6 +1358,29 @@ const Carte = () => {
       // Écouter scores
       s.on('arena:scores-update', ({ scores }) => {
         setScoresMP(scores);
+      });
+      
+      // Écouter fin de partie Arena
+      s.on('arena:game-end', ({ ranking, winner, duration }) => {
+        console.log('[ARENA] 🏆 Partie terminée!', { winner: winner?.name, ranking });
+        
+        setGameActive(false);
+        
+        // Afficher overlay podium professionnel
+        if (ranking && Array.isArray(ranking)) {
+          setArenaGameEndOverlay({
+            ranking,
+            winner,
+            duration,
+            timestamp: Date.now()
+          });
+          
+          // Confetti + son pour célébrer
+          try { showConfetti?.(); } catch {}
+          try { playCorrectSound?.(); } catch {}
+          
+          console.log('[ARENA] 📊 Overlay podium affiché');
+        }
       });
       
       // Écouter nouvelle carte (après que toutes les paires sont trouvées)
