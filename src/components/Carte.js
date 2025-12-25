@@ -6440,6 +6440,228 @@ setZones(dataWithRandomTexts);
           </div>
         </div>
       )}
+      
+      {/* Overlay podium fin de partie Arena */}
+      {arenaGameEndOverlay && (() => {
+        const { ranking, winner } = arenaGameEndOverlay;
+        const topThree = Array.isArray(ranking) ? ranking.slice(0, 3) : [];
+        
+        return (
+          <div 
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 5000,
+              background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.95) 0%, rgba(99, 102, 241, 0.95) 100%)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: isMobile ? '16px' : '32px',
+              animation: 'fadeIn 0.5s ease-out'
+            }}
+            onClick={() => setArenaGameEndOverlay(null)}
+          >
+            {/* Titre */}
+            <div style={{
+              fontSize: isMobile ? 32 : 48,
+              fontWeight: 900,
+              color: '#fff',
+              marginBottom: isMobile ? '16px' : '24px',
+              textShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              animation: 'slideDown 0.6s ease-out'
+            }}>
+              🏆 PARTIE TERMINÉE 🏆
+            </div>
+            
+            {/* Gagnant principal */}
+            {winner && (
+              <div style={{
+                background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                borderRadius: 24,
+                padding: isMobile ? '20px' : '32px',
+                marginBottom: isMobile ? '20px' : '32px',
+                boxShadow: '0 12px 48px rgba(251, 191, 36, 0.4)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '16px',
+                minWidth: isMobile ? '280px' : '400px',
+                animation: 'scaleIn 0.7s ease-out 0.3s both'
+              }}>
+                {/* Avatar */}
+                <div style={{
+                  width: isMobile ? 80 : 120,
+                  height: isMobile ? 80 : 120,
+                  borderRadius: '50%',
+                  background: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: isMobile ? 40 : 60,
+                  fontWeight: 900,
+                  color: '#f59e0b',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                  border: '4px solid rgba(255,255,255,0.5)'
+                }}>
+                  {winner.avatar || '👤'}
+                </div>
+                
+                {/* Nom gagnant */}
+                <div style={{
+                  fontSize: isMobile ? 24 : 32,
+                  fontWeight: 900,
+                  color: '#fff',
+                  textShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                }}>
+                  {winner.name}
+                </div>
+                
+                {/* Score */}
+                <div style={{
+                  fontSize: isMobile ? 48 : 64,
+                  fontWeight: 900,
+                  color: '#fff',
+                  textShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                }}>
+                  {winner.score} pts
+                </div>
+              </div>
+            )}
+            
+            {/* Classement complet */}
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              borderRadius: 16,
+              padding: isMobile ? '16px' : '24px',
+              maxWidth: isMobile ? '90vw' : '600px',
+              width: '100%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+              animation: 'slideUp 0.8s ease-out 0.5s both'
+            }}>
+              <div style={{
+                fontSize: isMobile ? 20 : 24,
+                fontWeight: 700,
+                color: '#4f46e5',
+                marginBottom: '16px',
+                textAlign: 'center'
+              }}>
+                📊 Classement Final
+              </div>
+              
+              {ranking && ranking.map((player, idx) => {
+                const medals = ['🥇', '🥈', '🥉'];
+                const isTop3 = idx < 3;
+                const bgColors = [
+                  'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                  'linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%)',
+                  'linear-gradient(135deg, #fed7aa 0%, #fdba74 100%)'
+                ];
+                
+                return (
+                  <div
+                    key={player.studentId || idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: isMobile ? '8px' : '12px',
+                      padding: isMobile ? '10px' : '12px 16px',
+                      marginBottom: '8px',
+                      borderRadius: 12,
+                      background: isTop3 ? bgColors[idx] : '#f9fafb',
+                      border: isTop3 ? '2px solid rgba(0,0,0,0.1)' : '1px solid #e5e7eb',
+                      boxShadow: isTop3 ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
+                      animation: `slideRight 0.5s ease-out ${0.6 + idx * 0.1}s both`
+                    }}
+                  >
+                    {/* Position / Médaille */}
+                    <div style={{
+                      fontSize: isMobile ? 24 : 28,
+                      fontWeight: 900,
+                      minWidth: isMobile ? '32px' : '40px',
+                      textAlign: 'center'
+                    }}>
+                      {isTop3 ? medals[idx] : `${idx + 1}`}
+                    </div>
+                    
+                    {/* Avatar */}
+                    <div style={{
+                      width: isMobile ? 36 : 48,
+                      height: isMobile ? 36 : 48,
+                      borderRadius: '50%',
+                      background: isTop3 ? '#fff' : '#e5e7eb',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: isMobile ? 18 : 24
+                    }}>
+                      {player.avatar || '👤'}
+                    </div>
+                    
+                    {/* Nom */}
+                    <div style={{
+                      flex: 1,
+                      fontSize: isMobile ? 16 : 18,
+                      fontWeight: isTop3 ? 700 : 600,
+                      color: '#1f2937',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {player.name}
+                    </div>
+                    
+                    {/* Score */}
+                    <div style={{
+                      fontSize: isMobile ? 20 : 24,
+                      fontWeight: 900,
+                      color: isTop3 ? '#4f46e5' : '#6b7280',
+                      minWidth: isMobile ? '60px' : '80px',
+                      textAlign: 'right'
+                    }}>
+                      {player.score} pts
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Bouton fermer */}
+            <div style={{
+              marginTop: isMobile ? '16px' : '24px',
+              fontSize: isMobile ? 14 : 16,
+              color: 'rgba(255,255,255,0.8)',
+              textAlign: 'center',
+              animation: 'fadeIn 1s ease-out 1s both'
+            }}>
+              Cliquez pour fermer
+            </div>
+          </div>
+        );
+      })()}
+      
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideDown {
+          from { transform: translateY(-30px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(30px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes slideRight {
+          from { transform: translateX(-20px); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes scaleIn {
+          from { transform: scale(0.8); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
       {/* Popup attribution zone en overlay, hors SVG */}
       {attributionMode && zoneToEdit && (
         <div style={{
