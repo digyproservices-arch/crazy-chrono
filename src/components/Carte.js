@@ -6529,7 +6529,7 @@ setZones(dataWithRandomTexts);
                   boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
                   border: '4px solid rgba(255,255,255,0.5)'
                 }}>
-                  {winner.avatar || '👤'}
+                  {(winner.avatar && !winner.avatar.includes('default.png')) ? winner.avatar : '👤'}
                 </div>
                 
                 {/* Nom gagnant */}
@@ -6620,7 +6620,7 @@ setZones(dataWithRandomTexts);
                       justifyContent: 'center',
                       fontSize: isMobile ? 18 : 24
                     }}>
-                      {player.avatar || '👤'}
+                      {(player.avatar && !player.avatar.includes('default.png')) ? player.avatar : '👤'}
                     </div>
                     
                     {/* Nom */}
