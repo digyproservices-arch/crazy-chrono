@@ -826,12 +826,15 @@ function startRound(roomCode) {
     excludedPairsCount: (room.validatedPairIds || new Set()).size
   });
   
-  const zones = generateRoundZones(seed, {
+  const zoneGenResult = generateRoundZones(seed, {
     themes: room.selectedThemes || [],
     classes: room.selectedClasses || [],
     excludedPairIds: room.validatedPairIds || new Set(),
     logFn: (level, message, data) => emitServerLog(roomCode, level, message, data)
   });
+  
+  // Extraire le tableau zones depuis l'objet retourné {zones, goodPairIds}
+  const zones = Array.isArray(zoneGenResult) ? zoneGenResult : (zoneGenResult?.zones || []);
   
   // Stocker les zones dans la room pour validation ultérieure
   room.currentZones = zones;
@@ -1227,7 +1230,9 @@ io.on('connection', (socket) => {
             excludedPairIds: room.validatedPairIds || new Set(),
             logFn: (level, message, data) => emitServerLog(currentRoom, level, message, data)
           };
-          newZones = generateRoundZones(newSeed, config);
+          const regenResult = generateRoundZones(newSeed, config);
+          // Extraire le tableau zones depuis l'objet retourné {zones, goodPairIds}
+          newZones = Array.isArray(regenResult) ? regenResult : (regenResult?.zones || []);
           room.currentZones = newZones;
           console.log(`[MP] Regenerated ${newZones.length} zones after pair validation (excluded: ${config.excludedPairIds.size})`);
           emitServerLog(currentRoom, 'info', '[MP] Zones regenerated after validation', {
