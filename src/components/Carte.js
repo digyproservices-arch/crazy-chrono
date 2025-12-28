@@ -1970,9 +1970,13 @@ const Carte = () => {
       } catch (e) {
         console.warn('[CC][client] pair:valid post-UI failed', e);
       }
-      // ✅ FIX DISPARITÉ: Désactiver gameActive pendant transition (1.5s backend)
-      setGameActive(false);
-      console.log('[CC][client] ⚠️ gameActive=false (paire validée, attente nouvelle carte)');
+      // ✅ FIX DISPARITÉ: Désactiver gameActive UNIQUEMENT en mode Arena (délai 1.5s backend)
+      // En mode multijoueur classique, round:new arrive immédiatement et réactive gameActive
+      // Ne pas désactiver ici sinon on écrase le setGameActive(true) de round:new
+      if (arenaMatchId) {
+        setGameActive(false);
+        console.log('[CC][client] ⚠️ gameActive=false (paire validée Arena, attente nouvelle carte)');
+      }
       
       // ✅ FIX DISPARITÉ: Ignorer zones déjà validées (masquées)
       setZones(prevZones => {
