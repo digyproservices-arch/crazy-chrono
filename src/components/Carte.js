@@ -1856,8 +1856,9 @@ const Carte = () => {
       setGameSelectedIds([]);
       setGameMsg('');
       // Met à jour la vignette de dernière paire + historique
+      const aId = payload?.a; const bId = payload?.b;
       try {
-        const aId = payload?.a; const bId = payload?.b; const byId = payload?.by;
+        const byId = payload?.by;
         const tie = !!payload?.tie;
         const winners = Array.isArray(payload?.winners) ? payload.winners : (byId ? [byId] : []);
         // Utilise la map pour récupérer le contenu même si les zones viennent d'être reshuffled
