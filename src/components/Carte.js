@@ -1978,15 +1978,20 @@ const Carte = () => {
         console.log('[CC][client] ⚠️ gameActive=false (paire validée Arena, attente nouvelle carte)');
       }
       
-      // ✅ FIX DISPARITÉ: Ignorer zones déjà validées (masquées)
-      setZones(prevZones => {
-        return prevZones.map(z => {
-          if (z.id === aId || z.id === bId) {
-            return { ...z, validated: true };
-          }
-          return z;
+      // ✅ FIX ZONES VIDES: Ne marquer validated UNIQUEMENT en mode solo (pas multijoueur)
+      // En multijoueur: round:new remplace toutes les zones, mais pair:valid arrive APRÈS et marque
+      // les zones avec les mêmes IDs comme validated=true, cachant le nouveau contenu
+      // En solo: pas de round:new, donc on doit marquer validated pour masquer visuellement
+      if (!socketConnected) {
+        setZones(prevZones => {
+          return prevZones.map(z => {
+            if (z.id === aId || z.id === bId) {
+              return { ...z, validated: true };
+            }
+            return z;
+          });
         });
-      });
+      }
       
       // ✅ FIX DISPARITÉ: Activer verrou pendant traitement
       processingPairRef.current = true;
