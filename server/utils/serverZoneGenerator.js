@@ -621,7 +621,19 @@ function generateRoundZones(seed, config = {}) {
       zones: finalPairIds
     });
     
-    return result;
+    // DEBUG: Afficher les angles des zones calcul
+    const calculZonesWithAngles = result.filter(z => z.type === 'calcul');
+    console.log('[ServerZoneGen] DEBUG Calcul zones with angles:', calculZonesWithAngles.map(z => ({
+      id: z.id,
+      content: z.content,
+      angle: z.angle,
+      hasAngle: z.angle !== undefined
+    })));
+    
+    return {
+      zones: result,
+      goodPairIds: goodPairIds
+    };
     
   } catch (error) {
     console.error('[ServerZoneGen] FATAL ERROR:', error);

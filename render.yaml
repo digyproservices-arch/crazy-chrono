@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: crazy-chrono-backend
+    env: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: FRONTEND_URL
+        value: https://app.crazy-chrono.com
+      - key: FREE_SESSIONS_PER_DAY
+        value: 3
+    healthCheckPath: /health

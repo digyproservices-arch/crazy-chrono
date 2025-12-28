@@ -22,7 +22,8 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "normalize-images": "node scripts/normalize-images.js",
-    "optimize-images": "node scripts/optimize-images.js"
+    "optimize-images": "node scripts/optimize-images.js",
+    "setup-new-pc": "node setup-new-pc.js"
   },
   "eslintConfig": {
     "extends": [

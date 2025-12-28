@@ -130,7 +130,12 @@ const NavBar = () => {
 
 const ProfileMenu = ({ auth, onLogout, navigate }) => {
   const [open, setOpen] = useState(false);
-  const name = auth?.name || auth?.username || auth?.user || 'Utilisateur';
+  // Utiliser le nom, ou extraire la partie avant @ de l'email, ou 'Utilisateur' par défaut
+  let name = auth?.name || auth?.username || auth?.user || 'Utilisateur';
+  if (name === 'Utilisateur' && auth?.email) {
+    // Extraire la partie avant @ de l'email (ex: "crazy.chrono.contact@gmail.com" → "crazy.chrono.contact")
+    name = auth.email.split('@')[0];
+  }
   const initials = String(name).trim().split(/\s+/).map(s => s[0]).join('').slice(0,2).toUpperCase() || 'U';
   const role = auth?.role || (auth?.isAdmin ? 'admin' : (auth?.isEditor ? 'editor' : 'user'));
   return (

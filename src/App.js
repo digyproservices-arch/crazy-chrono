@@ -7,15 +7,31 @@ import AdminDashboard from './components/AdminDashboard';
 import NavBar from './components/NavBar';
 import { DataProvider } from './context/DataContext';
 import Login from './components/Auth/Login';
+import ForgotPassword from './components/Auth/ForgotPassword';
+import ResetPassword from './components/Auth/ResetPassword';
 import ProgressDebug from './components/Debug/ProgressDebug';
 import Pricing from './components/Billing/Pricing';
 import Account from './components/Account';
 import ModeSelect from './components/Modes/ModeSelect';
 import SessionConfig from './components/Modes/SessionConfig';
+import CrazyArenaSetup from './components/Tournament/CrazyArenaSetup';
+import CrazyArenaLobby from './components/Tournament/CrazyArenaLobby';
+import CrazyArenaGame from './components/Tournament/CrazyArenaGame';
 import AdminRoles from './components/Admin/AdminRoles';
 import AdminInvite from './components/Admin/AdminInvite';
 import { fetchAndSyncStatus, getBackendUrl } from './utils/subscription';
 import supabase from './utils/supabaseClient';
+
+// ✅ AUTH WRAPPERS (outside App to prevent remount loops!)
+const RequireAuth = ({ children, auth }) => auth ? children : <Navigate to="/login" replace />;
+
+const RequireAdmin = ({ children }) => {
+  try {
+    const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
+    if (a && (a.role === 'admin' || a.isAdmin)) return children;
+  } catch {}
+  return <Navigate to="/modes" replace />;
+};
 
 function App() {
   const [gameMode, setGameMode] = useState(false);
@@ -25,6 +41,8 @@ function App() {
   const [diagRecording, setDiagRecording] = useState(false);
   const diagRecRef = useRef(false);
   const [diagRecLines, setDiagRecLines] = useState([]);
+  const [logsCopied, setLogsCopied] = useState(false);
+  const [logsSent, setLogsSent] = useState(false);
   const [isAdminUI, setIsAdminUI] = useState(false);
   const consoleOrigRef = useRef({ log: null, warn: null, error: null });
   const fetchOrigRef = useRef(null);
@@ -41,13 +59,19 @@ function App() {
     return () => window.removeEventListener('cc:gameMode', onGame);
   }, []);
 
-  // Admin auto-detection (URL admin=1, localStorage cc_admin_ui=1, or backend /me?email=...) with throttle
+  // Admin auto-detection (URL admin=1, localStorage cc_admin_ui=1, cc_auth role, or backend /me?email=...) with throttle
   useEffect(() => {
     const urlHasAdmin = () => {
       try { return new URLSearchParams(window.location.search).get('admin') === '1'; } catch { return false; }
     };
     const lsAdmin = () => { try { return localStorage.getItem('cc_admin_ui') === '1'; } catch { return false; } };
-    const pre = urlHasAdmin() || lsAdmin();
+    const authIsAdmin = () => {
+      try {
+        const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
+        return a && (a.role === 'admin' || a.isAdmin === true);
+      } catch { return false; }
+    };
+    const pre = urlHasAdmin() || lsAdmin() || authIsAdmin();
     if (pre) { setIsAdminUI(true); return; }
     let email = null;
     try { email = (JSON.parse(localStorage.getItem('cc_auth')||'null')||{}).email || localStorage.getItem('cc_profile_email') || localStorage.getItem('user_email') || localStorage.getItem('email'); } catch {}
@@ -72,6 +96,83 @@ function App() {
 
   // Recording ref sync
   useEffect(() => { diagRecRef.current = !!diagRecording; }, [diagRecording]);
+
+  // Télécharger les logs en fichier .txt
+  const downloadDiagRecording = () => {
+    try {
+      const text = (diagRecLines || []).join('\n');
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      a.download = `crazy-chrono-logs-${timestamp}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('[LOGS] Erreur téléchargement:', err);
+      alert('Erreur lors du téléchargement.');
+    }
+  };
+
+  // Envoyer les logs au backend
+  const sendLogsToBackend = async () => {
+    try {
+      const text = (diagRecLines || []).join('\n');
+      if (!text || text.length < 10) {
+        alert('Aucun log à envoyer. Démarrez l\'enregistrement d\'abord.');
+        return;
+      }
+      const response = await fetch(`${getBackendUrl()}/api/logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          logs: text,
+          timestamp: new Date().toISOString(),
+          source: 'app-diagnostic-global',
+          matchId: 'N/A',
+          userAgent: navigator.userAgent
+        })
+      });
+      if (response.ok) {
+        const result = await response.json();
+        console.log('[LOGS] Envoyé au backend:', result);
+        setLogsSent(true);
+        setTimeout(() => setLogsSent(false), 3000);
+      } else {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    } catch (err) {
+      console.error('[LOGS] Erreur envoi backend:', err);
+      alert(`Erreur envoi logs: ${err.message}. Essayez le téléchargement à la place.`);
+    }
+  };
+
+  // Copier avec feedback
+  const copyDiagRecording = async () => {
+    try {
+      const text = (diagRecLines || []).join('\n');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setLogsCopied(true);
+      setTimeout(() => setLogsCopied(false), 2000);
+    } catch (err) {
+      console.error('[LOGS] Erreur copie:', err);
+      alert('Erreur lors de la copie.');
+    }
+  };
 
   // Auto-start recording via ?rec=1
   useEffect(() => {
@@ -175,9 +276,22 @@ function App() {
   function serializeSafe(v) {
     try {
       if (v instanceof Error) return { name: v.name, message: v.message, stack: v.stack?.slice(0, 400) };
-      if (typeof v === 'object') return JSON.parse(JSON.stringify(v));
+      // Simplification radicale : juste convertir en string pour éviter toute erreur JSON
+      if (typeof v === 'object' && v !== null) {
+        try {
+          return JSON.parse(JSON.stringify(v, (key, val) => {
+            if (typeof val === 'function' || typeof val === 'undefined' || typeof val === 'symbol') return null;
+            if (typeof val === 'string' && val.length > 300) return val.substring(0, 300) + '...';
+            return val;
+          }));
+        } catch {
+          return '[Object - Cannot serialize]';
+        }
+      }
       return v;
-    } catch { return String(v); }
+    } catch { 
+      return '[Error]';
+    }
   }
 
   // Keyboard shortcut Ctrl+Alt+D to toggle panel
@@ -218,7 +332,18 @@ function App() {
                 const role = json.role || 'user';
                 const isPro = (json.subscription === 'active' || json.subscription === 'trialing' || role === 'admin');
                 try { localStorage.setItem('cc_subscription_status', isPro ? 'pro' : 'free'); } catch {}
-                try { localStorage.setItem('cc_auth', JSON.stringify({ id: json.user.id, email: json.user.email, role, isAdmin: role === 'admin', isEditor: role !== 'user' })); } catch {}
+                // IMPORTANT: Préserver le token existant !
+                try { 
+                  const existingAuth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+                  localStorage.setItem('cc_auth', JSON.stringify({ 
+                    ...existingAuth, // Préserver toutes les propriétés existantes (dont le token)
+                    id: json.user.id, 
+                    email: json.user.email, 
+                    role, 
+                    isAdmin: role === 'admin', 
+                    isEditor: role !== 'user' 
+                  })); 
+                } catch {}
                 try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
                 syncedFromMe = true;
               }
@@ -233,20 +358,22 @@ function App() {
   }, [auth]);
   useEffect(() => {
     const onAuth = () => {
-      try { setAuth(JSON.parse(localStorage.getItem('cc_auth') || 'null')); } catch { setAuth(null); }
+      try {
+        const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
+        setAuth(a);
+        // Mettre à jour isAdminUI si l'auth change et que l'utilisateur est admin
+        if (a && (a.role === 'admin' || a.isAdmin === true)) {
+          setIsAdminUI(true);
+        }
+      } catch {
+        setAuth(null);
+      }
     };
     window.addEventListener('cc:authChanged', onAuth);
     return () => window.removeEventListener('cc:authChanged', onAuth);
   }, []);
   const carteVidePath = `${process.env.PUBLIC_URL}/images/carte-vide.png`;
-  const RequireAuth = ({ children }) => auth ? children : <Navigate to="/login" replace />;
-  const RequireAdmin = ({ children }) => {
-    try {
-      const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
-      if (a && (a.role === 'admin' || a.isAdmin)) return children;
-    } catch {}
-    return <Navigate to="/modes" replace />;
-  };
+  
   return (
     <DataProvider>
       <Router>
@@ -262,15 +389,21 @@ function App() {
             <Routes>
               <Route path="/" element={<Navigate to={auth ? "/modes" : "/login"} replace />} />
               <Route path="/login" element={<Login onLogin={(a) => { setAuth(a); try { localStorage.setItem('cc_auth', JSON.stringify(a)); } catch {}; }} />} />
-              <Route path="/modes" element={<RequireAuth><ModeSelect /></RequireAuth>} />
-              <Route path="/config/:mode" element={<RequireAuth><SessionConfig /></RequireAuth>} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/modes" element={<RequireAuth auth={auth}><ModeSelect /></RequireAuth>} />
+              <Route path="/config/:mode" element={<RequireAuth auth={auth}><SessionConfig /></RequireAuth>} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/admin/dashboard" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
               <Route path="/admin/roles" element={<RequireAdmin><AdminRoles /></RequireAdmin>} />
               <Route path="/admin/invite" element={<RequireAdmin><AdminInvite /></RequireAdmin>} />
-              <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
-              <Route path="/pricing" element={<RequireAuth><Pricing /></RequireAuth>} />
-              <Route path="/debug/progress" element={<RequireAuth><ProgressDebug /></RequireAuth>} />
+              <Route path="/account" element={<RequireAuth auth={auth}><Account /></RequireAuth>} />
+              <Route path="/pricing" element={<RequireAuth auth={auth}><Pricing /></RequireAuth>} />
+              <Route path="/debug/progress" element={<RequireAuth auth={auth}><ProgressDebug /></RequireAuth>} />
+              {/* Crazy Arena (Tournoi 4 joueurs) */}
+              <Route path="/tournament/setup" element={<RequireAuth auth={auth}><CrazyArenaSetup /></RequireAuth>} />
+              <Route path="/crazy-arena/lobby/:roomCode" element={<RequireAuth auth={auth}><CrazyArenaLobby /></RequireAuth>} />
+              <Route path="/crazy-arena/game" element={<RequireAuth auth={auth}><CrazyArenaGame /></RequireAuth>} />
               {/* Carte (éditeur/jeu) accessible en direct si nécessaire, sinon on y accède après config */}
               <Route path="/carte" element={<div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div>} />
               <Route path="*" element={<Navigate to="/" replace />} />
@@ -295,22 +428,22 @@ function App() {
               </div>
               {isAdminUI ? (
                 <div style={{ padding: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    {!diagRecording && (
-                      <button onClick={() => { setDiagRecLines([]); setDiagRecording(true); try { window.ccAddDiag && window.ccAddDiag('recording:start'); } catch {} }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: '#065f46', color: '#ecfdf5' }}>Démarrer</button>
-                    )}
-                    {diagRecording && (
-                      <>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ width: 10, height: 10, borderRadius: 20, background: '#10b981', boxShadow: '0 0 0 0 rgba(16,185,129,0.7)', animation: 'cc-blink 1s infinite' }} />
-                          <span style={{ fontSize: 13, color: '#a7f3d0' }}>Enregistrement global en cours…</span>
-                        </div>
-                        <button onClick={() => { setDiagRecording(false); try { window.ccAddDiag && window.ccAddDiag('recording:stop', { count: diagRecLines.length }); } catch {} }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: '#7f1d1d', color: '#fee2e2' }}>Arrêter</button>
-                      </>
-                    )}
-                    <button onClick={async()=>{ try { await navigator.clipboard.writeText((diagRecLines||[]).join('\n')); } catch {} }} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb' }}>Copier</button>
-                    <button onClick={()=>{ setDiagLines([]); setDiagRecLines([]); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb' }}>Vider</button>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                    <button onClick={() => { setDiagRecLines([]); setDiagRecording(true); try { window.ccAddDiag && window.ccAddDiag('recording:start'); } catch {} }} disabled={diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: diagRecording ? '#064e3b' : '#065f46', color: '#ecfdf5', fontSize: 12 }}>▶ Démarrer</button>
+                    <button onClick={() => { setDiagRecording(false); try { window.ccAddDiag && window.ccAddDiag('recording:stop', { count: diagRecLines.length }); } catch {} }} disabled={!diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: '#7f1d1d', color: '#fee2e2', fontSize: 12 }}>■ Arrêter</button>
+                    <button onClick={downloadDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #3b82f6', background: '#1e3a8a', color: '#dbeafe', fontSize: 12 }}>📥 Télécharger</button>
+                    <button onClick={sendLogsToBackend} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: logsSent ? '1px solid #10b981' : '1px solid #8b5cf6', background: logsSent ? '#065f46' : '#5b21b6', color: '#ede9fe', fontSize: 12, transition: 'all 0.2s' }}>{logsSent ? '✓ Envoyé !' : '📤 Envoyer backend'}</button>
                   </div>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                    <button onClick={copyDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: logsCopied ? '#10b981' : 'transparent', color: logsCopied ? '#ecfdf5' : '#e5e7eb', transition: 'all 0.2s', fontSize: 12 }}>{logsCopied ? '✓ Copié !' : '📋 Copier'}</button>
+                    <button onClick={()=>{ setDiagLines([]); setDiagRecLines([]); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb', fontSize: 12 }}>🗑️ Vider</button>
+                  </div>
+                  {diagRecording && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 10px', background: 'rgba(16,185,129,0.1)', borderRadius: 6, border: '1px solid rgba(16,185,129,0.3)' }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 20, background: '#10b981', boxShadow: '0 0 0 0 rgba(16,185,129,0.7)', animation: 'cc-blink 1s infinite' }} />
+                      <span style={{ fontSize: 12, color: '#a7f3d0' }}>Enregistrement en cours… ({diagRecLines.length} lignes)</span>
+                    </div>
+                  )}
                   <style>{`@keyframes cc-blink { 0%{opacity:1} 50%{opacity:0.3} 100%{opacity:1} }`}</style>
                   <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>Derniers évènements</div>
                   <div style={{ maxHeight: 180, overflow: 'auto', background: '#0b1220', padding: 8, borderRadius: 6 }}>

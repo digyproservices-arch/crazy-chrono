@@ -1,3 +1,4 @@
+// Build timestamp: 2025-12-10T12:48:00 - Force Vercel rebuild with token fix
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import supabase from '../../utils/supabaseClient';
@@ -45,7 +46,13 @@ export default function Login({ onLogin }) {
           const { data } = await supabase.auth.getSession();
           if (data?.session?.user) {
             const user = data.session.user;
-            const profile = { id: user.id, email: user.email, name: user.user_metadata?.name || user.email?.split('@')[0], role: 'user' };
+            const profile = { 
+              id: user.id, 
+              email: user.email, 
+              name: user.user_metadata?.name || user.email?.split('@')[0], 
+              role: 'user',
+              token: data.session.access_token // Ajouter le token pour les API calls
+            };
             try { localStorage.setItem('cc_auth', JSON.stringify(profile)); } catch {}
             onLogin && onLogin(profile);
             navigate('/modes', { replace: true });
@@ -63,7 +70,8 @@ export default function Login({ onLogin }) {
   }, [navigate, onLogin, searchParams]);
 
   const saveAuth = (auth) => {
-    try { if (remember) localStorage.setItem('cc_auth', JSON.stringify(auth)); } catch {}
+    // TOUJOURS sauvegarder le token pour les API calls, même si remember=false
+    try { localStorage.setItem('cc_auth', JSON.stringify(auth)); } catch {}
     try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
   };
 
@@ -128,6 +136,17 @@ export default function Login({ onLogin }) {
       setLoading(true);
       const { data, error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (err) throw err;
+      
+      // DEBUG: Vérifier la structure de data
+      console.log('[Login DEBUG] data structure:', {
+        hasData: !!data,
+        hasUser: !!data?.user,
+        hasSession: !!data?.session,
+        hasSessionUser: !!data?.session?.user,
+        hasAccessToken: !!data?.session?.access_token,
+        accessTokenValue: data?.session?.access_token ? data.session.access_token.substring(0, 20) + '...' : 'UNDEFINED'
+      });
+      
       const user = data?.user || data?.session?.user;
       if (user) {
         // Charger le profil depuis user_profiles
@@ -141,8 +160,17 @@ export default function Login({ onLogin }) {
           id: user.id,
           email: user.email,
           name: userProfile?.first_name || user.user_metadata?.name || user.email?.split('@')[0],
-          role: userProfile?.role || 'user'
+          role: userProfile?.role || 'user',
+          token: data?.session?.access_token // Ajouter le token pour les API calls
         };
+        
+        // DEBUG: Vérifier le profil avant sauvegarde
+        console.log('[Login DEBUG] profile created:', {
+          hasToken: !!profile.token,
+          tokenPreview: profile.token ? profile.token.substring(0, 20) + '...' : 'UNDEFINED',
+          email: profile.email
+        });
+        
         saveAuth(profile);
         onLogin && onLogin(profile);
         navigate('/modes', { replace: true });
@@ -217,7 +245,13 @@ export default function Login({ onLogin }) {
       if (session && session.user) {
         // Cas où la confirmation email est désactivée côté projet
         const u = session.user;
-        const profile = { id: u.id, email: u.email, name: u.user_metadata?.name || u.email?.split('@')[0], role: inviteRole || 'user' };
+        const profile = { 
+          id: u.id, 
+          email: u.email, 
+          name: u.user_metadata?.name || u.email?.split('@')[0], 
+          role: inviteRole || 'user',
+          token: session.access_token // Ajouter le token pour les API calls
+        };
         saveAuth(profile);
         onLogin && onLogin(profile);
         navigate('/modes', { replace: true });
@@ -299,6 +333,13 @@ export default function Login({ onLogin }) {
             </div>
             {password ? <PasswordStrength pwd={password} /> : null}
           </>
+        )}
+        {!signupMode && (
+          <div style={{ marginTop: 8, textAlign: 'right' }}>
+            <a href="/forgot-password" style={{ fontSize: 14, color: '#2563eb', textDecoration: 'none', fontWeight: 500 }}>
+              Mot de passe oublié ?
+            </a>
+          </div>
         )}
         <div style={{ marginTop: 10 }}>
           <label><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Se souvenir de moi</label>

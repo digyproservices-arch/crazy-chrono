@@ -15,6 +15,27 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
+// Initialiser Supabase Admin AVANT CrazyArenaManager
+let supabaseAdmin = null;
+try {
+  const { createClient } = require('@supabase/supabase-js');
+  const supaUrl = process.env.SUPABASE_URL;
+  const supaSrv = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (supaUrl && supaSrv) {
+    supabaseAdmin = createClient(supaUrl, supaSrv, { auth: { persistSession: false } });
+    console.log('[Server] Supabase Admin client initialized');
+  }
+} catch (e) {
+  console.warn('[Server] Supabase admin not configured:', e.message);
+}
+
+// Crazy Arena Manager pour tournois (groupes de 4) - AVEC Supabase
+const CrazyArenaManager = require('./crazyArenaManager');
+const crazyArena = new CrazyArenaManager(io, supabaseAdmin);
+
+// Exposer crazyArena pour les routes (tournament.js)
+global.crazyArena = crazyArena;
+
 // Admin-only: change a user's role by email
 // POST /admin/users/role { target_email, role }
 app.post('/admin/users/role', async (req, res) => {
@@ -78,18 +99,18 @@ const monitoringRoutes = require('./routes/monitoring');
 const { startWeeklyMonitoring, startDailyMonitoring } = require('./cronJobs');
 app.use('/api/monitoring', monitoringRoutes);
 
-// ===== Usage/Quota (Mini-sprint): server-side check tied to Supabase user =====
-let supabaseAdmin = null;
-try {
-  const { createClient } = require('@supabase/supabase-js');
-  const supaUrl = process.env.SUPABASE_URL;
-  const supaSrv = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (supaUrl && supaSrv) {
-    supabaseAdmin = createClient(supaUrl, supaSrv, { auth: { persistSession: false } });
-  }
-} catch (e) {
-  console.warn('[Usage] Supabase admin not configured:', e.message);
-}
+// ===== Tournament / Battle Royale Routes =====
+const tournamentRoutes = require('./routes/tournament');
+app.use('/api/tournament', tournamentRoutes);
+
+// ===== Auth Routes (Licences professionnelles) =====
+const authRoutes = require('./routes/auth');
+
+// Exposer supabaseAdmin pour les routes
+app.locals.supabaseAdmin = supabaseAdmin;
+
+// Monter les routes auth (après création de supabaseAdmin)
+app.use('/api/auth', authRoutes);
 
 // POST /usage/can-start { user_id }
 // Returns { ok:true, allow:boolean, limit:number, sessionsToday:number, reason?:string }
@@ -615,6 +636,62 @@ app.delete('/delete-image', async (req, res) => {
   } catch (err) {
     console.error('Erreur suppression image:', err);
     return res.status(500).json({ success: false, message: 'Erreur serveur lors de la suppression de l\'image.' });
+  }
+});
+
+// Endpoint pour recevoir les logs depuis le frontend
+app.post('/api/logs', async (req, res) => {
+  try {
+    const { logs, timestamp, source, matchId, userAgent } = req.body;
+    
+    if (!logs || typeof logs !== 'string') {
+      return res.status(400).json({ ok: false, error: 'Missing logs' });
+    }
+    
+    // Créer dossier logs/ s'il n'existe pas
+    const logsDir = path.join(__dirname, 'logs');
+    try {
+      await fs.promises.mkdir(logsDir, { recursive: true });
+    } catch {}
+    
+    // Nom fichier avec timestamp
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const filename = `logs-${ts}-${source || 'unknown'}.txt`;
+    const filepath = path.join(logsDir, filename);
+    
+    // Contenu enrichi
+    const header = `=== CRAZY CHRONO LOGS ===
+Source: ${source || 'unknown'}
+Match ID: ${matchId || 'N/A'}
+Timestamp: ${timestamp || new Date().toISOString()}
+User Agent: ${userAgent || 'N/A'}
+Log Lines: ${logs.split('\n').length}
+==============================
+
+`;
+    
+    const fullContent = header + logs;
+    
+    // Écrire dans fichier
+    await fs.promises.writeFile(filepath, fullContent, 'utf8');
+    
+    // Afficher dans console serveur (premières lignes)
+    console.log('\n[LOGS REÇUS] ==================');
+    console.log(`Source: ${source}, Match: ${matchId}`);
+    console.log(`Fichier: ${filename}`);
+    console.log('Aperçu (50 premières lignes):');
+    console.log(logs.split('\n').slice(0, 50).join('\n'));
+    console.log('==============================\n');
+    
+    res.json({ 
+      ok: true, 
+      message: 'Logs reçus et enregistrés',
+      filename,
+      lines: logs.split('\n').length
+    });
+  } catch (err) {
+    console.error('[LOGS] Erreur réception:', err);
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
@@ -1220,7 +1297,36 @@ io.on('connection', (socket) => {
 
   // (removed duplicate room:setRounds handler)
 
+  // ===== CRAZY ARENA EVENTS (Tournoi groupes de 4) =====
+  
+  socket.on('arena:join', async ({ matchId, studentData }, cb) => {
+    const success = await crazyArena.joinMatch(socket, matchId, studentData);
+    if (typeof cb === 'function') {
+      cb({ ok: success });
+    }
+  });
+
+  socket.on('arena:ready', ({ studentId }) => {
+    crazyArena.playerReady(socket, studentId);
+  });
+
+  socket.on('arena:pair-validated', (data) => {
+    crazyArena.pairValidated(socket, data);
+  });
+
+  socket.on('arena:force-start', ({ matchId }) => {
+    // Forcer le démarrage (enseignant uniquement)
+    const match = crazyArena.getMatchState(matchId);
+    if (match && match.players.length >= 2) {
+      crazyArena.startCountdown(matchId);
+    }
+  });
+
   socket.on('disconnect', () => {
+    // Gérer déconnexion Crazy Arena
+    crazyArena.handleDisconnect(socket);
+    
+    // Gérer déconnexion multijoueur classique
     if (!currentRoom) return;
     const room = getRoom(currentRoom);
     room.players.delete(socket.id);

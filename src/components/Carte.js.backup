@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import '../styles/Carte.css';
 import { pointToSvgCoords, polygonToPointsStr, segmentsToSvgPath, pointsToBezierPath } from './CarteUtils';
@@ -584,16 +584,14 @@ function getArcPathFromZonePoints(points, zoneId, selectedArcPoints, arcPointsFr
 
 const Carte = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const arenaMatchId = searchParams.get('arena');
-  
+  // ...
   // Mode plein écran de jeu
   const [fullScreen, setFullScreen] = useState(false);
   // Thèmes actifs de la session (pour badge UI)
   const [activeThemes, setActiveThemes] = useState([]);
   // Sélection interactive des deux points d'arc pour chaque zone texte
   const [selectedArcPoints, setSelectedArcPoints] = useState({}); // { [zoneId]: [idx1, idx2] }
-  const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélection d'arc
+const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélection d'arc
   // --- GAME STATE ---
   const [gameActive, setGameActive] = useState(false);
   const [timeLeft, setTimeLeft] = useState(60);
@@ -625,8 +623,6 @@ const Carte = () => {
   const [diagRecording, setDiagRecording] = useState(false);
   const diagRecordingRef = useRef(false);
   const [diagRecLines, setDiagRecLines] = useState([]);
-  const [logsCopied, setLogsCopied] = useState(false);
-  const [logsSent, setLogsSent] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(true);
   // Image analysis panel
@@ -706,88 +702,7 @@ const Carte = () => {
     addDiag('recording:stop', { count: diagRecLines.length });
   };
   const copyDiagRecording = async () => {
-    try {
-      const text = (diagRecLines || []).join('\n');
-      
-      // Tentative avec Clipboard API moderne
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        // Fallback: méthode textarea pour navigateurs anciens
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-      }
-      
-      // Feedback visuel
-      setLogsCopied(true);
-      setTimeout(() => setLogsCopied(false), 2000);
-    } catch (err) {
-      console.error('[LOGS] Erreur copie:', err);
-      alert('Erreur lors de la copie. Essayez de sélectionner manuellement le texte ci-dessous.');
-    }
-  };
-
-  // Télécharger les logs en fichier .txt
-  const downloadDiagRecording = () => {
-    try {
-      const text = (diagRecLines || []).join('\n');
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-      a.download = `crazy-chrono-logs-${timestamp}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      console.log('[LOGS] Fichier téléchargé');
-    } catch (err) {
-      console.error('[LOGS] Erreur téléchargement:', err);
-      alert('Erreur lors du téléchargement.');
-    }
-  };
-
-  // Envoyer les logs au backend
-  const sendLogsToBackend = async () => {
-    try {
-      const text = (diagRecLines || []).join('\n');
-      if (!text || text.length < 10) {
-        alert('Aucun log à envoyer. Démarrez l\'enregistrement d\'abord.');
-        return;
-      }
-      
-      const backend = getBackendUrl();
-      const response = await fetch(`${backend}/api/logs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          logs: text,
-          timestamp: new Date().toISOString(),
-          source: 'carte-diagnostic',
-          matchId: arenaMatchId || 'unknown',
-          userAgent: navigator.userAgent
-        })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('[LOGS] Envoyé au backend:', result);
-        setLogsSent(true);
-        setTimeout(() => setLogsSent(false), 3000);
-      } else {
-        throw new Error(`HTTP ${response.status}`);
-      }
-    } catch (err) {
-      console.error('[LOGS] Erreur envoi backend:', err);
-      alert(`Erreur envoi logs: ${err.message}. Essayez le téléchargement à la place.`);
-    }
+    try { await navigator.clipboard.writeText((diagRecLines || []).join('\n')); } catch {}
   };
 
   // Fonction d'analyse des images utilisées
@@ -1059,8 +974,6 @@ const Carte = () => {
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   // Overlay gagnant de session
   const [winnerOverlay, setWinnerOverlay] = useState(null); // { text: string, until: number }
-  // Overlay fin de partie Arena (podium + classement)
-  const [arenaGameEndOverlay, setArenaGameEndOverlay] = useState(null); // { ranking: [], winner: {}, duration: number }
   // Rounds/session
   const [roundsPerSession, setRoundsPerSession] = useState(null); // null => infini
   // Dernière paire gagnée + historique pour le bandeau multi réduit
@@ -1165,287 +1078,6 @@ const Carte = () => {
     window.addEventListener('resize', applyMobile);
     // Cleanup resize listener will be returned later with socket cleanup
     const cleanupResize = () => window.removeEventListener('resize', applyMobile);
-    
-    // MODE ARENA: Connexion Socket.IO ARENA (pas mode multijoueur classique)
-    if (arenaMatchId) {
-      console.log('[ARENA] Connexion Socket.IO Arena pour match:', arenaMatchId);
-      if (socketRef.current && socketRef.current.connected) return cleanupResize;
-      
-      const base = getBackendUrl();
-      console.log('[ARENA] Tentative connexion Socket.IO vers:', base);
-      const s = io(base, { transports: ['websocket'], withCredentials: false });
-      socketRef.current = s;
-      
-      s.on('connecting', () => {
-        console.log('[ARENA] 🔄 Socket en cours de connexion...');
-      });
-      
-      s.on('connect', () => {
-        console.log('[ARENA] ✅ Socket connecté, ID:', s.id);
-        setSocketConnected(true);
-        
-        // Rejoindre la room Arena avec matchId et studentData complet
-        try {
-          const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
-          const myPlayer = (arenaData.players || []).find(p => p.studentId === arenaData.myStudentId);
-          
-          if (!myPlayer) {
-            console.error('[ARENA] Joueur introuvable dans arenaData.players');
-            return;
-          }
-          
-          const studentData = {
-            studentId: myPlayer.studentId,
-            name: myPlayer.name,
-            avatar: myPlayer.avatar || '/avatars/default.png'
-          };
-          
-          console.log('[ARENA] Émission arena:join', { matchId: arenaMatchId, studentData });
-          s.emit('arena:join', {
-            matchId: arenaMatchId,
-            studentData
-          }, (response) => {
-            console.log('[ARENA] Callback arena:join reçu:', response);
-          });
-        } catch (e) {
-          console.error('[ARENA] Erreur émission arena:join:', e);
-        }
-      });
-      
-      // Écouter confirmation join room
-      s.on('arena:player-joined', ({ players, count }) => {
-        console.log('[ARENA] ✅ Player joined confirmé - Joueurs dans la room:', count, players);
-      });
-      
-      s.on('arena:error', ({ message }) => {
-        console.error('[ARENA] ❌ Erreur backend:', message);
-      });
-      
-      // Écouter paire validée par un autre joueur
-      s.on('arena:pair-validated', ({ pairId, zoneAId, zoneBId, playerName, studentId }) => {
-        console.log('[ARENA] Paire validée par', playerName, ':', pairId);
-        
-        // ✅ CRITIQUE: Utiliser zonesRef.current pour accéder à la version actuelle (pas stale closure)
-        const currentZones = zonesRef.current || [];
-        const ZA = currentZones.find(z => z.id === zoneAId);
-        const ZB = currentZones.find(z => z.id === zoneBId);
-        
-        // ✅ CORRECTION Bug #3: Animation bulle avec couleur du joueur
-        let playerColor = '#22c55e';
-        let borderColor = '#ffffff';
-        let playerInitials = '';
-        
-        try {
-          const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
-          const players = Array.isArray(arenaData.players) ? arenaData.players : [];
-          const playerIdx = players.findIndex(p => p.studentId === studentId);
-          
-          if (playerIdx >= 0) {
-            const { primary, border } = getPlayerColorComboByIndex(playerIdx);
-            playerColor = primary;
-            borderColor = border;
-            playerInitials = getInitials(playerName || players[playerIdx]?.name || 'Joueur');
-            
-            // Lancer animation bulle avec couleur du joueur
-            animateBubblesFromZones(zoneAId, zoneBId, playerColor, ZA, ZB, borderColor, playerInitials);
-          }
-        } catch (e) {
-          console.warn('[ARENA] Erreur animation bulle:', e);
-        }
-        
-        // ✅ BUG FIX: Ajouter à l'historique pédagogique (comme mode MP classique)
-        try {
-          console.log('[ARENA] 🖼️ Diagnostic images historique:', { 
-            ZA_type: ZA?.type, 
-            ZA_content: ZA?.content, 
-            ZB_type: ZB?.type, 
-            ZB_content: ZB?.content 
-          });
-          const textFor = (Z) => {
-            const t = (Z?.label || Z?.content || Z?.text || Z?.value || '').toString();
-            if (t && t.trim()) return t;
-            const pid = Z?.pairId || pairId;
-            return pid ? `[${pid}]` : '…';
-          };
-          
-          const textForCalc = (Z) => {
-            const t = (Z?.content || Z?.label || Z?.text || Z?.value || '').toString();
-            if (t && t.trim()) return t;
-            const pid = Z?.pairId || pairId;
-            return pid ? `[${pid}]` : '…';
-          };
-          
-          const textA = textFor(ZA);
-          const textB = textFor(ZB);
-          const typeA = ZA?.type || '';
-          const typeB = ZB?.type || '';
-          let kind = null;
-          let calcExpr = null;
-          let calcResult = null;
-          let imageSrc = null;
-          let imageLabel = null;
-          let displayText = `${textA || '…'} ↔ ${textB || '…'}`;
-          
-          const resolveImageSrc = (raw) => {
-            if (!raw) return null;
-            const normalized = String(raw).startsWith('http') ? String(raw) : process.env.PUBLIC_URL + '/' + (String(raw).startsWith('/') ? String(raw).slice(1) : (String(raw).startsWith('images/') ? String(raw) : 'images/' + String(raw)));
-            return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
-          };
-          
-          if ((typeA === 'calcul' && typeB === 'chiffre') || (typeA === 'chiffre' && typeB === 'calcul')) {
-            kind = 'calcnum';
-            const calcZone = typeA === 'calcul' ? ZA : ZB;
-            const numZone = typeA === 'chiffre' ? ZA : ZB;
-            calcExpr = textForCalc(calcZone);
-            calcResult = textForCalc(numZone);
-            displayText = (calcExpr && calcResult) ? `${calcExpr} = ${calcResult}` : `${textA || '…'} ↔ ${textB || '…'}`;
-          } else if ((typeA === 'image' && typeB === 'texte') || (typeA === 'texte' && typeB === 'image')) {
-            kind = 'imgtxt';
-            const imgZone = typeA === 'image' ? ZA : ZB;
-            const txtZone = typeA === 'texte' ? ZA : ZB;
-            const raw = imgZone?.content || imgZone?.url || imgZone?.path || imgZone?.src || '';
-            if (raw) imageSrc = resolveImageSrc(String(raw));
-            imageLabel = textFor(txtZone);
-            displayText = imageLabel || `${textA || '…'} ↔ ${textB || '…'}`;
-          }
-          
-          const entry = {
-            a: zoneAId,
-            b: zoneBId,
-            winnerId: studentId,
-            winnerName: playerName || 'Joueur',
-            color: playerColor,
-            borderColor: borderColor,
-            initials: playerInitials,
-            text: displayText,
-            kind,
-            calcExpr,
-            calcResult,
-            imageSrc,
-            imageLabel
-          };
-          
-          setLastWonPair(entry);
-          setWonPairsHistory(h => [entry, ...(Array.isArray(h) ? h : [])].slice(0, 25));
-        } catch (e) {
-          console.warn('[ARENA] Erreur mise à jour historique:', e);
-        }
-        
-        // ✅ FIX DISPARITÉ: Désactiver gameActive pendant transition (1.5s backend)
-        setGameActive(false);
-        console.log('[ARENA] ⚠️ gameActive=false (paire validée, attente nouvelle carte)');
-        
-        // Masquer les zones validées pour tous les joueurs
-        setZones(prevZones => {
-          return prevZones.map(z => {
-            if (z.id === zoneAId || z.id === zoneBId) {
-              return { ...z, validated: true };
-            }
-            return z;
-          });
-        });
-        
-        // Ajouter à l'historique paires validées
-        setValidatedPairIds(prev => new Set([...prev, pairId]));
-      });
-      
-      // Écouter chrono synchronisé
-      s.on('arena:timer-tick', ({ timeLeft }) => {
-        console.log('[ARENA] ⏱️ Timer tick:', timeLeft);
-        setTimeLeft(timeLeft);
-      });
-      
-      // Écouter scores
-      s.on('arena:scores-update', ({ scores }) => {
-        setScoresMP(scores);
-      });
-      
-      // Écouter fin de partie Arena
-      s.on('arena:game-end', ({ ranking, winner, duration }) => {
-        console.log('[ARENA] 🏆 Partie terminée!', { winner: winner?.name, ranking });
-        
-        setGameActive(false);
-        
-        // Afficher overlay podium professionnel
-        if (ranking && Array.isArray(ranking)) {
-          setArenaGameEndOverlay({
-            ranking,
-            winner,
-            duration,
-            timestamp: Date.now()
-          });
-          
-          // Confetti + son pour célébrer
-          try { showConfetti?.(); } catch {}
-          try { playCorrectSound?.(); } catch {}
-          
-          console.log('[ARENA] 📊 Overlay podium affiché');
-        }
-      });
-      
-      // Écouter nouvelle carte (après que toutes les paires sont trouvées)
-      s.on('arena:round-new', ({ zones, roundIndex, totalRounds }) => {
-        console.log('[ARENA] 🎯 Nouvelle carte reçue!', { 
-          zonesCount: zones?.length, 
-          roundIndex, 
-          totalRounds 
-        });
-        
-        // ✅ CRITIQUE: Annuler tout setTimeout précédent pour éviter race condition
-        if (gameActiveTimeoutRef.current) {
-          clearTimeout(gameActiveTimeoutRef.current);
-          console.log('[ARENA] ⚠️ setTimeout précédent annulé (double arena:round-new)');
-        }
-        
-        // Mettre à jour les zones - FORCER validated=false pour éviter héritage entre manches
-        if (Array.isArray(zones)) {
-          const cleanZones = zones.map(z => ({ ...z, validated: false }));
-          setZones(cleanZones);
-          console.log('[ARENA] ✅ Zones mises à jour (validated=false forcé):', cleanZones.length);
-        }
-        
-        // ✅ BUG FIX: Réactiver le jeu AVEC setTimeout pour garantir synchro React state
-        gameActiveTimeoutRef.current = setTimeout(() => {
-          setGameActive(true);
-          gameActiveTimeoutRef.current = null;
-          console.log('[ARENA] ✅ gameActive=true (après setTimeout)');
-        }, 50);
-        
-        // Réinitialiser l'état du jeu pour la nouvelle carte
-        setValidatedPairIds(new Set());
-        setGameSelectedIds([]);
-        setGameMsg('');
-        
-        // Mettre à jour le compteur de manches si fourni
-        if (Number.isFinite(roundIndex)) {
-          setRoundsPlayed(roundIndex + 1);
-        }
-      });
-      
-      s.on('disconnect', () => {
-        console.log('[ARENA] Socket déconnecté');
-        setSocketConnected(false);
-      });
-      
-      s.on('connect_error', (err) => {
-        console.error('[ARENA] ❌ Erreur connexion Socket.IO:', err?.message || err);
-        console.error('[ARENA] Détails erreur:', { name: err?.name, type: err?.type, description: err?.description });
-      });
-      
-      s.on('reconnect_attempt', (attemptNumber) => {
-        console.log('[ARENA] 🔄 Tentative de reconnexion #', attemptNumber);
-      });
-      
-      s.on('reconnect_error', (err) => {
-        console.error('[ARENA] ❌ Échec reconnexion:', err?.message || err);
-      });
-      
-      return () => {
-        cleanupResize();
-        s.disconnect();
-      };
-    }
-    
     // Supprimer tout autostart pour éviter les courses avant le handshake/preload
     // Avoid double-connect in strict mode by checking existing
     if (socketRef.current && socketRef.current.connected) return;
@@ -1492,8 +1124,8 @@ const Carte = () => {
       let cfg = null;
       try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
       const isOnline = cfg && cfg.mode === 'online';
-      // Freemium guard: Free plan is solo only (EXCEPTION: mode arena bypass)
-      if (isOnline && isFree() && !arenaMatchId) {
+      // Freemium guard: Free plan is solo only
+      if (isOnline && isFree()) {
         try { alert('Le mode en ligne est réservé aux abonnés Pro.'); } catch {}
         try { navigate('/pricing'); } catch {}
         // Rejoindre quand même une salle locale par défaut pour éviter un état incohérent
@@ -1969,26 +1601,30 @@ const Carte = () => {
       } catch (e) {
         console.warn('[CC][client] pair:valid post-UI failed', e);
       }
-      // ✅ FIX DISPARITÉ: Désactiver gameActive pendant transition (1.5s backend)
-      setGameActive(false);
-      console.log('[CC][client] ⚠️ gameActive=false (paire validée, attente nouvelle carte)');
-      
-      // ✅ FIX DISPARITÉ: Ignorer zones déjà validées (masquées)
-      setZones(prevZones => {
-        return prevZones.map(z => {
-          if (z.id === aId || z.id === bId) {
-            return { ...z, validated: true };
+      // Détecter le mode (solo vs multijoueur)
+      let isSoloMode = false;
+      try {
+        const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+        isSoloMode = cfg && cfg.mode === 'solo';
+      } catch {}
+      // MODE SOLO : Reshuffle immédiat et déterministe
+      // MODE MULTIJOUEUR : Attendre round:new du serveur (ne PAS générer localement)
+      if (isSoloMode) {
+        const sn = Number(payload?.seedNext);
+        const zf = payload?.zonesFile || 'zones2';
+        if (Number.isFinite(sn)) {
+          try {
+            console.debug('[CC][client] SOLO: reshuffle with seedNext (immediate)', { seedNext: sn, zonesFile: zf });
+            safeHandleAutoAssign(sn, zf);
+          } catch (e) {
+            console.error('[CC][client] handleAutoAssign(seedNext) failed', e);
           }
-          return z;
-        });
-      });
-      
-      // ✅ FIX DISPARITÉ: Activer verrou pendant traitement
-      processingPairRef.current = true;
-      setTimeout(() => { processingPairRef.current = false; }, 800);
-      
-      // Ajouter à l'historique paires validées
-      setValidatedPairIds(prev => new Set([...prev, payload.pairId]));
+        } else {
+          console.warn('[CC][client] SOLO: pair:valid without valid seedNext; skip reshuffle');
+        }
+      } else {
+        console.log('[CC][client] MULTIPLAYER: Waiting for round:new from server (not generating locally)');
+      }
     });
 
     return () => {
@@ -2015,11 +1651,6 @@ const Carte = () => {
   const [roundOverlay, setRoundOverlay] = useState(null); // { text, until }
   // Zones must be declared before any effects that read them
   const [zones, setZones] = useState([]);
-  // ✅ CRITIQUE: Ref mutable pour zones (évite stale closure dans Socket handlers)
-  const zonesRef = useRef([]);
-  useEffect(() => { zonesRef.current = zones; }, [zones]);
-  // ✅ CRITIQUE: Ref pour setTimeout de setGameActive (clearTimeout si double arena:round-new)
-  const gameActiveTimeoutRef = useRef(null);
   // Map rapide id -> zone pour récupérer les textes même après reshuffle
   const zonesByIdRef = useRef(new Map());
   useEffect(() => {
@@ -2359,11 +1990,6 @@ function handleGameClick(zone) {
   // Ignore clicks during assignment transition to avoid race conditions
   if (assignInFlightRef.current || assignBusy) return;
   if (!gameActive || !zone) return;
-  // ✅ FIX DISPARITÉ: Ignorer zones déjà validées (masquées)
-  if (zone.validated) {
-    console.log('[GAME] Zone déjà validée, clic ignoré:', zone.id);
-    return;
-  }
   if (processingPairRef.current) return; // verrou anti-double-clic
   // si déjà 2, réinitialiser avant de prendre un nouveau clic
   if (gameSelectedIds.length >= 2) {
@@ -2405,9 +2031,6 @@ function handleGameClick(zone) {
       } catch {}
       if (okPair) {
         console.log('[GAME] OK pair', { a, b, ZA: { id: ZA.id, type: ZA.type, pairId: ZA.pairId }, ZB: { id: ZB.id, type: ZB.type, pairId: ZB.pairId } });
-        // ✅ FIX DISPARITÉ: Activer verrou pendant traitement
-        processingPairRef.current = true;
-        setTimeout(() => { processingPairRef.current = false; }, 800);
         // Ajouter le pairId au Set des paires validées
         if (pairKey) {
           setValidatedPairIds(prev => {
@@ -2422,51 +2045,16 @@ function handleGameClick(zone) {
         showConfetti();
         // Utiliser la vraie couleur du joueur local
         try {
-          let myIdx = -1;
-          let myName = playerName;
-          
-          // Mode Arena: utiliser arenaData.players
-          if (arenaMatchId) {
-            const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
-            const players = Array.isArray(arenaData.players) ? arenaData.players : [];
-            myIdx = players.findIndex(p => p.studentId === arenaData.myStudentId);
-            if (myIdx >= 0) {
-              myName = players[myIdx]?.name || playerName;
-            }
-          } else {
-            // Mode multijoueur classique: utiliser roomPlayersRef
-            const players = Array.isArray(roomPlayersRef.current) ? roomPlayersRef.current : [];
-            const myId = socket?.id || null;
-            myIdx = myId ? players.findIndex(p => p.id === myId) : -1;
-            if (myIdx >= 0) {
-              myName = players.find(p => p.id === myId)?.nickname || playerName;
-            }
-          }
-          
+          const players = Array.isArray(roomPlayersRef.current) ? roomPlayersRef.current : [];
+          const myId = socket?.id || null;
+          const myIdx = myId ? players.findIndex(p => p.id === myId) : -1;
           const { primary, border } = myIdx >= 0 ? getPlayerColorComboByIndex(myIdx) : { primary: '#22c55e', border: '#ffffff' };
+          const myName = myId ? (players.find(p => p.id === myId)?.nickname || playerName) : playerName;
           const initials = getInitials(myName);
           animateBubblesFromZones(a, b, primary, ZA, ZB, border, initials);
         } catch {}
         if (socket && socket.connected) {
-          // Mode Arena : émettre event spécifique arena:pair-validated
-          if (arenaMatchId) {
-            try {
-              const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
-              socket.emit('arena:pair-validated', {
-                studentId: arenaData.myStudentId,
-                isCorrect: true,
-                timeMs: Date.now() - (arenaData.startTime || Date.now()),
-                pairId: pairKey,
-                zoneAId: a,
-                zoneBId: b
-              });
-            } catch (e) {
-              console.error('[ARENA] Erreur émission arena:pair-validated:', e);
-            }
-          } else {
-            // Mode multijoueur classique
-            try { socket.emit('attemptPair', { a, b }); } catch {}
-          }
+          try { socket.emit('attemptPair', { a, b }); } catch {}
         }
           // Enregistrer tentative OK
           try { pgRecordAttempt({ item_type, item_id: pairKey || `${ZA?.id}|${ZB?.id}`, objective_key: `${levelClass}:${theme}`, correct: true, latency_ms: latency, level_class: levelClass, theme, round_index: Number(roundsPlayed)||0 }); } catch {}
@@ -3008,34 +2596,6 @@ const handleEditGreenZone = (zone) => {
   }, []);
 
   useEffect(() => {
-    // MODE ARENA: Charger zones depuis localStorage
-    if (arenaMatchId) {
-      console.log('[ARENA] Détection mode arena, matchId:', arenaMatchId);
-      try {
-        const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
-        if (arenaData.zones && Array.isArray(arenaData.zones)) {
-          console.log('[ARENA] Zones chargées depuis localStorage:', arenaData.zones.length);
-          // Compter les zones calcul/chiffre pour éviter message "zones vides"
-          const calcCount = arenaData.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length;
-          const imageCount = arenaData.zones.filter(z => z.type === 'image' || z.type === 'texte').length;
-          try {
-            window.__CC_LAST_FILTER_COUNTS__ = { calcNum: calcCount, textImage: imageCount };
-            console.log('[ARENA] Filter counts set:', { calcNum: calcCount, textImage: imageCount });
-          } catch {}
-          setZones(arenaData.zones);
-          setGameActive(true);
-          setTimeLeft(arenaData.duration || 60);
-          setLoading(false);
-          setRoomStatus('playing');
-          setFullScreen(true);
-          console.log('[ARENA] Mode jeu activé - bypass lobby');
-          return;
-        }
-      } catch (e) {
-        console.error('[ARENA] Erreur chargement zones:', e);
-      }
-    }
-    
     // Détecter le mode (solo vs multijoueur)
     let isSoloMode = false;
     try {
@@ -5200,15 +4760,11 @@ setZones(dataWithRandomTexts);
           </div>
           {isAdminUI ? (
             <div style={{ padding: 10 }}>
-              <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-                <button onClick={startDiagRecording} disabled={diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: diagRecording ? '#064e3b' : '#065f46', color: '#ecfdf5', fontSize: 12 }}>▶ Démarrer</button>
-                <button onClick={stopDiagRecording} disabled={!diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: '#7f1d1d', color: '#fee2e2', fontSize: 12 }}>■ Arrêter</button>
-                <button onClick={downloadDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #3b82f6', background: '#1e3a8a', color: '#dbeafe', fontSize: 12 }}>📥 Télécharger</button>
-                <button onClick={sendLogsToBackend} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: logsSent ? '1px solid #10b981' : '1px solid #8b5cf6', background: logsSent ? '#065f46' : '#5b21b6', color: '#ede9fe', fontSize: 12, transition: 'all 0.2s' }}>{logsSent ? '✓ Envoyé !' : '📤 Envoyer backend'}</button>
-              </div>
               <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                <button onClick={copyDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: logsCopied ? '#10b981' : 'transparent', color: logsCopied ? '#ecfdf5' : '#e5e7eb', transition: 'all 0.2s', fontSize: 12 }}>{logsCopied ? '✓ Copié !' : '📋 Copier'}</button>
-                <button onClick={() => { setDiagLines([]); setDiagRecLines([]); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb', fontSize: 12 }}>🗑️ Vider</button>
+                <button onClick={startDiagRecording} disabled={diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: diagRecording ? '#064e3b' : '#065f46', color: '#ecfdf5' }}>Démarrer enregistrement</button>
+                <button onClick={stopDiagRecording} disabled={!diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: '#7f1d1d', color: '#fee2e2' }}>Arrêter</button>
+                <button onClick={copyDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb' }}>Copier</button>
+                <button onClick={() => { setDiagLines([]); setDiagRecLines([]); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb' }}>Vider</button>
               </div>
               <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>Derniers évènements</div>
               <div style={{ maxHeight: 180, overflow: 'auto', background: '#0b1220', padding: 8, borderRadius: 6 }}>
@@ -5378,12 +4934,9 @@ setZones(dataWithRandomTexts);
           {wonPairsHistory.slice(0, 10).map((e, i) => (
             <div key={i} className="hist-item" title={e.text}>
               <span className="dot" style={{ background: e.color || '#e5e7eb', border: e.borderColor ? `2px solid ${e.borderColor}` : 'none' }} />
-              {e.kind === 'imgtxt' && e.imageSrc && (
-                <img src={e.imageSrc} alt={e.imageLabel || e.text || 'Image'} style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover', flexShrink: 0, marginRight: 4 }} />
-              )}
               <span style={{ maxWidth: '52vw', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 <b style={{ marginRight: 4 }}>{e.winnerName || 'Joueur'}</b>
-                <span>{e.kind === 'calcnum' && e.calcExpr && e.calcResult ? `${e.calcExpr} = ${e.calcResult}` : (e.kind === 'imgtxt' && e.imageLabel ? e.imageLabel : e.text)}</span>
+                <span>{e.text}</span>
                 {e.tie && (
                   <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: '#fef3c7', border: '1px solid #f59e0b', color: '#92400e' }}>Égalité</span>
                 )}
@@ -5413,7 +4966,7 @@ setZones(dataWithRandomTexts);
                   <button onClick={() => setDiagOpen(v => !v)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db' }}>{diagOpen ? 'Masquer diagnostic' : 'Diagnostic'}</button>
                   <button onClick={startDiagRecording} disabled={diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: diagRecording ? '#d1fae5' : '#ecfdf5', color: '#065f46' }}>Démarrer enregistrement</button>
                   <button onClick={stopDiagRecording} disabled={!diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: !diagRecording ? '#fee2e2' : '#fef2f2', color: '#991b1b' }}>Arrêter</button>
-                  <button onClick={copyDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: logsCopied ? '1px solid #10b981' : '1px solid #d1d5db', background: logsCopied ? '#d1fae5' : 'white', color: logsCopied ? '#065f46' : '#374151', transition: 'all 0.2s', fontWeight: logsCopied ? 'bold' : 'normal' }}>{logsCopied ? '✓ Copié !' : 'Copier l\'enregistrement'}</button>
+                  <button onClick={copyDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db' }}>Copier l'enregistrement</button>
                   <button onClick={() => { setDiagLines([]); setDiagRecLines([]); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db' }}>Vider</button>
                 </div>
                 {diagOpen && (
@@ -5760,14 +5313,14 @@ setZones(dataWithRandomTexts);
         >
         {/* Définitions SVG */}
         <defs>
-          {/* ClipPaths pour zones images (seulement non-validées) */}
-          {zones.filter(z => !z.validated && z.type === 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
+          {/* ClipPaths pour zones images */}
+          {zones.filter(z => z.type === 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
             <clipPath id={`clip-zone-${zone.id}`} key={`clip-${zone.id}`} clipPathUnits="userSpaceOnUse">
               <path d={pointsToBezierPath(zone.points)} />
             </clipPath>
           ))}
-          {/* Paths pour texte courbé (zones non-image, seulement non-validées) */}
-          {zones.filter(z => !z.validated && z.type !== 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
+          {/* Paths pour texte courbé (zones non-image) */}
+          {zones.filter(z => z.type !== 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
             <path id={`text-curve-${zone.id}`} key={`textcurve-${zone.id}`} d={getArcPathFromZonePoints(zone.points, zone.id, selectedArcPoints, zone.arcPoints)} fill="none" />
           ))}
         </defs>
@@ -5780,7 +5333,7 @@ setZones(dataWithRandomTexts);
               strokeWidth={2}
             />
           )}
-          {zones.filter(z => z && typeof z === 'object' && !z.validated).map((zone, idx) => (
+          {zones.filter(z => z && typeof z === 'object').map((zone, idx) => (
             <g
               key={zone.id}
               data-zone-id={zone.id}
@@ -6465,228 +6018,6 @@ setZones(dataWithRandomTexts);
           </div>
         </div>
       )}
-      
-      {/* Overlay podium fin de partie Arena */}
-      {arenaGameEndOverlay && (() => {
-        const { ranking, winner } = arenaGameEndOverlay;
-        const topThree = Array.isArray(ranking) ? ranking.slice(0, 3) : [];
-        
-        return (
-          <div 
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 5000,
-              background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.95) 0%, rgba(99, 102, 241, 0.95) 100%)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: isMobile ? '16px' : '32px',
-              animation: 'fadeIn 0.5s ease-out'
-            }}
-            onClick={() => setArenaGameEndOverlay(null)}
-          >
-            {/* Titre */}
-            <div style={{
-              fontSize: isMobile ? 32 : 48,
-              fontWeight: 900,
-              color: '#fff',
-              marginBottom: isMobile ? '16px' : '24px',
-              textShadow: '0 4px 12px rgba(0,0,0,0.3)',
-              animation: 'slideDown 0.6s ease-out'
-            }}>
-              🏆 PARTIE TERMINÉE 🏆
-            </div>
-            
-            {/* Gagnant principal */}
-            {winner && (
-              <div style={{
-                background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                borderRadius: 24,
-                padding: isMobile ? '20px' : '32px',
-                marginBottom: isMobile ? '20px' : '32px',
-                boxShadow: '0 12px 48px rgba(251, 191, 36, 0.4)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '16px',
-                minWidth: isMobile ? '280px' : '400px',
-                animation: 'scaleIn 0.7s ease-out 0.3s both'
-              }}>
-                {/* Avatar */}
-                <div style={{
-                  width: isMobile ? 80 : 120,
-                  height: isMobile ? 80 : 120,
-                  borderRadius: '50%',
-                  background: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: isMobile ? 40 : 60,
-                  fontWeight: 900,
-                  color: '#f59e0b',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-                  border: '4px solid rgba(255,255,255,0.5)'
-                }}>
-                  {(winner.avatar && !winner.avatar.includes('default.png')) ? winner.avatar : '👤'}
-                </div>
-                
-                {/* Nom gagnant */}
-                <div style={{
-                  fontSize: isMobile ? 24 : 32,
-                  fontWeight: 900,
-                  color: '#fff',
-                  textShadow: '0 2px 8px rgba(0,0,0,0.3)'
-                }}>
-                  {winner.name}
-                </div>
-                
-                {/* Score */}
-                <div style={{
-                  fontSize: isMobile ? 48 : 64,
-                  fontWeight: 900,
-                  color: '#fff',
-                  textShadow: '0 4px 12px rgba(0,0,0,0.3)'
-                }}>
-                  {winner.score} pts
-                </div>
-              </div>
-            )}
-            
-            {/* Classement complet */}
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              borderRadius: 16,
-              padding: isMobile ? '16px' : '24px',
-              maxWidth: isMobile ? '90vw' : '600px',
-              width: '100%',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-              animation: 'slideUp 0.8s ease-out 0.5s both'
-            }}>
-              <div style={{
-                fontSize: isMobile ? 20 : 24,
-                fontWeight: 700,
-                color: '#4f46e5',
-                marginBottom: '16px',
-                textAlign: 'center'
-              }}>
-                📊 Classement Final
-              </div>
-              
-              {ranking && ranking.map((player, idx) => {
-                const medals = ['🥇', '🥈', '🥉'];
-                const isTop3 = idx < 3;
-                const bgColors = [
-                  'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-                  'linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%)',
-                  'linear-gradient(135deg, #fed7aa 0%, #fdba74 100%)'
-                ];
-                
-                return (
-                  <div
-                    key={player.studentId || idx}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: isMobile ? '8px' : '12px',
-                      padding: isMobile ? '10px' : '12px 16px',
-                      marginBottom: '8px',
-                      borderRadius: 12,
-                      background: isTop3 ? bgColors[idx] : '#f9fafb',
-                      border: isTop3 ? '2px solid rgba(0,0,0,0.1)' : '1px solid #e5e7eb',
-                      boxShadow: isTop3 ? '0 4px 12px rgba(0,0,0,0.1)' : 'none',
-                      animation: `slideRight 0.5s ease-out ${0.6 + idx * 0.1}s both`
-                    }}
-                  >
-                    {/* Position / Médaille */}
-                    <div style={{
-                      fontSize: isMobile ? 24 : 28,
-                      fontWeight: 900,
-                      minWidth: isMobile ? '32px' : '40px',
-                      textAlign: 'center'
-                    }}>
-                      {isTop3 ? medals[idx] : `${idx + 1}`}
-                    </div>
-                    
-                    {/* Avatar */}
-                    <div style={{
-                      width: isMobile ? 36 : 48,
-                      height: isMobile ? 36 : 48,
-                      borderRadius: '50%',
-                      background: isTop3 ? '#fff' : '#e5e7eb',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: isMobile ? 18 : 24
-                    }}>
-                      {(player.avatar && !player.avatar.includes('default.png')) ? player.avatar : '👤'}
-                    </div>
-                    
-                    {/* Nom */}
-                    <div style={{
-                      flex: 1,
-                      fontSize: isMobile ? 16 : 18,
-                      fontWeight: isTop3 ? 700 : 600,
-                      color: '#1f2937',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      {player.name}
-                    </div>
-                    
-                    {/* Score */}
-                    <div style={{
-                      fontSize: isMobile ? 20 : 24,
-                      fontWeight: 900,
-                      color: isTop3 ? '#4f46e5' : '#6b7280',
-                      minWidth: isMobile ? '60px' : '80px',
-                      textAlign: 'right'
-                    }}>
-                      {player.score} pts
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            
-            {/* Bouton fermer */}
-            <div style={{
-              marginTop: isMobile ? '16px' : '24px',
-              fontSize: isMobile ? 14 : 16,
-              color: 'rgba(255,255,255,0.8)',
-              textAlign: 'center',
-              animation: 'fadeIn 1s ease-out 1s both'
-            }}>
-              Cliquez pour fermer
-            </div>
-          </div>
-        );
-      })()}
-      
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideDown {
-          from { transform: translateY(-30px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-        @keyframes slideUp {
-          from { transform: translateY(30px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-        @keyframes slideRight {
-          from { transform: translateX(-20px); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes scaleIn {
-          from { transform: scale(0.8); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-      `}</style>
       {/* Popup attribution zone en overlay, hors SVG */}
       {attributionMode && zoneToEdit && (
         <div style={{
