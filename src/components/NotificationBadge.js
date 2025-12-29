@@ -18,10 +18,16 @@ export default function NotificationBadge() {
 
   // Récupérer studentId au montage
   useEffect(() => {
-    const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+    // Priorité 1 : Récupérer depuis localStorage (plus fiable)
+    const storedStudentId = localStorage.getItem('cc_student_id');
+    if (storedStudentId) {
+      setStudentId(storedStudentId);
+      return;
+    }
     
+    // Priorité 2 : Essayer via API /me si token disponible
+    const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
     if (auth.token) {
-      // Récupérer depuis API
       fetch(`${getBackendUrl()}/api/auth/me`, {
         headers: { 'Authorization': `Bearer ${auth.token}` }
       })
@@ -29,15 +35,10 @@ export default function NotificationBadge() {
         .then(data => {
           if (data.ok && data.student) {
             setStudentId(data.student.id);
+            localStorage.setItem('cc_student_id', data.student.id);
           }
         })
         .catch(err => console.error('[NotificationBadge] Erreur récupération student:', err));
-    } else {
-      // Fallback localStorage
-      const fallbackId = localStorage.getItem('cc_student_id');
-      if (fallbackId) {
-        setStudentId(fallbackId);
-      }
     }
   }, []);
 
