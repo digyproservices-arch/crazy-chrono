@@ -1735,7 +1735,17 @@ const Carte = () => {
           }))
         });
         
-        setZones(payload.zones);
+        // ✅ FIX ZONES VIDES MP: Ajouter seed aux zones pour forcer React à recréer le DOM
+        // React utilise zone.id comme key - si l'ID est réutilisé, React garde l'ancien DOM
+        // En ajoutant le seed, on crée un ID unique par carte: seed-zoneId
+        const seed = payload?.seed || Date.now();
+        const zonesWithUniquIds = payload.zones.map(z => ({
+          ...z,
+          _originalId: z.id,
+          id: `${seed}-${z.id}` // ID unique par carte
+        }));
+        
+        setZones(zonesWithUniquIds);
         setPreparing(false);
       } else {
         // Fallback sur génération locale si le serveur n'envoie pas de zones
