@@ -24,19 +24,12 @@ export default function CrazyArenaLobby() {
   const [error, setError] = useState(null);
   const [isReady, setIsReady] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [isTeacher, setIsTeacher] = useState(false);
-  const [matchId, setMatchId] = useState(null);
   
   useEffect(() => {
     // Fonction pour récupérer les données utilisateur depuis l'API
     const fetchUserData = async () => {
       try {
         const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
-        
-        // Détecter si l'utilisateur est professeur/admin
-        if (auth.role === 'admin' || auth.role === 'teacher' || auth.isAdmin) {
-          setIsTeacher(true);
-        }
         
         if (!auth.token) {
           // Fallback localStorage pour compatibilité
@@ -104,9 +97,8 @@ export default function CrazyArenaLobby() {
       const { studentId, studentName } = userData;
       
       // Récupérer le matchId depuis le roomCode
-      const fetchedMatchId = await getMatchIdFromRoomCode(roomCode);
-      setMatchId(fetchedMatchId);
-      if (!fetchedMatchId) {
+      const matchId = await getMatchIdFromRoomCode(roomCode);
+      if (!matchId) {
         setError('Code de salle invalide ou match introuvable');
         return;
       }
@@ -429,62 +421,21 @@ export default function CrazyArenaLobby() {
             ✓ Je suis prêt !
           </button>
           <div style={{ marginTop: 12, fontSize: 14, color: '#6b7280' }}>
-            {isTeacher ? 'Le professeur peut démarrer le match (2 joueurs minimum)' : 'En attente du démarrage par le professeur'}
-          </div>
-        </div>
-      )}
-      
-      {/* Bouton Démarrer (Professeur uniquement) */}
-      {isTeacher && players.length >= 2 && countdown === null && (
-        <div style={{ textAlign: 'center', marginTop: 32 }}>
-          <button
-            onClick={() => {
-              if (socketRef.current && matchId) {
-                console.log('[CrazyArena] Professeur démarre le match:', matchId);
-                socketRef.current.emit('arena:force-start', { matchId });
-              }
-            }}
-            style={{
-              padding: '20px 60px',
-              borderRadius: 16,
-              border: '4px solid #f59e0b',
-              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-              color: '#fff',
-              fontSize: 24,
-              fontWeight: 900,
-              cursor: 'pointer',
-              boxShadow: '0 8px 24px rgba(245,158,11,0.4)',
-              transition: 'all 0.3s',
-              textTransform: 'uppercase',
-              letterSpacing: '1px'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.transform = 'scale(1.1) translateY(-4px)';
-              e.target.style.boxShadow = '0 12px 32px rgba(245,158,11,0.6)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.transform = 'scale(1) translateY(0)';
-              e.target.style.boxShadow = '0 8px 24px rgba(245,158,11,0.4)';
-            }}
-          >
-            🚀 Démarrer le Match
-          </button>
-          <div style={{ marginTop: 16, fontSize: 16, color: '#6b7280' }}>
-            {players.length}/4 joueurs connectés · Minimum 2 requis
+            La partie démarre quand les 4 joueurs sont prêts
           </div>
         </div>
       )}
       
       {/* Statut */}
       <div style={{ textAlign: 'center', marginTop: 32, color: '#6b7280' }}>
-        {!isTeacher && players.length < 2 && (
+        {players.length < 4 && (
           <div>
-            🕐 En attente d'au moins 2 joueurs...
+            🕐 En attente de {4 - players.length} joueur(s) supplémentaire(s)...
           </div>
         )}
-        {!isTeacher && players.length >= 2 && countdown === null && (
+        {players.length === 4 && !players.every(p => p.ready) && (
           <div>
-            ⏳ En attente du démarrage par le professeur...
+            ⏳ En attente que tous les joueurs soient prêts...
           </div>
         )}
       </div>
