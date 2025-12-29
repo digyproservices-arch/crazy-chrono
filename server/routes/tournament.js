@@ -363,15 +363,24 @@ router.get('/students/:studentId/invitations', requireSupabase, async (req, res)
   try {
     const { studentId } = req.params;
     
-    // Trouver les groupes dont l'élève fait partie
-    const { data: groups, error: groupsError } = await supabase
+    // Récupérer tous les groupes et filtrer côté JS
+    // (student_ids est un JSON string, pas un JSONB array)
+    const { data: allGroups, error: groupsError } = await supabase
       .from('tournament_groups')
-      .select('id, name, match_id, student_ids')
-      .contains('student_ids', [studentId]);
+      .select('id, name, match_id, student_ids');
     
     if (groupsError) throw groupsError;
     
-    if (!groups || groups.length === 0) {
+    // Filtrer les groupes contenant cet élève
+    const groups = (allGroups || []).filter(g => {
+      if (!g.student_ids) return false;
+      const ids = Array.isArray(g.student_ids) 
+        ? g.student_ids 
+        : JSON.parse(g.student_ids);
+      return ids.includes(studentId);
+    });
+    
+    if (groups.length === 0) {
       return res.json({ success: true, invitations: [] });
     }
     
