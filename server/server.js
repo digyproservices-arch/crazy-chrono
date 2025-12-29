@@ -801,6 +801,9 @@ function startRound(roomCode) {
   } catch { room.roundBaseScores = new Map(); }
   // Réinitialiser l'ensemble des paires déjà trouvées pour cette manche
   room.foundPairs = new Set();
+  // ✅ FIX ZONES VIDES: Réinitialiser validatedPairIds à chaque nouveau round
+  // Sans ce reset, les paires validées précédemment sont exclues de la génération
+  room.validatedPairIds = new Set();
   // Nettoyer toute fenêtre d'égalité précédente
   try {
     if (room.pendingClaims && room.pendingClaims.size) {
