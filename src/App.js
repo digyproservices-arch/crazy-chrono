@@ -109,7 +109,7 @@ function App() {
       a.download = `crazy-chrono-logs-${timestamp}.txt`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      try { if (a.parentNode) a.parentNode.removeChild(a); } catch {}
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('[LOGS] Erreur téléchargement:', err);
@@ -164,7 +164,7 @@ function App() {
         document.body.appendChild(textarea);
         textarea.select();
         document.execCommand('copy');
-        document.body.removeChild(textarea);
+        try { if (textarea.parentNode) textarea.parentNode.removeChild(textarea); } catch {}
       }
       setLogsCopied(true);
       setTimeout(() => setLogsCopied(false), 2000);
