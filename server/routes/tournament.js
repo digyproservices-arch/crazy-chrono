@@ -589,6 +589,63 @@ router.get('/leaderboard', requireSupabase, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/tournament/active-matches
+ * Récupérer tous les matchs actifs (pending/playing) pour le dashboard professeur
+ * Inclut les infos des groupes et le nombre de joueurs
+ */
+router.get('/active-matches', requireSupabase, async (req, res) => {
+  try {
+    // Récupérer tous les matchs actifs
+    const { data: matches, error: matchesError } = await supabase
+      .from('tournament_matches')
+      .select('id, room_code, status, created_at, group_id')
+      .in('status', ['pending', 'playing'])
+      .order('created_at', { ascending: false });
+    
+    if (matchesError) throw matchesError;
+    
+    if (!matches || matches.length === 0) {
+      return res.json({ success: true, matches: [] });
+    }
+    
+    // Récupérer les infos des groupes associés
+    const groupIds = matches.map(m => m.group_id).filter(id => id);
+    const { data: groups, error: groupsError } = await supabase
+      .from('tournament_groups')
+      .select('id, name, student_ids')
+      .in('id', groupIds);
+    
+    if (groupsError) throw groupsError;
+    
+    // Enrichir les matchs avec les infos des groupes
+    const enrichedMatches = matches.map(match => {
+      const group = (groups || []).find(g => g.id === match.group_id);
+      const studentIds = group?.student_ids 
+        ? (Array.isArray(group.student_ids) ? group.student_ids : JSON.parse(group.student_ids))
+        : [];
+      
+      return {
+        matchId: match.id,
+        roomCode: match.room_code,
+        status: match.status,
+        createdAt: match.created_at,
+        groupName: group?.name || 'Groupe sans nom',
+        totalPlayers: studentIds.length,
+        studentIds: studentIds,
+        // Les joueurs connectés seront mis à jour par Socket.IO côté client
+        connectedPlayers: 0,
+        readyPlayers: 0
+      };
+    });
+    
+    res.json({ success: true, matches: enrichedMatches });
+  } catch (error) {
+    console.error('[Tournament API] Error fetching active matches:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ==========================================
 // HELPERS
 // ==========================================

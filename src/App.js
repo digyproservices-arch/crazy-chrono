@@ -17,6 +17,7 @@ import SessionConfig from './components/Modes/SessionConfig';
 import CrazyArenaSetup from './components/Tournament/CrazyArenaSetup';
 import CrazyArenaLobby from './components/Tournament/CrazyArenaLobby';
 import CrazyArenaGame from './components/Tournament/CrazyArenaGame';
+import ArenaManagerDashboard from './components/Tournament/ArenaManagerDashboard';
 import AdminRoles from './components/Admin/AdminRoles';
 import AdminInvite from './components/Admin/AdminInvite';
 import { fetchAndSyncStatus, getBackendUrl } from './utils/subscription';
@@ -405,6 +406,7 @@ function App() {
               <Route path="/debug/progress" element={<RequireAuth auth={auth}><ProgressDebug /></RequireAuth>} />
               {/* Crazy Arena (Tournoi 4 joueurs) */}
               <Route path="/tournament/setup" element={<RequireAuth auth={auth}><CrazyArenaSetup /></RequireAuth>} />
+              <Route path="/crazy-arena/manager" element={<RequireAuth auth={auth}><ArenaManagerDashboard /></RequireAuth>} />
               <Route path="/crazy-arena/lobby/:roomCode" element={<RequireAuth auth={auth}><CrazyArenaLobby /></RequireAuth>} />
               <Route path="/crazy-arena/game" element={<RequireAuth auth={auth}><CrazyArenaGame /></RequireAuth>} />
               {/* Carte (éditeur/jeu) accessible en direct si nécessaire, sinon on y accède après config */}

@@ -302,8 +302,47 @@ export default function CrazyArenaSetup() {
   console.log('[CrazyArena] ✅ Affichage de l\'UI complète');
   
   return (
-    <div style={{ maxWidth: 980, margin: '24px auto', padding: '0 16px' }}>
-      <h2>🏆 Configuration Crazy Arena - Groupes de 4</h2>
+    <div style={{ maxWidth: 1400, margin: '0 auto', padding: 40 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+        <div>
+          <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>
+            🏆 Mode Tournoi - Crazy Arena
+          </h1>
+          <p style={{ fontSize: 16, color: '#666', marginBottom: 0 }}>
+            Créez des groupes de 2 à 4 élèves et lancez des matchs compétitifs
+          </p>
+        </div>
+        
+        <button
+          onClick={() => navigate('/crazy-arena/manager')}
+          style={{
+            padding: '14px 28px',
+            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 12,
+            fontSize: 16,
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+          }}
+        >
+          <span style={{ fontSize: 20 }}>📊</span>
+          <span>Gérer les matchs actifs</span>
+        </button>
+      </div>
       
       {tournament && (
         <div style={{ padding: '12px 16px', background: '#eff6ff', borderRadius: 8, marginBottom: 16, border: '1px solid #3b82f6' }}>
