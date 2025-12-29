@@ -1230,7 +1230,9 @@ io.on('connection', (socket) => {
           const config = {
             themes: room.selectedThemes || [],
             classes: room.selectedClasses || [],
-            excludedPairIds: room.validatedPairIds || new Set(),
+            // ✅ FIX COMME ARENA: Ne jamais exclure de paires (ligne 349 crazyArenaManager.js)
+            // Arena passe toujours new Set() même si match.validatedPairIds existe
+            excludedPairIds: new Set(),
             logFn: (level, message, data) => emitServerLog(currentRoom, level, message, data)
           };
           const regenResult = generateRoundZones(newSeed, config);
