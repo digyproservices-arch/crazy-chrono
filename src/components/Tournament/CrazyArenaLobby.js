@@ -59,11 +59,18 @@ export default function CrazyArenaLobby() {
         const data = await response.json();
         
         if (data.ok && data.student) {
-          console.log('[CrazyArena] ✅ Student ID récupéré depuis API:', data.student.id);
-          setMyStudentId(data.student.id);
-          setStudentName(data.student.fullName || data.student.firstName || 'Joueur');
+          const studentId = data.student.id;
+          const studentName = data.student.full_name || data.student.first_name || 'Joueur';
+          
+          setMyStudentId(studentId);
+          setStudentName(studentName);
           setLoading(false);
-          return { studentId: data.student.id, studentName: data.student.fullName || data.student.firstName };
+          
+          // Stocker dans localStorage pour NotificationBadge
+          localStorage.setItem('cc_student_id', studentId);
+          localStorage.setItem('cc_student_name', studentName);
+          
+          return { studentId, studentName };
         } else {
           console.error('[CrazyArena] ❌ Aucun élève lié à ce compte');
           setError('Votre compte n\'est pas lié à un élève. Contactez l\'administrateur.');
