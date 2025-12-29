@@ -189,8 +189,8 @@ router.post('/groups', requireSupabase, async (req, res) => {
   try {
     const { tournamentId, phaseLevel, classId, name, studentIds } = req.body;
     
-    if (!Array.isArray(studentIds) || studentIds.length !== 4) {
-      return res.status(400).json({ success: false, error: 'Un groupe doit contenir exactement 4 élèves' });
+    if (!Array.isArray(studentIds) || studentIds.length < 2 || studentIds.length > 4) {
+      return res.status(400).json({ success: false, error: 'Un groupe doit contenir entre 2 et 4 élèves' });
     }
     
     const groupId = `group_${uuidv4()}`;

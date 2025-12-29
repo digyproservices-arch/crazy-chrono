@@ -1325,11 +1325,9 @@ io.on('connection', (socket) => {
   });
 
   socket.on('arena:force-start', ({ matchId }) => {
-    // Forcer le démarrage (enseignant uniquement)
-    const match = crazyArena.getMatchState(matchId);
-    if (match && match.players.length >= 2) {
-      crazyArena.startCountdown(matchId);
-    }
+    // Démarrage forcé par le professeur (2-4 joueurs)
+    console.log(`[Server] arena:force-start reçu pour match ${matchId}`);
+    crazyArena.forceStart(matchId);
   });
 
   socket.on('disconnect', () => {

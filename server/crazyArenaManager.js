@@ -181,12 +181,34 @@ class CrazyArenaManager {
         players: match.players.map(p => ({ studentId: p.studentId, name: p.name, ready: p.ready }))
       });
 
-      // Si tous prêts, démarrer countdown
-      const allReady = match.players.length === 4 && match.players.every(p => p.ready);
-      if (allReady && match.status === 'waiting') {
-        this.startCountdown(matchId);
-      }
+      // NE PLUS démarrer automatiquement - attendre arena:force-start du professeur
     }
+  }
+
+  /**
+   * Démarrage forcé par le professeur (2-4 joueurs)
+   */
+  forceStart(matchId) {
+    const match = this.matches.get(matchId);
+    
+    if (!match) {
+      console.error(`[CrazyArena] forceStart: Match ${matchId} introuvable`);
+      return false;
+    }
+
+    if (match.status !== 'waiting') {
+      console.warn(`[CrazyArena] forceStart: Match ${matchId} déjà en statut ${match.status}`);
+      return false;
+    }
+
+    if (match.players.length < 2) {
+      console.warn(`[CrazyArena] forceStart: Match ${matchId} a seulement ${match.players.length} joueur(s) (min 2)`);
+      return false;
+    }
+
+    console.log(`[CrazyArena] 🚀 Démarrage forcé du match ${matchId} avec ${match.players.length} joueur(s)`);
+    this.startCountdown(matchId);
+    return true;
   }
 
   /**

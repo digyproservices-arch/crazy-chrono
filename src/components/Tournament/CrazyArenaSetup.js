@@ -134,19 +134,19 @@ export default function CrazyArenaSetup() {
   const toggleStudentSelection = (studentId) => {
     setSelectedStudents(prev => {
       if (prev.includes(studentId)) {
-        return prev.filter(id => id !== studentId);
+        return prev.filter(id => id !== studentId); // Désélectionner
       } else {
         if (prev.length < 4) {
           return [...prev, studentId];
         }
-        return prev; // Max 4 élèves
+        return prev; // Max 4 élèves (modifiable 2-4)
       }
     });
   };
   
   const createGroup = async () => {
-    if (selectedStudents.length !== 4) {
-      alert('Vous devez sélectionner exactement 4 élèves pour former un groupe.');
+    if (selectedStudents.length < 2 || selectedStudents.length > 4) {
+      alert('Vous devez sélectionner entre 2 et 4 élèves pour former un groupe.');
       return;
     }
     
@@ -230,7 +230,8 @@ export default function CrazyArenaSetup() {
       
       if (data.success) {
         // Afficher le code de salle
-        alert(`✅ Match créé avec succès!\n\nCode de salle: ${data.roomCode}\n\n📋 Donnez ce code aux 4 élèves pour qu'ils rejoignent le match.\n\nURL pour les élèves:\nhttps://app.crazy-chrono.com/crazy-arena/lobby/${data.roomCode}`);
+        const playerCount = parseStudentIds(group.student_ids).length;
+        alert(`✅ Match créé avec succès!\n\nCode de salle: ${data.roomCode}\n\n📋 Donnez ce code aux ${playerCount} élève(s) pour qu'ils rejoignent le match.\n\nURL pour les élèves:\nhttps://app.crazy-chrono.com/crazy-arena/lobby/${data.roomCode}`);
         
         // Stocker l'info du match pour le mode Crazy Arena (au cas où)
         localStorage.setItem('cc_crazy_arena_match', JSON.stringify({
@@ -331,7 +332,7 @@ export default function CrazyArenaSetup() {
           
           {availableStudents.length > 0 && (
             <div style={{ marginTop: 8, marginBottom: 8, padding: 8, background: '#dbeafe', borderRadius: 6 }}>
-              <strong>✅ {availableStudents.length} élève(s) disponible(s)</strong> - Sélectionnez 4 élèves pour créer un groupe ({selectedStudents.length}/4)
+              <strong>✅ {availableStudents.length} élève(s) disponible(s)</strong> - Sélectionnez 2 à 4 élèves pour créer un groupe ({selectedStudents.length}/4)
             </div>
           )}
           
@@ -379,19 +380,19 @@ export default function CrazyArenaSetup() {
         
         <button 
           onClick={createGroup}
-          disabled={selectedStudents.length !== 4 || !groupName.trim()}
+          disabled={selectedStudents.length < 2 || selectedStudents.length > 4 || !groupName.trim()}
           style={{ 
             padding: '10px 20px', 
             borderRadius: 8, 
-            border: '1px solid #10b981', 
+            border: 'none', 
             background: '#10b981', 
             color: '#fff', 
             fontWeight: 700,
-            cursor: selectedStudents.length !== 4 || !groupName.trim() ? 'not-allowed' : 'pointer',
-            opacity: selectedStudents.length !== 4 || !groupName.trim() ? 0.5 : 1
+            cursor: (selectedStudents.length < 2 || selectedStudents.length > 4 || !groupName.trim()) ? 'not-allowed' : 'pointer',
+            opacity: (selectedStudents.length < 2 || selectedStudents.length > 4 || !groupName.trim()) ? 0.5 : 1
           }}
         >
-          Créer le groupe
+          Créer le groupe ({selectedStudents.length} élève(s))
         </button>
       </section>
       
