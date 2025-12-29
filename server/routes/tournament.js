@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { createClient } = require('@supabase/supabase-js');
+const { sendGroupInvitations } = require('../utils/emailNotifications');
 
 // Connexion Supabase
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -288,6 +289,62 @@ router.post('/matches', requireSupabase, async (req, res) => {
     res.json({ success: true, matchId, roomCode, match: data });
   } catch (error) {
     console.error('[Tournament API] Error creating match:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/tournament/students/:studentId/invitations
+ * Récupérer les invitations en attente pour un élève (matchs pending/playing)
+ */
+router.get('/students/:studentId/invitations', requireSupabase, async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    
+    // Trouver les groupes dont l'élève fait partie
+    const { data: groups, error: groupsError } = await supabase
+      .from('tournament_groups')
+      .select('id, name, match_id, student_ids')
+      .contains('student_ids', [studentId]);
+    
+    if (groupsError) throw groupsError;
+    
+    if (!groups || groups.length === 0) {
+      return res.json({ success: true, invitations: [] });
+    }
+    
+    // Récupérer les matchs associés (pending ou playing uniquement)
+    const matchIds = groups
+      .map(g => g.match_id)
+      .filter(id => id);
+    
+    if (matchIds.length === 0) {
+      return res.json({ success: true, invitations: [] });
+    }
+    
+    const { data: matches, error: matchesError } = await supabase
+      .from('tournament_matches')
+      .select('id, room_code, status, created_at')
+      .in('id', matchIds)
+      .in('status', ['pending', 'playing']);
+    
+    if (matchesError) throw matchesError;
+    
+    // Formatter les invitations
+    const invitations = (matches || []).map(match => {
+      const group = groups.find(g => g.match_id === match.id);
+      return {
+        matchId: match.id,
+        roomCode: match.room_code,
+        groupName: group?.name || 'Groupe',
+        status: match.status,
+        createdAt: match.created_at
+      };
+    });
+    
+    res.json({ success: true, invitations });
+  } catch (error) {
+    console.error('[Tournament API] Error fetching invitations:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
