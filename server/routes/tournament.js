@@ -286,6 +286,37 @@ router.post('/matches', requireSupabase, async (req, res) => {
       console.warn('[Tournament API] CrazyArenaManager not available');
     }
     
+    // Envoyer les invitations email aux élèves du groupe
+    try {
+      const { data: groupData } = await supabase
+        .from('tournament_groups')
+        .select('student_ids')
+        .eq('id', groupId)
+        .single();
+      
+      if (groupData && groupData.student_ids) {
+        const studentIds = Array.isArray(groupData.student_ids) 
+          ? groupData.student_ids 
+          : JSON.parse(groupData.student_ids);
+        
+        // Récupérer les infos des élèves
+        const { data: students } = await supabase
+          .from('students')
+          .select('id, email, full_name, first_name')
+          .in('id', studentIds);
+        
+        if (students && students.length > 0) {
+          console.log(`[Tournament API] Envoi invitations à ${students.length} élève(s)`);
+          sendGroupInvitations(students, roomCode, matchId).catch(err => {
+            console.error('[Tournament API] Erreur envoi invitations:', err);
+          });
+        }
+      }
+    } catch (emailError) {
+      // Ne pas bloquer la création du match si l'email échoue
+      console.error('[Tournament API] Erreur envoi invitations (non bloquant):', emailError);
+    }
+    
     res.json({ success: true, matchId, roomCode, match: data });
   } catch (error) {
     console.error('[Tournament API] Error creating match:', error);
