@@ -80,7 +80,22 @@ export default function CrazyArenaGame() {
       setPlayers(scores);
     });
     
-    socket.on('arena:game-end', ({ ranking: finalRanking, winner: finalWinner }) => {
+    socket.on('arena:tie-detected', ({ tiedPlayers, message }) => {
+      console.log('[CrazyArena] ⚖️ Égalité détectée !', tiedPlayers);
+      // Afficher message d'égalité
+      alert(`⚖️ ${message}\n\nJoueurs à égalité: ${tiedPlayers.map(p => p.name).join(', ')}`);
+    });
+
+    socket.on('arena:tiebreaker-start', ({ zones: newZones, duration, tiedPlayers }) => {
+      console.log('[CrazyArena] 🔄 Démarrage manche de départage !');
+      setZones(newZones);
+      setTimeLeft(duration);
+      setGameEnded(false);
+      setSelectedZones([]);
+      alert(`🔄 MANCHE DE DÉPARTAGE !\n\n${tiedPlayers.map(p => p.name).join(' vs ')}\n\n3 nouvelles cartes - 30 secondes !`);
+    });
+
+    socket.on('arena:game-end', ({ ranking: finalRanking, winner: finalWinner, isTiebreaker }) => {
       console.log('[CrazyArena] Partie terminée !', finalWinner);
       setGameEnded(true);
       setRanking(finalRanking);
@@ -88,7 +103,7 @@ export default function CrazyArenaGame() {
       
       // Afficher le podium après 1s
       setTimeout(() => {
-        showPodium(finalRanking, finalWinner);
+        showPodium(finalRanking, finalWinner, isTiebreaker);
       }, 1000);
     });
     
@@ -187,7 +202,7 @@ export default function CrazyArenaGame() {
     }
   };
   
-  const showPodium = (finalRanking, finalWinner) => {
+  const showPodium = (finalRanking, finalWinner, isTiebreaker = false) => {
     // Créer un overlay podium
     const overlay = document.createElement('div');
     overlay.id = 'crazy-arena-podium';
@@ -209,7 +224,7 @@ export default function CrazyArenaGame() {
     overlay.innerHTML = `
       <div style="text-align: center; color: white;">
         <h1 style="font-size: 48px; margin-bottom: 20px; text-shadow: 0 2px 10px rgba(0,0,0,0.3);">
-          🏆 Partie Terminée !
+          🏆 ${isTiebreaker ? 'Départage Terminé !' : 'Partie Terminée !'}
         </h1>
         <div style="font-size: 32px; margin-bottom: 40px;">
           Vainqueur : <span style="color: #fbbf24; font-weight: 900;">${finalWinner.name}</span>

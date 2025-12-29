@@ -572,13 +572,37 @@ class CrazyArenaManager {
       p.position = idx + 1;
     });
 
+    // Vérifier s'il y a égalité au premier rang
+    const topScore = ranking[0].score;
+    const tiedPlayers = ranking.filter(p => p.score === topScore);
+    
+    if (tiedPlayers.length > 1 && !match.isTiebreaker) {
+      // ÉGALITÉ DÉTECTÉE - Lancer une manche de départage
+      console.log(`[CrazyArena] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topScore} pts`);
+      console.log(`[CrazyArena] 🔄 Lancement manche de départage avec 3 cartes...`);
+      
+      // Notifier les joueurs de l'égalité
+      this.io.to(matchId).emit('arena:tie-detected', {
+        tiedPlayers: tiedPlayers.map(p => ({ name: p.name, score: p.score })),
+        message: 'Égalité ! 3 nouvelles cartes pour vous départager...'
+      });
+      
+      // Attendre 5 secondes puis lancer le tiebreaker
+      setTimeout(() => {
+        this.startTiebreaker(matchId, tiedPlayers);
+      }, 5000);
+      
+      return; // Ne pas terminer le match tout de suite
+    }
+
     const winner = ranking[0];
 
     // Envoyer le podium
     this.io.to(matchId).emit('arena:game-end', {
       ranking,
       winner,
-      duration: match.endTime - match.startTime
+      duration: match.endTime - match.startTime,
+      isTiebreaker: match.isTiebreaker || false
     });
 
     // Enregistrer les résultats dans la BDD
@@ -595,6 +619,58 @@ class CrazyArenaManager {
   }
 
   /**
+   * Lancer une manche de départage (3 cartes)
+   */
+  async startTiebreaker(matchId, tiedPlayers) {
+    const match = this.matches.get(matchId);
+    if (!match) return;
+
+    console.log(`[CrazyArena] 🎯 Démarrage tiebreaker pour match ${matchId}`);
+    
+    match.isTiebreaker = true;
+    match.status = 'playing';
+    match.startTime = Date.now();
+    
+    // Générer seulement 3 cartes pour le départage
+    const tiebreakerConfig = {
+      ...match.config,
+      rounds: 1 // Une seule manche avec moins de zones
+    };
+    
+    const zones = await this.generateZones(tiebreakerConfig);
+    // Limiter à 3 zones pour le tiebreaker
+    match.zones = zones.slice(0, 3);
+    
+    console.log(`[CrazyArena] 🎴 Tiebreaker: ${match.zones.length} cartes générées`);
+    
+    // Réinitialiser les scores des joueurs à égalité uniquement
+    const tiedStudentIds = tiedPlayers.map(p => p.studentId);
+    match.players.forEach(p => {
+      if (tiedStudentIds.includes(p.studentId)) {
+        p.score = 0;
+        p.pairsValidated = 0;
+        p.errors = 0;
+      }
+    });
+    
+    // Notifier le démarrage du tiebreaker
+    this.io.to(matchId).emit('arena:tiebreaker-start', {
+      zones: match.zones,
+      duration: 30, // 30 secondes pour le tiebreaker
+      startTime: match.startTime,
+      tiedPlayers: tiedPlayers.map(p => ({ 
+        studentId: p.studentId, 
+        name: p.name 
+      }))
+    });
+    
+    // Timer de 30 secondes pour le tiebreaker
+    match.gameTimeout = setTimeout(() => {
+      this.endGame(matchId);
+    }, 30000);
+  }
+
+  /**
    * Sauvegarder les résultats en BDD
    */
   async saveResults(matchId, ranking) {
@@ -602,8 +678,14 @@ class CrazyArenaManager {
     const fetch = require('node-fetch');
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
     
+    console.log(`[CrazyArena] 💾 Sauvegarde résultats pour match ${matchId}`);
+    console.log(`[CrazyArena] 🌐 Backend URL: ${backendUrl}`);
+    
     try {
-      const res = await fetch(`${backendUrl}/api/tournament/matches/${matchId}/finish`, {
+      const url = `${backendUrl}/api/tournament/matches/${matchId}/finish`;
+      console.log(`[CrazyArena] 📡 Appel API: ${url}`);
+      
+      const res = await fetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -617,10 +699,27 @@ class CrazyArenaManager {
         })
       });
       
+      console.log(`[CrazyArena] 📥 Réponse API status: ${res.status}`);
+      
+      if (!res.ok) {
+        const text = await res.text();
+        console.error(`[CrazyArena] ❌ API erreur: ${res.status} - ${text}`);
+        return false;
+      }
+      
       const data = await res.json();
-      console.log('[CrazyArena] Résultats sauvegardés:', data);
+      console.log('[CrazyArena] ✅ Résultats sauvegardés:', data);
+      
+      // Notifier le dashboard que le match est terminé
+      this.io.to(matchId).emit('arena:match-finished', {
+        matchId,
+        winner: data.winner
+      });
+      
+      return true;
     } catch (error) {
-      console.error('[CrazyArena] Erreur sauvegarde API:', error);
+      console.error('[CrazyArena] ❌ Erreur sauvegarde API:', error);
+      return false;
     }
   }
 
