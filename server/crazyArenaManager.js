@@ -67,6 +67,28 @@ class CrazyArenaManager {
   }
 
   /**
+   * Récupérer l'état d'un match (pour dashboard professeur)
+   */
+  getMatchState(matchId) {
+    const match = this.matches.get(matchId);
+    if (!match) return null;
+
+    return {
+      matchId: match.id,
+      roomCode: match.roomCode,
+      status: match.status,
+      players: match.players.map(p => ({
+        studentId: p.studentId,
+        name: p.name,
+        avatar: p.avatar,
+        ready: p.ready,
+        score: p.score
+      })),
+      currentRound: 0
+    };
+  }
+
+  /**
    * Un joueur rejoint un match
    */
   async joinMatch(socket, matchId, studentData) {
@@ -145,16 +167,25 @@ class CrazyArenaManager {
 
     // Notifier tous les joueurs
     console.log(`[CrazyArena] Émission arena:player-joined à room ${matchId}, count=${match.players.length}`);
+    const playersData = match.players.map(p => ({
+      studentId: p.studentId,
+      name: p.name,
+      avatar: p.avatar,
+      ready: p.ready,
+      score: p.score
+    }));
+    
     this.io.to(matchId).emit('arena:player-joined', {
-      players: match.players.map(p => ({
-        studentId: p.studentId,
-        name: p.name,
-        avatar: p.avatar,
-        ready: p.ready
-      })),
+      players: playersData,
       count: match.players.length
     });
-    console.log(`[CrazyArena] arena:player-joined émis avec succès`);
+    
+    // Notifier aussi le dashboard professeur
+    this.io.to(matchId).emit('arena:players-update', {
+      matchId,
+      players: playersData
+    });
+    console.log(`[CrazyArena] arena:player-joined et arena:players-update émis avec succès`);
 
     // Ne PAS démarrer automatiquement - attendre que tous soient prêts
     // Le countdown se lancera via playerReady() quand tous seront prêts
@@ -176,9 +207,23 @@ class CrazyArenaManager {
     if (player) {
       player.ready = true;
       
+      const playersData = match.players.map(p => ({ 
+        studentId: p.studentId, 
+        name: p.name, 
+        avatar: p.avatar,
+        ready: p.ready,
+        score: p.score
+      }));
+      
       this.io.to(matchId).emit('arena:player-ready', {
         studentId,
-        players: match.players.map(p => ({ studentId: p.studentId, name: p.name, ready: p.ready }))
+        players: playersData
+      });
+      
+      // Notifier aussi le dashboard professeur
+      this.io.to(matchId).emit('arena:players-update', {
+        matchId,
+        players: playersData
       });
 
       // NE PLUS démarrer automatiquement - attendre arena:force-start du professeur

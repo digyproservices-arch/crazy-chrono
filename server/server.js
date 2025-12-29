@@ -1324,10 +1324,28 @@ io.on('connection', (socket) => {
     crazyArena.pairValidated(socket, data);
   });
 
-  socket.on('arena:force-start', ({ matchId }) => {
+  socket.on('arena:force-start', ({ matchId }, cb) => {
     // Démarrage forcé par le professeur (2-4 joueurs)
     console.log(`[Server] arena:force-start reçu pour match ${matchId}`);
-    crazyArena.forceStart(matchId);
+    const success = crazyArena.forceStart(matchId);
+    if (typeof cb === 'function') {
+      cb({ ok: success });
+    }
+  });
+
+  socket.on('arena:subscribe-manager', ({ matchId }) => {
+    // Le dashboard professeur s'abonne aux mises à jour d'un match
+    console.log(`[Server] Dashboard s'abonne au match ${matchId}`);
+    socket.join(matchId);
+    
+    // Envoyer immédiatement l'état actuel des joueurs
+    const currentState = crazyArena.getMatchState(matchId);
+    if (currentState) {
+      socket.emit('arena:players-update', {
+        matchId,
+        players: currentState.players
+      });
+    }
   });
 
   socket.on('disconnect', () => {
