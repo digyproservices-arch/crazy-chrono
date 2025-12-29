@@ -553,11 +553,12 @@ class CrazyArenaManager {
    * Sauvegarder les résultats en BDD
    */
   async saveResults(matchId, ranking) {
-    // TODO: Appeler l'API REST pour enregistrer les résultats
+    // Appeler l'API REST pour enregistrer les résultats
     const fetch = require('node-fetch');
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
     
     try {
-      const res = await fetch('http://localhost:4000/api/tournament/matches/' + matchId + '/finish', {
+      const res = await fetch(`${backendUrl}/api/tournament/matches/${matchId}/finish`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
