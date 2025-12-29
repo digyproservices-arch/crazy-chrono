@@ -1735,7 +1735,11 @@ const Carte = () => {
           }))
         });
         
-        setZones(payload.zones);
+        // ✅ FIX ZONES VIDES MP: Forcer validated=false pour éviter héritage React
+        // Le filtre SVG !z.validated masque les zones validées (ajouté pour Arena)
+        // Sans ce fix, les zones avec mêmes IDs pourraient hériter validated=true
+        const cleanZones = payload.zones.map(z => ({ ...z, validated: false }));
+        setZones(cleanZones);
         setPreparing(false);
       } else {
         // Fallback sur génération locale si le serveur n'envoie pas de zones
