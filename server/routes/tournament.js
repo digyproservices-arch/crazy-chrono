@@ -299,17 +299,48 @@ router.post('/matches', requireSupabase, async (req, res) => {
           ? groupData.student_ids 
           : JSON.parse(groupData.student_ids);
         
-        // Récupérer les infos des élèves
-        const { data: students } = await supabase
-          .from('students')
-          .select('id, email, full_name, first_name')
-          .in('id', studentIds);
+        // Récupérer les infos des élèves avec leurs emails depuis Auth
+        const { data: mappings } = await supabase
+          .from('user_student_mapping')
+          .select(`
+            user_id,
+            student_id,
+            students (
+              id,
+              full_name,
+              first_name
+            )
+          `)
+          .in('student_id', studentIds)
+          .eq('active', true);
         
-        if (students && students.length > 0) {
-          console.log(`[Tournament API] Envoi invitations à ${students.length} élève(s)`);
-          sendGroupInvitations(students, roomCode, matchId).catch(err => {
-            console.error('[Tournament API] Erreur envoi invitations:', err);
-          });
+        if (mappings && mappings.length > 0) {
+          // Récupérer les emails depuis auth.users
+          const userIds = mappings.map(m => m.user_id);
+          const studentsWithEmails = [];
+          
+          for (const mapping of mappings) {
+            try {
+              const { data: { user } } = await supabase.auth.admin.getUserById(mapping.user_id);
+              if (user && user.email) {
+                studentsWithEmails.push({
+                  id: mapping.student_id,
+                  email: user.email,
+                  full_name: mapping.students?.full_name,
+                  first_name: mapping.students?.first_name
+                });
+              }
+            } catch (err) {
+              console.error(`[Tournament API] Erreur récupération user ${mapping.user_id}:`, err);
+            }
+          }
+          
+          if (studentsWithEmails.length > 0) {
+            console.log(`[Tournament API] Envoi invitations à ${studentsWithEmails.length} élève(s)`);
+            sendGroupInvitations(studentsWithEmails, roomCode, matchId).catch(err => {
+              console.error('[Tournament API] Erreur envoi invitations:', err);
+            });
+          }
         }
       }
     } catch (emailError) {
