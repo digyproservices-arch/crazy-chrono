@@ -1763,6 +1763,9 @@ const Carte = () => {
       setGameMsg('');
       // Reset de la paire cible côté client en attendant round:target
       setCurrentTargetPairKey(null);
+      // ✅ FIX ZONES VIDES MP: Réinitialiser validatedPairIds (comme Arena ligne 1415)
+      // Sans ce reset, les paires validées précédemment sont exclues de la génération
+      setValidatedPairIds(new Set());
       // Passer en plein écran jeu et replier le panneau multi
       try { enterGameFullscreen(); } catch {}
       try { setPanelCollapsed(true); } catch {}
