@@ -21,6 +21,7 @@ import AdminRoles from './components/Admin/AdminRoles';
 import AdminInvite from './components/Admin/AdminInvite';
 import { fetchAndSyncStatus, getBackendUrl } from './utils/subscription';
 import supabase from './utils/supabaseClient';
+import NotificationBadge from './components/NotificationBadge';
 
 // ✅ AUTH WRAPPERS (outside App to prevent remount loops!)
 const RequireAuth = ({ children, auth }) => auth ? children : <Navigate to="/login" replace />;
@@ -378,6 +379,8 @@ function App() {
     <DataProvider>
       <Router>
         <div className="App">
+          {/* Badge notifications Arena (visible partout) */}
+          {auth && <NotificationBadge />}
           {!gameMode && (
             <header className="App-header">
               <h1>Éditeur de Carte</h1>
