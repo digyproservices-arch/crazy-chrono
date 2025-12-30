@@ -1381,11 +1381,24 @@ const Carte = () => {
               
               // Émettre événement au backend
               try {
+                const socket = socketRef.current;
+                if (!socket || !socket.connected) {
+                  console.error('[ARENA] ❌ Socket non connecté!');
+                  if (statusEl) statusEl.innerHTML = '❌ Erreur: Connexion perdue';
+                  return;
+                }
+                
                 const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
-                s.emit('arena:player-ready-tiebreaker', {
-                  matchId: arenaMatchId,
-                  studentId: arenaData.myStudentId,
-                  playerName: arenaData.players?.find(p => p.studentId === arenaData.myStudentId)?.name || 'Joueur'
+                const matchId = new URLSearchParams(window.location.search).get('arena');
+                const myStudentId = arenaData.myStudentId;
+                const myName = arenaData.players?.find(p => p.studentId === myStudentId)?.name || 'Joueur';
+                
+                console.log('[ARENA] 📤 Émission arena:player-ready-tiebreaker', { matchId, myStudentId, myName });
+                
+                socket.emit('arena:player-ready-tiebreaker', {
+                  matchId,
+                  studentId: myStudentId,
+                  playerName: myName
                 });
                 
                 // Désactiver bouton et montrer confirmation
@@ -1398,7 +1411,8 @@ const Carte = () => {
                   statusEl.innerHTML = '✅ Vous êtes prêt ! En attente des autres joueurs...';
                 }
               } catch (e) {
-                console.error('[ARENA] Erreur émission player-ready:', e);
+                console.error('[ARENA] ❌ Erreur émission player-ready:', e);
+                if (statusEl) statusEl.innerHTML = '❌ Erreur: ' + e.message;
               }
             });
           }
