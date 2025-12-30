@@ -1449,12 +1449,15 @@ const Carte = () => {
         }, 500);
       });
       
-      // Écouter fin de partie Arena
-      s.on('arena:game-end', ({ ranking, winner, duration }) => {
-        console.log('[ARENA] Partie terminée!', { winner: winner?.name, ranking });
+      // Écouter démarrage départage (tiebreaker)
+      s.on('arena:tiebreaker-start', ({ zones, duration, startTime, tiedPlayers }) => {
+        console.log('[ARENA] 🎯 DÉPARTAGE DÉMARRÉ !', { zones: zones?.length, duration, tiedPlayers });
         
-        // Retirer podium égalité si présent
+        // Retirer overlay égalité
         const tieOverlay = document.getElementById('arena-tie-overlay');
+        if (tieOverlay) {
+          tieOverlay.remove();
+          console.log('[ARENA] ✅ Overlay égalité retiré');
         if (tieOverlay) tieOverlay.remove();
         
         setGameActive(false);
