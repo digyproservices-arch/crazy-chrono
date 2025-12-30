@@ -84,6 +84,24 @@ export default function ArenaManagerDashboard() {
       );
     });
 
+    // Égalité détectée - Attente décision professeur
+    socket.on('arena:tie-waiting-teacher', ({ matchId, tiedPlayers, ranking }) => {
+      console.log('[ArenaManager] ⚖️ Égalité détectée, attente décision professeur');
+      setMatches(prevMatches => 
+        prevMatches.map(m => {
+          if (m.matchId === matchId) {
+            return {
+              ...m,
+              status: 'tie-waiting',
+              tiedPlayers,
+              ranking
+            };
+          }
+          return m;
+        })
+      );
+    });
+
     return () => socket.disconnect();
   }, [matches.length]); // Re-subscribe si nouveaux matchs
 
@@ -114,6 +132,15 @@ export default function ArenaManagerDashboard() {
         alert('Erreur lors du démarrage du match: ' + (response?.error || 'Inconnue'));
       }
     });
+  };
+
+  const handleStartTiebreaker = (matchId) => {
+    if (!socketRef.current) return;
+    
+    if (!window.confirm('Lancer la manche de départage (3 cartes - 30 secondes) ?')) return;
+    
+    console.log(`[ArenaManager] 🔄 Lancement départage pour match ${matchId}`);
+    socketRef.current.emit('arena:start-tiebreaker', { matchId });
   };
 
   // Voir le lobby d'un match (optionnel)
@@ -321,10 +348,46 @@ export default function ArenaManagerDashboard() {
                 )}
 
                 {/* Actions */}
-                <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  {match.status === 'tie-waiting' && (
+                    <div style={{ width: '100%', marginBottom: 12 }}>
+                      <div style={{
+                        background: '#fef3c7',
+                        border: '2px solid #f59e0b',
+                        borderRadius: 8,
+                        padding: 16,
+                        marginBottom: 12
+                      }}>
+                        <div style={{ fontWeight: 700, color: '#92400e', marginBottom: 8 }}>
+                          ⚖️ ÉGALITÉ DÉTECTÉE !
+                        </div>
+                        <div style={{ color: '#78350f', fontSize: 14 }}>
+                          {match.tiedPlayers?.map(p => p.name).join(', ')} sont à égalité avec {match.tiedPlayers?.[0]?.score} points
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleStartTiebreaker(match.matchId)}
+                        style={{
+                          width: '100%',
+                          padding: '12px 24px',
+                          background: '#f59e0b',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 8,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          fontSize: 16,
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        🔄 LANCER DÉPARTAGE (3 cartes - 30s)
+                      </button>
+                    </div>
+                  )}
+
                   <button
                     onClick={() => handleStartMatch(match.matchId)}
-                    disabled={!canStart}
+                    disabled={!canStart || match.status === 'tie-waiting'}
                     style={{
                       flex: 1,
                       padding: '12px 24px',
