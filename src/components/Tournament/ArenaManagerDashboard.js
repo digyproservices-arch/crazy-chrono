@@ -86,7 +86,16 @@ export default function ArenaManagerDashboard() {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('[ArenaManager] Connecté au serveur');
+      console.log('[ArenaManager] ✅ Socket connecté, ID:', socket.id);
+      console.log('[ArenaManager] 🔍 URL backend:', getBackendUrl());
+    });
+    
+    socket.on('disconnect', () => {
+      console.log('[ArenaManager] ❌ Socket déconnecté');
+    });
+    
+    socket.on('connect_error', (err) => {
+      console.error('[ArenaManager] ❌ Erreur connexion:', err?.message);
     });
 
     // Mise à jour des joueurs en temps réel
@@ -156,10 +165,12 @@ export default function ArenaManagerDashboard() {
 
     // Mise à jour joueurs prêts pour départage
     socket.on('arena:tiebreaker-ready-update', ({ matchId, readyCount, totalCount }) => {
-      console.log(`[ArenaManager] ✋ Joueurs prêts: ${readyCount}/${totalCount}`);
-      setMatches(prevMatches => 
-        prevMatches.map(m => {
+      console.log(`[ArenaManager] 🎯 ÉVÉNEMENT REÇU: arena:tiebreaker-ready-update`, { matchId, readyCount, totalCount });
+      setMatches(prevMatches => {
+        console.log('[ArenaManager] 🔍 Matchs actuels:', prevMatches.map(m => ({ id: m.matchId, status: m.status })));
+        const updated = prevMatches.map(m => {
           if (m.matchId === matchId) {
+            console.log(`[ArenaManager] ✅ Match trouvé, mise à jour: ${readyCount}/${totalCount}`);
             return {
               ...m,
               playersReadyCount: readyCount,
@@ -167,9 +178,13 @@ export default function ArenaManagerDashboard() {
             };
           }
           return m;
-        })
-      );
+        });
+        console.log('[ArenaManager] 📊 Matchs après update:', updated.map(m => ({ id: m.matchId, ready: m.playersReadyCount })));
+        return updated;
+      });
     });
+    
+    console.log('[ArenaManager] ✅ Listener arena:tiebreaker-ready-update attaché');
 
     // Tiebreaker démarré
     socket.on('arena:tiebreaker-start', ({ matchId }) => {
