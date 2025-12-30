@@ -719,14 +719,20 @@ class CrazyArenaManager {
     console.log(`[CrazyArena] 🎴 Tiebreaker: ${match.zones.length} cartes générées`);
     
     // Réinitialiser les scores des joueurs à égalité uniquement
+    console.log(`[CrazyArena] 🔄 Réinitialisation scores pour ${tiedPlayers.length} joueurs...`);
     const tiedStudentIds = tiedPlayers.map(p => p.studentId);
+    console.log(`[CrazyArena] 🔍 studentIds à égalité:`, tiedStudentIds);
+    
     match.players.forEach(p => {
       if (tiedStudentIds.includes(p.studentId)) {
+        console.log(`[CrazyArena] ✅ Reset score pour joueur ${p.studentId}`);
         p.score = 0;
         p.pairsValidated = 0;
         p.errors = 0;
       }
     });
+    
+    console.log(`[CrazyArena] 📡 AVANT émission arena:tiebreaker-start...`);
     
     // Notifier le démarrage du tiebreaker
     this.io.to(matchId).emit('arena:tiebreaker-start', {
