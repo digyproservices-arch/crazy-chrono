@@ -499,7 +499,12 @@ export default function ArenaManagerDashboard() {
                           background: '#dcfce7',
                           borderRadius: 6
                         }}>
-                          ✋ Joueurs prêts: {match.playersReadyCount || 0}/{match.playersTotalCount || match.tiedPlayers?.length || 2}
+                          {(() => {
+                            const readyCount = match.playersReadyCount ?? 0;
+                            const totalCount = match.playersTotalCount ?? (match.tiedPlayers?.length || 2);
+                            console.log(`[ArenaManager] 🖼️ RENDU JSX Match ${match.matchId.slice(-8)}:`, { readyCount, totalCount, raw: match.playersReadyCount });
+                            return `✋ Joueurs prêts: ${readyCount}/${totalCount}`;
+                          })()}
                         </div>
                       </div>
                       <button
