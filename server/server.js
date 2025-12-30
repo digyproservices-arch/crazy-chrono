@@ -1348,6 +1348,12 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Joueur clique "Je suis prêt" pour le départage
+  socket.on('arena:player-ready-tiebreaker', ({ matchId, studentId, playerName }) => {
+    console.log(`[Server] Joueur ${playerName} (${studentId}) prêt pour départage match ${matchId}`);
+    crazyArena.playerReadyForTiebreaker(matchId, studentId, playerName, io);
+  });
+
   socket.on('arena:start-tiebreaker', ({ matchId }) => {
     // Le professeur lance manuellement le départage
     console.log(`[Server] Professeur lance départage pour match ${matchId}`);

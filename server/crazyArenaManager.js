@@ -641,18 +641,45 @@ class CrazyArenaManager {
     }, 30000);
   }
 
-  /**
-   * Lancer une manche de départage (3 cartes) - DÉCLENCHÉ PAR LE PROFESSEUR
-   */
-  async startTiebreakerByTeacher(matchId) {
+  playerReadyForTiebreaker(matchId, studentId, playerName, io) {
     const match = this.matches.get(matchId);
     if (!match) {
-      console.error(`[CrazyArena] ❌ startTiebreakerByTeacher: Match ${matchId} introuvable`);
+      console.error(`[CrazyArena] ❌ Match ${matchId} introuvable`);
       return;
     }
 
     if (match.status !== 'tie-waiting') {
-      console.warn(`[CrazyArena] ⚠️ Match ${matchId} n'est pas en attente de départage (status: ${match.status})`);
+      console.error(`[CrazyArena] ❌ Match ${matchId} n'est pas en attente de départage`);
+      return;
+    }
+
+    // Initialiser le set de joueurs prêts si nécessaire
+    if (!match.playersReadyForTiebreaker) {
+      match.playersReadyForTiebreaker = new Set();
+    }
+
+    // Ajouter le joueur aux prêts
+    match.playersReadyForTiebreaker.add(studentId);
+    console.log(`[CrazyArena] ✋ ${playerName} prêt pour départage (${match.playersReadyForTiebreaker.size}/${match.tiedPlayers.length})`);
+
+    // Notifier le dashboard du professeur
+    io.emit('arena:tiebreaker-ready-update', {
+      matchId,
+      readyCount: match.playersReadyForTiebreaker.size,
+      totalCount: match.tiedPlayers.length,
+      readyPlayers: Array.from(match.playersReadyForTiebreaker)
+    });
+  }
+
+  async startTiebreakerByTeacher(matchId) {
+    const match = this.matches.get(matchId);
+    if (!match) {
+      console.error(`[CrazyArena] ❌ Match ${matchId} introuvable`);
+      return;
+    }
+
+    if (match.status !== 'tie-waiting') {
+      console.error(`[CrazyArena] ❌ Match ${matchId} n'est pas en attente de départage (status: ${match.status})`);
       return;
     }
 

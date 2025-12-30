@@ -1359,13 +1359,49 @@ const Carte = () => {
         console.log('[ARENA] ÉGALITÉ détectée !', tiedPlayers);
         setGameActive(false);
         
-        // Afficher podium d'égalité immédiatement
+        // Afficher podium d'égalité avec bouton "Je suis prêt"
         setTimeout(() => {
           const overlay = document.createElement('div');
           overlay.id = 'arena-tie-overlay';
           overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);z-index:10000;display:flex;align-items:center;justify-content:center;';
-          overlay.innerHTML = `<div style="text-align:center;color:white;max-width:800px;padding:40px;"><h1 style="font-size:64px;margin-bottom:20px;">ÉGALITÉ !</h1><h2 style="font-size:42px;margin-bottom:20px;text-shadow:0 2px 10px rgba(0,0,0,0.3);">${message}</h2><p style="font-size:24px;margin-bottom:30px;">${message}</p><div style="display:flex;gap:20px;justify-content:center;">${tiedPlayers.map(p => `<div style="background:white;border-radius:16px;padding:24px;border:4px solid #fbbf24;"><div style="font-size:48px;margin-bottom:12px;">🤝</div><div style="color:#111;font-weight:700;font-size:20px;margin-bottom:8px;">${p.name}</div><div style="color:#6b7280;font-size:16px;">Score: <span style="color:#f59e0b;font-weight:700;">${p.score}</span></div></div>`).join('')}</div><p style="margin-top:40px;font-size:18px;color:#fef3c7;">En attente de la décision du professeur...</p></div>`;
+          
+          const readyBtn = `<button id="arena-tie-ready-btn" style="margin-top:30px;padding:16px 40px;font-size:20px;font-weight:700;background:#fff;color:#f59e0b;border:3px solid #fbbf24;border-radius:12px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:all 0.3s;">✋ JE SUIS PRÊT</button>`;
+          
+          overlay.innerHTML = `<div style="text-align:center;color:white;max-width:800px;padding:40px;"><h1 style="font-size:64px;margin-bottom:20px;">ÉGALITÉ !</h1><h2 style="font-size:42px;margin-bottom:20px;text-shadow:0 2px 10px rgba(0,0,0,0.3);">${message}</h2><p style="font-size:24px;margin-bottom:30px;">${message}</p><div style="display:flex;gap:20px;justify-content:center;">${tiedPlayers.map(p => `<div style="background:white;border-radius:16px;padding:24px;border:4px solid #fbbf24;"><div style="font-size:48px;margin-bottom:12px;">🤝</div><div style="color:#111;font-weight:700;font-size:20px;margin-bottom:8px;">${p.name}</div><div style="color:#6b7280;font-size:16px;">Score: <span style="color:#f59e0b;font-weight:700;">${p.score}</span></div></div>`).join('')}</div><p style="margin-top:40px;font-size:18px;color:#fef3c7;">En attente de la décision du professeur...</p>${readyBtn}<p id="arena-tie-status" style="margin-top:20px;font-size:16px;color:#fef3c7;min-height:24px;"></p></div>`;
+          
           document.body.appendChild(overlay);
+          
+          // Gérer clic sur "Je suis prêt"
+          const btn = document.getElementById('arena-tie-ready-btn');
+          const statusEl = document.getElementById('arena-tie-status');
+          
+          if (btn) {
+            btn.addEventListener('click', () => {
+              console.log('[ARENA] ✋ Joueur clique "Je suis prêt"');
+              
+              // Émettre événement au backend
+              try {
+                const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
+                s.emit('arena:player-ready-tiebreaker', {
+                  matchId: arenaMatchId,
+                  studentId: arenaData.myStudentId,
+                  playerName: arenaData.players?.find(p => p.studentId === arenaData.myStudentId)?.name || 'Joueur'
+                });
+                
+                // Désactiver bouton et montrer confirmation
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+                btn.innerHTML = '✅ PRÊT !';
+                
+                if (statusEl) {
+                  statusEl.innerHTML = '✅ Vous êtes prêt ! En attente des autres joueurs...';
+                }
+              } catch (e) {
+                console.error('[ARENA] Erreur émission player-ready:', e);
+              }
+            });
+          }
         }, 500);
       });
       

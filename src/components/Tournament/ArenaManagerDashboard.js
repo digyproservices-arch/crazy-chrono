@@ -144,7 +144,25 @@ export default function ArenaManagerDashboard() {
               ...m,
               status: 'tie-waiting',
               tiedPlayers,
-              ranking
+              ranking,
+              playersReadyCount: 0
+            };
+          }
+          return m;
+        })
+      );
+    });
+
+    // Mise à jour joueurs prêts pour départage
+    socket.on('arena:tiebreaker-ready-update', ({ matchId, readyCount, totalCount }) => {
+      console.log(`[ArenaManager] ✋ Joueurs prêts: ${readyCount}/${totalCount}`);
+      setMatches(prevMatches => 
+        prevMatches.map(m => {
+          if (m.matchId === matchId) {
+            return {
+              ...m,
+              playersReadyCount: readyCount,
+              playersTotalCount: totalCount
             };
           }
           return m;
@@ -435,9 +453,22 @@ export default function ArenaManagerDashboard() {
                         <div style={{ fontWeight: 700, color: '#92400e', marginBottom: 8 }}>
                           ⚖️ ÉGALITÉ DÉTECTÉE !
                         </div>
-                        <div style={{ color: '#78350f', fontSize: 14 }}>
+                        <div style={{ color: '#78350f', fontSize: 14, marginBottom: 8 }}>
                           {match.tiedPlayers?.map(p => p.name).join(', ')} sont à égalité avec {match.tiedPlayers?.[0]?.score} points
                         </div>
+                        {match.playersReadyCount !== undefined && (
+                          <div style={{ 
+                            color: '#15803d', 
+                            fontSize: 14, 
+                            fontWeight: 600,
+                            marginTop: 8,
+                            padding: 8,
+                            background: '#dcfce7',
+                            borderRadius: 6
+                          }}>
+                            ✋ Joueurs prêts: {match.playersReadyCount || 0}/{match.playersTotalCount || match.tiedPlayers?.length || 2}
+                          </div>
+                        )}
                       </div>
                       <button
                         onClick={() => handleStartTiebreaker(match.matchId)}
