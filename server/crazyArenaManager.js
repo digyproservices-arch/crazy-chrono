@@ -586,10 +586,17 @@ class CrazyArenaManager {
       match.tiedPlayers = tiedPlayers;
       
       // Notifier les joueurs de l'égalité (attente du prof)
-      this.io.to(matchId).emit('arena:tie-detected', {
+      const tieData = {
         tiedPlayers: tiedPlayers.map(p => ({ name: p.name, score: p.score })),
         message: 'Égalité ! En attente du professeur pour le départage...'
-      });
+      };
+      
+      console.log(`[CrazyArena] 📢 Émission arena:tie-detected à room ${matchId}:`, tieData);
+      this.io.to(matchId).emit('arena:tie-detected', tieData);
+      
+      // AUSSI en broadcast pour debug (au cas où room échoue)
+      console.log(`[CrazyArena] 📢 Émission arena:tie-detected en BROADCAST`);
+      this.io.emit('arena:tie-detected', { ...tieData, matchId });
       
       // Notifier le dashboard professeur qu'il doit décider
       // IMPORTANT: Émettre à TOUS les sockets (pas seulement ceux dans la room)
