@@ -84,6 +84,32 @@ export default function ArenaManagerDashboard() {
       );
     });
 
+    // Match démarré
+    socket.on('arena:game-start', ({ matchId }) => {
+      console.log('[ArenaManager] 🎮 Match démarré:', matchId);
+      setMatches(prevMatches => 
+        prevMatches.map(m => {
+          if (m.matchId === matchId) {
+            return { ...m, status: 'playing' };
+          }
+          return m;
+        })
+      );
+    });
+
+    // Match terminé
+    socket.on('arena:game-end', ({ matchId }) => {
+      console.log('[ArenaManager] 🏁 Match terminé:', matchId);
+      setMatches(prevMatches => 
+        prevMatches.map(m => {
+          if (m.matchId === matchId) {
+            return { ...m, status: 'finished' };
+          }
+          return m;
+        })
+      );
+    });
+
     // Égalité détectée - Attente décision professeur
     socket.on('arena:tie-waiting-teacher', ({ matchId, tiedPlayers, ranking }) => {
       console.log('[ArenaManager] ⚖️ Égalité détectée, attente décision professeur');
@@ -96,6 +122,19 @@ export default function ArenaManagerDashboard() {
               tiedPlayers,
               ranking
             };
+          }
+          return m;
+        })
+      );
+    });
+
+    // Tiebreaker démarré
+    socket.on('arena:tiebreaker-start', ({ matchId }) => {
+      console.log('[ArenaManager] 🔄 Tiebreaker démarré:', matchId);
+      setMatches(prevMatches => 
+        prevMatches.map(m => {
+          if (m.matchId === matchId) {
+            return { ...m, status: 'playing', isTiebreaker: true };
           }
           return m;
         })

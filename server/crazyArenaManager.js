@@ -691,6 +691,9 @@ class CrazyArenaManager {
       }))
     });
     
+    // Notifier dashboard professeur (broadcast)
+    this.io.emit('arena:tiebreaker-start', { matchId });
+    
     // Timer de 30 secondes pour le tiebreaker
     match.gameTimeout = setTimeout(() => {
       this.endGame(matchId);
