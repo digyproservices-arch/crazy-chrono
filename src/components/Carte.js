@@ -1444,24 +1444,52 @@ const Carte = () => {
           container.appendChild(statusEl);
           overlay.appendChild(container);
           document.body.appendChild(overlay);
-          
           console.log('[ARENA] ✅ Overlay ajouté au DOM avec onclick attaché');
         }, 500);
       });
-      
+
       // Écouter démarrage départage (tiebreaker)
       s.on('arena:tiebreaker-start', ({ zones, duration, startTime, tiedPlayers }) => {
         console.log('[ARENA] 🎯 DÉPARTAGE DÉMARRÉ !', { zones: zones?.length, duration, tiedPlayers });
-        
+
         // Retirer overlay égalité
         const tieOverlay = document.getElementById('arena-tie-overlay');
         if (tieOverlay) {
           tieOverlay.remove();
           console.log('[ARENA] ✅ Overlay égalité retiré');
+        }
+
+        // Relancer le jeu avec les nouvelles zones (3 cartes)
+        setGameActive(true);
+        setGameStartTime(startTime);
+        setGameDuration(duration);
+
+        // Charger les nouvelles zones pour le tiebreaker
+        if (zones && zones.length > 0) {
+          console.log('[ARENA] 🎴 Chargement zones tiebreaker:', zones.length);
+          setZones(zones);
+          setValidatedPairs([]);
+          setCurrentPairId(null);
+
+          // Réinitialiser scores locaux pour le tiebreaker
+          setScore(0);
+          setPairsValidated(0);
+          setErrors(0);
+        }
+
+        console.log('[ARENA] ✅ Tiebreaker lancé avec succès');
+      });
+
+      // Écouter fin de partie Arena
+      s.on('arena:game-end', ({ ranking, winner, duration }) => {
+        console.log('[ARENA] Partie terminée!', { winner: winner?.name, ranking });
+
+        // Retirer podium égalité si présent
+        const tieOverlay = document.getElementById('arena-tie-overlay');
         if (tieOverlay) tieOverlay.remove();
-        
+
         setGameActive(false);
-        
+
         // Afficher overlay podium professionnel
         if (ranking && Array.isArray(ranking)) {
           setArenaGameEndOverlay({
@@ -1470,15 +1498,15 @@ const Carte = () => {
             duration,
             timestamp: Date.now()
           });
-          
+
           // Confetti + son pour célébrer
           try { showConfetti?.(); } catch {}
           try { playCorrectSound?.(); } catch {}
-          
+
           console.log('[ARENA] Overlay podium affiché');
         }
       });
-      
+
       // Écouter nouvelle carte (après que toutes les paires sont trouvées)
       s.on('arena:round-new', ({ zones, roundIndex, totalRounds }) => {
         console.log('[ARENA] Nouvelle carte reçue!', { 
