@@ -1344,7 +1344,6 @@ const Carte = () => {
             return z;
           });
         });
-        
         // Ajouter à l'historique paires validées
         setValidatedPairIds(prev => new Set([...prev, pairId]));
       });
