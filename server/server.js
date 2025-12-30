@@ -1348,6 +1348,12 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('arena:start-tiebreaker', ({ matchId }) => {
+    // Le professeur lance manuellement le départage
+    console.log(`[Server] Professeur lance départage pour match ${matchId}`);
+    crazyArena.startTiebreakerByTeacher(matchId);
+  });
+
   socket.on('disconnect', () => {
     // Gérer déconnexion Crazy Arena
     crazyArena.handleDisconnect(socket);

@@ -577,22 +577,32 @@ class CrazyArenaManager {
     const tiedPlayers = ranking.filter(p => p.score === topScore);
     
     if (tiedPlayers.length > 1 && !match.isTiebreaker) {
-      // ÉGALITÉ DÉTECTÉE - Lancer une manche de départage
+      // ÉGALITÉ DÉTECTÉE - Attendre décision du professeur
       console.log(`[CrazyArena] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topScore} pts`);
-      console.log(`[CrazyArena] 🔄 Lancement manche de départage avec 3 cartes...`);
+      console.log(`[CrazyArena] ⏸️ En attente décision professeur pour départage...`);
       
-      // Notifier les joueurs de l'égalité
+      // Mettre le match en attente de départage
+      match.status = 'tie-waiting';
+      match.tiedPlayers = tiedPlayers;
+      
+      // Notifier les joueurs de l'égalité (attente du prof)
       this.io.to(matchId).emit('arena:tie-detected', {
         tiedPlayers: tiedPlayers.map(p => ({ name: p.name, score: p.score })),
-        message: 'Égalité ! 3 nouvelles cartes pour vous départager...'
+        message: 'Égalité ! En attente du professeur pour le départage...'
       });
       
-      // Attendre 5 secondes puis lancer le tiebreaker
-      setTimeout(() => {
-        this.startTiebreaker(matchId, tiedPlayers);
-      }, 5000);
+      // Notifier le dashboard professeur qu'il doit décider
+      this.io.to(matchId).emit('arena:tie-waiting-teacher', {
+        matchId,
+        tiedPlayers: tiedPlayers.map(p => ({ 
+          studentId: p.studentId,
+          name: p.name, 
+          score: p.score 
+        })),
+        ranking
+      });
       
-      return; // Ne pas terminer le match tout de suite
+      return; // Ne pas terminer le match - attendre décision prof
     }
 
     const winner = ranking[0];
@@ -619,13 +629,27 @@ class CrazyArenaManager {
   }
 
   /**
-   * Lancer une manche de départage (3 cartes)
+   * Lancer une manche de départage (3 cartes) - DÉCLENCHÉ PAR LE PROFESSEUR
    */
-  async startTiebreaker(matchId, tiedPlayers) {
+  async startTiebreakerByTeacher(matchId) {
     const match = this.matches.get(matchId);
-    if (!match) return;
+    if (!match) {
+      console.error(`[CrazyArena] ❌ startTiebreakerByTeacher: Match ${matchId} introuvable`);
+      return;
+    }
 
-    console.log(`[CrazyArena] 🎯 Démarrage tiebreaker pour match ${matchId}`);
+    if (match.status !== 'tie-waiting') {
+      console.warn(`[CrazyArena] ⚠️ Match ${matchId} n'est pas en attente de départage (status: ${match.status})`);
+      return;
+    }
+
+    const tiedPlayers = match.tiedPlayers;
+    if (!tiedPlayers || tiedPlayers.length < 2) {
+      console.error(`[CrazyArena] ❌ Pas de joueurs à égalité pour match ${matchId}`);
+      return;
+    }
+
+    console.log(`[CrazyArena] 🎯 Professeur lance départage pour match ${matchId} (${tiedPlayers.length} joueurs à égalité)`);
     
     match.isTiebreaker = true;
     match.status = 'playing';
