@@ -780,39 +780,13 @@ class CrazyArenaManager {
 }
 
 /**
- * Sauvegarder les résultats en BDD
- */
-async saveResults(matchId, ranking) {
-  // Appeler l'API REST pour enregistrer les résultats
-  const fetch = require('node-fetch');
-  const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
+   * Sauvegarder les résultats en BDD
+   */
+  async saveResults(matchId, ranking) {
+    // Appeler l'API REST pour enregistrer les résultats
+    const fetch = require('node-fetch');
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
 
-  console.log(`[CrazyArena] 💾 Sauvegarde résultats pour match ${matchId}`);
-  console.log(`[CrazyArena] 🌐 Backend URL: ${backendUrl}`);
-
-  try {
-    const url = `${backendUrl}/api/tournament/matches/${matchId}/finish`;
-    console.log(`[CrazyArena] 📡 Appel API: ${url}`);
-
-    const res = await fetch(url, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        results: ranking.map(p => ({
-          studentId: p.studentId,
-          score: p.score,
-          timeMs: p.timeMs,
-          pairsValidated: p.pairsValidated,
-          errors: p.errors
-        }))
-      })
-    });
-
-    console.log(`[CrazyArena] 📥 Réponse API status: ${res.status}`);
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error(`[CrazyArena] ❌ API erreur: ${res.status} - ${text}`);
     console.log(`[CrazyArena] 💾 Sauvegarde résultats pour match ${matchId}`);
     console.log(`[CrazyArena] 🌐 Backend URL: ${backendUrl}`);
     
