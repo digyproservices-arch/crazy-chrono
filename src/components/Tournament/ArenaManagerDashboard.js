@@ -25,7 +25,36 @@ export default function ArenaManagerDashboard() {
       const data = await response.json();
       
       if (data.success) {
-        setMatches(data.matches || []);
+        // FUSIONNER avec état existant au lieu d'écraser
+        setMatches(prevMatches => {
+          const apiMatches = data.matches || [];
+          
+          // Si première fois, utiliser données API
+          if (prevMatches.length === 0) {
+            return apiMatches;
+          }
+          
+          // Sinon, fusionner intelligemment
+          return apiMatches.map(apiMatch => {
+            const existingMatch = prevMatches.find(m => m.matchId === apiMatch.matchId);
+            
+            if (existingMatch) {
+              // Garder les données temps réel de Socket.IO
+              return {
+                ...apiMatch,
+                connectedPlayers: existingMatch.connectedPlayers || apiMatch.connectedPlayers || 0,
+                readyPlayers: existingMatch.readyPlayers || apiMatch.readyPlayers || 0,
+                players: existingMatch.players || apiMatch.players || [],
+                status: existingMatch.status || apiMatch.status,
+                tiedPlayers: existingMatch.tiedPlayers,
+                ranking: existingMatch.ranking,
+                isTiebreaker: existingMatch.isTiebreaker
+              };
+            }
+            
+            return apiMatch;
+          });
+        });
         setError(null);
       } else {
         setError('Erreur lors du chargement des matchs');
