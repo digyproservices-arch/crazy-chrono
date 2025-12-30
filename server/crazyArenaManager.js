@@ -712,9 +712,15 @@ class CrazyArenaManager {
       rounds: 1 // Une seule manche avec moins de zones
     };
     
-    const zones = await this.generateZones(tiebreakerConfig);
+    const zonesResult = await this.generateZones(tiebreakerConfig);
+    
+    // ✅ FIX: generateZones retourne {zones: [...]} pas [...]
+    const zonesArray = Array.isArray(zonesResult) ? zonesResult : (zonesResult?.zones || []);
+    
+    console.log(`[CrazyArena] 🔍 Type zones reçu:`, { isArray: Array.isArray(zonesResult), length: zonesArray.length });
+    
     // Limiter à 3 zones pour le tiebreaker
-    match.zones = zones.slice(0, 3);
+    match.zones = zonesArray.slice(0, 3);
     
     console.log(`[CrazyArena] 🎴 Tiebreaker: ${match.zones.length} cartes générées`);
     
