@@ -1349,20 +1349,33 @@ const Carte = () => {
         setValidatedPairIds(prev => new Set([...prev, pairId]));
       });
       
-      // Écouter chrono synchronisé
-      s.on('arena:timer-tick', ({ timeLeft }) => {
-        console.log('[ARENA] ⏱️ Timer tick:', timeLeft);
-        setTimeLeft(timeLeft);
-      });
-      
       // Écouter scores
       s.on('arena:scores-update', ({ scores }) => {
         setScoresMP(scores);
       });
       
+      // Écouter égalité détectée
+      s.on('arena:tie-detected', ({ tiedPlayers, message }) => {
+        console.log('[ARENA] ÉGALITÉ détectée !', tiedPlayers);
+        setGameActive(false);
+        
+        // Afficher podium d'égalité immédiatement
+        setTimeout(() => {
+          const overlay = document.createElement('div');
+          overlay.id = 'arena-tie-overlay';
+          overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);z-index:10000;display:flex;align-items:center;justify-content:center;';
+          overlay.innerHTML = `<div style="text-align:center;color:white;max-width:800px;padding:40px;"><h1 style="font-size:64px;margin-bottom:20px;">ÉGALITÉ !</h1><h2 style="font-size:42px;margin-bottom:20px;text-shadow:0 2px 10px rgba(0,0,0,0.3);">${message}</h2><p style="font-size:24px;margin-bottom:30px;">${message}</p><div style="display:flex;gap:20px;justify-content:center;">${tiedPlayers.map(p => `<div style="background:white;border-radius:16px;padding:24px;border:4px solid #fbbf24;"><div style="font-size:48px;margin-bottom:12px;">🤝</div><div style="color:#111;font-weight:700;font-size:20px;margin-bottom:8px;">${p.name}</div><div style="color:#6b7280;font-size:16px;">Score: <span style="color:#f59e0b;font-weight:700;">${p.score}</span></div></div>`).join('')}</div><p style="margin-top:40px;font-size:18px;color:#fef3c7;">En attente de la décision du professeur...</p></div>`;
+          document.body.appendChild(overlay);
+        }, 500);
+      });
+      
       // Écouter fin de partie Arena
       s.on('arena:game-end', ({ ranking, winner, duration }) => {
-        console.log('[ARENA] 🏆 Partie terminée!', { winner: winner?.name, ranking });
+        console.log('[ARENA] Partie terminée!', { winner: winner?.name, ranking });
+        
+        // Retirer podium égalité si présent
+        const tieOverlay = document.getElementById('arena-tie-overlay');
+        if (tieOverlay) tieOverlay.remove();
         
         setGameActive(false);
         
@@ -1379,13 +1392,13 @@ const Carte = () => {
           try { showConfetti?.(); } catch {}
           try { playCorrectSound?.(); } catch {}
           
-          console.log('[ARENA] 📊 Overlay podium affiché');
+          console.log('[ARENA] Overlay podium affiché');
         }
       });
       
       // Écouter nouvelle carte (après que toutes les paires sont trouvées)
       s.on('arena:round-new', ({ zones, roundIndex, totalRounds }) => {
-        console.log('[ARENA] 🎯 Nouvelle carte reçue!', { 
+        console.log('[ARENA] Nouvelle carte reçue!', { 
           zonesCount: zones?.length, 
           roundIndex, 
           totalRounds 
