@@ -1390,6 +1390,14 @@ const Carte = () => {
             
             try {
               const socket = socketRef.current;
+              
+              console.log('[ARENA] 🔍 État socket:', {
+                exists: !!socket,
+                connected: socket?.connected,
+                id: socket?.id,
+                io: socket?.io?.uri || 'N/A'
+              });
+              
               if (!socket || !socket.connected) {
                 console.error('[ARENA] ❌ Socket non connecté!');
                 statusEl.textContent = '❌ Erreur: Connexion perdue';
@@ -1401,13 +1409,22 @@ const Carte = () => {
               const myStudentId = arenaData.myStudentId;
               const myName = arenaData.players?.find(p => p.studentId === myStudentId)?.name || 'Joueur';
               
-              console.log('[ARENA] 📤 Émission arena:player-ready-tiebreaker', { matchId, myStudentId, myName });
+              console.log('[ARENA] 📤 Tentative émission arena:player-ready-tiebreaker', { 
+                matchId, 
+                studentId: myStudentId, 
+                playerName: myName,
+                socketId: socket.id
+              });
               
               socket.emit('arena:player-ready-tiebreaker', {
                 matchId,
                 studentId: myStudentId,
                 playerName: myName
+              }, (ack) => {
+                console.log('[ARENA] ✅ Acknowledgement reçu du backend:', ack);
               });
+              
+              console.log('[ARENA] 📤 Événement émis (attente ACK...)');
               
               // Désactiver bouton
               readyBtn.disabled = true;
