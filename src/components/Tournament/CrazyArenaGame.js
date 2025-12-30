@@ -82,8 +82,25 @@ export default function CrazyArenaGame() {
     
     socket.on('arena:tie-detected', ({ tiedPlayers, message }) => {
       console.log('[CrazyArena] ⚖️ Égalité détectée !', tiedPlayers);
-      // Afficher message d'égalité
-      alert(`⚖️ ${message}\n\nJoueurs à égalité: ${tiedPlayers.map(p => p.name).join(', ')}`);
+      setGameEnded(true);
+      
+      // Créer podium égalité
+      const tieRanking = tiedPlayers.map(p => ({
+        name: p.name,
+        score: p.score,
+        position: 1,
+        pairsValidated: 0,
+        errors: 0
+      }));
+      
+      // Afficher immédiatement
+      setTimeout(() => {
+        const overlay = document.createElement('div');
+        overlay.id = 'crazy-arena-tie';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);z-index:10000;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = `<div style="text-align:center;color:white;max-width:800px;padding:40px;"><h1 style="font-size:64px;margin-bottom:20px;">⚖️</h1><h2 style="font-size:42px;margin-bottom:20px;">ÉGALITÉ !</h2><p style="font-size:24px;margin-bottom:30px;">${message}</p><div style="display:flex;gap:20px;justify-content:center;">${tieRanking.map(p => `<div style="background:white;border-radius:16px;padding:24px;border:4px solid #fbbf24;"><div style="font-size:48px;margin-bottom:12px;">🤝</div><div style="color:#111;font-weight:700;font-size:20px;margin-bottom:8px;">${p.name}</div><div style="color:#6b7280;font-size:16px;">Score: <span style="color:#f59e0b;font-weight:700;">${p.score}</span></div></div>`).join('')}</div><p style="margin-top:40px;font-size:18px;color:#fef3c7;">⏳ En attente de la décision du professeur...</p></div>`;
+        document.body.appendChild(overlay);
+      }, 1000);
     });
 
     socket.on('arena:tiebreaker-start', ({ zones: newZones, duration, tiedPlayers }) => {

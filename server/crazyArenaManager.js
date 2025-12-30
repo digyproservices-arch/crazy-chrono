@@ -592,7 +592,8 @@ class CrazyArenaManager {
       });
       
       // Notifier le dashboard professeur qu'il doit décider
-      this.io.to(matchId).emit('arena:tie-waiting-teacher', {
+      // IMPORTANT: Émettre à TOUS les sockets (pas seulement ceux dans la room)
+      this.io.emit('arena:tie-waiting-teacher', {
         matchId,
         tiedPlayers: tiedPlayers.map(p => ({ 
           studentId: p.studentId,
@@ -601,6 +602,8 @@ class CrazyArenaManager {
         })),
         ranking
       });
+      
+      console.log(`[CrazyArena] 📢 Notification égalité envoyée à TOUS les clients pour match ${matchId}`);
       
       return; // Ne pas terminer le match - attendre décision prof
     }
