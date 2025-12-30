@@ -145,7 +145,8 @@ export default function ArenaManagerDashboard() {
               status: 'tie-waiting',
               tiedPlayers,
               ranking,
-              playersReadyCount: 0
+              playersReadyCount: m.playersReadyCount || 0,
+              playersTotalCount: m.playersTotalCount || tiedPlayers?.length || 2
             };
           }
           return m;
