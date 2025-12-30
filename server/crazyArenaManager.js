@@ -740,31 +740,79 @@ class CrazyArenaManager {
     
     console.log(`[CrazyArena] 📡 AVANT émission arena:tiebreaker-start...`);
     
-    // Notifier le démarrage du tiebreaker
-    this.io.to(matchId).emit('arena:tiebreaker-start', {
-      zones: match.zones,
-      duration: 30, // 30 secondes pour le tiebreaker
-      startTime: match.startTime,
-      tiedPlayers: tiedPlayers.map(p => ({ 
-        studentId: p.studentId, 
-        name: p.name 
-      }))
-    });
-    
-    // Timer de 30 secondes pour le tiebreaker
-    match.gameTimeout = setTimeout(() => {
+    try {
+      // Préparer payload (éviter références circulaires)
+      const payload = {
+        zones: match.zones,
+        duration: 30,
+        startTime: match.startTime,
+        tiedPlayers: tiedPlayers.map(p => ({ 
+          studentId: p.studentId, 
+          name: p.name 
+        }))
+      };
+      
+      console.log(`[CrazyArena] 🔍 Payload tiebreaker:`, {
+        zonesCount: payload.zones?.length,
+        tiedPlayersCount: payload.tiedPlayers?.length,
+        duration: payload.duration
+      });
+      
+      // Notifier le démarrage du tiebreaker
+      this.io.to(matchId).emit('arena:tiebreaker-start', payload);
+      
+      console.log(`[CrazyArena] ✅ arena:tiebreaker-start émis à room ${matchId}`);
+      
+      // Timer de 30 secondes pour le tiebreaker
+      match.gameTimeout = setTimeout(() => {
+        console.log(`[CrazyArena] ⏰ Timeout tiebreaker 30s écoulé, fin du match`);
+        this.endGame(matchId);
+      }, 30000);
+      
+      console.log(`[CrazyArena] ⏱️ Timer 30s démarré pour tiebreaker`);
+      
+    } catch (error) {
+      console.error(`[CrazyArena] ❌ ERREUR émission arena:tiebreaker-start:`, error);
+      console.error(`[CrazyArena] Stack:`, error.stack);
+      // Fallback: terminer le match pour ne pas bloquer
       this.endGame(matchId);
-    }, 30000);
-  }
+    }
+}
 
-  /**
-   * Sauvegarder les résultats en BDD
-   */
-  async saveResults(matchId, ranking) {
-    // Appeler l'API REST pour enregistrer les résultats
-    const fetch = require('node-fetch');
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
-    
+/**
+ * Sauvegarder les résultats en BDD
+ */
+async saveResults(matchId, ranking) {
+  // Appeler l'API REST pour enregistrer les résultats
+  const fetch = require('node-fetch');
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
+
+  console.log(`[CrazyArena] 💾 Sauvegarde résultats pour match ${matchId}`);
+  console.log(`[CrazyArena] 🌐 Backend URL: ${backendUrl}`);
+
+  try {
+    const url = `${backendUrl}/api/tournament/matches/${matchId}/finish`;
+    console.log(`[CrazyArena] 📡 Appel API: ${url}`);
+
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        results: ranking.map(p => ({
+          studentId: p.studentId,
+          score: p.score,
+          timeMs: p.timeMs,
+          pairsValidated: p.pairsValidated,
+          errors: p.errors
+        }))
+      })
+    });
+
+    console.log(`[CrazyArena] 📥 Réponse API status: ${res.status}`);
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`[CrazyArena] ❌ API erreur: ${res.status} - ${text}`);
     console.log(`[CrazyArena] 💾 Sauvegarde résultats pour match ${matchId}`);
     console.log(`[CrazyArena] 🌐 Backend URL: ${backendUrl}`);
     
