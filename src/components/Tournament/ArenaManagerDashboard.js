@@ -457,19 +457,17 @@ export default function ArenaManagerDashboard() {
                         <div style={{ color: '#78350f', fontSize: 14, marginBottom: 8 }}>
                           {match.tiedPlayers?.map(p => p.name).join(', ')} sont à égalité avec {match.tiedPlayers?.[0]?.score} points
                         </div>
-                        {match.playersReadyCount !== undefined && (
-                          <div style={{ 
-                            color: '#15803d', 
-                            fontSize: 14, 
-                            fontWeight: 600,
-                            marginTop: 8,
-                            padding: 8,
-                            background: '#dcfce7',
-                            borderRadius: 6
-                          }}>
-                            ✋ Joueurs prêts: {match.playersReadyCount || 0}/{match.playersTotalCount || match.tiedPlayers?.length || 2}
-                          </div>
-                        )}
+                        <div style={{ 
+                          color: '#15803d', 
+                          fontSize: 14, 
+                          fontWeight: 600,
+                          marginTop: 8,
+                          padding: 8,
+                          background: '#dcfce7',
+                          borderRadius: 6
+                        }}>
+                          ✋ Joueurs prêts: {match.playersReadyCount || 0}/{match.playersTotalCount || match.tiedPlayers?.length || 2}
+                        </div>
                       </div>
                       <button
                         onClick={() => handleStartTiebreaker(match.matchId)}
