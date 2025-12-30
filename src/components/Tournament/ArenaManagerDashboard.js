@@ -48,7 +48,9 @@ export default function ArenaManagerDashboard() {
                 status: existingMatch.status || apiMatch.status,
                 tiedPlayers: existingMatch.tiedPlayers,
                 ranking: existingMatch.ranking,
-                isTiebreaker: existingMatch.isTiebreaker
+                isTiebreaker: existingMatch.isTiebreaker,
+                playersReadyCount: existingMatch.playersReadyCount,
+                playersTotalCount: existingMatch.playersTotalCount
               };
             }
             
