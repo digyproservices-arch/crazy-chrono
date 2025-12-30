@@ -74,6 +74,20 @@ export default function CrazyArenaGame() {
     
     socket.on('connect', () => {
       console.log('[CrazyArena] Connecté pour la partie');
+      
+      // CRITIQUE: Rejoindre la room du match pour recevoir les événements
+      socket.emit('arena:join', {
+        matchId: gameInfo.matchId,
+        studentData: {
+          studentId: gameInfo.myStudentId,
+          name: gameInfo.players.find(p => p.studentId === gameInfo.myStudentId)?.name || 'Joueur',
+          avatar: '/avatars/default.png'
+        }
+      }, (response) => {
+        if (response?.ok) {
+          console.log('[CrazyArena] ✅ Rejoint la room du match pour recevoir événements');
+        }
+      });
     });
     
     socket.on('arena:scores-update', ({ scores }) => {
