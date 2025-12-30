@@ -617,6 +617,9 @@ class CrazyArenaManager {
       duration: match.endTime - match.startTime,
       isTiebreaker: match.isTiebreaker || false
     });
+    
+    // Notifier dashboard professeur (broadcast)
+    this.io.emit('arena:game-end', { matchId });
 
     // Enregistrer les résultats dans la BDD
     try {
@@ -690,9 +693,6 @@ class CrazyArenaManager {
         name: p.name 
       }))
     });
-    
-    // Notifier dashboard professeur (broadcast)
-    this.io.emit('arena:tiebreaker-start', { matchId });
     
     // Timer de 30 secondes pour le tiebreaker
     match.gameTimeout = setTimeout(() => {

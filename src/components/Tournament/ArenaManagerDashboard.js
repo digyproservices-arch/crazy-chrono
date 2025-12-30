@@ -48,7 +48,7 @@ export default function ArenaManagerDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // Connexion Socket.IO pour mise à jour temps réel des joueurs
+  // Connexion Socket.IO - UNE SEULE FOIS au montage du composant
   useEffect(() => {
     const socket = io(getBackendUrl(), {
       transports: ['websocket'],
@@ -58,11 +58,6 @@ export default function ArenaManagerDashboard() {
 
     socket.on('connect', () => {
       console.log('[ArenaManager] Connecté au serveur');
-      
-      // S'abonner aux mises à jour de tous les matchs actifs
-      matches.forEach(match => {
-        socket.emit('arena:subscribe-manager', { matchId: match.matchId });
-      });
     });
 
     // Mise à jour des joueurs en temps réel
@@ -142,7 +137,18 @@ export default function ArenaManagerDashboard() {
     });
 
     return () => socket.disconnect();
-  }, [matches.length]); // Re-subscribe si nouveaux matchs
+  }, []); // UNE SEULE connexion Socket.IO
+
+  // Souscrire aux matchs actifs quand la liste change
+  useEffect(() => {
+    if (!socketRef.current) return;
+    
+    // S'abonner à tous les matchs actifs
+    matches.forEach(match => {
+      console.log('[ArenaManager] Souscription au match:', match.matchId);
+      socketRef.current.emit('arena:subscribe-manager', { matchId: match.matchId });
+    });
+  }, [matches.map(m => m.matchId).join(',')]);
 
   // Démarrer un match manuellement
   const handleStartMatch = (matchId) => {
