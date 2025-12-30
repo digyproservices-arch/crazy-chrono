@@ -39,8 +39,8 @@ export default function ArenaManagerDashboard() {
             const existingMatch = prevMatches.find(m => m.matchId === apiMatch.matchId);
             
             if (existingMatch) {
-              // Garder les données temps réel de Socket.IO
-              return {
+              // CRITIQUE: Ne JAMAIS écraser avec undefined
+              const merged = {
                 ...apiMatch,
                 connectedPlayers: existingMatch.connectedPlayers || apiMatch.connectedPlayers || 0,
                 readyPlayers: existingMatch.readyPlayers || apiMatch.readyPlayers || 0,
@@ -48,10 +48,26 @@ export default function ArenaManagerDashboard() {
                 status: existingMatch.status || apiMatch.status,
                 tiedPlayers: existingMatch.tiedPlayers,
                 ranking: existingMatch.ranking,
-                isTiebreaker: existingMatch.isTiebreaker,
-                playersReadyCount: existingMatch.playersReadyCount,
-                playersTotalCount: existingMatch.playersTotalCount
+                isTiebreaker: existingMatch.isTiebreaker
               };
+              
+              // Préserver playersReadyCount SEULEMENT si non-undefined
+              if (existingMatch.playersReadyCount !== undefined) {
+                merged.playersReadyCount = existingMatch.playersReadyCount;
+              }
+              if (existingMatch.playersTotalCount !== undefined) {
+                merged.playersTotalCount = existingMatch.playersTotalCount;
+              }
+              
+              // Log diagnostic pour tie-waiting
+              if (existingMatch.status === 'tie-waiting') {
+                console.log(`[ArenaManager] 🔄 POLLING API - Match ${apiMatch.matchId.slice(-8)}:`, {
+                  avant: { ready: existingMatch.playersReadyCount, total: existingMatch.playersTotalCount },
+                  apres: { ready: merged.playersReadyCount, total: merged.playersTotalCount }
+                });
+              }
+              
+              return merged;
             }
             
             return apiMatch;
