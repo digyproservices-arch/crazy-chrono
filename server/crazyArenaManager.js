@@ -452,6 +452,26 @@ class CrazyArenaManager {
       if (timeMs < 3000) {
         player.score += 1;
       }
+      
+      // ✅ TIEBREAKER: Incrémenter compteur et vérifier fin
+      if (match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown') {
+        match.tiebreakerPairsFound = (match.tiebreakerPairsFound || 0) + 1;
+        console.log(`[CrazyArena] 🎯 TIEBREAKER: ${match.tiebreakerPairsFound}/${match.tiebreakerPairsToFind} paires trouvées`);
+        
+        if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
+          console.log(`[CrazyArena] 🏁 TIEBREAKER TERMINÉ: ${match.tiebreakerPairsToFind} paires trouvées!`);
+          
+          // Annuler le timer 30s
+          if (match.gameTimeout) {
+            clearTimeout(match.gameTimeout);
+            console.log(`[CrazyArena] ⏱️ Timer 30s annulé (3 paires trouvées)`);
+          }
+          
+          // Terminer le match immédiatement
+          this.endGame(matchId);
+          return;
+        }
+      }
     } else {
       player.score = Math.max(0, player.score - 2);
       player.errors += 1;
