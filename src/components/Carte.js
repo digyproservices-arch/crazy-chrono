@@ -1489,10 +1489,8 @@ const Carte = () => {
           setGameSelectedIds([]);
           setGameMsg('');
 
-          // Réinitialiser scores locaux pour le tiebreaker
+          // Réinitialiser score local pour le tiebreaker
           setScore(0);
-          setPairsValidated(0);
-          setErrors(0);
           
           // ✅ Mettre à jour la durée du jeu (30s pour tiebreaker)
           setGameDuration(duration || 30);
