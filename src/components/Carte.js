@@ -1212,32 +1212,37 @@ const Carte = () => {
         }
       });
       
-      // Écouter countdown 3-2-1 (pour tiebreaker)
+      // ✅ Listener pour countdown 3-2-1 avant tiebreaker
       s.on('arena:countdown', ({ count }) => {
         console.log('[ARENA] 📣 Countdown reçu:', count);
         
-        // Créer/mettre à jour overlay countdown
-        let countdownOverlay = document.getElementById('arena-countdown-overlay');
+        // Au premier count, retirer l'overlay égalité
+        if (count === 3) {
+          const tieOverlay = document.getElementById('arena-tie-overlay');
+          if (tieOverlay) {
+            tieOverlay.remove();
+            console.log('[ARENA] 🗑️ Overlay égalité retiré (début countdown)');
+          }
+        }
         
+        // Créer overlay countdown full-screen
+        let countdownOverlay = document.getElementById('arena-countdown-overlay');
         if (!countdownOverlay) {
           countdownOverlay = document.createElement('div');
           countdownOverlay.id = 'arena-countdown-overlay';
-          countdownOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:10000;display:flex;align-items:center;justify-content:center;flex-direction:column;';
+          countdownOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;';
           document.body.appendChild(countdownOverlay);
         }
         
-        countdownOverlay.innerHTML = `
-          <div style="font-size:200px;font-weight:900;color:${count === 0 ? '#10b981' : '#f59e0b'};text-shadow:0 0 30px rgba(255,255,255,0.5);">
-            ${count === 0 ? 'GO!' : count}
-          </div>
-          ${count > 0 ? '<div style="font-size:24px;color:#fff;margin-top:20px;">Préparez-vous...</div>' : ''}
-        `;
+        // Afficher le chiffre ou GO!
+        countdownOverlay.innerHTML = `<div style="font-size:200px;font-weight:900;color:${count === 0 ? '#10b981' : '#f59e0b'};text-shadow:0 0 30px rgba(255,255,255,0.5);">${count === 0 ? 'GO!' : count}</div>`;
         
         // Retirer overlay après "GO!"
         if (count === 0) {
           setTimeout(() => {
-            countdownOverlay?.remove();
-          }, 1000);
+            countdownOverlay.remove();
+            console.log('[ARENA] 🗑️ Overlay countdown retiré (GO! terminé)');
+          }, 800);
         }
       });
       
@@ -1490,57 +1495,30 @@ const Carte = () => {
         }
       });
       
-      // Écouter démarrage départage (tiebreaker)
-      s.on('arena:tiebreaker-start', (data) => {
-        console.log('[ARENA] 🎯 DÉPARTAGE DÉMARRÉ ! RAW DATA:', data);
+      // ✅ SIMPLE: Tiebreaker = MÊME FLUX que démarrage initial
+      s.on('arena:tiebreaker-start', ({ zones, duration, startTime, matchId }) => {
+        console.log('[ARENA] 🎯 Tiebreaker start - RELOAD comme démarrage initial');
         
-        const { zones, duration, startTime, tiedPlayers, matchId } = data || {};
-        console.log('[ARENA] 📊 Données:', { 
-          zonesCount: zones?.length, 
-          duration, 
-          startTime,
-          tiedPlayersCount: tiedPlayers?.length,
-          matchId 
-        });
-
-        // ✅ SOLUTION: Mettre à jour directement les zones SANS recharger
-        // Le rechargement causait une carte vide
-        
-        if (zones && zones.length > 0) {
-          console.log('[ARENA] 🎯 Démarrage tiebreaker avec', zones.length, 'zones');
-          
-          // Sauvegarder dans localStorage pour persistance
-          const existingData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
-          const tiebreakerData = {
-            ...existingData,
-            zones,
-            duration,
-            startTime,
-            isTiebreaker: true
-          };
-          localStorage.setItem('cc_crazy_arena_game', JSON.stringify(tiebreakerData));
-          
-          // ✅ IMPORTANT: Vérifier que le countdown a retiré l'overlay égalité
-          // Double sécurité au cas où
-          const tieOverlay = document.getElementById('arena-tie-overlay');
-          if (tieOverlay) {
-            tieOverlay.remove();
-            console.log('[ARENA] 🗑️ Overlay égalité retiré (double sécurité)');
-          }
-          
-          // Mettre à jour états React directement
-          setZones(zones);
-          setGameDuration(duration);
-          setTimeLeft(duration);
-          setGameActive(true);
-          setScore(0);
-          setFullScreen(true);
-          setRoomStatus('playing');
-          
-          console.log('[ARENA] ✅ Tiebreaker activé avec', zones.length, 'zones');
-        } else {
-          console.error('[ARENA] ❌ ZONES MANQUANTES!');
+        if (!zones || zones.length === 0) {
+          console.error('[ARENA] ❌ Zones manquantes');
+          return;
         }
+        
+        // EXACTEMENT comme arena:game-start dans CrazyArenaLobby.js
+        const existingData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
+        const tiebreakerData = {
+          ...existingData,
+          zones,
+          duration,
+          startTime,
+          isTiebreaker: true
+        };
+        
+        localStorage.setItem('cc_crazy_arena_game', JSON.stringify(tiebreakerData));
+        console.log('[ARENA] ✅ localStorage mis à jour, RELOAD...');
+        
+        // RELOAD comme au démarrage initial
+        window.location.reload();
       });
 
       // Écouter fin de partie Arena
@@ -2842,6 +2820,7 @@ const handleEditGreenZone = (zone) => {
   const [roomPlayers, setRoomPlayers] = useState([]); // [{id,nickname,score,ready,isHost}]
   const [isHost, setIsHost] = useState(false);
   const [myReady, setMyReady] = useState(false);
+  const [countdown, setCountdown] = useState(null);
   const [countdownT, setCountdownT] = useState(null);
   // Rotation en degrés des contenus pour zones calcul/chiffre (par id de zone)
   const [calcAngles, setCalcAngles] = useState(() => {
