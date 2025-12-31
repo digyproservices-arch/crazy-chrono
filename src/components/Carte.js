@@ -1474,35 +1474,33 @@ const Carte = () => {
           matchId 
         });
 
-        // Retirer overlay égalité
-        const tieOverlay = document.getElementById('arena-tie-overlay');
-        if (tieOverlay) {
-          tieOverlay.remove();
-          console.log('[ARENA] ✅ Overlay égalité retiré');
-        }
-
-        // Charger les nouvelles zones pour le tiebreaker AVANT de réactiver le jeu
+        // ✅ SOLUTION SIMPLE: Reproduire EXACTEMENT le flux du démarrage initial
+        // Au lieu de manipuler des states React, on met à jour localStorage et on recharge
+        
         if (zones && zones.length > 0) {
-          console.log('[ARENA] 🎴 Chargement zones tiebreaker:', zones.length);
-          setZones(zones);
-          setValidatedPairIds(new Set());
-          setGameSelectedIds([]);
-          setGameMsg('');
-
-          // Réinitialiser score local pour le tiebreaker
-          setScore(0);
+          console.log('[ARENA] 🔄 Mise à jour localStorage avec 3 cartes tiebreaker');
           
-          // ✅ Mettre à jour la durée du jeu (30s pour tiebreaker)
-          setGameDuration(duration || 30);
+          // Récupérer les données existantes
+          const existingData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
           
-          // ✅ Relancer le jeu APRÈS avoir chargé les zones
-          setGameActive(true);
-          console.log('[ARENA] ✅ Jeu réactivé avec 30s pour départage');
+          // Mettre à jour avec les nouvelles zones (3 cartes) et durée (30s)
+          const tiebreakerData = {
+            ...existingData,
+            zones,              // 3 cartes au lieu de 16
+            duration,           // 30s au lieu de 60s
+            startTime,
+            isTiebreaker: true  // Flag pour savoir qu'on est en tiebreaker
+          };
+          
+          localStorage.setItem('cc_crazy_arena_game', JSON.stringify(tiebreakerData));
+          console.log('[ARENA] ✅ localStorage mis à jour avec tiebreaker');
+          
+          // ✅ Recharger la page - le jeu démarre automatiquement comme au début
+          console.log('[ARENA] 🔄 Rechargement page pour démarrer tiebreaker...');
+          window.location.reload();
         } else {
           console.error('[ARENA] ❌ ZONES MANQUANTES!');
         }
-
-        console.log('[ARENA] ✅ Tiebreaker lancé avec succès');
       });
 
       // Écouter fin de partie Arena
