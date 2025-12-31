@@ -1503,30 +1503,37 @@ const Carte = () => {
           matchId 
         });
 
-        // ✅ SOLUTION SIMPLE: Reproduire EXACTEMENT le flux du démarrage initial
-        // Au lieu de manipuler des states React, on met à jour localStorage et on recharge
+        // ✅ SOLUTION: Mettre à jour directement les zones SANS recharger
+        // Le rechargement causait une carte vide
         
         if (zones && zones.length > 0) {
-          console.log('[ARENA] 🔄 Mise à jour localStorage avec 3 cartes tiebreaker');
+          console.log('[ARENA] 🎯 Démarrage tiebreaker avec', zones.length, 'zones');
           
-          // Récupérer les données existantes
+          // Sauvegarder dans localStorage pour persistance
           const existingData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
-          
-          // Mettre à jour avec les nouvelles zones (3 cartes) et durée (30s)
           const tiebreakerData = {
             ...existingData,
-            zones,              // 3 cartes au lieu de 16
-            duration,           // 30s au lieu de 60s
+            zones,
+            duration,
             startTime,
-            isTiebreaker: true  // Flag pour savoir qu'on est en tiebreaker
+            isTiebreaker: true
           };
-          
           localStorage.setItem('cc_crazy_arena_game', JSON.stringify(tiebreakerData));
-          console.log('[ARENA] ✅ localStorage mis à jour avec tiebreaker');
           
-          // ✅ Recharger la page - le jeu démarre automatiquement comme au début
-          console.log('[ARENA] 🔄 Rechargement page pour démarrer tiebreaker...');
-          window.location.reload();
+          // Retirer overlay égalité
+          const tieOverlay = document.getElementById('arena-tie-overlay');
+          if (tieOverlay) tieOverlay.remove();
+          
+          // Mettre à jour états React directement
+          setZones(zones);
+          setGameDuration(duration);
+          setTimeLeft(duration);
+          setGameActive(true);
+          setScore(0);
+          setFullScreen(true);
+          setRoomStatus('playing');
+          
+          console.log('[ARENA] ✅ Tiebreaker activé avec', zones.length, 'zones');
         } else {
           console.error('[ARENA] ❌ ZONES MANQUANTES!');
         }
