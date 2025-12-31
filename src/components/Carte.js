@@ -1520,9 +1520,13 @@ const Carte = () => {
           };
           localStorage.setItem('cc_crazy_arena_game', JSON.stringify(tiebreakerData));
           
-          // Retirer overlay égalité
+          // ✅ IMPORTANT: Vérifier que le countdown a retiré l'overlay égalité
+          // Double sécurité au cas où
           const tieOverlay = document.getElementById('arena-tie-overlay');
-          if (tieOverlay) tieOverlay.remove();
+          if (tieOverlay) {
+            tieOverlay.remove();
+            console.log('[ARENA] 🗑️ Overlay égalité retiré (double sécurité)');
+          }
           
           // Mettre à jour états React directement
           setZones(zones);
