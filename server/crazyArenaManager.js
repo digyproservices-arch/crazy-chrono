@@ -741,22 +741,11 @@ class CrazyArenaManager {
     console.log(`[CrazyArena] 📡 AVANT émission arena:tiebreaker-start...`);
     
     try {
-      // ✅ FIX: Sérialiser zones proprement (enlever références circulaires)
-      const cleanZones = match.zones.map(z => ({
-        id: z.id,
-        type: z.type,
-        content: z.content,
-        imageSrc: z.imageSrc,
-        pairId: z.pairId,
-        points: z.points,
-        angle: z.angle,
-        color: z.color
-      }));
-      
+      // ✅ SIMPLE: Envoyer zones COMPLÈTES comme au démarrage initial (pas de nettoyage)
       const payload = {
-        zones: cleanZones,
+        zones: match.zones,  // ← Zones complètes avec TOUS les champs
         duration: 30,
-        startTime: Date.now(), // Timestamp frais
+        startTime: Date.now(),
         tiedPlayers: tiedPlayers.map(p => ({ 
           studentId: p.studentId, 
           name: p.name 
@@ -766,7 +755,8 @@ class CrazyArenaManager {
       console.log(`[CrazyArena] 🔍 Payload tiebreaker:`, {
         zonesCount: payload.zones?.length,
         tiedPlayersCount: payload.tiedPlayers?.length,
-        duration: payload.duration
+        duration: payload.duration,
+        firstZone: payload.zones[0] // Debug première zone
       });
       
       // ✅ FIX: Émettre en BROADCAST (pas seulement room) pour garantir livraison
