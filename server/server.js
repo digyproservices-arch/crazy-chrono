@@ -1354,10 +1354,10 @@ io.on('connection', (socket) => {
     crazyArena.playerReadyForTiebreaker(matchId, studentId, playerName, io);
   });
 
-  socket.on('arena:start-tiebreaker', ({ matchId }) => {
+  socket.on('arena:start-tiebreaker', async ({ matchId }) => {
     // Le professeur lance manuellement le départage
     console.log(`[Server] Professeur lance départage pour match ${matchId}`);
-    crazyArena.startTiebreakerByTeacher(matchId);
+    await crazyArena.startTiebreakerByTeacher(matchId);
   });
 
   socket.on('disconnect', () => {

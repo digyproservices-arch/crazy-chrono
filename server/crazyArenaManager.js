@@ -741,11 +741,22 @@ class CrazyArenaManager {
     console.log(`[CrazyArena] 📡 AVANT émission arena:tiebreaker-start...`);
     
     try {
-      // Préparer payload (éviter références circulaires)
+      // ✅ FIX: Sérialiser zones proprement (enlever références circulaires)
+      const cleanZones = match.zones.map(z => ({
+        id: z.id,
+        type: z.type,
+        content: z.content,
+        imageSrc: z.imageSrc,
+        pairId: z.pairId,
+        points: z.points,
+        angle: z.angle,
+        color: z.color
+      }));
+      
       const payload = {
-        zones: match.zones,
+        zones: cleanZones,
         duration: 30,
-        startTime: match.startTime,
+        startTime: Date.now(), // Timestamp frais
         tiedPlayers: tiedPlayers.map(p => ({ 
           studentId: p.studentId, 
           name: p.name 
@@ -758,8 +769,9 @@ class CrazyArenaManager {
         duration: payload.duration
       });
       
-      // Notifier le démarrage du tiebreaker
-      this.io.to(matchId).emit('arena:tiebreaker-start', payload);
+      // ✅ FIX: Émettre en BROADCAST (pas seulement room) pour garantir livraison
+      console.log(`[CrazyArena] 📡 Émission arena:tiebreaker-start en BROADCAST...`);
+      this.io.emit('arena:tiebreaker-start', { ...payload, matchId });
       
       console.log(`[CrazyArena] ✅ arena:tiebreaker-start émis à room ${matchId}`);
       
