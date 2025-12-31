@@ -491,6 +491,24 @@ class CrazyArenaManager {
       match.validatedPairIds.add(pairId);
       console.log(`[CrazyArena] 📊 Paire validée ajoutée au FIFO: ${pairId} (total: ${match.validatedPairIds.size}/${MAX_EXCLUDED_PAIRS})`);
       
+      // ✅ TIEBREAKER: Vérifier si les 3 paires ont été trouvées
+      if (match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown') {
+        match.tiebreakerPairsFound = (match.tiebreakerPairsFound || 0) + 1;
+        console.log(`[CrazyArena] 🎯 TIEBREAKER: ${match.tiebreakerPairsFound}/${match.tiebreakerPairsToFind} paires trouvées`);
+        
+        if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
+          console.log(`[CrazyArena] 🏁 TIEBREAKER TERMINÉ: ${match.tiebreakerPairsToFind} paires trouvées!`);
+          // Annuler le timer 30s
+          if (match.gameTimeout) {
+            clearTimeout(match.gameTimeout);
+            console.log(`[CrazyArena] ⏱️ Timer 30s annulé (3 paires trouvées)`);
+          }
+          // Terminer le match immédiatement
+          this.endGame(matchId);
+          return; // Sortir pour ne pas générer nouvelle carte
+        }
+      }
+      
       // ✅ NOUVELLE CARTE IMMÉDIATEMENT (REGLES_CRITIQUES.md ligne 159)
       console.log(`[CrazyArena] 🎉 Paire trouvée! Génération nouvelle carte...`);
       
