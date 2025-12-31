@@ -771,11 +771,13 @@ class CrazyArenaManager {
       if (count < 0) {
         clearInterval(countdownInterval);
         
-        // Après countdown, envoyer les zones
+        // Après countdown, envoyer les zones (COMME démarrage normal)
         try {
+          match.status = 'tiebreaker'; // Passer en mode tiebreaker actif
+          
           const payload = {
             zones: match.zones,  // Zones complètes avec TOUS les champs
-            duration: 30,
+            duration: 999, // Pas de limite de temps, juste 3 paires
             startTime: Date.now(),
             tiedPlayers: tiedPlayers.map(p => ({ 
               studentId: p.studentId, 
@@ -786,21 +788,13 @@ class CrazyArenaManager {
           console.log(`[CrazyArena] 🔍 Payload tiebreaker:`, {
             zonesCount: payload.zones?.length,
             tiedPlayersCount: payload.tiedPlayers?.length,
-            duration: payload.duration
+            firstZone: payload.zones?.[0]
           });
           
           console.log(`[CrazyArena] 📡 Émission arena:tiebreaker-start en BROADCAST...`);
           this.io.emit('arena:tiebreaker-start', { ...payload, matchId });
           
-          console.log(`[CrazyArena] ✅ arena:tiebreaker-start émis à room ${matchId}`);
-          
-          // Timer de 30 secondes pour le tiebreaker
-          match.gameTimeout = setTimeout(() => {
-            console.log(`[CrazyArena] ⏰ Timeout tiebreaker 30s écoulé, fin du match`);
-            this.endGame(matchId);
-          }, 30000);
-          
-          console.log(`[CrazyArena] ⏱️ Timer 30s démarré pour tiebreaker`);
+          console.log(`[CrazyArena] ✅ arena:tiebreaker-start émis - Pas de timer, juste 3 paires`);
           
         } catch (error) {
           console.error(`[CrazyArena] ❌ ERREUR émission arena:tiebreaker-start:`, error);
