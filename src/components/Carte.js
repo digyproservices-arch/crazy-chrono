@@ -1448,9 +1448,31 @@ const Carte = () => {
         }, 500);
       });
 
+      // ✅ DEBUG: Logs de diagnostic
+      console.log('[ARENA] 🔧 Listener tiebreaker-start attaché, socket:', {
+        connected: s.connected,
+        id: s.id
+      });
+      
+      // ✅ CATCH-ALL: Capturer TOUS les événements pour debug
+      s.onAny((eventName, ...args) => {
+        if (eventName.includes('tiebreaker')) {
+          console.log('[ARENA] 📥 ÉVÉNEMENT CAPTURÉ:', eventName, args);
+        }
+      });
+      
       // Écouter démarrage départage (tiebreaker)
-      s.on('arena:tiebreaker-start', ({ zones, duration, startTime, tiedPlayers }) => {
-        console.log('[ARENA] 🎯 DÉPARTAGE DÉMARRÉ !', { zones: zones?.length, duration, tiedPlayers });
+      s.on('arena:tiebreaker-start', (data) => {
+        console.log('[ARENA] 🎯 DÉPARTAGE DÉMARRÉ ! RAW DATA:', data);
+        
+        const { zones, duration, startTime, tiedPlayers, matchId } = data || {};
+        console.log('[ARENA] 📊 Données:', { 
+          zonesCount: zones?.length, 
+          duration, 
+          startTime,
+          tiedPlayersCount: tiedPlayers?.length,
+          matchId 
+        });
 
         // Retirer overlay égalité
         const tieOverlay = document.getElementById('arena-tie-overlay');
@@ -1461,8 +1483,8 @@ const Carte = () => {
 
         // Relancer le jeu avec les nouvelles zones (3 cartes)
         setGameActive(true);
-        setGameStartTime(startTime);
-        setGameDuration(duration);
+        setGameStartTime(startTime || Date.now());
+        setGameDuration(duration || 30);
 
         // Charger les nouvelles zones pour le tiebreaker
         if (zones && zones.length > 0) {
@@ -1475,6 +1497,8 @@ const Carte = () => {
           setScore(0);
           setPairsValidated(0);
           setErrors(0);
+        } else {
+          console.error('[ARENA] ❌ ZONES MANQUANTES!');
         }
 
         console.log('[ARENA] ✅ Tiebreaker lancé avec succès');
