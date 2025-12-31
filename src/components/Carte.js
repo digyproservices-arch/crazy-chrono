@@ -1208,7 +1208,36 @@ const Carte = () => {
             console.log('[ARENA] Callback arena:join reçu:', response);
           });
         } catch (e) {
-          console.error('[ARENA] Erreur émission arena:join:', e);
+          console.error('[ARENA] ❌ Erreur émission arena:join:', e);
+        }
+      });
+      
+      // Écouter countdown 3-2-1 (pour tiebreaker)
+      s.on('arena:countdown', ({ count }) => {
+        console.log('[ARENA] 📣 Countdown reçu:', count);
+        
+        // Créer/mettre à jour overlay countdown
+        let countdownOverlay = document.getElementById('arena-countdown-overlay');
+        
+        if (!countdownOverlay) {
+          countdownOverlay = document.createElement('div');
+          countdownOverlay.id = 'arena-countdown-overlay';
+          countdownOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:10000;display:flex;align-items:center;justify-content:center;flex-direction:column;';
+          document.body.appendChild(countdownOverlay);
+        }
+        
+        countdownOverlay.innerHTML = `
+          <div style="font-size:200px;font-weight:900;color:${count === 0 ? '#10b981' : '#f59e0b'};text-shadow:0 0 30px rgba(255,255,255,0.5);">
+            ${count === 0 ? 'GO!' : count}
+          </div>
+          ${count > 0 ? '<div style="font-size:24px;color:#fff;margin-top:20px;">Préparez-vous...</div>' : ''}
+        `;
+        
+        // Retirer overlay après "GO!"
+        if (count === 0) {
+          setTimeout(() => {
+            countdownOverlay?.remove();
+          }, 1000);
         }
       });
       
