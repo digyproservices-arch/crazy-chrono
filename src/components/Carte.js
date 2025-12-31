@@ -1481,22 +1481,25 @@ const Carte = () => {
           console.log('[ARENA] ✅ Overlay égalité retiré');
         }
 
-        // Relancer le jeu avec les nouvelles zones (3 cartes)
-        setGameActive(true);
-        setGameStartTime(startTime || Date.now());
-        setGameDuration(duration || 30);
-
-        // Charger les nouvelles zones pour le tiebreaker
+        // Charger les nouvelles zones pour le tiebreaker AVANT de réactiver le jeu
         if (zones && zones.length > 0) {
           console.log('[ARENA] 🎴 Chargement zones tiebreaker:', zones.length);
           setZones(zones);
-          setValidatedPairs([]);
-          setCurrentPairId(null);
+          setValidatedPairIds(new Set());
+          setGameSelectedIds([]);
+          setGameMsg('');
 
           // Réinitialiser scores locaux pour le tiebreaker
           setScore(0);
           setPairsValidated(0);
           setErrors(0);
+          
+          // ✅ Mettre à jour la durée du jeu (30s pour tiebreaker)
+          setGameDuration(duration || 30);
+          
+          // ✅ Relancer le jeu APRÈS avoir chargé les zones
+          setGameActive(true);
+          console.log('[ARENA] ✅ Jeu réactivé avec 30s pour départage');
         } else {
           console.error('[ARENA] ❌ ZONES MANQUANTES!');
         }
