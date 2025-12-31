@@ -738,47 +738,57 @@ class CrazyArenaManager {
       }
     });
     
-    console.log(`[CrazyArena] 📡 AVANT émission arena:tiebreaker-start...`);
+    console.log(`[CrazyArena] 📡 Countdown 3-2-1 pour tiebreaker...`);
     
-    try {
-      // ✅ SIMPLE: Envoyer zones COMPLÈTES comme au démarrage initial (pas de nettoyage)
-      const payload = {
-        zones: match.zones,  // ← Zones complètes avec TOUS les champs
-        duration: 30,
-        startTime: Date.now(),
-        tiedPlayers: tiedPlayers.map(p => ({ 
-          studentId: p.studentId, 
-          name: p.name 
-        }))
-      };
+    // ✅ Countdown 3-2-1 comme au démarrage initial
+    match.status = 'tiebreaker-countdown';
+    let count = 3;
+    const countdownInterval = setInterval(() => {
+      console.log(`[CrazyArena] Countdown tiebreaker: ${count}`);
+      this.io.to(matchId).emit('arena:countdown', { count });
+      count--;
       
-      console.log(`[CrazyArena] 🔍 Payload tiebreaker:`, {
-        zonesCount: payload.zones?.length,
-        tiedPlayersCount: payload.tiedPlayers?.length,
-        duration: payload.duration,
-        firstZone: payload.zones[0] // Debug première zone
-      });
-      
-      // ✅ FIX: Émettre en BROADCAST (pas seulement room) pour garantir livraison
-      console.log(`[CrazyArena] 📡 Émission arena:tiebreaker-start en BROADCAST...`);
-      this.io.emit('arena:tiebreaker-start', { ...payload, matchId });
-      
-      console.log(`[CrazyArena] ✅ arena:tiebreaker-start émis à room ${matchId}`);
-      
-      // Timer de 30 secondes pour le tiebreaker
-      match.gameTimeout = setTimeout(() => {
-        console.log(`[CrazyArena] ⏰ Timeout tiebreaker 30s écoulé, fin du match`);
-        this.endGame(matchId);
-      }, 30000);
-      
-      console.log(`[CrazyArena] ⏱️ Timer 30s démarré pour tiebreaker`);
-      
-    } catch (error) {
-      console.error(`[CrazyArena] ❌ ERREUR émission arena:tiebreaker-start:`, error);
-      console.error(`[CrazyArena] Stack:`, error.stack);
-      // Fallback: terminer le match pour ne pas bloquer
-      this.endGame(matchId);
-    }
+      if (count < 0) {
+        clearInterval(countdownInterval);
+        
+        // Après countdown, envoyer les zones
+        try {
+          const payload = {
+            zones: match.zones,  // Zones complètes avec TOUS les champs
+            duration: 30,
+            startTime: Date.now(),
+            tiedPlayers: tiedPlayers.map(p => ({ 
+              studentId: p.studentId, 
+              name: p.name 
+            }))
+          };
+          
+          console.log(`[CrazyArena] 🔍 Payload tiebreaker:`, {
+            zonesCount: payload.zones?.length,
+            tiedPlayersCount: payload.tiedPlayers?.length,
+            duration: payload.duration
+          });
+          
+          console.log(`[CrazyArena] 📡 Émission arena:tiebreaker-start en BROADCAST...`);
+          this.io.emit('arena:tiebreaker-start', { ...payload, matchId });
+          
+          console.log(`[CrazyArena] ✅ arena:tiebreaker-start émis à room ${matchId}`);
+          
+          // Timer de 30 secondes pour le tiebreaker
+          match.gameTimeout = setTimeout(() => {
+            console.log(`[CrazyArena] ⏰ Timeout tiebreaker 30s écoulé, fin du match`);
+            this.endGame(matchId);
+          }, 30000);
+          
+          console.log(`[CrazyArena] ⏱️ Timer 30s démarré pour tiebreaker`);
+          
+        } catch (error) {
+          console.error(`[CrazyArena] ❌ ERREUR émission arena:tiebreaker-start:`, error);
+          console.error(`[CrazyArena] Stack:`, error.stack);
+          this.endGame(matchId);
+        }
+      }
+    }, 1000);
 }
 
 /**
