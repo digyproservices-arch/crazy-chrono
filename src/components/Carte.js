@@ -1506,13 +1506,14 @@ const Carte = () => {
         
         console.log('[ARENA] ✅ Tiebreaker: ', zones.length, 'zones reçues');
         
-        // CRITIQUE: Supprimer overlay égalité + countdown AVANT d'afficher cartes
+        // CRITIQUE: Supprimer overlay égalité + countdown
         const tieOverlay = document.getElementById('arena-tie-overlay');
         if (tieOverlay) {
           tieOverlay.remove();
           console.log('[ARENA] ✅ Overlay égalité supprimé');
         }
-        setCountdown(null); // Supprimer countdown overlay
+        setCountdown(null);
+        console.log('[ARENA] ✅ Countdown supprimé');
         
         // Mettre à jour localStorage pour backup
         const existingData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
