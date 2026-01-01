@@ -1506,6 +1506,14 @@ const Carte = () => {
         
         console.log('[ARENA] ✅ Tiebreaker: ', zones.length, 'zones reçues');
         
+        // CRITIQUE: Supprimer overlay égalité + countdown AVANT d'afficher cartes
+        const tieOverlay = document.getElementById('arena-tie-overlay');
+        if (tieOverlay) {
+          tieOverlay.remove();
+          console.log('[ARENA] ✅ Overlay égalité supprimé');
+        }
+        setCountdown(null); // Supprimer countdown overlay
+        
         // Mettre à jour localStorage pour backup
         const existingData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
         const tiebreakerData = {
@@ -1519,9 +1527,10 @@ const Carte = () => {
         
         // Mettre à jour React directement (pas de reload)
         setZones(zones);
-        setGameDuration(duration);
+        // NE PAS mettre à jour gameDuration (pas de chrono pour tiebreaker)
         setGameActive(true);
         setStartTime(startTime);
+        setIsTiebreaker(true); // Activer mode tiebreaker
         
         console.log('[ARENA] ✅ État React mis à jour avec zones tiebreaker');
       });
