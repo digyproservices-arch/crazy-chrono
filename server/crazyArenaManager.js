@@ -454,16 +454,32 @@ class CrazyArenaManager {
         if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
           console.log(`[CrazyArena] 🏁 TIEBREAKER TERMINÉ: ${match.tiebreakerPairsToFind} paires trouvées!`);
           
-          // Annuler le timer 30s
-          if (match.gameTimeout) {
-            clearTimeout(match.gameTimeout);
-            console.log(`[CrazyArena] ⏱️ Timer 30s annulé (3 paires trouvées)`);
-          }
-          
           // Terminer le match immédiatement
           this.endGame(matchId);
           return;
         }
+        
+        // Générer nouvelle carte pour la paire suivante (3 cartes successives)
+        console.log(`[CrazyArena] 🎴 Génération carte ${match.tiebreakerPairsFound + 1}/3 pour tiebreaker...`);
+        setTimeout(async () => {
+          try {
+            const newZones = await this.generateZones(match.config);
+            match.zones = newZones;
+            
+            console.log(`[CrazyArena] ✅ Carte tiebreaker ${match.tiebreakerPairsFound + 1}/3: ${newZones.length} zones`);
+            
+            this.io.to(matchId).emit('arena:round-new', {
+              zones: newZones,
+              roundIndex: match.tiebreakerPairsFound,
+              totalRounds: match.tiebreakerPairsToFind,
+              timestamp: Date.now()
+            });
+          } catch (err) {
+            console.error('[CrazyArena] Erreur génération carte tiebreaker:', err);
+          }
+        }, 1500);
+        
+        return; // Sortir pour éviter double génération
       }
     } else {
       player.score = Math.max(0, player.score - 2);

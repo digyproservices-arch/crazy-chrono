@@ -2826,6 +2826,7 @@ const handleEditGreenZone = (zone) => {
   const [isHost, setIsHost] = useState(false);
   const [myReady, setMyReady] = useState(false);
   const [countdown, setCountdown] = useState(null);
+  const [isTiebreaker, setIsTiebreaker] = useState(false);
   const [countdownT, setCountdownT] = useState(null);
   // Rotation en degrés des contenus pour zones calcul/chiffre (par id de zone)
   const [calcAngles, setCalcAngles] = useState(() => {
