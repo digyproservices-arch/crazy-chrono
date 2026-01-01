@@ -1495,16 +1495,18 @@ const Carte = () => {
         }
       });
       
-      // ✅ SIMPLE: Tiebreaker = MÊME FLUX que démarrage initial
+      // ✅ SIMPLE: Tiebreaker = Mettre à jour React directement
       s.on('arena:tiebreaker-start', ({ zones, duration, startTime, matchId }) => {
-        console.log('[ARENA] 🎯 Tiebreaker start - RELOAD comme démarrage initial');
+        console.log('[ARENA] 🎯 Tiebreaker start - Mise à jour React directe');
         
         if (!zones || zones.length === 0) {
           console.error('[ARENA] ❌ Zones manquantes');
           return;
         }
         
-        // EXACTEMENT comme arena:game-start dans CrazyArenaLobby.js
+        console.log('[ARENA] ✅ Tiebreaker: ', zones.length, 'zones reçues');
+        
+        // Mettre à jour localStorage pour backup
         const existingData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
         const tiebreakerData = {
           ...existingData,
@@ -1513,12 +1515,15 @@ const Carte = () => {
           startTime,
           isTiebreaker: true
         };
-        
         localStorage.setItem('cc_crazy_arena_game', JSON.stringify(tiebreakerData));
-        console.log('[ARENA] ✅ localStorage mis à jour, RELOAD...');
         
-        // RELOAD comme au démarrage initial
-        window.location.reload();
+        // Mettre à jour React directement (pas de reload)
+        setZones(zones);
+        setGameDuration(duration);
+        setGameActive(true);
+        setStartTime(startTime);
+        
+        console.log('[ARENA] ✅ État React mis à jour avec zones tiebreaker');
       });
 
       // Écouter fin de partie Arena
