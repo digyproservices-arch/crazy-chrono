@@ -375,7 +375,6 @@ class CrazyArenaManager {
       if (timeLeft === 0) {
         console.log(`[CrazyArena] ⏰ Timer terminé pour match ${matchId}`);
         clearInterval(match.timerInterval);
-        // Terminer le jeu immédiatement
         this.endGame(matchId);
       }
     }, 1000);
