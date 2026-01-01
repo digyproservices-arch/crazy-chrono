@@ -378,14 +378,6 @@ class CrazyArenaManager {
         this.endGame(matchId);
       }
     }, 1000);
-
-    // Timer auto-fin de partie (durée TOTALE)
-    match.gameTimeout = setTimeout(() => {
-      if (match.timerInterval) {
-        clearInterval(match.timerInterval);
-      }
-      this.endGame(matchId);
-    }, totalDuration * 1000);
   }
 
   /**
