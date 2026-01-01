@@ -737,14 +737,14 @@ class CrazyArenaManager {
     // ✅ FIX: generateZones retourne {zones: [...]} pas [...]
     const zonesArray = Array.isArray(zonesResult) ? zonesResult : (zonesResult?.zones || []);
     
-    console.log(`[CrazyArena] 🔍 Type zones reçu:`, { isArray: Array.isArray(zonesResult), length: zonesArray.length });
+    console.log(`[CrazyArena] 🔍 Zones générées pour tiebreaker:`, { count: zonesArray.length });
     
-    // ✅ SIMPLE: Prendre seulement 3 ZONES (pas 3 paires !)
-    match.zones = zonesArray.slice(0, 3);
+    // ✅ UTILISER TOUTES les zones générées (comme démarrage normal)
+    match.zones = zonesArray;
     match.tiebreakerPairsToFind = 3;
     match.tiebreakerPairsFound = 0;
     
-    console.log(`[CrazyArena] 🎴 Tiebreaker: ${match.zones.length} ZONES générées (max 3)`);
+    console.log(`[CrazyArena] 🎴 Tiebreaker: ${match.zones.length} zones, objectif ${match.tiebreakerPairsToFind} paires`);
     
     const tiedStudentIds = tiedPlayers.map(p => p.studentId);
     console.log(`[CrazyArena] 🔍 studentIds à égalité:`, tiedStudentIds);
