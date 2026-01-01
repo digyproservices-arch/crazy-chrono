@@ -5600,7 +5600,7 @@ setZones(dataWithRandomTexts);
             </div>
             <div className="hud-row">
               <button onClick={handleEndSessionNow} style={{ background: '#d63031', color: '#fff', border: '1px solid #333', borderRadius: 6, padding: '6px 10px', fontWeight: 'bold' }}>Terminer</button>
-              <div style={{ fontSize: 16, fontWeight: 'bold' }}>Temps: {timeLeft}s</div>
+              {!isTiebreaker && <div style={{ fontSize: 16, fontWeight: 'bold' }}>Temps: {timeLeft}s</div>}
             </div>
             {isAdminUI && (
               <div style={{ marginTop: 8, padding: 8, border: '1px dashed #9ca3af', borderRadius: 8 }}>
