@@ -5750,7 +5750,7 @@ setZones(dataWithRandomTexts);
               Stop
             </button>
           ) : null}
-          <div style={{ fontSize: 18, fontWeight: 'bold' }}>Temps: {timeLeft}s</div>
+          {!isTiebreaker && <div style={{ fontSize: 18, fontWeight: 'bold' }}>Temps: {timeLeft}s</div>}
           <div style={{ fontSize: 18, fontWeight: 'bold' }}>Score: {score}</div>
           <div style={{ fontSize: 18, fontWeight: 'bold' }}>
             {Number.isFinite(roundsPerSession)
