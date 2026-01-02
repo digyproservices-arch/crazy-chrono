@@ -5548,7 +5548,7 @@ setZones(dataWithRandomTexts);
       {isMobile && (
         <div className="mobile-hud">
           <div className="hud-left">
-            <div className="hud-chip">⏱ {Math.max(0, timeLeft)}s</div>
+            {!isTiebreaker && <div className="hud-chip">⏱ {Math.max(0, timeLeft)}s</div>}
             <div className="hud-chip">⭐ {score}</div>
             <div className="hud-chip">
               {Number.isFinite(roundsPerSession)
@@ -5750,7 +5750,7 @@ setZones(dataWithRandomTexts);
               Stop
             </button>
           ) : null}
-          {!isTiebreaker && <div style={{ fontSize: 18, fontWeight: 'bold' }}>Temps: {timeLeft}s</div>}
+          <div style={{ fontSize: 18, fontWeight: 'bold' }}>Temps: {timeLeft}s</div>
           <div style={{ fontSize: 18, fontWeight: 'bold' }}>Score: {score}</div>
           <div style={{ fontSize: 18, fontWeight: 'bold' }}>
             {Number.isFinite(roundsPerSession)
