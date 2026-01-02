@@ -696,37 +696,6 @@ class CrazyArenaManager {
       // AUSSI en broadcast pour debug (au cas où room échoue)
       console.log(`[CrazyArena] 📢 Émission arena:tie-detected en BROADCAST`);
       this.io.emit('arena:tie-detected', { ...tieData, matchId });
-      
-      // Notifier le dashboard professeur qu'il doit décider
-      // IMPORTANT: Émettre à TOUS les sockets (pas seulement ceux dans la room)
-      this.io.emit('arena:tie-waiting-teacher', {
-        matchId,
-        tiedPlayers: tiedPlayers.map(p => ({ 
-          studentId: p.studentId,
-          name: p.name, 
-          score: p.score 
-        })),
-        ranking
-      });
-      
-      console.log(`[CrazyArena] 📢 Notification égalité envoyée à TOUS les clients pour match ${matchId}`);
-      
-      return; // Ne pas terminer le match - attendre décision prof
-    }
-
-    const winner = ranking[0];
-
-    // Envoyer le podium
-    this.io.to(matchId).emit('arena:game-end', {
-      ranking,
-      winner,
-      duration: match.endTime - match.startTime,
-      isTiebreaker: match.isTiebreaker || false
-    });
-    
-    // Notifier dashboard professeur (broadcast)
-    this.io.emit('arena:game-end', { matchId });
-
     // Enregistrer les résultats dans la BDD
     try {
       await this.saveResults(matchId, ranking);
