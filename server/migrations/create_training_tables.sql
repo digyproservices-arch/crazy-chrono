@@ -91,13 +91,13 @@ ALTER TABLE student_training_stats ENABLE ROW LEVEL SECURITY;
 -- Policy: Les profs peuvent voir les sessions de leurs classes
 CREATE POLICY "Teachers can view their class sessions" ON training_sessions
   FOR SELECT USING (
-    teacher_id = (SELECT id FROM auth.users WHERE auth.uid() = id)
+    teacher_id = auth.uid()
   );
 
 -- Policy: Les élèves peuvent voir leurs propres résultats
 CREATE POLICY "Students can view their own results" ON training_results
   FOR SELECT USING (
-    student_id IN (
+    student_id::TEXT IN (
       SELECT student_id FROM user_student_mapping 
       WHERE user_id = auth.uid() AND active = true
     )
@@ -106,7 +106,7 @@ CREATE POLICY "Students can view their own results" ON training_results
 -- Policy: Les élèves peuvent voir leurs propres stats
 CREATE POLICY "Students can view their own stats" ON student_training_stats
   FOR SELECT USING (
-    student_id IN (
+    student_id::TEXT IN (
       SELECT student_id FROM user_student_mapping 
       WHERE user_id = auth.uid() AND active = true
     )
