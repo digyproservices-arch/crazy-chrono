@@ -696,11 +696,56 @@ class CrazyArenaManager {
       // AUSSI en broadcast pour debug (au cas où room échoue)
       console.log(`[CrazyArena] 📢 Émission arena:tie-detected en BROADCAST`);
       this.io.emit('arena:tie-detected', { ...tieData, matchId });
-    // Enregistrer les résultats dans la BDD
+      
+      // Notifier le dashboard professeur qu'il doit décider
+      this.io.emit('arena:tie-waiting-teacher', {
+        matchId,
+        tiedPlayers: tiedPlayers.map(p => ({ 
+          studentId: p.studentId,
+          name: p.name, 
+          score: p.score 
+        })),
+        ranking
+      });
+      
+      console.log(`[CrazyArena] 📢 Notification égalité envoyée à TOUS les clients pour match ${matchId}`);
+      
+      return; // Ne pas terminer le match - attendre décision prof
+    }
+
+    // Pas d'égalité ou après départage - Envoyer le podium final
+    const winner = ranking[0];
+
+    console.log(`[CrazyArena] 🎉 Émission podium final à room ${matchId}`);
+    this.io.to(matchId).emit('arena:game-end', {
+      ranking,
+      winner,
+      duration: match.endTime - match.startTime,
+      isTiebreaker: match.isTiebreaker || false
+    });
+    
+    // Notifier dashboard professeur (broadcast)
+    this.io.emit('arena:game-end', { matchId });
+
+    // ==========================================
+    // DÉLÉGUER SAUVEGARDE AU MODE SPÉCIALISÉ
+    // ==========================================
     try {
-      await this.saveResults(matchId, ranking);
+      if (match.mode === 'training') {
+        // Mode Entraînement
+        console.log(`[CrazyArena][Training] Délégation sauvegarde mode Entraînement`);
+        const trainingMode = new TrainingMode(this.io, this.supabase);
+        await trainingMode.onMatchEnd(matchId, match, ranking);
+      } else {
+        // Mode Tournoi (par défaut)
+        console.log(`[CrazyArena][Tournament] Délégation sauvegarde mode Tournoi`);
+        const tournamentMode = new TournamentMode(this.io, this.supabase);
+        await tournamentMode.onMatchEnd(matchId, match, ranking);
+      }
     } catch (error) {
-      console.error('[CrazyArena] Erreur sauvegarde résultats:', error);
+      console.error(`[CrazyArena] Erreur délégation mode spécialisé:`, error);
+      // Fallback: sauvegarder avec méthode classique
+      await this.saveResults(matchId, ranking);
     }
 
     // Nettoyer après 30s
