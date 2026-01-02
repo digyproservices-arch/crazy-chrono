@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import io from 'socket.io-client';
 
 const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
@@ -63,6 +64,34 @@ export default function NotificationBadge() {
     const interval = setInterval(loadInvitations, 30000); // Refresh toutes les 30s
 
     return () => clearInterval(interval);
+  }, [studentId]);
+
+  // ✅ FIX: Écouter Socket.IO pour retirer notification immédiatement après match
+  useEffect(() => {
+    if (!studentId) return;
+
+    const socket = io(getBackendUrl(), {
+      transports: ['websocket', 'polling'],
+      reconnection: true
+    });
+
+    // Écouter fin de match pour retirer l'invitation
+    socket.on('arena:match-finished', ({ matchId }) => {
+      console.log(`[NotificationBadge] Match ${matchId} terminé - Retrait invitation`);
+      setInvitations(prev => prev.filter(inv => inv.matchId !== matchId));
+    });
+
+    // Écouter game-end aussi (au cas où)
+    socket.on('arena:game-end', ({ matchId }) => {
+      if (matchId) {
+        console.log(`[NotificationBadge] Game end ${matchId} - Retrait invitation`);
+        setInvitations(prev => prev.filter(inv => inv.matchId !== matchId));
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [studentId]);
 
   const handleJoinMatch = (roomCode) => {
