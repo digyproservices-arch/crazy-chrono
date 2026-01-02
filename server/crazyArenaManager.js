@@ -900,9 +900,9 @@ class CrazyArenaManager {
         }
       }
     }, 1000);
-}
+  }
 
-/**
+  /**
    * Sauvegarder les résultats en BDD
    */
   async saveResults(matchId, ranking) {
