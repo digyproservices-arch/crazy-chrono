@@ -1246,6 +1246,11 @@ const Carte = () => {
         }
       });
       
+      // ✅ CRITIQUE: Écouter timer tick du backend pour synchroniser timeLeft
+      s.on('arena:timer-tick', ({ timeLeft: serverTimeLeft }) => {
+        setTimeLeft(serverTimeLeft);
+      });
+      
       // Écouter confirmation join room
       s.on('arena:player-joined', ({ players, count }) => {
         console.log('[ARENA] ✅ Player joined confirmé - Joueurs dans la room:', count, players);

@@ -428,7 +428,8 @@ class CrazyArenaManager {
     if (!matchId) return;
 
     const match = this.matches.get(matchId);
-    if (!match || match.status !== 'playing') return;
+    // ✅ FIX: Accepter aussi status tiebreaker (pas seulement 'playing')
+    if (!match || (match.status !== 'playing' && match.status !== 'tiebreaker' && match.status !== 'tiebreaker-countdown')) return;
 
     const player = match.players.find(p => p.socketId === socket.id);
     if (!player) return;
