@@ -3,8 +3,10 @@
 // Gestion des matchs 4 joueurs en temps réel
 // ==========================================
 
-const TrainingMode = require('./modes/TrainingMode');
-const TournamentMode = require('./modes/TournamentMode');
+// NOTE: TrainingMode/TournamentMode sont des classes alternatives complètes
+// qui étendent BattleRoyaleEngine. Elles ne peuvent pas être instanciées
+// depuis crazyArenaManager car elles nécessitent tout le contexte du match.
+// TODO: Créer helpers de sauvegarde séparés si besoin de logique spécialisée
 
 class CrazyArenaManager {
   constructor(io, supabase = null) {
