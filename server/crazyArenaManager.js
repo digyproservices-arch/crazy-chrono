@@ -45,7 +45,39 @@ class CrazyArenaManager {
   }
 
   /**
-   * Créer une salle Battle Royale
+   * Créer un match en mode ENTRAÎNEMENT (sans Supabase)
+   */
+  createTrainingMatch(matchId, studentIds, config, classId, teacherId) {
+    console.log(`[CrazyArena][Training] Création match ${matchId} pour ${studentIds.length} élèves`);
+    
+    this.matches.set(matchId, {
+      matchId,
+      mode: 'training',
+      classId,
+      teacherId,
+      roomCode: matchId,
+      config: {
+        roundsPerMatch: config.rounds || 3,
+        durationPerRound: config.durationPerRound || 60,
+        level: config.level || 'CE1',
+        sessionName: config.sessionName || 'Session Entraînement'
+      },
+      players: new Map(),
+      status: 'waiting',
+      expectedPlayers: studentIds,
+      roundsPlayed: 0,
+      zones: [],
+      startTime: null,
+      timerInterval: null,
+      tiebreakerMode: false
+    });
+
+    console.log(`[CrazyArena][Training] Match ${matchId} créé, en attente de ${studentIds.length} joueurs`);
+    return this.matches.get(matchId);
+  }
+
+  /**
+   * Créer une salle Battle Royale (mode TOURNOI)
    */
   createMatch(matchId, roomCode, config) {
     this.matches.set(matchId, {

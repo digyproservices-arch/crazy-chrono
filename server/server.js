@@ -1315,6 +1315,19 @@ io.on('connection', (socket) => {
 
   // (removed duplicate room:setRounds handler)
 
+  // ===== TRAINING MODE EVENTS (Mode Entraînement) =====
+  
+  socket.on('training:create-match', ({ matchId, studentIds, config, classId, teacherId }) => {
+    console.log(`[Server][Training] Création match ${matchId} avec ${studentIds.length} élèves`);
+    
+    crazyArena.createTrainingMatch(matchId, studentIds, config, classId, teacherId);
+    
+    // Confirmer la création
+    socket.emit('training:match-started', { matchId });
+    
+    console.log(`[Server][Training] Match ${matchId} créé avec succès`);
+  });
+
   // ===== CRAZY ARENA EVENTS (Tournoi groupes de 4) =====
   
   socket.on('arena:join', async ({ matchId, studentData }, cb) => {
