@@ -1526,8 +1526,12 @@ const Carte = () => {
         };
         localStorage.setItem('cc_crazy_arena_game', JSON.stringify(tiebreakerData));
         
+        // ✅ FIX: Nettoyer validated=false pour rendre zones cliquables
+        const cleanZones = Array.isArray(zones) ? zones.map(z => ({ ...z, validated: false })) : [];
+        console.log('[ARENA] 🧹 Zones nettoyées (validated=false):', cleanZones.length);
+        
         // Mettre à jour React directement (pas de reload)
-        setZones(zones);
+        setZones(cleanZones);
         // NE PAS mettre à jour gameDuration (pas de chrono pour tiebreaker)
         setGameActive(true);
         setStartTime(startTime);
@@ -2337,6 +2341,13 @@ useEffect(() => {
 // Timer pour le mode jeu
 useEffect(() => {
   if (!gameActive) return;
+  
+  // ⚠️ DÉSACTIVER timer local en mode Arena (utilise arena:timer-tick backend)
+  if (arenaMatchId) {
+    console.log('[ARENA] Timer local désactivé (backend gère le timer)');
+    return;
+  }
+  
   setTimeLeft(gameDuration);
   const t0 = Date.now();
   const id = setInterval(() => {
@@ -2349,7 +2360,7 @@ useEffect(() => {
     }
   }, 250);
   return () => clearInterval(id);
-}, [gameActive, gameDuration]);
+}, [gameActive, gameDuration, arenaMatchId]);
 
 // Persister la durée choisie
 useEffect(() => {
