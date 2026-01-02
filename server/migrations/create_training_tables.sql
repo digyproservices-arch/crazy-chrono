@@ -2,10 +2,10 @@
 
 -- Table des sessions d'entraînement
 CREATE TABLE IF NOT EXISTS training_sessions (
-  id TEXT PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   match_id TEXT NOT NULL,
-  class_id TEXT NOT NULL,
-  teacher_id TEXT,
+  class_id UUID NOT NULL,
+  teacher_id UUID,
   session_name TEXT NOT NULL,
   config JSONB,
   completed_at TIMESTAMP WITH TIME ZONE,
@@ -19,9 +19,9 @@ CREATE INDEX IF NOT EXISTS idx_training_sessions_completed ON training_sessions(
 
 -- Table des résultats individuels par session
 CREATE TABLE IF NOT EXISTS training_results (
-  id TEXT PRIMARY KEY,
-  session_id TEXT NOT NULL REFERENCES training_sessions(id) ON DELETE CASCADE,
-  student_id TEXT NOT NULL,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL REFERENCES training_sessions(id) ON DELETE CASCADE,
+  student_id UUID NOT NULL,
   position INTEGER NOT NULL,
   score INTEGER NOT NULL,
   time_ms INTEGER NOT NULL,
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS student_training_stats (
 
 -- Fonction pour mettre à jour les stats élève après chaque session
 CREATE OR REPLACE FUNCTION update_student_training_stats(
-  p_student_id TEXT,
+  p_student_id UUID,
   p_sessions_played INTEGER,
   p_total_score INTEGER,
   p_total_pairs INTEGER,
