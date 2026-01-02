@@ -442,19 +442,19 @@ class CrazyArenaManager {
 
     // Mettre à jour le score
     if (isCorrect) {
-      // ✅ CORRECTION: +1 point par validation (selon REGLES_CRITIQUES.md ligne 157)
-      player.score += 1;
-      player.pairsValidated += 1;
-      
-      // Bonus vitesse (< 3s)
-      if (timeMs < 3000) {
-        player.score += 1;
-      }
-      
-      // ✅ TIEBREAKER: Incrémenter compteur et vérifier fin
+      // ✅ TIEBREAKER: Comptabiliser séparément pour addition finale
       if (match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown') {
+        // Incrémenter compteurs tiebreaker séparés
+        player.tiebreakerScore = (player.tiebreakerScore || 0) + 1;
+        player.tiebreakerPairs = (player.tiebreakerPairs || 0) + 1;
+        
+        // Bonus vitesse (< 3s)
+        if (timeMs < 3000) {
+          player.tiebreakerScore += 1;
+        }
+        
         match.tiebreakerPairsFound = (match.tiebreakerPairsFound || 0) + 1;
-        console.log(`[CrazyArena] 🎯 TIEBREAKER: ${match.tiebreakerPairsFound}/${match.tiebreakerPairsToFind} paires trouvées`);
+        console.log(`[CrazyArena] 🎯 TIEBREAKER: ${match.tiebreakerPairsFound}/${match.tiebreakerPairsToFind} paires trouvées (${player.name}: ${player.tiebreakerScore} pts)`);
         
         if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
           console.log(`[CrazyArena] 🏁 TIEBREAKER TERMINÉ: ${match.tiebreakerPairsToFind} paires trouvées!`);
@@ -485,9 +485,23 @@ class CrazyArenaManager {
         }, 1500);
         
         return; // Sortir pour éviter double génération
+      } else {
+        // Mode normal (pas tiebreaker): incrémenter score normal
+        player.score += 1;
+        player.pairsValidated += 1;
+        
+        // Bonus vitesse (< 3s)
+        if (timeMs < 3000) {
+          player.score += 1;
+        }
       }
     } else {
-      player.score = Math.max(0, player.score - 2);
+      // Erreur: retirer points
+      if (match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown') {
+        player.tiebreakerScore = Math.max(0, (player.tiebreakerScore || 0) - 2);
+      } else {
+        player.score = Math.max(0, player.score - 2);
+      }
       player.errors += 1;
     }
 
@@ -582,6 +596,21 @@ class CrazyArenaManager {
     }
 
     console.log(`[CrazyArena] Partie terminée pour match ${matchId}`);
+
+    // ✅ FIX: Si on sort d'un tiebreaker, ADDITIONNER scores match normal + tiebreaker
+    if (match.isTiebreaker) {
+      match.players.forEach(p => {
+        const scoreNormal = p.scoreBeforeTiebreaker || 0;
+        const scoreTiebreaker = p.tiebreakerScore || 0;
+        const pairsNormal = p.pairsBeforeTiebreaker || 0;
+        const pairsTiebreaker = p.tiebreakerPairs || 0;
+        
+        p.score = scoreNormal + scoreTiebreaker;  // ADDITION
+        p.pairsValidated = pairsNormal + pairsTiebreaker;
+        
+        console.log(`[CrazyArena] 🏆 ${p.name}: Score final = ${scoreNormal} (normal) + ${scoreTiebreaker} (tiebreaker) = ${p.score} pts`);
+      });
+    }
 
     // Calculer les temps finaux
     match.players.forEach(p => {
@@ -764,11 +793,15 @@ class CrazyArenaManager {
     const tiedStudentIds = tiedPlayers.map(p => p.studentId);
     console.log(`[CrazyArena] 🔍 studentIds à égalité:`, tiedStudentIds);
     
+    // ✅ FIX: Sauvegarder scores du match normal avant tiebreaker (pour addition finale)
     match.players.forEach(p => {
       if (tiedStudentIds.includes(p.studentId)) {
-        console.log(`[CrazyArena] ✅ Reset score pour joueur ${p.studentId}`);
-        p.score = 0;
-        p.pairsValidated = 0;
+        console.log(`[CrazyArena] 💾 Sauvegarde score match normal pour ${p.studentId}: ${p.score} pts`);
+        p.scoreBeforeTiebreaker = p.score;  // Sauvegarder score existant
+        p.pairsBeforeTiebreaker = p.pairsValidated;
+        // Reset UNIQUEMENT les compteurs tiebreaker (pas le score total)
+        p.tiebreakerScore = 0;
+        p.tiebreakerPairs = 0;
         p.errors = 0;
       }
     });
