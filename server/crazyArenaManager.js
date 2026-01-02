@@ -363,9 +363,13 @@ class CrazyArenaManager {
         });
       }
       
-      console.log(`[CrazyArena] Émission arena:timer-tick: timeLeft=${timeLeft}s, manche=${match.roundsPlayed + 1}/${roundsPerMatch}`);
+      // ✅ FIX: Afficher temps restant dans la MANCHE ACTUELLE (pas global)
+      const elapsedInRound = elapsed % durationPerRound;
+      const timeLeftInRound = Math.max(0, durationPerRound - elapsedInRound);
+      
+      console.log(`[CrazyArena] Émission arena:timer-tick: timeLeft=${timeLeftInRound}s (manche ${match.roundsPlayed + 1}/${roundsPerMatch})`);
       this.io.to(matchId).emit('arena:timer-tick', {
-        timeLeft,
+        timeLeft: timeLeftInRound,  // Temps restant dans la manche actuelle
         elapsed,
         duration: totalDuration,
         currentRound: match.roundsPlayed + 1,
@@ -563,7 +567,8 @@ class CrazyArenaManager {
    */
   async endGame(matchId) {
     const match = this.matches.get(matchId);
-    if (!match || match.status !== 'playing') return;
+    // ✅ FIX: Accepter aussi tiebreaker pour terminer le jeu
+    if (!match || (match.status !== 'playing' && match.status !== 'tiebreaker' && match.status !== 'tiebreaker-countdown')) return;
 
     match.status = 'finished';
     match.endTime = Date.now();

@@ -1539,7 +1539,7 @@ const Carte = () => {
         setZones(cleanZones);
         // NE PAS mettre à jour gameDuration (pas de chrono pour tiebreaker)
         setGameActive(true);
-        setStartTime(startTime);
+        // setStartTime n'existe pas - pas nécessaire pour tiebreaker (pas de timer)
         setIsTiebreaker(true); // Activer mode tiebreaker
         
         console.log('[ARENA] ✅ État React mis à jour avec zones tiebreaker');
