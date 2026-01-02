@@ -3,6 +3,9 @@
 // Gestion des matchs 4 joueurs en temps réel
 // ==========================================
 
+const TrainingMode = require('./modes/TrainingMode');
+const TournamentMode = require('./modes/TournamentMode');
+
 class CrazyArenaManager {
   constructor(io, supabase = null) {
     this.io = io;
