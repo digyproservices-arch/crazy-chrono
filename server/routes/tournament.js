@@ -220,6 +220,35 @@ router.post('/groups', requireSupabase, async (req, res) => {
 });
 
 /**
+ * PATCH /api/tournament/groups/:id
+ * Mettre à jour un groupe (ex: définir le gagnant)
+ */
+router.patch('/groups/:id', requireSupabase, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { winnerId, status } = req.body;
+    
+    const updateData = {};
+    if (winnerId) updateData.winner_id = winnerId;
+    if (status) updateData.status = status;
+    
+    const { data, error } = await supabase
+      .from('tournament_groups')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    res.json({ success: true, group: data });
+  } catch (error) {
+    console.error('[Tournament API] Error updating group:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * DELETE /api/tournament/groups/:id
  * Supprimer un groupe
  */

@@ -103,6 +103,14 @@ app.use('/api/monitoring', monitoringRoutes);
 const tournamentRoutes = require('./routes/tournament');
 app.use('/api/tournament', tournamentRoutes);
 
+// ===== Training Routes (Mode Entraînement) =====
+const trainingRoutes = require('./routes/training');
+app.use('/api/training', trainingRoutes);
+
+// ===== Notifications Routes =====
+const notificationsRoutes = require('./routes/notifications');
+app.use('/api/notifications', notificationsRoutes);
+
 // ===== Auth Routes (Licences professionnelles) =====
 const authRoutes = require('./routes/auth');
 
