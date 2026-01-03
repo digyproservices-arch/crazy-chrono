@@ -25,6 +25,16 @@ const TrainingLobby = () => {
     initializeMatches();
   }, [groups, config]);
 
+  // Cleanup socket au démontage du composant
+  useEffect(() => {
+    return () => {
+      if (socket) {
+        console.log('[TrainingLobby] Nettoyage socket');
+        socket.disconnect();
+      }
+    };
+  }, [socket]);
+
   const loadStudentDetails = async () => {
     try {
       const classId = localStorage.getItem('cc_class_id');
@@ -62,9 +72,30 @@ const TrainingLobby = () => {
   };
 
   const startAllMatches = async () => {
+    // Éviter de créer plusieurs sockets
+    if (socket) {
+      console.log('[TrainingLobby] Socket déjà existant, réutilisation');
+      return;
+    }
+
     const s = io(getBackendUrl(), {
       transports: ['websocket', 'polling'],
       reconnection: true
+    });
+
+    // Écouter events AVANT d'émettre
+    s.on('training:match-started', ({ matchId }) => {
+      console.log(`[TrainingLobby] Match ${matchId} démarré`);
+      setMatches(prev => prev.map(m => 
+        m.id === matchId ? { ...m, status: 'playing' } : m
+      ));
+    });
+
+    s.on('training:match-finished', ({ matchId, results }) => {
+      console.log(`[TrainingLobby] Match ${matchId} terminé`, results);
+      setMatches(prev => prev.map(m => 
+        m.id === matchId ? { ...m, status: 'finished', results } : m
+      ));
     });
 
     setSocket(s);
@@ -84,20 +115,6 @@ const TrainingLobby = () => {
         m.id === match.id ? { ...m, status: 'starting' } : m
       ));
     }
-
-    s.on('training:match-started', ({ matchId }) => {
-      console.log(`[TrainingLobby] Match ${matchId} démarré`);
-      setMatches(prev => prev.map(m => 
-        m.id === matchId ? { ...m, status: 'playing' } : m
-      ));
-    });
-
-    s.on('training:match-finished', ({ matchId, results }) => {
-      console.log(`[TrainingLobby] Match ${matchId} terminé`, results);
-      setMatches(prev => prev.map(m => 
-        m.id === matchId ? { ...m, status: 'finished', results } : m
-      ));
-    });
 
     setTimeout(() => {
       setShowLaunchMessage(true);
