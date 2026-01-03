@@ -25,15 +25,16 @@ const TrainingLobby = () => {
     initializeMatches();
   }, [groups, config]);
 
-  // Cleanup socket au démontage du composant
+  // Cleanup socket au démontage du composant (unmount seulement)
   useEffect(() => {
     return () => {
       if (socket) {
-        console.log('[TrainingLobby] Nettoyage socket');
+        console.log('[TrainingLobby] Nettoyage socket au unmount');
         socket.disconnect();
       }
     };
-  }, [socket]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Pas de dépendance = cleanup seulement au unmount
 
   const loadStudentDetails = async () => {
     try {
