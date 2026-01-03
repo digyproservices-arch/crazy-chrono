@@ -217,4 +217,67 @@ router.post('/link-student', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/auth/teacher-class
+ * Récupère la classe d'un professeur connecté
+ */
+router.get('/teacher-class', async (req, res) => {
+  try {
+    const supabase = req.app.locals.supabaseAdmin;
+    if (!supabase) {
+      return res.status(500).json({ ok: false, error: 'supabase_not_configured' });
+    }
+
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ ok: false, error: 'missing_token' });
+    }
+
+    const token = authHeader.slice(7).trim();
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) {
+      return res.status(401).json({ ok: false, error: 'invalid_token' });
+    }
+
+    // Chercher classe avec teacher_email
+    const { data: classes, error: classError } = await supabase
+      .from('classes')
+      .select(`
+        id,
+        name,
+        level,
+        school_id,
+        teacher_name,
+        teacher_email,
+        student_count,
+        schools (
+          id,
+          name,
+          city
+        )
+      `)
+      .eq('teacher_email', user.email)
+      .limit(1);
+
+    if (classError) {
+      console.error('[Auth] Error fetching teacher class:', classError);
+      return res.status(500).json({ ok: false, error: 'fetch_failed' });
+    }
+
+    if (!classes || classes.length === 0) {
+      return res.json({ ok: true, class: null, message: 'no_class_found' });
+    }
+
+    return res.json({
+      ok: true,
+      class: classes[0]
+    });
+
+  } catch (error) {
+    console.error('[Auth] Error in /teacher-class:', error);
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
 module.exports = router;

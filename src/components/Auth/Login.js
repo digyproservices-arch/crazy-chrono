@@ -172,6 +172,27 @@ export default function Login({ onLogin }) {
         });
         
         saveAuth(profile);
+        
+        // Si c'est un professeur, récupérer sa classe
+        try {
+          const classRes = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com'}/api/auth/teacher-class`, {
+            headers: {
+              'Authorization': `Bearer ${profile.token}`
+            }
+          });
+          
+          if (classRes.ok) {
+            const classData = await classRes.json();
+            if (classData.ok && classData.class) {
+              localStorage.setItem('cc_class_id', classData.class.id);
+              console.log('[Login] Classe professeur récupérée:', classData.class.name);
+            }
+          }
+        } catch (classErr) {
+          console.warn('[Login] Impossible de récupérer la classe:', classErr);
+          // Ne pas bloquer le login si la récupération échoue
+        }
+        
         onLogin && onLogin(profile);
         navigate('/modes', { replace: true });
       }
