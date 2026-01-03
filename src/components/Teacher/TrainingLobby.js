@@ -13,6 +13,7 @@ const TrainingLobby = () => {
   const [matches, setMatches] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showLaunchMessage, setShowLaunchMessage] = useState(false);
 
   useEffect(() => {
     if (!groups || !config) {
@@ -99,7 +100,7 @@ const TrainingLobby = () => {
     });
 
     setTimeout(() => {
-      alert('Tous les matchs ont été lancés ! Les élèves peuvent rejoindre via leurs invitations.');
+      setShowLaunchMessage(true);
     }, 1000);
   };
 
@@ -202,6 +203,25 @@ const TrainingLobby = () => {
           </div>
         ))}
       </div>
+
+      {showLaunchMessage && (
+        <div className="launch-message">
+          <div className="message-content">
+            <span className="icon">🚀</span>
+            <div>
+              <strong>Matchs lancés avec succès !</strong>
+              <p>Les élèves peuvent maintenant rejoindre via leurs notifications.</p>
+            </div>
+            <button 
+              className="close-message" 
+              onClick={() => setShowLaunchMessage(false)}
+              aria-label="Fermer"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="lobby-actions">
         {matches.some(m => m.status === 'waiting') && (

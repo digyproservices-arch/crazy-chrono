@@ -126,8 +126,10 @@ export default function NotificationBadge() {
 
   const handleJoinTraining = (matchId) => {
     setShowModal(false);
-    // TODO: Implémenter page lobby training pour élèves
-    alert(`Match training ${matchId} - Page élève à implémenter`);
+    // Retirer l'invitation de la liste
+    setTrainingInvitations(prev => prev.filter(inv => inv.matchId !== matchId));
+    // Rediriger vers la page de jeu training
+    navigate(`/training/play/${matchId}`);
   };
 
   const totalInvitations = invitations.length + trainingInvitations.length;
