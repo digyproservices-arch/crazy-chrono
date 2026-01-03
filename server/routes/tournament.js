@@ -111,7 +111,8 @@ router.get('/classes/:classId/students', requireSupabase, async (req, res) => {
         full_name,
         avatar_url,
         class_id,
-        school_id
+        school_id,
+        licensed
       `)
       .eq('class_id', classId)
       .order('last_name', { ascending: true });
