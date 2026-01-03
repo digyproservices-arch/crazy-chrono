@@ -14,6 +14,7 @@ const getBackendUrl = () => {
 export default function NotificationBadge() {
   const navigate = useNavigate();
   const [invitations, setInvitations] = useState([]);
+  const [trainingInvitations, setTrainingInvitations] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [studentId, setStudentId] = useState(null);
 
@@ -75,7 +76,7 @@ export default function NotificationBadge() {
       reconnection: true
     });
 
-    // Écouter fin de match pour retirer l'invitation
+    // Écouter fin de match Arena pour retirer l'invitation
     socket.on('arena:match-finished', ({ matchId }) => {
       console.log(`[NotificationBadge] Match ${matchId} terminé - Retrait invitation`);
       setInvitations(prev => prev.filter(inv => inv.matchId !== matchId));
@@ -89,6 +90,30 @@ export default function NotificationBadge() {
       }
     });
 
+    // ✅ NOUVEAU: Écouter invitations Training Mode
+    socket.on(`training:invite:${studentId}`, (data) => {
+      console.log(`[NotificationBadge] Invitation training reçue:`, data);
+      const newInvite = {
+        type: 'training',
+        matchId: data.matchId,
+        sessionName: data.sessionName,
+        groupSize: data.groupSize,
+        config: data.config,
+        timestamp: Date.now()
+      };
+      setTrainingInvitations(prev => {
+        // Éviter doublons
+        if (prev.some(inv => inv.matchId === data.matchId)) return prev;
+        return [...prev, newInvite];
+      });
+    });
+
+    // Écouter fin de match training
+    socket.on('training:match-finished', ({ matchId }) => {
+      console.log(`[NotificationBadge] Training match ${matchId} terminé - Retrait invitation`);
+      setTrainingInvitations(prev => prev.filter(inv => inv.matchId !== matchId));
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -99,7 +124,15 @@ export default function NotificationBadge() {
     navigate(`/crazy-arena/lobby/${roomCode}`);
   };
 
-  if (!studentId || invitations.length === 0) {
+  const handleJoinTraining = (matchId) => {
+    setShowModal(false);
+    // TODO: Implémenter page lobby training pour élèves
+    alert(`Match training ${matchId} - Page élève à implémenter`);
+  };
+
+  const totalInvitations = invitations.length + trainingInvitations.length;
+
+  if (!studentId || totalInvitations === 0) {
     return null; // Pas de badge si aucune invitation
   }
 
@@ -131,10 +164,10 @@ export default function NotificationBadge() {
         }}
         onMouseEnter={(e) => e.target.style.transform = 'scale(1.1)'}
         onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-        title={`${invitations.length} invitation(s) en attente`}
+        title={`${totalInvitations} invitation(s) en attente`}
       >
         🔔
-        {invitations.length > 0 && (
+        {totalInvitations > 0 && (
           <span style={{
             position: 'absolute',
             top: -5,
@@ -151,7 +184,7 @@ export default function NotificationBadge() {
             justifyContent: 'center',
             border: '2px solid #fff'
           }}>
-            {invitations.length}
+            {totalInvitations}
           </span>
         )}
       </button>
@@ -187,7 +220,7 @@ export default function NotificationBadge() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ margin: 0, fontSize: 24, fontWeight: 900 }}>
-                🔔 Invitations Match Arena
+                🔔 Invitations ({totalInvitations})
               </h2>
               <button
                 onClick={() => setShowModal(false)}
@@ -209,12 +242,66 @@ export default function NotificationBadge() {
               </button>
             </div>
 
-            {invitations.length === 0 ? (
+            {totalInvitations === 0 ? (
               <p style={{ color: '#6b7280', textAlign: 'center' }}>
                 Aucune invitation en attente
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* Invitations Training */}
+                {trainingInvitations.map(inv => (
+                  <div
+                    key={inv.matchId}
+                    style={{
+                      padding: 16,
+                      border: '2px solid #3b82f6',
+                      borderRadius: 12,
+                      background: '#eff6ff',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 12
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4, color: '#1e40af' }}>
+                        📚 {inv.sessionName}
+                      </div>
+                      <div style={{ fontSize: 14, color: '#6b7280' }}>
+                        Groupe de <strong>{inv.groupSize}</strong> élèves
+                      </div>
+                      <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>
+                        {inv.config.rounds} manches • {inv.config.duration}s • {inv.config.level}
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={() => handleJoinTraining(inv.matchId)}
+                      style={{
+                        padding: '12px 20px',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: '#3b82f6',
+                        color: '#fff',
+                        fontSize: 16,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.background = '#2563eb';
+                        e.target.style.transform = 'scale(1.02)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.background = '#3b82f6';
+                        e.target.style.transform = 'scale(1)';
+                      }}
+                    >
+                      🎓 Rejoindre l'entraînement
+                    </button>
+                  </div>
+                ))}
+
+                {/* Invitations Arena */}
                 {invitations.map(inv => (
                   <div
                     key={inv.matchId}
@@ -229,8 +316,8 @@ export default function NotificationBadge() {
                     }}
                   >
                     <div>
-                      <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>
-                        {inv.groupName}
+                      <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4, color: '#065f46' }}>
+                        🏆 {inv.groupName}
                       </div>
                       <div style={{ fontSize: 14, color: '#6b7280' }}>
                         Code: <strong>{inv.roomCode}</strong>

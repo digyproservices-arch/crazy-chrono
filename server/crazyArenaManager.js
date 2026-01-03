@@ -77,6 +77,21 @@ class CrazyArenaManager {
       tiebreakerMode: false
     });
 
+    // Notifier chaque élève via Socket.IO
+    studentIds.forEach(studentId => {
+      this.io.emit(`training:invite:${studentId}`, {
+        matchId,
+        sessionName: config.sessionName || 'Session Entraînement',
+        groupSize: studentIds.length,
+        config: {
+          rounds: config.rounds || 3,
+          duration: config.durationPerRound || 60,
+          level: config.level || 'CE1'
+        }
+      });
+      console.log(`[CrazyArena][Training] Notification envoyée à l'élève ${studentId}`);
+    });
+
     console.log(`[CrazyArena][Training] Match ${matchId} créé, en attente de ${studentIds.length} joueurs`);
     return this.matches.get(matchId);
   }
