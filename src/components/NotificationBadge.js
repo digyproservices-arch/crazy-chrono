@@ -128,8 +128,8 @@ export default function NotificationBadge() {
     setShowModal(false);
     // Retirer l'invitation de la liste
     setTrainingInvitations(prev => prev.filter(inv => inv.matchId !== matchId));
-    // Rediriger vers la page de jeu training
-    navigate(`/training/play/${matchId}`);
+    // Rediriger vers le lobby training (comme Arena)
+    navigate(`/training/lobby/${matchId}`);
   };
 
   const totalInvitations = invitations.length + trainingInvitations.length;

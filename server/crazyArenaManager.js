@@ -97,6 +97,168 @@ class CrazyArenaManager {
   }
 
   /**
+   * Un joueur rejoint un match training (clone de joinMatch pour Training)
+   */
+  async joinTrainingMatch(socket, matchId, studentData) {
+    const match = this.matches.get(matchId);
+    
+    if (!match) {
+      console.error(`[CrazyArena][Training] Match ${matchId} introuvable`);
+      socket.emit('training:error', { message: 'Match introuvable' });
+      return false;
+    }
+
+    // Vérifier si déjà connecté
+    if (match.players.has(studentData.studentId)) {
+      console.log(`[CrazyArena][Training] ${studentData.name} déjà connecté au match ${matchId}`);
+      const existingPlayer = match.players.get(studentData.studentId);
+      existingPlayer.socketId = socket.id; // Mettre à jour socketId
+      this.playerMatches.set(socket.id, matchId);
+      socket.join(matchId);
+      return true;
+    }
+
+    const player = {
+      socketId: socket.id,
+      studentId: studentData.studentId,
+      name: studentData.name,
+      avatar: studentData.avatar || '/avatars/default.png',
+      ready: false,
+      score: 0
+    };
+
+    match.players.set(studentData.studentId, player);
+    this.playerMatches.set(socket.id, matchId);
+    socket.join(matchId);
+
+    console.log(`[CrazyArena][Training] ${studentData.name} a rejoint le match ${matchId} (${match.players.size}/${match.expectedPlayers.length})`);
+
+    // Notifier tous les joueurs
+    const playersArray = Array.from(match.players.values()).map(p => ({
+      studentId: p.studentId,
+      name: p.name,
+      avatar: p.avatar,
+      ready: p.ready
+    }));
+    
+    this.io.to(matchId).emit('training:player-joined', {
+      players: playersArray
+    });
+    
+    // Notifier le dashboard professeur
+    this.io.to(matchId).emit('training:players-update', {
+      matchId,
+      players: playersArray
+    });
+
+    return true;
+  }
+
+  /**
+   * Un joueur training marque comme prêt
+   */
+  trainingPlayerReady(socket, matchId, studentId) {
+    const match = this.matches.get(matchId);
+    if (!match) return;
+
+    const player = match.players.get(studentId);
+    if (player) {
+      player.ready = true;
+      
+      const playersArray = Array.from(match.players.values()).map(p => ({ 
+        studentId: p.studentId, 
+        name: p.name, 
+        avatar: p.avatar,
+        ready: p.ready
+      }));
+      
+      this.io.to(matchId).emit('training:player-ready', {
+        players: playersArray
+      });
+      
+      // Notifier le dashboard professeur
+      this.io.to(matchId).emit('training:players-update', {
+        matchId,
+        players: playersArray
+      });
+    }
+  }
+
+  /**
+   * Démarrage forcé training par le professeur
+   */
+  trainingForceStart(matchId) {
+    const match = this.matches.get(matchId);
+    
+    if (!match) {
+      console.error(`[CrazyArena][Training] forceStart: Match ${matchId} introuvable`);
+      return false;
+    }
+
+    if (match.status !== 'waiting') {
+      console.warn(`[CrazyArena][Training] forceStart: Match ${matchId} déjà en statut ${match.status}`);
+      return false;
+    }
+
+    if (match.players.size === 0) {
+      console.warn(`[CrazyArena][Training] forceStart: Aucun joueur connecté`);
+      return false;
+    }
+
+    console.log(`[CrazyArena][Training] 🚀 Démarrage forcé du match ${matchId} avec ${match.players.size} joueur(s)`);
+    match.status = 'countdown';
+    
+    // Countdown 3, 2, 1, GO!
+    let countdown = 3;
+    const countdownInterval = setInterval(() => {
+      this.io.to(matchId).emit('training:countdown', { count: countdown });
+      console.log(`[CrazyArena][Training] Countdown: ${countdown}`);
+      
+      countdown--;
+      
+      if (countdown < 0) {
+        clearInterval(countdownInterval);
+        this.startTrainingGame(matchId);
+      }
+    }, 1000);
+
+    return true;
+  }
+
+  /**
+   * Démarrer le jeu training (après countdown)
+   */
+  startTrainingGame(matchId) {
+    const match = this.matches.get(matchId);
+    if (!match) return;
+
+    match.status = 'playing';
+    match.startTime = Date.now();
+
+    // Générer les zones de jeu
+    const rounds = match.config.rounds || 3;
+    const duration = match.config.durationPerRound || 60;
+    const zones = this.generateZonesForMatch(rounds, match.config.level || 'CE1');
+    
+    match.zones = zones;
+
+    console.log(`[CrazyArena][Training] 🎮 Match ${matchId} démarré avec ${rounds} manches de ${duration}s`);
+
+    // Envoyer les zones à tous les joueurs
+    const playersArray = Array.from(match.players.values());
+    this.io.to(matchId).emit('training:game-start', {
+      zones,
+      duration,
+      startTime: match.startTime,
+      config: match.config,
+      players: playersArray
+    });
+
+    // Notifier le dashboard
+    this.io.to(matchId).emit('training:game-start', { matchId });
+  }
+
+  /**
    * Créer une salle Battle Royale (mode TOURNOI)
    */
   createMatch(matchId, roomCode, config) {

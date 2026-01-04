@@ -1328,6 +1328,29 @@ io.on('connection', (socket) => {
     console.log(`[Server][Training] Match ${matchId} créé avec succès`);
   });
 
+  socket.on('training:join', async ({ matchId, studentData }, cb) => {
+    console.log(`[Server][Training] ${studentData.name} rejoint match ${matchId}`);
+    const success = await crazyArena.joinTrainingMatch(socket, matchId, studentData);
+    if (typeof cb === 'function') {
+      cb({ ok: success, matchInfo: { sessionName: 'Training' } });
+    }
+  });
+
+  socket.on('training:ready', ({ matchId, studentId }) => {
+    console.log(`[Server][Training] ${studentId} prêt dans match ${matchId}`);
+    crazyArena.trainingPlayerReady(socket, matchId, studentId);
+  });
+
+  socket.on('training:force-start', ({ matchId }) => {
+    console.log(`[Server][Training] Démarrage forcé match ${matchId}`);
+    crazyArena.trainingForceStart(matchId);
+  });
+
+  socket.on('training:subscribe-manager', ({ matchId }) => {
+    console.log(`[Server][Training] Manager souscrit au match ${matchId}`);
+    socket.join(matchId);
+  });
+
   // ===== CRAZY ARENA EVENTS (Tournoi groupes de 4) =====
   
   socket.on('arena:join', async ({ matchId, studentData }, cb) => {

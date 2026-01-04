@@ -75,9 +75,7 @@ const TrainingSessionCreate = () => {
     console.log('[TrainingCreate] Groupes créés:', groups);
     console.log('[TrainingCreate] Config:', config);
 
-    navigate('/teacher/training/lobby', {
-      state: { groups, config }
-    });
+    navigate('/teacher/training/manager', { state: { groups, config } });
   };
 
   const licensedStudents = students.filter(s => s.licensed);
