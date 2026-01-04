@@ -228,34 +228,43 @@ class CrazyArenaManager {
   /**
    * Démarrer le jeu training (après countdown)
    */
-  startTrainingGame(matchId) {
+  async startTrainingGame(matchId) {
     const match = this.matches.get(matchId);
     if (!match) return;
 
     match.status = 'playing';
     match.startTime = Date.now();
 
-    // Générer les zones de jeu
-    const rounds = match.config.rounds || 3;
-    const duration = match.config.durationPerRound || 60;
-    const zones = this.generateZonesForMatch(rounds, match.config.level || 'CE1');
-    
-    match.zones = zones;
+    try {
+      // Générer les zones de jeu (réutiliser generateZones comme pour Arena)
+      const rounds = match.config.roundsPerMatch || match.config.rounds || 3;
+      const duration = match.config.durationPerRound || 60;
+      
+      console.log(`[CrazyArena][Training] Génération zones avec config:`, match.config);
+      const zones = await this.generateZones(match.config);
+      
+      match.zones = zones;
 
-    console.log(`[CrazyArena][Training] 🎮 Match ${matchId} démarré avec ${rounds} manches de ${duration}s`);
+      console.log(`[CrazyArena][Training] 🎮 Match ${matchId} démarré avec ${zones.length} zones`);
 
-    // Envoyer les zones à tous les joueurs
-    const playersArray = Array.from(match.players.values());
-    this.io.to(matchId).emit('training:game-start', {
-      zones,
-      duration,
-      startTime: match.startTime,
-      config: match.config,
-      players: playersArray
-    });
+      // Envoyer les zones à tous les joueurs
+      const playersArray = Array.from(match.players.values());
+      this.io.to(matchId).emit('training:game-start', {
+        zones,
+        duration,
+        startTime: match.startTime,
+        config: match.config,
+        players: playersArray
+      });
 
-    // Notifier le dashboard
-    this.io.to(matchId).emit('training:game-start', { matchId });
+      // Notifier le dashboard
+      this.io.to(matchId).emit('training:game-start', { matchId });
+    } catch (err) {
+      console.error(`[CrazyArena][Training] Erreur génération zones:`, err);
+      this.io.to(matchId).emit('training:error', { 
+        message: 'Erreur lors de la génération du jeu' 
+      });
+    }
   }
 
   /**
