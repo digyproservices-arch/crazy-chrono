@@ -412,10 +412,6 @@ function App() {
               {/* Teacher - Mode Selector (Entraînement vs Tournoi) */}
               <Route path="/teacher" element={<RequireAuth auth={auth}><TeacherModeSelector /></RequireAuth>} />
               <Route path="/teacher/training/create" element={<RequireAuth auth={auth}><TrainingSessionCreate /></RequireAuth>} />
-              <Route path="/teacher/training/lobby" element={<RequireAuth auth={auth}><TrainingLobby /></RequireAuth>} />
-              <Route path="/teacher/tournament" element={<RequireAuth auth={auth}><CrazyArenaSetup /></RequireAuth>} />
-              {/* Training Mode - Élève joue */}
-              <Route path="/training/play/:matchId" element={<RequireAuth auth={auth}><div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div></RequireAuth>} />
               {/* Crazy Arena (Tournoi 4 joueurs) */}
               <Route path="/tournament/setup" element={<RequireAuth auth={auth}><CrazyArenaSetup /></RequireAuth>} />
               <Route path="/crazy-arena/manager" element={<RequireAuth auth={auth}><ArenaManagerDashboard /></RequireAuth>} />
