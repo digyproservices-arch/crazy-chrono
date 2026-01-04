@@ -241,7 +241,10 @@ class CrazyArenaManager {
       const duration = match.config.durationPerRound || 60;
       
       console.log(`[CrazyArena][Training] Génération zones avec config:`, match.config);
-      const zones = await this.generateZones(match.config);
+      const zonesResult = await this.generateZones(match.config);
+      
+      // ✅ FIX: generateZones retourne {zones: [...]} pas [...]
+      const zones = Array.isArray(zonesResult) ? zonesResult : (zonesResult?.zones || []);
       
       match.zones = zones;
 
