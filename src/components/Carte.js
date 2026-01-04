@@ -586,6 +586,7 @@ const Carte = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const arenaMatchId = searchParams.get('arena');
+  const trainingMatchId = searchParams.get('training');
   
   // Mode plein écran de jeu
   const [fullScreen, setFullScreen] = useState(false);
@@ -1165,6 +1166,60 @@ const Carte = () => {
     window.addEventListener('resize', applyMobile);
     // Cleanup resize listener will be returned later with socket cleanup
     const cleanupResize = () => window.removeEventListener('resize', applyMobile);
+    
+    // MODE TRAINING: Connexion Socket.IO TRAINING (auto-start comme Arena)
+    if (trainingMatchId) {
+      console.log('[TRAINING] Connexion Socket.IO Training pour match:', trainingMatchId);
+      if (socketRef.current && socketRef.current.connected) return cleanupResize;
+      
+      const base = getBackendUrl();
+      console.log('[TRAINING] Tentative connexion Socket.IO vers:', base);
+      const s = io(base, { transports: ['websocket'], withCredentials: false });
+      socketRef.current = s;
+      
+      s.on('connect', () => {
+        console.log('[TRAINING] ✅ Socket connecté, ID:', s.id);
+        setSocketConnected(true);
+        
+        // Récupérer données Training depuis localStorage
+        try {
+          const trainingData = JSON.parse(localStorage.getItem('cc_training_game') || '{}');
+          console.log('[TRAINING] Données jeu:', trainingData);
+          
+          // Charger zones et démarrer immédiatement
+          if (trainingData.zones && Array.isArray(trainingData.zones)) {
+            console.log('[TRAINING] 🎮 Chargement zones:', trainingData.zones.length);
+            setZones(trainingData.zones);
+            setTimeLeft(trainingData.duration || 60);
+            
+            // Démarrer le jeu automatiquement (comme Arena)
+            setTimeout(() => {
+              setGameActive(true);
+              console.log('[TRAINING] ✅ Jeu démarré automatiquement');
+            }, 500);
+          } else {
+            console.error('[TRAINING] ❌ Pas de zones dans trainingData');
+          }
+        } catch (e) {
+          console.error('[TRAINING] ❌ Erreur chargement données:', e);
+        }
+      });
+      
+      s.on('disconnect', () => {
+        console.log('[TRAINING] ❌ Socket déconnecté');
+        setSocketConnected(false);
+      });
+      
+      s.on('training:error', ({ message }) => {
+        console.error('[TRAINING] ❌ Erreur backend:', message);
+      });
+      
+      return () => {
+        console.log('[TRAINING] Cleanup socket');
+        cleanupResize();
+        if (s) s.disconnect();
+      };
+    }
     
     // MODE ARENA: Connexion Socket.IO ARENA (pas mode multijoueur classique)
     if (arenaMatchId) {
