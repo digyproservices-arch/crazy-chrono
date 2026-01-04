@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { getBackendUrl } from '../../utils/subscription';
@@ -14,6 +14,7 @@ const TrainingLobby = () => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showLaunchMessage, setShowLaunchMessage] = useState(false);
+  const launchTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!groups || !config) {
@@ -25,12 +26,16 @@ const TrainingLobby = () => {
     initializeMatches();
   }, [groups, config]);
 
-  // Cleanup socket au démontage du composant (unmount seulement)
+  // Cleanup socket + timeout au démontage du composant
   useEffect(() => {
     return () => {
       if (socket) {
         console.log('[TrainingLobby] Nettoyage socket au unmount');
         socket.disconnect();
+      }
+      if (launchTimeoutRef.current) {
+        console.log('[TrainingLobby] Nettoyage timeout');
+        clearTimeout(launchTimeoutRef.current);
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,9 +106,9 @@ const TrainingLobby = () => {
 
     setSocket(s);
 
-    for (const match of matches) {
+    // Émettre création matchs ET mettre à jour state en 1 seule fois
+    matches.forEach(match => {
       console.log(`[TrainingLobby] Démarrage match groupe ${match.groupIndex}...`);
-      
       s.emit('training:create-match', {
         matchId: match.id,
         studentIds: match.studentIds,
@@ -111,14 +116,15 @@ const TrainingLobby = () => {
         classId: localStorage.getItem('cc_class_id'),
         teacherId: localStorage.getItem('cc_user_id')
       });
+    });
 
-      setMatches(prev => prev.map(m => 
-        m.id === match.id ? { ...m, status: 'starting' } : m
-      ));
-    }
+    // 1 seul setState pour tous les matchs
+    setMatches(prev => prev.map(m => ({ ...m, status: 'starting' })));
 
-    setTimeout(() => {
+    // Timeout avec cleanup
+    launchTimeoutRef.current = setTimeout(() => {
       setShowLaunchMessage(true);
+      launchTimeoutRef.current = null;
     }, 1000);
   };
 
