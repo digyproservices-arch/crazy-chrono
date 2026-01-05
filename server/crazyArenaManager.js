@@ -407,8 +407,9 @@ class CrazyArenaManager {
       player.pairsValidated = (player.pairsValidated || 0) + 1;
     }
 
-    // Synchroniser la paire validée à tous les joueurs
+    // ✅ SYNCHRONISER la paire validée à TOUS les joueurs
     if (isCorrect && pairId) {
+      console.log(`[CrazyArena][Training] Émission training:pair-validated à room ${matchId}: player=${player.name}, pairId=${pairId}`);
       this.io.to(matchId).emit('training:pair-validated', {
         studentId,
         playerName: player.name,
@@ -417,37 +418,49 @@ class CrazyArenaManager {
         zoneBId,
         timestamp: Date.now()
       });
-
-      // Tracker paires validées pour FIFO
+      console.log(`[CrazyArena][Training] training:pair-validated émis avec succès`);
+      
+      // ✅ FIFO: Tracker les 15 dernières paires validées (éviter répétition)
       if (!match.validatedPairIds) match.validatedPairIds = new Set();
+      
+      const MAX_EXCLUDED_PAIRS = 15;
+      if (match.validatedPairIds.size >= MAX_EXCLUDED_PAIRS) {
+        const pairIdsArray = Array.from(match.validatedPairIds);
+        const oldestPairId = pairIdsArray[0];
+        match.validatedPairIds.delete(oldestPairId);
+        console.log(`[CrazyArena][Training] FIFO: Supprimé paire la plus ancienne: ${oldestPairId}`);
+      }
+      
       match.validatedPairIds.add(pairId);
-      match.roundsPlayed = (match.roundsPlayed || 0) + 1;
-
-      console.log(`[CrazyArena][Training] Manche ${match.roundsPlayed} terminée, génération nouvelle carte...`);
-
-      // Générer nouvelle carte immédiatement (comme Arena)
+      console.log(`[CrazyArena][Training] 📊 Paire validée ajoutée au FIFO: ${pairId} (total: ${match.validatedPairIds.size}/${MAX_EXCLUDED_PAIRS})`);
+      
+      // ✅ NOUVELLE CARTE IMMÉDIATEMENT
+      console.log(`[CrazyArena][Training] 🎉 Paire trouvée! Génération nouvelle carte...`);
+      
+      // Générer nouvelle carte avec exclusion FIFO
       setTimeout(async () => {
         try {
           const newZones = await this.generateZones(match.config);
           match.zones = newZones;
-
-          console.log(`[CrazyArena][Training] Nouvelle carte générée: ${newZones.length} zones`);
-
+          
+          console.log(`[CrazyArena][Training] 🎯 Nouvelle carte générée: ${newZones.length} zones, 1 paire`);
+          
+          // Émettre nouvelle carte à tous les joueurs
           this.io.to(matchId).emit('training:round-new', {
             zones: newZones,
             roundIndex: match.roundsPlayed,
-            totalRounds: match.config.rounds || 3,
+            totalRounds: match.config.rounds || null,
             timestamp: Date.now()
           });
-
+          
           console.log(`[CrazyArena][Training] ✅ training:round-new émis`);
         } catch (err) {
           console.error('[CrazyArena][Training] Erreur génération nouvelle carte:', err);
         }
-      }, 1500);
+      }, 1500); // Délai 1.5s pour laisser temps aux joueurs de voir la dernière paire
     }
 
-    // Diffuser les scores
+    // Diffuser les scores à tous les joueurs
     const playersArray = Array.from(match.players.values());
     this.io.to(matchId).emit('training:scores-update', {
       scores: playersArray.map(p => ({
@@ -455,7 +468,7 @@ class CrazyArenaManager {
         name: p.name,
         score: p.score || 0,
         pairsValidated: p.pairsValidated || 0
-      })).sort((a, b) => b.score - a.score)
+      })).sort((a, b) => b.score - a.score) // Trier par score DESC
     });
   }
 
