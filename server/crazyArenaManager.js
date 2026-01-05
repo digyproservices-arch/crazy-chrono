@@ -250,7 +250,7 @@ class CrazyArenaManager {
 
       console.log(`[CrazyArena][Training] 🎮 Match ${matchId} démarré avec ${zones.length} zones`);
 
-      // Envoyer les zones à tous les joueurs
+      // Envoyer les zones à tous les joueurs (UNE SEULE FOIS comme Arena)
       const playersArray = Array.from(match.players.values());
       this.io.to(matchId).emit('training:game-start', {
         zones,
@@ -259,9 +259,6 @@ class CrazyArenaManager {
         config: match.config,
         players: playersArray
       });
-
-      // Notifier le dashboard
-      this.io.to(matchId).emit('training:game-start', { matchId });
     } catch (err) {
       console.error(`[CrazyArena][Training] Erreur génération zones:`, err);
       this.io.to(matchId).emit('training:error', { 
