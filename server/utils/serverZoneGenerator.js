@@ -472,14 +472,40 @@ function generateRoundZones(seed, config = {}) {
         // Interdire les textes de la paire correcte ET les textes des distracteurs déjà placés
         const allForbiddenTextIds = new Set([...forbiddenTextIds, ...placedDistractorTextIds]);
         const imgId = pickImageDistractor(allForbiddenTextIds, usedImageContents);
+        let url = '';
         if (imgId) {
-          const url = imagesById[imgId]?.url || '';
-          z.content = encodedImageUrl(url); 
-          z.pairId = '';
+          url = imagesById[imgId]?.url || '';
           used.image.add(imgId);
           placedDistractorImageIds.add(imgId);
           usedImageContents.add(url);
+        } else {
+          // FALLBACK: Prendre n'importe quelle image disponible non utilisée
+          const availableImages = images.filter(img => 
+            !usedImageContents.has(img.url) && 
+            !used.image.has(img.id)
+          );
+          if (availableImages.length > 0) {
+            const fallbackImg = choose(availableImages, rng);
+            url = fallbackImg.url;
+            used.image.add(fallbackImg.id);
+            usedImageContents.add(url);
+            logFn('info', '[ZoneGen] FALLBACK: Using any available image', {
+              zoneId: z.id,
+              imageId: fallbackImg.id,
+              reason: 'No valid distractors found'
+            });
+          } else {
+            // Dernière option: prendre la première image disponible même si déjà utilisée
+            if (images.length > 0) {
+              url = images[0].url;
+              logFn('warn', '[ZoneGen] FALLBACK: Reusing first image (no unused images)', {
+                zoneId: z.id
+              });
+            }
+          }
         }
+        z.content = encodedImageUrl(url); 
+        z.pairId = '';
       } else if (type === 'texte' && !hasValidContent) {
         // Interdire les images de la paire correcte ET les images des distracteurs déjà placés
         const allForbiddenImageIds = new Set([...forbiddenImageIds, ...placedDistractorImageIds]);
