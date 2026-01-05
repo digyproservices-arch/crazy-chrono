@@ -255,6 +255,7 @@ class CrazyArenaManager {
 
   /**
    * Démarrer le jeu training (après countdown)
+   * COPIE EXACTE DE startGame() - seuls les noms d'events changent
    */
   async startTrainingGame(matchId) {
     const match = this.matches.get(matchId);
@@ -283,7 +284,7 @@ class CrazyArenaManager {
       zones,
       duration: match.config.duration || 60,
       startTime: match.startTime,
-      config: match.config,
+      config: match.config,  // ✅ Transmettre config (themes, classes, etc.)
       players: match.players.map(p => ({
         studentId: p.studentId,
         name: p.name,
@@ -344,7 +345,7 @@ class CrazyArenaManager {
       
       console.log(`[CrazyArena][Training] Émission training:timer-tick: timeLeft=${timeLeftInRound}s (manche ${match.roundsPlayed + 1}/${roundsPerMatch})`);
       this.io.to(matchId).emit('training:timer-tick', {
-        timeLeft: timeLeftInRound,
+        timeLeft: timeLeftInRound,  // Temps restant dans la manche actuelle
         elapsed,
         duration: totalDuration,
         currentRound: match.roundsPlayed + 1,
