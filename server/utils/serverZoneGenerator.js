@@ -497,8 +497,9 @@ function generateRoundZones(seed, config = {}) {
         // Interdire les chiffres de la paire correcte ET les chiffres des distracteurs déjà placés
         const allForbiddenChiffreIds = new Set([...forbiddenChiffreIds, ...placedDistractorChiffreIds]);
         const cId = pickCalculDistractor(allForbiddenChiffreIds, usedCalculContents, usedChiffreContents);
+        let content = '';
         if (cId) {
-          const content = calculsById[cId]?.content || '';
+          content = calculsById[cId]?.content || '';
           logFn('info', '[ZoneGen] Placing calcul distractor', {
             zoneId: z.id,
             calculId: cId,
@@ -507,12 +508,29 @@ function generateRoundZones(seed, config = {}) {
             placedChiffresCount: placedDistractorChiffreIds.size,
             placedChiffreContents: Array.from(usedChiffreContents)
           });
-          z.content = content; 
-          z.pairId = '';
           used.calcul.add(cId);
           placedDistractorCalculIds.add(cId);
           usedCalculContents.add(content);
+        } else {
+          // FALLBACK: Générer opération aléatoire si aucun distracteur trouvé
+          let randomCalc;
+          let attempts = 0;
+          do {
+            const a = Math.floor(rng() * 9) + 1; // 1-9
+            const b = Math.floor(rng() * 9) + 1; // 1-9
+            randomCalc = `${a} × ${b}`;
+            attempts++;
+          } while (usedCalculContents.has(randomCalc) && attempts < 100);
+          content = randomCalc;
+          logFn('info', '[ZoneGen] FALLBACK: Generating random calcul', {
+            zoneId: z.id,
+            randomContent: content,
+            reason: 'No valid distractors found'
+          });
+          usedCalculContents.add(content);
         }
+        z.content = content; 
+        z.pairId = '';
       } else if (type === 'chiffre' && !hasValidContent) {
         // Interdire les calculs de la paire correcte ET les calculs des distracteurs déjà placés
         const allForbiddenCalculIds = new Set([...forbiddenCalculIds, ...placedDistractorCalculIds]);
