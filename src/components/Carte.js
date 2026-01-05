@@ -1181,9 +1181,28 @@ const Carte = () => {
         console.log('[TRAINING] ✅ Socket connecté, ID:', s.id);
         setSocketConnected(true);
         
-        // Récupérer données Training depuis localStorage
+        // ✅ REJOINDRE LA ROOM (comme Arena ligne 1314)
         try {
           const trainingData = JSON.parse(localStorage.getItem('cc_training_game') || '{}');
+          const myPlayer = (trainingData.players || []).find(p => p.studentId === trainingData.myStudentId);
+          
+          if (!myPlayer) {
+            console.error('[TRAINING] Joueur introuvable dans trainingData.players');
+            return;
+          }
+          
+          const studentData = {
+            studentId: myPlayer.studentId,
+            name: myPlayer.name,
+            avatar: myPlayer.avatar
+          };
+          
+          console.log('[TRAINING] 📡 Envoi training:join avec studentData:', studentData);
+          s.emit('training:join', {
+            matchId: trainingMatchId,
+            studentData
+          });
+          
           console.log('[TRAINING] Données jeu:', trainingData);
           
           // Charger zones et démarrer immédiatement
