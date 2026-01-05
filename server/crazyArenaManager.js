@@ -234,13 +234,13 @@ class CrazyArenaManager {
 
     match.status = 'playing';
     match.startTime = Date.now();
+    match.roundsPlayed = 0; // ✅ DIFF 1: Initialiser comme Arena
+    match.validatedPairIds = new Set(); // ✅ DIFF 1: Initialiser comme Arena
+
+    console.log(`[CrazyArena][Training] Partie démarrée pour match ${matchId}`);
 
     try {
       // Générer les zones de jeu (réutiliser generateZones comme pour Arena)
-      const rounds = match.config.roundsPerMatch || match.config.rounds || 3;
-      const duration = match.config.durationPerRound || 60;
-      
-      console.log(`[CrazyArena][Training] Génération zones avec config:`, match.config);
       const zonesResult = await this.generateZones(match.config);
       
       // ✅ FIX: generateZones retourne {zones: [...]} pas [...]
@@ -248,23 +248,91 @@ class CrazyArenaManager {
       
       match.zones = zones;
 
-      console.log(`[CrazyArena][Training] 🎮 Match ${matchId} démarré avec ${zones.length} zones`);
+      console.log(`[CrazyArena][Training] 🎯 Carte générée: ${zones.length} zones`);
 
-      // Envoyer les zones à tous les joueurs (UNE SEULE FOIS comme Arena)
+      // ✅ DIFF 2: Initialiser les scores comme Arena
       const playersArray = Array.from(match.players.values());
-      this.io.to(matchId).emit('training:game-start', {
+      playersArray.forEach(p => {
+        match.scores[p.studentId] = { score: 0, pairsValidated: 0, errors: 0, timeMs: 0 };
+      });
+
+      // Notifier le démarrage avec les zones ET la config (comme Arena)
+      const gameStartPayload = {
         zones,
-        duration,
+        duration: match.config.durationPerRound || match.config.duration || 60,
         startTime: match.startTime,
         config: match.config,
-        players: playersArray
+        players: playersArray.map(p => ({
+          studentId: p.studentId,
+          name: p.name,
+          avatar: p.avatar,
+          score: 0
+        }))
+      };
+
+      console.log('[CrazyArena][Training] 🚀 Émission training:game-start:', {
+        zonesCount: zones.length,
+        playersCount: playersArray.length
       });
+
+      this.io.to(matchId).emit('training:game-start', gameStartPayload);
+
+      // ✅ DIFF 3: Ajouter timer interval comme Arena
+      const roundsPerMatch = match.config.rounds || match.config.roundsPerMatch || 3;
+      const durationPerRound = match.config.durationPerRound || match.config.duration || 60;
+      const totalDuration = roundsPerMatch * durationPerRound;
+
+      console.log(`[CrazyArena][Training] ⏱️  Timer configuré: ${roundsPerMatch} rounds × ${durationPerRound}s = ${totalDuration}s TOTAL`);
+
+      match.timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - match.startTime) / 1000);
+        const timeLeft = Math.max(0, totalDuration - elapsed);
+
+        // Diffuser le temps restant (comme Arena)
+        this.io.to(matchId).emit('training:timer-tick', { timeLeft });
+
+        // Fin du temps
+        if (timeLeft <= 0) {
+          clearInterval(match.timerInterval);
+          this.endTrainingGame(matchId);
+        }
+      }, 1000);
+
     } catch (err) {
       console.error(`[CrazyArena][Training] Erreur génération zones:`, err);
       this.io.to(matchId).emit('training:error', { 
         message: 'Erreur lors de la génération du jeu' 
       });
     }
+  }
+
+  /**
+   * Terminer le match Training
+   */
+  endTrainingGame(matchId) {
+    const match = this.matches.get(matchId);
+    if (!match) return;
+
+    match.status = 'finished';
+    if (match.timerInterval) {
+      clearInterval(match.timerInterval);
+    }
+
+    console.log(`[CrazyArena][Training] 🏁 Match ${matchId} terminé`);
+
+    // Envoyer résultats finaux
+    const playersArray = Array.from(match.players.values());
+    const finalScores = playersArray.map(p => ({
+      studentId: p.studentId,
+      name: p.name,
+      score: p.score || 0,
+      pairsValidated: p.pairsValidated || 0
+    })).sort((a, b) => b.score - a.score);
+
+    this.io.to(matchId).emit('training:game-end', {
+      scores: finalScores,
+      duration: match.config.durationPerRound || 60
+    });
   }
 
   /**

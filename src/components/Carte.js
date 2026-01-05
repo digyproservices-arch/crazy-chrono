@@ -1233,6 +1233,11 @@ const Carte = () => {
         console.log('[TRAINING] ⚠️ gameActive=false (attente nouvelle carte)');
       });
 
+      // Écouter timer tick du backend pour synchroniser timeLeft (comme Arena)
+      s.on('training:timer-tick', ({ timeLeft: serverTimeLeft }) => {
+        setTimeLeft(serverTimeLeft);
+      });
+
       // Écouter nouvelle carte (comme Arena)
       s.on('training:round-new', ({ zones, roundIndex, totalRounds }) => {
         console.log('[TRAINING] Nouvelle carte reçue!', { 
@@ -1256,6 +1261,13 @@ const Carte = () => {
         setValidatedPairIds(new Set());
         setGameSelectedIds([]);
         setGameMsg('');
+      });
+
+      // Écouter fin de partie (comme Arena)
+      s.on('training:game-end', ({ scores, duration }) => {
+        console.log('[TRAINING] 🏁 Partie terminée!', { scores });
+        setGameActive(false);
+        // TODO: Afficher écran de fin avec scores
       });
       
       return () => {

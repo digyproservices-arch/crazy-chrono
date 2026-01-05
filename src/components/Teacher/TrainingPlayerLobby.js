@@ -102,21 +102,28 @@ export default function TrainingPlayerLobby() {
         setCountdown(count);
       });
       
-      socket.on('training:game-start', ({ zones, duration, startTime, config }) => {
+      socket.on('training:game-start', ({ zones, duration, startTime, config, players: gamePlayers }) => {
         console.log('[TrainingLobby] 🎮 Partie démarrée !');
+        console.log('[TrainingLobby] 🔍 zones reçues?', !!zones, 'isArray?', Array.isArray(zones), 'length?', zones?.length);
+        console.log('[TrainingLobby] 🔍 Config reçue:', config);
+        console.log('[TrainingLobby] 🔍 duration:', duration, 'startTime:', startTime);
         
         const gameData = {
-          matchId,
+          matchId: matchId,
           zones,
           duration,
           startTime,
-          config,
-          players,
-          myStudentId: studentId,
-          mode: 'training'
+          config,  // ✅ Stocker config avec themes et classes
+          players: gamePlayers, // ✅ DIFF 4: Utiliser players du backend, pas state local
+          myStudentId: studentId
         };
         
+        console.log('[TrainingLobby] 💾 Données à stocker dans localStorage:', gameData);
+        
+        // Stocker les infos de la partie pour Carte.js
         localStorage.setItem('cc_training_game', JSON.stringify(gameData));
+        
+        console.log('[TrainingLobby] ➡️  Redirection vers /carte?training=', matchId);
         
         // Rediriger vers carte avec paramètre training
         navigate(`/carte?training=${matchId}`);
