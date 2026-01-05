@@ -1213,6 +1213,50 @@ const Carte = () => {
       s.on('training:error', ({ message }) => {
         console.error('[TRAINING] ❌ Erreur backend:', message);
       });
+
+      // Écouter paire validée par un joueur (comme Arena)
+      s.on('training:pair-validated', ({ pairId, zoneAId, zoneBId, playerName, studentId }) => {
+        console.log('[TRAINING] Paire validée par', playerName, ':', pairId);
+        
+        // Masquer les zones validées
+        setZones(prevZones => {
+          return prevZones.map(z => {
+            if (z.id === zoneAId || z.id === zoneBId) {
+              return { ...z, validated: true };
+            }
+            return z;
+          });
+        });
+
+        // Désactiver le jeu pendant transition (1.5s)
+        setGameActive(false);
+        console.log('[TRAINING] ⚠️ gameActive=false (attente nouvelle carte)');
+      });
+
+      // Écouter nouvelle carte (comme Arena)
+      s.on('training:round-new', ({ zones, roundIndex, totalRounds }) => {
+        console.log('[TRAINING] Nouvelle carte reçue!', { 
+          zonesCount: zones?.length, 
+          roundIndex, 
+          totalRounds 
+        });
+
+        if (Array.isArray(zones)) {
+          const cleanZones = zones.map(z => ({ ...z, validated: false }));
+          setZones(cleanZones);
+          console.log('[TRAINING] ✅ Zones mises à jour:', cleanZones.length);
+        }
+
+        // Réactiver le jeu après 50ms
+        setTimeout(() => {
+          setGameActive(true);
+          console.log('[TRAINING] ✅ gameActive=true (nouvelle manche)');
+        }, 50);
+
+        setValidatedPairIds(new Set());
+        setGameSelectedIds([]);
+        setGameMsg('');
+      });
       
       return () => {
         console.log('[TRAINING] Cleanup socket');
@@ -2720,12 +2764,31 @@ function handleGameClick(zone) {
                 studentId: arenaData.myStudentId,
                 isCorrect: true,
                 timeMs: Date.now() - (arenaData.startTime || Date.now()),
-                pairId: pairKey,
+                matchId: arenaMatchId,
                 zoneAId: a,
-                zoneBId: b
+                zoneBId: b,
+                pairId: ZA?.pairId || ZB?.pairId || null
               });
             } catch (e) {
               console.error('[ARENA] Erreur émission arena:pair-validated:', e);
+            }
+          }
+
+          // MODE TRAINING: Émettre validation paire au backend
+          if (trainingMatchId) {
+            try {
+              const trainingData = JSON.parse(localStorage.getItem('cc_training_game') || '{}');
+              socket.emit('training:pair-validated', {
+                studentId: trainingData.myStudentId,
+                isCorrect: true,
+                matchId: trainingMatchId,
+                zoneAId: a,
+                zoneBId: b,
+                pairId: ZA?.pairId || ZB?.pairId || null
+              });
+              console.log('[TRAINING] Paire validée émise:', ZA?.pairId || ZB?.pairId);
+            } catch (e) {
+              console.error('[TRAINING] Erreur émission pair-validated:', e);
             }
           } else {
             // Mode multijoueur classique

@@ -268,6 +268,76 @@ class CrazyArenaManager {
   }
 
   /**
+   * Validation de paire en mode Training (copie de pairValidated pour Arena)
+   */
+  trainingPairValidated(matchId, studentId, zoneAId, zoneBId, pairId, isCorrect) {
+    const match = this.matches.get(matchId);
+    if (!match) return;
+
+    const player = Array.from(match.players.values()).find(p => p.studentId === studentId);
+    if (!player) return;
+
+    console.log(`[CrazyArena][Training] Paire validée: ${studentId}, correct=${isCorrect}, pairId=${pairId}`);
+
+    // Mise à jour scores (simplifié pour Training)
+    if (isCorrect) {
+      player.score = (player.score || 0) + 10;
+      player.pairsValidated = (player.pairsValidated || 0) + 1;
+    }
+
+    // Synchroniser la paire validée à tous les joueurs
+    if (isCorrect && pairId) {
+      this.io.to(matchId).emit('training:pair-validated', {
+        studentId,
+        playerName: player.name,
+        pairId,
+        zoneAId,
+        zoneBId,
+        timestamp: Date.now()
+      });
+
+      // Tracker paires validées pour FIFO
+      if (!match.validatedPairIds) match.validatedPairIds = new Set();
+      match.validatedPairIds.add(pairId);
+      match.roundsPlayed = (match.roundsPlayed || 0) + 1;
+
+      console.log(`[CrazyArena][Training] Manche ${match.roundsPlayed} terminée, génération nouvelle carte...`);
+
+      // Générer nouvelle carte immédiatement (comme Arena)
+      setTimeout(async () => {
+        try {
+          const newZones = await this.generateZones(match.config);
+          match.zones = newZones;
+
+          console.log(`[CrazyArena][Training] Nouvelle carte générée: ${newZones.length} zones`);
+
+          this.io.to(matchId).emit('training:round-new', {
+            zones: newZones,
+            roundIndex: match.roundsPlayed,
+            totalRounds: match.config.rounds || 3,
+            timestamp: Date.now()
+          });
+
+          console.log(`[CrazyArena][Training] ✅ training:round-new émis`);
+        } catch (err) {
+          console.error('[CrazyArena][Training] Erreur génération nouvelle carte:', err);
+        }
+      }, 1500);
+    }
+
+    // Diffuser les scores
+    const playersArray = Array.from(match.players.values());
+    this.io.to(matchId).emit('training:scores-update', {
+      scores: playersArray.map(p => ({
+        studentId: p.studentId,
+        name: p.name,
+        score: p.score || 0,
+        pairsValidated: p.pairsValidated || 0
+      })).sort((a, b) => b.score - a.score)
+    });
+  }
+
+  /**
    * Créer une salle Battle Royale (mode TOURNOI)
    */
   createMatch(matchId, roomCode, config) {

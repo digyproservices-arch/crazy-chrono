@@ -1346,6 +1346,11 @@ io.on('connection', (socket) => {
     crazyArena.trainingForceStart(matchId);
   });
 
+  socket.on('training:pair-validated', ({ matchId, studentId, zoneAId, zoneBId, pairId, isCorrect }) => {
+    console.log(`[Server][Training] Paire validée: ${studentId}, pairId=${pairId}, correct=${isCorrect}`);
+    crazyArena.trainingPairValidated(matchId, studentId, zoneAId, zoneBId, pairId, isCorrect);
+  });
+
   socket.on('training:subscribe-manager', ({ matchId }) => {
     console.log(`[Server][Training] Manager souscrit au match ${matchId}`);
     socket.join(matchId);
