@@ -466,7 +466,9 @@ function generateRoundZones(seed, config = {}) {
     // Remplir le reste des zones en évitant les associations entre distracteurs
     for (const z of result) {
       const type = z.type || 'image';
-      if (type === 'image' && !z.content) {
+      const hasValidContent = z.content && z.content !== null && String(z.content).trim() !== '';
+      
+      if (type === 'image' && !hasValidContent) {
         // Interdire les textes de la paire correcte ET les textes des distracteurs déjà placés
         const allForbiddenTextIds = new Set([...forbiddenTextIds, ...placedDistractorTextIds]);
         const imgId = pickImageDistractor(allForbiddenTextIds, usedImageContents);
@@ -478,7 +480,7 @@ function generateRoundZones(seed, config = {}) {
           placedDistractorImageIds.add(imgId);
           usedImageContents.add(url);
         }
-      } else if (type === 'texte' && !z.content) {
+      } else if (type === 'texte' && !hasValidContent) {
         // Interdire les images de la paire correcte ET les images des distracteurs déjà placés
         const allForbiddenImageIds = new Set([...forbiddenImageIds, ...placedDistractorImageIds]);
         const tId = pickTexteDistractor(allForbiddenImageIds, usedTextContents);
@@ -491,7 +493,7 @@ function generateRoundZones(seed, config = {}) {
           placedDistractorTextIds.add(tId);
           usedTextContents.add(content);
         }
-      } else if (type === 'calcul' && !z.content) {
+      } else if (type === 'calcul' && !hasValidContent) {
         // Interdire les chiffres de la paire correcte ET les chiffres des distracteurs déjà placés
         const allForbiddenChiffreIds = new Set([...forbiddenChiffreIds, ...placedDistractorChiffreIds]);
         const cId = pickCalculDistractor(allForbiddenChiffreIds, usedCalculContents, usedChiffreContents);
@@ -511,7 +513,7 @@ function generateRoundZones(seed, config = {}) {
           placedDistractorCalculIds.add(cId);
           usedCalculContents.add(content);
         }
-      } else if (type === 'chiffre' && !z.content) {
+      } else if (type === 'chiffre' && !hasValidContent) {
         // Interdire les calculs de la paire correcte ET les calculs des distracteurs déjà placés
         const allForbiddenCalculIds = new Set([...forbiddenCalculIds, ...placedDistractorCalculIds]);
         const nId = pickChiffreDistractor(allForbiddenCalculIds, usedChiffreContents, usedCalculContents);
