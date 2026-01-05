@@ -65,15 +65,23 @@ class CrazyArenaManager {
         roundsPerMatch: config.rounds || 3,
         durationPerRound: config.durationPerRound || 60,
         level: config.level || 'CE1',
-        sessionName: config.sessionName || 'Session Entraînement'
+        sessionName: config.sessionName || 'Session Entraînement',
+        classes: [config.level || 'CE1'], // ✅ Ajouter classes pour generateZones
+        themes: config.themes || [], // ✅ Ajouter themes pour generateZones
+        rounds: config.rounds || 3,
+        duration: config.durationPerRound || 60
       },
       players: new Map(),
       status: 'waiting',
       expectedPlayers: studentIds,
       roundsPlayed: 0,
+      scores: {}, // ✅ CRITIQUE: Manquait - Cause du crash "Erreur génération"
       zones: [],
       startTime: null,
+      endTime: null, // ✅ Ajouter pour cohérence avec Arena
       timerInterval: null,
+      countdownTimeout: null, // ✅ Ajouter pour cohérence avec Arena
+      gameTimeout: null, // ✅ Ajouter pour cohérence avec Arena
       tiebreakerMode: false
     });
 
