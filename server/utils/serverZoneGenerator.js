@@ -535,8 +535,9 @@ function generateRoundZones(seed, config = {}) {
         // Interdire les calculs de la paire correcte ET les calculs des distracteurs déjà placés
         const allForbiddenCalculIds = new Set([...forbiddenCalculIds, ...placedDistractorCalculIds]);
         const nId = pickChiffreDistractor(allForbiddenCalculIds, usedChiffreContents, usedCalculContents);
+        let content = '';
         if (nId) {
-          const content = chiffresById[nId]?.content || '';
+          content = chiffresById[nId]?.content || '';
           logFn('info', '[ZoneGen] Placing chiffre distractor', {
             zoneId: z.id,
             chiffreId: nId,
@@ -545,13 +546,28 @@ function generateRoundZones(seed, config = {}) {
             placedCalculsCount: placedDistractorCalculIds.size,
             placedCalculContents: Array.from(usedCalculContents)
           });
-          z.content = content; 
-          z.label = content;
-          z.pairId = '';
           used.chiffre.add(nId);
           placedDistractorChiffreIds.add(nId);
           usedChiffreContents.add(content);
+        } else {
+          // FALLBACK: Générer nombre aléatoire si aucun distracteur trouvé
+          let randomNum;
+          let attempts = 0;
+          do {
+            randomNum = Math.floor(rng() * 50) + 1; // 1-50
+            attempts++;
+          } while (usedChiffreContents.has(String(randomNum)) && attempts < 100);
+          content = String(randomNum);
+          logFn('info', '[ZoneGen] FALLBACK: Generating random chiffre', {
+            zoneId: z.id,
+            randomContent: content,
+            reason: 'No valid distractors found'
+          });
+          usedChiffreContents.add(content);
         }
+        z.content = content; 
+        z.label = content;
+        z.pairId = '';
       }
     }
     
