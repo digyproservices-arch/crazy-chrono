@@ -62,27 +62,24 @@ class CrazyArenaManager {
       teacherId,
       roomCode: matchId,
       config: {
-        roundsPerMatch: config.rounds || 3,
-        durationPerRound: config.durationPerRound || 60,
-        level: config.level || 'CE1',
-        sessionName: config.sessionName || 'Session Entraînement',
-        classes: [config.level || 'CE1'], // ✅ Ajouter classes pour generateZones
-        themes: config.themes || [], // ✅ Ajouter themes pour generateZones
         rounds: config.rounds || 3,
-        duration: config.durationPerRound || 60
+        duration: config.durationPerRound || 60,
+        classes: [config.level || 'CE1'],
+        themes: config.themes || [],
+        level: config.level || 'CE1',
+        sessionName: config.sessionName || 'Session Entraînement'
       },
-      players: new Map(),
+      players: [],
       status: 'waiting',
       expectedPlayers: studentIds,
       roundsPlayed: 0,
-      scores: {}, // ✅ CRITIQUE: Manquait - Cause du crash "Erreur génération"
-      zones: [],
+      scores: {},
+      zones: null,
       startTime: null,
-      endTime: null, // ✅ Ajouter pour cohérence avec Arena
+      endTime: null,
       timerInterval: null,
-      countdownTimeout: null, // ✅ Ajouter pour cohérence avec Arena
-      gameTimeout: null, // ✅ Ajouter pour cohérence avec Arena
-      tiebreakerMode: false
+      countdownTimeout: null,
+      gameTimeout: null
     });
 
     // Notifier chaque élève via Socket.IO
@@ -116,13 +113,26 @@ class CrazyArenaManager {
       return false;
     }
 
-    // Vérifier si déjà connecté
-    if (match.players.has(studentData.studentId)) {
-      console.log(`[CrazyArena][Training] ${studentData.name} déjà connecté au match ${matchId}`);
-      const existingPlayer = match.players.get(studentData.studentId);
-      existingPlayer.socketId = socket.id; // Mettre à jour socketId
+    // Vérifier si le joueur fait déjà partie du match (reconnexion)
+    const existingPlayer = match.players.find(p => p.studentId === studentData.studentId);
+    
+    if (existingPlayer) {
+      // RECONNEXION : Mettre à jour le socketId et rejoindre la room
+      console.log(`[CrazyArena][Training] ${studentData.name} reconnecté au match ${matchId}`);
+      existingPlayer.socketId = socket.id;
       this.playerMatches.set(socket.id, matchId);
       socket.join(matchId);
+      
+      // Renvoyer l'état actuel du match
+      this.io.to(matchId).emit('training:player-joined', {
+        players: match.players.map(p => ({
+          studentId: p.studentId,
+          name: p.name,
+          avatar: p.avatar,
+          ready: p.ready
+        }))
+      });
+      
       return true;
     }
 
@@ -132,31 +142,37 @@ class CrazyArenaManager {
       name: studentData.name,
       avatar: studentData.avatar || '/avatars/default.png',
       ready: false,
-      score: 0
+      score: 0,
+      pairsValidated: 0,
+      errors: 0,
+      timeMs: 0
     };
 
-    match.players.set(studentData.studentId, player);
+    match.players.push(player);
     this.playerMatches.set(socket.id, matchId);
     socket.join(matchId);
 
-    console.log(`[CrazyArena][Training] ${studentData.name} a rejoint le match ${matchId} (${match.players.size}/${match.expectedPlayers.length})`);
+    console.log(`[CrazyArena][Training] ${studentData.name} a rejoint le match ${matchId} (${match.players.length}/${match.expectedPlayers.length})`);
 
     // Notifier tous les joueurs
-    const playersArray = Array.from(match.players.values()).map(p => ({
-      studentId: p.studentId,
-      name: p.name,
-      avatar: p.avatar,
-      ready: p.ready
-    }));
-    
     this.io.to(matchId).emit('training:player-joined', {
-      players: playersArray
+      players: match.players.map(p => ({
+        studentId: p.studentId,
+        name: p.name,
+        avatar: p.avatar,
+        ready: p.ready
+      }))
     });
     
     // Notifier le dashboard professeur
     this.io.to(matchId).emit('training:players-update', {
       matchId,
-      players: playersArray
+      players: match.players.map(p => ({
+        studentId: p.studentId,
+        name: p.name,
+        avatar: p.avatar,
+        ready: p.ready
+      }))
     });
 
     return true;
@@ -169,25 +185,28 @@ class CrazyArenaManager {
     const match = this.matches.get(matchId);
     if (!match) return;
 
-    const player = match.players.get(studentId);
+    const player = match.players.find(p => p.studentId === studentId);
     if (player) {
       player.ready = true;
       
-      const playersArray = Array.from(match.players.values()).map(p => ({ 
-        studentId: p.studentId, 
-        name: p.name, 
-        avatar: p.avatar,
-        ready: p.ready
-      }));
-      
       this.io.to(matchId).emit('training:player-ready', {
-        players: playersArray
+        players: match.players.map(p => ({ 
+          studentId: p.studentId, 
+          name: p.name, 
+          avatar: p.avatar,
+          ready: p.ready
+        }))
       });
       
       // Notifier le dashboard professeur
       this.io.to(matchId).emit('training:players-update', {
         matchId,
-        players: playersArray
+        players: match.players.map(p => ({ 
+          studentId: p.studentId, 
+          name: p.name, 
+          avatar: p.avatar,
+          ready: p.ready
+        }))
       });
     }
   }
@@ -208,7 +227,7 @@ class CrazyArenaManager {
       return false;
     }
 
-    if (match.players.size === 0) {
+    if (match.players.length === 0) {
       console.warn(`[CrazyArena][Training] forceStart: Aucun joueur connecté`);
       return false;
     }
@@ -243,76 +262,101 @@ class CrazyArenaManager {
 
     match.status = 'playing';
     match.startTime = Date.now();
-    match.roundsPlayed = 0; // ✅ DIFF 1: Initialiser comme Arena
-    match.validatedPairIds = new Set(); // ✅ DIFF 1: Initialiser comme Arena
+    match.roundsPlayed = 0;
+    match.validatedPairIds = new Set();
 
     console.log(`[CrazyArena][Training] Partie démarrée pour match ${matchId}`);
 
-    try {
-      // Générer les zones de jeu (réutiliser generateZones comme pour Arena)
-      const zonesResult = await this.generateZones(match.config);
+    // Générer les zones (utiliser la même logique que le mode multijoueur classique)
+    const zones = await this.generateZones(match.config);
+    match.zones = zones;
+    
+    console.log(`[CrazyArena][Training] 🎯 Carte générée: ${zones.length} zones, 1 paire à trouver (règle: 1 paire/carte)`);
+
+    // Initialiser les scores
+    match.players.forEach(p => {
+      match.scores[p.studentId] = { score: 0, pairsValidated: 0, errors: 0, timeMs: 0 };
+    });
+
+    // Notifier le démarrage avec les zones ET la config
+    const gameStartPayload = {
+      zones,
+      duration: match.config.duration || 60,
+      startTime: match.startTime,
+      config: match.config,
+      players: match.players.map(p => ({
+        studentId: p.studentId,
+        name: p.name,
+        avatar: p.avatar,
+        score: 0
+      }))
+    };
+    
+    console.log('[CrazyArena][Training] 🚀 Émission training:game-start avec config:', {
+      hasConfig: !!gameStartPayload.config,
+      configThemes: gameStartPayload.config?.themes,
+      configClasses: gameStartPayload.config?.classes,
+      zonesCount: zones.length
+    });
+    
+    this.io.to(matchId).emit('training:game-start', gameStartPayload);
+
+    // ⏱️ CHRONO: Diffuser le temps restant toutes les secondes
+    // ✅ CORRECTION: Timer TOTAL = rounds × duration (ex: 3 × 60s = 180s)
+    const roundsPerMatch = match.config.rounds || match.config.roundsPerMatch || 3;
+    const durationPerRound = match.config.duration || match.config.durationPerRound || 60;
+    const totalDuration = roundsPerMatch * durationPerRound;
+    
+    console.log(`[CrazyArena][Training] ⏱️  Timer configuré: ${roundsPerMatch} rounds × ${durationPerRound}s = ${totalDuration}s TOTAL`);
+    
+    match.timerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - match.startTime) / 1000);
+      const timeLeft = Math.max(0, totalDuration - elapsed);
       
-      // ✅ FIX: generateZones retourne {zones: [...]} pas [...]
-      const zones = Array.isArray(zonesResult) ? zonesResult : (zonesResult?.zones || []);
+      // ✅ NOUVELLE MANCHE toutes les durationPerRound secondes (60s, 120s, etc.)
+      const currentRound = Math.floor(elapsed / durationPerRound);
+      if (currentRound > match.roundsPlayed && currentRound < roundsPerMatch) {
+        match.roundsPlayed = currentRound;
+        console.log(`[CrazyArena][Training] 🔔 Nouvelle manche #${match.roundsPlayed + 1} démarrée (${elapsed}s écoulées)`);
+        
+        // Générer nouvelle carte pour la nouvelle manche
+        this.generateZones(match.config).then(newZones => {
+          match.zones = newZones;
+          console.log(`[CrazyArena][Training] 🎯 Nouvelle carte pour manche ${match.roundsPlayed + 1}: ${newZones.length} zones`);
+          
+          // Émettre nouvelle carte à tous les joueurs
+          this.io.to(matchId).emit('training:round-new', {
+            zones: newZones,
+            roundIndex: match.roundsPlayed,
+            totalRounds: roundsPerMatch,
+            timestamp: Date.now()
+          });
+          
+          console.log(`[CrazyArena][Training] ✅ Manche ${match.roundsPlayed + 1}/${roundsPerMatch} démarrée`);
+        }).catch(err => {
+          console.error('[CrazyArena][Training] Erreur génération nouvelle carte manche:', err);
+        });
+      }
       
-      match.zones = zones;
-
-      console.log(`[CrazyArena][Training] 🎯 Carte générée: ${zones.length} zones`);
-
-      // ✅ DIFF 2: Initialiser les scores comme Arena
-      const playersArray = Array.from(match.players.values());
-      playersArray.forEach(p => {
-        match.scores[p.studentId] = { score: 0, pairsValidated: 0, errors: 0, timeMs: 0 };
+      // ✅ FIX: Afficher temps restant dans la MANCHE ACTUELLE (pas global)
+      const elapsedInRound = elapsed % durationPerRound;
+      const timeLeftInRound = Math.max(0, durationPerRound - elapsedInRound);
+      
+      console.log(`[CrazyArena][Training] Émission training:timer-tick: timeLeft=${timeLeftInRound}s (manche ${match.roundsPlayed + 1}/${roundsPerMatch})`);
+      this.io.to(matchId).emit('training:timer-tick', {
+        timeLeft: timeLeftInRound,
+        elapsed,
+        duration: totalDuration,
+        currentRound: match.roundsPlayed + 1,
+        totalRounds: roundsPerMatch
       });
-
-      // Notifier le démarrage avec les zones ET la config (comme Arena)
-      const gameStartPayload = {
-        zones,
-        duration: match.config.durationPerRound || match.config.duration || 60,
-        startTime: match.startTime,
-        config: match.config,
-        players: playersArray.map(p => ({
-          studentId: p.studentId,
-          name: p.name,
-          avatar: p.avatar,
-          score: 0
-        }))
-      };
-
-      console.log('[CrazyArena][Training] 🚀 Émission training:game-start:', {
-        zonesCount: zones.length,
-        playersCount: playersArray.length
-      });
-
-      this.io.to(matchId).emit('training:game-start', gameStartPayload);
-
-      // ✅ DIFF 3: Ajouter timer interval comme Arena
-      const roundsPerMatch = match.config.rounds || match.config.roundsPerMatch || 3;
-      const durationPerRound = match.config.durationPerRound || match.config.duration || 60;
-      const totalDuration = roundsPerMatch * durationPerRound;
-
-      console.log(`[CrazyArena][Training] ⏱️  Timer configuré: ${roundsPerMatch} rounds × ${durationPerRound}s = ${totalDuration}s TOTAL`);
-
-      match.timerInterval = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - match.startTime) / 1000);
-        const timeLeft = Math.max(0, totalDuration - elapsed);
-
-        // Diffuser le temps restant (comme Arena)
-        this.io.to(matchId).emit('training:timer-tick', { timeLeft });
-
-        // Fin du temps
-        if (timeLeft <= 0) {
-          clearInterval(match.timerInterval);
-          this.endTrainingGame(matchId);
-        }
-      }, 1000);
-
-    } catch (err) {
-      console.error(`[CrazyArena][Training] Erreur génération zones:`, err);
-      this.io.to(matchId).emit('training:error', { 
-        message: 'Erreur lors de la génération du jeu' 
-      });
-    }
+      
+      if (timeLeft === 0) {
+        console.log(`[CrazyArena][Training] ⏰ Timer terminé pour match ${matchId}`);
+        clearInterval(match.timerInterval);
+        this.endTrainingGame(matchId);
+      }
+    }, 1000);
   }
 
   /**
