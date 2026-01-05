@@ -217,15 +217,16 @@ class CrazyArenaManager {
     match.status = 'countdown';
     
     // Countdown 3, 2, 1, GO!
-    let countdown = 3;
-    const countdownInterval = setInterval(() => {
-      this.io.to(matchId).emit('training:countdown', { count: countdown });
-      console.log(`[CrazyArena][Training] Countdown: ${countdown}`);
-      
-      countdown--;
-      
-      if (countdown < 0) {
-        clearInterval(countdownInterval);
+    console.log(`[CrazyArena][Training] Countdown démarré pour match ${matchId}`);
+    
+    let count = 3;
+    const interval = setInterval(() => {
+      this.io.to(matchId).emit('training:countdown', { count });
+      count--;
+
+      if (count < 0) {
+        clearInterval(interval);
+        console.log(`[CrazyArena][Training] Countdown terminé, démarrage jeu...`);
         this.startTrainingGame(matchId);
       }
     }, 1000);
