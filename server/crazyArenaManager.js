@@ -232,7 +232,7 @@ class CrazyArenaManager {
       return false;
     }
 
-    console.log(`[CrazyArena][Training] 🚀 Démarrage forcé du match ${matchId} avec ${match.players.size} joueur(s)`);
+    console.log(`[CrazyArena][Training] 🚀 Démarrage forcé du match ${matchId} avec ${match.players.length} joueur(s)`);
     match.status = 'countdown';
     
     // Countdown 3, 2, 1, GO!
