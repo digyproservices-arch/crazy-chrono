@@ -1276,7 +1276,163 @@ const Carte = () => {
           setGameActive(true);
           console.log('[TRAINING] ✅ gameActive=true (nouvelle manche)');
         }, 50);
+      });
 
+      // Écouter fin de partie
+      s.on('training:game-end', ({ ranking, winner, duration, isTiebreaker }) => {
+        console.log('[TRAINING] 🏁 Partie terminée!', { winner: winner?.name, ranking });
+        setGameActive(false);
+        
+        const tieOverlay = document.getElementById('training-tie-overlay');
+        if (tieOverlay) tieOverlay.remove();
+      });
+
+      // TRAINING TIEBREAKER: Égalité détectée
+      s.on('training:tie-detected', ({ tiedPlayers, message }) => {
+        console.log('[TRAINING] ÉGALITÉ détectée !', tiedPlayers);
+        setGameActive(false);
+        
+        setTimeout(() => {
+          console.log('[TRAINING] 🎨 Construction overlay égalité...');
+          
+          const overlay = document.createElement('div');
+          overlay.id = 'training-tie-overlay';
+          overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);z-index:10000;display:flex;align-items:center;justify-content:center;';
+          
+          const container = document.createElement('div');
+          container.style.cssText = 'text-align:center;color:white;max-width:800px;padding:40px;';
+          
+          const contentDiv = document.createElement('div');
+          contentDiv.innerHTML = `<h1 style="font-size:64px;margin-bottom:20px;">⚖️</h1><h2 style="font-size:42px;margin-bottom:20px;text-shadow:0 2px 10px rgba(0,0,0,0.3);">ÉGALITÉ !</h2><p style="font-size:24px;margin-bottom:30px;">${message}</p><div style="display:flex;gap:20px;justify-content:center;">${tiedPlayers.map(p => `<div style="background:white;border-radius:16px;padding:24px;border:4px solid #fbbf24;"><div style="font-size:48px;margin-bottom:12px;">🤝</div><div style="color:#111;font-weight:700;font-size:20px;margin-bottom:8px;">${p.name}</div><div style="color:#6b7280;font-size:16px;">Score: <span style="color:#f59e0b;font-weight:700;">${p.score}</span></div></div>`).join('')}</div><p style="margin-top:40px;font-size:18px;color:#fef3c7;">⏳ En attente de la décision du professeur...</p>`;
+          
+          const readyBtn = document.createElement('button');
+          readyBtn.id = 'training-tie-ready-btn';
+          readyBtn.textContent = '✋ JE SUIS PRÊT';
+          readyBtn.style.cssText = 'margin-top:30px;padding:16px 40px;font-size:20px;font-weight:700;background:#fff;color:#f59e0b;border:3px solid #fbbf24;border-radius:12px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:all 0.3s;';
+          
+          const statusEl = document.createElement('p');
+          statusEl.id = 'training-tie-status';
+          statusEl.style.cssText = 'margin-top:20px;font-size:16px;color:#fef3c7;min-height:24px;';
+          
+          readyBtn.onclick = () => {
+            console.log('[TRAINING] ✋ CLIC BOUTON DÉTECTÉ !');
+            
+            try {
+              const socket = socketRef.current;
+              
+              if (!socket || !socket.connected) {
+                console.error('[TRAINING] ❌ Socket non connecté!');
+                statusEl.textContent = '❌ Erreur: Connexion perdue';
+                return;
+              }
+              
+              const trainingData = JSON.parse(localStorage.getItem('cc_training_game') || '{}');
+              const matchId = new URLSearchParams(window.location.search).get('training');
+              const myStudentId = trainingData.myStudentId;
+              const myName = trainingData.players?.find(p => p.studentId === myStudentId)?.name || 'Joueur';
+              
+              console.log('[TRAINING] 📤 Émission training:player-ready-tiebreaker', { matchId, studentId: myStudentId, playerName: myName });
+              
+              socket.emit('training:player-ready-tiebreaker', {
+                matchId,
+                studentId: myStudentId,
+                playerName: myName
+              });
+              
+              readyBtn.disabled = true;
+              readyBtn.style.opacity = '0.5';
+              readyBtn.style.cursor = 'not-allowed';
+              readyBtn.textContent = '✅ PRÊT !';
+              statusEl.textContent = '✅ Vous êtes prêt ! En attente des autres joueurs...';
+            } catch (e) {
+              console.error('[TRAINING] ❌ Erreur:', e);
+              statusEl.textContent = '❌ Erreur: ' + e.message;
+            }
+          };
+          
+          container.appendChild(contentDiv);
+          container.appendChild(readyBtn);
+          container.appendChild(statusEl);
+          overlay.appendChild(container);
+          document.body.appendChild(overlay);
+          console.log('[TRAINING] ✅ Overlay ajouté au DOM');
+        }, 500);
+      });
+
+      // TRAINING TIEBREAKER: Countdown 3-2-1
+      s.on('training:countdown', ({ count }) => {
+        console.log('[TRAINING] 📣 Countdown reçu:', count);
+        
+        if (count === 3) {
+          const tieOverlay = document.getElementById('training-tie-overlay');
+          if (tieOverlay) {
+            tieOverlay.remove();
+            console.log('[TRAINING] 🗑️ Overlay égalité retiré (début countdown)');
+          }
+        }
+        
+        let countdownOverlay = document.getElementById('training-countdown-overlay');
+        if (!countdownOverlay) {
+          countdownOverlay = document.createElement('div');
+          countdownOverlay.id = 'training-countdown-overlay';
+          countdownOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;';
+          document.body.appendChild(countdownOverlay);
+        }
+        
+        countdownOverlay.innerHTML = `<div style="font-size:200px;font-weight:900;color:${count === 0 ? '#10b981' : '#f59e0b'};text-shadow:0 0 30px rgba(255,255,255,0.5);">${count === 0 ? 'GO!' : count}</div>`;
+        
+        if (count === 0) {
+          setTimeout(() => {
+            countdownOverlay.remove();
+            console.log('[TRAINING] 🗑️ Overlay countdown retiré (GO! terminé)');
+          }, 800);
+        }
+      });
+
+      // TRAINING TIEBREAKER: Démarrage
+      s.on('training:tiebreaker-start', ({ zones, duration, startTime, matchId }) => {
+        console.log('[TRAINING] 🎯 Tiebreaker start - Mise à jour React directe');
+        
+        if (!zones || zones.length === 0) {
+          console.error('[TRAINING] ❌ Zones manquantes');
+          return;
+        }
+        
+        console.log('[TRAINING] ✅ Tiebreaker: ', zones.length, 'zones reçues');
+        
+        const tieOverlay = document.getElementById('training-tie-overlay');
+        if (tieOverlay) {
+          tieOverlay.remove();
+          console.log('[TRAINING] ✅ Overlay égalité supprimé');
+        }
+        setCountdown(null);
+        console.log('[TRAINING] ✅ Countdown supprimé');
+        
+        const existingData = JSON.parse(localStorage.getItem('cc_training_game') || '{}');
+        const tiebreakerData = {
+          ...existingData,
+          zones,
+          duration,
+          startTime,
+          isTiebreaker: true
+        };
+        localStorage.setItem('cc_training_game', JSON.stringify(tiebreakerData));
+        
+        const cleanZones = Array.isArray(zones) ? zones.map(z => ({ ...z, validated: false })) : [];
+        console.log('[TRAINING] 🧹 Zones nettoyées (validated=false):', cleanZones.length);
+        
+        setZones(cleanZones);
+        setGameActive(true);
+        setIsTiebreaker(true);
+        
+        console.log('[TRAINING] ✅ État React mis à jour avec zones tiebreaker');
+      });
+
+      return () => {
+        console.log('[TRAINING] Cleanup socket');
+        cleanupResize();
+        if (s) s.disconnect();
+      };
     }
     
     // MODE ARENA: Connexion Socket.IO ARENA (pas mode multijoueur classique)
