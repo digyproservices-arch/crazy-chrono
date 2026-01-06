@@ -161,8 +161,12 @@ export default function CrazyArenaSetup() {
     }
     
     try {
-      const classConfig = JSON.parse(localStorage.getItem('cc_session_cfg') || '{}');
-      const classId = classConfig.classId || 'ce1_a_lamentin';
+      // ✅ FIX: Utiliser cc_class_id (identique à loadTournamentData)
+      const classId = localStorage.getItem('cc_class_id');
+      if (!classId) {
+        alert('Erreur: Classe non trouvée. Veuillez vous reconnecter.');
+        return;
+      }
       const backendUrl = getBackendUrl();
       
       const res = await fetch(`${backendUrl}/api/tournament/groups`, {
@@ -195,7 +199,12 @@ export default function CrazyArenaSetup() {
   
   const launchMatch = async (group) => {
     try {
-      const classConfig = JSON.parse(localStorage.getItem('cc_session_cfg') || '{}');
+      // ✅ FIX: Utiliser cc_class_id (identique à loadTournamentData)
+      const classId = localStorage.getItem('cc_class_id');
+      if (!classId) {
+        alert('Erreur: Classe non trouvée. Veuillez vous reconnecter.');
+        return;
+      }
       const backendUrl = getBackendUrl();
       
       // Mapper le numéro de phase vers l'ID réel dans Supabase
