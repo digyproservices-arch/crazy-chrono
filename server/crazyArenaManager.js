@@ -394,17 +394,65 @@ class CrazyArenaManager {
    */
   trainingPairValidated(matchId, studentId, zoneAId, zoneBId, pairId, isCorrect) {
     const match = this.matches.get(matchId);
-    if (!match) return;
+    if (!match || (match.status !== 'playing' && match.status !== 'tiebreaker' && match.status !== 'tiebreaker-countdown')) return;
 
     const player = Array.from(match.players.values()).find(p => p.studentId === studentId);
     if (!player) return;
 
     console.log(`[CrazyArena][Training] Paire validée: ${studentId}, correct=${isCorrect}, pairId=${pairId}`);
 
-    // Mise à jour scores (simplifié pour Training)
+    // Mise à jour scores
     if (isCorrect) {
-      player.score = (player.score || 0) + 10;
-      player.pairsValidated = (player.pairsValidated || 0) + 1;
+      // ✅ TIEBREAKER: Comptabiliser séparément pour addition finale
+      if (match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown') {
+        // Incrémenter compteurs tiebreaker séparés
+        player.tiebreakerScore = (player.tiebreakerScore || 0) + 1;
+        player.tiebreakerPairs = (player.tiebreakerPairs || 0) + 1;
+        
+        match.tiebreakerPairsFound = (match.tiebreakerPairsFound || 0) + 1;
+        console.log(`[CrazyArena][Training] 🎯 TIEBREAKER: ${match.tiebreakerPairsFound}/${match.tiebreakerPairsToFind} paires trouvées (${player.name}: ${player.tiebreakerScore} pts)`);
+        
+        if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
+          console.log(`[CrazyArena][Training] 🏁 TIEBREAKER TERMINÉ: ${match.tiebreakerPairsToFind} paires trouvées!`);
+          
+          // Terminer le match immédiatement
+          this.endTrainingGame(matchId);
+          return;
+        }
+        
+        // Générer nouvelle carte pour la paire suivante (3 cartes successives)
+        console.log(`[CrazyArena][Training] 🎴 Génération carte ${match.tiebreakerPairsFound + 1}/3 pour tiebreaker...`);
+        setTimeout(async () => {
+          try {
+            const newZones = await this.generateZones(match.config, match.validatedPairIds || new Set());
+            match.zones = newZones;
+            
+            console.log(`[CrazyArena][Training] ✅ Carte tiebreaker ${match.tiebreakerPairsFound + 1}/3: ${newZones.length} zones`);
+            
+            this.io.to(matchId).emit('training:round-new', {
+              zones: newZones,
+              roundIndex: match.tiebreakerPairsFound,
+              totalRounds: match.tiebreakerPairsToFind,
+              timestamp: Date.now()
+            });
+          } catch (err) {
+            console.error('[CrazyArena][Training] Erreur génération carte tiebreaker:', err);
+          }
+        }, 1500);
+        
+        return; // Sortir pour éviter double génération
+      } else {
+        // Mode normal (pas tiebreaker): incrémenter score normal
+        player.score = (player.score || 0) + 10;
+        player.pairsValidated = (player.pairsValidated || 0) + 1;
+      }
+    } else {
+      // Erreur: retirer points
+      if (match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown') {
+        player.tiebreakerScore = Math.max(0, (player.tiebreakerScore || 0) - 2);
+      } else {
+        player.score = Math.max(0, (player.score || 0) - 2);
+      }
     }
 
     // ✅ SYNCHRONISER la paire validée à TOUS les joueurs
@@ -422,6 +470,7 @@ class CrazyArenaManager {
       
       // ✅ FIFO: Tracker les 15 dernières paires validées (éviter répétition)
       if (!match.validatedPairIds) match.validatedPairIds = new Set();
+      match.validatedPairIds.add(pairId);
       
       const MAX_EXCLUDED_PAIRS = 15;
       if (match.validatedPairIds.size >= MAX_EXCLUDED_PAIRS) {
@@ -442,6 +491,161 @@ class CrazyArenaManager {
         pairsValidated: p.pairsValidated || 0
       })).sort((a, b) => b.score - a.score) // Trier par score DESC
     });
+  }
+
+  /**
+   * TRAINING TIEBREAKER: Joueur clique "Je suis prêt"
+   */
+  playerReadyForTrainingTiebreaker(matchId, studentId, playerName, io) {
+    console.log(`[CrazyArena][Training] 🔍 playerReadyForTrainingTiebreaker appelé: ${playerName} (${studentId}) pour match ${matchId}`);
+    
+    const match = this.matches.get(matchId);
+    if (!match) {
+      console.error(`[CrazyArena][Training] ❌ Match ${matchId} introuvable dans matches (${this.matches.size} matchs actifs)`);
+      return;
+    }
+
+    console.log(`[CrazyArena][Training] 🔍 Match trouvé, status: ${match.status}`);
+    
+    if (match.status !== 'tie-waiting') {
+      console.error(`[CrazyArena][Training] ❌ Match ${matchId} n'est pas en attente de départage (status: ${match.status})`);
+      return;
+    }
+
+    // Initialiser le set de joueurs prêts si nécessaire
+    if (!match.playersReadyForTiebreaker) {
+      match.playersReadyForTiebreaker = new Set();
+      console.log(`[CrazyArena][Training] 🔍 Set playersReadyForTiebreaker initialisé`);
+    }
+
+    // Ajouter le joueur aux prêts
+    match.playersReadyForTiebreaker.add(studentId);
+    console.log(`[CrazyArena][Training] ✋ ${playerName} prêt pour départage (${match.playersReadyForTiebreaker.size}/${match.tiedPlayers.length})`);
+
+    const payload = {
+      matchId,
+      readyCount: match.playersReadyForTiebreaker.size,
+      totalCount: match.tiedPlayers.length,
+      readyPlayers: Array.from(match.playersReadyForTiebreaker)
+    };
+    
+    console.log(`[CrazyArena][Training] 📢 Émission training:tiebreaker-ready-update (broadcast):`, payload);
+    
+    // Notifier le dashboard du professeur
+    io.emit('training:tiebreaker-ready-update', payload);
+    
+    console.log(`[CrazyArena][Training] ✅ training:tiebreaker-ready-update émis avec succès`);
+  }
+
+  /**
+   * TRAINING TIEBREAKER: Professeur lance le départage
+   */
+  async startTrainingTiebreakerByTeacher(matchId) {
+    const match = this.matches.get(matchId);
+    if (!match) {
+      console.error(`[CrazyArena][Training] ❌ Match ${matchId} introuvable`);
+      return;
+    }
+
+    if (match.status !== 'tie-waiting') {
+      console.error(`[CrazyArena][Training] ❌ Match ${matchId} n'est pas en attente de départage (status: ${match.status})`);
+      return;
+    }
+
+    const tiedPlayers = match.tiedPlayers;
+    if (!tiedPlayers || tiedPlayers.length < 2) {
+      console.error(`[CrazyArena][Training] ❌ Pas de joueurs à égalité pour match ${matchId}`);
+      return;
+    }
+
+    console.log(`[CrazyArena][Training] 🎯 Professeur lance départage pour match ${matchId} (${tiedPlayers.length} joueurs à égalité)`);
+    
+    match.isTiebreaker = true;
+    match.status = 'playing';
+    match.startTime = Date.now();
+    
+    // Générer seulement 3 cartes pour le départage
+    const tiebreakerConfig = {
+      ...match.config,
+      rounds: 1 // Une seule manche avec moins de zones
+    };
+    
+    const zonesResult = await this.generateZones(tiebreakerConfig);
+    
+    // ✅ FIX: generateZones retourne {zones: [...]} pas [...]
+    const zonesArray = Array.isArray(zonesResult) ? zonesResult : (zonesResult?.zones || []);
+    
+    console.log(`[CrazyArena][Training] 🔍 Zones générées pour tiebreaker:`, { count: zonesArray.length });
+    
+    // ✅ UTILISER TOUTES les zones générées (comme démarrage normal)
+    match.zones = zonesArray;
+    match.tiebreakerPairsToFind = 3;
+    match.tiebreakerPairsFound = 0;
+    
+    console.log(`[CrazyArena][Training] 🎴 Tiebreaker: ${match.zones.length} zones, objectif ${match.tiebreakerPairsToFind} paires`);
+    
+    const tiedStudentIds = tiedPlayers.map(p => p.studentId);
+    console.log(`[CrazyArena][Training] 🔍 studentIds à égalité:`, tiedStudentIds);
+    
+    // ✅ FIX: Sauvegarder scores du match normal avant tiebreaker (pour addition finale)
+    const playersArray = Array.from(match.players.values());
+    playersArray.forEach(p => {
+      if (tiedStudentIds.includes(p.studentId)) {
+        console.log(`[CrazyArena][Training] 💾 Sauvegarde score match normal pour ${p.studentId}: ${p.score} pts`);
+        p.scoreBeforeTiebreaker = p.score;  // Sauvegarder score existant
+        p.pairsBeforeTiebreaker = p.pairsValidated;
+        // Reset UNIQUEMENT les compteurs tiebreaker (pas le score total)
+        p.tiebreakerScore = 0;
+        p.tiebreakerPairs = 0;
+        p.errors = 0;
+      }
+    });
+    
+    console.log(`[CrazyArena][Training] 📡 Countdown 3-2-1 pour tiebreaker...`);
+    
+    // ✅ Countdown 3-2-1 comme au démarrage initial
+    match.status = 'tiebreaker-countdown';
+    let count = 3;
+    const countdownInterval = setInterval(() => {
+      console.log(`[CrazyArena][Training] Countdown tiebreaker: ${count}`);
+      this.io.to(matchId).emit('training:countdown', { count });
+      count--;
+      
+      if (count < 0) {
+        clearInterval(countdownInterval);
+        
+        // Après countdown, envoyer les zones (COMME démarrage normal)
+        try {
+          match.status = 'tiebreaker'; // Passer en mode tiebreaker actif
+          
+          const payload = {
+            zones: match.zones,  // Zones complètes avec TOUS les champs
+            duration: 999, // Pas de limite de temps, juste 3 paires
+            startTime: Date.now(),
+            tiedPlayers: tiedPlayers.map(p => ({ 
+              studentId: p.studentId, 
+              name: p.name 
+            }))
+          };
+          
+          console.log(`[CrazyArena][Training] 🔍 Payload tiebreaker:`, {
+            zonesCount: payload.zones?.length,
+            tiedPlayersCount: payload.tiedPlayers?.length,
+            firstZone: payload.zones?.[0]
+          });
+          
+          console.log(`[CrazyArena][Training] 📡 Émission training:tiebreaker-start en BROADCAST...`);
+          this.io.emit('training:tiebreaker-start', { ...payload, matchId });
+          
+          console.log(`[CrazyArena][Training] ✅ training:tiebreaker-start émis - Pas de timer, juste 3 paires`);
+          
+        } catch (error) {
+          console.error(`[CrazyArena][Training] ❌ ERREUR émission training:tiebreaker-start:`, error);
+          console.error(`[CrazyArena][Training] Stack:`, error.stack);
+          this.endTrainingGame(matchId);
+        }
+      }
+    }, 1000);
   }
 
   /**

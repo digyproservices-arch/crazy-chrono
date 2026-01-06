@@ -1277,23 +1277,6 @@ const Carte = () => {
           console.log('[TRAINING] ✅ gameActive=true (nouvelle manche)');
         }, 50);
 
-        setValidatedPairIds(new Set());
-        setGameSelectedIds([]);
-        setGameMsg('');
-      });
-
-      // Écouter fin de partie (comme Arena)
-      s.on('training:game-end', ({ scores, duration }) => {
-        console.log('[TRAINING] 🏁 Partie terminée!', { scores });
-        setGameActive(false);
-        // TODO: Afficher écran de fin avec scores
-      });
-      
-      return () => {
-        console.log('[TRAINING] Cleanup socket');
-        cleanupResize();
-        if (s) s.disconnect();
-      };
     }
     
     // MODE ARENA: Connexion Socket.IO ARENA (pas mode multijoueur classique)
