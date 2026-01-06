@@ -321,7 +321,8 @@ class CrazyArenaManager {
         console.log(`[CrazyArena][Training] 🔔 Nouvelle manche #${match.roundsPlayed + 1} démarrée (${elapsed}s écoulées)`);
         
         // Générer nouvelle carte pour la nouvelle manche
-        this.generateZones(match.config).then(newZones => {
+        this.generateZones(match.config).then(zonesResult => {
+          const newZones = Array.isArray(zonesResult) ? zonesResult : (zonesResult?.zones || []);
           match.zones = newZones;
           console.log(`[CrazyArena][Training] 🎯 Nouvelle carte pour manche ${match.roundsPlayed + 1}: ${newZones.length} zones`);
           
@@ -424,7 +425,8 @@ class CrazyArenaManager {
         console.log(`[CrazyArena][Training] 🎴 Génération carte ${match.tiebreakerPairsFound + 1}/3 pour tiebreaker...`);
         setTimeout(async () => {
           try {
-            const newZones = await this.generateZones(match.config, match.validatedPairIds || new Set());
+            const zonesResult = await this.generateZones(match.config, match.validatedPairIds || new Set());
+            const newZones = Array.isArray(zonesResult) ? zonesResult : (zonesResult?.zones || []);
             match.zones = newZones;
             
             console.log(`[CrazyArena][Training] ✅ Carte tiebreaker ${match.tiebreakerPairsFound + 1}/3: ${newZones.length} zones`);
