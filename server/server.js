@@ -1346,9 +1346,10 @@ io.on('connection', (socket) => {
     crazyArena.trainingForceStart(matchId);
   });
 
-  socket.on('training:pair-validated', ({ matchId, studentId, zoneAId, zoneBId, pairId, isCorrect }) => {
+  socket.on('training:pair-validated', ({ matchId, studentId, zoneAId, zoneBId, pairId, isCorrect, timeMs }) => {
     console.log(`[Server][Training] Paire validée: ${studentId}, pairId=${pairId}, correct=${isCorrect}`);
-    crazyArena.trainingPairValidated(matchId, studentId, zoneAId, zoneBId, pairId, isCorrect);
+    // ✅ Training utilise la méthode Arena avec eventPrefix 'training:'
+    crazyArena.pairValidated(socket, { studentId, zoneAId, zoneBId, pairId, isCorrect, timeMs }, 'training:');
   });
 
   socket.on('training:subscribe-manager', ({ matchId }) => {
@@ -1359,13 +1360,15 @@ io.on('connection', (socket) => {
   // Joueur clique "Je suis prêt" pour le départage Training
   socket.on('training:player-ready-tiebreaker', ({ matchId, studentId, playerName }) => {
     console.log(`[Server][Training] Joueur ${playerName} (${studentId}) prêt pour départage match ${matchId}`);
-    crazyArena.playerReadyForTrainingTiebreaker(matchId, studentId, playerName, io);
+    // ✅ Training utilise la méthode Arena avec eventPrefix 'training:'
+    crazyArena.playerReadyForTiebreaker(matchId, studentId, playerName, io, 'training:');
   });
 
   // Professeur lance le départage Training
   socket.on('training:start-tiebreaker', ({ matchId }) => {
     console.log(`[Server][Training] Professeur lance départage pour match ${matchId}`);
-    crazyArena.startTrainingTiebreakerByTeacher(matchId);
+    // ✅ Training utilise la méthode Arena avec eventPrefix 'training:'
+    crazyArena.startTiebreakerByTeacher(matchId, 'training:');
   });
 
   // ===== CRAZY ARENA EVENTS (Tournoi groupes de 4) =====
