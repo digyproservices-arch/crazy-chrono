@@ -366,27 +366,93 @@ class CrazyArenaManager {
    */
   endTrainingGame(matchId) {
     const match = this.matches.get(matchId);
-    if (!match) return;
+    if (!match || (match.status !== 'playing' && match.status !== 'tiebreaker' && match.status !== 'tiebreaker-countdown')) return;
 
-    match.status = 'finished';
     if (match.timerInterval) {
       clearInterval(match.timerInterval);
     }
 
     console.log(`[CrazyArena][Training] 🏁 Match ${matchId} terminé`);
 
-    // Envoyer résultats finaux
+    // Préparer le classement
     const playersArray = Array.from(match.players.values());
-    const finalScores = playersArray.map(p => ({
+    
+    // ✅ FIX: Si on sort d'un tiebreaker, ADDITIONNER scores match normal + tiebreaker
+    if (match.isTiebreaker) {
+      playersArray.forEach(p => {
+        const scoreNormal = p.scoreBeforeTiebreaker || 0;
+        const scoreTiebreaker = p.tiebreakerScore || 0;
+        const pairsNormal = p.pairsBeforeTiebreaker || 0;
+        const pairsTiebreaker = p.tiebreakerPairs || 0;
+        
+        p.score = scoreNormal + scoreTiebreaker;  // ADDITION
+        p.pairsValidated = pairsNormal + pairsTiebreaker;
+        
+        console.log(`[CrazyArena][Training] 🏆 ${p.name}: Score final = ${scoreNormal} (normal) + ${scoreTiebreaker} (tiebreaker) = ${p.score} pts`);
+      });
+    }
+
+    const ranking = playersArray.map(p => ({
       studentId: p.studentId,
       name: p.name,
       score: p.score || 0,
-      pairsValidated: p.pairsValidated || 0
+      pairsValidated: p.pairsValidated || 0,
+      errors: p.errors || 0,
+      timeMs: Date.now() - match.startTime
     })).sort((a, b) => b.score - a.score);
 
+    ranking.forEach((p, idx) => {
+      p.position = idx + 1;
+    });
+
+    // Vérifier s'il y a égalité au premier rang
+    const topScore = ranking[0].score;
+    const tiedPlayers = ranking.filter(p => p.score === topScore);
+    
+    if (tiedPlayers.length > 1 && !match.isTiebreaker) {
+      // ÉGALITÉ DÉTECTÉE - Attendre décision du professeur
+      console.log(`[CrazyArena][Training] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topScore} pts`);
+      console.log(`[CrazyArena][Training] ⏸️ En attente décision professeur pour départage...`);
+      
+      // Mettre le match en attente de départage
+      match.status = 'tie-waiting';
+      match.tiedPlayers = tiedPlayers;
+      
+      // Notifier les joueurs de l'égalité (attente du prof)
+      const tieData = {
+        tiedPlayers: tiedPlayers.map(p => ({ name: p.name, score: p.score })),
+        message: 'Égalité ! En attente du professeur pour le départage...'
+      };
+      
+      console.log(`[CrazyArena][Training] 📢 Émission training:tie-detected à room ${matchId}:`, tieData);
+      this.io.to(matchId).emit('training:tie-detected', tieData);
+      
+      // Notifier le dashboard professeur qu'il doit décider (broadcast)
+      this.io.emit('training:tie-waiting-teacher', {
+        matchId,
+        tiedPlayers: tiedPlayers.map(p => ({ 
+          studentId: p.studentId,
+          name: p.name, 
+          score: p.score 
+        })),
+        ranking
+      });
+      
+      console.log(`[CrazyArena][Training] 📢 Notification égalité envoyée à TOUS les clients pour match ${matchId}`);
+      
+      return; // Ne pas terminer le match - attendre décision prof
+    }
+
+    // Pas d'égalité ou après départage - Envoyer le podium final
+    match.status = 'finished';
+    const winner = ranking[0];
+
+    console.log(`[CrazyArena][Training] 🎉 Émission podium final à room ${matchId}`);
     this.io.to(matchId).emit('training:game-end', {
-      scores: finalScores,
-      duration: match.config.durationPerRound || 60
+      ranking,
+      winner,
+      duration: match.endTime - match.startTime,
+      isTiebreaker: match.isTiebreaker || false
     });
   }
 
