@@ -37,8 +37,6 @@ export default function ModeSelect() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginTop: 16 }}>
         <Card title="Jouer en mode Solo" subtitle="Partie locale rapide" onClick={() => go('solo')} />
         <Card title="Jouer en multijoueur en ligne" subtitle="Créer / rejoindre une salle" onClick={() => go('online')} />
-        <Card title="Jouer en classe" subtitle="Session encadrée pour la classe" onClick={() => go('classroom')} />
-        <Card title="Jouer en mode tournois" subtitle="Organiser plusieurs manches et équipes" onClick={() => go('tournament')} />
         
         {isTeacher && (
           <>
