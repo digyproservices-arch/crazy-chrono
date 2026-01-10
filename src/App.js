@@ -16,7 +16,6 @@ import ModeSelect from './components/Modes/ModeSelect';
 import SessionConfig from './components/Modes/SessionConfig';
 import CrazyArenaSetup from './components/Tournament/CrazyArenaSetup';
 import CrazyArenaLobby from './components/Tournament/CrazyArenaLobby';
-import CrazyArenaGame from './components/Tournament/CrazyArenaGame';
 import ArenaManagerDashboard from './components/Tournament/ArenaManagerDashboard';
 import AdminRoles from './components/Admin/AdminRoles';
 import AdminInvite from './components/Admin/AdminInvite';
@@ -420,7 +419,7 @@ function App() {
               <Route path="/tournament/setup" element={<RequireAuth auth={auth}><CrazyArenaSetup /></RequireAuth>} />
               <Route path="/crazy-arena/manager" element={<RequireAuth auth={auth}><ArenaManagerDashboard /></RequireAuth>} />
               <Route path="/crazy-arena/lobby/:roomCode" element={<RequireAuth auth={auth}><CrazyArenaLobby /></RequireAuth>} />
-              <Route path="/crazy-arena/game" element={<RequireAuth auth={auth}><CrazyArenaGame /></RequireAuth>} />
+              <Route path="/crazy-arena/game" element={<RequireAuth auth={auth}><div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div></RequireAuth>} />
               {/* Carte (éditeur/jeu) accessible en direct si nécessaire, sinon on y accède après config */}
               <Route path="/carte" element={<div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div>} />
               <Route path="*" element={<Navigate to="/" replace />} />
