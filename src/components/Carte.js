@@ -1968,13 +1968,6 @@ const Carte = () => {
       } catch (e) {
         console.warn('[CC][client] pair:valid post-UI failed', e);
       }
-      // ✅ FIX DISPARITÉ: Désactiver gameActive UNIQUEMENT en mode Arena (délai 1.5s backend)
-      // En mode multijoueur classique, round:new arrive immédiatement et réactive gameActive
-      // Ne pas désactiver ici sinon on écrase le setGameActive(true) de round:new
-      if (arenaMatchId) {
-        setGameActive(false);
-        console.log('[CC][client] ⚠️ gameActive=false (paire validée Arena, attente nouvelle carte)');
-      }
       
       // ✅ FIX ZONES VIDES: Ne marquer validated UNIQUEMENT en mode solo (pas multijoueur)
       // En multijoueur: round:new remplace toutes les zones, mais pair:valid arrive APRÈS et marque
@@ -2153,9 +2146,9 @@ useEffect(() => {
 useEffect(() => {
   if (!gameActive) return;
   
-  // ⚠️ DÉSACTIVER timer local en mode Arena (utilise arena:timer-tick backend)
-  if (arenaMatchId) {
-    console.log('[ARENA] Timer local désactivé (backend gère le timer)');
+  // ⚠️ DÉSACTIVER timer local en mode tournoi (Training/Arena utilisent timer-tick backend)
+  if (trainingMatchId || arenaMatchId) {
+    console.log('[TOURNOI] Timer local désactivé (backend gère le timer)');
     return;
   }
   
@@ -2463,39 +2456,26 @@ function handleGameClick(zone) {
           animateBubblesFromZones(a, b, primary, ZA, ZB, border, initials);
         } catch {}
         if (socket && socket.connected) {
-          // Mode Arena : émettre event spécifique arena:pair-validated
-          if (arenaMatchId) {
+          // Mode tournoi (Training ou Arena): géré par le bloc unifié
+          if (trainingMatchId || arenaMatchId) {
+            const tournamentMatchId = trainingMatchId || arenaMatchId;
+            const tournamentMode = trainingMatchId ? 'training' : 'arena';
+            const eventPrefix = tournamentMode + ':';
+            const storageKey = tournamentMode === 'training' ? 'cc_training_game' : 'cc_crazy_arena_game';
+            
             try {
-              const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
-              socket.emit('arena:pair-validated', {
-                studentId: arenaData.myStudentId,
+              const tournamentData = JSON.parse(localStorage.getItem(storageKey) || '{}');
+              socket.emit(eventPrefix + 'pair-validated', {
+                studentId: tournamentData.myStudentId,
                 isCorrect: true,
-                timeMs: Date.now() - (arenaData.startTime || Date.now()),
-                matchId: arenaMatchId,
+                matchId: tournamentMatchId,
                 zoneAId: a,
                 zoneBId: b,
                 pairId: ZA?.pairId || ZB?.pairId || null
               });
+              console.log(`[${tournamentMode.toUpperCase()}] Paire validée émise:`, ZA?.pairId || ZB?.pairId);
             } catch (e) {
-              console.error('[ARENA] Erreur émission arena:pair-validated:', e);
-            }
-          }
-
-          // MODE TRAINING: Émettre validation paire au backend
-          if (trainingMatchId) {
-            try {
-              const trainingData = JSON.parse(localStorage.getItem('cc_training_game') || '{}');
-              socket.emit('training:pair-validated', {
-                studentId: trainingData.myStudentId,
-                isCorrect: true,
-                matchId: trainingMatchId,
-                zoneAId: a,
-                zoneBId: b,
-                pairId: ZA?.pairId || ZB?.pairId || null
-              });
-              console.log('[TRAINING] Paire validée émise:', ZA?.pairId || ZB?.pairId);
-            } catch (e) {
-              console.error('[TRAINING] Erreur émission pair-validated:', e);
+              console.error(`[${tournamentMode.toUpperCase()}] Erreur émission pair-validated:`, e);
             }
           } else {
             // Mode multijoueur classique
@@ -3044,32 +3024,12 @@ const handleEditGreenZone = (zone) => {
   }, []);
 
   useEffect(() => {
-    // MODE ARENA: Charger zones depuis localStorage
-    if (arenaMatchId) {
-      console.log('[ARENA] Détection mode arena, matchId:', arenaMatchId);
-      try {
-        const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
-        if (arenaData.zones && Array.isArray(arenaData.zones)) {
-          console.log('[ARENA] Zones chargées depuis localStorage:', arenaData.zones.length);
-          // Compter les zones calcul/chiffre pour éviter message "zones vides"
-          const calcCount = arenaData.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length;
-          const imageCount = arenaData.zones.filter(z => z.type === 'image' || z.type === 'texte').length;
-          try {
-            window.__CC_LAST_FILTER_COUNTS__ = { calcNum: calcCount, textImage: imageCount };
-            console.log('[ARENA] Filter counts set:', { calcNum: calcCount, textImage: imageCount });
-          } catch {}
-          setZones(arenaData.zones);
-          setGameActive(true);
-          setTimeLeft(arenaData.duration || 60);
-          setLoading(false);
-          setRoomStatus('playing');
-          setFullScreen(true);
-          console.log('[ARENA] Mode jeu activé - bypass lobby');
-          return;
-        }
-      } catch (e) {
-        console.error('[ARENA] Erreur chargement zones:', e);
-      }
+    // Détecter le mode (solo vs multijoueur vs tournoi)
+    // Les modes tournoi (Training/Arena) sont gérés par le bloc unifié Socket.IO
+    if (trainingMatchId || arenaMatchId) {
+      console.log('[TOURNOI] Mode détecté, attente Socket.IO');
+      setLoading(false);
+      return;
     }
     
     // Détecter le mode (solo vs multijoueur)
