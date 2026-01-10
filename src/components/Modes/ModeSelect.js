@@ -6,11 +6,21 @@ export default function ModeSelect() {
   const go = (mode) => navigate(`/config/${mode}`);
   const [history, setHistory] = React.useState([]);
   const [showAll, setShowAll] = React.useState(false);
+  const [isTeacher, setIsTeacher] = React.useState(false);
+  
   React.useEffect(() => {
     try {
       const h = JSON.parse(localStorage.getItem('cc_history') || '[]');
       setHistory(Array.isArray(h) ? h : []);
-    } catch { setHistory([]); }
+      
+      // Vérifier si l'utilisateur est professeur
+      const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+      const role = auth?.role || '';
+      setIsTeacher(role === 'teacher' || role === 'admin');
+    } catch { 
+      setHistory([]);
+      setIsTeacher(false);
+    }
   }, []);
   const Card = ({ title, subtitle, onClick }) => (
     <button onClick={onClick} style={{
@@ -29,6 +39,31 @@ export default function ModeSelect() {
         <Card title="Jouer en multijoueur en ligne" subtitle="Créer / rejoindre une salle" onClick={() => go('online')} />
         <Card title="Jouer en classe" subtitle="Session encadrée pour la classe" onClick={() => go('classroom')} />
         <Card title="Jouer en mode tournois" subtitle="Organiser plusieurs manches et équipes" onClick={() => go('tournament')} />
+        
+        {isTeacher && (
+          <>
+            <Card 
+              title="📚 Entraînement Classe (Training)" 
+              subtitle="Entraîner mes élèves toute l'année" 
+              onClick={() => navigate('/teacher/training/create')} 
+            />
+            <Card 
+              title="🏆 Tournoi Officiel (Arena)" 
+              subtitle="Tournoi interscolaire 4 phases" 
+              onClick={() => navigate('/teacher/tournament')} 
+            />
+            <Card 
+              title="📊 Gérer Training" 
+              subtitle="Voir/gérer mes sessions d'entraînement" 
+              onClick={() => navigate('/teacher/training/manager')} 
+            />
+            <Card 
+              title="📊 Gérer Arena" 
+              subtitle="Voir/gérer mes tournois" 
+              onClick={() => navigate('/crazy-arena/manager')} 
+            />
+          </>
+        )}
       </div>
       {Array.isArray(history) && history.length > 0 && (
         <section style={{ marginTop: 20 }}>
