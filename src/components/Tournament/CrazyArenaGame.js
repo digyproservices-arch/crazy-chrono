@@ -26,6 +26,7 @@ export default function CrazyArenaGame() {
   const [gameEnded, setGameEnded] = useState(false);
   const [ranking, setRanking] = useState([]);
   const [winner, setWinner] = useState(null);
+  const [wonPairsHistory, setWonPairsHistory] = useState([]);
   
   useEffect(() => {
     // Récupérer les infos de la partie
@@ -92,6 +93,37 @@ export default function CrazyArenaGame() {
     
     socket.on('arena:scores-update', ({ scores }) => {
       setPlayers(scores);
+    });
+    
+    // Mise à jour historique pédagogique quand une paire est validée
+    socket.on('arena:pair-validated', ({ studentId, score, pairsValidated }) => {
+      console.log('[CrazyArena] Paire validée par', studentId, 'score:', score);
+      
+      // Trouver le joueur qui a validé la paire
+      const player = players.find(p => p.studentId === studentId);
+      const playerName = player?.name || 'Joueur';
+      const playerIdx = players.findIndex(p => p.studentId === studentId);
+      
+      // Couleur du joueur (même logique que Carte.js)
+      const colors = [
+        { primary: '#3b82f6', border: '#1e40af' }, // Bleu
+        { primary: '#10b981', border: '#047857' }, // Vert
+        { primary: '#f59e0b', border: '#d97706' }, // Orange
+        { primary: '#ef4444', border: '#b91c1c' }  // Rouge
+      ];
+      const { primary, border } = colors[playerIdx % 4] || colors[0];
+      
+      // Créer entrée historique
+      const entry = {
+        winnerId: studentId,
+        winnerName: playerName,
+        color: primary,
+        borderColor: border,
+        text: `${playerName} - Paire ${pairsValidated}`,
+        timestamp: Date.now()
+      };
+      
+      setWonPairsHistory(h => [entry, ...(Array.isArray(h) ? h : [])].slice(0, 25));
     });
     
     socket.on('arena:tie-detected', ({ tiedPlayers, message }) => {
@@ -408,6 +440,70 @@ export default function CrazyArenaGame() {
           {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
         </div>
       </div>
+      
+      {/* Historique pédagogique */}
+      {wonPairsHistory.length > 0 && (
+        <div style={{
+          position: 'absolute',
+          bottom: 20,
+          left: 20,
+          background: 'rgba(255,255,255,0.95)',
+          borderRadius: 12,
+          padding: 16,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          maxWidth: 300,
+          maxHeight: 200,
+          overflowY: 'auto',
+          zIndex: 100
+        }}>
+          <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 14, color: '#6b7280' }}>
+            📚 Historique ({wonPairsHistory.length})
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {wonPairsHistory.slice(0, 10).map((entry, idx) => (
+              <div 
+                key={idx}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '6px 8px',
+                  background: '#f9fafb',
+                  borderRadius: 6,
+                  borderLeft: `3px solid ${entry.color || '#6b7280'}`
+                }}
+              >
+                <div style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  background: entry.color || '#6b7280',
+                  border: `2px solid ${entry.borderColor || '#ffffff'}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: 'white',
+                  flexShrink: 0
+                }}>
+                  {entry.initials || entry.winnerName?.substring(0, 2).toUpperCase() || '?'}
+                </div>
+                <div style={{ 
+                  fontSize: 12, 
+                  color: '#111',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  flex: 1
+                }}>
+                  {entry.text}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       
       {/* Carte SVG avec CarteRenderer */}
       <div style={{ width: '100%', height: '100%', position: 'relative' }}>
