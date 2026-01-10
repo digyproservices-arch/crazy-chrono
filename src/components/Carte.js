@@ -1167,27 +1167,33 @@ const Carte = () => {
     // Cleanup resize listener will be returned later with socket cleanup
     const cleanupResize = () => window.removeEventListener('resize', applyMobile);
     
-    // MODE TRAINING: Connexion Socket.IO TRAINING (auto-start comme Arena)
-    if (trainingMatchId) {
-      console.log('[TRAINING] Connexion Socket.IO Training pour match:', trainingMatchId);
+    // MODE TOURNOI UNIFIÉ: Training OU Arena (détection automatique)
+    if (trainingMatchId || arenaMatchId) {
+      // Variables dynamiques pour unifier Training et Arena
+      const tournamentMatchId = trainingMatchId || arenaMatchId;
+      const tournamentMode = trainingMatchId ? 'training' : 'arena';
+      const eventPrefix = tournamentMode + ':';
+      const storageKey = tournamentMode === 'training' ? 'cc_training_game' : 'cc_crazy_arena_game';
+      
+      console.log(`[${tournamentMode.toUpperCase()}] Connexion Socket.IO pour match:`, tournamentMatchId);
       if (socketRef.current && socketRef.current.connected) return cleanupResize;
       
       const base = getBackendUrl();
-      console.log('[TRAINING] Tentative connexion Socket.IO vers:', base);
+      console.log(`[${tournamentMode.toUpperCase()}] Tentative connexion Socket.IO vers:`, base);
       const s = io(base, { transports: ['websocket'], withCredentials: false });
       socketRef.current = s;
       
       s.on('connect', () => {
-        console.log('[TRAINING] ✅ Socket connecté, ID:', s.id);
+        console.log(`[${tournamentMode.toUpperCase()}] ✅ Socket connecté, ID:`, s.id);
         setSocketConnected(true);
         
-        // ✅ REJOINDRE LA ROOM (comme Arena ligne 1314)
+        // ✅ REJOINDRE LA ROOM
         try {
-          const trainingData = JSON.parse(localStorage.getItem('cc_training_game') || '{}');
-          const myPlayer = (trainingData.players || []).find(p => p.studentId === trainingData.myStudentId);
+          const tournamentData = JSON.parse(localStorage.getItem(storageKey) || '{}');
+          const myPlayer = (tournamentData.players || []).find(p => p.studentId === tournamentData.myStudentId);
           
           if (!myPlayer) {
-            console.error('[TRAINING] Joueur introuvable dans trainingData.players');
+            console.error(`[${tournamentMode.toUpperCase()}] Joueur introuvable dans ${storageKey}.players`);
             return;
           }
           
@@ -1197,45 +1203,45 @@ const Carte = () => {
             avatar: myPlayer.avatar
           };
           
-          console.log('[TRAINING] 📡 Envoi training:join avec studentData:', studentData);
-          s.emit('training:join', {
-            matchId: trainingMatchId,
+          console.log(`[${tournamentMode.toUpperCase()}] 📡 Envoi ${eventPrefix}join avec studentData:`, studentData);
+          s.emit(eventPrefix + 'join', {
+            matchId: tournamentMatchId,
             studentData
           });
           
-          console.log('[TRAINING] Données jeu:', trainingData);
+          console.log(`[${tournamentMode.toUpperCase()}] Données jeu:`, tournamentData);
           
           // Charger zones et démarrer immédiatement
-          if (trainingData.zones && Array.isArray(trainingData.zones)) {
-            console.log('[TRAINING] 🎮 Chargement zones:', trainingData.zones.length);
-            setZones(trainingData.zones);
-            setTimeLeft(trainingData.duration || 60);
+          if (tournamentData.zones && Array.isArray(tournamentData.zones)) {
+            console.log(`[${tournamentMode.toUpperCase()}] 🎮 Chargement zones:`, tournamentData.zones.length);
+            setZones(tournamentData.zones);
+            setTimeLeft(tournamentData.duration || 60);
             
             // Démarrer le jeu automatiquement (comme Arena)
             setTimeout(() => {
               setGameActive(true);
-              console.log('[TRAINING] ✅ Jeu démarré automatiquement');
+              console.log(`[${tournamentMode.toUpperCase()}] ✅ Jeu démarré automatiquement`);
             }, 500);
           } else {
-            console.error('[TRAINING] ❌ Pas de zones dans trainingData');
+            console.error(`[${tournamentMode.toUpperCase()}] ❌ Pas de zones dans ${storageKey}`);
           }
         } catch (e) {
-          console.error('[TRAINING] ❌ Erreur chargement données:', e);
+          console.error(`[${tournamentMode.toUpperCase()}] ❌ Erreur chargement données:`, e);
         }
       });
       
       s.on('disconnect', () => {
-        console.log('[TRAINING] ❌ Socket déconnecté');
+        console.log(`[${tournamentMode.toUpperCase()}] ❌ Socket déconnecté`);
         setSocketConnected(false);
       });
       
-      s.on('training:error', ({ message }) => {
-        console.error('[TRAINING] ❌ Erreur backend:', message);
+      s.on(eventPrefix + 'error', ({ message }) => {
+        console.error(`[${tournamentMode.toUpperCase()}] ❌ Erreur backend:`, message);
       });
 
-      // Écouter paire validée par un joueur (comme Arena)
-      s.on('training:pair-validated', ({ pairId, zoneAId, zoneBId, playerName, studentId }) => {
-        console.log('[TRAINING] Paire validée par', playerName, ':', pairId);
+      // Écouter paire validée par un joueur
+      s.on(eventPrefix + 'pair-validated', ({ pairId, zoneAId, zoneBId, playerName, studentId }) => {
+        console.log(`[${tournamentMode.toUpperCase()}] Paire validée par`, playerName, ':', pairId);
         
         // Masquer les zones validées
         setZones(prevZones => {
@@ -1249,17 +1255,17 @@ const Carte = () => {
 
         // Désactiver le jeu pendant transition (1.5s)
         setGameActive(false);
-        console.log('[TRAINING] ⚠️ gameActive=false (attente nouvelle carte)');
+        console.log(`[${tournamentMode.toUpperCase()}] ⚠️ gameActive=false (attente nouvelle carte)`);
       });
 
-      // Écouter timer tick du backend pour synchroniser timeLeft (comme Arena)
-      s.on('training:timer-tick', ({ timeLeft: serverTimeLeft }) => {
+      // Écouter timer tick du backend pour synchroniser timeLeft
+      s.on(eventPrefix + 'timer-tick', ({ timeLeft: serverTimeLeft }) => {
         setTimeLeft(serverTimeLeft);
       });
 
-      // Écouter nouvelle carte (comme Arena)
-      s.on('training:round-new', ({ zones, roundIndex, totalRounds }) => {
-        console.log('[TRAINING] Nouvelle carte reçue!', { 
+      // Écouter nouvelle carte
+      s.on(eventPrefix + 'round-new', ({ zones, roundIndex, totalRounds }) => {
+        console.log(`[${tournamentMode.toUpperCase()}] Nouvelle carte reçue!`, { 
           zonesCount: zones?.length, 
           roundIndex, 
           totalRounds 
@@ -1268,35 +1274,35 @@ const Carte = () => {
         if (Array.isArray(zones)) {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
           setZones(cleanZones);
-          console.log('[TRAINING] ✅ Zones mises à jour:', cleanZones.length);
+          console.log(`[${tournamentMode.toUpperCase()}] ✅ Zones mises à jour:`, cleanZones.length);
         }
 
         // Réactiver le jeu après 50ms
         setTimeout(() => {
           setGameActive(true);
-          console.log('[TRAINING] ✅ gameActive=true (nouvelle manche)');
+          console.log(`[${tournamentMode.toUpperCase()}] ✅ gameActive=true (nouvelle manche)`);
         }, 50);
       });
 
       // Écouter fin de partie
-      s.on('training:game-end', ({ ranking, winner, duration, isTiebreaker }) => {
-        console.log('[TRAINING] 🏁 Partie terminée!', { winner: winner?.name, ranking });
+      s.on(eventPrefix + 'game-end', ({ ranking, winner, duration, isTiebreaker }) => {
+        console.log(`[${tournamentMode.toUpperCase()}] 🏁 Partie terminée!`, { winner: winner?.name, ranking });
         setGameActive(false);
         
-        const tieOverlay = document.getElementById('training-tie-overlay');
+        const tieOverlay = document.getElementById(`${tournamentMode}-tie-overlay`);
         if (tieOverlay) tieOverlay.remove();
       });
 
-      // TRAINING TIEBREAKER: Égalité détectée
-      s.on('training:tie-detected', ({ tiedPlayers, message }) => {
-        console.log('[TRAINING] ÉGALITÉ détectée !', tiedPlayers);
+      // TIEBREAKER: Égalité détectée
+      s.on(eventPrefix + 'tie-detected', ({ tiedPlayers, message }) => {
+        console.log(`[${tournamentMode.toUpperCase()}] ÉGALITÉ détectée !`, tiedPlayers);
         setGameActive(false);
         
         setTimeout(() => {
-          console.log('[TRAINING] 🎨 Construction overlay égalité...');
+          console.log(`[${tournamentMode.toUpperCase()}] 🎨 Construction overlay égalité...`);
           
           const overlay = document.createElement('div');
-          overlay.id = 'training-tie-overlay';
+          overlay.id = `${tournamentMode}-tie-overlay`;
           overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);z-index:10000;display:flex;align-items:center;justify-content:center;';
           
           const container = document.createElement('div');
@@ -1306,35 +1312,34 @@ const Carte = () => {
           contentDiv.innerHTML = `<h1 style="font-size:64px;margin-bottom:20px;">⚖️</h1><h2 style="font-size:42px;margin-bottom:20px;text-shadow:0 2px 10px rgba(0,0,0,0.3);">ÉGALITÉ !</h2><p style="font-size:24px;margin-bottom:30px;">${message}</p><div style="display:flex;gap:20px;justify-content:center;">${tiedPlayers.map(p => `<div style="background:white;border-radius:16px;padding:24px;border:4px solid #fbbf24;"><div style="font-size:48px;margin-bottom:12px;">🤝</div><div style="color:#111;font-weight:700;font-size:20px;margin-bottom:8px;">${p.name}</div><div style="color:#6b7280;font-size:16px;">Score: <span style="color:#f59e0b;font-weight:700;">${p.score}</span></div></div>`).join('')}</div><p style="margin-top:40px;font-size:18px;color:#fef3c7;">⏳ En attente de la décision du professeur...</p>`;
           
           const readyBtn = document.createElement('button');
-          readyBtn.id = 'training-tie-ready-btn';
+          readyBtn.id = `${tournamentMode}-tie-ready-btn`;
           readyBtn.textContent = '✋ JE SUIS PRÊT';
           readyBtn.style.cssText = 'margin-top:30px;padding:16px 40px;font-size:20px;font-weight:700;background:#fff;color:#f59e0b;border:3px solid #fbbf24;border-radius:12px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:all 0.3s;';
           
           const statusEl = document.createElement('p');
-          statusEl.id = 'training-tie-status';
+          statusEl.id = `${tournamentMode}-tie-status`;
           statusEl.style.cssText = 'margin-top:20px;font-size:16px;color:#fef3c7;min-height:24px;';
           
           readyBtn.onclick = () => {
-            console.log('[TRAINING] ✋ CLIC BOUTON DÉTECTÉ !');
+            console.log(`[${tournamentMode.toUpperCase()}] ✋ CLIC BOUTON DÉTECTÉ !`);
             
             try {
               const socket = socketRef.current;
               
               if (!socket || !socket.connected) {
-                console.error('[TRAINING] ❌ Socket non connecté!');
+                console.error(`[${tournamentMode.toUpperCase()}] ❌ Socket non connecté!`);
                 statusEl.textContent = '❌ Erreur: Connexion perdue';
                 return;
               }
               
-              const trainingData = JSON.parse(localStorage.getItem('cc_training_game') || '{}');
-              const matchId = new URLSearchParams(window.location.search).get('training');
-              const myStudentId = trainingData.myStudentId;
-              const myName = trainingData.players?.find(p => p.studentId === myStudentId)?.name || 'Joueur';
+              const tournamentData = JSON.parse(localStorage.getItem(storageKey) || '{}');
+              const myStudentId = tournamentData.myStudentId;
+              const myName = tournamentData.players?.find(p => p.studentId === myStudentId)?.name || 'Joueur';
               
-              console.log('[TRAINING] 📤 Émission training:player-ready-tiebreaker', { matchId, studentId: myStudentId, playerName: myName });
+              console.log(`[${tournamentMode.toUpperCase()}] 📤 Émission ${eventPrefix}player-ready-tiebreaker`, { matchId: tournamentMatchId, studentId: myStudentId, playerName: myName });
               
-              socket.emit('training:player-ready-tiebreaker', {
-                matchId,
+              socket.emit(eventPrefix + 'player-ready-tiebreaker', {
+                matchId: tournamentMatchId,
                 studentId: myStudentId,
                 playerName: myName
               });
@@ -1345,7 +1350,7 @@ const Carte = () => {
               readyBtn.textContent = '✅ PRÊT !';
               statusEl.textContent = '✅ Vous êtes prêt ! En attente des autres joueurs...';
             } catch (e) {
-              console.error('[TRAINING] ❌ Erreur:', e);
+              console.error(`[${tournamentMode.toUpperCase()}] ❌ Erreur:`, e);
               statusEl.textContent = '❌ Erreur: ' + e.message;
             }
           };
@@ -1355,26 +1360,26 @@ const Carte = () => {
           container.appendChild(statusEl);
           overlay.appendChild(container);
           document.body.appendChild(overlay);
-          console.log('[TRAINING] ✅ Overlay ajouté au DOM');
+          console.log(`[${tournamentMode.toUpperCase()}] ✅ Overlay ajouté au DOM`);
         }, 500);
       });
 
-      // TRAINING TIEBREAKER: Countdown 3-2-1
-      s.on('training:countdown', ({ count }) => {
-        console.log('[TRAINING] 📣 Countdown reçu:', count);
+      // TIEBREAKER: Countdown 3-2-1
+      s.on(eventPrefix + 'countdown', ({ count }) => {
+        console.log(`[${tournamentMode.toUpperCase()}] 📣 Countdown reçu:`, count);
         
         if (count === 3) {
-          const tieOverlay = document.getElementById('training-tie-overlay');
+          const tieOverlay = document.getElementById(`${tournamentMode}-tie-overlay`);
           if (tieOverlay) {
             tieOverlay.remove();
-            console.log('[TRAINING] 🗑️ Overlay égalité retiré (début countdown)');
+            console.log(`[${tournamentMode.toUpperCase()}] 🗑️ Overlay égalité retiré (début countdown)`);
           }
         }
         
-        let countdownOverlay = document.getElementById('training-countdown-overlay');
+        let countdownOverlay = document.getElementById(`${tournamentMode}-countdown-overlay`);
         if (!countdownOverlay) {
           countdownOverlay = document.createElement('div');
-          countdownOverlay.id = 'training-countdown-overlay';
+          countdownOverlay.id = `${tournamentMode}-countdown-overlay`;
           countdownOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;';
           document.body.appendChild(countdownOverlay);
         }
@@ -1384,31 +1389,31 @@ const Carte = () => {
         if (count === 0) {
           setTimeout(() => {
             countdownOverlay.remove();
-            console.log('[TRAINING] 🗑️ Overlay countdown retiré (GO! terminé)');
+            console.log(`[${tournamentMode.toUpperCase()}] 🗑️ Overlay countdown retiré (GO! terminé)`);
           }, 800);
         }
       });
 
-      // TRAINING TIEBREAKER: Démarrage
-      s.on('training:tiebreaker-start', ({ zones, duration, startTime, matchId }) => {
-        console.log('[TRAINING] 🎯 Tiebreaker start - Mise à jour React directe');
+      // TIEBREAKER: Démarrage
+      s.on(eventPrefix + 'tiebreaker-start', ({ zones, duration, startTime, matchId }) => {
+        console.log(`[${tournamentMode.toUpperCase()}] 🎯 Tiebreaker start - Mise à jour React directe`);
         
         if (!zones || zones.length === 0) {
-          console.error('[TRAINING] ❌ Zones manquantes');
+          console.error(`[${tournamentMode.toUpperCase()}] ❌ Zones manquantes`);
           return;
         }
         
-        console.log('[TRAINING] ✅ Tiebreaker: ', zones.length, 'zones reçues');
+        console.log(`[${tournamentMode.toUpperCase()}] ✅ Tiebreaker:`, zones.length, 'zones reçues');
         
-        const tieOverlay = document.getElementById('training-tie-overlay');
+        const tieOverlay = document.getElementById(`${tournamentMode}-tie-overlay`);
         if (tieOverlay) {
           tieOverlay.remove();
-          console.log('[TRAINING] ✅ Overlay égalité supprimé');
+          console.log(`[${tournamentMode.toUpperCase()}] ✅ Overlay égalité supprimé`);
         }
         setCountdown(null);
-        console.log('[TRAINING] ✅ Countdown supprimé');
+        console.log(`[${tournamentMode.toUpperCase()}] ✅ Countdown supprimé`);
         
-        const existingData = JSON.parse(localStorage.getItem('cc_training_game') || '{}');
+        const existingData = JSON.parse(localStorage.getItem(storageKey) || '{}');
         const tiebreakerData = {
           ...existingData,
           zones,
@@ -1416,20 +1421,20 @@ const Carte = () => {
           startTime,
           isTiebreaker: true
         };
-        localStorage.setItem('cc_training_game', JSON.stringify(tiebreakerData));
+        localStorage.setItem(storageKey, JSON.stringify(tiebreakerData));
         
         const cleanZones = Array.isArray(zones) ? zones.map(z => ({ ...z, validated: false })) : [];
-        console.log('[TRAINING] 🧹 Zones nettoyées (validated=false):', cleanZones.length);
+        console.log(`[${tournamentMode.toUpperCase()}] 🧹 Zones nettoyées (validated=false):`, cleanZones.length);
         
         setZones(cleanZones);
         setGameActive(true);
         setIsTiebreaker(true);
         
-        console.log('[TRAINING] ✅ État React mis à jour avec zones tiebreaker');
+        console.log(`[${tournamentMode.toUpperCase()}] ✅ État React mis à jour avec zones tiebreaker`);
       });
 
       return () => {
-        console.log('[TRAINING] Cleanup socket');
+        console.log(`[${tournamentMode.toUpperCase()}] Cleanup socket`);
         cleanupResize();
         if (s) s.disconnect();
       };
