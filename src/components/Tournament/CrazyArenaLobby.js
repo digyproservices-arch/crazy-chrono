@@ -189,10 +189,10 @@ export default function CrazyArenaLobby() {
         // Stocker les infos de la partie pour Carte.js
         localStorage.setItem('cc_crazy_arena_game', JSON.stringify(gameData));
         
-        console.log('[CrazyArena] ➡️  Redirection vers /crazy-arena/game');
+        console.log('[CrazyArena] ➡️  Redirection vers /carte?arena=', matchId);
         
-        // Rediriger vers le composant CrazyArenaGame dédié
-        navigate('/crazy-arena/game');
+        // Rediriger vers le mode multijoueur classique avec paramètre arena
+        navigate(`/carte?arena=${matchId}`);
       });
       
       return () => socket.disconnect();
