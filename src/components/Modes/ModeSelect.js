@@ -1,11 +1,27 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import TeacherModeSelector from '../Teacher/TeacherModeSelector';
 
 export default function ModeSelect() {
   const navigate = useNavigate();
   const go = (mode) => navigate(`/config/${mode}`);
   const [history, setHistory] = React.useState([]);
   const [showAll, setShowAll] = React.useState(false);
+  
+  // Détecter si l'utilisateur est professeur ou admin
+  const auth = React.useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('cc_auth') || '{}');
+    } catch {
+      return {};
+    }
+  }, []);
+  
+  // Si professeur/admin, afficher TeacherModeSelector (Training/Arena)
+  if (auth.role === 'teacher' || auth.role === 'admin') {
+    return <TeacherModeSelector />;
+  }
+  
   React.useEffect(() => {
     try {
       const h = JSON.parse(localStorage.getItem('cc_history') || '[]');
