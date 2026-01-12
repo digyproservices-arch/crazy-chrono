@@ -138,6 +138,21 @@ export default function TrainingGame() {
       }, 1000);
     });
     
+    // ✅ CRITIQUE: Recevoir nouvelles zones après paire validée
+    socket.on('training:round-new', ({ zones: newZones, roundIndex, totalRounds, timestamp }) => {
+      console.log('[Training] 🎯 Nouvelle carte reçue:', { 
+        zonesCount: newZones?.length,
+        roundIndex, 
+        totalRounds 
+      });
+      
+      if (newZones && Array.isArray(newZones)) {
+        setZones(newZones);
+        setSelectedZones([]);
+        console.log('[Training] ✅ Carte mise à jour avec', newZones.length, 'zones');
+      }
+    });
+    
     // Timer local
     const interval = setInterval(() => {
       if (gameInfo.startTime) {
