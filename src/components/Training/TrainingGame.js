@@ -95,6 +95,36 @@ export default function TrainingGame() {
       setPlayers(scores);
     });
     
+    // ✅ CRITIQUE: Synchroniser les paires validées par les autres joueurs
+    socket.on('training:pair-validated', ({ studentId, pairId, zoneAId, zoneBId }) => {
+      console.log('[Training] 🔄 Paire validée par autre joueur:', { studentId, pairId, zoneAId, zoneBId });
+      
+      // Retirer les zones validées pour TOUS les joueurs (synchronisation)
+      setZones(prev => {
+        const filtered = prev.filter(z => z.id !== zoneAId && z.id !== zoneBId);
+        console.log('[Training] Zones après suppression:', filtered.length, 'restantes');
+        return filtered;
+      });
+      
+      // Désélectionner si une des zones était sélectionnée
+      setSelectedZones(prev => prev.filter(id => id !== zoneAId && id !== zoneBId));
+    });
+    
+    // ✅ NOUVELLE CARTE après bonne paire (régénération serveur)
+    socket.on('training:round-new', ({ zones: newZones, roundIndex, totalRounds }) => {
+      console.log('[Training] 🎯 Nouvelle carte reçue:', {
+        zonesCount: newZones?.length,
+        roundIndex,
+        totalRounds
+      });
+      
+      if (newZones && Array.isArray(newZones)) {
+        setZones(newZones);
+        setSelectedZones([]);
+        console.log('[Training] ✅ Carte mise à jour avec', newZones.length, 'zones');
+      }
+    });
+    
     socket.on('training:tie-detected', ({ tiedPlayers, message }) => {
       console.log('[Training] ⚖️ Égalité détectée !', tiedPlayers);
       setGameEnded(true);

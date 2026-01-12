@@ -430,6 +430,34 @@ class CrazyArenaManager {
         match.validatedPairIds.delete(oldestPairId);
         console.log(`[CrazyArena][Training] FIFO: Supprimé paire la plus ancienne: ${oldestPairId}`);
       }
+      
+      match.validatedPairIds.add(pairId);
+      console.log(`[CrazyArena][Training] 📊 Paire validée ajoutée au FIFO: ${pairId} (total: ${match.validatedPairIds.size}/${MAX_EXCLUDED_PAIRS})`);
+      
+      // ✅ NOUVELLE CARTE IMMÉDIATEMENT (même mécanisme que Arena)
+      console.log(`[CrazyArena][Training] 🎉 Paire trouvée! Génération nouvelle carte...`);
+      
+      // Générer nouvelle carte avec exclusion FIFO
+      setTimeout(async () => {
+        try {
+          const newZones = await this.generateZones(match.config);
+          match.zones = newZones;
+          
+          console.log(`[CrazyArena][Training] 🎯 Nouvelle carte générée: ${newZones.length} zones, 1 paire`);
+          
+          // Émettre nouvelle carte à tous les joueurs
+          this.io.to(matchId).emit('training:round-new', {
+            zones: newZones,
+            roundIndex: match.roundsPlayed || 0,
+            totalRounds: match.config.rounds || null,
+            timestamp: Date.now()
+          });
+          
+          console.log(`[CrazyArena][Training] ✅ training:round-new émis`);
+        } catch (err) {
+          console.error('[CrazyArena][Training] Erreur génération nouvelle carte:', err);
+        }
+      }, 1500); // Délai 1.5s pour laisser temps aux joueurs de voir la dernière paire
     }
 
     // Diffuser les scores à tous les joueurs
