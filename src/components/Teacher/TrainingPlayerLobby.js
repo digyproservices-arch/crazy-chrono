@@ -120,13 +120,13 @@ export default function TrainingPlayerLobby() {
         
         console.log('[TrainingLobby] 💾 Données à stocker dans localStorage:', gameData);
         
-        // Stocker les infos de la partie pour Carte.js
-        localStorage.setItem('cc_training_game', JSON.stringify(gameData));
+        // Stocker les infos de la partie pour TrainingArenaGame
+        localStorage.setItem('cc_training_arena_game', JSON.stringify(gameData));
         
-        console.log('[TrainingLobby] ➡️  Redirection vers /training/game');
+        console.log('[TrainingLobby] ➡️  Redirection vers /training-arena/game');
         
-        // Rediriger vers le composant TrainingGame dédié
-        navigate('/training/game');
+        // Rediriger vers le composant TrainingArenaGame (copie exacte de CrazyArenaGame)
+        navigate('/training-arena/game');
       });
       
       return () => socket.disconnect();

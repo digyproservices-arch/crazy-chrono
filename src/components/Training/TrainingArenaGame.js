@@ -1,6 +1,6 @@
 // ==========================================
-// COMPOSANT: JEU TRAINING MODE
-// Interface de jeu avec scores temps réel (copie exacte de Arena)
+// COMPOSANT: JEU TRAINING ARENA
+// Interface de jeu avec scores temps réel des 4 joueurs
 // Réutilise la logique de Carte.js mais en mode compétitif
 // ==========================================
 
@@ -10,7 +10,7 @@ import { io } from 'socket.io-client';
 import { getBackendUrl } from '../../utils/subscription';
 import CarteRenderer from '../CarteRenderer';
 
-export default function TrainingGame() {
+export default function TrainingArenaGame() {
   const navigate = useNavigate();
   const socketRef = useRef(null);
   const svgOverlayRef = useRef(null);
@@ -29,23 +29,23 @@ export default function TrainingGame() {
   
   useEffect(() => {
     // Récupérer les infos de la partie
-    const gameInfo = JSON.parse(localStorage.getItem('cc_training_game') || '{}');
+    const gameInfo = JSON.parse(localStorage.getItem('cc_training_arena_game') || '{}');
     
-    console.log('[Training] GameInfo complet:', gameInfo);
-    console.log('[Training] Type de zones:', typeof gameInfo.zones, 'isArray:', Array.isArray(gameInfo.zones));
+    console.log('[TrainingArena] GameInfo complet:', gameInfo);
+    console.log('[TrainingArena] Type de zones:', typeof gameInfo.zones, 'isArray:', Array.isArray(gameInfo.zones));
     
     if (!gameInfo.matchId || !gameInfo.zones) {
-      console.error('[Training] Données manquantes, redirection');
-      navigate('/modes');
+      console.error('[TrainingArena] Données manquantes, redirection');
+      navigate('/teacher/training/create');
       return;
     }
     
     // Convertir zones en tableau si nécessaire
     const zonesArray = Array.isArray(gameInfo.zones) ? gameInfo.zones : (gameInfo.zones?.zones || []);
     
-    console.log('[Training] Zones finales (array):', zonesArray);
-    console.log('[Training] Zones avec content:', zonesArray.filter(z => z.content));
-    console.log('[Training] Zones SANS content:', zonesArray.filter(z => !z.content));
+    console.log('[TrainingArena] Zones finales (array):', zonesArray);
+    console.log('[TrainingArena] Zones avec content:', zonesArray.filter(z => z.content));
+    console.log('[TrainingArena] Zones SANS content:', zonesArray.filter(z => !z.content));
     
     setZones(zonesArray);
     setPlayers(gameInfo.players);
@@ -59,10 +59,10 @@ export default function TrainingGame() {
       if (savedAngles) {
         const parsed = JSON.parse(savedAngles);
         setCalcAngles(parsed);
-        console.log('[Training] Angles chargés depuis localStorage:', parsed);
+        console.log('[TrainingArena] Angles chargés depuis localStorage:', parsed);
       }
     } catch (e) {
-      console.warn('[Training] Erreur chargement angles:', e);
+      console.warn('[TrainingArena] Erreur chargement angles:', e);
     }
     
     // Connexion Socket.IO
@@ -73,7 +73,7 @@ export default function TrainingGame() {
     socketRef.current = socket;
     
     socket.on('connect', () => {
-      console.log('[Training] Connecté pour la partie');
+      console.log('[TrainingArena] Connecté pour la partie');
       
       // CRITIQUE: Rejoindre la room du match pour recevoir les événements
       socket.emit('training:join', {
@@ -85,7 +85,7 @@ export default function TrainingGame() {
         }
       }, (response) => {
         if (response?.ok) {
-          console.log('[Training] ✅ Rejoint la room du match pour recevoir événements');
+          console.log('[TrainingArena] ✅ Rejoint la room du match pour recevoir événements');
         }
       });
     });
@@ -95,7 +95,7 @@ export default function TrainingGame() {
     });
     
     socket.on('training:tie-detected', ({ tiedPlayers, message }) => {
-      console.log('[Training] ⚖️ Égalité détectée !', tiedPlayers);
+      console.log('[TrainingArena] ⚖️ Égalité détectée !', tiedPlayers);
       setGameEnded(true);
       
       // Créer podium égalité
@@ -110,7 +110,7 @@ export default function TrainingGame() {
       // Afficher immédiatement
       setTimeout(() => {
         const overlay = document.createElement('div');
-        overlay.id = 'training-tie';
+        overlay.id = 'training-arena-tie';
         overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);z-index:10000;display:flex;align-items:center;justify-content:center;';
         overlay.innerHTML = `<div style="text-align:center;color:white;max-width:800px;padding:40px;"><h1 style="font-size:64px;margin-bottom:20px;">⚖️</h1><h2 style="font-size:42px;margin-bottom:20px;">ÉGALITÉ !</h2><p style="font-size:24px;margin-bottom:30px;">${message}</p><div style="display:flex;gap:20px;justify-content:center;">${tieRanking.map(p => `<div style="background:white;border-radius:16px;padding:24px;border:4px solid #fbbf24;"><div style="font-size:48px;margin-bottom:12px;">🤝</div><div style="color:#111;font-weight:700;font-size:20px;margin-bottom:8px;">${p.name}</div><div style="color:#6b7280;font-size:16px;">Score: <span style="color:#f59e0b;font-weight:700;">${p.score}</span></div></div>`).join('')}</div><p style="margin-top:40px;font-size:18px;color:#fef3c7;">⏳ En attente de la décision du professeur...</p></div>`;
         document.body.appendChild(overlay);
@@ -118,7 +118,7 @@ export default function TrainingGame() {
     });
 
     socket.on('training:tiebreaker-start', ({ zones: newZones, duration, tiedPlayers }) => {
-      console.log('[Training] 🔄 Démarrage manche de départage !');
+      console.log('[TrainingArena] 🔄 Démarrage manche de départage !');
       setZones(newZones);
       setTimeLeft(duration);
       setGameEnded(false);
@@ -127,7 +127,7 @@ export default function TrainingGame() {
     });
 
     socket.on('training:game-end', ({ ranking: finalRanking, winner: finalWinner, isTiebreaker }) => {
-      console.log('[Training] Partie terminée !', finalWinner);
+      console.log('[TrainingArena] Partie terminée !', finalWinner);
       setGameEnded(true);
       setRanking(finalRanking);
       setWinner(finalWinner);
@@ -138,9 +138,8 @@ export default function TrainingGame() {
       }, 1000);
     });
     
-    // ✅ CRITIQUE: Recevoir nouvelles zones après paire validée
     socket.on('training:round-new', ({ zones: newZones, roundIndex, totalRounds, timestamp }) => {
-      console.log('[Training] 🎯 Nouvelle carte reçue:', { 
+      console.log('[TrainingArena] 🎯 Nouvelle carte reçue:', { 
         zonesCount: newZones?.length,
         roundIndex, 
         totalRounds 
@@ -149,7 +148,7 @@ export default function TrainingGame() {
       if (newZones && Array.isArray(newZones)) {
         setZones(newZones);
         setSelectedZones([]);
-        console.log('[Training] ✅ Carte mise à jour avec', newZones.length, 'zones');
+        console.log('[TrainingArena] ✅ Carte mise à jour avec', newZones.length, 'zones');
       }
     });
     
@@ -251,7 +250,7 @@ export default function TrainingGame() {
   const showPodium = (finalRanking, finalWinner, isTiebreaker = false) => {
     // Créer un overlay podium
     const overlay = document.createElement('div');
-    overlay.id = 'training-podium';
+    overlay.id = 'training-arena-podium';
     overlay.style.cssText = `
       position: fixed;
       top: 0;
@@ -319,7 +318,7 @@ export default function TrainingGame() {
     document.body.appendChild(overlay);
     
     document.getElementById('back-btn').addEventListener('click', () => {
-      navigate('/modes');
+      navigate('/teacher/training/create');
     });
   };
   
@@ -339,12 +338,12 @@ export default function TrainingGame() {
   
   const showSuccessAnimation = (ZA, ZB) => {
     // TODO: Animation bulles (réutiliser animateBubblesFromZones si disponible)
-    console.log('[Training] Bonne paire validée !', ZA, ZB);
+    console.log('[TrainingArena] Bonne paire validée !', ZA, ZB);
   };
   
   const showErrorAnimation = (ZA, ZB) => {
     // TODO: Animation d'erreur (shake)
-    console.log('[Training] Mauvaise paire', ZA, ZB);
+    console.log('[TrainingArena] Mauvaise paire', ZA, ZB);
   };
   
   // Handler pour les clics sur les zones
