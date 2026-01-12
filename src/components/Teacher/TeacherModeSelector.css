@@ -1,8 +1,10 @@
 .mode-selector-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 40px 20px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding: 60px 20px;
+  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
 }
 
 .mode-selector-header {
@@ -11,122 +13,182 @@
 }
 
 .mode-selector-header h1 {
-  font-size: 2.5rem;
-  color: #1a1a1a;
-  margin-bottom: 10px;
+  font-size: 3rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 16px;
+  letter-spacing: -1px;
 }
 
 .mode-selector-header p {
-  font-size: 1.2rem;
-  color: #666;
+  font-size: 1.25rem;
+  color: #64748b;
+  font-weight: 500;
 }
 
 .mode-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 40px;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 48px;
   margin-bottom: 60px;
 }
 
 .mode-card {
   background: white;
-  border-radius: 20px;
-  padding: 40px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border-radius: 24px;
+  padding: 48px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.mode-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  transition: height 0.4s ease;
 }
 
 .mode-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.15);
+  transform: translateY(-8px);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.2);
 }
 
-.training-mode {
-  border-top: 5px solid #3b82f6;
+.mode-card:hover::before {
+  height: 12px;
 }
 
-.tournament-mode {
-  border-top: 5px solid #f59e0b;
+.training-mode::before {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.tournament-mode::before {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
 }
 
 .mode-icon {
-  font-size: 4rem;
-  margin-bottom: 20px;
+  font-size: 5rem;
+  margin-bottom: 24px;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
 }
 
 .mode-card h2 {
-  font-size: 1.8rem;
-  margin-bottom: 15px;
-  color: #1a1a1a;
+  font-size: 2rem;
+  margin-bottom: 16px;
+  color: #1e293b;
+  font-weight: 800;
+  letter-spacing: -0.5px;
 }
 
 .mode-description {
-  font-size: 1.1rem;
-  color: #666;
-  margin-bottom: 30px;
+  font-size: 1.125rem;
+  color: #64748b;
+  margin-bottom: 32px;
   min-height: 50px;
+  line-height: 1.6;
+  font-weight: 500;
 }
 
 .mode-features {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 30px;
+  gap: 16px;
+  margin-bottom: 36px;
   text-align: left;
+  padding: 0 20px;
 }
 
 .feature {
-  font-size: 1rem;
-  color: #444;
-  padding: 8px 0;
+  font-size: 1.05rem;
+  color: #475569;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.feature:hover {
+  background: #e2e8f0;
+  transform: translateX(4px);
 }
 
 .mode-button {
   width: 100%;
-  padding: 18px 30px;
-  font-size: 1.1rem;
-  font-weight: bold;
+  padding: 20px 32px;
+  font-size: 1.125rem;
+  font-weight: 800;
   border: none;
-  border-radius: 12px;
+  border-radius: 16px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .training-button {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
 }
 
 .training-button:hover {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  transform: scale(1.02);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  transform: scale(1.05);
+  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.4);
+}
+
+.training-button:active {
+  transform: scale(0.98);
 }
 
 .tournament-button {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   color: white;
 }
 
 .tournament-button:hover {
-  background: linear-gradient(135deg, #d97706, #b45309);
-  transform: scale(1.02);
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  transform: scale(1.05);
+  box-shadow: 0 12px 32px rgba(217, 119, 6, 0.4);
+}
+
+.tournament-button:active {
+  transform: scale(0.98);
 }
 
 .mode-info {
-  background: #f8fafc;
-  border-radius: 15px;
-  padding: 30px;
-  border-left: 5px solid #10b981;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-radius: 20px;
+  padding: 36px;
+  border-left: 6px solid #10b981;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
 .mode-info p {
-  font-size: 1rem;
-  color: #444;
-  margin-bottom: 15px;
-  line-height: 1.6;
+  font-size: 1.05rem;
+  color: #475569;
+  margin-bottom: 16px;
+  line-height: 1.7;
+  font-weight: 500;
+}
+
+.mode-info p strong {
+  color: #1e293b;
+  font-weight: 700;
 }
 
 .mode-info p:last-child {

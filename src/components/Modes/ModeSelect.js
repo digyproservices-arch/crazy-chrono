@@ -28,23 +28,72 @@ export default function ModeSelect() {
       setHistory(Array.isArray(h) ? h : []);
     } catch { setHistory([]); }
   }, []);
-  const Card = ({ title, subtitle, onClick }) => (
+  const Card = ({ title, subtitle, onClick, icon, gradient }) => (
     <button onClick={onClick} style={{
-      width: '100%', textAlign: 'left', padding: 16, borderRadius: 12,
-      border: '1px solid #e5e7eb', background: '#fff', boxShadow: '0 6px 18px rgba(0,0,0,0.06)'
-    }}>
-      <div style={{ fontSize: 18, fontWeight: 700 }}>{title}</div>
-      <div style={{ opacity: 0.75, marginTop: 6 }}>{subtitle}</div>
+      width: '100%',
+      textAlign: 'left',
+      padding: 24,
+      borderRadius: 16,
+      border: 'none',
+      background: gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+      color: '#fff',
+      cursor: 'pointer',
+      transition: 'all 0.3s ease',
+      position: 'relative',
+      overflow: 'hidden'
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.transform = 'translateY(-4px)';
+      e.currentTarget.style.boxShadow = '0 15px 40px rgba(0,0,0,0.25)';
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.transform = 'translateY(0)';
+      e.currentTarget.style.boxShadow = '0 10px 30px rgba(0,0,0,0.15)';
+    }}
+    >
+      <div style={{ fontSize: 48, marginBottom: 12 }}>{icon}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{title}</div>
+      <div style={{ opacity: 0.9, fontSize: 14, lineHeight: 1.5 }}>{subtitle}</div>
     </button>
   );
   return (
-    <div style={{ maxWidth: 980, margin: '24px auto', padding: '0 16px' }}>
-      <h2 style={{ marginTop: 12 }}>Choisissez un mode de jeu</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginTop: 16 }}>
-        <Card title="Jouer en mode Solo" subtitle="Partie locale rapide" onClick={() => go('solo')} />
-        <Card title="Jouer en multijoueur en ligne" subtitle="Créer / rejoindre une salle" onClick={() => go('online')} />
-        <Card title="Jouer en classe" subtitle="Session encadrée pour la classe" onClick={() => go('classroom')} />
-        <Card title="Jouer en mode tournois" subtitle="Organiser plusieurs manches et équipes" onClick={() => go('tournament')} />
+    <div style={{ maxWidth: 980, margin: '40px auto', padding: '0 16px' }}>
+      <div style={{ textAlign: 'center', marginBottom: 40 }}>
+        <h1 style={{ 
+          fontSize: 42, 
+          fontWeight: 900, 
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          marginBottom: 12
+        }}>
+          🎮 Choisissez votre mode
+        </h1>
+        <p style={{ fontSize: 16, color: '#6b7280', maxWidth: 500, margin: '0 auto' }}>
+          Sélectionnez un mode de jeu pour commencer à vous amuser !
+        </p>
+      </div>
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+        gap: 24, 
+        marginTop: 32 
+      }}>
+        <Card 
+          title="Mode Solo" 
+          subtitle="Jouez seul et améliorez vos compétences à votre rythme"
+          icon="🎯"
+          gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
+          onClick={() => go('solo')} 
+        />
+        <Card 
+          title="Multijoueur" 
+          subtitle="Défiez vos amis en ligne et créez des parties privées"
+          icon="👥"
+          gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
+          onClick={() => go('online')} 
+        />
       </div>
       {Array.isArray(history) && history.length > 0 && (
         <section style={{ marginTop: 20 }}>
