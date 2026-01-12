@@ -269,7 +269,7 @@ class CrazyArenaManager {
     console.log(`[CrazyArena][Training] Partie démarrée pour match ${matchId}`);
 
     // Générer les zones (utiliser la même logique que le mode multijoueur classique)
-    const zones = await this.generateZones(match.config);
+    const zones = await this.generateZones(match.config, matchId);
     match.zones = zones;
     
     console.log(`[CrazyArena][Training] 🎯 Carte générée: ${zones.length} zones, 1 paire à trouver (règle: 1 paire/carte)`);
@@ -390,26 +390,77 @@ class CrazyArenaManager {
   }
 
   /**
-   * Validation de paire en mode Training (copie de pairValidated pour Arena)
+   * Validation de paire en mode Training (COPIE EXACTE de pairValidated Battle Royale)
    */
-  trainingPairValidated(matchId, studentId, zoneAId, zoneBId, pairId, isCorrect) {
+  trainingPairValidated(matchId, studentId, zoneAId, zoneBId, pairId, isCorrect, timeMs) {
     const match = this.matches.get(matchId);
-    if (!match) return;
+    if (!match || (match.status !== 'playing' && match.status !== 'tiebreaker' && match.status !== 'tiebreaker-countdown')) return;
 
     const player = Array.from(match.players.values()).find(p => p.studentId === studentId);
     if (!player) return;
 
-    console.log(`[CrazyArena][Training] Paire validée: ${studentId}, correct=${isCorrect}, pairId=${pairId}`);
+    console.log(`[Training] Paire validée: ${studentId}, correct=${isCorrect}, pairId=${pairId}`);
 
-    // Mise à jour scores (simplifié pour Training)
+    // Mettre à jour le score (MÊME LOGIQUE QUE ARENA)
     if (isCorrect) {
-      player.score = (player.score || 0) + 10;
-      player.pairsValidated = (player.pairsValidated || 0) + 1;
+      // Mode tiebreaker
+      if (match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown') {
+        player.tiebreakerScore = (player.tiebreakerScore || 0) + 1;
+        player.tiebreakerPairs = (player.tiebreakerPairs || 0) + 1;
+        
+        if (timeMs < 3000) {
+          player.tiebreakerScore += 1;
+        }
+        
+        match.tiebreakerPairsFound = (match.tiebreakerPairsFound || 0) + 1;
+        console.log(`[Training] 🎯 TIEBREAKER: ${match.tiebreakerPairsFound}/${match.tiebreakerPairsToFind} paires trouvées`);
+        
+        if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
+          console.log(`[Training] 🏁 TIEBREAKER TERMINÉ`);
+          this.trainingEndGame(matchId);
+          return;
+        }
+        
+        // Générer nouvelle carte tiebreaker
+        setTimeout(async () => {
+          try {
+            const newZones = await this.generateZones(match.config, matchId);
+            match.zones = newZones;
+            
+            this.io.to(matchId).emit('training:round-new', {
+              zones: newZones,
+              roundIndex: match.tiebreakerPairsFound,
+              totalRounds: match.tiebreakerPairsToFind,
+              timestamp: Date.now()
+            });
+          } catch (err) {
+            console.error('[Training] Erreur génération carte tiebreaker:', err);
+          }
+        }, 1500);
+        
+        return;
+      } else {
+        // Mode normal
+        player.score = (player.score || 0) + 1;
+        player.pairsValidated = (player.pairsValidated || 0) + 1;
+        
+        if (timeMs < 3000) {
+          player.score += 1;
+        }
+      }
+    } else {
+      // Erreur: retirer points
+      if (match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown') {
+        player.tiebreakerScore = Math.max(0, (player.tiebreakerScore || 0) - 2);
+      } else {
+        player.score = Math.max(0, (player.score || 0) - 2);
+      }
+      player.errors = (player.errors || 0) + 1;
     }
 
     // ✅ SYNCHRONISER la paire validée à TOUS les joueurs
     if (isCorrect && pairId) {
-      console.log(`[CrazyArena][Training] Émission training:pair-validated à room ${matchId}: player=${player.name}, pairId=${pairId}`);
+      console.log(`[Training] Émission training:pair-validated à room ${matchId}`);
       this.io.to(matchId).emit('training:pair-validated', {
         studentId,
         playerName: player.name,
@@ -418,9 +469,8 @@ class CrazyArenaManager {
         zoneBId,
         timestamp: Date.now()
       });
-      console.log(`[CrazyArena][Training] training:pair-validated émis avec succès`);
       
-      // ✅ FIFO: Tracker les 15 dernières paires validées (éviter répétition)
+      // ✅ FIFO: Tracker les 15 dernières paires validées
       if (!match.validatedPairIds) match.validatedPairIds = new Set();
       
       const MAX_EXCLUDED_PAIRS = 15;
@@ -428,39 +478,34 @@ class CrazyArenaManager {
         const pairIdsArray = Array.from(match.validatedPairIds);
         const oldestPairId = pairIdsArray[0];
         match.validatedPairIds.delete(oldestPairId);
-        console.log(`[CrazyArena][Training] FIFO: Supprimé paire la plus ancienne: ${oldestPairId}`);
       }
       
       match.validatedPairIds.add(pairId);
-      console.log(`[CrazyArena][Training] 📊 Paire validée ajoutée au FIFO: ${pairId} (total: ${match.validatedPairIds.size}/${MAX_EXCLUDED_PAIRS})`);
+      console.log(`[Training] 📊 FIFO: ${match.validatedPairIds.size}/${MAX_EXCLUDED_PAIRS} paires exclues`);
       
-      // ✅ NOUVELLE CARTE IMMÉDIATEMENT (même mécanisme que Arena)
-      console.log(`[CrazyArena][Training] 🎉 Paire trouvée! Génération nouvelle carte...`);
+      // ✅ NOUVELLE CARTE IMMÉDIATEMENT
+      console.log(`[Training] 🎉 Génération nouvelle carte avec exclusions...`);
       
-      // Générer nouvelle carte avec exclusion FIFO
       setTimeout(async () => {
         try {
-          const newZones = await this.generateZones(match.config);
+          const newZones = await this.generateZones(match.config, matchId);
           match.zones = newZones;
           
-          console.log(`[CrazyArena][Training] 🎯 Nouvelle carte générée: ${newZones.length} zones, 1 paire`);
+          console.log(`[Training] 🎯 Nouvelle carte: ${newZones.length} zones`);
           
-          // Émettre nouvelle carte à tous les joueurs
           this.io.to(matchId).emit('training:round-new', {
             zones: newZones,
             roundIndex: match.roundsPlayed || 0,
             totalRounds: match.config.rounds || null,
             timestamp: Date.now()
           });
-          
-          console.log(`[CrazyArena][Training] ✅ training:round-new émis`);
         } catch (err) {
-          console.error('[CrazyArena][Training] Erreur génération nouvelle carte:', err);
+          console.error('[Training] Erreur génération carte:', err);
         }
-      }, 1500); // Délai 1.5s pour laisser temps aux joueurs de voir la dernière paire
+      }, 1500);
     }
 
-    // Diffuser les scores à tous les joueurs
+    // Diffuser les scores
     const playersArray = Array.from(match.players.values());
     this.io.to(matchId).emit('training:scores-update', {
       scores: playersArray.map(p => ({
@@ -468,7 +513,7 @@ class CrazyArenaManager {
         name: p.name,
         score: p.score || 0,
         pairsValidated: p.pairsValidated || 0
-      })).sort((a, b) => b.score - a.score) // Trier par score DESC
+      })).sort((a, b) => b.score - a.score)
     });
   }
 
@@ -721,7 +766,7 @@ class CrazyArenaManager {
     console.log(`[CrazyArena] Partie démarrée pour match ${matchId}`);
 
     // Générer les zones (utiliser la même logique que le mode multijoueur classique)
-    const zones = await this.generateZones(match.config);
+    const zones = await this.generateZones(match.config, matchId);
     match.zones = zones;
     
     console.log(`[CrazyArena] 🎯 Carte générée: ${zones.length} zones, 1 paire à trouver (règle: 1 paire/carte)`);
@@ -773,7 +818,7 @@ class CrazyArenaManager {
         console.log(`[CrazyArena] 🔔 Nouvelle manche #${match.roundsPlayed + 1} démarrée (${elapsed}s écoulées)`);
         
         // Générer nouvelle carte pour la nouvelle manche
-        this.generateZones(match.config).then(newZones => {
+        this.generateZones(match.config, matchId).then(newZones => {
           match.zones = newZones;
           console.log(`[CrazyArena] 🎯 Nouvelle carte pour manche ${match.roundsPlayed + 1}: ${newZones.length} zones`);
           
@@ -813,41 +858,52 @@ class CrazyArenaManager {
   }
 
   /**
-   * Générer les zones (réutiliser la logique existante)
+   * Générer les zones avec exclusion FIFO des paires déjà validées
    */
-  async generateZones(config) {
+  async generateZones(config, matchId = null) {
     // Utiliser le générateur de zones du serveur
     const { generateRoundZones } = require('./utils/serverZoneGenerator');
     const seed = Math.floor(Math.random() * 1000000000);
     
     try {
-      // Fallback pour classes et themes - vérifier si array vide
+      // Fallback pour classes et themes
       const defaultClasses = ['CP', 'CE1', 'CE2', 'CM1', 'CM2', '6e', '5e', '4e', '3e'];
       const defaultThemes = ['botanique', 'multiplication'];
       
       const finalClasses = (config.classes && config.classes.length > 0) ? config.classes : defaultClasses;
       const finalThemes = (config.themes && config.themes.length > 0) ? config.themes : defaultThemes;
       
-      console.log('[CrazyArena] Génération zones avec config:', {
+      // ✅ CRITIQUE: Récupérer les paires exclues du match (FIFO)
+      let excludedPairIds = new Set();
+      if (matchId) {
+        const match = this.matches.get(matchId);
+        if (match && match.validatedPairIds) {
+          excludedPairIds = match.validatedPairIds;
+          console.log(`[ZoneGen] 🚫 Exclusion FIFO: ${excludedPairIds.size} paires`);
+        }
+      }
+      
+      console.log('[ZoneGen] Config:', {
         seed,
         classes: finalClasses,
-        themes: finalThemes
+        themes: finalThemes,
+        excludedCount: excludedPairIds.size
       });
       
-      // IMPORTANT: seed est le 1er paramètre, config le 2ème
+      // IMPORTANT: Passer excludedPairIds au générateur
       const result = generateRoundZones(seed, {
         classes: finalClasses,
         themes: finalThemes,
-        excludedPairIds: new Set()
+        excludedPairIds: excludedPairIds
       });
       
       // generateRoundZones retourne {zones: [], goodPairIds: {}}
       const zones = result.zones || [];
       
-      console.log('[CrazyArena] Zones générées:', zones.length);
+      console.log('[ZoneGen] ✅ Zones générées:', zones.length);
       return zones;
     } catch (error) {
-      console.error('[CrazyArena] Erreur génération zones:', error);
+      console.error('[ZoneGen] ❌ Erreur:', error);
       return [];
     }
   }
@@ -896,7 +952,7 @@ class CrazyArenaManager {
         console.log(`[CrazyArena] 🎴 Génération carte ${match.tiebreakerPairsFound + 1}/3 pour tiebreaker...`);
         setTimeout(async () => {
           try {
-            const newZones = await this.generateZones(match.config);
+            const newZones = await this.generateZones(match.config, matchId);
             match.zones = newZones;
             
             console.log(`[CrazyArena] ✅ Carte tiebreaker ${match.tiebreakerPairsFound + 1}/3: ${newZones.length} zones`);
@@ -973,7 +1029,7 @@ class CrazyArenaManager {
       // Générer nouvelle carte avec exclusion FIFO
       setTimeout(async () => {
         try {
-          const newZones = await this.generateZones(match.config);
+          const newZones = await this.generateZones(match.config, matchId);
           match.zones = newZones;
           
           console.log(`[CrazyArena] 🎯 Nouvelle carte générée: ${newZones.length} zones, 1 paire`);

@@ -1,8 +1,7 @@
 // ==========================================
 // COMPOSANT: JEU TRAINING MODE
-// Interface de jeu Training avec historique pédagogique
-// Architecture copiée de CrazyArenaGame.js (commit 9a1ddc3)
-// Événements: training:* au lieu de arena:*
+// Interface de jeu avec scores temps réel (copie exacte de Arena)
+// Réutilise la logique de Carte.js mais en mode compétitif
 // ==========================================
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -81,7 +80,7 @@ export default function TrainingGame() {
         matchId: gameInfo.matchId,
         studentData: {
           studentId: gameInfo.myStudentId,
-          name: gameInfo.players.find(p => p.studentId === gameInfo.myStudentId)?.name || 'Élève',
+          name: gameInfo.players.find(p => p.studentId === gameInfo.myStudentId)?.name || 'Joueur',
           avatar: '/avatars/default.png'
         }
       }, (response) => {
@@ -93,36 +92,6 @@ export default function TrainingGame() {
     
     socket.on('training:scores-update', ({ scores }) => {
       setPlayers(scores);
-    });
-    
-    // ✅ CRITIQUE: Synchroniser les paires validées par les autres joueurs
-    socket.on('training:pair-validated', ({ studentId, pairId, zoneAId, zoneBId }) => {
-      console.log('[Training] 🔄 Paire validée par autre joueur:', { studentId, pairId, zoneAId, zoneBId });
-      
-      // Retirer les zones validées pour TOUS les joueurs (synchronisation)
-      setZones(prev => {
-        const filtered = prev.filter(z => z.id !== zoneAId && z.id !== zoneBId);
-        console.log('[Training] Zones après suppression:', filtered.length, 'restantes');
-        return filtered;
-      });
-      
-      // Désélectionner si une des zones était sélectionnée
-      setSelectedZones(prev => prev.filter(id => id !== zoneAId && id !== zoneBId));
-    });
-    
-    // ✅ NOUVELLE CARTE après bonne paire (régénération serveur)
-    socket.on('training:round-new', ({ zones: newZones, roundIndex, totalRounds }) => {
-      console.log('[Training] 🎯 Nouvelle carte reçue:', {
-        zonesCount: newZones?.length,
-        roundIndex,
-        totalRounds
-      });
-      
-      if (newZones && Array.isArray(newZones)) {
-        setZones(newZones);
-        setSelectedZones([]);
-        console.log('[Training] ✅ Carte mise à jour avec', newZones.length, 'zones');
-      }
     });
     
     socket.on('training:tie-detected', ({ tiedPlayers, message }) => {
@@ -286,10 +255,10 @@ export default function TrainingGame() {
     overlay.innerHTML = `
       <div style="text-align: center; color: white;">
         <h1 style="font-size: 48px; margin-bottom: 20px; text-shadow: 0 2px 10px rgba(0,0,0,0.3);">
-          🏆 ${isTiebreaker ? 'Départage Terminé !' : 'Session Terminée !'}
+          🏆 ${isTiebreaker ? 'Départage Terminé !' : 'Partie Terminée !'}
         </h1>
         <div style="font-size: 32px; margin-bottom: 40px;">
-          Meilleur score : <span style="color: #fbbf24; font-weight: 900;">${finalWinner.name}</span>
+          Vainqueur : <span style="color: #fbbf24; font-weight: 900;">${finalWinner.name}</span>
         </div>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; max-width: 800px; margin: 0 auto;">
           ${finalRanking.map((p, idx) => `
@@ -388,7 +357,7 @@ export default function TrainingGame() {
         zIndex: 100
       }}>
         <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 16 }}>
-          📚 Classement
+          🏆 Classement
         </div>
         {players.map((p, idx) => (
           <div 

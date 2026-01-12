@@ -1346,9 +1346,9 @@ io.on('connection', (socket) => {
     crazyArena.trainingForceStart(matchId);
   });
 
-  socket.on('training:pair-validated', ({ matchId, studentId, zoneAId, zoneBId, pairId, isCorrect }) => {
-    console.log(`[Server][Training] Paire validée: ${studentId}, pairId=${pairId}, correct=${isCorrect}`);
-    crazyArena.trainingPairValidated(matchId, studentId, zoneAId, zoneBId, pairId, isCorrect);
+  socket.on('training:pair-validated', ({ matchId, studentId, zoneAId, zoneBId, pairId, isCorrect, timeMs }) => {
+    console.log(`[Server][Training] Paire validée: ${studentId}, pairId=${pairId}, correct=${isCorrect}, timeMs=${timeMs}`);
+    crazyArena.trainingPairValidated(matchId, studentId, zoneAId, zoneBId, pairId, isCorrect, timeMs || 0);
   });
 
   socket.on('training:subscribe-manager', ({ matchId }) => {
