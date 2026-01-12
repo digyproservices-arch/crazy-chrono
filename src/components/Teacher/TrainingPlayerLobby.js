@@ -123,10 +123,10 @@ export default function TrainingPlayerLobby() {
         // Stocker les infos de la partie pour Carte.js
         localStorage.setItem('cc_training_game', JSON.stringify(gameData));
         
-        console.log('[TrainingLobby] ➡️  Redirection vers /carte?training=', matchId);
+        console.log('[TrainingLobby] ➡️  Redirection vers /training/game');
         
-        // Rediriger vers carte avec paramètre training
-        navigate(`/carte?training=${matchId}`);
+        // Rediriger vers le composant TrainingGame dédié
+        navigate('/training/game');
       });
       
       return () => socket.disconnect();
