@@ -277,7 +277,7 @@ export default function NotificationBadge() {
                     </div>
                     
                     <button
-                      onClick={() => handleJoinTraining(inv.matchId)}
+                      onClick={() => handleJoinTraining(inv)}
                       style={{
                         padding: '12px 20px',
                         borderRadius: 8,
