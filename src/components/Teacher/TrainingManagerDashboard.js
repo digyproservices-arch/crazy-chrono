@@ -22,7 +22,7 @@ export default function TrainingManagerDashboard() {
   // Initialiser les matchs depuis groups/config
   useEffect(() => {
     if (!groups || !config) {
-      navigate('/teacher/training/create');
+      navigate('/training-arena/setup');
       return;
     }
 
@@ -179,7 +179,7 @@ export default function TrainingManagerDashboard() {
 
       {/* Bouton retour */}
       <button
-        onClick={() => navigate('/teacher/training/create')}
+        onClick={() => navigate('/training-arena/setup')}
         style={{
           padding: '10px 20px',
           background: '#f3f4f6',

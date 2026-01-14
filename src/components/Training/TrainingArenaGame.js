@@ -36,7 +36,7 @@ export default function TrainingArenaGame() {
     
     if (!gameInfo.matchId || !gameInfo.zones) {
       console.error('[TrainingArena] Données manquantes, redirection');
-      navigate('/teacher/training/create');
+      navigate('/training-arena/setup');
       return;
     }
     
@@ -318,7 +318,7 @@ export default function TrainingArenaGame() {
     document.body.appendChild(overlay);
     
     document.getElementById('back-btn').addEventListener('click', () => {
-      navigate('/teacher/training/create');
+      navigate('/training-arena/setup');
     });
   };
   

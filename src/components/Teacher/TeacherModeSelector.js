@@ -28,7 +28,7 @@ const TeacherModeSelector = () => {
 
           <button 
             className="mode-button training-button"
-            onClick={() => navigate('/teacher/training/create')}
+            onClick={() => navigate('/training-arena/setup')}
           >
             CRÉER SESSION
           </button>
