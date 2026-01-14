@@ -18,6 +18,9 @@ import CrazyArenaSetup from './components/Tournament/CrazyArenaSetup';
 import CrazyArenaLobby from './components/Tournament/CrazyArenaLobby';
 import CrazyArenaGame from './components/Tournament/CrazyArenaGame';
 import TrainingArenaGame from './components/Training/TrainingArenaGame';
+import TrainingArenaSetup from './components/Teacher/TrainingArenaSetup';
+import TrainingArenaManagerDashboard from './components/Teacher/TrainingArenaManagerDashboard';
+import TrainingArenaLobby from './components/Teacher/TrainingArenaLobby';
 import ArenaManagerDashboard from './components/Tournament/ArenaManagerDashboard';
 import AdminRoles from './components/Admin/AdminRoles';
 import AdminInvite from './components/Admin/AdminInvite';
@@ -422,6 +425,10 @@ function App() {
               <Route path="/crazy-arena/manager" element={<RequireAuth auth={auth}><ArenaManagerDashboard /></RequireAuth>} />
               <Route path="/crazy-arena/lobby/:roomCode" element={<RequireAuth auth={auth}><CrazyArenaLobby /></RequireAuth>} />
               <Route path="/crazy-arena/game" element={<RequireAuth auth={auth}><CrazyArenaGame /></RequireAuth>} />
+              {/* Training Arena (Mode Entraînement - identique à Crazy Arena) */}
+              <Route path="/training-arena/setup" element={<RequireAuth auth={auth}><TrainingArenaSetup /></RequireAuth>} />
+              <Route path="/training-arena/manager" element={<RequireAuth auth={auth}><TrainingArenaManagerDashboard /></RequireAuth>} />
+              <Route path="/training-arena/lobby/:roomCode" element={<RequireAuth auth={auth}><TrainingArenaLobby /></RequireAuth>} />
               <Route path="/training-arena/game" element={<RequireAuth auth={auth}><TrainingArenaGame /></RequireAuth>} />
               {/* Carte (éditeur/jeu) accessible en direct si nécessaire, sinon on y accède après config */}
               <Route path="/carte" element={<div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div>} />
