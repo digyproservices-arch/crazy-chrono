@@ -387,6 +387,10 @@ class CrazyArenaManager {
       scores: finalScores,
       duration: match.config.durationPerRound || 60
     });
+    
+    // ✅ BROADCAST GLOBAL pour retirer notifications des élèves
+    this.io.emit('training:match-finished', { matchId });
+    console.log(`[Training] 📢 Broadcast training:match-finished pour ${matchId}`);
   }
 
   /**
@@ -1391,11 +1395,14 @@ class CrazyArenaManager {
       const data = await res.json();
       console.log('[CrazyArena] ✅ Résultats sauvegardés:', data);
       
-      // Notifier le dashboard que le match est terminé
+      // Notifier le dashboard que le match est terminé (room)
       this.io.to(matchId).emit('arena:match-finished', {
         matchId,
         winner: data.winner
       });
+      
+      // ✅ BROADCAST GLOBAL pour retirer notifications des élèves hors room
+      this.io.emit('arena:match-finished', { matchId });
       
       return true;
     } catch (error) {

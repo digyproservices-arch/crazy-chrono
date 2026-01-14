@@ -80,6 +80,10 @@ export default function NotificationBadge() {
     socket.on('arena:match-finished', ({ matchId }) => {
       console.log(`[NotificationBadge] Match ${matchId} terminé - Retrait invitation`);
       setInvitations(prev => prev.filter(inv => inv.matchId !== matchId));
+      // Recharger depuis l'API pour être sûr
+      if (window.ccRefreshInvitations) {
+        setTimeout(() => window.ccRefreshInvitations(), 1000);
+      }
     });
 
     // Écouter game-end aussi (au cas où)
@@ -87,6 +91,10 @@ export default function NotificationBadge() {
       if (matchId) {
         console.log(`[NotificationBadge] Game end ${matchId} - Retrait invitation`);
         setInvitations(prev => prev.filter(inv => inv.matchId !== matchId));
+        // Recharger depuis l'API pour être sûr
+        if (window.ccRefreshInvitations) {
+          setTimeout(() => window.ccRefreshInvitations(), 1000);
+        }
       }
     });
 
@@ -220,7 +228,7 @@ export default function NotificationBadge() {
           }}
           onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h2 style={{ margin: 0, fontSize: 24, fontWeight: 900 }}>
                 🔔 Invitations ({totalInvitations})
               </h2>
@@ -243,6 +251,37 @@ export default function NotificationBadge() {
                 ×
               </button>
             </div>
+
+            {totalInvitations > 0 && (
+              <button
+                onClick={() => {
+                  if (window.ccRefreshInvitations) {
+                    window.ccRefreshInvitations();
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  marginBottom: 16,
+                  borderRadius: 8,
+                  border: '1px solid #d1d5db',
+                  background: '#f9fafb',
+                  color: '#374151',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#f3f4f6';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = '#f9fafb';
+                }}
+              >
+                🔄 Rafraîchir les invitations
+              </button>
+            )}
 
             {totalInvitations === 0 ? (
               <p style={{ color: '#6b7280', textAlign: 'center' }}>
