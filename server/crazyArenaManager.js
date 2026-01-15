@@ -296,6 +296,7 @@ class CrazyArenaManager {
 
     // Notifier le démarrage avec les zones ET la config
     const gameStartPayload = {
+      matchId,  // ✅ Ajouter matchId pour que le dashboard puisse update le status
       zones,
       duration: match.config.duration || 60,
       startTime: match.startTime,
@@ -309,6 +310,7 @@ class CrazyArenaManager {
     };
     
     console.log('[CrazyArena][Training] 🚀 Émission training:game-start avec config:', {
+      matchId: matchId.slice(-8),
       hasConfig: !!gameStartPayload.config,
       configThemes: gameStartPayload.config?.themes,
       configClasses: gameStartPayload.config?.classes,
@@ -797,6 +799,7 @@ class CrazyArenaManager {
 
     // Notifier le démarrage avec les zones ET la config
     const gameStartPayload = {
+      matchId,  // ✅ Ajouter matchId pour que le dashboard puisse update le status
       zones,
       duration: match.config.duration || 60,
       startTime: match.startTime,
@@ -810,6 +813,7 @@ class CrazyArenaManager {
     };
     
     console.log('[CrazyArena] 🚀 Émission arena:game-start avec config:', {
+      matchId: matchId.slice(-8),
       hasConfig: !!gameStartPayload.config,
       configThemes: gameStartPayload.config?.themes,
       configClasses: gameStartPayload.config?.classes,
