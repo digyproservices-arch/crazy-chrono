@@ -58,6 +58,9 @@ class TrainingMode extends BattleRoyaleEngine {
     
     await this.saveTrainingStats(ranking);
     
+    // ✅ CRUCIAL: Marquer le match comme 'finished' dans la DB pour retirer les notifications
+    await this.markMatchFinished(ranking);
+    
     console.log(`[TrainingMode][${this.matchId}] ✅ Stats entraînement sauvegardées`);
     console.log(`[TrainingMode][${this.matchId}] ℹ️  Pas de progression - Session indépendante`);
   }
@@ -104,6 +107,46 @@ class TrainingMode extends BattleRoyaleEngine {
       return true;
     } catch (error) {
       console.error(`[TrainingMode] Erreur sauvegarde stats:`, error);
+      return false;
+    }
+  }
+
+  async markMatchFinished(ranking) {
+    try {
+      const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
+      
+      console.log(`[TrainingMode][${this.matchId}] Marquage match comme 'finished' dans DB...`);
+      
+      const res = await fetch(`${backendUrl}/api/tournament/matches/${this.matchId}/finish`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          results: ranking.map(p => ({
+            studentId: p.studentId,
+            score: p.score,
+            timeMs: p.timeMs,
+            pairsValidated: p.pairsValidated,
+            errors: p.errors
+          }))
+        })
+      });
+      
+      if (!res.ok) {
+        const text = await res.text();
+        console.error(`[TrainingMode] Erreur marquage finished: ${res.status} - ${text}`);
+        return false;
+      }
+      
+      const data = await res.json();
+      console.log(`[TrainingMode] ✅ Match marqué 'finished' dans DB:`, data);
+      
+      // Broadcast pour retirer les notifications
+      this.io.emit('training:match-finished', { matchId: this.matchId });
+      console.log(`[TrainingMode] 📢 Broadcast training:match-finished pour ${this.matchId}`);
+      
+      return true;
+    } catch (error) {
+      console.error(`[TrainingMode] Erreur markMatchFinished:`, error);
       return false;
     }
   }
