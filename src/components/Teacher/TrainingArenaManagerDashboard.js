@@ -25,6 +25,17 @@ export default function TrainingArenaManagerDashboard() {
       const data = await response.json();
       
       if (data.success) {
+        // Rejoindre les rooms des nouveaux matchs Training
+        if (socketRef.current?.connected && data.matches) {
+          const trainingMatchIds = data.matches
+            .filter(m => m.mode === 'training')
+            .map(m => m.matchId);
+          
+          if (trainingMatchIds.length > 0) {
+            socketRef.current.emit('training:teacher-join', { matchIds: trainingMatchIds });
+          }
+        }
+        
         // FUSIONNER avec état existant au lieu d'écraser
         setMatches(prevMatches => {
           const apiMatches = data.matches || [];
@@ -106,6 +117,23 @@ export default function TrainingArenaManagerDashboard() {
     socket.on('connect', () => {
       console.log('[TrainingArenaManager] ✅ Socket connecté, ID:', socket.id);
       console.log('[TrainingArenaManager] 🔍 URL backend:', getBackendUrl());
+      
+      // Rejoindre toutes les rooms des matchs actifs
+      fetch(`${getBackendUrl()}/api/tournament/active-matches`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.matches) {
+            const trainingMatchIds = data.matches
+              .filter(m => m.mode === 'training')
+              .map(m => m.matchId);
+            
+            if (trainingMatchIds.length > 0) {
+              console.log('[TrainingArenaManager] 🔗 Rejoindre rooms Training:', trainingMatchIds);
+              socket.emit('training:teacher-join', { matchIds: trainingMatchIds });
+            }
+          }
+        })
+        .catch(err => console.error('[TrainingArenaManager] Erreur chargement matchs pour join:', err));
     });
     
     socket.on('disconnect', () => {

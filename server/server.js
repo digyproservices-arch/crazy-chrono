@@ -1341,6 +1341,14 @@ io.on('connection', (socket) => {
     crazyArena.trainingPlayerReady(socket, matchId, studentId);
   });
 
+  socket.on('training:teacher-join', ({ matchIds }) => {
+    console.log(`[Server][Training] Professeur rejoint rooms Training:`, matchIds);
+    matchIds.forEach(matchId => {
+      socket.join(matchId);
+      console.log(`[Server][Training] 🔗 Prof joined room: ${matchId}`);
+    });
+  });
+
   socket.on('training:force-start', ({ matchId }) => {
     console.log(`[Server][Training] Démarrage forcé match ${matchId}`);
     crazyArena.trainingForceStart(matchId);
