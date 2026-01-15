@@ -25,12 +25,14 @@ export default function TrainingArenaManagerDashboard() {
       const data = await response.json();
       
       if (data.success) {
-        // Rejoindre les rooms de tous les matchs actifs
+        // Rejoindre les rooms des nouveaux matchs Training
         if (socketRef.current?.connected && data.matches) {
-          const allMatchIds = data.matches.map(m => m.matchId);
+          const trainingMatchIds = data.matches
+            .filter(m => m.mode === 'training')
+            .map(m => m.matchId);
           
-          if (allMatchIds.length > 0) {
-            socketRef.current.emit('training:teacher-join', { matchIds: allMatchIds });
+          if (trainingMatchIds.length > 0) {
+            socketRef.current.emit('training:teacher-join', { matchIds: trainingMatchIds });
           }
         }
         
@@ -116,18 +118,16 @@ export default function TrainingArenaManagerDashboard() {
       console.log('[TrainingArenaManager] ✅ Socket connecté, ID:', socket.id);
       console.log('[TrainingArenaManager] 🔍 URL backend:', getBackendUrl());
       
-      // Rejoindre toutes les rooms des matchs actifs
+      // Rejoindre toutes les rooms des matchs actifs (Training + Arena)
       fetch(`${getBackendUrl()}/api/tournament/active-matches`)
         .then(res => res.json())
         .then(data => {
           if (data.success && data.matches) {
-            const trainingMatchIds = data.matches
-              .filter(m => m.mode === 'training')
-              .map(m => m.matchId);
+            const allMatchIds = data.matches.map(m => m.matchId);
             
-            if (trainingMatchIds.length > 0) {
-              console.log('[TrainingArenaManager] 🔗 Rejoindre rooms Training:', trainingMatchIds);
-              socket.emit('training:teacher-join', { matchIds: trainingMatchIds });
+            if (allMatchIds.length > 0) {
+              console.log('[TrainingArenaManager] 🔗 Rejoindre ALL rooms:', allMatchIds);
+              socket.emit('training:teacher-join', { matchIds: allMatchIds });
             }
           }
         })
@@ -259,28 +259,54 @@ export default function TrainingArenaManagerDashboard() {
 
   // Démarrer un match manuellement
   const handleStartMatch = (matchId) => {
+    console.log('[TrainingArenaManager] 🚀 handleStartMatch appelé pour:', matchId);
+    
     if (!socketRef.current) {
+      console.error('[TrainingArenaManager] ❌ Socket non disponible');
       alert('Connexion Socket.IO non disponible');
       return;
     }
 
     const match = matches.find(m => m.matchId === matchId);
-    if (!match) return;
+    console.log('[TrainingArenaManager] 🔍 Match trouvé:', match);
+    
+    if (!match) {
+      console.error('[TrainingArenaManager] ❌ Match non trouvé dans la liste');
+      return;
+    }
+
+    console.log('[TrainingArenaManager] 📊 État du match:', {
+      matchId,
+      connectedPlayers: match.connectedPlayers,
+      readyPlayers: match.readyPlayers,
+      totalPlayers: match.totalPlayers,
+      players: match.players,
+      status: match.status
+    });
 
     if (match.connectedPlayers < 2) {
+      console.warn('[TrainingArenaManager] ⚠️ Pas assez de joueurs connectés');
       alert('Au moins 2 joueurs doivent être connectés pour démarrer le match.');
       return;
     }
 
     const confirmMsg = `Démarrer le match "${match.groupName}" avec ${match.connectedPlayers} joueur(s) connecté(s) ?`;
-    if (!window.confirm(confirmMsg)) return;
+    console.log('[TrainingArenaManager] ❓ Demande confirmation:', confirmMsg);
+    
+    if (!window.confirm(confirmMsg)) {
+      console.log('[TrainingArenaManager] ❌ Démarrage annulé par l\'utilisateur');
+      return;
+    }
 
     // Émettre l'événement de démarrage forcé
+    console.log('[TrainingArenaManager] 📤 Émission training:force-start pour matchId:', matchId);
     socketRef.current.emit('training:force-start', { matchId }, (response) => {
+      console.log('[TrainingArenaManager] 📥 Réponse reçue:', response);
       if (response && response.ok) {
-        console.log('[TrainingArenaManager] Match démarré avec succès');
+        console.log('[TrainingArenaManager] ✅ Match démarré avec succès');
         // Le match sera retiré de la liste au prochain refresh (status = playing)
       } else {
+        console.error('[TrainingArenaManager] ❌ Erreur démarrage:', response);
         alert('Erreur lors du démarrage du match: ' + (response?.error || 'Inconnue'));
       }
     });
