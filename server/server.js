@@ -1346,6 +1346,21 @@ io.on('connection', (socket) => {
     matchIds.forEach(matchId => {
       socket.join(matchId);
       console.log(`[Server][Training] 🔗 Prof joined room: ${matchId}`);
+      
+      // Envoyer immédiatement l'état actuel des joueurs pour ce match
+      const matchState = crazyArena.getTrainingMatchState(matchId);
+      if (matchState && matchState.players && matchState.players.length > 0) {
+        socket.emit('training:players-update', {
+          matchId,
+          players: matchState.players.map(p => ({
+            studentId: p.studentId,
+            name: p.name,
+            avatar: p.avatar,
+            ready: p.ready
+          }))
+        });
+        console.log(`[Server][Training] 📤 Envoyé état initial ${matchState.players.length} joueurs à prof pour ${matchId}`);
+      }
     });
   });
 

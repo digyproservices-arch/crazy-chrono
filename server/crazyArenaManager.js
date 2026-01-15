@@ -179,6 +179,21 @@ class CrazyArenaManager {
   }
 
   /**
+   * Récupérer l'état actuel d'un match Training
+   */
+  getTrainingMatchState(matchId) {
+    const match = this.matches.get(matchId);
+    if (!match) return null;
+    
+    return {
+      matchId,
+      status: match.status,
+      players: match.players || [],
+      config: match.config
+    };
+  }
+
+  /**
    * Un joueur training marque comme prêt
    */
   trainingPlayerReady(socket, matchId, studentId) {
