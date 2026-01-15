@@ -269,49 +269,115 @@ export default function NotificationBadge() {
             </div>
 
             {totalInvitations > 0 && (
-              <button
-                onClick={async () => {
-                  console.log('[NotificationBadge] Bouton rafraîchir cliqué');
-                  console.log('[NotificationBadge] window.ccRefreshInvitations disponible:', !!window.ccRefreshInvitations);
-                  
-                  if (window.ccRefreshInvitations) {
-                    setRefreshing(true);
-                    try {
-                      await window.ccRefreshInvitations();
-                      console.log('[NotificationBadge] Rafraîchissement terminé');
-                    } catch (err) {
-                      console.error('[NotificationBadge] Erreur rafraîchissement:', err);
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                <button
+                  onClick={async () => {
+                    console.log('[NotificationBadge] Bouton rafraîchir cliqué');
+                    console.log('[NotificationBadge] window.ccRefreshInvitations disponible:', !!window.ccRefreshInvitations);
+                    
+                    if (window.ccRefreshInvitations) {
+                      setRefreshing(true);
+                      try {
+                        await window.ccRefreshInvitations();
+                        console.log('[NotificationBadge] Rafraîchissement terminé');
+                      } catch (err) {
+                        console.error('[NotificationBadge] Erreur rafraîchissement:', err);
+                      }
+                      setTimeout(() => setRefreshing(false), 500);
+                    } else {
+                      console.error('[NotificationBadge] window.ccRefreshInvitations non disponible!');
+                      alert('Erreur: fonction de rafraîchissement non disponible. Rechargez la page.');
                     }
-                    setTimeout(() => setRefreshing(false), 500);
-                  } else {
-                    console.error('[NotificationBadge] window.ccRefreshInvitations non disponible!');
-                    alert('Erreur: fonction de rafraîchissement non disponible. Rechargez la page.');
-                  }
-                }}
-                disabled={refreshing}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  marginBottom: 16,
-                  borderRadius: 8,
-                  border: '1px solid #d1d5db',
-                  background: refreshing ? '#e5e7eb' : '#f9fafb',
-                  color: refreshing ? '#9ca3af' : '#374151',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: refreshing ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s',
-                  opacity: refreshing ? 0.6 : 1
-                }}
-                onMouseEnter={(e) => {
-                  if (!refreshing) e.target.style.background = '#f3f4f6';
-                }}
-                onMouseLeave={(e) => {
-                  if (!refreshing) e.target.style.background = '#f9fafb';
-                }}
-              >
-                {refreshing ? '⏳ Rafraîchissement...' : '🔄 Rafraîchir les invitations'}
-              </button>
+                  }}
+                  disabled={refreshing || cleaning}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: 8,
+                    border: '1px solid #d1d5db',
+                    background: refreshing ? '#e5e7eb' : '#f9fafb',
+                    color: refreshing ? '#9ca3af' : '#374151',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: (refreshing || cleaning) ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s',
+                    opacity: (refreshing || cleaning) ? 0.6 : 1
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!refreshing && !cleaning) e.target.style.background = '#f3f4f6';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!refreshing && !cleaning) e.target.style.background = '#f9fafb';
+                  }}
+                >
+                  {refreshing ? '⏳ Chargement...' : '🔄 Rafraîchir'}
+                </button>
+
+                <button
+                  onClick={async () => {
+                    if (!studentId) {
+                      alert('Erreur: ID élève non disponible');
+                      return;
+                    }
+
+                    if (!confirm('Nettoyer toutes les anciennes notifications ? Cette action marquera tous vos anciens matchs comme terminés.')) {
+                      return;
+                    }
+
+                    console.log('[NotificationBadge] Nettoyage anciens matchs...');
+                    setCleaning(true);
+
+                    try {
+                      const res = await fetch(`${getBackendUrl()}/api/tournament/cleanup-old-matches`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ studentId })
+                      });
+
+                      const data = await res.json();
+                      
+                      if (data.success) {
+                        console.log('[NotificationBadge] Nettoyage OK:', data);
+                        alert(data.message || 'Notifications nettoyées !');
+                        
+                        if (window.ccRefreshInvitations) {
+                          await window.ccRefreshInvitations();
+                        }
+                      } else {
+                        console.error('[NotificationBadge] Erreur nettoyage:', data.error);
+                        alert('Erreur: ' + data.error);
+                      }
+                    } catch (err) {
+                      console.error('[NotificationBadge] Erreur nettoyage:', err);
+                      alert('Erreur lors du nettoyage');
+                    }
+
+                    setCleaning(false);
+                  }}
+                  disabled={refreshing || cleaning}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: 8,
+                    border: '1px solid #ef4444',
+                    background: cleaning ? '#fecaca' : '#fee2e2',
+                    color: cleaning ? '#991b1b' : '#dc2626',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: (refreshing || cleaning) ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s',
+                    opacity: (refreshing || cleaning) ? 0.6 : 1
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!refreshing && !cleaning) e.target.style.background = '#fecaca';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!refreshing && !cleaning) e.target.style.background = '#fee2e2';
+                  }}
+                >
+                  {cleaning ? '⏳ Nettoyage...' : '🧹 Nettoyer tout'}
+                </button>
+              </div>
             )}
 
             {totalInvitations === 0 ? (
