@@ -620,6 +620,75 @@ router.get('/leaderboard', requireSupabase, async (req, res) => {
 });
 
 /**
+ * POST /api/tournament/cleanup-old-matches
+ * Nettoyer les anciens matchs (marquer comme finished les matchs de plus de 24h)
+ */
+router.post('/cleanup-old-matches', requireSupabase, async (req, res) => {
+  try {
+    const { studentId } = req.body;
+    
+    if (!studentId) {
+      return res.status(400).json({ success: false, error: 'studentId requis' });
+    }
+
+    console.log(`[Cleanup] Nettoyage matchs pour élève ${studentId}`);
+
+    // Récupérer tous les groupes de cet élève
+    const { data: allGroups, error: groupsError } = await supabase
+      .from('tournament_groups')
+      .select('id, match_id, student_ids');
+    
+    if (groupsError) throw groupsError;
+    
+    const groups = (allGroups || []).filter(g => {
+      if (!g.student_ids) return false;
+      const ids = Array.isArray(g.student_ids) ? g.student_ids : JSON.parse(g.student_ids);
+      return ids.includes(studentId);
+    });
+
+    const matchIds = groups.map(g => g.match_id).filter(id => id);
+
+    if (matchIds.length === 0) {
+      return res.json({ success: true, cleaned: 0, message: 'Aucun match à nettoyer' });
+    }
+
+    // Marquer tous les anciens matchs comme finished
+    const { data: updated, error: updateError } = await supabase
+      .from('tournament_matches')
+      .update({ 
+        status: 'finished',
+        finished_at: new Date().toISOString()
+      })
+      .in('id', matchIds)
+      .in('status', ['pending', 'playing'])
+      .select();
+
+    if (updateError) throw updateError;
+
+    const cleanedCount = updated?.length || 0;
+    console.log(`[Cleanup] ${cleanedCount} matchs marqués comme finished`);
+
+    // Broadcaster pour retirer les notifications
+    const io = req.app.get('io');
+    if (io && updated) {
+      updated.forEach(match => {
+        io.emit('arena:match-finished', { matchId: match.id });
+        console.log(`[Cleanup] 📢 Broadcast arena:match-finished pour ${match.id}`);
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      cleaned: cleanedCount,
+      message: `${cleanedCount} notification(s) nettoyée(s)`
+    });
+  } catch (error) {
+    console.error('[Cleanup] Erreur:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * GET /api/tournament/active-matches
  * Récupérer tous les matchs actifs (pending/playing) pour le dashboard professeur
  * Inclut les infos des groupes et le nombre de joueurs

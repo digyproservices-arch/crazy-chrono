@@ -18,6 +18,7 @@ export default function NotificationBadge() {
   const [showModal, setShowModal] = useState(false);
   const [studentId, setStudentId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
 
   // Récupérer studentId au montage
   useEffect(() => {
