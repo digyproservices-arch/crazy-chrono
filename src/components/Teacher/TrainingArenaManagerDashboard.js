@@ -144,11 +144,28 @@ export default function TrainingArenaManagerDashboard() {
 
     // Mise à jour des joueurs en temps réel
     socket.on('training:players-update', ({ matchId, players }) => {
-      setMatches(prevMatches => 
-        prevMatches.map(m => {
+      console.log('[TrainingArenaManager] 📥 training:players-update reçu:', {
+        matchId: matchId.slice(-8),
+        playersCount: players.length,
+        players: players.map(p => ({ name: p.name, ready: p.ready }))
+      });
+      
+      setMatches(prevMatches => {
+        console.log('[TrainingArenaManager] 🔍 Matchs actuels:', prevMatches.map(m => ({ 
+          id: m.matchId.slice(-8), 
+          connectedPlayers: m.connectedPlayers,
+          players: m.players?.length || 0
+        })));
+        
+        const updated = prevMatches.map(m => {
           if (m.matchId === matchId) {
             const connectedCount = players.length;
             const readyCount = players.filter(p => p.ready).length;
+            console.log('[TrainingArenaManager] ✅ Match trouvé! Update:', {
+              matchId: matchId.slice(-8),
+              avant: { connectedPlayers: m.connectedPlayers, readyPlayers: m.readyPlayers },
+              après: { connectedPlayers: connectedCount, readyPlayers: readyCount }
+            });
             return {
               ...m,
               connectedPlayers: connectedCount,
@@ -157,8 +174,16 @@ export default function TrainingArenaManagerDashboard() {
             };
           }
           return m;
-        })
-      );
+        });
+        
+        console.log('[TrainingArenaManager] 📊 Matchs après update:', updated.map(m => ({ 
+          id: m.matchId.slice(-8), 
+          connectedPlayers: m.connectedPlayers,
+          readyPlayers: m.readyPlayers
+        })));
+        
+        return updated;
+      });
     });
 
     // Match démarré
@@ -410,6 +435,16 @@ export default function TrainingArenaManagerDashboard() {
             const canStart = match.connectedPlayers >= 2;
             const allReady = match.connectedPlayers > 0 && 
                            match.readyPlayers === match.connectedPlayers;
+            
+            console.log('[TrainingArenaManager] 🎨 RENDER match:', {
+              matchId: match.matchId.slice(-8),
+              connectedPlayers: match.connectedPlayers,
+              readyPlayers: match.readyPlayers,
+              playersArray: match.players?.length || 0,
+              canStart,
+              allReady,
+              status: match.status
+            });
 
             return (
               <div
