@@ -17,6 +17,7 @@ export default function NotificationBadge() {
   const [trainingInvitations, setTrainingInvitations] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [studentId, setStudentId] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Récupérer studentId au montage
   useEffect(() => {
@@ -254,32 +255,47 @@ export default function NotificationBadge() {
 
             {totalInvitations > 0 && (
               <button
-                onClick={() => {
+                onClick={async () => {
+                  console.log('[NotificationBadge] Bouton rafraîchir cliqué');
+                  console.log('[NotificationBadge] window.ccRefreshInvitations disponible:', !!window.ccRefreshInvitations);
+                  
                   if (window.ccRefreshInvitations) {
-                    window.ccRefreshInvitations();
+                    setRefreshing(true);
+                    try {
+                      await window.ccRefreshInvitations();
+                      console.log('[NotificationBadge] Rafraîchissement terminé');
+                    } catch (err) {
+                      console.error('[NotificationBadge] Erreur rafraîchissement:', err);
+                    }
+                    setTimeout(() => setRefreshing(false), 500);
+                  } else {
+                    console.error('[NotificationBadge] window.ccRefreshInvitations non disponible!');
+                    alert('Erreur: fonction de rafraîchissement non disponible. Rechargez la page.');
                   }
                 }}
+                disabled={refreshing}
                 style={{
                   width: '100%',
                   padding: '10px',
                   marginBottom: 16,
                   borderRadius: 8,
                   border: '1px solid #d1d5db',
-                  background: '#f9fafb',
-                  color: '#374151',
+                  background: refreshing ? '#e5e7eb' : '#f9fafb',
+                  color: refreshing ? '#9ca3af' : '#374151',
                   fontSize: 14,
                   fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  cursor: refreshing ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                  opacity: refreshing ? 0.6 : 1
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.background = '#f3f4f6';
+                  if (!refreshing) e.target.style.background = '#f3f4f6';
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.background = '#f9fafb';
+                  if (!refreshing) e.target.style.background = '#f9fafb';
                 }}
               >
-                🔄 Rafraîchir les invitations
+                {refreshing ? '⏳ Rafraîchissement...' : '🔄 Rafraîchir les invitations'}
               </button>
             )}
 
