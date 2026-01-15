@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 
@@ -45,28 +45,42 @@ export default function NotificationBadge() {
     }
   }, []);
 
-  // Charger les invitations toutes les 30 secondes
+  // Fonction de chargement des invitations (stable avec useCallback)
+  const loadInvitations = useCallback(async () => {
+    if (!studentId) {
+      console.log('[NotificationBadge] Pas de studentId, skip loadInvitations');
+      return;
+    }
+
+    try {
+      console.log('[NotificationBadge] Chargement invitations pour studentId:', studentId);
+      const res = await fetch(`${getBackendUrl()}/api/tournament/students/${studentId}/invitations`);
+      const data = await res.json();
+      
+      if (data.success) {
+        console.log('[NotificationBadge] Invitations chargées:', data.invitations);
+        setInvitations(data.invitations || []);
+      }
+    } catch (error) {
+      console.error('[NotificationBadge] Erreur chargement invitations:', error);
+    }
+  }, [studentId]);
+
+  // Charger les invitations au montage et toutes les 30 secondes
   useEffect(() => {
     if (!studentId) return;
 
-    const loadInvitations = async () => {
-      try {
-        const res = await fetch(`${getBackendUrl()}/api/tournament/students/${studentId}/invitations`);
-        const data = await res.json();
-        
-        if (data.success) {
-          setInvitations(data.invitations || []);
-        }
-      } catch (error) {
-        console.error('[NotificationBadge] Erreur chargement invitations:', error);
-      }
-    };
+    console.log('[NotificationBadge] Installation loadInvitations sur window');
+    window.ccRefreshInvitations = loadInvitations;
 
     loadInvitations();
-    const interval = setInterval(loadInvitations, 30000); // Refresh toutes les 30s
+    const interval = setInterval(loadInvitations, 30000);
 
-    return () => clearInterval(interval);
-  }, [studentId]);
+    return () => {
+      clearInterval(interval);
+      delete window.ccRefreshInvitations;
+    };
+  }, [studentId, loadInvitations]);
 
   // ✅ FIX: Écouter Socket.IO pour retirer notification immédiatement après match
   useEffect(() => {
