@@ -25,14 +25,12 @@ export default function TrainingArenaManagerDashboard() {
       const data = await response.json();
       
       if (data.success) {
-        // Rejoindre les rooms des nouveaux matchs Training
+        // Rejoindre les rooms de tous les matchs actifs
         if (socketRef.current?.connected && data.matches) {
-          const trainingMatchIds = data.matches
-            .filter(m => m.mode === 'training')
-            .map(m => m.matchId);
+          const allMatchIds = data.matches.map(m => m.matchId);
           
-          if (trainingMatchIds.length > 0) {
-            socketRef.current.emit('training:teacher-join', { matchIds: trainingMatchIds });
+          if (allMatchIds.length > 0) {
+            socketRef.current.emit('training:teacher-join', { matchIds: allMatchIds });
           }
         }
         
