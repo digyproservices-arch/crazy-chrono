@@ -497,6 +497,11 @@ class CrazyArenaManager {
     // ✅ BROADCAST GLOBAL pour retirer notifications des élèves
     this.io.emit('training:match-finished', { matchId });
     console.log(`[Training] 📢 Broadcast training:match-finished pour ${matchId}`);
+    
+    // Nettoyer après 30s (IDENTIQUE À ARENA)
+    setTimeout(() => {
+      this.cleanupMatch(matchId);
+    }, 30000);
   }
 
   /**
@@ -1696,7 +1701,7 @@ class CrazyArenaManager {
   }
 
   /**
-   * Déconnexion d'un joueur
+   * Déconnexion d'un joueur (GÉNÉRIQUE: Training + Arena)
    */
   handleDisconnect(socket) {
     const matchId = this.playerMatches.get(socket.id);
@@ -1709,15 +1714,17 @@ class CrazyArenaManager {
     if (playerIndex === -1) return;
 
     const player = match.players[playerIndex];
-    console.log(`[CrazyArena] ${player.name} s'est déconnecté du match ${matchId}`);
+    const mode = match.mode || 'arena'; // Détecter le mode
+    console.log(`[CrazyArena]${mode === 'training' ? '[Training]' : ''} ${player.name} s'est déconnecté du match ${matchId}`);
 
     // Retirer le joueur
     match.players.splice(playerIndex, 1);
     this.playerMatches.delete(socket.id);
 
-    // Notifier les autres joueurs
+    // Notifier les autres joueurs avec le bon event selon le mode
     if (match.players.length > 0) {
-      this.io.to(matchId).emit('arena:player-left', {
+      const eventName = mode === 'training' ? 'training:player-left' : 'arena:player-left';
+      this.io.to(matchId).emit(eventName, {
         studentId: player.studentId,
         name: player.name,
         remainingPlayers: match.players.length
