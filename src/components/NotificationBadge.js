@@ -148,12 +148,13 @@ export default function NotificationBadge() {
     navigate(`/crazy-arena/lobby/${roomCode}`);
   };
 
-  const handleJoinTraining = (matchId) => {
+  const handleJoinTraining = (invitation) => {
     setShowModal(false);
     // Retirer l'invitation de la liste
-    setTrainingInvitations(prev => prev.filter(inv => inv.matchId !== matchId));
-    // Rediriger vers le lobby training (comme Arena)
-    navigate(`/training/lobby/${matchId}`);
+    setTrainingInvitations(prev => prev.filter(inv => inv.matchId !== invitation.matchId));
+    // Rediriger vers le lobby Training Arena (pas /training/lobby qui n'existe pas)
+    // matchId sert aussi de roomCode pour Training
+    navigate(`/training-arena/lobby/${invitation.matchId}`);
   };
 
   const totalInvitations = invitations.length + trainingInvitations.length;
