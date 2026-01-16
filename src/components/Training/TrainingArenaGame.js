@@ -189,7 +189,6 @@ export default function TrainingArenaGame() {
     });
     
     return () => {
-      clearInterval(interval);
       socket.disconnect();
     };
   }, [navigate]);

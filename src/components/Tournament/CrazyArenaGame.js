@@ -190,7 +190,6 @@ export default function CrazyArenaGame() {
     });
     
     return () => {
-      clearInterval(interval);
       socket.disconnect();
     };
   }, [navigate]);
