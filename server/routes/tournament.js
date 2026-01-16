@@ -453,11 +453,32 @@ router.get('/students/:studentId/invitations', requireSupabase, async (req, res)
 /**
  * GET /api/tournament/match-by-code/:roomCode
  * Récupérer le matchId depuis un room code (pour les élèves qui rejoignent)
+ * Cherche dans Arena (DB) ET Training (mémoire)
  */
 router.get('/match-by-code/:roomCode', requireSupabase, async (req, res) => {
   try {
     const { roomCode } = req.params;
     
+    // ✅ PARTIE 1: Chercher dans matchs Training (mémoire) EN PREMIER
+    if (global.crazyArena && global.crazyArena.matches) {
+      const allMatches = Array.from(global.crazyArena.matches.values());
+      const trainingMatch = allMatches.find(m => 
+        m.mode === 'training' && 
+        (m.roomCode === roomCode || m.matchId === roomCode)
+      );
+      
+      if (trainingMatch) {
+        console.log(`[Tournament API] ✅ Match Training trouvé: ${trainingMatch.matchId}`);
+        return res.json({ 
+          success: true, 
+          matchId: trainingMatch.matchId, 
+          status: trainingMatch.status,
+          mode: 'training'
+        });
+      }
+    }
+    
+    // ✅ PARTIE 2: Si pas trouvé, chercher dans matchs Arena (DB)
     const { data, error } = await supabase
       .from('tournament_matches')
       .select('id, status')
@@ -465,10 +486,17 @@ router.get('/match-by-code/:roomCode', requireSupabase, async (req, res) => {
       .single();
     
     if (error || !data) {
+      console.log(`[Tournament API] ❌ Match non trouvé pour roomCode: ${roomCode}`);
       return res.status(404).json({ success: false, error: 'Match not found' });
     }
     
-    res.json({ success: true, matchId: data.id, status: data.status });
+    console.log(`[Tournament API] ✅ Match Arena trouvé: ${data.id}`);
+    res.json({ 
+      success: true, 
+      matchId: data.id, 
+      status: data.status,
+      mode: 'arena'
+    });
   } catch (error) {
     console.error('[Tournament API] Error fetching match by code:', error);
     res.status(500).json({ success: false, error: error.message });
