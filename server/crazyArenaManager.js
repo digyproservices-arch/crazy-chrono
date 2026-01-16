@@ -662,7 +662,7 @@ class CrazyArenaManager {
         
         if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
           console.log(`[Training] 🏁 TIEBREAKER TERMINÉ`);
-          this.trainingEndGame(matchId);
+          this.endTrainingGame(matchId);
           return;
         }
         
@@ -698,7 +698,7 @@ class CrazyArenaManager {
       if (match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown') {
         player.tiebreakerScore = Math.max(0, (player.tiebreakerScore || 0) - 2);
       } else {
-        player.score = Math.max(0, (player.score || 0) - 2);
+        player.score = Math.max(0, player.score - 2);
       }
       player.errors = (player.errors || 0) + 1;
     }
