@@ -151,7 +151,20 @@ export default function TrainingArenaGame() {
       if (newZones && Array.isArray(newZones)) {
         setZones(newZones);
         setSelectedZones([]);
-        console.log('[TrainingArena] ✅ Carte mise à jour avec', newZones.length, 'zones');
+        
+        // ✅ CRITIQUE: Reconstruire calcAngles depuis zones.angle (COMME ARENA)
+        try {
+          const angles = {};
+          newZones.forEach(z => {
+            if ((z.type === 'calcul' || z.type === 'chiffre') && typeof z.angle === 'number') {
+              angles[z.id] = z.angle;
+            }
+          });
+          setCalcAngles(angles);
+          console.log('[TrainingArena] ✅ Carte + angles mis à jour:', newZones.length, 'zones');
+        } catch (e) {
+          console.warn('[TrainingArena] Erreur reconstruction angles:', e);
+        }
       }
     });
     
