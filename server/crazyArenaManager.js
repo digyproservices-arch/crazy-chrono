@@ -1596,8 +1596,10 @@ class CrazyArenaManager {
             startTime: Date.now(),
             tiedPlayers: tiedPlayers.map(p => ({ 
               studentId: p.studentId, 
-              name: p.name 
-            }))
+              name: p.name,
+              score: p.score 
+            })),
+            pairsToFind: match.tiebreakerPairsToFind
           };
           
           console.log(`[CrazyArena] 🔍 Payload tiebreaker:`, {
