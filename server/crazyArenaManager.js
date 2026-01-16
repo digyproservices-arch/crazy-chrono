@@ -247,8 +247,8 @@ class CrazyArenaManager {
       return false;
     }
 
-    if (match.players.length === 0) {
-      console.warn(`[CrazyArena][Training] forceStart: Aucun joueur connecté`);
+    if (match.players.length < 2) {
+      console.warn(`[CrazyArena][Training] forceStart: Match ${matchId} a seulement ${match.players.length} joueur(s) (min 2)`);
       return false;
     }
 
@@ -605,8 +605,13 @@ class CrazyArenaManager {
           
           const payload = {
             zones: match.zones,
-            duration: 30,
-            tiedPlayers: tiedPlayers.map(p => ({ name: p.name, score: p.score })),
+            duration: 999,  // ✅ Comme Arena: pas de limite de temps, juste 3 paires
+            startTime: Date.now(),  // ✅ Comme Arena
+            tiedPlayers: tiedPlayers.map(p => ({ 
+              studentId: p.studentId,
+              name: p.name, 
+              score: p.score 
+            })),
             pairsToFind: match.tiebreakerPairsToFind
           };
           
