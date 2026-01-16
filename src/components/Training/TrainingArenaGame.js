@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { getBackendUrl } from '../../utils/subscription';
 import CarteRenderer from '../CarteRenderer';
+import { animateBubblesFromZones } from '../Carte';
 
 export default function TrainingArenaGame() {
   const navigate = useNavigate();
@@ -48,21 +49,23 @@ export default function TrainingArenaGame() {
     console.log('[TrainingArena] Zones SANS content:', zonesArray.filter(z => !z.content));
     
     setZones(zonesArray);
-    setPlayers(gameInfo.players);
-    setMyStudentId(gameInfo.myStudentId);
+    setPlayers(gameInfo.players || []);
+    setMyStudentId(gameInfo.studentId);
     setGameStartTime(gameInfo.startTime);
     setTimeLeft(gameInfo.duration || 60);
     
-    // Charger les angles depuis localStorage (CRITIQUE pour rotation calculs)
+    // ✅ CRITIQUE: Construire calcAngles depuis zones.angle (comme mode classique)
     try {
-      const savedAngles = localStorage.getItem('cc_calc_angles');
-      if (savedAngles) {
-        const parsed = JSON.parse(savedAngles);
-        setCalcAngles(parsed);
-        console.log('[TrainingArena] Angles chargés depuis localStorage:', parsed);
-      }
+      const angles = {};
+      zonesArray.forEach(z => {
+        if ((z.type === 'calcul' || z.type === 'chiffre') && typeof z.angle === 'number') {
+          angles[z.id] = z.angle;
+        }
+      });
+      setCalcAngles(angles);
+      console.log('[TrainingArena] Angles construits depuis zones:', angles);
     } catch (e) {
-      console.warn('[TrainingArena] Erreur chargement angles:', e);
+      console.warn('[TrainingArena] Erreur construction angles:', e);
     }
     
     // Connexion Socket.IO
@@ -337,13 +340,32 @@ export default function TrainingArenaGame() {
   };
   
   const showSuccessAnimation = (ZA, ZB) => {
-    // TODO: Animation bulles (réutiliser animateBubblesFromZones si disponible)
-    console.log('[TrainingArena] Bonne paire validée !', ZA, ZB);
+    try {
+      // Animation bulles identique au mode classique
+      const color = '#22c55e'; // Vert pour succès
+      const borderColor = '#ffffff';
+      const label = myStudentId ? myStudentId.substring(0, 3).toUpperCase() : '';
+      animateBubblesFromZones(ZA.id, ZB.id, color, ZA, ZB, borderColor, label);
+    } catch (e) {
+      console.warn('[TrainingArena] Erreur animation bulle:', e);
+    }
   };
   
   const showErrorAnimation = (ZA, ZB) => {
-    // TODO: Animation d'erreur (shake)
-    console.log('[TrainingArena] Mauvaise paire', ZA, ZB);
+    try {
+      // Shake animation pour les zones (comme mode classique)
+      const shakeZone = (zoneId) => {
+        const el = document.querySelector(`[data-zone-id="${zoneId}"]`);
+        if (el) {
+          el.style.animation = 'shake 0.3s';
+          setTimeout(() => { el.style.animation = ''; }, 300);
+        }
+      };
+      shakeZone(ZA.id);
+      shakeZone(ZB.id);
+    } catch (e) {
+      console.warn('[TrainingArena] Erreur animation erreur:', e);
+    }
   };
   
   // Handler pour les clics sur les zones
