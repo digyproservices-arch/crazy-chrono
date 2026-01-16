@@ -672,7 +672,7 @@ function generateRoundZones(seed, config = {}) {
       }))
     });
     
-    // Ne garder QUE la première paire trouvée, vider les pairId des autres
+    // Ne garder QUE la première paire trouvée, SUPPRIMER physiquement les zones formant les autres paires
     if (allPairs.length > 0) {
       const kept = allPairs[0];
       console.log('[ServerZoneGen] Keeping only pair:', kept.key, 'zones:', kept.zones);
@@ -682,19 +682,30 @@ function generateRoundZones(seed, config = {}) {
         removedCount: allPairs.length - 1
       });
       
-      const removedPairs = [];
-      result = result.map(z => {
-        if (z.pairId && !kept.zones.includes(z.id)) {
-          console.log('[ServerZoneGen] Removing pairId from zone:', z.id, z.type, 'old pairId:', z.pairId);
-          removedPairs.push({ zoneId: z.id, type: z.type, pairId: z.pairId });
-          return { ...z, pairId: '' };
+      // Collecter tous les zoneIds des paires en trop à SUPPRIMER PHYSIQUEMENT
+      const zoneIdsToRemove = new Set();
+      for (let i = 1; i < allPairs.length; i++) {
+        for (const zoneId of allPairs[i].zones) {
+          zoneIdsToRemove.add(zoneId);
         }
-        return z;
+      }
+      
+      const removedZones = [];
+      // FILTRER pour SUPPRIMER les zones formant paires en trop
+      result = result.filter(z => {
+        if (zoneIdsToRemove.has(z.id)) {
+          console.log('[ServerZoneGen] 🗑️  SUPPRESSION zone paire en trop:', z.id, z.type, z.content, 'pairId:', z.pairId);
+          removedZones.push({ zoneId: z.id, type: z.type, content: z.content, pairId: z.pairId });
+          return false;  // ❌ SUPPRIMER cette zone
+        }
+        return true;  // ✅ GARDER cette zone
       });
       
-      if (removedPairs.length > 0) {
-        logFn('debug', '[ZoneGen] Removed pairIds from zones', {
-          removedPairs
+      if (removedZones.length > 0) {
+        console.log(`[ServerZoneGen] ✅ Sanitization: ${removedZones.length} zones SUPPRIMÉES pour garantir 1 seule paire visible`);
+        logFn('info', '[ZoneGen] Removed zones forming extra pairs', {
+          removedCount: removedZones.length,
+          removedZones
         });
       }
     }
