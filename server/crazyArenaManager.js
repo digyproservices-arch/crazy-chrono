@@ -441,6 +441,49 @@ class CrazyArenaManager {
       p.position = idx + 1;
     });
 
+    // ✅ CRITIQUE: Vérifier égalité au premier rang (COMME ARENA)
+    const topScore = ranking[0].score;
+    const tiedPlayers = ranking.filter(p => p.score === topScore);
+    
+    if (tiedPlayers.length > 1 && !match.isTiebreaker) {
+      // ÉGALITÉ DÉTECTÉE - Attendre décision du professeur
+      console.log(`[CrazyArena][Training] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topScore} pts`);
+      console.log(`[CrazyArena][Training] ⏸️ En attente décision professeur pour départage...`);
+      
+      // Mettre le match en attente de départage
+      match.status = 'tie-waiting';
+      match.tiedPlayers = tiedPlayers;
+      
+      // Notifier les joueurs de l'égalité (attente du prof)
+      const tieData = {
+        tiedPlayers: tiedPlayers.map(p => ({ name: p.name, score: p.score })),
+        message: 'Égalité ! En attente du professeur pour le départage...'
+      };
+      
+      console.log(`[CrazyArena][Training] 📢 Émission training:tie-detected à room ${matchId}:`, tieData);
+      this.io.to(matchId).emit('training:tie-detected', tieData);
+      
+      // AUSSI en broadcast pour debug
+      console.log(`[CrazyArena][Training] 📢 Émission training:tie-detected en BROADCAST`);
+      this.io.emit('training:tie-detected', { ...tieData, matchId });
+      
+      // Notifier le dashboard professeur qu'il doit décider
+      this.io.emit('training:tie-waiting-teacher', {
+        matchId,
+        tiedPlayers: tiedPlayers.map(p => ({ 
+          studentId: p.studentId,
+          name: p.name, 
+          score: p.score 
+        })),
+        ranking
+      });
+      
+      console.log(`[CrazyArena][Training] 📢 Notification égalité envoyée pour match ${matchId}`);
+      
+      return; // Ne pas terminer le match - attendre décision prof
+    }
+
+    // Pas d'égalité ou après départage - Envoyer le podium final
     const winner = ranking[0];
 
     console.log(`[CrazyArena][Training] 🎉 Émission podium final à room ${matchId}`);
@@ -454,6 +497,131 @@ class CrazyArenaManager {
     // ✅ BROADCAST GLOBAL pour retirer notifications des élèves
     this.io.emit('training:match-finished', { matchId });
     console.log(`[Training] 📢 Broadcast training:match-finished pour ${matchId}`);
+  }
+
+  /**
+   * Joueur prêt pour départage Training
+   */
+  trainingPlayerReadyForTiebreaker(matchId, studentId, playerName, io) {
+    console.log(`[CrazyArena][Training] 🔍 playerReadyForTiebreaker appelé: ${playerName} (${studentId}) pour match ${matchId}`);
+    
+    const match = this.matches.get(matchId);
+    if (!match) {
+      console.error(`[CrazyArena][Training] ❌ Match ${matchId} introuvable`);
+      return;
+    }
+
+    console.log(`[CrazyArena][Training] 🔍 Match trouvé, status: ${match.status}`);
+    
+    if (match.status !== 'tie-waiting') {
+      console.error(`[CrazyArena][Training] ❌ Match ${matchId} n'est pas en attente de départage (status: ${match.status})`);
+      return;
+    }
+
+    if (!match.playersReadyForTiebreaker) {
+      match.playersReadyForTiebreaker = new Set();
+      console.log(`[CrazyArena][Training] 🔍 Set playersReadyForTiebreaker initialisé`);
+    }
+
+    match.playersReadyForTiebreaker.add(studentId);
+    console.log(`[CrazyArena][Training] ✋ ${playerName} prêt pour départage (${match.playersReadyForTiebreaker.size}/${match.tiedPlayers.length})`);
+
+    const payload = {
+      matchId,
+      readyCount: match.playersReadyForTiebreaker.size,
+      totalCount: match.tiedPlayers.length,
+      readyPlayers: Array.from(match.playersReadyForTiebreaker)
+    };
+    
+    console.log(`[CrazyArena][Training] 📢 Émission training:tiebreaker-ready-update:`, payload);
+    io.emit('training:tiebreaker-ready-update', payload);
+    console.log(`[CrazyArena][Training] ✅ training:tiebreaker-ready-update émis`);
+  }
+
+  /**
+   * Démarrage départage par professeur Training
+   */
+  async trainingStartTiebreakerByTeacher(matchId) {
+    const match = this.matches.get(matchId);
+    if (!match) {
+      console.error(`[CrazyArena][Training] ❌ Match ${matchId} introuvable`);
+      return;
+    }
+
+    if (match.status !== 'tie-waiting') {
+      console.error(`[CrazyArena][Training] ❌ Match ${matchId} n'est pas en attente de départage`);
+      return;
+    }
+
+    const tiedPlayers = match.tiedPlayers;
+    if (!tiedPlayers || tiedPlayers.length < 2) {
+      console.error(`[CrazyArena][Training] ❌ Pas de joueurs à égalité`);
+      return;
+    }
+
+    console.log(`[CrazyArena][Training] 🎯 Professeur lance départage (${tiedPlayers.length} joueurs)`);
+    
+    match.isTiebreaker = true;
+    match.status = 'playing';
+    match.startTime = Date.now();
+    
+    const tiebreakerConfig = {
+      ...match.config,
+      rounds: 1
+    };
+    
+    const zonesResult = await this.generateZones(tiebreakerConfig, matchId);
+    const zonesArray = Array.isArray(zonesResult) ? zonesResult : (zonesResult?.zones || []);
+    
+    match.zones = zonesArray;
+    match.tiebreakerPairsToFind = 3;
+    match.tiebreakerPairsFound = 0;
+    
+    const tiedStudentIds = tiedPlayers.map(p => p.studentId);
+    
+    match.players.forEach(p => {
+      if (tiedStudentIds.includes(p.studentId)) {
+        p.scoreBeforeTiebreaker = p.score;
+        p.pairsBeforeTiebreaker = p.pairsValidated;
+        p.tiebreakerScore = 0;
+        p.tiebreakerPairs = 0;
+        p.errors = 0;
+      }
+    });
+    
+    console.log(`[CrazyArena][Training] 📡 Countdown 3-2-1 pour tiebreaker...`);
+    
+    match.status = 'tiebreaker-countdown';
+    let count = 3;
+    const countdownInterval = setInterval(() => {
+      this.io.to(matchId).emit('training:countdown', { count });
+      count--;
+      
+      if (count < 0) {
+        clearInterval(countdownInterval);
+        
+        try {
+          match.status = 'tiebreaker';
+          
+          const payload = {
+            zones: match.zones,
+            duration: 30,
+            tiedPlayers: tiedPlayers.map(p => ({ name: p.name, score: p.score })),
+            pairsToFind: match.tiebreakerPairsToFind
+          };
+          
+          console.log(`[CrazyArena][Training] 📡 Émission training:tiebreaker-start...`);
+          this.io.to(matchId).emit('training:tiebreaker-start', payload);
+          this.io.emit('training:tiebreaker-start', { ...payload, matchId });
+          
+          console.log(`[CrazyArena][Training] ✅ training:tiebreaker-start émis`);
+          
+        } catch (error) {
+          console.error(`[CrazyArena][Training] ❌ ERREUR tiebreaker:`, error);
+          this.endTrainingGame(matchId);
+        }
+      }
+    }, 1000);
   }
 
   /**

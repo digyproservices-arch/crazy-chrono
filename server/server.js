@@ -1382,6 +1382,16 @@ io.on('connection', (socket) => {
     socket.join(matchId);
   });
 
+  socket.on('training:player-ready-tiebreaker', ({ matchId, studentId, playerName }) => {
+    console.log(`[Server][Training] Joueur ${playerName} prêt pour départage match ${matchId}`);
+    crazyArena.trainingPlayerReadyForTiebreaker(matchId, studentId, playerName, io);
+  });
+
+  socket.on('training:start-tiebreaker', async ({ matchId }) => {
+    console.log(`[Server][Training] Professeur lance départage pour match ${matchId}`);
+    await crazyArena.trainingStartTiebreakerByTeacher(matchId);
+  });
+
   // ===== CRAZY ARENA EVENTS (Tournoi groupes de 4) =====
   
   socket.on('arena:join', async ({ matchId, studentData }, cb) => {
