@@ -225,18 +225,22 @@ export default function TrainingArenaSetup() {
         themes: ['botanique', 'multiplication']
       };
       
-      console.log('[TrainingArena] 🚀 Lancement match - Phase:', tournament.current_phase, '→ ID:', phaseId);
+      console.log('[TrainingArena] 🚀 Lancement match Training');
       console.log('[TrainingArena] 📋 Config utilisée:', matchConfig);
+      console.log('[TrainingArena] 👥 Élèves:', parseStudentIds(group.student_ids));
       
-      // Créer le match
-      const res = await fetch(`${backendUrl}/api/tournament/matches`, {
+      // ✅ FIX CRITIQUE: Appeler API Training (pas Arena)
+      const res = await fetch(`${backendUrl}/api/training/matches`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tournamentId: tournament.id,
-          phaseId: phaseId,
-          groupId: group.id,
-          config: matchConfig
+          studentIds: parseStudentIds(group.student_ids),
+          config: {
+            ...matchConfig,
+            sessionName: group.name || 'Session Entraînement'
+          },
+          classId: classId,
+          teacherId: localStorage.getItem('cc_user_id') || 'teacher_1'
         })
       });
       
