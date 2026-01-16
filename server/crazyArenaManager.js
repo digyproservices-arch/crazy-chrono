@@ -130,7 +130,8 @@ class CrazyArenaManager {
           name: p.name,
           avatar: p.avatar,
           ready: p.ready
-        }))
+        })),
+        count: match.players.length  // ✅ Comme Arena (reconnexion)
       });
       
       return true;
@@ -161,7 +162,8 @@ class CrazyArenaManager {
         name: p.name,
         avatar: p.avatar,
         ready: p.ready
-      }))
+      })),
+      count: match.players.length  // ✅ Comme Arena
     });
     
     // Notifier le dashboard professeur
@@ -547,6 +549,7 @@ class CrazyArenaManager {
   createMatch(matchId, roomCode, config) {
     this.matches.set(matchId, {
       id: matchId,
+      mode: 'arena',  // ✅ Ajouter mode pour cohérence avec Training
       roomCode,
       players: [], // Max 4 joueurs
       status: 'waiting', // waiting | countdown | playing | finished
@@ -555,6 +558,8 @@ class CrazyArenaManager {
       config: config || { rounds: 3, duration: 60, classes: ['CE1'], themes: [] },
       startTime: null,
       endTime: null,
+      roundsPlayed: 0,  // ✅ Comme Training
+      validatedPairIds: null,  // ✅ Sera initialisé dans startGame
       countdownTimeout: null,
       gameTimeout: null
     });

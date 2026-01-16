@@ -152,18 +152,10 @@ export default function TrainingArenaGame() {
       }
     });
     
-    // Timer local
-    const interval = setInterval(() => {
-      if (gameInfo.startTime) {
-        const elapsed = Math.floor((Date.now() - gameInfo.startTime) / 1000);
-        const remaining = Math.max(0, (gameInfo.duration || 60) - elapsed);
-        setTimeLeft(remaining);
-        
-        if (remaining === 0) {
-          clearInterval(interval);
-        }
-      }
-    }, 100);
+    // ✅ CRITIQUE: Écouter training:timer-tick du backend (comme Arena)
+    socket.on('training:timer-tick', ({ timeLeft: serverTimeLeft }) => {
+      setTimeLeft(serverTimeLeft);
+    });
     
     return () => {
       clearInterval(interval);
@@ -223,9 +215,13 @@ export default function TrainingArenaGame() {
       setZones(prev => prev.filter(z => z.id !== zoneIdA && z.id !== zoneIdB));
       setSelectedZones([]);
       
-      // Notifier le serveur
+      // Notifier le serveur avec payload COMPLET (comme Arena)
       socketRef.current?.emit('training:pair-validated', {
+        matchId: gameInfo.matchId,
         studentId: myStudentId,
+        zoneAId: zoneIdA,
+        zoneBId: zoneIdB,
+        pairId: pairA,  // ID de la paire validée
         isCorrect: true,
         timeMs
       });
@@ -238,9 +234,13 @@ export default function TrainingArenaGame() {
         setSelectedZones([]);
       }, 500);
       
-      // Notifier le serveur
+      // Notifier le serveur avec payload COMPLET (comme Arena)
       socketRef.current?.emit('training:pair-validated', {
+        matchId: gameInfo.matchId,
         studentId: myStudentId,
+        zoneAId: zoneIdA,
+        zoneBId: zoneIdB,
+        pairId: null,  // Pas de pairId car incorrect
         isCorrect: false,
         timeMs
       });
