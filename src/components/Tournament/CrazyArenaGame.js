@@ -141,18 +141,53 @@ export default function CrazyArenaGame() {
       }, 1000);
     });
     
-    // Timer local
-    const interval = setInterval(() => {
-      if (gameInfo.startTime) {
-        const elapsed = Math.floor((Date.now() - gameInfo.startTime) / 1000);
-        const remaining = Math.max(0, (gameInfo.duration || 60) - elapsed);
-        setTimeLeft(remaining);
+    // ✅ FIX BUG #35: Écouter arena:round-new (nouvelles cartes)
+    socket.on('arena:round-new', ({ zones: newZones, roundIndex, totalRounds, timestamp }) => {
+      console.log('[CrazyArena] 🎯 Nouvelle carte reçue:', { 
+        zonesCount: newZones?.length,
+        roundIndex, 
+        totalRounds 
+      });
+      
+      if (newZones && Array.isArray(newZones)) {
+        setZones(newZones);
+        setSelectedZones([]);
         
-        if (remaining === 0) {
-          clearInterval(interval);
+        // ✅ CRITIQUE: Reconstruire calcAngles depuis zones.angle
+        try {
+          const angles = {};
+          newZones.forEach(z => {
+            if ((z.type === 'calcul' || z.type === 'chiffre') && typeof z.angle === 'number') {
+              angles[z.id] = z.angle;
+            }
+          });
+          setCalcAngles(angles);
+          console.log('[CrazyArena] ✅ Carte + angles mis à jour:', newZones.length, 'zones');
+        } catch (e) {
+          console.warn('[CrazyArena] Erreur reconstruction angles:', e);
         }
       }
-    }, 100);
+    });
+    
+    // ✅ FIX BUG #36: Écouter arena:timer-tick du backend (comme Training)
+    socket.on('arena:timer-tick', ({ timeLeft: serverTimeLeft }) => {
+      setTimeLeft(serverTimeLeft);
+    });
+    
+    // ✅ FIX BUG #37: Écouter arena:pair-validated (sync paires validées entre joueurs)
+    socket.on('arena:pair-validated', ({ studentId, playerName, pairId, zoneAId, zoneBId }) => {
+      console.log('[CrazyArena] 🎯 Paire validée par', playerName, ':', pairId);
+      
+      // Masquer les zones validées
+      setZones(prevZones => {
+        return prevZones.map(z => {
+          if (z.id === zoneAId || z.id === zoneBId) {
+            return { ...z, validated: true };
+          }
+          return z;
+        });
+      });
+    });
     
     return () => {
       clearInterval(interval);
