@@ -646,7 +646,7 @@ class CrazyArenaManager {
 
     console.log(`[Training] Paire validée: ${studentId}, correct=${isCorrect}, pairId=${pairId}`);
 
-    // Mettre à jour le score (MÊME LOGIQUE QUE ARENA)
+    // Mettre à jour le score
     if (isCorrect) {
       // Mode tiebreaker
       if (match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown') {

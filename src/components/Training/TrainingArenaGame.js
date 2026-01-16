@@ -229,29 +229,6 @@ export default function TrainingArenaGame() {
         timeMs
       });
     } else {
-      // Mauvaise paire
-      playErrorSound();
-      showErrorAnimation(ZA, ZB);
-      
-      setTimeout(() => {
-        setSelectedZones([]);
-      }, 500);
-      
-      // Notifier le serveur avec payload COMPLET (comme Arena)
-      socketRef.current?.emit('training:pair-validated', {
-        matchId: gameInfo.matchId,
-        studentId: myStudentId,
-        zoneAId: zoneIdA,
-        zoneBId: zoneIdB,
-        pairId: null,  // Pas de pairId car incorrect
-        isCorrect: false,
-        timeMs
-      });
-    }
-  };
-  
-  const showPodium = (finalRanking, finalWinner, isTiebreaker = false) => {
-    // Créer un overlay podium
     const overlay = document.createElement('div');
     overlay.id = 'training-arena-podium';
     overlay.style.cssText = `

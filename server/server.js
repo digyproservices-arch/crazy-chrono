@@ -1372,15 +1372,22 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('training:pair-validated', ({ matchId, studentId, zoneAId, zoneBId, pairId, isCorrect, timeMs }) => {
-    console.log(`[Server][Training] Paire validée: ${studentId}, pairId=${pairId}, correct=${isCorrect}, timeMs=${timeMs}`);
-    crazyArena.trainingPairValidated(matchId, studentId, zoneAId, zoneBId, pairId, isCorrect, timeMs || 0);
+  // Training: Validation de paire (IDENTIQUE HANDLER ARENA)
+  socket.on('training:pair-validated', (data) => {
+    const matchId = crazyArena.playerMatches.get(socket.id);
+    if (!matchId) {
+      console.warn(`[Socket.IO] training:pair-validated: socket ${socket.id} n'est pas dans un match`);
+      return;
+    }
+    const { studentId, isCorrect, timeMs, pairId, zoneAId, zoneBId } = data;
+    console.log(`[Socket.IO] training:pair-validated reçu: studentId=${studentId}, matchId=${matchId}, correct=${isCorrect}`);
+    crazyArena.trainingPairValidated(matchId, studentId, zoneAId, zoneBId, pairId, isCorrect, timeMs);
   });
 
   socket.on('training:subscribe-manager', ({ matchId }) => {
     console.log(`[Server][Training] Manager souscrit au match ${matchId}`);
     socket.join(matchId);
-  });
+// ...
 
   socket.on('training:player-ready-tiebreaker', ({ matchId, studentId, playerName }) => {
     console.log(`[Server][Training] Joueur ${playerName} prêt pour départage match ${matchId}`);
