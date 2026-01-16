@@ -343,7 +343,7 @@ class CrazyArenaManager {
         console.log(`[CrazyArena][Training] 🔔 Nouvelle manche #${match.roundsPlayed + 1} démarrée (${elapsed}s écoulées)`);
         
         // Générer nouvelle carte pour la nouvelle manche
-        this.generateZones(match.config).then(newZones => {
+        this.generateZones(match.config, matchId).then(newZones => {
           match.zones = newZones;
           console.log(`[CrazyArena][Training] 🎯 Nouvelle carte pour manche ${match.roundsPlayed + 1}: ${newZones.length} zones`);
           
@@ -548,18 +548,20 @@ class CrazyArenaManager {
    */
   createMatch(matchId, roomCode, config) {
     this.matches.set(matchId, {
-      id: matchId,
-      mode: 'arena',  // ✅ Ajouter mode pour cohérence avec Training
+      matchId,  // ✅ Comme Training (cohérence)
+      id: matchId,  // Garder pour compatibilité getMatchState
+      mode: 'arena',
       roomCode,
-      players: [], // Max 4 joueurs
-      status: 'waiting', // waiting | countdown | playing | finished
+      players: [],
+      status: 'waiting',
       scores: {},
       zones: null,
       config: config || { rounds: 3, duration: 60, classes: ['CE1'], themes: [] },
       startTime: null,
       endTime: null,
-      roundsPlayed: 0,  // ✅ Comme Training
-      validatedPairIds: null,  // ✅ Sera initialisé dans startGame
+      roundsPlayed: 0,
+      validatedPairIds: null,
+      timerInterval: null,  // ✅ Comme Training
       countdownTimeout: null,
       gameTimeout: null
     });
