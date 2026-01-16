@@ -1387,7 +1387,7 @@ io.on('connection', (socket) => {
   socket.on('training:subscribe-manager', ({ matchId }) => {
     console.log(`[Server][Training] Manager souscrit au match ${matchId}`);
     socket.join(matchId);
-// ...
+  });
 
   socket.on('training:player-ready-tiebreaker', ({ matchId, studentId, playerName }) => {
     console.log(`[Server][Training] Joueur ${playerName} prêt pour départage match ${matchId}`);
