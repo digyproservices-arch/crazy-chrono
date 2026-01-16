@@ -1606,10 +1606,11 @@ class CrazyArenaManager {
             firstZone: payload.zones?.[0]
           });
           
-          console.log(`[CrazyArena] 📡 Émission arena:tiebreaker-start en BROADCAST...`);
+          console.log(`[CrazyArena] 📡 Émission arena:tiebreaker-start...`);
+          this.io.to(matchId).emit('arena:tiebreaker-start', payload);
           this.io.emit('arena:tiebreaker-start', { ...payload, matchId });
           
-          console.log(`[CrazyArena] ✅ arena:tiebreaker-start émis - Pas de timer, juste 3 paires`);
+          console.log(`[CrazyArena] ✅ arena:tiebreaker-start émis (room + broadcast)`);
           
         } catch (error) {
           console.error(`[CrazyArena] ❌ ERREUR émission arena:tiebreaker-start:`, error);
