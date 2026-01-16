@@ -383,31 +383,72 @@ class CrazyArenaManager {
   }
 
   /**
-   * Terminer le match Training
+   * Terminer le match Training (COPIE EXACTE de endGame Arena)
    */
   endTrainingGame(matchId) {
     const match = this.matches.get(matchId);
-    if (!match) return;
+    if (!match || (match.status !== 'playing' && match.status !== 'tiebreaker' && match.status !== 'tiebreaker-countdown')) return;
 
     match.status = 'finished';
+    match.endTime = Date.now();
+
+    // Nettoyer les timers
+    if (match.gameTimeout) {
+      clearTimeout(match.gameTimeout);
+    }
     if (match.timerInterval) {
       clearInterval(match.timerInterval);
     }
 
     console.log(`[CrazyArena][Training] 🏁 Match ${matchId} terminé`);
 
-    // Envoyer résultats finaux
-    const playersArray = Array.from(match.players.values());
-    const finalScores = playersArray.map(p => ({
+    // ✅ FIX: Si on sort d'un tiebreaker, ADDITIONNER scores match normal + tiebreaker
+    if (match.isTiebreaker) {
+      match.players.forEach(p => {
+        const scoreNormal = p.scoreBeforeTiebreaker || 0;
+        const scoreTiebreaker = p.tiebreakerScore || 0;
+        const pairsNormal = p.pairsBeforeTiebreaker || 0;
+        const pairsTiebreaker = p.tiebreakerPairs || 0;
+        
+        p.score = scoreNormal + scoreTiebreaker;
+        p.pairsValidated = pairsNormal + pairsTiebreaker;
+        
+        console.log(`[CrazyArena][Training] 🏆 ${p.name}: Score final = ${scoreNormal} (normal) + ${scoreTiebreaker} (tiebreaker) = ${p.score} pts`);
+      });
+    }
+
+    // Calculer les temps finaux
+    match.players.forEach(p => {
+      p.timeMs = match.endTime - match.startTime;
+    });
+
+    // Trier les joueurs par score DESC, puis temps ASC
+    const ranking = match.players.map(p => ({
       studentId: p.studentId,
       name: p.name,
-      score: p.score || 0,
-      pairsValidated: p.pairsValidated || 0
-    })).sort((a, b) => b.score - a.score);
+      avatar: p.avatar,
+      score: p.score,
+      pairsValidated: p.pairsValidated,
+      errors: p.errors,
+      timeMs: p.timeMs
+    })).sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.timeMs - b.timeMs;
+    });
 
+    // Ajouter les positions
+    ranking.forEach((p, idx) => {
+      p.position = idx + 1;
+    });
+
+    const winner = ranking[0];
+
+    console.log(`[CrazyArena][Training] 🎉 Émission podium final à room ${matchId}`);
     this.io.to(matchId).emit('training:game-end', {
-      scores: finalScores,
-      duration: match.config.durationPerRound || 60
+      ranking,
+      winner,
+      duration: match.endTime - match.startTime,
+      isTiebreaker: match.isTiebreaker || false
     });
     
     // ✅ BROADCAST GLOBAL pour retirer notifications des élèves
