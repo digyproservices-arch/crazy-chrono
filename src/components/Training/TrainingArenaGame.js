@@ -160,6 +160,21 @@ export default function TrainingArenaGame() {
       setTimeLeft(serverTimeLeft);
     });
     
+    // ✅ Écouter training:pair-validated (sync paires validées entre joueurs) - COMME ARENA
+    socket.on('training:pair-validated', ({ studentId, playerName, pairId, zoneAId, zoneBId }) => {
+      console.log('[TrainingArena] 🎯 Paire validée par', playerName, ':', pairId);
+      
+      // Masquer les zones validées
+      setZones(prevZones => {
+        return prevZones.map(z => {
+          if (z.id === zoneAId || z.id === zoneBId) {
+            return { ...z, validated: true };
+          }
+          return z;
+        });
+      });
+    });
+    
     return () => {
       clearInterval(interval);
       socket.disconnect();
@@ -229,6 +244,29 @@ export default function TrainingArenaGame() {
         timeMs
       });
     } else {
+      // Mauvaise paire
+      playErrorSound();
+      showErrorAnimation(ZA, ZB);
+      
+      setTimeout(() => {
+        setSelectedZones([]);
+      }, 500);
+      
+      // Notifier le serveur avec payload COMPLET (comme Arena)
+      socketRef.current?.emit('training:pair-validated', {
+        matchId: gameInfo.matchId,
+        studentId: myStudentId,
+        zoneAId: zoneIdA,
+        zoneBId: zoneIdB,
+        pairId: null,  // Pas de pairId car incorrect
+        isCorrect: false,
+        timeMs
+      });
+    }
+  };
+  
+  const showPodium = (finalRanking, finalWinner, isTiebreaker = false) => {
+    // Créer un overlay podium
     const overlay = document.createElement('div');
     overlay.id = 'training-arena-podium';
     overlay.style.cssText = `
