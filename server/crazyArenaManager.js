@@ -484,6 +484,14 @@ class CrazyArenaManager {
       player.errors = (player.errors || 0) + 1;
     }
 
+    // ✅ CRITIQUE: Mettre à jour match.scores comme Arena
+    match.scores[studentId] = {
+      score: player.score || 0,
+      pairsValidated: player.pairsValidated || 0,
+      errors: player.errors || 0,
+      timeMs: Date.now() - match.startTime
+    };
+
     // ✅ SYNCHRONISER la paire validée à TOUS les joueurs
     if (isCorrect && pairId) {
       console.log(`[Training] Émission training:pair-validated à room ${matchId}`);
