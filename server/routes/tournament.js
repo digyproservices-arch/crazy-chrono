@@ -691,12 +691,12 @@ router.post('/cleanup-old-matches', requireSupabase, async (req, res) => {
 /**
  * GET /api/tournament/active-matches
  * Récupérer tous les matchs actifs (pending/playing) pour le dashboard professeur
- * Inclut les infos des groupes et le nombre de joueurs
+ * Inclut les matchs Arena (DB) ET les matchs Training (mémoire)
  */
 router.get('/active-matches', requireSupabase, async (req, res) => {
   try {
-    // Récupérer tous les matchs actifs
-    const { data: matches, error: matchesError } = await supabase
+    // ✅ PARTIE 1: Matchs Arena depuis la base de données
+    const { data: arenaMatches, error: matchesError } = await supabase
       .from('tournament_matches')
       .select('id, room_code, status, created_at, group_id')
       .in('status', ['pending', 'playing'])
@@ -704,22 +704,23 @@ router.get('/active-matches', requireSupabase, async (req, res) => {
     
     if (matchesError) throw matchesError;
     
-    if (!matches || matches.length === 0) {
-      return res.json({ success: true, matches: [] });
+    // Récupérer les infos des groupes Arena associés
+    const groupIds = (arenaMatches || []).map(m => m.group_id).filter(id => id);
+    let groups = [];
+    
+    if (groupIds.length > 0) {
+      const { data: groupsData, error: groupsError } = await supabase
+        .from('tournament_groups')
+        .select('id, name, student_ids')
+        .in('id', groupIds);
+      
+      if (groupsError) throw groupsError;
+      groups = groupsData || [];
     }
     
-    // Récupérer les infos des groupes associés
-    const groupIds = matches.map(m => m.group_id).filter(id => id);
-    const { data: groups, error: groupsError } = await supabase
-      .from('tournament_groups')
-      .select('id, name, student_ids')
-      .in('id', groupIds);
-    
-    if (groupsError) throw groupsError;
-    
-    // Enrichir les matchs avec les infos des groupes
-    const enrichedMatches = matches.map(match => {
-      const group = (groups || []).find(g => g.id === match.group_id);
+    // Enrichir les matchs Arena avec les infos des groupes
+    const enrichedArenaMatches = (arenaMatches || []).map(match => {
+      const group = groups.find(g => g.id === match.group_id);
       const studentIds = group?.student_ids 
         ? (Array.isArray(group.student_ids) ? group.student_ids : JSON.parse(group.student_ids))
         : [];
@@ -732,13 +733,44 @@ router.get('/active-matches', requireSupabase, async (req, res) => {
         groupName: group?.name || 'Groupe sans nom',
         totalPlayers: studentIds.length,
         studentIds: studentIds,
+        mode: 'arena',
         // Les joueurs connectés seront mis à jour par Socket.IO côté client
         connectedPlayers: 0,
         readyPlayers: 0
       };
     });
     
-    res.json({ success: true, matches: enrichedMatches });
+    // ✅ PARTIE 2: Matchs Training depuis la mémoire (CrazyArenaManager)
+    let trainingMatches = [];
+    
+    if (global.crazyArena && global.crazyArena.matches) {
+      const allMatches = Array.from(global.crazyArena.matches.values());
+      
+      // Filtrer les matchs Training actifs (waiting ou playing)
+      trainingMatches = allMatches
+        .filter(m => m.mode === 'training' && ['waiting', 'playing'].includes(m.status))
+        .map(match => ({
+          matchId: match.matchId,
+          roomCode: match.roomCode || match.matchId,
+          status: match.status === 'waiting' ? 'pending' : match.status,
+          createdAt: new Date().toISOString(), // Pas de created_at en mémoire
+          groupName: match.config?.sessionName || 'Session Training',
+          totalPlayers: match.expectedPlayers?.length || match.players.length,
+          studentIds: match.expectedPlayers || match.players.map(p => p.studentId),
+          mode: 'training',
+          connectedPlayers: match.players.length,
+          readyPlayers: match.players.filter(p => p.ready).length
+        }));
+      
+      console.log(`[Tournament API] ✅ ${trainingMatches.length} matchs Training actifs trouvés en mémoire`);
+    }
+    
+    // ✅ FUSIONNER Arena + Training
+    const allActiveMatches = [...enrichedArenaMatches, ...trainingMatches];
+    
+    console.log(`[Tournament API] ✅ Total matchs actifs: ${allActiveMatches.length} (Arena: ${enrichedArenaMatches.length}, Training: ${trainingMatches.length})`);
+    
+    res.json({ success: true, matches: allActiveMatches });
   } catch (error) {
     console.error('[Tournament API] Error fetching active matches:', error);
     res.status(500).json({ success: false, error: error.message });
