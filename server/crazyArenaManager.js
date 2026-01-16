@@ -1254,7 +1254,7 @@ class CrazyArenaManager {
       } else {
         player.score = Math.max(0, player.score - 2);
       }
-      player.errors += 1;
+      player.errors = (player.errors || 0) + 1;
     }
 
     match.scores[studentId] = {
