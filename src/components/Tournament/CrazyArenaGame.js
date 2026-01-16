@@ -247,12 +247,9 @@ export default function CrazyArenaGame() {
       setZones(prev => prev.filter(z => z.id !== zoneIdA && z.id !== zoneIdB));
       setSelectedZones([]);
       
-      // Notifier le serveur avec payload COMPLET (comme Training)
+      // Notifier le serveur
       socketRef.current?.emit('arena:pair-validated', {
         studentId: myStudentId,
-        zoneAId: zoneIdA,
-        zoneBId: zoneIdB,
-        pairId: pairA,
         isCorrect: true,
         timeMs
       });
@@ -265,12 +262,9 @@ export default function CrazyArenaGame() {
         setSelectedZones([]);
       }, 500);
       
-      // Notifier le serveur avec payload COMPLET (comme Training)
+      // Notifier le serveur
       socketRef.current?.emit('arena:pair-validated', {
         studentId: myStudentId,
-        zoneAId: zoneIdA,
-        zoneBId: zoneIdB,
-        pairId: null,
         isCorrect: false,
         timeMs
       });
