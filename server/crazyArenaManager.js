@@ -626,7 +626,12 @@ class CrazyArenaManager {
       
       // Notifier la reconnexion
       this.io.to(matchId).emit('arena:player-joined', {
-        players: match.players.map(p => ({ studentId: p.studentId, name: p.name, score: p.score })),
+        players: match.players.map(p => ({ 
+          studentId: p.studentId, 
+          name: p.name, 
+          avatar: p.avatar,
+          ready: p.ready
+        })),
         count: match.players.length
       });
       
@@ -678,7 +683,12 @@ class CrazyArenaManager {
     }));
     
     this.io.to(matchId).emit('arena:player-joined', {
-      players: playersData,
+      players: match.players.map(p => ({
+        studentId: p.studentId,
+        name: p.name,
+        avatar: p.avatar,
+        ready: p.ready
+      })),
       count: match.players.length
     });
     
@@ -718,8 +728,12 @@ class CrazyArenaManager {
       }));
       
       this.io.to(matchId).emit('arena:player-ready', {
-        studentId,
-        players: playersData
+        players: match.players.map(p => ({ 
+          studentId: p.studentId, 
+          name: p.name, 
+          avatar: p.avatar,
+          ready: p.ready
+        }))
       });
       
       // Notifier aussi le dashboard professeur
