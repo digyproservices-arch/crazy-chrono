@@ -636,7 +636,7 @@ class CrazyArenaManager {
     const match = this.matches.get(matchId);
     if (!match || (match.status !== 'playing' && match.status !== 'tiebreaker' && match.status !== 'tiebreaker-countdown')) return;
 
-    const player = Array.from(match.players.values()).find(p => p.studentId === studentId);
+    const player = match.players.find(p => p.studentId === studentId);
     if (!player) return;
 
     console.log(`[Training] Paire validée: ${studentId}, correct=${isCorrect}, pairId=${pairId}`);
@@ -754,9 +754,8 @@ class CrazyArenaManager {
     }
 
     // Diffuser les scores
-    const playersArray = Array.from(match.players.values());
     this.io.to(matchId).emit('training:scores-update', {
-      scores: playersArray.map(p => ({
+      scores: match.players.map(p => ({
         studentId: p.studentId,
         name: p.name,
         score: p.score || 0,
