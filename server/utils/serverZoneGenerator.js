@@ -613,23 +613,50 @@ function generateRoundZones(seed, config = {}) {
     // Collecter toutes les paires potentielles présentes
     const allPairs = [];
     
-    // Paires Image-Texte
+    // Paires Image-Texte (PAR CONTENU, pas seulement pairId)
     for (const z1 of result) {
-      if (z1.type === 'image' && z1.pairId) {
+      if (z1.type === 'image' && z1.content) {
         for (const z2 of result) {
-          if (z2.type === 'texte' && z2.pairId === z1.pairId) {
-            allPairs.push({ key: z1.pairId, kind: 'IT', zones: [z1.id, z2.id] });
+          if (z2.type === 'texte' && z2.content) {
+            // Vérifier si image et texte forment une paire valide dans associations.json
+            const imageUrl = String(z1.content || '').replace(/^.*\/images\//, '').replace(/%20/g, ' ');
+            const texteContent = String(z2.content || '').toLowerCase();
+            
+            // Chercher dans associations si cette image et ce texte sont liés
+            let isPair = false;
+            for (const [imgId, imgData] of Object.entries(imagesById)) {
+              if (imgData.url && String(imgData.url).includes(imageUrl)) {
+                const linkedTexteIds = imageToTextes.get(imgId) || new Set();
+                for (const tId of linkedTexteIds) {
+                  const linkedText = textesById[tId]?.content || '';
+                  if (linkedText.toLowerCase() === texteContent) {
+                    isPair = true;
+                    break;
+                  }
+                }
+              }
+              if (isPair) break;
+            }
+            
+            if (isPair) {
+              const key = z1.pairId || `content-img-${z1.id}-txt-${z2.id}`;
+              allPairs.push({ key, kind: 'IT', zones: [z1.id, z2.id], hasPairId: !!z1.pairId });
+            }
           }
         }
       }
     }
     
-    // Paires Calcul-Chiffre
+    // Paires Calcul-Chiffre (PAR VALIDATION MATHÉMATIQUE, pas seulement pairId)
     for (const z1 of result) {
-      if (z1.type === 'calcul' && z1.pairId) {
+      if (z1.type === 'calcul' && z1.content) {
         for (const z2 of result) {
-          if (z2.type === 'chiffre' && z2.pairId === z1.pairId) {
-            allPairs.push({ key: z1.pairId, kind: 'CC', zones: [z1.id, z2.id] });
+          if (z2.type === 'chiffre' && z2.content) {
+            // Vérifier si calcul et chiffre forment une paire valide mathématiquement
+            if (isValidMathPair(String(z1.content), String(z2.content))) {
+              const key = z1.pairId || `content-calc-${z1.id}-num-${z2.id}`;
+              allPairs.push({ key, kind: 'CC', zones: [z1.id, z2.id], hasPairId: !!z1.pairId });
+            }
           }
         }
       }
