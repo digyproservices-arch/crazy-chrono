@@ -1364,9 +1364,12 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('training:force-start', ({ matchId }) => {
+  socket.on('training:force-start', ({ matchId }, cb) => {
     console.log(`[Server][Training] Démarrage forcé match ${matchId}`);
-    crazyArena.trainingForceStart(matchId);
+    const success = crazyArena.trainingForceStart(matchId);
+    if (typeof cb === 'function') {
+      cb({ ok: success });
+    }
   });
 
   socket.on('training:pair-validated', ({ matchId, studentId, zoneAId, zoneBId, pairId, isCorrect, timeMs }) => {

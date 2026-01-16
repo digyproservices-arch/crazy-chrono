@@ -186,7 +186,8 @@ export default function TrainingArenaLobby() {
   const handleReady = () => {
     if (!socketRef.current || isReady) return;
     
-    socketRef.current.emit('training:ready', { studentId: myStudentId });
+    console.log('[TrainingArena] 📤 Émission training:ready:', { matchId: currentMatchId, studentId: myStudentId });
+    socketRef.current.emit('training:ready', { matchId: currentMatchId, studentId: myStudentId });
     setIsReady(true);
   };
   

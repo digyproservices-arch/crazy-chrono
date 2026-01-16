@@ -149,7 +149,7 @@ class CrazyArenaManager {
     };
 
     match.players.push(player);
-    this.playerMatches.set(socket.id, matchId);
+    this.playerMatches.set(socket.id, matchId);  // ✅ Mapping socket → matchId
     socket.join(matchId);
 
     console.log(`[CrazyArena][Training] ${studentData.name} a rejoint le match ${matchId} (${match.players.length}/${match.expectedPlayers.length})`);
@@ -198,7 +198,10 @@ class CrazyArenaManager {
    */
   trainingPlayerReady(socket, matchId, studentId) {
     const match = this.matches.get(matchId);
-    if (!match) return;
+    if (!match) {
+      console.error(`[CrazyArena][Training] trainingPlayerReady: Match ${matchId} introuvable`);
+      return;
+    }
 
     const player = match.players.find(p => p.studentId === studentId);
     if (player) {
