@@ -21,6 +21,41 @@ const requireSupabase = (req, res, next) => {
   next();
 };
 
+/**
+ * POST /api/training/matches
+ * Créer un match Training (en mémoire, avec notifications Socket.IO)
+ */
+router.post('/matches', async (req, res) => {
+  try {
+    const { studentIds, config, classId, teacherId } = req.body;
+    
+    if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+      return res.status(400).json({ success: false, error: 'studentIds requis' });
+    }
+    
+    const matchId = `match_${uuidv4()}`;
+    
+    // Créer le match dans CrazyArenaManager (mémoire + Socket.IO)
+    if (global.crazyArena) {
+      global.crazyArena.createTrainingMatch(matchId, studentIds, config, classId, teacherId);
+      console.log(`[Training API] Match créé: ${matchId} pour ${studentIds.length} élèves`);
+      
+      res.json({ 
+        success: true, 
+        matchId,
+        roomCode: matchId, // Pour Training, matchId = roomCode
+        message: 'Match Training créé avec succès'
+      });
+    } else {
+      console.error('[Training API] CrazyArenaManager not available');
+      res.status(500).json({ success: false, error: 'Service non disponible' });
+    }
+  } catch (error) {
+    console.error('[Training API] Error creating match:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 router.post('/sessions', requireSupabase, async (req, res) => {
   try {
     const { matchId, classId, teacherId, sessionName, results, config, completedAt } = req.body;
