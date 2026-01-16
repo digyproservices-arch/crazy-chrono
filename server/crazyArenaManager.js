@@ -1239,8 +1239,8 @@ class CrazyArenaManager {
         return; // Sortir pour éviter double génération
       } else {
         // Mode normal (pas tiebreaker): incrémenter score normal
-        player.score += 1;
-        player.pairsValidated += 1;
+        player.score = (player.score || 0) + 1;
+        player.pairsValidated = (player.pairsValidated || 0) + 1;
         
         // Bonus vitesse (< 3s)
         if (timeMs < 3000) {
