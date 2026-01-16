@@ -149,12 +149,15 @@ export default function NotificationBadge() {
   };
 
   const handleJoinTraining = (invitation) => {
+    console.log('[NotificationBadge] 🎯 handleJoinTraining appelé:', invitation);
+    const targetUrl = `/training-arena/lobby/${invitation.matchId}`;
+    console.log('[NotificationBadge] 🚀 Redirection vers:', targetUrl);
     setShowModal(false);
     // Retirer l'invitation de la liste
     setTrainingInvitations(prev => prev.filter(inv => inv.matchId !== invitation.matchId));
     // Rediriger vers le lobby Training Arena (pas /training/lobby qui n'existe pas)
     // matchId sert aussi de roomCode pour Training
-    navigate(`/training-arena/lobby/${invitation.matchId}`);
+    navigate(targetUrl);
   };
 
   const totalInvitations = invitations.length + trainingInvitations.length;
