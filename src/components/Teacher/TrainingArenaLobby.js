@@ -89,34 +89,18 @@ export default function TrainingArenaLobby() {
       }
     };
 
-    // Fonction pour récupérer le matchId depuis le roomCode
-    const getMatchIdFromRoomCode = async (roomCode) => {
-      try {
-        const response = await fetch(`${getBackendUrl()}/api/tournament/match-by-code/${roomCode}`);
-        const data = await response.json();
-        if (data.success && data.matchId) {
-          return data.matchId;
-        }
-        throw new Error('Match non trouvé');
-      } catch (err) {
-        console.error('[TrainingArena] Erreur récupération matchId:', err);
-        return null;
-      }
-    };
-    
     // Récupérer student_id puis connecter socket
     fetchUserData().then(async (userData) => {
       if (!userData) return; // Erreur, pas de student lié
       
       const { studentId, studentName } = userData;
       
-      // Récupérer le matchId depuis le roomCode
-      const matchId = await getMatchIdFromRoomCode(roomCode);
-      if (!matchId) {
-        setError('Code de salle invalide ou match introuvable');
-        return;
-      }
+      // ✅ Pour Training: matchId = roomCode (pas besoin d'API)
+      // Les matchs Training sont en mémoire, pas en DB
+      const matchId = roomCode;
       setCurrentMatchId(matchId); // Stocker pour bouton professeur
+      
+      console.log('[TrainingArena] 🎯 Utilisation matchId:', matchId);
     
       // Connexion Socket.IO
       const socket = io(getBackendUrl(), {
