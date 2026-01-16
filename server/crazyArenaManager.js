@@ -637,12 +637,17 @@ class CrazyArenaManager {
   /**
    * Validation de paire en mode Training (COPIE EXACTE de pairValidated Battle Royale)
    */
-  trainingPairValidated(matchId, studentId, zoneAId, zoneBId, pairId, isCorrect, timeMs) {
+  trainingPairValidated(socket, data) {
+    const matchId = this.playerMatches.get(socket.id);
+    if (!matchId) return;
+
     const match = this.matches.get(matchId);
     if (!match || (match.status !== 'playing' && match.status !== 'tiebreaker' && match.status !== 'tiebreaker-countdown')) return;
 
-    const player = match.players.find(p => p.studentId === studentId);
+    const player = match.players.find(p => p.socketId === socket.id);
     if (!player) return;
+
+    const { studentId, isCorrect, timeMs, pairId, zoneAId, zoneBId } = data;
 
     console.log(`[Training] Paire validée: ${studentId}, correct=${isCorrect}, pairId=${pairId}`);
 

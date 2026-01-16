@@ -246,13 +246,9 @@ export default function TrainingArenaGame() {
       setZones(prev => prev.filter(z => z.id !== zoneIdA && z.id !== zoneIdB));
       setSelectedZones([]);
       
-      // Notifier le serveur avec payload COMPLET (comme Arena)
+      // Notifier le serveur (COPIE EXACTE ARENA)
       socketRef.current?.emit('training:pair-validated', {
-        matchId: gameInfo.matchId,
         studentId: myStudentId,
-        zoneAId: zoneIdA,
-        zoneBId: zoneIdB,
-        pairId: pairA,  // ID de la paire validée
         isCorrect: true,
         timeMs
       });
@@ -265,13 +261,9 @@ export default function TrainingArenaGame() {
         setSelectedZones([]);
       }, 500);
       
-      // Notifier le serveur avec payload COMPLET (comme Arena)
+      // Notifier le serveur (COPIE EXACTE ARENA)
       socketRef.current?.emit('training:pair-validated', {
-        matchId: gameInfo.matchId,
         studentId: myStudentId,
-        zoneAId: zoneIdA,
-        zoneBId: zoneIdB,
-        pairId: null,  // Pas de pairId car incorrect
         isCorrect: false,
         timeMs
       });

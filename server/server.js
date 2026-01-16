@@ -1374,14 +1374,7 @@ io.on('connection', (socket) => {
 
   // Training: Validation de paire (IDENTIQUE HANDLER ARENA)
   socket.on('training:pair-validated', (data) => {
-    const matchId = crazyArena.playerMatches.get(socket.id);
-    if (!matchId) {
-      console.warn(`[Socket.IO] training:pair-validated: socket ${socket.id} n'est pas dans un match`);
-      return;
-    }
-    const { studentId, isCorrect, timeMs, pairId, zoneAId, zoneBId } = data;
-    console.log(`[Socket.IO] training:pair-validated reçu: studentId=${studentId}, matchId=${matchId}, correct=${isCorrect}`);
-    crazyArena.trainingPairValidated(matchId, studentId, zoneAId, zoneBId, pairId, isCorrect, timeMs);
+    crazyArena.trainingPairValidated(socket, data);
   });
 
   socket.on('training:subscribe-manager', ({ matchId }) => {
