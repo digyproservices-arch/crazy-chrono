@@ -708,6 +708,14 @@ function generateRoundZones(seed, config = {}) {
           removedZones
         });
       }
+      
+      // ✅ CRITIQUE: ASSIGNER le pairId aux zones de la paire gardée
+      for (const zone of result) {
+        if (kept.zones.includes(zone.id)) {
+          zone.pairId = kept.key;
+          console.log('[ServerZoneGen] ✅ Assigné pairId:', kept.key, 'à zone:', zone.id, zone.type, zone.content);
+        }
+      }
     }
     
     // Log final: toutes les zones avec pairId
