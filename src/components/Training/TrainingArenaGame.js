@@ -144,6 +144,7 @@ export default function TrainingArenaGame() {
       }, 1000);
     });
     
+    // ✅ FIX BUG #35: Écouter training:round-new (nouvelles cartes)
     socket.on('training:round-new', ({ zones: newZones, roundIndex, totalRounds, timestamp }) => {
       console.log('[TrainingArena] 🎯 Nouvelle carte reçue:', { 
         zonesCount: newZones?.length,
@@ -155,7 +156,7 @@ export default function TrainingArenaGame() {
         setZones(newZones);
         setSelectedZones([]);
         
-        // ✅ CRITIQUE: Reconstruire calcAngles depuis zones.angle (COMME ARENA)
+        // ✅ CRITIQUE: Reconstruire calcAngles depuis zones.angle
         try {
           const angles = {};
           newZones.forEach(z => {
@@ -171,12 +172,12 @@ export default function TrainingArenaGame() {
       }
     });
     
-    // ✅ CRITIQUE: Écouter training:timer-tick du backend (comme Arena)
+    // ✅ FIX BUG #36: Écouter training:timer-tick du backend (comme Arena)
     socket.on('training:timer-tick', ({ timeLeft: serverTimeLeft }) => {
       setTimeLeft(serverTimeLeft);
     });
     
-    // ✅ Écouter training:pair-validated (sync paires validées entre joueurs) - COMME ARENA
+    // ✅ FIX BUG #37: Écouter training:pair-validated (sync paires validées entre joueurs)
     socket.on('training:pair-validated', ({ studentId, playerName, pairId, zoneAId, zoneBId }) => {
       console.log('[TrainingArena] 🎯 Paire validée par', playerName, ':', pairId);
       
@@ -248,7 +249,7 @@ export default function TrainingArenaGame() {
       setZones(prev => prev.filter(z => z.id !== zoneIdA && z.id !== zoneIdB));
       setSelectedZones([]);
       
-      // Notifier le serveur (COPIE EXACTE ARENA)
+      // Notifier le serveur
       socketRef.current?.emit('training:pair-validated', {
         studentId: myStudentId,
         isCorrect: true,
@@ -263,7 +264,7 @@ export default function TrainingArenaGame() {
         setSelectedZones([]);
       }, 500);
       
-      // Notifier le serveur (COPIE EXACTE ARENA)
+      // Notifier le serveur
       socketRef.current?.emit('training:pair-validated', {
         studentId: myStudentId,
         isCorrect: false,
@@ -402,7 +403,7 @@ export default function TrainingArenaGame() {
   
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
-      {/* HUD Pills compacts - IDENTIQUE Arena */}
+      {/* HUD Pills compacts - identique mode multijoueur */}
       <div style={{
         position: 'absolute',
         top: 20,
