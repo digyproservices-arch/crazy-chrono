@@ -27,6 +27,9 @@ export default function CrazyArenaGame() {
   const [gameEnded, setGameEnded] = useState(false);
   const [ranking, setRanking] = useState([]);
   const [winner, setWinner] = useState(null);
+  const [roundsPlayed, setRoundsPlayed] = useState(0);
+  const [lastWonPair, setLastWonPair] = useState(null);
+  const mpLastPairRef = useRef(null);
   
   useEffect(() => {
     // Récupérer les infos de la partie
@@ -401,68 +404,74 @@ export default function CrazyArenaGame() {
   
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
-      {/* HUD - Scores des joueurs */}
-      <div style={{
-        position: 'absolute',
-        top: 20,
-        right: 20,
-        background: 'rgba(255,255,255,0.95)',
-        borderRadius: 12,
-        padding: 16,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        minWidth: 250,
-        zIndex: 100
-      }}>
-        <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 16 }}>
-          🏆 Classement
-        </div>
-        {players.map((p, idx) => (
-          <div 
-            key={p.studentId}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '8px 12px',
-              background: p.studentId === myStudentId ? '#fef3c7' : (idx === 0 ? '#ecfdf5' : '#f9fafb'),
-              borderRadius: 8,
-              marginBottom: 8,
-              border: idx === 0 ? '2px solid #10b981' : '1px solid #e5e7eb'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 20 }}>
-                {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '🏅'}
-              </span>
-              <span style={{ fontWeight: p.studentId === myStudentId ? 700 : 400 }}>
-                {p.name}
-              </span>
-            </div>
-            <div style={{ fontWeight: 700, color: idx === 0 ? '#10b981' : '#111' }}>
-              {p.score}
-            </div>
-          </div>
-        ))}
-      </div>
-      
-      {/* Timer */}
+      {/* HUD Pills compacts - identique mode multijoueur */}
       <div style={{
         position: 'absolute',
         top: 20,
         left: 20,
-        background: timeLeft < 10 ? '#fee2e2' : 'rgba(255,255,255,0.95)',
-        borderRadius: 12,
-        padding: '12px 24px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        zIndex: 100
+        display: 'flex',
+        gap: 12,
+        zIndex: 100,
+        flexWrap: 'wrap',
+        maxWidth: '90vw'
       }}>
-        <div style={{ 
-          fontSize: 32, 
-          fontWeight: 900, 
+        <div style={{
+          background: timeLeft < 10 ? '#fee2e2' : 'rgba(255,255,255,0.95)',
+          borderRadius: 12,
+          padding: '8px 16px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          fontSize: 18,
+          fontWeight: 700,
           color: timeLeft < 10 ? '#dc2626' : '#111',
           fontFamily: 'monospace'
         }}>
-          {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+          ⏱ {Math.max(0, timeLeft)}s
+        </div>
+        <div style={{
+          background: 'rgba(255,255,255,0.95)',
+          borderRadius: 12,
+          padding: '8px 16px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          fontSize: 18,
+          fontWeight: 700
+        }}>
+          ⭐ {players.find(p => p.studentId === myStudentId)?.score || 0}
+        </div>
+        <div style={{
+          background: 'rgba(255,255,255,0.95)',
+          borderRadius: 12,
+          padding: '8px 16px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          fontSize: 18,
+          fontWeight: 700
+        }}>
+          Manche: {roundsPlayed}
+        </div>
+        <div ref={mpLastPairRef} style={{
+          background: 'rgba(255,255,255,0.95)',
+          borderRadius: 12,
+          padding: '8px 16px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          fontSize: 14,
+          fontWeight: 400,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          maxWidth: '40vw'
+        }}>
+          <span style={{ 
+            width: 12, 
+            height: 12, 
+            borderRadius: 999, 
+            background: lastWonPair?.color || '#e5e7eb',
+            boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none',
+            border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none'
+          }} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {lastWonPair ? (
+              <><b>{lastWonPair.winnerName}</b>: {lastWonPair.text}</>
+            ) : 'Dernière paire: —'}
+          </span>
         </div>
       </div>
       
