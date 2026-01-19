@@ -184,8 +184,32 @@ export default function TrainingArenaGame() {
     socket.on('training:pair-validated', ({ studentId, playerName, pairId, zoneAId, zoneBId }) => {
       console.log('[TrainingArena] 🎯 Paire validée par', playerName, ':', pairId);
       
-      // Masquer les zones validées
+      // Masquer les zones validées + déclencher animations
       setZones(prevZones => {
+        const ZA = prevZones.find(z => z.id === zoneAId);
+        const ZB = prevZones.find(z => z.id === zoneBId);
+        
+        // ✅ ANIMATION BULLES (si zones trouvées)
+        if (ZA && ZB) {
+          try {
+            const color = '#22c55e';
+            const borderColor = '#ffffff';
+            const label = studentId ? studentId.substring(0, 3).toUpperCase() : '';
+            animateBubblesFromZones(ZA.id, ZB.id, color, ZA, ZB, borderColor, label);
+          } catch (e) {
+            console.warn('[TrainingArena] Erreur animation bulle:', e);
+          }
+          
+          // ✅ HISTORIQUE PÉDAGOGIQUE
+          const pairText = `${ZA.label || ZA.content} ↔ ${ZB.label || ZB.content}`;
+          setLastWonPair({
+            color,
+            borderColor,
+            winnerName: playerName || 'Joueur',
+            text: pairText
+          });
+        }
+        
         return prevZones.map(z => {
           if (z.id === zoneAId || z.id === zoneBId) {
             return { ...z, validated: true };
