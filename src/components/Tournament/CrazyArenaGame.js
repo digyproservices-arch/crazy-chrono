@@ -184,32 +184,8 @@ export default function CrazyArenaGame() {
     socket.on('arena:pair-validated', ({ studentId, playerName, pairId, zoneAId, zoneBId }) => {
       console.log('[CrazyArena] 🎯 Paire validée par', playerName, ':', pairId);
       
-      // Masquer les zones validées + déclencher animations
+      // Masquer les zones validées
       setZones(prevZones => {
-        const ZA = prevZones.find(z => z.id === zoneAId);
-        const ZB = prevZones.find(z => z.id === zoneBId);
-        
-        // ✅ ANIMATION BULLES (si zones trouvées)
-        if (ZA && ZB) {
-          try {
-            const color = '#22c55e';
-            const borderColor = '#ffffff';
-            const label = studentId ? studentId.substring(0, 3).toUpperCase() : '';
-            animateBubblesFromZones(ZA.id, ZB.id, color, ZA, ZB, borderColor, label);
-          } catch (e) {
-            console.warn('[CrazyArena] Erreur animation bulle:', e);
-          }
-          
-          // ✅ HISTORIQUE PÉDAGOGIQUE
-          const pairText = `${ZA.label || ZA.content} ↔ ${ZB.label || ZB.content}`;
-          setLastWonPair({
-            color,
-            borderColor,
-            winnerName: playerName || 'Joueur',
-            text: pairText
-          });
-        }
-        
         return prevZones.map(z => {
           if (z.id === zoneAId || z.id === zoneBId) {
             return { ...z, validated: true };
