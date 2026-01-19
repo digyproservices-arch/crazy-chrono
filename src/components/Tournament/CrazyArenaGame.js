@@ -173,8 +173,11 @@ export default function CrazyArenaGame() {
     });
     
     // ✅ FIX BUG #36: Écouter arena:timer-tick du backend (comme Training)
-    socket.on('arena:timer-tick', ({ timeLeft: serverTimeLeft }) => {
+    socket.on('arena:timer-tick', ({ timeLeft: serverTimeLeft, currentRound, totalRounds }) => {
       setTimeLeft(serverTimeLeft);
+      if (typeof currentRound === 'number') {
+        setRoundsPlayed(currentRound);
+      }
     });
     
     // ✅ FIX BUG #37: Écouter arena:pair-validated (sync paires validées entre joueurs)

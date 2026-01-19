@@ -173,8 +173,11 @@ export default function TrainingArenaGame() {
     });
     
     // ✅ FIX BUG #36: Écouter training:timer-tick du backend (comme Arena)
-    socket.on('training:timer-tick', ({ timeLeft: serverTimeLeft }) => {
+    socket.on('training:timer-tick', ({ timeLeft: serverTimeLeft, currentRound, totalRounds }) => {
       setTimeLeft(serverTimeLeft);
+      if (typeof currentRound === 'number') {
+        setRoundsPlayed(currentRound);
+      }
     });
     
     // ✅ FIX BUG #37: Écouter training:pair-validated (sync paires validées entre joueurs)
