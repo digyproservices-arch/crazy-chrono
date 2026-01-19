@@ -57,14 +57,12 @@ class CrazyArenaManager {
     
     this.matches.set(matchId, {
       matchId,
-      mode: 'training',
-      classId,
-      teacherId,
-      roomCode: matchId,
+      type: 'training',
+      status: 'waiting',
       config: {
         rounds: config.rounds || 3,
         duration: config.durationPerRound || 60,
-        classes: [config.level || 'CE1'],
+        classes: config.classes || ['CP', 'CE1', 'CE2', 'CM1', 'CM2', '6e', '5e', '4e', '3e'],
         themes: config.themes || [],
         level: config.level || 'CE1',
         sessionName: config.sessionName || 'Session Entraînement'
