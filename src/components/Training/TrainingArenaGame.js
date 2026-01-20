@@ -29,7 +29,9 @@ export default function TrainingArenaGame() {
   const [winner, setWinner] = useState(null);
   const [roundsPlayed, setRoundsPlayed] = useState(0);
   const [lastWonPair, setLastWonPair] = useState(null);
+  const [gameActive, setGameActive] = useState(false);
   const mpLastPairRef = useRef(null);
+  const gameActiveTimeoutRef = useRef(null);
   
   useEffect(() => {
     // Récupérer les infos de la partie
@@ -154,7 +156,24 @@ export default function TrainingArenaGame() {
       });
       
       if (newZones && Array.isArray(newZones)) {
-        setZones(newZones);
+        // ✅ CRITIQUE: Annuler setTimeout précédent si double event
+        if (gameActiveTimeoutRef.current) {
+          clearTimeout(gameActiveTimeoutRef.current);
+          console.log('[TrainingArena] ⚠️ setTimeout précédent annulé (double training:round-new)');
+        }
+        
+        // ✅ CRITIQUE: Forcer validated=false pour éviter héritage entre manches
+        const cleanZones = newZones.map(z => ({ ...z, validated: false }));
+        setZones(cleanZones);
+        console.log('[TrainingArena] ✅ Zones mises à jour (validated=false forcé):', cleanZones.length);
+        
+        // ✅ CRITIQUE: Réactiver le jeu AVEC setTimeout pour synchro React state
+        gameActiveTimeoutRef.current = setTimeout(() => {
+          setGameActive(true);
+          gameActiveTimeoutRef.current = null;
+          console.log('[TrainingArena] ✅ gameActive=true (après setTimeout)');
+        }, 50);
+        
         setSelectedZones([]);
         
         // ✅ CRITIQUE: Reconstruire calcAngles depuis zones.angle
@@ -166,7 +185,6 @@ export default function TrainingArenaGame() {
             }
           });
           setCalcAngles(angles);
-          console.log('[TrainingArena] ✅ Carte + angles mis à jour:', newZones.length, 'zones');
         } catch (e) {
           console.warn('[TrainingArena] Erreur reconstruction angles:', e);
         }
@@ -220,6 +238,10 @@ export default function TrainingArenaGame() {
           return z;
         });
       });
+      
+      // ✅ CRITIQUE: Désactiver gameActive pendant transition (1.5s backend)
+      setGameActive(false);
+      console.log('[TrainingArena] ⚠️ gameActive=false (paire validée, attente nouvelle carte)');
     });
     
     return () => {
@@ -228,7 +250,7 @@ export default function TrainingArenaGame() {
   }, [navigate]);
   
   const handleZoneClick = (zoneId) => {
-    if (gameEnded || timeLeft === 0) return;
+    if (!gameActive || gameEnded || timeLeft === 0) return;
     
     const zone = zones.find(z => z.id === zoneId);
     if (!zone) return;
@@ -516,7 +538,7 @@ export default function TrainingArenaGame() {
           onZoneClick={handleZoneClickFromRenderer}
           calcAngles={calcAngles}
           gameSelectedIds={selectedZones}
-          gameActive={!gameEnded}
+          gameActive={gameActive}
         />
       </div>
       
