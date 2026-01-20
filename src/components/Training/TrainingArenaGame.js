@@ -193,9 +193,10 @@ export default function TrainingArenaGame() {
         
         // ✅ ANIMATION BULLES (si zones trouvées)
         if (ZA && ZB) {
+          const color = '#22c55e';
+          const borderColor = '#ffffff';
+          
           try {
-            const color = '#22c55e';
-            const borderColor = '#ffffff';
             const label = studentId ? studentId.substring(0, 3).toUpperCase() : '';
             animateBubblesFromZones(ZA.id, ZB.id, color, ZA, ZB, borderColor, label);
           } catch (e) {
