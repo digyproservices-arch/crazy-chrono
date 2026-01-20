@@ -79,7 +79,7 @@ export default function TrainingArenaGame() {
     socketRef.current = socket;
     
     socket.on('connect', () => {
-      console.log('[TrainingArena] Connecté pour la partie');
+      console.log('[TrainingArena] Connecté pour la partie, socketId:', socket.id);
       
       // CRITIQUE: Rejoindre la room du match pour recevoir les événements
       socket.emit('training:join', {
@@ -97,6 +97,7 @@ export default function TrainingArenaGame() {
     });
     
     socket.on('training:scores-update', ({ scores }) => {
+      console.log('[TrainingArena] 📊 Scores mis à jour:', scores);
       setPlayers(scores);
     });
     
@@ -174,6 +175,7 @@ export default function TrainingArenaGame() {
     
     // ✅ FIX BUG #36: Écouter training:timer-tick du backend (comme Arena)
     socket.on('training:timer-tick', ({ timeLeft: serverTimeLeft, currentRound, totalRounds }) => {
+      console.log('[TrainingArena] ⏱️ Timer tick:', { serverTimeLeft, currentRound, totalRounds });
       setTimeLeft(serverTimeLeft);
       if (typeof currentRound === 'number') {
         setRoundsPlayed(currentRound);
@@ -272,8 +274,10 @@ export default function TrainingArenaGame() {
       playCorrectSound();
       showSuccessAnimation(ZA, ZB);
       
-      // Retirer les zones validées
-      setZones(prev => prev.filter(z => z.id !== zoneIdA && z.id !== zoneIdB));
+      // ✅ CRITIQUE: Marquer validated=true SANS retirer (animation bulle en cours)
+      setZones(prev => prev.map(z => 
+        (z.id === zoneIdA || z.id === zoneIdB) ? { ...z, validated: true } : z
+      ));
       setSelectedZones([]);
       
       // Notifier le serveur avec pairId + zones IDs
