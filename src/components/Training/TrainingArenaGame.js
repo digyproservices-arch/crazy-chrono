@@ -75,8 +75,11 @@ export default function TrainingArenaGame() {
     console.log('[TrainingArena] Zones avec content:', zonesArray.filter(z => z.content));
     console.log('[TrainingArena] Zones SANS content:', zonesArray.filter(z => !z.content));
     
+    // ✅ FIX CLOSURE: Stocker players en const locale pour listeners socket
+    const playersArray = gameInfo.players || [];
+    
     setZones(zonesArray);
-    setPlayers(gameInfo.players || []);
+    setPlayers(playersArray);
     setMyStudentId(gameInfo.myStudentId);  // ✅ FIX: Utiliser gameInfo.myStudentId (pas .studentId)
     setGameStartTime(gameInfo.startTime);
     setTimeLeft(gameInfo.duration || 60);
@@ -245,12 +248,15 @@ export default function TrainingArenaGame() {
           let label = '';
           
           try {
-            const playerIdx = players.findIndex(p => p.studentId === studentId);
+            // ✅ CRITIQUE: Utiliser playersArray (const locale) pas players (state)
+            const playerIdx = playersArray.findIndex(p => p.studentId === studentId);
+            console.log('[TrainingArena] 🎨 Calcul couleur:', { studentId, playerIdx, playersCount: playersArray.length });
             if (playerIdx >= 0) {
               const { primary, border } = getPlayerColorComboByIndex(playerIdx);
               color = primary;
               borderColor = border;
-              label = getInitials(playerName || players[playerIdx]?.name || 'Joueur');
+              label = getInitials(playerName || playersArray[playerIdx]?.name || 'Joueur');
+              console.log('[TrainingArena] 🎨 Couleur attribuée:', { color, border, label });
             }
           } catch (e) {
             console.warn('[TrainingArena] Erreur couleur joueur:', e);
