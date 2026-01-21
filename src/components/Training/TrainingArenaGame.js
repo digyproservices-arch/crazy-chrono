@@ -371,7 +371,7 @@ export default function TrainingArenaGame() {
     if (isCorrect) {
       // Bonne paire !
       playCorrectSound();
-      showSuccessAnimation(ZA, ZB);
+      // ✅ ANIMATION: Gérée par événement socket 'training:pair-validated' (couleur du gagnant)
       
       // ✅ CONFETTIS (COPIE Arena)
       try {
@@ -501,18 +501,6 @@ export default function TrainingArenaGame() {
       const audio = new Audio('/sounds/error.mp3');
       audio.play().catch(() => {});
     } catch {}
-  };
-  
-  const showSuccessAnimation = (ZA, ZB) => {
-    try {
-      // Animation bulles identique au mode classique
-      const color = '#22c55e'; // Vert pour succès
-      const borderColor = '#ffffff';
-      const label = myStudentId ? myStudentId.substring(0, 3).toUpperCase() : '';
-      animateBubblesFromZones(ZA.id, ZB.id, color, ZA, ZB, borderColor, label);
-    } catch (e) {
-      console.warn('[TrainingArena] Erreur animation bulle:', e);
-    }
   };
   
   // ✅ CONFETTIS (COPIE EXACTE Arena ligne 2645-2670)
