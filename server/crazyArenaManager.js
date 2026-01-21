@@ -718,10 +718,14 @@ class CrazyArenaManager {
 
     // ✅ SYNCHRONISER la paire validée à TOUS les joueurs
     if (isCorrect && pairId) {
-      console.log(`[Training] Émission training:pair-validated à room ${matchId}`);
+      // ✅ CRITIQUE: Calculer playerIdx canonique (ordre match.players) pour couleurs cohérentes
+      const playerIdx = match.players.findIndex(p => p.studentId === studentId);
+      
+      console.log(`[Training] Émission training:pair-validated à room ${matchId}`, { studentId, playerIdx });
       this.io.to(matchId).emit('training:pair-validated', {
         studentId,
         playerName: player.name,
+        playerIdx,  // ✅ NOUVEAU: Index canonique pour couleur cohérente
         pairId,
         zoneAId,
         zoneBId,

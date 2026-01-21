@@ -233,10 +233,18 @@ export default function TrainingArenaGame() {
     });
     
     // ✅ FIX BUG #37: Écouter training:pair-validated (sync paires validées entre joueurs)
-    socket.on('training:pair-validated', ({ studentId, playerName, pairId, zoneAId, zoneBId }) => {
+    socket.on('training:pair-validated', ({ studentId, playerName, playerIdx, pairId, zoneAId, zoneBId }) => {
       console.log('[TrainingArena] 🎯 Paire validée par', playerName, ':', pairId);
+      console.log('[TrainingArena] ⚠️ gameActive=false (paire validée, attente nouvelle carte)');
       
-      // ✅ CRITIQUE: Capturer zones AVANT setZones pour animation
+      // ✅ CRITIQUE: Mettre à jour scores (comme Arena)
+      socket.emit('training:get-scores', { matchId: gameInfo.matchId }, ({ scores }) => {
+        if (scores) {
+          console.log('[TrainingArena] 📊 Scores mis à jour:', scores);
+          setPlayers(scores);
+        }
+      });
+      
       setZones(prevZones => {
         const ZA = prevZones.find(z => z.id === zoneAId);
         const ZB = prevZones.find(z => z.id === zoneBId);
@@ -248,15 +256,16 @@ export default function TrainingArenaGame() {
           let label = '';
           
           try {
-            // ✅ CRITIQUE: Utiliser playersArray (const locale) pas players (state)
-            const playerIdx = playersArray.findIndex(p => p.studentId === studentId);
-            console.log('[TrainingArena] 🎨 Calcul couleur:', { studentId, playerIdx, playersCount: playersArray.length });
-            if (playerIdx >= 0) {
+            // ✅ CRITIQUE: Utiliser playerIdx REÇU DU BACKEND (pas calculé localement)
+            // Cela garantit que TOUS les clients voient la MÊME couleur pour le même joueur
+            if (typeof playerIdx === 'number' && playerIdx >= 0) {
               const { primary, border } = getPlayerColorComboByIndex(playerIdx);
               color = primary;
               borderColor = border;
-              label = getInitials(playerName || playersArray[playerIdx]?.name || 'Joueur');
-              console.log('[TrainingArena] 🎨 Couleur attribuée:', { color, border, label });
+              label = getInitials(playerName || 'Joueur');
+              console.log('[TrainingArena] 🎨 Couleur backend:', { studentId, playerIdx, color, border, label });
+            } else {
+              console.warn('[TrainingArena] ⚠️ playerIdx invalide, fallback:', playerIdx);
             }
           } catch (e) {
             console.warn('[TrainingArena] Erreur couleur joueur:', e);
