@@ -78,6 +78,15 @@ export default function TrainingArenaGame() {
     // ✅ FIX CLOSURE: Stocker players en const locale pour listeners socket
     const playersArray = gameInfo.players || [];
     
+    // ✅ DEBUG: Afficher ordre joueurs + couleurs HUD
+    console.log('[TrainingArena] 🎮 MON studentId:', gameInfo.myStudentId);
+    console.log('[TrainingArena] 🎮 ORDRE JOUEURS:', JSON.stringify(playersArray.map((p, idx) => ({
+      idx,
+      studentId: p.studentId,
+      name: p.name,
+      color: getPlayerColorComboByIndex(idx).primary
+    }))));
+    
     setZones(zonesArray);
     setPlayers(playersArray);
     setMyStudentId(gameInfo.myStudentId);  // ✅ FIX: Utiliser gameInfo.myStudentId (pas .studentId)
