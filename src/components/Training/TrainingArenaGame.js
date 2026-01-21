@@ -514,7 +514,7 @@ export default function TrainingArenaGame() {
         }}>
           Manche: {roundsPlayed}
         </div>
-        <div ref={mpLastPairRef} style={{
+        <div ref={mpLastPairRef} data-cc-vignette="last-pair" style={{
           background: 'rgba(255,255,255,0.95)',
           borderRadius: 12,
           padding: '8px 16px',
@@ -557,6 +557,11 @@ export default function TrainingArenaGame() {
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
+          20%, 40%, 60%, 80% { transform: translateX(8px); }
         }
       `}</style>
     </div>
