@@ -263,7 +263,7 @@ export default function TrainingArenaGame() {
               color = primary;
               borderColor = border;
               label = getInitials(playerName || 'Joueur');
-              console.log('[TrainingArena] 🎨 Couleur backend:', { studentId, playerIdx, color, border, label });
+              console.log('[TrainingArena] 🎨 COULEUR:', JSON.stringify({ studentId, playerIdx, color, border, label }));
             } else {
               console.warn('[TrainingArena] ⚠️ playerIdx invalide, fallback:', playerIdx);
             }
