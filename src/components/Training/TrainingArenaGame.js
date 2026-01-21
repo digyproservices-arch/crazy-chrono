@@ -73,6 +73,13 @@ export default function TrainingArenaGame() {
       console.warn('[TrainingArena] Erreur construction angles:', e);
     }
     
+    // ✅ FIX CRITIQUE: Activer gameActive dès le chargement initial (comme Arena avec !gameEnded)
+    // Sans ça, la première manche n'est PAS cliquable jusqu'au premier training:round-new
+    setTimeout(() => {
+      setGameActive(true);
+      console.log('[TrainingArena] ✅ gameActive=true (zones initiales chargées)');
+    }, 100);
+    
     // Connexion Socket.IO
     const socket = io(getBackendUrl(), {
       transports: ['websocket'],
