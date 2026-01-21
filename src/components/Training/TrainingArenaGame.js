@@ -307,12 +307,27 @@ export default function TrainingArenaGame() {
           }
         }
         
-        return prevZones.map(z => {
+        const updatedZones = prevZones.map(z => {
           if (z.id === zoneAId || z.id === zoneBId) {
             return { ...z, validated: true };
           }
           return z;
         });
+        
+        // ✅ CRITIQUE: Reconstruire calcAngles pour préserver orientations (COPIE training:round-new)
+        try {
+          const angles = {};
+          updatedZones.forEach(z => {
+            if ((z.type === 'calcul' || z.type === 'chiffre') && typeof z.angle === 'number') {
+              angles[z.id] = z.angle;
+            }
+          });
+          setCalcAngles(angles);
+        } catch (e) {
+          console.warn('[TrainingArena] Erreur reconstruction angles:', e);
+        }
+        
+        return updatedZones;
       });
       
       // ✅ CRITIQUE: Désactiver gameActive pendant transition (1.5s backend)
