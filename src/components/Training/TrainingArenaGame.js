@@ -55,7 +55,7 @@ export default function TrainingArenaGame() {
     
     setZones(zonesArray);
     setPlayers(gameInfo.players || []);
-    setMyStudentId(gameInfo.studentId);
+    setMyStudentId(gameInfo.myStudentId);  // ✅ FIX: Utiliser gameInfo.myStudentId (pas .studentId)
     setGameStartTime(gameInfo.startTime);
     setTimeLeft(gameInfo.duration || 60);
     
@@ -204,22 +204,26 @@ export default function TrainingArenaGame() {
     socket.on('training:pair-validated', ({ studentId, playerName, pairId, zoneAId, zoneBId }) => {
       console.log('[TrainingArena] 🎯 Paire validée par', playerName, ':', pairId);
       
-      // Masquer les zones validées + déclencher animations
+      // ✅ CRITIQUE: Capturer zones AVANT setZones pour animation
       setZones(prevZones => {
         const ZA = prevZones.find(z => z.id === zoneAId);
         const ZB = prevZones.find(z => z.id === zoneBId);
         
-        // ✅ ANIMATION BULLES (si zones trouvées)
+        // ✅ ANIMATION BULLES - Appeler APRÈS setZones pour que DOM soit rendu
         if (ZA && ZB) {
           const color = '#22c55e';
           const borderColor = '#ffffff';
+          const label = studentId ? studentId.substring(0, 3).toUpperCase() : '';
           
-          try {
-            const label = studentId ? studentId.substring(0, 3).toUpperCase() : '';
-            animateBubblesFromZones(ZA.id, ZB.id, color, ZA, ZB, borderColor, label);
-          } catch (e) {
-            console.warn('[TrainingArena] Erreur animation bulle:', e);
-          }
+          // ✅ setTimeout pour attendre le rendu React
+          setTimeout(() => {
+            try {
+              animateBubblesFromZones(ZA.id, ZB.id, color, ZA, ZB, borderColor, label);
+              console.log('[TrainingArena] 🎨 Animation bulles lancée pour:', ZA.id, ZB.id);
+            } catch (e) {
+              console.warn('[TrainingArena] Erreur animation bulle:', e);
+            }
+          }, 100);
           
           // ✅ HISTORIQUE PÉDAGOGIQUE
           const pairText = `${ZA.label || ZA.content} ↔ ${ZB.label || ZB.content}`;
