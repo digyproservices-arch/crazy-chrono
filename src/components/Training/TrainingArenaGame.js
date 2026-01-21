@@ -11,6 +11,27 @@ import { getBackendUrl } from '../../utils/subscription';
 import CarteRenderer from '../CarteRenderer';
 import { animateBubblesFromZones } from '../Carte';
 
+// ✅ COPIE EXACTE Arena: Couleurs par joueur
+const PLAYER_PRIMARY_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899', '#0ea5e9'];
+const PLAYER_BORDER_COLORS = ['#111827', '#fbbf24', '#dc2626'];
+
+function getPlayerColorComboByIndex(idx) {
+  const safe = Number.isFinite(idx) ? idx : 0;
+  const base = safe < 0 ? 0 : safe;
+  const primary = PLAYER_PRIMARY_COLORS[base % PLAYER_PRIMARY_COLORS.length];
+  const group = Math.floor(base / PLAYER_PRIMARY_COLORS.length);
+  const border = PLAYER_BORDER_COLORS[group % PLAYER_BORDER_COLORS.length];
+  return { primary, border };
+}
+
+function getInitials(name) {
+  const str = String(name || '').trim();
+  if (!str) return '';
+  const parts = str.split(/\s+/);
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 export default function TrainingArenaGame() {
   const navigate = useNavigate();
   const socketRef = useRef(null);
@@ -30,6 +51,7 @@ export default function TrainingArenaGame() {
   const [roundsPlayed, setRoundsPlayed] = useState(0);
   const [lastWonPair, setLastWonPair] = useState(null);
   const [gameActive, setGameActive] = useState(false);
+  const [showBigCross, setShowBigCross] = useState(false);
   const mpLastPairRef = useRef(null);
   const gameActiveTimeoutRef = useRef(null);
   
@@ -216,11 +238,23 @@ export default function TrainingArenaGame() {
         const ZA = prevZones.find(z => z.id === zoneAId);
         const ZB = prevZones.find(z => z.id === zoneBId);
         
-        // ✅ ANIMATION BULLES - Appeler APRÈS setZones pour que DOM soit rendu
+        // ✅ ANIMATION BULLES - Couleur par joueur (COPIE EXACTE Arena)
         if (ZA && ZB) {
-          const color = '#22c55e';
-          const borderColor = '#ffffff';
-          const label = studentId ? studentId.substring(0, 3).toUpperCase() : '';
+          let color = '#22c55e';
+          let borderColor = '#ffffff';
+          let label = '';
+          
+          try {
+            const playerIdx = players.findIndex(p => p.studentId === studentId);
+            if (playerIdx >= 0) {
+              const { primary, border } = getPlayerColorComboByIndex(playerIdx);
+              color = primary;
+              borderColor = border;
+              label = getInitials(playerName || players[playerIdx]?.name || 'Joueur');
+            }
+          } catch (e) {
+            console.warn('[TrainingArena] Erreur couleur joueur:', e);
+          }
           
           // ✅ setTimeout pour attendre le rendu React
           setTimeout(() => {
@@ -232,7 +266,7 @@ export default function TrainingArenaGame() {
             }
           }, 100);
           
-          // ✅ HISTORIQUE PÉDAGOGIQUE
+          // ✅ HISTORIQUE PÉDAGOGIQUE (avec couleur joueur)
           const pairText = `${ZA.label || ZA.content} ↔ ${ZB.label || ZB.content}`;
           setLastWonPair({
             color,
@@ -240,6 +274,13 @@ export default function TrainingArenaGame() {
             winnerName: playerName || 'Joueur',
             text: pairText
           });
+          
+          // ✅ CONFETTIS pour bonne paire (COPIE Arena)
+          try {
+            showConfetti();
+          } catch (e) {
+            console.warn('[TrainingArena] Erreur confetti:', e);
+          }
         }
         
         return prevZones.map(z => {
@@ -308,6 +349,13 @@ export default function TrainingArenaGame() {
       playCorrectSound();
       showSuccessAnimation(ZA, ZB);
       
+      // ✅ CONFETTIS (COPIE Arena)
+      try {
+        showConfetti();
+      } catch (e) {
+        console.warn('[TrainingArena] Erreur confetti:', e);
+      }
+      
       // ✅ CRITIQUE: Marquer validated=true SANS retirer (animation bulle en cours)
       setZones(prev => prev.map(z => 
         (z.id === zoneIdA || z.id === zoneIdB) ? { ...z, validated: true } : z
@@ -324,12 +372,13 @@ export default function TrainingArenaGame() {
         zoneBId: zoneIdB
       });
     } else {
-      // Mauvaise paire
+      // Mauvaise paire - CROIX ROUGE (COPIE EXACTE Arena, PAS shake)
       playErrorSound();
-      showErrorAnimation(ZA, ZB);
+      setShowBigCross(true);
       
       setTimeout(() => {
         setSelectedZones([]);
+        setShowBigCross(false);
       }, 500);
       
       // Notifier le serveur (pas de pairId car erreur)
@@ -442,20 +491,33 @@ export default function TrainingArenaGame() {
     }
   };
   
-  const showErrorAnimation = (ZA, ZB) => {
+  // ✅ CONFETTIS (COPIE EXACTE Arena ligne 2645-2670)
+  const showConfetti = () => {
     try {
-      // Shake animation pour les zones (comme mode classique)
-      const shakeZone = (zoneId) => {
-        const el = document.querySelector(`[data-zone-id="${zoneId}"]`);
-        if (el) {
-          el.style.animation = 'shake 0.3s';
-          setTimeout(() => { el.style.animation = ''; }, 300);
-        }
-      };
-      shakeZone(ZA.id);
-      shakeZone(ZB.id);
+      const root = document.body;
+      const rect = root.getBoundingClientRect();
+      for (let i = 0; i < 36; i++) {
+        const d = document.createElement('div');
+        const size = 6 + Math.random() * 6;
+        d.style.position = 'fixed';
+        d.style.zIndex = '99999';
+        d.style.left = `${rect.left + rect.width / 2}px`;
+        d.style.top = `${rect.top + 60}px`;
+        d.style.width = `${size}px`;
+        d.style.height = `${size}px`;
+        d.style.background = `hsl(${Math.floor(Math.random() * 360)},90%,55%)`;
+        d.style.borderRadius = '2px';
+        d.style.pointerEvents = 'none';
+        root.appendChild(d);
+        const dx = (Math.random() - 0.5) * rect.width;
+        const dy = 120 + Math.random() * 200;
+        d.animate([
+          { transform: 'translate(0,0) rotate(0deg)', opacity: 1 },
+          { transform: `translate(${dx}px, ${dy}px) rotate(${Math.random() * 720 - 360}deg)`, opacity: 0 }
+        ], { duration: 900 + Math.random() * 600, easing: 'cubic-bezier(.2,.7,.2,1)' }).onfinish = () => d.remove();
+      }
     } catch (e) {
-      console.warn('[TrainingArena] Erreur animation erreur:', e);
+      console.warn('[TrainingArena] Erreur confetti:', e);
     }
   };
   
@@ -544,6 +606,14 @@ export default function TrainingArenaGame() {
       
       {/* Carte SVG avec CarteRenderer */}
       <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+        {/* ✅ CROIX ROUGE pour mauvaise paire (COPIE EXACTE Arena ligne 6081-6084) */}
+        {showBigCross && (
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 6 }}>
+            <div style={{ position: 'absolute', top: '50%', left: '50%', width: '120%', height: 16, background: 'rgba(220,0,0,0.85)', transform: 'translate(-50%, -50%) rotate(45deg)', borderRadius: 8 }} />
+            <div style={{ position: 'absolute', top: '50%', left: '50%', width: '120%', height: 16, background: 'rgba(220,0,0,0.85)', transform: 'translate(-50%, -50%) rotate(-45deg)', borderRadius: 8 }} />
+          </div>
+        )}
+        
         <CarteRenderer
           zones={zones}
           onZoneClick={handleZoneClickFromRenderer}
@@ -557,11 +627,6 @@ export default function TrainingArenaGame() {
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
-        }
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-8px); }
-          20%, 40%, 60%, 80% { transform: translateX(8px); }
         }
       `}</style>
     </div>
