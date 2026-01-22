@@ -233,8 +233,9 @@ function generateRoundZones(seed, config = {}) {
     
     let result = zonesData.map(z => {
       const zone = { ...z };
-      // ✅ CRITIQUE: Assigner un angle par défaut aux calcul/chiffre qui n'en ont pas (COPIE Arena)
-      if ((zone.type === 'calcul' || zone.type === 'chiffre') && typeof zone.angle !== 'number') {
+      // ✅ CRITIQUE: Assigner un angle par défaut UNIQUEMENT aux zones CALCUL qui n'en ont pas
+      // Les zones CHIFFRE ne doivent PAS avoir d'angle (restent horizontales)
+      if (zone.type === 'calcul' && typeof zone.angle !== 'number') {
         zone.angle = rng() < 0.5 ? -30 : 30;
       }
       return zone;
