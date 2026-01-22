@@ -165,7 +165,7 @@ export default function CrazyArenaGame() {
             }
           });
           setCalcAngles(angles);
-          console.log('[CrazyArena] ✅ Carte + angles mis à jour:', newZones.length, 'zones');
+          console.log('[CrazyArena] Angles construits depuis zones:', angles);
         } catch (e) {
           console.warn('[CrazyArena] Erreur reconstruction angles:', e);
         }
