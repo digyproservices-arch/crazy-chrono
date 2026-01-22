@@ -231,7 +231,14 @@ function generateRoundZones(seed, config = {}) {
     const calculIds = [...calculToChiffres.keys()];
     const chiffreIds = [...chiffreToCalculs.keys()];
     
-    let result = zonesData.map(z => ({ ...z }));
+    let result = zonesData.map(z => {
+      const zone = { ...z };
+      // ✅ CRITIQUE: Assigner un angle par défaut aux calcul/chiffre qui n'en ont pas (COPIE Arena)
+      if ((zone.type === 'calcul' || zone.type === 'chiffre') && typeof zone.angle !== 'number') {
+        zone.angle = rng() < 0.5 ? -30 : 30;
+      }
+      return zone;
+    });
     const used = { image: new Set(), texte: new Set(), calcul: new Set(), chiffre: new Set() };
     
     // ===== Choisir le type de paire à placer =====
