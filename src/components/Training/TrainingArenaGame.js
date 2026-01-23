@@ -8,6 +8,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { getBackendUrl } from '../../utils/subscription';
+import '../../styles/Carte.css';
 import { pointsToBezierPath } from '../CarteUtils';
 import { animateBubblesFromZones } from '../Carte';
 
@@ -132,6 +133,7 @@ export default function TrainingArenaGame() {
   // ✅ COPIE EXACTE Arena (Carte.js ligne 1069): Historique paires validées
   const [wonPairsHistory, setWonPairsHistory] = useState([]);
   const [historyExpanded, setHistoryExpanded] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const [gameActive, setGameActive] = useState(false);
   const [showBigCross, setShowBigCross] = useState(false);
   const mpLastPairRef = useRef(null);
@@ -153,6 +155,20 @@ export default function TrainingArenaGame() {
       zonesByIdRef.current = m;
     } catch {}
   }, [zones]);
+  
+  // ✅ COPIE EXACTE Arena (Carte.js ligne 3100-3112): Responsive mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      // Par défaut sur mobile, masquer l'historique sidebar
+      setHistoryExpanded(!mobile);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // ✅ COPIE EXACTE Arena (Carte.js ligne 2533): Référence taille moyenne zones chiffre
   const chiffreRefBase = React.useMemo(() => {
@@ -743,81 +759,128 @@ export default function TrainingArenaGame() {
   
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
-      {/* ✅ COPIE EXACTE Arena HUD Pills */}
-      <div style={{
-        position: 'absolute',
-        top: 20,
-        left: 20,
-        display: 'flex',
-        gap: 12,
-        zIndex: 100,
-        flexWrap: 'wrap',
-        maxWidth: '90vw'
-      }}>
-        <div style={{
-          background: timeLeft < 10 ? '#fee2e2' : 'rgba(255,255,255,0.95)',
-          borderRadius: 12,
-          padding: '8px 16px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          fontSize: 18,
-          fontWeight: 700,
-          color: timeLeft < 10 ? '#dc2626' : '#111',
-          fontFamily: 'monospace'
-        }}>
-          ⏱ {Math.max(0, timeLeft)}s
+      {/* ✅ COPIE EXACTE Arena (ligne 5713): HUD responsive - mobile = bandeau haut, desktop = pills */}
+      {isMobile ? (
+        <div className="mobile-hud">
+          <div className="hud-left">
+            <div className="hud-chip">⏱ {Math.max(0, timeLeft)}s</div>
+            <div className="hud-chip">⭐ {players.find(p => p.studentId === myStudentId)?.score || 0}</div>
+            <div className="hud-chip">
+              {Number.isFinite(roundsPerSession)
+                ? `Manche: ${Math.max(0, roundsPlayed || 0)} / ${roundsPerSession}`
+                : `Manche: ${Math.max(0, roundsPlayed || 0)}`}
+            </div>
+          </div>
+          <div className="hud-vignette" data-cc-vignette="last-pair" ref={mpLastPairRef} title={lastWonPair?.text || ''}>
+            <span style={{ width: 12, height: 12, borderRadius: 999, display: 'inline-block', marginRight: 6, background: lastWonPair?.color || '#e5e7eb', boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none', border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none' }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {lastWonPair ? (
+                <><b>{lastWonPair.winnerName}</b>: {lastWonPair.text}</>
+              ) : 'Dernière paire: —'}
+            </span>
+          </div>
         </div>
+      ) : (
         <div style={{
-          background: 'rgba(255,255,255,0.95)',
-          borderRadius: 12,
-          padding: '8px 16px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          fontSize: 18,
-          fontWeight: 700
-        }}>
-          ⭐ {players.find(p => p.studentId === myStudentId)?.score || 0}
-        </div>
-        <div style={{
-          background: 'rgba(255,255,255,0.95)',
-          borderRadius: 12,
-          padding: '8px 16px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          fontSize: 18,
-          fontWeight: 700
-        }}>
-          {Number.isFinite(roundsPerSession)
-            ? `Manche: ${Math.max(0, roundsPlayed || 0)} / ${roundsPerSession}`
-            : `Manche: ${Math.max(0, roundsPlayed || 0)}`}
-        </div>
-        <div ref={mpLastPairRef} data-cc-vignette="last-pair" style={{
-          background: 'rgba(255,255,255,0.95)',
-          borderRadius: 12,
-          padding: '8px 16px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          fontSize: 14,
-          fontWeight: 400,
+          position: 'absolute',
+          top: 20,
+          left: 20,
           display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          maxWidth: '40vw'
+          gap: 12,
+          zIndex: 100,
+          flexWrap: 'wrap',
+          maxWidth: '90vw'
         }}>
-          <span style={{ 
-            width: 12, 
-            height: 12, 
-            borderRadius: 999, 
-            background: lastWonPair?.color || '#e5e7eb',
-            boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none',
-            border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none'
-          }} />
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {lastWonPair ? (
-              <><b>{lastWonPair.winnerName}</b>: {lastWonPair.text}</>
-            ) : 'Dernière paire: —'}
-          </span>
+          <div style={{
+            background: timeLeft < 10 ? '#fee2e2' : 'rgba(255,255,255,0.95)',
+            borderRadius: 12,
+            padding: '8px 16px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            fontSize: 18,
+            fontWeight: 700,
+            color: timeLeft < 10 ? '#dc2626' : '#111',
+            fontFamily: 'monospace'
+          }}>
+            ⏱ {Math.max(0, timeLeft)}s
+          </div>
+          <div style={{
+            background: 'rgba(255,255,255,0.95)',
+            borderRadius: 12,
+            padding: '8px 16px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            fontSize: 18,
+            fontWeight: 700
+          }}>
+            ⭐ {players.find(p => p.studentId === myStudentId)?.score || 0}
+          </div>
+          <div style={{
+            background: 'rgba(255,255,255,0.95)',
+            borderRadius: 12,
+            padding: '8px 16px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            fontSize: 18,
+            fontWeight: 700
+          }}>
+            {Number.isFinite(roundsPerSession)
+              ? `Manche: ${Math.max(0, roundsPlayed || 0)} / ${roundsPerSession}`
+              : `Manche: ${Math.max(0, roundsPlayed || 0)}`}
+          </div>
+          <div ref={mpLastPairRef} data-cc-vignette="last-pair" style={{
+            background: 'rgba(255,255,255,0.95)',
+            borderRadius: 12,
+            padding: '8px 16px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            fontSize: 14,
+            fontWeight: 400,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            maxWidth: '40vw'
+          }}>
+            <span style={{ 
+              width: 12, 
+              height: 12, 
+              borderRadius: 999, 
+              background: lastWonPair?.color || '#e5e7eb',
+              boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none',
+              border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none'
+            }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {lastWonPair ? (
+                <><b>{lastWonPair.winnerName}</b>: {lastWonPair.text}</>
+              ) : 'Dernière paire: —'}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
       
-      {/* ✅ COPIE EXACTE Arena: Historique pédagogique (Carte.js ligne 5818-5853) */}
-      {Array.isArray(wonPairsHistory) && wonPairsHistory.length > 0 && (
+      {/* ✅ COPIE EXACTE Arena (ligne 5736): Historique mobile = bandeau horizontal */}
+      {isMobile && Array.isArray(wonPairsHistory) && wonPairsHistory.length > 0 && (
+        <div className="mobile-history-strip" aria-label="Historique des paires">
+          {wonPairsHistory.slice(0, 10).map((e, i) => {
+            const label = (() => {
+              if (e.kind === 'calcnum' && e.calcExpr && e.calcResult) return `${e.calcExpr} = ${e.calcResult}`;
+              if (e.kind === 'imgtxt' && e.imageLabel) return e.imageLabel;
+              return e.text || '';
+            })();
+            return (
+              <div key={i} className="hist-item" title={e.text}>
+                <span className="dot" style={{ background: e.color || '#e5e7eb', border: e.borderColor ? `2px solid ${e.borderColor}` : 'none' }} />
+                {e.kind === 'imgtxt' && e.imageSrc && (
+                  <img src={e.imageSrc} alt={e.imageLabel || label || 'Image'} style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover', flexShrink: 0, marginRight: 4 }} />
+                )}
+                <span style={{ maxWidth: '52vw', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <b style={{ marginRight: 4 }}>{e.winnerName || 'Joueur'}</b>
+                  <span>{label}</span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      
+      {/* ✅ COPIE EXACTE Arena: Historique desktop = sidebar droite */}
+      {!isMobile && Array.isArray(wonPairsHistory) && wonPairsHistory.length > 0 && (
         <div style={{
           position: 'absolute',
           top: 20,
