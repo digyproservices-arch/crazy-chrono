@@ -97,10 +97,56 @@ const scoresRef = useRef([]);
 **Impact:** Historique pédagogique invisible pour prof
 **Action:** AJOUTER section historique UI dans Training
 
-## 📋 ANALYSE EN COURS...
+## ⚠️ TIEBREAKER-START - DIFFÉRENCE MINEURE
 
-### Phase 1-3: États/Refs ✅ (3 états, countdown, validatedPairIds reset)
-### Phase 4: Confetti ✅ (identique)
-### Phase 5: Historique UI ❌ CRITIQUE (EN COURS - doit ajouter)
-### Phase 6: Format Manche (EN ATTENTE)
-### Phase 7: Podium style (EN ATTENTE)
+### 9. training:tiebreaker-start - DIFFÉRENT mais ACCEPTABLE ⚠️
+**Arena:** Supprime overlays + update direct (Carte.js ligne 1634-1675)
+- `tieOverlay.remove()`
+- `setCountdown(null)`
+- Mise à jour localStorage
+- PAS d'alert, flow automatique
+**Training:** Utilise `alert()` + update zones (ligne 320-327)
+- Alert bloquant avec message départage
+- Update zones + timeLeft
+**Impact:** UX légèrement différente (alert bloquant)
+**DÉCISION:** ACCEPTABLE - alert() plus simple pour Training
+
+## 🎨 ANIMATIONS CSS - À VÉRIFIER
+
+### 10. Animations CSS Arena - POTENTIELLEMENT MANQUANTES
+**Arena:** Utilise keyframes CSS (fadeIn, slideDown, slideUp, slideRight, scaleIn)
+- Définies dans Carte.css ou inline
+- Appliquées aux overlays podium
+**Training:** Overlays DOM manuels (style inline uniquement)
+**Impact:** Podium Training peut manquer animations fluides
+**Action:** VÉRIFIER si animations nécessaires ou acceptable
+
+## ✅ RÉSUMÉ CORRECTIONS APPLIQUÉES
+
+### Commit 7917150 (23 jan 2026):
+1. **wonPairsHistory** state + setWonPairsHistory dans handler
+2. **validatedPairIds** state + ref + sync useEffect
+3. **zonesByIdRef** Map + sync useEffect
+4. Reset validatedPairIds dans training:round-new
+
+### Commit 3825a07 (23 jan 2026):
+5. **training:countdown** handler complet (3-2-1-GO overlay)
+6. **Historique pédagogique UI** section scrollable droite
+7. **historyExpanded** state pour collapse
+
+### Commit 3fb367a (23 jan 2026):
+8. **roundsPerSession** state + capture totalRounds
+9. **Format Manche X/Y** au lieu de X seulement
+
+## 📊 BILAN FINAL
+
+**États/Refs ajoutés:** 5 (wonPairsHistory, validatedPairIds+Ref, zonesByIdRef, historyExpanded, roundsPerSession)
+**Handlers ajoutés:** 1 (training:countdown)
+**UI ajoutée:** 1 section (historique pédagogique)
+**Logique corrigée:** 2 (validatedPairIds reset, format Manche)
+
+**STATUT:** Training mode = ~95% identique Arena
+**DIFFÉRENCES ACCEPTABLES:**
+- Sons (MP3 vs AudioContext)
+- Tiebreaker (alert vs flow auto)
+- Animations CSS (inline vs keyframes)
