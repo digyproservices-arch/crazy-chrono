@@ -39,10 +39,21 @@ export default function TrainingArenaGame() {
   
   // État du jeu
   const [zones, setZones] = useState([]);
+  // ✅ COPIE EXACTE Arena (Carte.js ligne 2351-2352): Ref pour éviter stale closure
+  const zonesRef = useRef([]);
+  useEffect(() => { zonesRef.current = zones; }, [zones]); // ✅ COPIE EXACTE Arena
   const [selectedZones, setSelectedZones] = useState([]);
   const [players, setPlayers] = useState([]);
   const [myStudentId, setMyStudentId] = useState(null);
-  const [calcAngles, setCalcAngles] = useState({});
+  // ✅ COPIE EXACTE Arena (Carte.js ligne 3007-3014): Charger depuis localStorage UNE FOIS
+  const [calcAngles, setCalcAngles] = useState(() => {
+    try {
+      const raw = localStorage.getItem('cc_calc_angles');
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
   const [timeLeft, setTimeLeft] = useState(60);
   const [gameStartTime, setGameStartTime] = useState(null);
   const [gameEnded, setGameEnded] = useState(false);
@@ -88,24 +99,14 @@ export default function TrainingArenaGame() {
     }))));
     
     setZones(zonesArray);
+    zonesRef.current = zonesArray; // ✅ COPIE EXACTE Arena: Synchro ref
     setPlayers(playersArray);
     setMyStudentId(gameInfo.myStudentId);  // ✅ FIX: Utiliser gameInfo.myStudentId (pas .studentId)
     setGameStartTime(gameInfo.startTime);
     setTimeLeft(gameInfo.duration || 60);
     
-    // ✅ CRITIQUE: Construire calcAngles depuis zones.angle (comme mode classique)
-    try {
-      const angles = {};
-      zonesArray.forEach(z => {
-        if ((z.type === 'calcul' || z.type === 'chiffre') && typeof z.angle === 'number') {
-          angles[z.id] = z.angle;
-        }
-      });
-      setCalcAngles(angles);
-      console.log('[TrainingArena] Angles construits depuis zones:', angles);
-    } catch (e) {
-      console.warn('[TrainingArena] Erreur construction angles:', e);
-    }
+    // ✅ COPIE EXACTE Arena: NE PAS reconstruire calcAngles (localStorage suffit)
+    console.log('[TrainingArena] calcAngles chargés depuis localStorage:', calcAngles);
     
     // ✅ FIX CRITIQUE: Activer gameActive dès le chargement initial (comme Arena avec !gameEnded)
     // Sans ça, la première manche n'est PAS cliquable jusqu'au premier training:round-new
@@ -217,18 +218,12 @@ export default function TrainingArenaGame() {
         
         setSelectedZones([]);
         
-        // ✅ CRITIQUE: Reconstruire calcAngles depuis zones.angle
-        try {
-          const angles = {};
-          newZones.forEach(z => {
-            if ((z.type === 'calcul' || z.type === 'chiffre') && typeof z.angle === 'number') {
-              angles[z.id] = z.angle;
-            }
-          });
-          setCalcAngles(angles);
-        } catch (e) {
-          console.warn('[TrainingArena] Erreur reconstruction angles:', e);
+        // ✅ COPIE EXACTE Arena (Carte.js ligne 1739-1741): Mettre à jour compteur manches
+        if (Number.isFinite(roundIndex)) {
+          setRoundsPlayed(roundIndex + 1);
         }
+        
+        // ✅ COPIE EXACTE Arena: NE PAS reconstruire calcAngles (localStorage suffit)
       }
     });
     
@@ -244,95 +239,127 @@ export default function TrainingArenaGame() {
     // ✅ FIX BUG #37: Écouter training:pair-validated (sync paires validées entre joueurs)
     socket.on('training:pair-validated', ({ studentId, playerName, playerIdx, pairId, zoneAId, zoneBId }) => {
       console.log('[TrainingArena] 🎯 Paire validée par', playerName, ':', pairId);
+      
+      // ✅ COPIE EXACTE Arena (Carte.js ligne 1398): Utiliser zonesRef.current pour éviter stale closure
+      const currentZones = zonesRef.current || [];
+      const ZA = currentZones.find(z => z.id === zoneAId);
+      const ZB = currentZones.find(z => z.id === zoneBId);
+      
+      // ✅ ANIMATION BULLES - Couleur par joueur (COPIE EXACTE Arena)
+      if (ZA && ZB) {
+        let color = '#22c55e';
+        let borderColor = '#ffffff';
+        let label = '';
+        
+        try {
+          // ✅ CRITIQUE: Utiliser playerIdx REÇU DU BACKEND (pas calculé localement)
+          if (typeof playerIdx === 'number' && playerIdx >= 0) {
+            const { primary, border } = getPlayerColorComboByIndex(playerIdx);
+            color = primary;
+            borderColor = border;
+            label = getInitials(playerName || 'Joueur');
+            console.log('[TrainingArena] 🎨 COULEUR:', JSON.stringify({ studentId, playerIdx, color, border, label }));
+          } else {
+            console.warn('[TrainingArena] ⚠️ playerIdx invalide, fallback:', playerIdx);
+          }
+        } catch (e) {
+          console.warn('[TrainingArena] Erreur couleur joueur:', e);
+        }
+        
+        // ✅ Animation bulle (comme Arena)
+        animateBubblesFromZones(zoneAId, zoneBId, color, ZA, ZB, borderColor, label);
+        
+        // ✅ COPIE EXACTE Arena (Carte.js ligne 1425-1501): Historique pédagogique complet
+        try {
+          console.log('[TrainingArena] 🖼️ Diagnostic images historique:', { 
+            ZA_type: ZA?.type, 
+            ZA_content: ZA?.content, 
+            ZB_type: ZB?.type, 
+            ZB_content: ZB?.content 
+          });
+          const textFor = (Z) => {
+            const t = (Z?.label || Z?.content || Z?.text || Z?.value || '').toString();
+            if (t && t.trim()) return t;
+            const pid = Z?.pairId || pairId;
+            return pid ? `[${pid}]` : '…';
+          };
+          
+          const textForCalc = (Z) => {
+            const t = (Z?.content || Z?.label || Z?.text || Z?.value || '').toString();
+            if (t && t.trim()) return t;
+            const pid = Z?.pairId || pairId;
+            return pid ? `[${pid}]` : '…';
+          };
+          
+          const textA = textFor(ZA);
+          const textB = textFor(ZB);
+          const typeA = ZA?.type || '';
+          const typeB = ZB?.type || '';
+          let kind = null;
+          let calcExpr = null;
+          let calcResult = null;
+          let imageSrc = null;
+          let imageLabel = null;
+          let displayText = `${textA || '…'} ↔ ${textB || '…'}`;
+          
+          const resolveImageSrc = (raw) => {
+            if (!raw) return null;
+            const normalized = String(raw).startsWith('http') ? String(raw) : process.env.PUBLIC_URL + '/' + (String(raw).startsWith('/') ? String(raw).slice(1) : (String(raw).startsWith('images/') ? String(raw) : 'images/' + String(raw)));
+            return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
+          };
+          
+          if ((typeA === 'calcul' && typeB === 'chiffre') || (typeA === 'chiffre' && typeB === 'calcul')) {
+            kind = 'calcnum';
+            const calcZone = typeA === 'calcul' ? ZA : ZB;
+            const numZone = typeA === 'chiffre' ? ZA : ZB;
+            calcExpr = textForCalc(calcZone);
+            calcResult = textForCalc(numZone);
+            displayText = (calcExpr && calcResult) ? `${calcExpr} = ${calcResult}` : `${textA || '…'} ↔ ${textB || '…'}`;
+          } else if ((typeA === 'image' && typeB === 'texte') || (typeA === 'texte' && typeB === 'image')) {
+            kind = 'imgtxt';
+            const imgZone = typeA === 'image' ? ZA : ZB;
+            const txtZone = typeA === 'texte' ? ZA : ZB;
+            const raw = imgZone?.content || imgZone?.url || imgZone?.path || imgZone?.src || '';
+            if (raw) imageSrc = resolveImageSrc(String(raw));
+            imageLabel = textFor(txtZone);
+            displayText = imageLabel || `${textA || '…'} ↔ ${textB || '…'}`;
+          }
+          
+          const entry = {
+            a: zoneAId,
+            b: zoneBId,
+            winnerId: studentId,
+            winnerName: playerName || 'Joueur',
+            color: color,
+            borderColor: borderColor,
+            initials: label,
+            text: displayText,
+            kind,
+            calcExpr,
+            calcResult,
+            imageSrc,
+            imageLabel
+          };
+          
+          setLastWonPair(entry);
+        } catch (e) {
+          console.warn('[TrainingArena] Erreur mise à jour historique:', e);
+        }
+      }
+      
+      // ✅ COPIE EXACTE Arena (Carte.js ligne 1503-1505): Désactiver gameActive AVANT setZones
+      setGameActive(false);
       console.log('[TrainingArena] ⚠️ gameActive=false (paire validée, attente nouvelle carte)');
       
-      // ✅ CRITIQUE: Mettre à jour scores (comme Arena)
-      socket.emit('training:get-scores', { matchId: gameInfo.matchId }, ({ scores }) => {
-        if (scores) {
-          console.log('[TrainingArena] 📊 Scores mis à jour:', scores);
-          setPlayers(scores);
-        }
-      });
-      
+      // ✅ COPIE EXACTE Arena (Carte.js ligne 1507-1515): Masquer zones validées
       setZones(prevZones => {
-        const ZA = prevZones.find(z => z.id === zoneAId);
-        const ZB = prevZones.find(z => z.id === zoneBId);
-        
-        // ✅ ANIMATION BULLES - Couleur par joueur (COPIE EXACTE Arena)
-        if (ZA && ZB) {
-          let color = '#22c55e';
-          let borderColor = '#ffffff';
-          let label = '';
-          
-          try {
-            // ✅ CRITIQUE: Utiliser playerIdx REÇU DU BACKEND (pas calculé localement)
-            // Cela garantit que TOUS les clients voient la MÊME couleur pour le même joueur
-            if (typeof playerIdx === 'number' && playerIdx >= 0) {
-              const { primary, border } = getPlayerColorComboByIndex(playerIdx);
-              color = primary;
-              borderColor = border;
-              label = getInitials(playerName || 'Joueur');
-              console.log('[TrainingArena] 🎨 COULEUR:', JSON.stringify({ studentId, playerIdx, color, border, label }));
-            } else {
-              console.warn('[TrainingArena] ⚠️ playerIdx invalide, fallback:', playerIdx);
-            }
-          } catch (e) {
-            console.warn('[TrainingArena] Erreur couleur joueur:', e);
-          }
-          
-          // ✅ setTimeout pour attendre le rendu React
-          setTimeout(() => {
-            try {
-              animateBubblesFromZones(ZA.id, ZB.id, color, ZA, ZB, borderColor, label);
-              console.log('[TrainingArena] 🎨 Animation bulles lancée pour:', ZA.id, ZB.id);
-            } catch (e) {
-              console.warn('[TrainingArena] Erreur animation bulle:', e);
-            }
-          }, 100);
-          
-          // ✅ HISTORIQUE PÉDAGOGIQUE (avec couleur joueur)
-          const pairText = `${ZA.label || ZA.content} ↔ ${ZB.label || ZB.content}`;
-          setLastWonPair({
-            color,
-            borderColor,
-            winnerName: playerName || 'Joueur',
-            text: pairText
-          });
-          
-          // ✅ CONFETTIS pour bonne paire (COPIE Arena)
-          try {
-            showConfetti();
-          } catch (e) {
-            console.warn('[TrainingArena] Erreur confetti:', e);
-          }
-        }
-        
-        const updatedZones = prevZones.map(z => {
+        return prevZones.map(z => {
           if (z.id === zoneAId || z.id === zoneBId) {
             return { ...z, validated: true };
           }
           return z;
         });
-        
-        // ✅ CRITIQUE: Reconstruire calcAngles pour préserver orientations (COPIE training:round-new)
-        try {
-          const angles = {};
-          updatedZones.forEach(z => {
-            if ((z.type === 'calcul' || z.type === 'chiffre') && typeof z.angle === 'number') {
-              angles[z.id] = z.angle;
-            }
-          });
-          setCalcAngles(angles);
-        } catch (e) {
-          console.warn('[TrainingArena] Erreur reconstruction angles:', e);
-        }
-        
-        return updatedZones;
       });
-      
-      // ✅ CRITIQUE: Désactiver gameActive pendant transition (1.5s backend)
-      setGameActive(false);
-      console.log('[TrainingArena] ⚠️ gameActive=false (paire validée, attente nouvelle carte)');
     });
     
     return () => {
