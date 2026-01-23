@@ -130,6 +130,7 @@ export default function TrainingArenaGame() {
   const [lastWonPair, setLastWonPair] = useState(null);
   // ✅ COPIE EXACTE Arena (Carte.js ligne 1069): Historique paires validées
   const [wonPairsHistory, setWonPairsHistory] = useState([]);
+  const [historyExpanded, setHistoryExpanded] = useState(true);
   const [gameActive, setGameActive] = useState(false);
   const [showBigCross, setShowBigCross] = useState(false);
   const mpLastPairRef = useRef(null);
@@ -281,6 +282,40 @@ export default function TrainingArenaGame() {
       }, 1000);
     });
 
+    // ✅ COPIE EXACTE Arena (Carte.js ligne 1346-1377): Countdown 3-2-1 avant départage
+    socket.on('training:countdown', ({ count }) => {
+      console.log('[TrainingArena] 📣 Countdown reçu:', count);
+      
+      // Au premier count, retirer l'overlay égalité
+      if (count === 3) {
+        const tieOverlay = document.getElementById('training-arena-tie');
+        if (tieOverlay) {
+          tieOverlay.remove();
+          console.log('[TrainingArena] 🗑️ Overlay égalité retiré (début countdown)');
+        }
+      }
+      
+      // Créer overlay countdown full-screen
+      let countdownOverlay = document.getElementById('training-countdown-overlay');
+      if (!countdownOverlay) {
+        countdownOverlay = document.createElement('div');
+        countdownOverlay.id = 'training-countdown-overlay';
+        countdownOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;';
+        document.body.appendChild(countdownOverlay);
+      }
+      
+      // Afficher le chiffre ou GO!
+      countdownOverlay.innerHTML = `<div style="font-size:200px;font-weight:900;color:${count === 0 ? '#10b981' : '#f59e0b'};text-shadow:0 0 30px rgba(255,255,255,0.5);">${count === 0 ? 'GO!' : count}</div>`;
+      
+      // Retirer overlay après "GO!"
+      if (count === 0) {
+        setTimeout(() => {
+          countdownOverlay.remove();
+          console.log('[TrainingArena] 🗑️ Overlay countdown retiré (GO! terminé)');
+        }, 800);
+      }
+    });
+
     socket.on('training:tiebreaker-start', ({ zones: newZones, duration, tiedPlayers }) => {
       console.log('[TrainingArena] 🔄 Démarrage manche de départage !');
       setZones(newZones);
@@ -329,6 +364,8 @@ export default function TrainingArenaGame() {
           console.log('[TrainingArena] ✅ gameActive=true (après setTimeout)');
         }, 50);
         
+        // ✅ COPIE EXACTE Arena (Carte.js ligne 1733-1736): Réinitialiser état jeu
+        setValidatedPairIds(new Set());
         setSelectedZones([]);
         
         // ✅ COPIE EXACTE Arena (Carte.js ligne 1739-1741): Mettre à jour compteur manches
@@ -770,6 +807,65 @@ export default function TrainingArenaGame() {
           </span>
         </div>
       </div>
+      
+      {/* ✅ COPIE EXACTE Arena: Historique pédagogique (Carte.js ligne 5818-5853) */}
+      {Array.isArray(wonPairsHistory) && wonPairsHistory.length > 0 && (
+        <div style={{
+          position: 'absolute',
+          top: 20,
+          right: 20,
+          background: 'rgba(255,255,255,0.95)',
+          borderRadius: 12,
+          padding: 12,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          maxWidth: 320,
+          maxHeight: '80vh',
+          overflowY: 'auto',
+          zIndex: 100
+        }}>
+          <div 
+            style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              cursor: 'pointer', 
+              padding: '6px 0',
+              marginBottom: historyExpanded ? 8 : 0
+            }} 
+            onClick={() => setHistoryExpanded(v => !v)}
+          >
+            <div style={{ fontWeight: 'bold', fontSize: 14 }}>📚 Historique</div>
+            <div style={{ opacity: 0.7, fontSize: 14 }}>{wonPairsHistory.length}</div>
+          </div>
+          {historyExpanded && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 400, overflowY: 'auto' }}>
+              {wonPairsHistory.map((h, i) => {
+                const label = (() => {
+                  if (h.kind === 'calcnum' && h.calcExpr && h.calcResult) return `${h.calcExpr} = ${h.calcResult}`;
+                  if (h.kind === 'imgtxt' && h.imageLabel) return h.imageLabel;
+                  return h.text || '';
+                })();
+                return (
+                  <div key={i} style={{ fontSize: 13, padding: '6px 8px', border: '1px solid ' + (h.borderColor || '#eee'), borderRadius: 6, background: '#fff', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 999, background: h.color || '#e5e7eb', border: h.borderColor ? `2px solid ${h.borderColor}` : 'none', flexShrink: 0 }} />
+                      <span style={{ fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.winnerName || 'Joueur'}</span>
+                    </div>
+                    <div style={{ marginLeft: 16, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                      {h.kind === 'imgtxt' && h.imageSrc && (
+                        <img src={h.imageSrc} alt={h.imageLabel || label || 'Image'} style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+                      )}
+                      <span style={{ fontSize: 12, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {label}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
       
       {/* ✅ COPIE EXACTE Arena: SVG inline complet (Carte.js ligne 6092-6490) */}
       <div style={{ width: '100%', height: '100%', position: 'relative' }}>
