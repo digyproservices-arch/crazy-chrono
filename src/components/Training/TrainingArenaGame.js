@@ -127,6 +127,7 @@ export default function TrainingArenaGame() {
   const [ranking, setRanking] = useState([]);
   const [winner, setWinner] = useState(null);
   const [roundsPlayed, setRoundsPlayed] = useState(0);
+  const [roundsPerSession, setRoundsPerSession] = useState(null);
   const [lastWonPair, setLastWonPair] = useState(null);
   // ✅ COPIE EXACTE Arena (Carte.js ligne 1069): Historique paires validées
   const [wonPairsHistory, setWonPairsHistory] = useState([]);
@@ -344,6 +345,11 @@ export default function TrainingArenaGame() {
         roundIndex, 
         totalRounds 
       });
+      
+      // ✅ COPIE EXACTE Arena: Stocker totalRounds si fourni
+      if (Number.isFinite(totalRounds) && totalRounds > 0) {
+        setRoundsPerSession(totalRounds);
+      }
       
       if (newZones && Array.isArray(newZones)) {
         // ✅ CRITIQUE: Annuler setTimeout précédent si double event
@@ -778,7 +784,9 @@ export default function TrainingArenaGame() {
           fontSize: 18,
           fontWeight: 700
         }}>
-          Manche: {roundsPlayed}
+          {Number.isFinite(roundsPerSession)
+            ? `Manche: ${Math.max(0, roundsPlayed || 0)} / ${roundsPerSession}`
+            : `Manche: ${Math.max(0, roundsPlayed || 0)}`}
         </div>
         <div ref={mpLastPairRef} data-cc-vignette="last-pair" style={{
           background: 'rgba(255,255,255,0.95)',
