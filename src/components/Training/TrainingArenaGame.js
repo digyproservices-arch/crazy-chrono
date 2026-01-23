@@ -128,10 +128,29 @@ export default function TrainingArenaGame() {
   const [winner, setWinner] = useState(null);
   const [roundsPlayed, setRoundsPlayed] = useState(0);
   const [lastWonPair, setLastWonPair] = useState(null);
+  // ✅ COPIE EXACTE Arena (Carte.js ligne 1069): Historique paires validées
+  const [wonPairsHistory, setWonPairsHistory] = useState([]);
   const [gameActive, setGameActive] = useState(false);
   const [showBigCross, setShowBigCross] = useState(false);
   const mpLastPairRef = useRef(null);
   const gameActiveTimeoutRef = useRef(null);
+  
+  // ✅ COPIE EXACTE Arena (Carte.js ligne 1081-1083): Tracking paires validées session
+  const [validatedPairIds, setValidatedPairIds] = useState(new Set());
+  const validatedPairIdsRef = useRef(new Set());
+  useEffect(() => { validatedPairIdsRef.current = validatedPairIds; }, [validatedPairIds]);
+  
+  // ✅ COPIE EXACTE Arena (Carte.js ligne 2356-2372): Map rapide id -> zone
+  const zonesByIdRef = useRef(new Map());
+  useEffect(() => {
+    try {
+      const m = new Map();
+      for (const z of zones) {
+        if (z && z.id) m.set(z.id, z);
+      }
+      zonesByIdRef.current = m;
+    } catch {}
+  }, [zones]);
   
   // ✅ COPIE EXACTE Arena (Carte.js ligne 2533): Référence taille moyenne zones chiffre
   const chiffreRefBase = React.useMemo(() => {
@@ -436,6 +455,8 @@ export default function TrainingArenaGame() {
           };
           
           setLastWonPair(entry);
+          // ✅ COPIE EXACTE Arena (Carte.js ligne 1498): Ajouter à l'historique scrollable
+          setWonPairsHistory(h => [entry, ...(Array.isArray(h) ? h : [])].slice(0, 25));
         } catch (e) {
           console.warn('[TrainingArena] Erreur mise à jour historique:', e);
         }
@@ -454,6 +475,8 @@ export default function TrainingArenaGame() {
           return z;
         });
       });
+      // ✅ COPIE EXACTE Arena (Carte.js ligne 1517): Tracking paires validées
+      setValidatedPairIds(prev => new Set([...prev, pairId]));
     });
     
     return () => {
