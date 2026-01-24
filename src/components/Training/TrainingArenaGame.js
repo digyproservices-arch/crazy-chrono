@@ -138,6 +138,7 @@ export default function TrainingArenaGame() {
   const [showBigCross, setShowBigCross] = useState(false);
   const mpLastPairRef = useRef(null);
   const gameActiveTimeoutRef = useRef(null);
+  const lastTimerTickRef = useRef(0);
   
   // ✅ COPIE EXACTE Arena (Carte.js ligne 1081-1083): Tracking paires validées session
   const [validatedPairIds, setValidatedPairIds] = useState(new Set());
@@ -399,9 +400,17 @@ export default function TrainingArenaGame() {
       }
     });
     
-    // ✅ FIX BUG #36: Écouter training:timer-tick du backend (comme Arena)
+    // ✅ COPIE EXACTE Arena: Throttler timer-tick pour éviter rafales (ignorer si <900ms)
     socket.on('training:timer-tick', ({ timeLeft: serverTimeLeft, currentRound, totalRounds }) => {
-      console.log('[TrainingArena] ⏱️ Timer tick:', { serverTimeLeft, currentRound, totalRounds });
+      const now = Date.now();
+      const elapsed = now - lastTimerTickRef.current;
+      
+      // Ignorer les ticks trop rapprochés (accumulation Socket.IO)
+      if (elapsed < 900) {
+        return;
+      }
+      
+      lastTimerTickRef.current = now;
       setTimeLeft(serverTimeLeft);
       if (typeof currentRound === 'number') {
         setRoundsPlayed(currentRound);
