@@ -530,6 +530,15 @@ class CrazyArenaManager {
 
     match.playersReadyForTiebreaker.add(studentId);
     console.log(`[CrazyArena][Training] ✋ ${playerName} prêt pour départage (${match.playersReadyForTiebreaker.size}/${match.tiedPlayers.length})`);
+    
+    // 🔍 DEBUG: Vérifier l'état du Set après ajout
+    console.log(`[CrazyArena][Training] 🔍 DEBUG playersReadyForTiebreaker:`, {
+      isSet: match.playersReadyForTiebreaker instanceof Set,
+      size: match.playersReadyForTiebreaker.size,
+      values: Array.from(match.playersReadyForTiebreaker),
+      tiedPlayers: match.tiedPlayers,
+      matchId: matchId.slice(-8)
+    });
 
     const payload = {
       matchId,

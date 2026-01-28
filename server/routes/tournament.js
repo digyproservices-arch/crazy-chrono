@@ -793,10 +793,18 @@ router.get('/active-matches', requireSupabase, async (req, res) => {
           
           // ✅ CRITIQUE: Pour tie-waiting, ajouter compteurs joueurs prêts pour tiebreaker
           if (match.status === 'tie-waiting') {
+            console.log(`[Tournament API] 🔍 Match tie-waiting ${match.matchId?.slice(-8)}:`, {
+              playersReadyForTiebreaker: match.playersReadyForTiebreaker,
+              isSet: match.playersReadyForTiebreaker instanceof Set,
+              size: match.playersReadyForTiebreaker?.size,
+              values: match.playersReadyForTiebreaker ? Array.from(match.playersReadyForTiebreaker) : null,
+              tiedPlayers: match.tiedPlayers?.length
+            });
             baseMatch.playersReadyCount = match.playersReadyForTiebreaker?.size || 0;
             baseMatch.playersTotalCount = match.tiedPlayers?.length || 2;
             baseMatch.tiedPlayers = match.tiedPlayers;
             baseMatch.ranking = match.ranking;
+            console.log(`[Tournament API] ✅ API retourne: playersReadyCount=${baseMatch.playersReadyCount}, playersTotalCount=${baseMatch.playersTotalCount}`);
           }
           
           return baseMatch;
