@@ -774,9 +774,9 @@ router.get('/active-matches', requireSupabase, async (req, res) => {
     if (global.crazyArena && global.crazyArena.matches) {
       const allMatches = Array.from(global.crazyArena.matches.values());
       
-      // Filtrer les matchs Training actifs (waiting ou playing)
+      // Filtrer les matchs Training actifs (waiting, playing, ou tie-waiting)
       trainingMatches = allMatches
-        .filter(m => m.mode === 'training' && ['waiting', 'playing'].includes(m.status))
+        .filter(m => m.mode === 'training' && ['waiting', 'playing', 'tie-waiting'].includes(m.status))
         .map(match => ({
           matchId: match.matchId,
           roomCode: match.roomCode || match.matchId,
