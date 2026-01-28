@@ -279,6 +279,12 @@ export default function TrainingArenaGame() {
       setPlayers(scores);
     });
     
+    // ✅ FIX: Écouter training:players-update (émis pendant tiebreaker)
+    socket.on('training:players-update', ({ players: updatedPlayers }) => {
+      console.log('[TrainingArena] 📊 Players-update (tiebreaker) reçu:', updatedPlayers);
+      setPlayers(updatedPlayers);
+    });
+    
     socket.on('training:tie-detected', ({ tiedPlayers, message }) => {
       console.log('[TrainingArena] ⚖️ Égalité détectée !', tiedPlayers);
       setGameActive(false);
