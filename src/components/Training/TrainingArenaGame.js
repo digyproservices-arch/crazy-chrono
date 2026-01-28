@@ -137,6 +137,7 @@ export default function TrainingArenaGame() {
   const [gameActive, setGameActive] = useState(false);
   const [flashWrong, setFlashWrong] = useState(false);
   const [showBigCross, setShowBigCross] = useState(false);
+  const [isTiebreaker, setIsTiebreaker] = useState(false); // ✅ COPIE EXACTE Arena (Carte.js ligne 3004)
   const mpLastPairRef = useRef(null);
   const gameActiveTimeoutRef = useRef(null);
   const lastTimerTickRef = useRef(0);
@@ -450,6 +451,7 @@ export default function TrainingArenaGame() {
       setGameActive(true); // ✅ CRUCIAL: Réactiver le jeu
       setGameEnded(false);
       setSelectedZones([]);
+      setIsTiebreaker(true); // ✅ COPIE EXACTE Arena: Activer mode tiebreaker
       
       console.log('[TrainingArena] ✅ État React mis à jour avec zones tiebreaker');
     });
@@ -894,7 +896,7 @@ export default function TrainingArenaGame() {
       {isMobile ? (
         <div className="mobile-hud">
           <div className="hud-left">
-            <div className="hud-chip">⏱ {Math.max(0, timeLeft)}s</div>
+            {!isTiebreaker && <div className="hud-chip">⏱ {Math.max(0, timeLeft)}s</div>}
             <div className="hud-chip">⭐ {players.find(p => p.studentId === myStudentId)?.score || 0}</div>
             <div className="hud-chip">
               {Number.isFinite(roundsPerSession)
@@ -932,7 +934,7 @@ export default function TrainingArenaGame() {
             color: timeLeft < 10 ? '#dc2626' : '#111',
             fontFamily: 'monospace'
           }}>
-            ⏱ {Math.max(0, timeLeft)}s
+            {!isTiebreaker && <span>⏱ {Math.max(0, timeLeft)}s</span>}
           </div>
           <div style={{
             background: 'rgba(255,255,255,0.95)',
