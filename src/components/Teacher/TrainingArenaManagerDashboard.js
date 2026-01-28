@@ -62,7 +62,8 @@ export default function TrainingArenaManagerDashboard() {
                 isTiebreaker: existingMatch.isTiebreaker
               };
               
-              // Préserver playersReadyCount SEULEMENT si non-undefined
+              // ✅ COPIE EXACTE Arena (ArenaManagerDashboard.js lignes 54-60)
+              // Préserver playersReadyCount du cache (socket temps réel) plutôt que l'écraser avec API (polling retardé)
               if (existingMatch.playersReadyCount !== undefined) {
                 merged.playersReadyCount = existingMatch.playersReadyCount;
               }
