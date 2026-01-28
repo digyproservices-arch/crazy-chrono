@@ -405,13 +405,53 @@ export default function TrainingArenaGame() {
       }
     });
 
-    socket.on('training:tiebreaker-start', ({ zones: newZones, duration, tiedPlayers }) => {
-      console.log('[TrainingArena] 🔄 Démarrage manche de départage !');
-      setZones(newZones);
+    // ✅ COPIE EXACTE Arena (Carte.js ligne 1634-1676): Tiebreaker start
+    socket.on('training:tiebreaker-start', ({ zones: newZones, duration, startTime, matchId }) => {
+      console.log('[TrainingArena] 🎯 Tiebreaker start - Mise à jour React directe');
+      
+      if (!newZones || newZones.length === 0) {
+        console.error('[TrainingArena] ❌ Zones manquantes');
+        return;
+      }
+      
+      console.log('[TrainingArena] ✅ Tiebreaker:', newZones.length, 'zones reçues');
+      
+      // CRITIQUE: Supprimer overlay égalité + countdown
+      const tieOverlay = document.getElementById('training-arena-tie');
+      if (tieOverlay) {
+        tieOverlay.remove();
+        console.log('[TrainingArena] ✅ Overlay égalité supprimé');
+      }
+      
+      const countdownOverlay = document.getElementById('training-countdown-overlay');
+      if (countdownOverlay) {
+        countdownOverlay.remove();
+        console.log('[TrainingArena] ✅ Overlay countdown supprimé');
+      }
+      
+      // Mettre à jour localStorage pour backup
+      const existingData = JSON.parse(localStorage.getItem('cc_training_arena_game') || '{}');
+      const tiebreakerData = {
+        ...existingData,
+        zones: newZones,
+        duration,
+        startTime,
+        isTiebreaker: true
+      };
+      localStorage.setItem('cc_training_arena_game', JSON.stringify(tiebreakerData));
+      
+      // ✅ FIX: Nettoyer validated=false pour rendre zones cliquables
+      const cleanZones = Array.isArray(newZones) ? newZones.map(z => ({ ...z, validated: false })) : [];
+      console.log('[TrainingArena] 🧹 Zones nettoyées (validated=false):', cleanZones.length);
+      
+      // Mettre à jour React directement (pas de reload)
+      setZones(cleanZones);
       setTimeLeft(duration);
+      setGameActive(true); // ✅ CRUCIAL: Réactiver le jeu
       setGameEnded(false);
       setSelectedZones([]);
-      alert(`🔄 MANCHE DE DÉPARTAGE !\n\n${tiedPlayers.map(p => p.name).join(' vs ')}\n\n3 nouvelles cartes - 30 secondes !`);
+      
+      console.log('[TrainingArena] ✅ État React mis à jour avec zones tiebreaker');
     });
 
     socket.on('training:game-end', ({ ranking: finalRanking, winner: finalWinner, isTiebreaker }) => {
