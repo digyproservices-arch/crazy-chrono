@@ -665,6 +665,21 @@ class CrazyArenaManager {
         match.tiebreakerPairsFound = (match.tiebreakerPairsFound || 0) + 1;
         console.log(`[Training] 🎯 TIEBREAKER: ${match.tiebreakerPairsFound}/${match.tiebreakerPairsToFind} paires trouvées`);
         
+        // ✅ CRITIQUE: Émettre scores tiebreaker aux clients
+        this.io.to(matchId).emit('training:players-update', {
+          matchId,
+          players: match.players.map(p => ({
+            studentId: p.studentId,
+            name: p.name,
+            avatar: p.avatar,
+            score: p.tiebreakerScore || 0,  // Scores tiebreaker
+            pairsValidated: p.tiebreakerPairs || 0,
+            errors: p.errors || 0,
+            ready: p.ready || false
+          }))
+        });
+        console.log(`[Training] 📢 Scores tiebreaker émis: ${player.name} = ${player.tiebreakerScore} pts`);
+        
         if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
           console.log(`[Training] 🏁 TIEBREAKER TERMINÉ`);
           this.endTrainingGame(matchId);
@@ -702,6 +717,20 @@ class CrazyArenaManager {
       // Erreur: retirer points
       if (match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown') {
         player.tiebreakerScore = Math.max(0, (player.tiebreakerScore || 0) - 2);
+        
+        // ✅ Émettre scores tiebreaker après erreur
+        this.io.to(matchId).emit('training:players-update', {
+          matchId,
+          players: match.players.map(p => ({
+            studentId: p.studentId,
+            name: p.name,
+            avatar: p.avatar,
+            score: p.tiebreakerScore || 0,
+            pairsValidated: p.tiebreakerPairs || 0,
+            errors: p.errors || 0,
+            ready: p.ready || false
+          }))
+        });
       } else {
         player.score = Math.max(0, player.score - 2);
       }
