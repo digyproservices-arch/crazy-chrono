@@ -135,6 +135,7 @@ export default function TrainingArenaGame() {
   const [historyExpanded, setHistoryExpanded] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [gameActive, setGameActive] = useState(false);
+  const [flashWrong, setFlashWrong] = useState(false);
   const [showBigCross, setShowBigCross] = useState(false);
   const mpLastPairRef = useRef(null);
   const gameActiveTimeoutRef = useRef(null);
@@ -649,6 +650,12 @@ export default function TrainingArenaGame() {
     }
   };
   
+  // ✅ COPIE EXACTE Arena (Carte.js ligne 2672-2675): Flash rouge sur erreur
+  const showWrongFlash = () => {
+    setFlashWrong(true);
+    setTimeout(() => setFlashWrong(false), 350);
+  };
+  
   const checkPair = (zoneIdA, zoneIdB) => {
     const ZA = zones.find(z => z.id === zoneIdA);
     const ZB = zones.find(z => z.id === zoneIdB);
@@ -693,9 +700,10 @@ export default function TrainingArenaGame() {
         zoneBId: zoneIdB
       });
     } else {
-      // Mauvaise paire - CROIX ROUGE (COPIE EXACTE Arena, PAS shake)
+      // Mauvaise paire - CROIX ROUGE + FLASH ROUGE (COPIE EXACTE Arena)
       playErrorSound();
       setShowBigCross(true);
+      showWrongFlash();
       
       setTimeout(() => {
         setSelectedZones([]);
@@ -837,7 +845,11 @@ export default function TrainingArenaGame() {
   }
   
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+    <div className="carte" style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden' }}>
+      {/* ✅ COPIE EXACTE Arena (Carte.js ligne 6078-6080): Flash rouge erreur */}
+      {flashWrong && (
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(214,48,49,0.25)', pointerEvents: 'none', zIndex: 5 }} />
+      )}
       {/* ✅ COPIE EXACTE Arena (ligne 5713): HUD responsive - mobile = bandeau haut, desktop = pills */}
       {isMobile ? (
         <div className="mobile-hud">
