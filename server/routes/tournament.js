@@ -777,18 +777,30 @@ router.get('/active-matches', requireSupabase, async (req, res) => {
       // Filtrer les matchs Training actifs (waiting, playing, ou tie-waiting)
       trainingMatches = allMatches
         .filter(m => m.mode === 'training' && ['waiting', 'playing', 'tie-waiting'].includes(m.status))
-        .map(match => ({
-          matchId: match.matchId,
-          roomCode: match.roomCode || match.matchId,
-          status: match.status === 'waiting' ? 'pending' : match.status,
-          createdAt: new Date().toISOString(), // Pas de created_at en mémoire
-          groupName: match.config?.sessionName || 'Session Training',
-          totalPlayers: match.expectedPlayers?.length || match.players.length,
-          studentIds: match.expectedPlayers || match.players.map(p => p.studentId),
-          mode: 'training',
-          connectedPlayers: match.players.length,
-          readyPlayers: match.players.filter(p => p.ready).length
-        }));
+        .map(match => {
+          const baseMatch = {
+            matchId: match.matchId,
+            roomCode: match.roomCode || match.matchId,
+            status: match.status === 'waiting' ? 'pending' : match.status,
+            createdAt: new Date().toISOString(), // Pas de created_at en mémoire
+            groupName: match.config?.sessionName || 'Session Training',
+            totalPlayers: match.expectedPlayers?.length || match.players.length,
+            studentIds: match.expectedPlayers || match.players.map(p => p.studentId),
+            mode: 'training',
+            connectedPlayers: match.players.length,
+            readyPlayers: match.players.filter(p => p.ready).length
+          };
+          
+          // ✅ CRITIQUE: Pour tie-waiting, ajouter compteurs joueurs prêts pour tiebreaker
+          if (match.status === 'tie-waiting') {
+            baseMatch.playersReadyCount = match.playersReadyForTiebreaker?.size || 0;
+            baseMatch.playersTotalCount = match.tiedPlayers?.length || 2;
+            baseMatch.tiedPlayers = match.tiedPlayers;
+            baseMatch.ranking = match.ranking;
+          }
+          
+          return baseMatch;
+        });
       
       console.log(`[Tournament API] ✅ ${trainingMatches.length} matchs Training actifs trouvés en mémoire`);
     }
