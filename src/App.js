@@ -453,7 +453,14 @@ function App() {
           )}
           {/* Global Diagnostic floating button and panel */}
           <button
-            onClick={() => setDiagOpen(v=>!v)}
+            onClick={() => {
+              // ✅ FIX: Vider logs avant d'ouvrir pour éviter freeze avec accumulation
+              if (!diagOpen) {
+                setDiagLines([]);
+                setDiagRecLines([]);
+              }
+              setDiagOpen(v=>!v);
+            }}
             title="Diagnostic"
             style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 10000, background: '#111827', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, padding: '8px 12px', boxShadow: '0 6px 18px rgba(0,0,0,0.25)', opacity: 0.9 }}
           >Diagnostic</button>
