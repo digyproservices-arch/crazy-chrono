@@ -452,12 +452,23 @@ function App() {
             </footer>
           )}
           {/* Global Diagnostic floating button and panel */}
-          <button
-            onClick={() => setDiagOpen(v=>!v)}
-            title="Diagnostic"
-            style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 10000, background: '#111827', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, padding: '8px 12px', boxShadow: '0 6px 18px rgba(0,0,0,0.25)', opacity: 0.9 }}
-          >Diagnostic</button>
-          {diagOpen && (
+          {(() => {
+            try {
+              if (localStorage.getItem('cc_disable_diag') === '1') return null;
+            } catch {}
+            return (
+              <button
+                onClick={() => setDiagOpen(v=>!v)}
+                title="Diagnostic"
+                style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 10000, background: '#111827', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, padding: '8px 12px', boxShadow: '0 6px 18px rgba(0,0,0,0.25)', opacity: 0.9 }}
+              >Diagnostic</button>
+            );
+          })()}
+          {diagOpen && (() => {
+            try {
+              if (localStorage.getItem('cc_disable_diag') === '1') return null;
+            } catch {}
+            return (
             <div style={{ position: 'fixed', right: 12, bottom: 56, width: 420, maxWidth: '90vw', maxHeight: '70vh', overflow: 'auto', zIndex: 10000, background: '#111827', color: '#e5e7eb', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, boxShadow: '0 10px 30px rgba(0,0,0,0.4)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 10, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                 <div style={{ fontWeight: 'bold' }}>Diagnostic (global)</div>
@@ -499,7 +510,8 @@ function App() {
                 </div>
               )}
             </div>
-          )}
+            );
+          })()}
         </div>
       </Router>
     </DataProvider>
