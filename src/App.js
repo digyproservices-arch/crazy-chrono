@@ -98,10 +98,21 @@ function App() {
         }
         localStorage.setItem(THROTTLE_KEY, String(now));
       } catch {}
-      fetch(`${getBackendUrl()}/me?email=${encodeURIComponent(email)}`)
+      // ✅ FIX: Timeout 3s pour éviter freeze si backend lent
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      fetch(`${getBackendUrl()}/me?email=${encodeURIComponent(email)}`, { signal: controller.signal })
         .then(r => r.ok ? r.json() : null)
-        .then(j => { if (j && j.ok && String(j.role||'').toLowerCase()==='admin') setIsAdminUI(true); })
-        .catch(() => {});
+        .then(j => { 
+          clearTimeout(timeoutId);
+          if (j && j.ok && String(j.role||'').toLowerCase()==='admin') setIsAdminUI(true); 
+        })
+        .catch((err) => {
+          clearTimeout(timeoutId);
+          if (err.name === 'AbortError') {
+            console.warn('[App] Fetch /me timeout après 3s');
+          }
+        });
     } catch {}
   }, []);
 
@@ -475,9 +486,9 @@ function App() {
                   <div style={{ maxHeight: 180, overflow: 'auto', background: '#0b1220', padding: 8, borderRadius: 6 }}>
                     {(diagLines||[]).slice(-120).map((l,i)=>(<div key={i} style={{ whiteSpace: 'pre-wrap' }}>{l}</div>))}
                   </div>
-                  <div style={{ fontSize: 12, opacity: 0.8, margin: '6px 0 4px' }}>Enregistrement ({diagRecLines.length} lignes)</div>
+                  <div style={{ fontSize: 12, opacity: 0.8, margin: '6px 0 4px' }}>Enregistrement ({diagRecLines.length} lignes, affichage 200 dernières)</div>
                   <div style={{ maxHeight: 160, overflow: 'auto', background: '#0b1220', padding: 8, borderRadius: 6 }}>
-                    {(diagRecLines||[]).map((l,i)=>(<div key={i} style={{ whiteSpace: 'pre-wrap' }}>{l}</div>))}
+                    {(diagRecLines||[]).slice(-200).map((l,i)=>(<div key={i} style={{ whiteSpace: 'pre-wrap' }}>{l}</div>))}
                   </div>
                 </div>
               ) : (
