@@ -70,7 +70,8 @@ function App() {
     return () => window.removeEventListener('cc:gameMode', onGame);
   }, []);
 
-  // Admin auto-detection (URL admin=1, localStorage cc_admin_ui=1, cc_auth role, or backend /me?email=...) with throttle
+  // ✅ FIX DÉFINITIF: Admin auto-detection SANS fetch /me au montage (éviter freeze UI)
+  // Détection via URL admin=1, localStorage cc_admin_ui=1, ou cc_auth role uniquement
   useEffect(() => {
     const urlHasAdmin = () => {
       try { return new URLSearchParams(window.location.search).get('admin') === '1'; } catch { return false; }
@@ -82,38 +83,10 @@ function App() {
         return a && (a.role === 'admin' || a.isAdmin === true);
       } catch { return false; }
     };
-    const pre = urlHasAdmin() || lsAdmin() || authIsAdmin();
-    if (pre) { setIsAdminUI(true); return; }
-    let email = null;
-    try { email = (JSON.parse(localStorage.getItem('cc_auth')||'null')||{}).email || localStorage.getItem('cc_profile_email') || localStorage.getItem('user_email') || localStorage.getItem('email'); } catch {}
-    if (!email) return;
-    try {
-      const THROTTLE_KEY = 'cc_last_me_email_fetch_ts';
-      const now = Date.now();
-      try {
-        const last = parseInt(localStorage.getItem(THROTTLE_KEY) || '0', 10);
-        if (Number.isFinite(last) && now - last < 60000) {
-          try { window.ccAddDiag && window.ccAddDiag('me:email:throttled', { lastMs: now - last }); } catch {}
-          return; // 60s throttle
-        }
-        localStorage.setItem(THROTTLE_KEY, String(now));
-      } catch {}
-      // ✅ FIX: Timeout 3s pour éviter freeze si backend lent
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-      fetch(`${getBackendUrl()}/me?email=${encodeURIComponent(email)}`, { signal: controller.signal })
-        .then(r => r.ok ? r.json() : null)
-        .then(j => { 
-          clearTimeout(timeoutId);
-          if (j && j.ok && String(j.role||'').toLowerCase()==='admin') setIsAdminUI(true); 
-        })
-        .catch((err) => {
-          clearTimeout(timeoutId);
-          if (err.name === 'AbortError') {
-            console.warn('[App] Fetch /me timeout après 3s');
-          }
-        });
-    } catch {}
+    // Ne plus faire de fetch /me ici - cause de freeze page
+    if (urlHasAdmin() || lsAdmin() || authIsAdmin()) {
+      setIsAdminUI(true);
+    }
   }, []);
 
   // Recording ref sync
