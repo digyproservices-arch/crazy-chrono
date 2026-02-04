@@ -182,13 +182,69 @@ function App() {
     } catch {}
   }, []);
 
-  // ✅ FIX RADICAL: Désactiver interception console/fetch auto (cause overhead massif React)
-  // Garder seulement window.ccAddDiag manuel dans le code pour logs explicites
-  // L'interception automatique créait cascade d'événements: console.log → setState → re-render → plus de logs
+  // When recording is ON, capture console, errors, and fetch
   useEffect(() => {
-    // Ne plus intercepter console/fetch automatiquement
-    // Les composants utilisent déjà window.ccAddDiag manuellement pour logs importants
-    return () => {};
+    if (!diagRecording) {
+      // restore
+      try {
+        if (consoleOrigRef.current.log) console.log = consoleOrigRef.current.log;
+        if (consoleOrigRef.current.warn) console.warn = consoleOrigRef.current.warn;
+        if (consoleOrigRef.current.error) console.error = consoleOrigRef.current.error;
+        if (fetchOrigRef.current) window.fetch = fetchOrigRef.current;
+      } catch {}
+      try { detachHandlersRef.current && detachHandlersRef.current(); } catch {}
+      return;
+    }
+    // install
+    try {
+      // console hooks
+      consoleOrigRef.current = { log: console.log, warn: console.warn, error: console.error };
+      const mk = (type) => (...args) => {
+        try { window.ccAddDiag && window.ccAddDiag(`console:${type}`, { args: args.map(a => serializeSafe(a)).slice(0, 5) }); } catch {}
+        try { (type==='log'? consoleOrigRef.current.log : type==='warn'? consoleOrigRef.current.warn : consoleOrigRef.current.error).apply(console, args); } catch {}
+      };
+      console.log = mk('log');
+      console.warn = mk('warn');
+      console.error = mk('error');
+      // error handlers
+      const onErr = (e) => {
+        try { window.ccAddDiag && window.ccAddDiag('window:error', { msg: String(e?.message||''), src: e?.filename, lineno: e?.lineno, colno: e?.colno }); } catch {}
+      };
+      const onRej = (e) => {
+        try { window.ccAddDiag && window.ccAddDiag('window:unhandledrejection', { reason: String(e?.reason||'') }); } catch {}
+      };
+      window.addEventListener('error', onErr);
+      window.addEventListener('unhandledrejection', onRej);
+      // fetch wrapper
+      if (!fetchOrigRef.current) fetchOrigRef.current = window.fetch.bind(window);
+      window.fetch = async (input, init) => {
+        const started = Date.now();
+        const url = typeof input === 'string' ? input : (input && input.url) || 'unknown';
+        try { window.ccAddDiag && window.ccAddDiag('fetch:start', { url, method: init?.method||'GET' }); } catch {}
+        try {
+          const res = await fetchOrigRef.current(input, init);
+          try { window.ccAddDiag && window.ccAddDiag('fetch:end', { url, status: res.status, ms: Date.now()-started }); } catch {}
+          return res;
+        } catch (err) {
+          try { window.ccAddDiag && window.ccAddDiag('fetch:error', { url, ms: Date.now()-started, error: String(err) }); } catch {}
+          throw err;
+        }
+      };
+      detachHandlersRef.current = () => {
+        try { window.removeEventListener('error', onErr); } catch {}
+        try { window.removeEventListener('unhandledrejection', onRej); } catch {}
+      };
+    } catch {}
+    // cleanup when recording toggles off
+    return () => {
+      try {
+        if (consoleOrigRef.current.log) console.log = consoleOrigRef.current.log;
+        if (consoleOrigRef.current.warn) console.warn = consoleOrigRef.current.warn;
+        if (consoleOrigRef.current.error) console.error = consoleOrigRef.current.error;
+        if (fetchOrigRef.current) window.fetch = fetchOrigRef.current;
+      } catch {}
+      try { detachHandlersRef.current && detachHandlersRef.current(); } catch {}
+    };
   }, [diagRecording]);
 
   // Global addDiag exposed on window
@@ -371,17 +427,7 @@ function App() {
           )}
           {/* Global Diagnostic floating button and panel */}
           <button
-            onClick={() => {
-              // ✅ FIX DÉFINITIF: Vider logs SYNCHRONE avant ouverture (éviter render 500+ logs)
-              // flushSync force React à appliquer setState immédiatement AVANT diagOpen
-              if (!diagOpen) {
-                flushSync(() => {
-                  setDiagLines([]);
-                  setDiagRecLines([]);
-                });
-              }
-              setDiagOpen(v=>!v);
-            }}
+            onClick={() => setDiagOpen(v=>!v)}
             title="Diagnostic"
             style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 10000, background: '#111827', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, padding: '8px 12px', boxShadow: '0 6px 18px rgba(0,0,0,0.25)', opacity: 0.9 }}
           >Diagnostic</button>
