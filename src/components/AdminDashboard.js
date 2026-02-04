@@ -161,9 +161,60 @@ function AdminDashboard() {
             <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#f59e0b' }}>
               📊 Monitoring contenus
             </h2>
-            <div style={{ fontSize: '14px', color: '#94a3b8' }}>
+            <div style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '15px' }}>
               Statistiques à venir...
             </div>
+            
+            {/* Bouton téléchargement logs backend Winston */}
+            <button
+              onClick={async () => {
+                try {
+                  const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+                  const token = auth.token;
+                  if (!token) {
+                    alert('Connexion requise');
+                    return;
+                  }
+                  
+                  const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
+                  const response = await fetch(`${backendUrl}/api/admin/logs/latest`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  });
+                  
+                  if (!response.ok) {
+                    throw new Error(`Erreur ${response.status}`);
+                  }
+                  
+                  const blob = await response.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `backend-logs-${new Date().toISOString().split('T')[0]}.log`;
+                  document.body.appendChild(a);
+                  a.click();
+                  window.URL.revokeObjectURL(url);
+                  document.body.removeChild(a);
+                } catch (err) {
+                  alert(`Erreur téléchargement logs: ${err.message}`);
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '12px 20px',
+                background: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 600,
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.background = '#2563eb'}
+              onMouseLeave={(e) => e.target.style.background = '#3b82f6'}
+            >
+              📥 Télécharger Logs Backend (Winston)
+            </button>
           </div>
 
         </div>
