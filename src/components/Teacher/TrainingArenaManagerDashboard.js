@@ -145,12 +145,8 @@ export default function TrainingArenaManagerDashboard() {
 
     // Mise à jour des joueurs en temps réel
     socket.on('training:players-update', ({ matchId, players }) => {
-      console.log('[TrainingArenaManager] 📥 training:players-update reçu:', {
-        matchId: matchId.slice(-8),
-        playersCount: players.length,
-        players: players.map(p => ({ name: p.name, ready: p.ready }))
-      });
-      
+      console.log('[TrainingArenaManager] 👥 Players update reçu:', { matchId, players: players.map(p => ({ socketId: p.socketId, ready: p.ready })) });
+      try { window.ccAddDiag && window.ccAddDiag('dashboard:training:players-update', { matchId: matchId?.slice(-8), playersCount: players.length, readyCount: players.filter(p => p.ready).length, players: players.map(p => ({ ready: p.ready, score: p.score })) }); } catch {}
       setMatches(prevMatches => {
         console.log('[TrainingArenaManager] 🔍 Matchs actuels:', prevMatches.map(m => ({ 
           id: m.matchId.slice(-8), 
@@ -167,6 +163,7 @@ export default function TrainingArenaManagerDashboard() {
               avant: { connectedPlayers: m.connectedPlayers, readyPlayers: m.readyPlayers },
               après: { connectedPlayers: connectedCount, readyPlayers: readyCount }
             });
+            try { window.ccAddDiag && window.ccAddDiag('dashboard:match-update', { matchId: matchId?.slice(-8), avant: { connected: m.connectedPlayers, ready: m.readyPlayers }, après: { connected: connectedCount, ready: readyCount } }); } catch {}
             return {
               ...m,
               connectedPlayers: connectedCount,
@@ -182,6 +179,7 @@ export default function TrainingArenaManagerDashboard() {
           connectedPlayers: m.connectedPlayers,
           readyPlayers: m.readyPlayers
         })));
+        try { window.ccAddDiag && window.ccAddDiag('dashboard:matches-state', { matches: updated.map(m => ({ id: m.matchId?.slice(-8), connected: m.connectedPlayers, ready: m.readyPlayers, status: m.status })) }); } catch {}
         
         return updated;
       });
@@ -190,6 +188,7 @@ export default function TrainingArenaManagerDashboard() {
     // Match démarré
     socket.on('training:game-start', ({ matchId }) => {
       console.log('[TrainingArenaManager] 🎮 Match démarré:', matchId);
+      try { window.ccAddDiag && window.ccAddDiag('dashboard:training:game-start', { matchId: matchId?.slice(-8) }); } catch {}
       setMatches(prevMatches => 
         prevMatches.map(m => {
           if (m.matchId === matchId) {

@@ -318,6 +318,7 @@ export default function TrainingArenaGame() {
         // ✅ COPIE EXACTE Arena: Attacher onclick AVANT appendChild
         readyBtn.onclick = () => {
           console.log('[TrainingArena] ✋ CLIC BOUTON DÉTECTÉ !');
+          try { window.ccAddDiag && window.ccAddDiag('player:tiebreaker:ready-button-click', { timestamp: Date.now() }); } catch {}
           
           try {
             const socket = socketRef.current;
@@ -327,9 +328,11 @@ export default function TrainingArenaGame() {
               connected: socket?.connected,
               id: socket?.id
             });
+            try { window.ccAddDiag && window.ccAddDiag('player:socket-state', { exists: !!socket, connected: socket?.connected, socketId: socket?.id }); } catch {}
             
             if (!socket || !socket.connected) {
               console.error('[TrainingArena] ❌ Socket non connecté!');
+              try { window.ccAddDiag && window.ccAddDiag('player:ERROR:socket-disconnected', { exists: !!socket, connected: socket?.connected }); } catch {}
               statusEl.textContent = '❌ Erreur: Connexion perdue';
               return;
             }
@@ -345,6 +348,7 @@ export default function TrainingArenaGame() {
               playerName: myName,
               socketId: socket.id
             });
+            try { window.ccAddDiag && window.ccAddDiag('player:emit:training:player-ready-tiebreaker', { matchId: matchId?.slice(-8), studentId: myStudentId, playerName: myName, socketId: socket?.id }); } catch {}
             
             socket.emit('training:player-ready-tiebreaker', {
               matchId,
@@ -352,6 +356,7 @@ export default function TrainingArenaGame() {
               playerName: myName
             }, (ack) => {
               console.log('[TrainingArena] ✅ Acknowledgement reçu du backend:', ack);
+              try { window.ccAddDiag && window.ccAddDiag('player:ack:training:player-ready-tiebreaker', { ack }); } catch {}
             });
             
             console.log('[TrainingArena] 📤 Événement émis (attente ACK...)');
@@ -362,8 +367,10 @@ export default function TrainingArenaGame() {
             readyBtn.style.cursor = 'not-allowed';
             readyBtn.textContent = '✅ PRÊT !';
             statusEl.textContent = '✅ Vous êtes prêt ! En attente des autres joueurs...';
+            try { window.ccAddDiag && window.ccAddDiag('player:ready-button-disabled', { status: 'success' }); } catch {}
           } catch (e) {
             console.error('[TrainingArena] ❌ Erreur:', e);
+            try { window.ccAddDiag && window.ccAddDiag('player:ERROR:ready-button', { error: e.message, stack: e.stack?.slice(0, 200) }); } catch {}
             statusEl.textContent = '❌ Erreur: ' + e.message;
           }
         };
