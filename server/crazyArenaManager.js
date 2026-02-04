@@ -1748,6 +1748,45 @@ class CrazyArenaManager {
   }
 
   /**
+   * Supprimer un match manuellement (depuis dashboard prof)
+   * Notifie les joueurs et nettoie toutes les ressources
+   */
+  deleteMatch(matchId) {
+    const match = this.matches.get(matchId);
+    if (!match) {
+      console.warn(`[CrazyArena] deleteMatch: Match ${matchId} introuvable`);
+      return { ok: false, error: 'Match introuvable' };
+    }
+
+    console.log(`[CrazyArena] 🗑️ Suppression manuelle du match ${matchId} (mode: ${match.mode})`);
+
+    // Notifier tous les joueurs que le match a été supprimé
+    const eventName = match.mode === 'training' ? 'training:match-deleted' : 'arena:match-deleted';
+    this.io.to(matchId).emit(eventName, {
+      matchId,
+      reason: 'Match supprimé par le professeur'
+    });
+
+    // Déconnecter les joueurs de la room Socket.IO
+    match.players.forEach(player => {
+      const socketId = player.socketId;
+      if (socketId) {
+        const socket = this.io.sockets.sockets.get(socketId);
+        if (socket) {
+          socket.leave(matchId);
+        }
+        this.playerMatches.delete(socketId);
+      }
+    });
+
+    // Supprimer le match de la Map
+    this.matches.delete(matchId);
+    
+    console.log(`[CrazyArena] ✅ Match ${matchId} supprimé avec succès`);
+    return { ok: true };
+  }
+
+  /**
    * Déconnexion d'un joueur (GÉNÉRIQUE: Training + Arena)
    */
   handleDisconnect(socket) {

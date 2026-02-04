@@ -1410,6 +1410,15 @@ io.on('connection', (socket) => {
     await crazyArena.trainingStartTiebreakerByTeacher(matchId);
   });
 
+  // Training/Arena: Suppression manuelle d'un match par le prof
+  socket.on('delete-match', ({ matchId }, cb) => {
+    console.log(`[Server] Demande suppression match ${matchId}`);
+    const result = crazyArena.deleteMatch(matchId);
+    if (typeof cb === 'function') {
+      cb(result);
+    }
+  });
+
   // ===== CRAZY ARENA EVENTS (Tournoi groupes de 4) =====
   
   socket.on('arena:join', async ({ matchId, studentData }, cb) => {
