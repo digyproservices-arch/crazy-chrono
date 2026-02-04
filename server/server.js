@@ -6,6 +6,7 @@ const bodyParser = require('body-parser');
 const http = require('http');
 const { Server } = require('socket.io');
 const { generateRoundZones } = require('./utils/serverZoneGenerator');
+const logger = require('./logger'); // ✅ Winston logger professionnel
 
 // Load env (safe)
 try { require('dotenv').config({ path: require('path').join(__dirname, '.env') }); } catch {}
@@ -13,6 +14,11 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
+});
+
+logger.info('[Server] Starting Crazy Chrono backend...', { 
+  nodeVersion: process.version, 
+  env: process.env.NODE_ENV || 'development' 
 });
 
 // Initialiser Supabase Admin AVANT CrazyArenaManager
@@ -35,6 +41,11 @@ const crazyArena = new CrazyArenaManager(io, supabaseAdmin);
 
 // Exposer crazyArena pour les routes (tournament.js)
 global.crazyArena = crazyArena;
+
+// ✅ Monter les routes admin logs (Winston)
+const adminLogsRouter = require('./routes/adminLogs');
+app.use('/api/admin/logs', adminLogsRouter);
+logger.info('[Server] Admin logs API mounted at /api/admin/logs');
 
 // Admin-only: change a user's role by email
 // POST /admin/users/role { target_email, role }
@@ -1384,6 +1395,13 @@ io.on('connection', (socket) => {
 
   socket.on('training:player-ready-tiebreaker', ({ matchId, studentId, playerName }) => {
     console.log(`[Server][Training] Joueur ${playerName} prêt pour départage match ${matchId}`);
+    logger.training('player-ready-tiebreaker', { 
+      matchId: matchId?.slice(-8), 
+      studentId, 
+      playerName, 
+      socketId: socket.id,
+      timestamp: Date.now()
+    });
     crazyArena.trainingPlayerReadyForTiebreaker(matchId, studentId, playerName, io);
   });
 

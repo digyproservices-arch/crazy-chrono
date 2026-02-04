@@ -381,22 +381,69 @@ export default function TrainingArenaManagerDashboard() {
         </p>
       </div>
 
-      {/* Bouton retour */}
-      <button
-        onClick={() => navigate('/training-arena/setup')}
-        style={{
-          padding: '10px 20px',
-          background: '#f3f4f6',
-          border: '1px solid #d1d5db',
-          borderRadius: 8,
-          cursor: 'pointer',
-          fontSize: 14,
-          fontWeight: 600,
-          marginBottom: 24
-        }}
-      >
-        ← Retour à la création de groupes
-      </button>
+      {/* Boutons actions */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+        <button
+          onClick={() => navigate('/training-arena/setup')}
+          style={{
+            padding: '10px 20px',
+            background: '#f3f4f6',
+            border: '1px solid #d1d5db',
+            borderRadius: 8,
+            cursor: 'pointer',
+            fontSize: 14,
+            fontWeight: 600
+          }}
+        >
+          ← Retour à la création de groupes
+        </button>
+        
+        <button
+          onClick={async () => {
+            try {
+              const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+              const token = auth.token;
+              if (!token) {
+                alert('Connexion requise');
+                return;
+              }
+              
+              const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
+              const response = await fetch(`${backendUrl}/api/admin/logs/latest`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              
+              if (!response.ok) {
+                throw new Error(`Erreur ${response.status}`);
+              }
+              
+              const blob = await response.blob();
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `backend-logs-${new Date().toISOString().split('T')[0]}.log`;
+              document.body.appendChild(a);
+              a.click();
+              window.URL.revokeObjectURL(url);
+              document.body.removeChild(a);
+            } catch (err) {
+              alert(`Erreur téléchargement logs: ${err.message}`);
+            }
+          }}
+          style={{
+            padding: '10px 20px',
+            background: '#3b82f6',
+            color: 'white',
+            border: 'none',
+            borderRadius: 8,
+            cursor: 'pointer',
+            fontSize: 14,
+            fontWeight: 600
+          }}
+        >
+          📥 Logs Backend (Winston)
+        </button>
+      </div>
 
       {/* Message erreur */}
       {error && (
