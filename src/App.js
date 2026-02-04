@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import './App.css';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Carte from './components/Carte';
@@ -371,10 +372,13 @@ function App() {
           {/* Global Diagnostic floating button and panel */}
           <button
             onClick={() => {
-              // ✅ FIX: Vider logs avant d'ouvrir pour éviter freeze avec accumulation
+              // ✅ FIX DÉFINITIF: Vider logs SYNCHRONE avant ouverture (éviter render 500+ logs)
+              // flushSync force React à appliquer setState immédiatement AVANT diagOpen
               if (!diagOpen) {
-                setDiagLines([]);
-                setDiagRecLines([]);
+                flushSync(() => {
+                  setDiagLines([]);
+                  setDiagRecLines([]);
+                });
               }
               setDiagOpen(v=>!v);
             }}
