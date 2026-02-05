@@ -11,6 +11,23 @@ const logger = require('./logger'); // ✅ Winston logger professionnel
 // Load env (safe)
 try { require('dotenv').config({ path: require('path').join(__dirname, '.env') }); } catch {}
 const app = express();
+
+// ==========================================
+// CORS CONFIGURATION (MUST BE FIRST)
+// ==========================================
+const corsOptions = {
+  origin: [
+    'https://app.crazy-chrono.com',
+    'http://localhost:3000',
+    'http://localhost:5173'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '10mb' }));
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
@@ -45,7 +62,7 @@ const crazyArena = new CrazyArenaManager(io, supabaseAdmin);
 // Exposer crazyArena pour les routes (tournament.js)
 global.crazyArena = crazyArena;
 
-// ✅ Monter les routes admin logs (Winston)
+// ✅ Monter les routes admin logs (Winston) - APRÈS CORS
 const adminLogsRouter = require('./routes/adminLogs');
 app.use('/api/admin/logs', adminLogsRouter);
 logger.info('[Server] Admin logs API mounted at /api/admin/logs');
@@ -104,19 +121,7 @@ app.post('/admin/users/role', async (req, res) => {
   }
 });
 
-// Early middleware: enable CORS and JSON parsing before defining routes (including webhooks)
-const corsOptions = {
-  origin: [
-    'https://app.crazy-chrono.com',
-    'http://localhost:3000',
-    'http://localhost:5173'
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-};
-app.use(cors(corsOptions));
-app.use(express.json({ limit: '10mb' }));
+// CORS déjà configuré au début du fichier (ligne 16)
 
 // ===== Image Monitoring System =====
 const monitoringRoutes = require('./routes/monitoring');
