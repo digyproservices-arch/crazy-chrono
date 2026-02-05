@@ -356,14 +356,17 @@ export default function TrainingArenaManagerDashboard() {
     console.log(`[TrainingArenaManager] 🗑️ Suppression match ${matchId}`);
     socketRef.current.emit('delete-match', { matchId }, (response) => {
       console.log('[TrainingArenaManager] 📥 Réponse suppression:', response);
+      
+      // ✅ FIX: Supprimer de la liste même si backend échoue
+      // (matchs Training peuvent être perdus après redémarrage backend)
+      setMatches(prevMatches => prevMatches.filter(m => m.matchId !== matchId));
+      
       if (response && response.ok) {
         console.log('[TrainingArenaManager] ✅ Match supprimé avec succès');
-        // Retirer le match de la liste immédiatement
-        setMatches(prevMatches => prevMatches.filter(m => m.matchId !== matchId));
         alert('Match supprimé avec succès');
       } else {
-        console.error('[TrainingArenaManager] ❌ Erreur suppression:', response);
-        alert('Erreur lors de la suppression: ' + (response?.error || 'Inconnue'));
+        console.warn('[TrainingArenaManager] ⚠️ Backend: match déjà supprimé ou introuvable');
+        alert('Match retiré de la liste (peut avoir été supprimé automatiquement après un redémarrage)');
       }
     });
   };
