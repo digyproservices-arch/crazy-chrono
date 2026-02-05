@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getBackendUrl } from '../utils/apiHelpers';
 import supabase from '../utils/supabaseClient';
 
 function AdminDashboard() {
@@ -176,7 +177,8 @@ function AdminDashboard() {
                     return;
                   }
                   
-                  const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
+                  const backendUrl = getBackendUrl();
+                  console.log('[AdminDashboard] Téléchargement logs depuis:', backendUrl);
                   const response = await fetch(`${backendUrl}/api/admin/logs/latest`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                   });
