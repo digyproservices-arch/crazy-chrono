@@ -8,6 +8,8 @@
 // depuis crazyArenaManager car elles nécessitent tout le contexte du match.
 // TODO: Créer helpers de sauvegarde séparés si besoin de logique spécialisée
 
+const logger = require('./logger');
+
 class CrazyArenaManager {
   constructor(io, supabase = null) {
     this.io = io;
@@ -1754,11 +1756,15 @@ class CrazyArenaManager {
   deleteMatch(matchId) {
     const match = this.matches.get(matchId);
     if (!match) {
-      console.warn(`[CrazyArena] deleteMatch: Match ${matchId} introuvable`);
+      logger.warn('[CrazyArena] deleteMatch: Match introuvable', { matchId });
       return { ok: false, error: 'Match introuvable' };
     }
 
-    console.log(`[CrazyArena] 🗑️ Suppression manuelle du match ${matchId} (mode: ${match.mode})`);
+    logger.info('[CrazyArena] Suppression manuelle du match', { 
+      matchId, 
+      mode: match.mode,
+      playersCount: match.players.length 
+    });
 
     // Notifier tous les joueurs que le match a été supprimé
     const eventName = match.mode === 'training' ? 'training:match-deleted' : 'arena:match-deleted';
@@ -1782,7 +1788,7 @@ class CrazyArenaManager {
     // Supprimer le match de la Map
     this.matches.delete(matchId);
     
-    console.log(`[CrazyArena] ✅ Match ${matchId} supprimé avec succès`);
+    logger.info('[CrazyArena] Match supprimé avec succès', { matchId });
     return { ok: true };
   }
 

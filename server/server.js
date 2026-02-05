@@ -1430,8 +1430,15 @@ io.on('connection', (socket) => {
 
   // Training/Arena: Suppression manuelle d'un match par le prof
   socket.on('delete-match', ({ matchId }, cb) => {
-    console.log(`[Server] Demande suppression match ${matchId}`);
+    logger.info('[Server] Demande suppression match', { matchId, socketId: socket.id });
     const result = crazyArena.deleteMatch(matchId);
+    
+    if (result.ok) {
+      logger.info('[Server] Match supprimé avec succès', { matchId });
+    } else {
+      logger.warn('[Server] Échec suppression match', { matchId, error: result.error });
+    }
+    
     if (typeof cb === 'function') {
       cb(result);
     }
