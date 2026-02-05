@@ -1,67 +1,60 @@
 // ==========================================
 // WINSTON LOGGER - LOGGING PROFESSIONNEL
-// Logs automatiques fichiers avec rotation quotidienne
+// Logs persistants vers Supabase (filesystem Render éphémère)
 // ==========================================
 
 const winston = require('winston');
-const DailyRotateFile = require('winston-daily-rotate-file');
-const path = require('path');
+const SupabaseTransport = require('./transports/supabaseTransport');
+
+// Import Supabase client (doit être initialisé avant logger)
+let supabaseClient = null;
 
 // Format personnalisé pour logs lisibles
 const customFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
   winston.format.errors({ stack: true }),
-  winston.format.printf(({ level, message, timestamp, ...meta }) => {
-    let msg = `${timestamp} [${level.toUpperCase()}] ${message}`;
-    if (Object.keys(meta).length > 0) {
-      msg += ` ${JSON.stringify(meta)}`;
-    }
-    return msg;
-  })
+  winston.format.json() // JSON pour Supabase
 );
 
-// Configuration rotation fichiers
-const fileRotateTransport = new DailyRotateFile({
-  filename: path.join(__dirname, '../logs/app-%DATE%.log'),
-  datePattern: 'YYYY-MM-DD',
-  maxSize: '20m', // Max 20MB par fichier
-  maxFiles: '14d', // Garder 14 jours
-  format: customFormat,
-  level: 'debug'
-});
-
-// Logger principal
+// Logger principal (sera configuré après init Supabase)
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'debug',
   format: customFormat,
   transports: [
-    // Logs fichiers avec rotation
-    fileRotateTransport,
-    // Console (désactivé en production pour performance)
+    // Console uniquement en développement
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.colorize(),
-        customFormat
+        winston.format.printf(({ level, message, timestamp, ...meta }) => {
+          let msg = `${timestamp} [${level.toUpperCase()}] ${message}`;
+          if (Object.keys(meta).length > 0 && Object.keys(meta).filter(k => !['level', 'message', 'timestamp'].includes(k)).length > 0) {
+            msg += ` ${JSON.stringify(meta)}`;
+          }
+          return msg;
+        })
       ),
       silent: process.env.NODE_ENV === 'production'
     })
-  ],
-  // Gérer les erreurs non catchées
-  exceptionHandlers: [
-    new DailyRotateFile({
-      filename: path.join(__dirname, '../logs/exceptions-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      maxFiles: '14d'
-    })
-  ],
-  rejectionHandlers: [
-    new DailyRotateFile({
-      filename: path.join(__dirname, '../logs/rejections-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      maxFiles: '14d'
-    })
   ]
 });
+
+// Fonction pour initialiser le transport Supabase
+logger.initSupabase = (supabase) => {
+  if (!supabase) {
+    console.warn('[Logger] Supabase client not provided, logs will only go to console');
+    return;
+  }
+  
+  supabaseClient = supabase;
+  
+  // Ajouter le transport Supabase
+  logger.add(new SupabaseTransport({ 
+    supabase,
+    level: 'debug'
+  }));
+  
+  logger.info('[Logger] Supabase transport initialized - logs will be persisted to DB');
+};
 
 // Helper methods pour logging événements spécifiques
 logger.socket = (event, data) => {

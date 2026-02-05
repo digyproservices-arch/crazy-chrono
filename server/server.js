@@ -30,6 +30,9 @@ try {
   if (supaUrl && supaSrv) {
     supabaseAdmin = createClient(supaUrl, supaSrv, { auth: { persistSession: false } });
     console.log('[Server] Supabase Admin client initialized');
+    
+    // ✅ Initialiser Winston avec transport Supabase pour logs persistants
+    logger.initSupabase(supabaseAdmin);
   }
 } catch (e) {
   console.warn('[Server] Supabase admin not configured:', e.message);

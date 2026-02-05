@@ -1,12 +1,10 @@
 // ==========================================
-// ADMIN LOGS ENDPOINT - Téléchargement logs Winston
-// Endpoint sécurisé pour télécharger logs backend
+// ADMIN LOGS ENDPOINT - Téléchargement logs Winston depuis Supabase
+// Endpoint sécurisé pour télécharger logs backend (persistants en DB)
 // ==========================================
 
 const express = require('express');
 const router = express.Router();
-const fs = require('fs').promises;
-const path = require('path');
 const logger = require('../logger');
 
 // Middleware auth admin (simple check - améliorer avec JWT en prod)
@@ -20,37 +18,78 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-// GET /api/admin/logs/latest - Télécharger le fichier de logs du jour
+// Récupérer le client Supabase depuis global (initialisé dans server.js)
+const getSupabase = () => {
+  // Le supabaseAdmin est stocké dans le module parent
+  const { createClient } = require('@supabase/supabase-js');
+  const supaUrl = process.env.SUPABASE_URL;
+  const supaSrv = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supaUrl || !supaSrv) {
+    throw new Error('Supabase not configured');
+  }
+  
+  return createClient(supaUrl, supaSrv, { auth: { persistSession: false } });
+};
+
+// GET /api/admin/logs/latest - Télécharger logs depuis Supabase
 router.get('/latest', requireAdmin, async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const logFileName = `app-${today}.log`;
-    const logFilePath = path.join(__dirname, '../../logs', logFileName);
+    const days = parseInt(req.query.days) || 1; // Nombre de jours (défaut: 1)
+    const limit = parseInt(req.query.limit) || 1000; // Limite de lignes (défaut: 1000)
     
-    logger.info('[AdminLogs] Log download request', { file: logFileName, ip: req.ip });
+    logger.info('[AdminLogs] Log download request', { days, limit, ip: req.ip });
     
-    // Vérifier si le fichier existe
-    try {
-      await fs.access(logFilePath);
-    } catch (err) {
-      logger.warn('[AdminLogs] Log file not found', { file: logFileName });
-      return res.status(404).json({ 
+    // Calculer la date de début
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    
+    // Récupérer les logs depuis Supabase
+    const supabase = getSupabase();
+    const { data: logs, error } = await supabase
+      .from('backend_logs')
+      .select('*')
+      .gte('timestamp', startDate.toISOString())
+      .order('timestamp', { ascending: false })
+      .limit(limit);
+    
+    if (error) {
+      logger.error('[AdminLogs] Error fetching logs from Supabase', { error: error.message });
+      return res.status(500).json({ 
         ok: false, 
-        error: 'Log file not found',
-        message: `No logs for today (${today})`
+        error: 'Failed to fetch logs',
+        message: error.message
       });
     }
     
-    // Lire et envoyer le fichier
-    const logContent = await fs.readFile(logFilePath, 'utf-8');
+    if (!logs || logs.length === 0) {
+      logger.warn('[AdminLogs] No logs found', { days, startDate: startDate.toISOString() });
+      return res.status(404).json({ 
+        ok: false, 
+        error: 'No logs found',
+        message: `No logs found for the last ${days} day(s)`
+      });
+    }
     
-    res.setHeader('Content-Type', 'text/plain');
-    res.setHeader('Content-Disposition', `attachment; filename="${logFileName}"`);
+    // Formatter les logs en texte lisible
+    const logLines = logs.map(log => {
+      const metaStr = Object.keys(log.meta || {}).length > 0 
+        ? ` ${JSON.stringify(log.meta)}` 
+        : '';
+      return `${log.timestamp} [${log.level.toUpperCase()}] ${log.message}${metaStr}`;
+    });
+    
+    const logContent = logLines.join('\n');
+    const fileName = `backend-logs-${days}days-${new Date().toISOString().split('T')[0]}.log`;
+    
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.send(logContent);
     
     logger.info('[AdminLogs] Log file sent successfully', { 
-      file: logFileName, 
-      sizeKB: Math.round(logContent.length / 1024) 
+      file: fileName, 
+      sizeKB: Math.round(logContent.length / 1024),
+      logCount: logs.length
     });
   } catch (err) {
     logger.error('[AdminLogs] Error downloading logs', { error: err.message, stack: err.stack });
