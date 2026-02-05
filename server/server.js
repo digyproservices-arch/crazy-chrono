@@ -105,7 +105,17 @@ app.post('/admin/users/role', async (req, res) => {
 });
 
 // Early middleware: enable CORS and JSON parsing before defining routes (including webhooks)
-app.use(cors());
+const corsOptions = {
+  origin: [
+    'https://app.crazy-chrono.com',
+    'http://localhost:3000',
+    'http://localhost:5173'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 
 // ===== Image Monitoring System =====
@@ -366,7 +376,7 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) || 4000 : 4000;
 // tous les joueurs concernés reçoivent 1 point et l'événement est marqué tie=true
 const TIE_WINDOW_MS = 200;
 
-app.use(cors());
+// CORS déjà configuré plus haut (ligne 118)
 app.use(bodyParser.json({ limit: '10mb' }));
 // Stripe webhooks require raw body; mount a dedicated raw parser on that route below
 
