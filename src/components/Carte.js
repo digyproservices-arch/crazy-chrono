@@ -1739,6 +1739,10 @@ const Carte = () => {
         if (Number.isFinite(roundIndex)) {
           setRoundsPlayed(roundIndex + 1);
         }
+        // ✅ FIX: Mettre à jour roundsPerSession pour afficher "Manche X/Total"
+        if (Number.isFinite(totalRounds)) {
+          setRoundsPerSession(totalRounds);
+        }
       });
       
       s.on('disconnect', () => {
