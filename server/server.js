@@ -1262,28 +1262,36 @@ io.on('connection', (socket) => {
         const newSeed = Math.floor(Date.now() % 2147483647);
         room.roundSeed = newSeed;
         
+        logger.info('[Server][Multijoueur] Démarrage régénération carte', { 
+          roomCode: currentRoom, 
+          excludedPairs: 0,
+          newSeed 
+        });
+        
         let newZones = [];
         try {
           const config = {
             themes: room.selectedThemes || [],
             classes: room.selectedClasses || [],
-            // ✅ FIX COMME ARENA: Ne jamais exclure de paires (ligne 349 crazyArenaManager.js)
-            // Arena passe toujours new Set() même si match.validatedPairIds existe
             excludedPairIds: new Set(),
             logFn: (level, message, data) => emitServerLog(currentRoom, level, message, data)
           };
           const regenResult = generateRoundZones(newSeed, config);
-          // Extraire le tableau zones depuis l'objet retourné {zones, goodPairIds}
           newZones = Array.isArray(regenResult) ? regenResult : (regenResult?.zones || []);
           room.currentZones = newZones;
-          console.log(`[MP] Regenerated ${newZones.length} zones after pair validation (excluded: ${config.excludedPairIds.size})`);
-          emitServerLog(currentRoom, 'info', '[MP] Zones regenerated after validation', {
+          
+          logger.info('[Server][Multijoueur] Carte régénérée', { 
+            roomCode: currentRoom, 
             zonesCount: newZones.length,
             excludedPairsCount: config.excludedPairIds.size,
             seed: newSeed
           });
         } catch (err) {
-          console.error(`[MP] Failed to regenerate zones:`, err);
+          logger.error('[Server][Multijoueur] Erreur régénération carte', { 
+            roomCode: currentRoom, 
+            error: err.message,
+            stack: err.stack?.slice(0, 200)
+          });
         }
         
         // Réinitialiser l'état pour permettre la validation de la nouvelle carte
