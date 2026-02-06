@@ -13,6 +13,7 @@ function AdminDashboard() {
     loading: true
   });
   const [recentUsers, setRecentUsers] = useState([]);
+  const [logsCopied, setLogsCopied] = useState(false);
 
   useEffect(() => {
     async function fetchStats() {
@@ -166,7 +167,7 @@ function AdminDashboard() {
               Statistiques à venir...
             </div>
             
-            {/* Bouton téléchargement logs backend Winston */}
+            {/* Bouton copier logs backend Winston */}
             <button
               onClick={async () => {
                 try {
@@ -178,7 +179,65 @@ function AdminDashboard() {
                   }
                   
                   const backendUrl = getBackendUrl();
-                  console.log('[AdminDashboard] Téléchargement logs depuis:', backendUrl);
+                  console.log('[AdminDashboard] Récupération logs depuis:', backendUrl);
+                  const response = await fetch(`${backendUrl}/api/admin/logs/latest`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  });
+                  
+                  if (!response.ok) {
+                    throw new Error(`Erreur ${response.status}`);
+                  }
+                  
+                  const logsText = await response.text();
+                  
+                  // Copier dans le presse-papiers
+                  await navigator.clipboard.writeText(logsText);
+                  
+                  // Feedback visuel
+                  setLogsCopied(true);
+                  setTimeout(() => setLogsCopied(false), 3000);
+                  
+                  console.log('[AdminDashboard] Logs copiés dans le presse-papiers');
+                } catch (err) {
+                  console.error('[AdminDashboard] Erreur copie logs:', err);
+                  alert(`Erreur copie logs: ${err.message}`);
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '12px 20px',
+                background: logsCopied ? '#10b981' : '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 600,
+                transition: 'all 0.3s',
+                marginBottom: '10px'
+              }}
+              onMouseEnter={(e) => {
+                if (!logsCopied) e.target.style.background = '#2563eb';
+              }}
+              onMouseLeave={(e) => {
+                if (!logsCopied) e.target.style.background = '#3b82f6';
+              }}
+            >
+              {logsCopied ? '✅ Logs copiés !' : '📋 Copier Logs Backend'}
+            </button>
+            
+            {/* Bouton téléchargement (option secondaire) */}
+            <button
+              onClick={async () => {
+                try {
+                  const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+                  const token = auth.token;
+                  if (!token) {
+                    alert('Connexion requise');
+                    return;
+                  }
+                  
+                  const backendUrl = getBackendUrl();
                   const response = await fetch(`${backendUrl}/api/admin/logs/latest`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                   });
@@ -202,20 +261,26 @@ function AdminDashboard() {
               }}
               style={{
                 width: '100%',
-                padding: '12px 20px',
-                background: '#3b82f6',
-                color: 'white',
-                border: 'none',
+                padding: '10px 16px',
+                background: 'transparent',
+                color: '#94a3b8',
+                border: '1px solid #334155',
                 borderRadius: 8,
                 cursor: 'pointer',
-                fontSize: 14,
-                fontWeight: 600,
-                transition: 'background 0.2s'
+                fontSize: 13,
+                fontWeight: 500,
+                transition: 'all 0.2s'
               }}
-              onMouseEnter={(e) => e.target.style.background = '#2563eb'}
-              onMouseLeave={(e) => e.target.style.background = '#3b82f6'}
+              onMouseEnter={(e) => {
+                e.target.style.background = '#1e293b';
+                e.target.style.color = '#e2e8f0';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'transparent';
+                e.target.style.color = '#94a3b8';
+              }}
             >
-              📥 Télécharger Logs Backend (Winston)
+              📥 Télécharger fichier
             </button>
           </div>
 
