@@ -1403,6 +1403,13 @@ io.on('connection', (socket) => {
 
   // Training: Validation de paire (IDENTIQUE HANDLER ARENA)
   socket.on('training:pair-validated', (data) => {
+    logger.info('[Server][Training] Paire validée', { 
+      matchId: data.matchId?.slice(-8), 
+      studentId: data.studentId,
+      zoneA: data.zoneA, 
+      zoneB: data.zoneB,
+      socketId: socket.id 
+    });
     crazyArena.trainingPairValidated(socket, data);
   });
 

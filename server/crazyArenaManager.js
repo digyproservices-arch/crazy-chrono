@@ -673,49 +673,94 @@ class CrazyArenaManager {
    */
   trainingPairValidated(socket, data) {
     const matchId = this.playerMatches.get(socket.id);
-    if (!matchId) return;
+    if (!matchId) {
+      logger.warn('[CrazyArena][Training] trainingPairValidated: Aucun match pour socket', { socketId: socket.id });
+      return;
+    }
 
     const match = this.matches.get(matchId);
-    if (!match || (match.status !== 'playing' && match.status !== 'tiebreaker' && match.status !== 'tiebreaker-countdown')) return;
+    if (!match) {
+      logger.error('[CrazyArena][Training] trainingPairValidated: Match introuvable', { matchId, socketId: socket.id });
+      return;
+    }
+    
+    if (match.status !== 'playing' && match.status !== 'tiebreaker' && match.status !== 'tiebreaker-countdown') {
+      logger.warn('[CrazyArena][Training] trainingPairValidated: Statut invalide', { matchId, status: match.status, expected: ['playing', 'tiebreaker', 'tiebreaker-countdown'] });
+      return;
+    }
 
     const player = match.players.find(p => p.socketId === socket.id);
-    if (!player) return;
+    if (!player) {
+      logger.warn('[CrazyArena][Training] trainingPairValidated: Joueur introuvable', { matchId, socketId: socket.id });
+      return;
+    }
 
     const { studentId, isCorrect, timeMs, pairId, zoneAId, zoneBId } = data;
 
-    console.log(`[Training] Paire validée: ${studentId}, correct=${isCorrect}, pairId=${pairId}`);
+    logger.info('[CrazyArena][Training] Paire validée', { 
+      matchId, 
+      studentId, 
+      isCorrect, 
+      timeMs,
+      pairId, 
+      zoneA: zoneAId, 
+      zoneB: zoneBId,
+      status: match.status,
+      fastBonus: timeMs < 3000
+    });
 
     // Mettre à jour le score
     if (isCorrect) {
       // Mode tiebreaker
       if (match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown') {
-        player.tiebreakerScore = (player.tiebreakerScore || 0) + 1;
+        const oldScore = player.tiebreakerScore || 0;
+        player.tiebreakerScore = oldScore + 1;
         player.tiebreakerPairs = (player.tiebreakerPairs || 0) + 1;
         
         if (timeMs < 3000) {
           player.tiebreakerScore += 1;
+          logger.info('[CrazyArena][Training] Bonus rapidité tiebreaker', { matchId, studentId, timeMs, bonusPoints: 1 });
         }
         
         match.tiebreakerPairsFound = (match.tiebreakerPairsFound || 0) + 1;
-        console.log(`[Training] 🎯 TIEBREAKER: ${match.tiebreakerPairsFound}/${match.tiebreakerPairsToFind} paires trouvées`);
+        
+        logger.info('[CrazyArena][Training] Score tiebreaker mis à jour', { 
+          matchId, 
+          studentId,
+          oldScore,
+          newScore: player.tiebreakerScore,
+          pairsFound: match.tiebreakerPairsFound,
+          pairsToFind: match.tiebreakerPairsToFind
+        });
         
         // ✅ CRITIQUE: Émettre scores tiebreaker aux clients
+        const playersData = match.players.map(p => ({
+          studentId: p.studentId,
+          name: p.name,
+          avatar: p.avatar,
+          score: p.tiebreakerScore || 0,
+          pairsValidated: p.tiebreakerPairs || 0,
+          errors: p.errors || 0,
+          ready: p.ready || false
+        }));
+        
         this.io.to(matchId).emit('training:players-update', {
           matchId,
-          players: match.players.map(p => ({
-            studentId: p.studentId,
-            name: p.name,
-            avatar: p.avatar,
-            score: p.tiebreakerScore || 0,  // Scores tiebreaker
-            pairsValidated: p.tiebreakerPairs || 0,
-            errors: p.errors || 0,
-            ready: p.ready || false
-          }))
+          players: playersData
         });
-        console.log(`[Training] 📢 Scores tiebreaker émis: ${player.name} = ${player.tiebreakerScore} pts`);
+        
+        logger.info('[CrazyArena][Training] Événement training:players-update émis (tiebreaker)', { 
+          matchId, 
+          playerScores: playersData.map(p => ({ studentId: p.studentId, score: p.score })),
+          event: 'training:players-update'
+        });
         
         if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
-          console.log(`[Training] 🏁 TIEBREAKER TERMINÉ`);
+          logger.info('[CrazyArena][Training] Tiebreaker terminé - toutes paires trouvées', { 
+            matchId, 
+            pairsFound: match.tiebreakerPairsFound,
+            pairsToFind: match.tiebreakerPairsToFind
+          });
           this.endTrainingGame(matchId);
           return;
         }
@@ -723,50 +768,101 @@ class CrazyArenaManager {
         // Générer nouvelle carte tiebreaker
         setTimeout(async () => {
           try {
+            logger.info('[CrazyArena][Training] Génération nouvelle carte tiebreaker', { 
+              matchId, 
+              pairsFound: match.tiebreakerPairsFound,
+              pairsRemaining: match.tiebreakerPairsToFind - match.tiebreakerPairsFound
+            });
+            
             const newZones = await this.generateZones(match.config, matchId);
             match.zones = newZones;
             
-            this.io.to(matchId).emit('training:round-new', {
+            const payload = {
               zones: newZones,
               roundIndex: match.tiebreakerPairsFound,
               totalRounds: match.tiebreakerPairsToFind,
               timestamp: Date.now()
+            };
+            
+            this.io.to(matchId).emit('training:round-new', payload);
+            
+            logger.info('[CrazyArena][Training] Événement training:round-new émis (tiebreaker)', { 
+              matchId, 
+              zonesCount: newZones?.length || 0,
+              roundIndex: match.tiebreakerPairsFound,
+              event: 'training:round-new'
             });
           } catch (err) {
-            console.error('[Training] Erreur génération carte tiebreaker:', err);
+            logger.error('[CrazyArena][Training] Erreur génération carte tiebreaker', { 
+              matchId, 
+              error: err.message,
+              stack: err.stack?.slice(0, 200)
+            });
           }
         }, 1500);
         
         return;
       } else {
         // Mode normal
-        player.score = (player.score || 0) + 1;
+        const oldScore = player.score || 0;
+        player.score = oldScore + 1;
         player.pairsValidated = (player.pairsValidated || 0) + 1;
         
         if (timeMs < 3000) {
           player.score += 1;
+          logger.info('[CrazyArena][Training] Bonus rapidité (mode normal)', { matchId, studentId, timeMs, bonusPoints: 1 });
         }
+        
+        logger.info('[CrazyArena][Training] Score mis à jour (mode normal)', { 
+          matchId, 
+          studentId,
+          oldScore,
+          newScore: player.score,
+          pairsValidated: player.pairsValidated
+        });
       }
     } else {
       // Erreur: retirer points
       if (match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown') {
-        player.tiebreakerScore = Math.max(0, (player.tiebreakerScore || 0) - 2);
+        const oldScore = player.tiebreakerScore || 0;
+        player.tiebreakerScore = Math.max(0, oldScore - 2);
+        
+        logger.info('[CrazyArena][Training] Paire incorrecte - pénalité tiebreaker', { 
+          matchId, 
+          studentId,
+          oldScore,
+          newScore: player.tiebreakerScore,
+          penalty: -2
+        });
         
         // ✅ Émettre scores tiebreaker après erreur
-        this.io.to(matchId).emit('training:players-update', {
+        const playersData = match.players.map(p => ({
+          studentId: p.studentId,
+          name: p.name,
+          avatar: p.avatar,
+          score: p.tiebreakerScore || 0,
+          pairsValidated: p.tiebreakerPairs || 0,
+          errors: p.errors || 0,
+          ready: p.ready || false
+        }));
+        
+        this.io.to(matchId).emit('training:players-update', playersData);
+        
+        logger.info('[CrazyArena][Training] Événement training:players-update émis après erreur (tiebreaker)', { 
           matchId,
-          players: match.players.map(p => ({
-            studentId: p.studentId,
-            name: p.name,
-            avatar: p.avatar,
-            score: p.tiebreakerScore || 0,
-            pairsValidated: p.tiebreakerPairs || 0,
-            errors: p.errors || 0,
-            ready: p.ready || false
-          }))
+          event: 'training:players-update'
         });
       } else {
-        player.score = Math.max(0, player.score - 2);
+        const oldScore = player.score;
+        player.score = Math.max(0, oldScore - 2);
+        
+        logger.info('[CrazyArena][Training] Paire incorrecte - pénalité (mode normal)', { 
+          matchId, 
+          studentId,
+          oldScore,
+          newScore: player.score,
+          penalty: -2
+        });
       }
       player.errors = (player.errors || 0) + 1;
     }
@@ -784,60 +880,113 @@ class CrazyArenaManager {
       // ✅ CRITIQUE: Calculer playerIdx canonique (ordre match.players) pour couleurs cohérentes
       const playerIdx = match.players.findIndex(p => p.studentId === studentId);
       
-      console.log(`[Training] Émission training:pair-validated à room ${matchId}`, { studentId, playerIdx });
-      this.io.to(matchId).emit('training:pair-validated', {
+      const pairValidatedPayload = {
         studentId,
         playerName: player.name,
-        playerIdx,  // ✅ NOUVEAU: Index canonique pour couleur cohérente
+        playerIdx,
         pairId,
         zoneAId,
         zoneBId,
         timestamp: Date.now()
+      };
+      
+      this.io.to(matchId).emit('training:pair-validated', pairValidatedPayload);
+      
+      logger.info('[CrazyArena][Training] Événement training:pair-validated émis', { 
+        matchId, 
+        studentId,
+        playerIdx,
+        pairId,
+        zoneA: zoneAId,
+        zoneB: zoneBId,
+        event: 'training:pair-validated'
       });
       
       // ✅ FIFO: Tracker les 15 dernières paires validées
       if (!match.validatedPairIds) match.validatedPairIds = new Set();
       
       const MAX_EXCLUDED_PAIRS = 15;
+      const oldSize = match.validatedPairIds.size;
+      
       if (match.validatedPairIds.size >= MAX_EXCLUDED_PAIRS) {
         const pairIdsArray = Array.from(match.validatedPairIds);
         const oldestPairId = pairIdsArray[0];
         match.validatedPairIds.delete(oldestPairId);
+        logger.info('[CrazyArena][Training] FIFO: Paire la plus ancienne supprimée', { matchId, oldestPairId, maxSize: MAX_EXCLUDED_PAIRS });
       }
       
       match.validatedPairIds.add(pairId);
-      console.log(`[Training] 📊 FIFO: ${match.validatedPairIds.size}/${MAX_EXCLUDED_PAIRS} paires exclues`);
+      
+      logger.info('[CrazyArena][Training] FIFO: Paire ajoutée aux exclusions', { 
+        matchId, 
+        pairId,
+        excludedCount: match.validatedPairIds.size,
+        maxExcluded: MAX_EXCLUDED_PAIRS
+      });
       
       // ✅ NOUVELLE CARTE IMMÉDIATEMENT
-      console.log(`[Training] 🎉 Génération nouvelle carte avec exclusions...`);
+      logger.info('[CrazyArena][Training] Démarrage génération nouvelle carte', { 
+        matchId, 
+        excludedPairs: match.validatedPairIds.size
+      });
       
       setTimeout(async () => {
         try {
+          logger.info('[CrazyArena][Training] Génération nouvelle carte (mode normal)', { 
+            matchId, 
+            roundsPlayed: match.roundsPlayed || 0,
+            totalRounds: match.config.rounds || null
+          });
+          
           const newZones = await this.generateZones(match.config, matchId);
           match.zones = newZones;
           
-          console.log(`[Training] 🎯 Nouvelle carte: ${newZones.length} zones`);
+          logger.info('[CrazyArena][Training] Nouvelle carte générée', { 
+            matchId, 
+            zonesCount: newZones?.length || 0
+          });
           
-          this.io.to(matchId).emit('training:round-new', {
+          const roundPayload = {
             zones: newZones,
             roundIndex: match.roundsPlayed || 0,
             totalRounds: match.config.rounds || null,
             timestamp: Date.now()
+          };
+          
+          this.io.to(matchId).emit('training:round-new', roundPayload);
+          
+          logger.info('[CrazyArena][Training] Événement training:round-new émis (mode normal)', { 
+            matchId, 
+            zonesCount: newZones?.length || 0,
+            roundIndex: match.roundsPlayed || 0,
+            event: 'training:round-new'
           });
         } catch (err) {
-          console.error('[Training] Erreur génération carte:', err);
+          logger.error('[CrazyArena][Training] Erreur génération carte (mode normal)', { 
+            matchId, 
+            error: err.message,
+            stack: err.stack?.slice(0, 200)
+          });
         }
       }, 1500);
     }
 
     // Diffuser les scores
-    this.io.to(matchId).emit('training:scores-update', {
+    const scoresPayload = {
       scores: match.players.map(p => ({
         studentId: p.studentId,
         name: p.name,
         score: p.score || 0,
         pairsValidated: p.pairsValidated || 0
       })).sort((a, b) => b.score - a.score)
+    };
+    
+    this.io.to(matchId).emit('training:scores-update', scoresPayload);
+    
+    logger.info('[CrazyArena][Training] Événement training:scores-update émis', { 
+      matchId, 
+      playerCount: match.players.length,
+      event: 'training:scores-update'
     });
   }
 
