@@ -1467,6 +1467,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('arena:pair-validated', (data) => {
+    logger.info('[Server][Arena] Paire validée', { 
+      matchId: data.matchId?.slice(-8), 
+      studentId: data.studentId,
+      zoneA: data.zoneA, 
+      zoneB: data.zoneB,
+      socketId: socket.id 
+    });
     crazyArena.pairValidated(socket, data);
   });
 
