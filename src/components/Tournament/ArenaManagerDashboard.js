@@ -269,6 +269,30 @@ export default function ArenaManagerDashboard() {
     socketRef.current.emit('arena:start-tiebreaker', { matchId });
   };
 
+  // Supprimer un match manuellement
+  const handleDeleteMatch = (matchId) => {
+    if (!socketRef.current) {
+      alert('Erreur: Socket non connecté');
+      return;
+    }
+    
+    console.log(`[ArenaManager] 🗑️ Suppression match ${matchId}`);
+    socketRef.current.emit('delete-match', { matchId }, (response) => {
+      console.log('[ArenaManager] 📥 Réponse suppression:', response);
+      
+      // ✅ Supprimer de la liste même si backend échoue
+      setMatches(prevMatches => prevMatches.filter(m => m.matchId !== matchId));
+      
+      if (response && response.ok) {
+        console.log('[ArenaManager] ✅ Match supprimé avec succès');
+        alert('Match supprimé avec succès');
+      } else {
+        console.warn('[ArenaManager] ⚠️ Backend: match déjà supprimé ou introuvable');
+        alert('Match retiré de la liste (peut avoir été supprimé automatiquement)');
+      }
+    });
+  };
+
   // Voir le lobby d'un match (optionnel)
   const handleViewLobby = (roomCode) => {
     navigate(`/crazy-arena/lobby/${roomCode}`);
@@ -564,6 +588,29 @@ export default function ArenaManagerDashboard() {
                     }}
                   >
                     👁️ Voir lobby
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Voulez-vous vraiment supprimer le match "${match.groupName}" ?\n\nLes joueurs seront déconnectés et le match sera perdu.`)) {
+                        handleDeleteMatch(match.matchId);
+                      }
+                    }}
+                    style={{
+                      padding: '12px 24px',
+                      background: '#ef4444',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 8,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = '#dc2626'}
+                    onMouseLeave={(e) => e.target.style.background = '#ef4444'}
+                  >
+                    🗑️ Supprimer
                   </button>
                 </div>
 
