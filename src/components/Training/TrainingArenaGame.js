@@ -337,8 +337,8 @@ export default function TrainingArenaGame() {
               return;
             }
             
-            const matchId = new URLSearchParams(window.location.search).get('training');
             const trainingData = JSON.parse(localStorage.getItem('cc_training_arena_game') || '{}');
+            const matchId = trainingData.matchId;
             const myStudentId = trainingData.myStudentId;
             const myName = players.find(p => p.studentId === myStudentId)?.name || 'Joueur';
             
