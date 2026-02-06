@@ -531,48 +531,50 @@ class CrazyArenaManager {
    * Joueur prêt pour départage Training
    */
   trainingPlayerReadyForTiebreaker(matchId, studentId, playerName, io) {
-    console.log(`[CrazyArena][Training] 🔍 playerReadyForTiebreaker appelé: ${playerName} (${studentId}) pour match ${matchId}`);
+    logger.info('[CrazyArena][Training] playerReadyForTiebreaker appelé', { matchId, studentId, playerName });
     
     const match = this.matches.get(matchId);
     if (!match) {
-      console.error(`[CrazyArena][Training] ❌ Match ${matchId} introuvable`);
+      logger.error('[CrazyArena][Training] Match introuvable pour tiebreaker', { matchId, studentId, matchesCount: this.matches.size });
       return;
     }
 
-    console.log(`[CrazyArena][Training] 🔍 Match trouvé, status: ${match.status}`);
+    logger.info('[CrazyArena][Training] Match trouvé pour tiebreaker', { matchId, status: match.status });
     
     if (match.status !== 'tie-waiting') {
-      console.error(`[CrazyArena][Training] ❌ Match ${matchId} n'est pas en attente de départage (status: ${match.status})`);
+      logger.error('[CrazyArena][Training] Match pas en attente départage', { matchId, status: match.status, expected: 'tie-waiting' });
       return;
     }
 
     if (!match.playersReadyForTiebreaker) {
       match.playersReadyForTiebreaker = new Set();
-      console.log(`[CrazyArena][Training] 🔍 Set playersReadyForTiebreaker initialisé`);
+      logger.info('[CrazyArena][Training] Set playersReadyForTiebreaker initialisé', { matchId });
     }
 
     match.playersReadyForTiebreaker.add(studentId);
-    console.log(`[CrazyArena][Training] ✋ ${playerName} prêt pour départage (${match.playersReadyForTiebreaker.size}/${match.tiedPlayers.length})`);
     
-    // 🔍 DEBUG: Vérifier l'état du Set après ajout
-    console.log(`[CrazyArena][Training] 🔍 DEBUG playersReadyForTiebreaker:`, {
-      isSet: match.playersReadyForTiebreaker instanceof Set,
-      size: match.playersReadyForTiebreaker.size,
-      values: Array.from(match.playersReadyForTiebreaker),
-      tiedPlayers: match.tiedPlayers,
-      matchId: matchId.slice(-8)
+    const readyCount = match.playersReadyForTiebreaker.size;
+    const totalCount = match.tiedPlayers.length;
+    
+    logger.info('[CrazyArena][Training] Joueur marqué prêt pour départage', { 
+      matchId, 
+      studentId, 
+      playerName,
+      readyCount,
+      totalCount,
+      allReady: readyCount === totalCount
     });
 
     const payload = {
       matchId,
-      readyCount: match.playersReadyForTiebreaker.size,
-      totalCount: match.tiedPlayers.length,
+      readyCount,
+      totalCount,
       readyPlayers: Array.from(match.playersReadyForTiebreaker)
     };
     
-    console.log(`[CrazyArena][Training] 📢 Émission training:tiebreaker-ready-update:`, payload);
+    logger.info('[CrazyArena][Training] Émission training:tiebreaker-ready-update', payload);
     io.emit('training:tiebreaker-ready-update', payload);
-    console.log(`[CrazyArena][Training] ✅ training:tiebreaker-ready-update émis`);
+    logger.info('[CrazyArena][Training] training:tiebreaker-ready-update émis avec succès', { matchId, readyCount, totalCount });
   }
 
   /**
