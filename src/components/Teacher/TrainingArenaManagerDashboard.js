@@ -340,7 +340,7 @@ export default function TrainingArenaManagerDashboard() {
   const handleStartTiebreaker = (matchId) => {
     if (!socketRef.current) return;
     
-    if (!window.confirm('Lancer la manche de départage (3 cartes - 30 secondes) ?')) return;
+    if (!window.confirm('Lancer la manche de départage (3 cartes successives) ?')) return;
     
     console.log(`[TrainingArenaManager] 🔄 Lancement départage pour match ${matchId}`);
     socketRef.current.emit('training:start-tiebreaker', { matchId });
@@ -634,7 +634,7 @@ export default function TrainingArenaManagerDashboard() {
                           transition: 'all 0.2s'
                         }}
                       >
-                        🔄 LANCER DÉPARTAGE (3 cartes - 30s)
+                        🔄 LANCER DÉPARTAGE (3 cartes)
                       </button>
                     </div>
                   )}
