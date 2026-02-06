@@ -1753,10 +1753,36 @@ class CrazyArenaManager {
    * Supprimer un match manuellement (depuis dashboard prof)
    * Notifie les joueurs et nettoie toutes les ressources
    */
-  deleteMatch(matchId) {
+  async deleteMatch(matchId) {
     const match = this.matches.get(matchId);
+    
+    // Si match pas en RAM, tenter suppression Supabase directement
     if (!match) {
-      logger.warn('[CrazyArena] deleteMatch: Match introuvable', { matchId });
+      logger.warn('[CrazyArena] deleteMatch: Match introuvable en RAM', { matchId });
+      
+      // Tenter suppression Supabase pour matchs Arena orphelins
+      if (this.supabase) {
+        logger.info('[CrazyArena] Tentative suppression match orphelin depuis Supabase', { matchId });
+        
+        try {
+          const { error } = await this.supabase
+            .from('tournament_matches')
+            .update({ status: 'deleted' })
+            .eq('id', matchId);
+          
+          if (error) {
+            logger.error('[CrazyArena] Erreur suppression Supabase', { matchId, error: error.message });
+            return { ok: false, error: 'Match introuvable en RAM et échec suppression DB' };
+          }
+          
+          logger.info('[CrazyArena] Match orphelin supprimé de Supabase', { matchId });
+          return { ok: true, orphan: true };
+        } catch (err) {
+          logger.error('[CrazyArena] Exception suppression Supabase', { matchId, error: err.message });
+          return { ok: false, error: 'Match introuvable' };
+        }
+      }
+      
       return { ok: false, error: 'Match introuvable' };
     }
 
@@ -1785,10 +1811,30 @@ class CrazyArenaManager {
       }
     });
 
-    // Supprimer le match de la Map
+    // Supprimer le match de la Map RAM
     this.matches.delete(matchId);
     
-    logger.info('[CrazyArena] Match supprimé avec succès', { matchId });
+    // Si match Arena, supprimer aussi de Supabase
+    if (match.mode === 'arena' && this.supabase) {
+      logger.info('[CrazyArena] Suppression match Arena de Supabase', { matchId });
+      
+      try {
+        const { error } = await this.supabase
+          .from('tournament_matches')
+          .update({ status: 'deleted' })
+          .eq('id', matchId);
+        
+        if (error) {
+          logger.error('[CrazyArena] Erreur suppression Supabase', { matchId, error: error.message });
+        } else {
+          logger.info('[CrazyArena] Match Arena supprimé de Supabase', { matchId });
+        }
+      } catch (err) {
+        logger.error('[CrazyArena] Exception suppression Supabase', { matchId, error: err.message });
+      }
+    }
+    
+    logger.info('[CrazyArena] Match supprimé avec succès', { matchId, mode: match.mode });
     return { ok: true };
   }
 
