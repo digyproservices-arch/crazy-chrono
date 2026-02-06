@@ -1447,6 +1447,7 @@ io.on('connection', (socket) => {
   // ===== CRAZY ARENA EVENTS (Tournoi groupes de 4) =====
   
   socket.on('arena:join', async ({ matchId, studentData }, cb) => {
+    logger.info('[Server][Arena] Joueur rejoint', { matchId, studentId: studentData.studentId, name: studentData.name, socketId: socket.id });
     const success = await crazyArena.joinMatch(socket, matchId, studentData);
     if (typeof cb === 'function') {
       cb({ ok: success });
@@ -1454,6 +1455,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('arena:ready', ({ studentId }) => {
+    logger.info('[Server][Arena] Joueur marque prêt (lobby)', { studentId, socketId: socket.id });
     crazyArena.playerReady(socket, studentId);
   });
 
@@ -1487,7 +1489,7 @@ io.on('connection', (socket) => {
 
   // Joueur clique "Je suis prêt" pour le départage
   socket.on('arena:player-ready-tiebreaker', ({ matchId, studentId, playerName }) => {
-    console.log(`[Server] Joueur ${playerName} (${studentId}) prêt pour départage match ${matchId}`);
+    logger.info('[Server][Arena] Joueur prêt pour départage', { matchId, studentId, playerName, socketId: socket.id });
     crazyArena.playerReadyForTiebreaker(matchId, studentId, playerName, io);
   });
 

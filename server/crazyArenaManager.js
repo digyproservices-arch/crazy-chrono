@@ -1008,40 +1008,67 @@ class CrazyArenaManager {
    */
   playerReady(socket, studentId) {
     const matchId = this.playerMatches.get(socket.id);
-    if (!matchId) return;
+    if (!matchId) {
+      logger.warn('[CrazyArena][Arena] playerReady: Aucun match pour socket', { socketId: socket.id });
+      return;
+    }
 
     const match = this.matches.get(matchId);
-    if (!match) return;
+    if (!match) {
+      logger.error('[CrazyArena][Arena] playerReady: Match introuvable', { matchId, socketId: socket.id });
+      return;
+    }
 
     const player = match.players.find(p => p.socketId === socket.id);
-    if (player) {
-      player.ready = true;
-      
-      const playersData = match.players.map(p => ({ 
+    if (!player) {
+      logger.warn('[CrazyArena][Arena] playerReady: Joueur introuvable', { matchId, socketId: socket.id });
+      return;
+    }
+    
+    player.ready = true;
+    
+    const readyCount = match.players.filter(p => p.ready).length;
+    const totalCount = match.players.length;
+    
+    logger.info('[CrazyArena][Arena] Joueur marqué prêt (lobby)', { 
+      matchId, 
+      studentId, 
+      readyCount, 
+      totalCount,
+      allReady: readyCount === totalCount
+    });
+    
+    const playersData = match.players.map(p => ({ 
+      studentId: p.studentId, 
+      name: p.name, 
+      avatar: p.avatar,
+      ready: p.ready,
+      score: p.score
+    }));
+    
+    this.io.to(matchId).emit('arena:player-ready', {
+      players: match.players.map(p => ({ 
         studentId: p.studentId, 
         name: p.name, 
         avatar: p.avatar,
-        ready: p.ready,
-        score: p.score
-      }));
-      
-      this.io.to(matchId).emit('arena:player-ready', {
-        players: match.players.map(p => ({ 
-          studentId: p.studentId, 
-          name: p.name, 
-          avatar: p.avatar,
-          ready: p.ready
-        }))
-      });
-      
-      // Notifier aussi le dashboard professeur
-      this.io.to(matchId).emit('arena:players-update', {
-        matchId,
-        players: playersData
-      });
+        ready: p.ready
+      }))
+    });
+    
+    // Notifier aussi le dashboard professeur
+    this.io.to(matchId).emit('arena:players-update', {
+      matchId,
+      players: playersData
+    });
+    
+    logger.info('[CrazyArena][Arena] Événements Socket.IO émis (lobby)', { 
+      matchId, 
+      events: ['arena:player-ready', 'arena:players-update'],
+      readyCount,
+      totalCount
+    });
 
-      // NE PLUS démarrer automatiquement - attendre arena:force-start du professeur
-    }
+    // NE PLUS démarrer automatiquement - attendre arena:force-start du professeur
   }
 
   /**
@@ -1547,44 +1574,55 @@ class CrazyArenaManager {
   }
 
   playerReadyForTiebreaker(matchId, studentId, playerName, io) {
-    console.log(`[CrazyArena] 🔍 playerReadyForTiebreaker appelé: ${playerName} (${studentId}) pour match ${matchId}`);
+    logger.info('[CrazyArena][Arena] playerReadyForTiebreaker appelé', { matchId, studentId, playerName });
     
     const match = this.matches.get(matchId);
     if (!match) {
-      console.error(`[CrazyArena] ❌ Match ${matchId} introuvable dans matches (${this.matches.size} matchs actifs)`);
+      logger.error('[CrazyArena][Arena] Match introuvable pour tiebreaker', { matchId, studentId, matchesCount: this.matches.size });
       return;
     }
 
-    console.log(`[CrazyArena] 🔍 Match trouvé, status: ${match.status}`);
+    logger.info('[CrazyArena][Arena] Match trouvé pour tiebreaker', { matchId, status: match.status });
     
     if (match.status !== 'tie-waiting') {
-      console.error(`[CrazyArena] ❌ Match ${matchId} n'est pas en attente de départage (status: ${match.status})`);
+      logger.error('[CrazyArena][Arena] Match pas en attente départage', { matchId, status: match.status, expected: 'tie-waiting' });
       return;
     }
 
     // Initialiser le set de joueurs prêts si nécessaire
     if (!match.playersReadyForTiebreaker) {
       match.playersReadyForTiebreaker = new Set();
-      console.log(`[CrazyArena] 🔍 Set playersReadyForTiebreaker initialisé`);
+      logger.info('[CrazyArena][Arena] Set playersReadyForTiebreaker initialisé', { matchId });
     }
 
     // Ajouter le joueur aux prêts
     match.playersReadyForTiebreaker.add(studentId);
-    console.log(`[CrazyArena] ✋ ${playerName} prêt pour départage (${match.playersReadyForTiebreaker.size}/${match.tiedPlayers.length})`);
+    
+    const readyCount = match.playersReadyForTiebreaker.size;
+    const totalCount = match.tiedPlayers.length;
+    
+    logger.info('[CrazyArena][Arena] Joueur marqué prêt pour départage', { 
+      matchId, 
+      studentId, 
+      playerName,
+      readyCount,
+      totalCount,
+      allReady: readyCount === totalCount
+    });
 
     const payload = {
       matchId,
-      readyCount: match.playersReadyForTiebreaker.size,
-      totalCount: match.tiedPlayers.length,
+      readyCount,
+      totalCount,
       readyPlayers: Array.from(match.playersReadyForTiebreaker)
     };
     
-    console.log(`[CrazyArena] 📢 Émission arena:tiebreaker-ready-update (broadcast):`, payload);
+    logger.info('[CrazyArena][Arena] Émission arena:tiebreaker-ready-update', payload);
     
     // Notifier le dashboard du professeur
     io.emit('arena:tiebreaker-ready-update', payload);
     
-    console.log(`[CrazyArena] ✅ arena:tiebreaker-ready-update émis avec succès`);
+    logger.info('[CrazyArena][Arena] arena:tiebreaker-ready-update émis avec succès', { matchId, readyCount, totalCount });
   }
 
   async startTiebreakerByTeacher(matchId) {
