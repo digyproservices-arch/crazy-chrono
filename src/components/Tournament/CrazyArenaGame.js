@@ -28,6 +28,7 @@ export default function CrazyArenaGame() {
   const [ranking, setRanking] = useState([]);
   const [winner, setWinner] = useState(null);
   const [roundsPlayed, setRoundsPlayed] = useState(0);
+  const [roundsPerSession, setRoundsPerSession] = useState(null);
   const [lastWonPair, setLastWonPair] = useState(null);
   const mpLastPairRef = useRef(null);
   
@@ -152,6 +153,11 @@ export default function CrazyArenaGame() {
         totalRounds 
       });
       
+      // ✅ Stocker totalRounds si fourni (comme Training)
+      if (Number.isFinite(totalRounds) && totalRounds > 0) {
+        setRoundsPerSession(totalRounds);
+      }
+      
       if (newZones && Array.isArray(newZones)) {
         setZones(newZones);
         setSelectedZones([]);
@@ -177,6 +183,10 @@ export default function CrazyArenaGame() {
       setTimeLeft(serverTimeLeft);
       if (typeof currentRound === 'number') {
         setRoundsPlayed(currentRound);
+      }
+      // ✅ Stocker totalRounds si fourni
+      if (Number.isFinite(totalRounds) && totalRounds > 0) {
+        setRoundsPerSession(totalRounds);
       }
     });
     
@@ -443,12 +453,13 @@ export default function CrazyArenaGame() {
         <div style={{
           background: 'rgba(255,255,255,0.95)',
           borderRadius: 12,
-          padding: '8px 16px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          padding: '12px 20px',
           fontSize: 18,
           fontWeight: 700
         }}>
-          Manche: {roundsPlayed}
+          {Number.isFinite(roundsPerSession)
+            ? `Manche: ${Math.max(0, roundsPlayed || 0)} / ${roundsPerSession}`
+            : `Manche: ${Math.max(0, roundsPlayed || 0)}`}
         </div>
         <div ref={mpLastPairRef} style={{
           background: 'rgba(255,255,255,0.95)',
