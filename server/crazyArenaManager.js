@@ -203,34 +203,55 @@ class CrazyArenaManager {
   trainingPlayerReady(socket, matchId, studentId) {
     const match = this.matches.get(matchId);
     if (!match) {
-      console.error(`[CrazyArena][Training] trainingPlayerReady: Match ${matchId} introuvable`);
+      logger.error('[CrazyArena][Training] trainingPlayerReady: Match introuvable', { matchId, studentId });
       return;
     }
 
     const player = match.players.find(p => p.studentId === studentId);
-    if (player) {
-      player.ready = true;
-      
-      this.io.to(matchId).emit('training:player-ready', {
-        players: match.players.map(p => ({ 
-          studentId: p.studentId, 
-          name: p.name, 
-          avatar: p.avatar,
-          ready: p.ready
-        }))
-      });
-      
-      // Notifier le dashboard professeur
-      this.io.to(matchId).emit('training:players-update', {
-        matchId,
-        players: match.players.map(p => ({ 
-          studentId: p.studentId, 
-          name: p.name, 
-          avatar: p.avatar,
-          ready: p.ready
-        }))
-      });
+    if (!player) {
+      logger.warn('[CrazyArena][Training] trainingPlayerReady: Joueur introuvable', { matchId, studentId });
+      return;
     }
+    
+    player.ready = true;
+    
+    const readyCount = match.players.filter(p => p.ready).length;
+    const totalCount = match.players.length;
+    
+    logger.info('[CrazyArena][Training] Joueur marqué prêt', { 
+      matchId, 
+      studentId, 
+      readyCount, 
+      totalCount,
+      allReady: readyCount === totalCount
+    });
+    
+    this.io.to(matchId).emit('training:player-ready', {
+      players: match.players.map(p => ({ 
+        studentId: p.studentId, 
+        name: p.name, 
+        avatar: p.avatar,
+        ready: p.ready
+      }))
+    });
+    
+    // Notifier le dashboard professeur
+    this.io.to(matchId).emit('training:players-update', {
+      matchId,
+      players: match.players.map(p => ({ 
+        studentId: p.studentId, 
+        name: p.name, 
+        avatar: p.avatar,
+        ready: p.ready
+      }))
+    });
+    
+    logger.info('[CrazyArena][Training] Événements Socket.IO émis', { 
+      matchId, 
+      events: ['training:player-ready', 'training:players-update'],
+      readyCount,
+      totalCount
+    });
   }
 
   /**

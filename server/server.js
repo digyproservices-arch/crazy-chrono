@@ -1347,7 +1347,7 @@ io.on('connection', (socket) => {
   // ===== TRAINING MODE EVENTS (Mode Entraînement) =====
   
   socket.on('training:create-match', ({ matchId, studentIds, config, classId, teacherId }) => {
-    console.log(`[Server][Training] Création match ${matchId} avec ${studentIds.length} élèves`);
+    logger.info('[Server][Training] Création match', { matchId, studentCount: studentIds.length, classId, teacherId });
     
     crazyArena.createTrainingMatch(matchId, studentIds, config, classId, teacherId);
     
@@ -1358,7 +1358,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('training:join', async ({ matchId, studentData }, cb) => {
-    console.log(`[Server][Training] ${studentData.name} rejoint match ${matchId}`);
+    logger.info('[Server][Training] Joueur rejoint', { matchId, studentId: studentData.studentId, name: studentData.name, socketId: socket.id });
     const success = await crazyArena.joinTrainingMatch(socket, matchId, studentData);
     if (typeof cb === 'function') {
       cb({ ok: success, matchInfo: { sessionName: 'Training' } });
@@ -1366,7 +1366,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('training:ready', ({ matchId, studentId }) => {
-    console.log(`[Server][Training] ${studentId} prêt dans match ${matchId}`);
+    logger.info('[Server][Training] Joueur marque prêt', { matchId, studentId, socketId: socket.id });
     crazyArena.trainingPlayerReady(socket, matchId, studentId);
   });
 
