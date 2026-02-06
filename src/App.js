@@ -17,7 +17,6 @@ import ModeSelect from './components/Modes/ModeSelect';
 import SessionConfig from './components/Modes/SessionConfig';
 import CrazyArenaSetup from './components/Tournament/CrazyArenaSetup';
 import CrazyArenaLobby from './components/Tournament/CrazyArenaLobby';
-import CrazyArenaGame from './components/Tournament/CrazyArenaGame';
 import TrainingArenaGame from './components/Training/TrainingArenaGame';
 import TrainingArenaSetup from './components/Teacher/TrainingArenaSetup';
 import TrainingArenaManagerDashboard from './components/Teacher/TrainingArenaManagerDashboard';
@@ -405,11 +404,10 @@ function App() {
               <Route path="/teacher/tournament" element={<RequireAuth auth={auth}><CrazyArenaSetup /></RequireAuth>} />
               {/* Training Mode - Élève lobby puis jeu */}
               <Route path="/training/lobby/:matchId" element={<RequireAuth auth={auth}><TrainingPlayerLobby /></RequireAuth>} />
-              {/* Crazy Arena (Tournoi 4 joueurs) */}
+              {/* Crazy Arena (Tournoi 4 joueurs) - Lobby redirige vers /carte?arena=matchId */}
               <Route path="/tournament/setup" element={<RequireAuth auth={auth}><CrazyArenaSetup /></RequireAuth>} />
               <Route path="/crazy-arena/manager" element={<RequireAuth auth={auth}><ArenaManagerDashboard /></RequireAuth>} />
               <Route path="/crazy-arena/lobby/:roomCode" element={<RequireAuth auth={auth}><CrazyArenaLobby /></RequireAuth>} />
-              <Route path="/crazy-arena/game" element={<RequireAuth auth={auth}><CrazyArenaGame /></RequireAuth>} />
               {/* Training Arena (Mode Entraînement - identique à Crazy Arena) */}
               <Route path="/training-arena/setup" element={<RequireAuth auth={auth}><TrainingArenaSetup /></RequireAuth>} />
               <Route path="/training-arena/manager" element={<RequireAuth auth={auth}><TrainingArenaManagerDashboard /></RequireAuth>} />
