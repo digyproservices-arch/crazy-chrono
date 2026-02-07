@@ -60,7 +60,7 @@ export default function CrazyArenaLobby() {
         
         if (data.ok && data.student) {
           const studentId = data.student.id;
-          const studentName = data.student.full_name || data.student.first_name || 'Joueur';
+          const studentName = data.student.fullName || data.student.firstName || 'Joueur';
           
           setMyStudentId(studentId);
           setStudentName(studentName);
