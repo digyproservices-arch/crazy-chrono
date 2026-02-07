@@ -426,17 +426,30 @@ export default function CompetitionBracket() {
           </div>
 
           {/* Filtered groups */}
-          <div style={{ display: 'grid', gap: 12 }}>
-            {groups.length === 0 ? (
-              <div style={{ padding: 48, textAlign: 'center', background: '#fff', borderRadius: 12, border: '2px dashed #d1d5db' }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>🏟️</div>
-                <h3 style={{ color: '#374151', marginBottom: 8 }}>Aucun match pour le moment</h3>
-                <p style={{ color: '#6b7280', fontSize: 14 }}>Créez des groupes et lancez des matchs depuis la page de configuration.</p>
+          {(() => {
+            const filteredGroups = selectedPhase
+              ? groups.filter(g => g.phaseLevel === selectedPhase)
+              : groups;
+            return (
+              <div style={{ display: 'grid', gap: 12 }}>
+                {filteredGroups.length === 0 ? (
+                  <div style={{ padding: 48, textAlign: 'center', background: '#fff', borderRadius: 12, border: '2px dashed #d1d5db' }}>
+                    <div style={{ fontSize: 48, marginBottom: 12 }}>🏟️</div>
+                    <h3 style={{ color: '#374151', marginBottom: 8 }}>
+                      {selectedPhase ? `Aucun match pour la Phase ${selectedPhase}` : 'Aucun match pour le moment'}
+                    </h3>
+                    <p style={{ color: '#6b7280', fontSize: 14 }}>
+                      {selectedPhase
+                        ? `Les matchs de ${PHASE_CONFIG[selectedPhase]?.name || ''} apparaîtront ici.`
+                        : 'Créez des groupes et lancez des matchs depuis la page de configuration.'}
+                    </p>
+                  </div>
+                ) : (
+                  filteredGroups.map(group => renderGroupCard(group))
+                )}
               </div>
-            ) : (
-              groups.map(group => renderGroupCard(group))
-            )}
-          </div>
+            );
+          })()}
         </div>
       )}
 

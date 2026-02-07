@@ -1082,7 +1082,7 @@ router.get('/classes/:classId/competition-results', requireSupabase, async (req,
     // 1. Récupérer tous les groupes de la classe
     const { data: groups, error: groupsError } = await supabase
       .from('tournament_groups')
-      .select('id, name, student_ids, match_id, status, winner_id')
+      .select('id, name, student_ids, match_id, status, winner_id, phase_level')
       .eq('class_id', classId)
       .order('created_at', { ascending: true });
     
@@ -1153,6 +1153,7 @@ router.get('/classes/:classId/competition-results', requireSupabase, async (req,
         id: group.id,
         name: group.name,
         status: group.status,
+        phaseLevel: group.phase_level || 1,
         winnerId: group.winner_id,
         winnerName: group.winner_id ? (studentsMap[group.winner_id]?.full_name || studentsMap[group.winner_id]?.first_name || 'Inconnu') : null,
         students: studentIds.map(sid => ({
