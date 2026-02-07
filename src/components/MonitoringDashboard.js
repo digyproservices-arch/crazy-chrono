@@ -52,6 +52,38 @@ function MonitoringDashboard() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(null);
   const [activeTab, setActiveTab] = useState('overview'); // overview | logs | errors
+  const [copyFeedback, setCopyFeedback] = useState(null); // 'logs' | 'errors' | null
+
+  const copyToClipboard = async (text, source) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.cssText = 'position:fixed;opacity:0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        try { textarea.parentNode.removeChild(textarea); } catch {}
+      }
+      setCopyFeedback(source);
+      setTimeout(() => setCopyFeedback(null), 2500);
+    } catch (err) {
+      console.error('[Monitoring] Erreur copie:', err);
+      alert('Erreur lors de la copie.');
+    }
+  };
+
+  const formatLogsForCopy = (logsArr) => {
+    return logsArr.map(log => {
+      const ts = log.timestamp || '';
+      const lvl = (log.level || 'info').toUpperCase();
+      const msg = log.message || '';
+      const meta = log.meta && Object.keys(log.meta).length > 0 ? ' ' + JSON.stringify(log.meta) : '';
+      return `${ts} [${lvl}] ${msg}${meta}`;
+    }).join('\n');
+  };
 
   const getAuthToken = () => {
     try {
@@ -452,6 +484,23 @@ function MonitoringDashboard() {
                   <span style={{ fontSize: 13, color: COLORS.textMuted }}>
                     {filteredLogs.length} résultat{filteredLogs.length !== 1 ? 's' : ''}
                   </span>
+                  <button
+                    onClick={() => copyToClipboard(formatLogsForCopy(filteredLogs), 'logs')}
+                    style={{
+                      padding: '8px 16px',
+                      background: copyFeedback === 'logs' ? '#10b981' : '#3b82f6',
+                      border: 'none',
+                      borderRadius: 8,
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: 13,
+                      transition: 'all 0.3s',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {copyFeedback === 'logs' ? '✅ Copié !' : '📋 Copier les logs'}
+                  </button>
                 </div>
 
                 {logsLoading ? (
@@ -534,9 +583,30 @@ function MonitoringDashboard() {
 
                 {/* Error List */}
                 <div style={cardStyle}>
-                  <h3 style={cardTitleStyle}>
-                    Liste des erreurs ({errorLogs.length})
-                  </h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <h3 style={{ ...cardTitleStyle, margin: 0 }}>
+                      Liste des erreurs ({errorLogs.length})
+                    </h3>
+                    {errorLogs.length > 0 && (
+                      <button
+                        onClick={() => copyToClipboard(formatLogsForCopy(errorLogs), 'errors')}
+                        style={{
+                          padding: '8px 16px',
+                          background: copyFeedback === 'errors' ? '#10b981' : '#ef4444',
+                          border: 'none',
+                          borderRadius: 8,
+                          color: '#fff',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          fontSize: 13,
+                          transition: 'all 0.3s',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {copyFeedback === 'errors' ? '✅ Copié !' : '📋 Copier les erreurs'}
+                      </button>
+                    )}
+                  </div>
                   {logsLoading ? (
                     <div style={{ textAlign: 'center', padding: 40, color: COLORS.textMuted }}>Chargement...</div>
                   ) : errorLogs.length === 0 ? (
