@@ -338,7 +338,10 @@ export function animateBubbleToVignette(color = '#3b82f6') {
 }
 
 function zoneText(Z) {
-  const t = (Z?.label || Z?.content || Z?.text || Z?.value || '').toString();
+  // Pour les zones calcul, prioritiser content (expression ex: "3 × 4") sur label (résultat ex: "12")
+  const t = (Z?.type === 'calcul')
+    ? (Z?.content || Z?.label || Z?.text || Z?.value || '').toString()
+    : (Z?.label || Z?.content || Z?.text || Z?.value || '').toString();
   if (t && t.trim()) return t;
   const pid = getPairId(Z);
   return pid ? `[${pid}]` : '…';

@@ -755,6 +755,24 @@ class CrazyArenaManager {
           event: 'training:players-update'
         });
         
+        // ✅ FIX: Émettre training:pair-validated pour déclencher les bulles d'animation (comme mode normal)
+        if (pairId) {
+          const playerIdx = match.players.findIndex(p => p.studentId === studentId);
+          this.io.to(matchId).emit('training:pair-validated', {
+            studentId,
+            playerName: player.name,
+            playerIdx,
+            pairId,
+            zoneAId,
+            zoneBId,
+            timestamp: Date.now()
+          });
+          
+          logger.info('[CrazyArena][Training] Événement training:pair-validated émis (tiebreaker)', { 
+            matchId, studentId, playerIdx, pairId, event: 'training:pair-validated'
+          });
+        }
+        
         if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
           logger.info('[CrazyArena][Training] Tiebreaker terminé - toutes paires trouvées', { 
             matchId, 
@@ -1494,6 +1512,24 @@ class CrazyArenaManager {
           pairsFound: match.tiebreakerPairsFound,
           pairsToFind: match.tiebreakerPairsToFind
         });
+        
+        // ✅ FIX: Émettre arena:pair-validated pour déclencher les bulles d'animation (comme mode normal)
+        if (pairId) {
+          const playerIdx = match.players.findIndex(p => p.studentId === studentId);
+          this.io.to(matchId).emit('arena:pair-validated', {
+            pairId,
+            zoneAId,
+            zoneBId,
+            playerName: player.name,
+            studentId,
+            playerIdx,
+            timestamp: Date.now()
+          });
+          
+          logger.info('[CrazyArena][Arena] Événement arena:pair-validated émis (tiebreaker)', { 
+            matchId, studentId, playerIdx, pairId, event: 'arena:pair-validated'
+          });
+        }
         
         if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
           logger.info('[CrazyArena][Arena] Tiebreaker terminé - toutes paires trouvées', { 

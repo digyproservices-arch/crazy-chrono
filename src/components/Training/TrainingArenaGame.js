@@ -851,37 +851,55 @@ export default function TrainingArenaGame() {
   
   const playCorrectSound = () => {
     try {
-      const audio = new Audio('/sounds/correct.mp3');
-      audio.play().catch(() => {});
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!ctx) return;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(880, ctx.currentTime);
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+      o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.26);
     } catch {}
   };
   
   const playErrorSound = () => {
     try {
-      const audio = new Audio('/sounds/error.mp3');
-      audio.play().catch(() => {});
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!ctx) return;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'square';
+      o.frequency.setValueAtTime(220, ctx.currentTime);
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+      o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.36);
     } catch {}
   };
   
-  // ✅ CONFETTIS (COPIE EXACTE Arena ligne 2645-2670)
+  // ✅ CONFETTIS (COPIE EXACTE Arena - centré sur viewport)
   const showConfetti = () => {
     try {
       const root = document.body;
-      const rect = root.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const startY = vh * 0.4;
       for (let i = 0; i < 36; i++) {
         const d = document.createElement('div');
         const size = 6 + Math.random() * 6;
         d.style.position = 'fixed';
         d.style.zIndex = '99999';
-        d.style.left = `${rect.left + rect.width / 2}px`;
-        d.style.top = `${rect.top + 60}px`;
+        d.style.left = `${vw / 2}px`;
+        d.style.top = `${startY}px`;
         d.style.width = `${size}px`;
         d.style.height = `${size}px`;
         d.style.background = `hsl(${Math.floor(Math.random() * 360)},90%,55%)`;
         d.style.borderRadius = '2px';
         d.style.pointerEvents = 'none';
         root.appendChild(d);
-        const dx = (Math.random() - 0.5) * rect.width;
+        const dx = (Math.random() - 0.5) * vw;
         const dy = 120 + Math.random() * 200;
         d.animate([
           { transform: 'translate(0,0) rotate(0deg)', opacity: 1 },
