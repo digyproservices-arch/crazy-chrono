@@ -23,6 +23,7 @@ import TrainingArenaManagerDashboard from './components/Teacher/TrainingArenaMan
 import TrainingArenaLobby from './components/Teacher/TrainingArenaLobby';
 import ArenaManagerDashboard from './components/Tournament/ArenaManagerDashboard';
 import AdminRoles from './components/Admin/AdminRoles';
+import MonitoringDashboard from './components/MonitoringDashboard';
 import AdminInvite from './components/Admin/AdminInvite';
 import RectoratDashboard from './components/Rectorat/RectoratDashboard';
 import TeacherModeSelector from './components/Teacher/TeacherModeSelector';
@@ -392,6 +393,7 @@ function App() {
               <Route path="/config/:mode" element={<RequireAuth auth={auth}><SessionConfig /></RequireAuth>} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/admin/dashboard" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
+              <Route path="/admin/monitoring" element={<RequireAdmin><MonitoringDashboard /></RequireAdmin>} />
               <Route path="/admin/roles" element={<RequireAdmin><AdminRoles /></RequireAdmin>} />
               <Route path="/admin/invite" element={<RequireAdmin><AdminInvite /></RequireAdmin>} />
               <Route path="/account" element={<RequireAuth auth={auth}><Account /></RequireAuth>} />

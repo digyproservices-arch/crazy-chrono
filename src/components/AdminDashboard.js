@@ -13,7 +13,6 @@ function AdminDashboard() {
     loading: true
   });
   const [recentUsers, setRecentUsers] = useState([]);
-  const [logsCopied, setLogsCopied] = useState(false);
 
   useEffect(() => {
     async function fetchStats() {
@@ -161,91 +160,43 @@ function AdminDashboard() {
           {/* Section 3: Monitoring */}
           <div style={{ background: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#f59e0b' }}>
-              📊 Monitoring contenus
+              📊 Monitoring
             </h2>
             <div style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '15px' }}>
-              Statistiques à venir...
+              Dashboard visuel avec graphiques, timeline et détection d'erreurs en temps réel.
             </div>
             
-            {/* Bouton copier logs backend Winston */}
             <button
-              onClick={async () => {
-                try {
-                  const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
-                  const token = auth.token;
-                  if (!token) {
-                    alert('Connexion requise');
-                    return;
-                  }
-                  
-                  const backendUrl = getBackendUrl();
-                  console.log('[AdminDashboard] Récupération logs depuis:', backendUrl);
-                  const response = await fetch(`${backendUrl}/api/admin/logs/latest`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                  });
-                  
-                  if (!response.ok) {
-                    throw new Error(`Erreur ${response.status}`);
-                  }
-                  
-                  const logsText = await response.text();
-                  
-                  // Copier dans le presse-papiers
-                  await navigator.clipboard.writeText(logsText);
-                  
-                  // Feedback visuel
-                  setLogsCopied(true);
-                  setTimeout(() => setLogsCopied(false), 3000);
-                  
-                  console.log('[AdminDashboard] Logs copiés dans le presse-papiers');
-                } catch (err) {
-                  console.error('[AdminDashboard] Erreur copie logs:', err);
-                  alert(`Erreur copie logs: ${err.message}`);
-                }
-              }}
+              onClick={() => navigate('/admin/monitoring')}
               style={{
                 width: '100%',
-                padding: '12px 20px',
-                background: logsCopied ? '#10b981' : '#3b82f6',
+                padding: '14px 20px',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
                 color: 'white',
                 border: 'none',
                 borderRadius: 8,
                 cursor: 'pointer',
-                fontSize: 14,
-                fontWeight: 600,
+                fontSize: 15,
+                fontWeight: 700,
                 transition: 'all 0.3s',
-                marginBottom: '10px'
-              }}
-              onMouseEnter={(e) => {
-                if (!logsCopied) e.target.style.background = '#2563eb';
-              }}
-              onMouseLeave={(e) => {
-                if (!logsCopied) e.target.style.background = '#3b82f6';
+                marginBottom: '10px',
+                boxShadow: '0 4px 12px rgba(59,130,246,0.3)',
               }}
             >
-              {logsCopied ? '✅ Logs copiés !' : '📋 Copier Logs Backend'}
+              📈 Ouvrir le Monitoring Dashboard
             </button>
             
-            {/* Bouton téléchargement (option secondaire) */}
             <button
               onClick={async () => {
                 try {
                   const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
                   const token = auth.token;
-                  if (!token) {
-                    alert('Connexion requise');
-                    return;
-                  }
-                  
+                  if (!token) { alert('Connexion requise'); return; }
                   const backendUrl = getBackendUrl();
                   const response = await fetch(`${backendUrl}/api/admin/logs/latest`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                   });
-                  
-                  if (!response.ok) {
-                    throw new Error(`Erreur ${response.status}`);
-                  }
-                  
+                  if (!response.ok) throw new Error(`Erreur ${response.status}`);
                   const blob = await response.blob();
                   const url = window.URL.createObjectURL(blob);
                   const a = document.createElement('a');
@@ -269,18 +220,9 @@ function AdminDashboard() {
                 cursor: 'pointer',
                 fontSize: 13,
                 fontWeight: 500,
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = '#1e293b';
-                e.target.style.color = '#e2e8f0';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = 'transparent';
-                e.target.style.color = '#94a3b8';
               }}
             >
-              📥 Télécharger fichier
+              📥 Télécharger logs bruts
             </button>
           </div>
 

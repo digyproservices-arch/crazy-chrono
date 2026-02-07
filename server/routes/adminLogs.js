@@ -97,6 +97,126 @@ router.get('/latest', requireAdmin, async (req, res) => {
   }
 });
 
+// GET /api/admin/logs/json - Retourner les logs en JSON structuré (pour le dashboard monitoring)
+router.get('/json', requireAdmin, async (req, res) => {
+  try {
+    const hours = parseInt(req.query.hours) || 24;
+    const limit = parseInt(req.query.limit) || 2000;
+    const level = req.query.level || null; // Filtre optionnel par niveau
+
+    const startDate = new Date();
+    startDate.setHours(startDate.getHours() - hours);
+
+    const supabase = getSupabase();
+    let query = supabase
+      .from('backend_logs')
+      .select('id, timestamp, level, message, meta')
+      .gte('timestamp', startDate.toISOString())
+      .order('timestamp', { ascending: false })
+      .limit(limit);
+
+    if (level) {
+      query = query.eq('level', level);
+    }
+
+    const { data: logs, error } = await query;
+
+    if (error) {
+      logger.error('[AdminLogs] Error fetching JSON logs', { error: error.message });
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    res.json({ ok: true, logs: logs || [], count: (logs || []).length, hours });
+  } catch (err) {
+    logger.error('[AdminLogs] Error in /json', { error: err.message });
+    res.status(500).json({ ok: false, error: 'Internal server error' });
+  }
+});
+
+// GET /api/admin/logs/stats - Statistiques agrégées pour graphiques monitoring
+router.get('/stats', requireAdmin, async (req, res) => {
+  try {
+    const hours = parseInt(req.query.hours) || 24;
+
+    const startDate = new Date();
+    startDate.setHours(startDate.getHours() - hours);
+
+    const supabase = getSupabase();
+    const { data: logs, error } = await supabase
+      .from('backend_logs')
+      .select('timestamp, level, message')
+      .gte('timestamp', startDate.toISOString())
+      .order('timestamp', { ascending: true })
+      .limit(5000);
+
+    if (error) {
+      logger.error('[AdminLogs] Error fetching stats', { error: error.message });
+      return res.status(500).json({ ok: false, error: error.message });
+    }
+
+    const allLogs = logs || [];
+
+    // Agrégation par heure
+    const hourlyMap = {};
+    const levelCounts = { info: 0, warn: 0, error: 0 };
+    const moduleCounts = {};
+
+    allLogs.forEach(log => {
+      // Arrondir au début de l'heure
+      const d = new Date(log.timestamp);
+      const hourKey = new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours()).toISOString();
+
+      if (!hourlyMap[hourKey]) {
+        hourlyMap[hourKey] = { time: hourKey, info: 0, warn: 0, error: 0, total: 0 };
+      }
+      const lvl = (log.level || 'info').toLowerCase();
+      hourlyMap[hourKey][lvl] = (hourlyMap[hourKey][lvl] || 0) + 1;
+      hourlyMap[hourKey].total += 1;
+
+      // Compteurs globaux par niveau
+      if (levelCounts[lvl] !== undefined) levelCounts[lvl] += 1;
+      else levelCounts[lvl] = 1;
+
+      // Extraire le module depuis le message [Module]
+      const moduleMatch = log.message?.match(/^\[([^\]]+)\]/);
+      if (moduleMatch) {
+        const mod = moduleMatch[1];
+        moduleCounts[mod] = (moduleCounts[mod] || 0) + 1;
+      }
+    });
+
+    // Trier par heure
+    const timeline = Object.values(hourlyMap).sort((a, b) => new Date(a.time) - new Date(b.time));
+
+    // Top modules
+    const modules = Object.entries(moduleCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    // Erreurs récentes (pour indicateurs visuels)
+    const recentErrors = allLogs
+      .filter(l => l.level === 'error')
+      .slice(-20)
+      .map(l => ({ timestamp: l.timestamp, message: l.message }));
+
+    res.json({
+      ok: true,
+      hours,
+      totalLogs: allLogs.length,
+      levelCounts,
+      timeline,
+      modules,
+      recentErrors,
+      startDate: startDate.toISOString(),
+      endDate: new Date().toISOString()
+    });
+  } catch (err) {
+    logger.error('[AdminLogs] Error in /stats', { error: err.message });
+    res.status(500).json({ ok: false, error: 'Internal server error' });
+  }
+});
+
 // GET /api/admin/logs/list - Lister les fichiers de logs disponibles
 router.get('/list', requireAdmin, async (req, res) => {
   try {
