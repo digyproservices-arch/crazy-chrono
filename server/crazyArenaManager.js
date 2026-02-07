@@ -408,7 +408,7 @@ class CrazyArenaManager {
   /**
    * Terminer le match Training (COPIE EXACTE de endGame Arena)
    */
-  endTrainingGame(matchId) {
+  async endTrainingGame(matchId) {
     const match = this.matches.get(matchId);
     if (!match || (match.status !== 'playing' && match.status !== 'tiebreaker' && match.status !== 'tiebreaker-countdown')) return;
 
@@ -520,6 +520,9 @@ class CrazyArenaManager {
     // ✅ BROADCAST GLOBAL pour retirer notifications des élèves
     this.io.emit('training:match-finished', { matchId });
     console.log(`[Training] 📢 Broadcast training:match-finished pour ${matchId}`);
+    
+    // ✅ FIX: Sauvegarder résultats en DB (marque match 'finished' → retire notifications)
+    await this.saveResults(matchId, ranking);
     
     // Nettoyer après 30s (IDENTIQUE À ARENA)
     setTimeout(() => {
@@ -1861,24 +1864,30 @@ class CrazyArenaManager {
     this.io.emit('arena:game-end', { matchId });
 
     // ==========================================
-    // DÉLÉGUER SAUVEGARDE AU MODE SPÉCIALISÉ
+    // ✅ FIX: TOUJOURS sauvegarder les résultats en DB d'abord (marque 'finished' + émet arena:match-finished)
+    // Avant, la délégation aux modes avait un bug de signature (3 args passés, 1 attendu)
+    // ce qui faisait que les matchs restaient 'playing' → notifications persistantes
     // ==========================================
+    await this.saveResults(matchId, ranking);
+    
+    // Mode-specific extras (non-bloquant - ne doit PAS empêcher le marquage 'finished')
     try {
       if (match.mode === 'training') {
-        // Mode Entraînement
-        console.log(`[CrazyArena][Training] Délégation sauvegarde mode Entraînement`);
+        console.log(`[CrazyArena][Training] Extras mode Entraînement`);
         const trainingMode = new TrainingMode(this.io, this.supabase);
-        await trainingMode.onMatchEnd(matchId, match, ranking);
+        trainingMode.matchId = matchId; // ✅ FIX: Injecter matchId manquant
+        await trainingMode.saveTrainingStats(ranking);
       } else {
-        // Mode Tournoi (par défaut)
-        console.log(`[CrazyArena][Tournament] Délégation sauvegarde mode Tournoi`);
+        console.log(`[CrazyArena][Tournament] Extras mode Tournoi`);
         const tournamentMode = new TournamentMode(this.io, this.supabase);
-        await tournamentMode.onMatchEnd(matchId, match, ranking);
+        tournamentMode.matchId = matchId; // ✅ FIX: Injecter matchId manquant
+        tournamentMode.groupId = match.groupId;
+        if (ranking[0]) {
+          await tournamentMode.markGroupWinner(ranking[0]);
+        }
       }
     } catch (error) {
-      console.error(`[CrazyArena] Erreur délégation mode spécialisé:`, error);
-      // Fallback: sauvegarder avec méthode classique
-      await this.saveResults(matchId, ranking);
+      console.error(`[CrazyArena] Erreur extras mode spécialisé (non-bloquant):`, error);
     }
 
     // Nettoyer après 30s
