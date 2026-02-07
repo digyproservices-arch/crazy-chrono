@@ -90,6 +90,248 @@ router.get('/tournaments/:id', requireSupabase, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/tournament/list
+ * Alias pour /tournaments (compatibilité RectoratDashboard)
+ */
+router.get('/list', requireSupabase, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('tournaments')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    res.json({ success: true, tournaments: data || [] });
+  } catch (error) {
+    console.error('[Tournament API] Error fetching tournaments list:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/tournament/:tournamentId/phases
+ * Récupérer les phases d'un tournoi avec groupes et stats
+ */
+router.get('/:tournamentId/phases', requireSupabase, async (req, res) => {
+  try {
+    const { tournamentId } = req.params;
+    
+    const { data: phases, error: phasesError } = await supabase
+      .from('tournament_phases')
+      .select('*')
+      .eq('tournament_id', tournamentId)
+      .order('level', { ascending: true });
+    
+    if (phasesError) throw phasesError;
+    
+    // Enrichir chaque phase avec ses groupes
+    const enrichedPhases = [];
+    for (const phase of (phases || [])) {
+      const { data: groups } = await supabase
+        .from('tournament_groups')
+        .select('id, name, status, winner_id, student_ids, match_id')
+        .eq('tournament_id', tournamentId)
+        .eq('phase_level', phase.level);
+      
+      enrichedPhases.push({
+        ...phase,
+        groups: groups || [],
+        completedGroups: (groups || []).filter(g => g.status === 'finished').length,
+        totalGroups: (groups || []).length,
+        winnersCount: (groups || []).filter(g => g.winner_id).length
+      });
+    }
+    
+    res.json({ success: true, phases: enrichedPhases });
+  } catch (error) {
+    console.error('[Tournament API] Error fetching phases:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Noms officiels des phases
+const PHASE_NAMES = {
+  1: 'CRAZY WINNER CLASSE',
+  2: 'CRAZY WINNER ÉCOLE',
+  3: 'CRAZY WINNER CIRCONSCRIPTION',
+  4: 'CRAZY WINNER ACADÉMIQUE'
+};
+
+/**
+ * PATCH /api/tournament/phases/:phaseId/close
+ * Clôturer une phase → qualifie les gagnants pour la phase suivante
+ */
+router.patch('/phases/:phaseId/close', requireSupabase, async (req, res) => {
+  try {
+    const { phaseId } = req.params;
+    
+    // 1. Récupérer la phase
+    const { data: phase, error: phaseError } = await supabase
+      .from('tournament_phases')
+      .select('*')
+      .eq('id', phaseId)
+      .single();
+    
+    if (phaseError || !phase) {
+      return res.status(404).json({ success: false, error: 'Phase non trouvée' });
+    }
+    
+    if (phase.status !== 'active') {
+      return res.status(400).json({ success: false, error: 'Cette phase n\'est pas active' });
+    }
+    
+    // 2. Vérifier que tous les groupes sont terminés
+    const { data: groups } = await supabase
+      .from('tournament_groups')
+      .select('id, status, winner_id, student_ids, name')
+      .eq('tournament_id', phase.tournament_id)
+      .eq('phase_level', phase.level);
+    
+    const unfinishedGroups = (groups || []).filter(g => g.status !== 'finished');
+    if (unfinishedGroups.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: `${unfinishedGroups.length} groupe(s) non terminé(s). Tous les matchs doivent être joués avant de clôturer.`
+      });
+    }
+    
+    // 3. Récupérer les gagnants
+    const winners = (groups || []).filter(g => g.winner_id).map(g => g.winner_id);
+    
+    // 4. Marquer la phase comme terminée
+    await supabase
+      .from('tournament_phases')
+      .update({ status: 'finished', finished_at: new Date().toISOString() })
+      .eq('id', phaseId);
+    
+    // 5. Si pas phase finale (4), préparer la phase suivante
+    const nextLevel = phase.level + 1;
+    let nextPhaseId = null;
+    
+    if (nextLevel <= 4) {
+      // Vérifier si la phase suivante existe déjà
+      const { data: existingNext } = await supabase
+        .from('tournament_phases')
+        .select('id')
+        .eq('tournament_id', phase.tournament_id)
+        .eq('level', nextLevel)
+        .single();
+      
+      if (existingNext) {
+        nextPhaseId = existingNext.id;
+      } else {
+        // Créer la phase suivante
+        const newPhaseId = `phase_${nextLevel}_${phase.tournament_id}`;
+        const { data: newPhase } = await supabase
+          .from('tournament_phases')
+          .insert({
+            id: newPhaseId,
+            tournament_id: phase.tournament_id,
+            level: nextLevel,
+            name: PHASE_NAMES[nextLevel] || `Phase ${nextLevel}`,
+            status: 'pending'
+          })
+          .select()
+          .single();
+        
+        nextPhaseId = newPhase?.id || newPhaseId;
+      }
+      
+      // Créer automatiquement les groupes pour la phase suivante avec les gagnants
+      if (winners.length >= 2) {
+        const groupSize = 4;
+        for (let i = 0; i < winners.length; i += groupSize) {
+          const groupWinners = winners.slice(i, i + groupSize);
+          if (groupWinners.length >= 2) {
+            const groupId = `group_${uuidv4()}`;
+            const groupNum = Math.floor(i / groupSize) + 1;
+            
+            await supabase
+              .from('tournament_groups')
+              .insert({
+                id: groupId,
+                tournament_id: phase.tournament_id,
+                phase_level: nextLevel,
+                class_id: phase.tournament_id,
+                name: `${PHASE_NAMES[nextLevel]} - Groupe ${groupNum}`,
+                student_ids: JSON.stringify(groupWinners),
+                status: 'pending'
+              });
+          }
+        }
+      }
+    }
+    
+    // 6. Mettre à jour le tournoi
+    await supabase
+      .from('tournaments')
+      .update({ current_phase: nextLevel <= 4 ? nextLevel : phase.level })
+      .eq('id', phase.tournament_id);
+    
+    console.log(`[Tournament API] Phase ${phase.level} (${PHASE_NAMES[phase.level]}) clôturée. ${winners.length} qualifié(s) pour Phase ${nextLevel}`);
+    
+    res.json({
+      success: true,
+      qualifiedCount: winners.length,
+      nextPhaseId,
+      message: nextLevel <= 4
+        ? `${PHASE_NAMES[phase.level]} clôturée. ${winners.length} qualifié(s) pour ${PHASE_NAMES[nextLevel]}.`
+        : `${PHASE_NAMES[phase.level]} clôturée. Tournoi terminé! ${winners.length} finalistes.`
+    });
+  } catch (error) {
+    console.error('[Tournament API] Error closing phase:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PATCH /api/tournament/phases/:phaseId/activate
+ * Activer une phase (la rendre jouable)
+ */
+router.patch('/phases/:phaseId/activate', requireSupabase, async (req, res) => {
+  try {
+    const { phaseId } = req.params;
+    
+    const { data: phase, error: phaseError } = await supabase
+      .from('tournament_phases')
+      .select('*')
+      .eq('id', phaseId)
+      .single();
+    
+    if (phaseError || !phase) {
+      return res.status(404).json({ success: false, error: 'Phase non trouvée' });
+    }
+    
+    if (phase.status === 'active') {
+      return res.status(400).json({ success: false, error: 'Cette phase est déjà active' });
+    }
+    
+    // Activer la phase
+    await supabase
+      .from('tournament_phases')
+      .update({ status: 'active', started_at: new Date().toISOString() })
+      .eq('id', phaseId);
+    
+    // Mettre à jour le tournoi
+    await supabase
+      .from('tournaments')
+      .update({ current_phase: phase.level })
+      .eq('id', phase.tournament_id);
+    
+    console.log(`[Tournament API] Phase ${phase.level} (${PHASE_NAMES[phase.level]}) activée`);
+    
+    res.json({
+      success: true,
+      message: `${PHASE_NAMES[phase.level]} activée avec succès!`
+    });
+  } catch (error) {
+    console.error('[Tournament API] Error activating phase:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ==========================================
 // CLASSES ET ÉLÈVES
 // ==========================================
