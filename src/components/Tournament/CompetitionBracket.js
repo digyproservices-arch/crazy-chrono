@@ -40,6 +40,35 @@ export default function CompetitionBracket() {
   const [activeTab, setActiveTab] = useState('phases'); // 'phases' | 'bracket' | 'ranking'
   const [selectedPhase, setSelectedPhase] = useState(null);
   const [expandedGroup, setExpandedGroup] = useState(null);
+  const [emailModal, setEmailModal] = useState(null); // { phaseId, phaseLevel }
+  const [emailAddress, setEmailAddress] = useState('');
+  const [recipientName, setRecipientName] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState(null); // { success, message }
+
+  const sendResults = async () => {
+    if (!emailAddress || !emailModal) return;
+    setSending(true);
+    setSendResult(null);
+    try {
+      const backendUrl = getBackendUrl();
+      const resp = await fetch(`${backendUrl}/api/tournament/phases/${emailModal.phaseId}/send-results`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipientEmail: emailAddress, recipientName: recipientName || undefined })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        setSendResult({ success: true, message: data.message || 'Email envoyé avec succès !' });
+      } else {
+        setSendResult({ success: false, message: data.error || 'Erreur lors de l\'envoi' });
+      }
+    } catch (err) {
+      setSendResult({ success: false, message: 'Erreur de connexion au serveur' });
+    } finally {
+      setSending(false);
+    }
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -354,6 +383,36 @@ export default function CompetitionBracket() {
                     <div style={{ height: '100%', width: `${totalGroups > 0 ? (completedGroups / totalGroups) * 100 : 0}%`, background: cfg.color, borderRadius: 4, transition: 'width 0.5s' }} />
                   </div>
                 )}
+                {isFinished && phase && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEmailModal({ phaseId: phase.id, phaseLevel: level });
+                      setSendResult(null);
+                      setEmailAddress('');
+                      setRecipientName('');
+                    }}
+                    style={{
+                      marginTop: 8,
+                      padding: '6px 14px',
+                      background: 'rgba(255,255,255,0.15)',
+                      border: '1px solid rgba(255,255,255,0.3)',
+                      borderRadius: 8,
+                      color: '#fff',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
+                  >
+                    📧 Envoyer résultats par email
+                  </button>
+                )}
               </div>
             );
           })}
@@ -496,6 +555,127 @@ export default function CompetitionBracket() {
               </tbody>
             </table>
           )}
+        </div>
+      )}
+      {/* ===== EMAIL MODAL ===== */}
+      {emailModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999
+        }}
+          onClick={() => { if (!sending) setEmailModal(null); }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff', borderRadius: 16, padding: '28px 32px', width: '100%', maxWidth: 440,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)', position: 'relative'
+            }}
+          >
+            <button
+              onClick={() => { if (!sending) setEmailModal(null); }}
+              style={{
+                position: 'absolute', top: 12, right: 16, background: 'none', border: 'none',
+                fontSize: 20, cursor: 'pointer', color: '#94a3b8'
+              }}
+            >✕</button>
+
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ fontSize: 36, marginBottom: 8 }}>📧</div>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', margin: '0 0 4px 0' }}>
+                Envoyer les résultats
+              </h3>
+              <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
+                Phase {emailModal.phaseLevel}: {PHASE_CONFIG[emailModal.phaseLevel]?.name || ''}
+              </p>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>
+                Email du destinataire *
+              </label>
+              <input
+                type="email"
+                value={emailAddress}
+                onChange={(e) => setEmailAddress(e.target.value)}
+                placeholder="rectorat@ac-guadeloupe.fr"
+                style={{
+                  width: '100%', padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: 8,
+                  fontSize: 14, outline: 'none', boxSizing: 'border-box',
+                  transition: 'border-color 0.2s'
+                }}
+                onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; }}
+                onBlur={(e) => { e.target.style.borderColor = '#d1d5db'; }}
+                disabled={sending}
+              />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>
+                Nom du destinataire (optionnel)
+              </label>
+              <input
+                type="text"
+                value={recipientName}
+                onChange={(e) => setRecipientName(e.target.value)}
+                placeholder="M. le Recteur"
+                style={{
+                  width: '100%', padding: '10px 14px', border: '1px solid #d1d5db', borderRadius: 8,
+                  fontSize: 14, outline: 'none', boxSizing: 'border-box',
+                  transition: 'border-color 0.2s'
+                }}
+                onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; }}
+                onBlur={(e) => { e.target.style.borderColor = '#d1d5db'; }}
+                disabled={sending}
+              />
+            </div>
+
+            {sendResult && (
+              <div style={{
+                padding: '10px 14px', borderRadius: 8, marginBottom: 16, fontSize: 13, fontWeight: 600,
+                background: sendResult.success ? '#f0fdf4' : '#fef2f2',
+                color: sendResult.success ? '#059669' : '#dc2626',
+                border: sendResult.success ? '1px solid #86efac' : '1px solid #fca5a5'
+              }}>
+                {sendResult.success ? '✅' : '❌'} {sendResult.message}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => { if (!sending) setEmailModal(null); }}
+                style={{
+                  flex: 1, padding: '10px 16px', background: '#f1f5f9', border: '1px solid #d1d5db',
+                  borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#475569'
+                }}
+                disabled={sending}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={sendResults}
+                disabled={sending || !emailAddress}
+                style={{
+                  flex: 2, padding: '10px 16px',
+                  background: sending ? '#94a3b8' : !emailAddress ? '#cbd5e1' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                  border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700,
+                  cursor: sending || !emailAddress ? 'not-allowed' : 'pointer',
+                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                }}
+              >
+                {sending ? (
+                  <><span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</span> Envoi en cours...</>
+                ) : (
+                  <>📧 Envoyer le PDF</>
+                )}
+              </button>
+            </div>
+
+            <p style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 12, marginBottom: 0 }}>
+              Un PDF avec le classement complet sera envoyé en pièce jointe.
+            </p>
+          </div>
         </div>
       )}
     </div>

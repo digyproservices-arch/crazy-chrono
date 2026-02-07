@@ -8,6 +8,8 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { createClient } = require('@supabase/supabase-js');
 const { sendGroupInvitations } = require('../utils/emailNotifications');
+const PDFDocument = require('pdfkit');
+const nodemailer = require('nodemailer');
 
 // Connexion Supabase
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -1244,5 +1246,324 @@ function generateRoomCode() {
   }
   return code;
 }
+
+// ==========================================
+// ENVOI PDF RÉSULTATS PAR EMAIL
+// ==========================================
+
+/**
+ * POST /api/tournament/phases/:phaseId/send-results
+ * Génère un PDF avec le classement de la phase et l'envoie par email
+ * Body: { recipientEmail, recipientName? }
+ */
+router.post('/phases/:phaseId/send-results', requireSupabase, async (req, res) => {
+  try {
+    const { phaseId } = req.params;
+    const { recipientEmail, recipientName } = req.body;
+
+    if (!recipientEmail) {
+      return res.status(400).json({ success: false, error: 'Email du destinataire requis' });
+    }
+
+    // Vérifier config Gmail
+    const gmailUser = process.env.GMAIL_USER;
+    const gmailPass = process.env.GMAIL_APP_PASSWORD;
+    if (!gmailUser || !gmailPass) {
+      return res.status(500).json({ success: false, error: 'Configuration email non définie sur le serveur (GMAIL_USER / GMAIL_APP_PASSWORD)' });
+    }
+
+    // 1. Récupérer la phase
+    const { data: phase, error: phaseError } = await supabase
+      .from('tournament_phases')
+      .select('*')
+      .eq('id', phaseId)
+      .single();
+
+    if (phaseError || !phase) {
+      return res.status(404).json({ success: false, error: 'Phase non trouvée' });
+    }
+
+    const phaseName = PHASE_NAMES[phase.level] || `Phase ${phase.level}`;
+
+    // 2. Récupérer les groupes de cette phase
+    const { data: groups, error: groupsError } = await supabase
+      .from('tournament_groups')
+      .select('id, name, student_ids, match_id, status, winner_id')
+      .eq('tournament_id', phase.tournament_id)
+      .eq('phase_level', phase.level)
+      .order('created_at', { ascending: true });
+
+    if (groupsError) throw groupsError;
+
+    // 3. Récupérer les matchs
+    const matchIds = (groups || []).map(g => g.match_id).filter(Boolean);
+    let matches = [];
+    if (matchIds.length > 0) {
+      const { data: m } = await supabase
+        .from('tournament_matches')
+        .select('id, status, room_code, finished_at')
+        .in('id', matchIds);
+      matches = m || [];
+    }
+
+    // 4. Récupérer les résultats
+    let results = [];
+    if (matchIds.length > 0) {
+      const { data: r } = await supabase
+        .from('match_results')
+        .select('*')
+        .in('match_id', matchIds)
+        .order('rank', { ascending: true });
+      results = r || [];
+    }
+
+    // 5. Récupérer les noms des élèves
+    const allStudentIds = new Set();
+    (groups || []).forEach(g => {
+      try {
+        const ids = typeof g.student_ids === 'string' ? JSON.parse(g.student_ids) : (g.student_ids || []);
+        ids.forEach(id => allStudentIds.add(id));
+      } catch {}
+    });
+
+    const studentsMap = {};
+    if (allStudentIds.size > 0) {
+      const { data: students } = await supabase
+        .from('students')
+        .select('id, first_name, full_name')
+        .in('id', Array.from(allStudentIds));
+      (students || []).forEach(s => { studentsMap[s.id] = s; });
+    }
+
+    // 6. Récupérer le tournoi
+    const { data: tournament } = await supabase
+      .from('tournaments')
+      .select('name')
+      .eq('id', phase.tournament_id)
+      .single();
+
+    const tournamentName = tournament?.name || 'Tournoi Crazy Chrono';
+
+    // 7. Construire le classement général de la phase
+    const playerStats = {};
+    results.forEach(r => {
+      const sid = r.student_id;
+      if (!playerStats[sid]) {
+        playerStats[sid] = {
+          name: studentsMap[sid]?.full_name || studentsMap[sid]?.first_name || sid,
+          totalScore: 0, totalPairs: 0, totalErrors: 0, matchesPlayed: 0, matchesWon: 0, bestTime: null
+        };
+      }
+      playerStats[sid].totalScore += (r.score || 0);
+      playerStats[sid].totalPairs += (r.pairs_validated || 0);
+      playerStats[sid].totalErrors += (r.errors || 0);
+      playerStats[sid].matchesPlayed += 1;
+      if (r.rank === 1) playerStats[sid].matchesWon += 1;
+      if (r.time_ms && (!playerStats[sid].bestTime || r.time_ms < playerStats[sid].bestTime)) {
+        playerStats[sid].bestTime = r.time_ms;
+      }
+    });
+
+    const ranking = Object.entries(playerStats)
+      .map(([id, stats]) => ({ studentId: id, ...stats }))
+      .sort((a, b) => b.matchesWon - a.matchesWon || b.totalScore - a.totalScore);
+
+    // 8. Générer le PDF
+    const pdfBuffer = await new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const chunks = [];
+      doc.on('data', chunk => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      // ---- En-tête ----
+      doc.fontSize(22).font('Helvetica-Bold').fillColor('#1e293b')
+        .text(tournamentName, { align: 'center' });
+      doc.moveDown(0.3);
+      doc.fontSize(16).fillColor('#3b82f6')
+        .text(`${phaseName}`, { align: 'center' });
+      doc.moveDown(0.3);
+      doc.fontSize(10).font('Helvetica').fillColor('#64748b')
+        .text(`Résultats générés le ${new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, { align: 'center' });
+      doc.moveDown(0.5);
+
+      // Ligne séparatrice
+      doc.strokeColor('#e2e8f0').lineWidth(1)
+        .moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+      doc.moveDown(0.8);
+
+      // ---- Statistiques ----
+      const totalGroups = (groups || []).length;
+      const finishedGroups = (groups || []).filter(g => g.status === 'completed' || g.status === 'finished').length;
+      const totalPlayers = allStudentIds.size;
+
+      doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b')
+        .text('Résumé', { underline: true });
+      doc.moveDown(0.3);
+      doc.fontSize(10).font('Helvetica').fillColor('#475569');
+      doc.text(`Groupes: ${totalGroups} (${finishedGroups} terminés)    |    Joueurs: ${totalPlayers}    |    Phase: ${phase.level}/4 - ${phase.status === 'finished' ? 'Terminée' : phase.status === 'active' ? 'En cours' : 'En attente'}`);
+      doc.moveDown(0.8);
+
+      // ---- Classement Général ----
+      doc.fontSize(14).font('Helvetica-Bold').fillColor('#1e293b')
+        .text('Classement Général', { align: 'center' });
+      doc.moveDown(0.5);
+
+      if (ranking.length > 0) {
+        // Table header
+        const tableTop = doc.y;
+        const colX = { rank: 55, name: 90, wins: 260, score: 330, pairs: 400, errors: 455, time: 500 };
+
+        doc.fontSize(9).font('Helvetica-Bold').fillColor('#fff');
+        doc.rect(50, tableTop - 4, 495, 20).fill('#1e293b');
+        doc.fillColor('#fff');
+        doc.text('#', colX.rank, tableTop, { width: 30 });
+        doc.text('Joueur', colX.name, tableTop, { width: 160 });
+        doc.text('Victoires', colX.wins, tableTop, { width: 60, align: 'center' });
+        doc.text('Score', colX.score, tableTop, { width: 60, align: 'center' });
+        doc.text('Paires', colX.pairs, tableTop, { width: 50, align: 'center' });
+        doc.text('Erreurs', colX.errors, tableTop, { width: 45, align: 'center' });
+
+        let rowY = tableTop + 22;
+        const medals = ['🥇', '🥈', '🥉'];
+
+        ranking.forEach((player, idx) => {
+          if (rowY > 720) {
+            doc.addPage();
+            rowY = 60;
+          }
+
+          const bgColor = idx === 0 ? '#fffbeb' : idx === 1 ? '#f0f9ff' : idx === 2 ? '#fdf4ff' : (idx % 2 === 0 ? '#ffffff' : '#f8fafc');
+          doc.rect(50, rowY - 4, 495, 18).fill(bgColor);
+
+          doc.fontSize(9).font(idx < 3 ? 'Helvetica-Bold' : 'Helvetica').fillColor('#1e293b');
+          doc.text(`${idx + 1}`, colX.rank, rowY, { width: 30 });
+          doc.text(player.name, colX.name, rowY, { width: 160 });
+          doc.fillColor(player.matchesWon > 0 ? '#059669' : '#94a3b8')
+            .text(`${player.matchesWon}`, colX.wins, rowY, { width: 60, align: 'center' });
+          doc.fillColor('#3b82f6')
+            .text(`${player.totalScore}`, colX.score, rowY, { width: 60, align: 'center' });
+          doc.fillColor('#475569')
+            .text(`${player.totalPairs}`, colX.pairs, rowY, { width: 50, align: 'center' });
+          doc.fillColor(player.totalErrors > 0 ? '#dc2626' : '#059669')
+            .text(`${player.totalErrors}`, colX.errors, rowY, { width: 45, align: 'center' });
+
+          rowY += 20;
+        });
+
+        doc.y = rowY + 10;
+      } else {
+        doc.fontSize(10).font('Helvetica').fillColor('#94a3b8')
+          .text('Aucun résultat disponible pour cette phase.', { align: 'center' });
+      }
+
+      // ---- Détails par groupe ----
+      doc.moveDown(1);
+      if (doc.y > 650) doc.addPage();
+
+      doc.fontSize(14).font('Helvetica-Bold').fillColor('#1e293b')
+        .text('Détails par Groupe', { align: 'center' });
+      doc.moveDown(0.5);
+
+      (groups || []).forEach((group, gi) => {
+        if (doc.y > 680) doc.addPage();
+
+        const match = matches.find(m => m.id === group.match_id);
+        const groupResults = results.filter(r => r.match_id === group.match_id).sort((a, b) => (a.rank || 99) - (b.rank || 99));
+        let studentIds = [];
+        try { studentIds = typeof group.student_ids === 'string' ? JSON.parse(group.student_ids) : (group.student_ids || []); } catch {}
+
+        const winnerName = group.winner_id ? (studentsMap[group.winner_id]?.full_name || studentsMap[group.winner_id]?.first_name || '?') : null;
+
+        // Group header
+        doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b')
+          .text(`${group.name}`, 55);
+        doc.fontSize(9).font('Helvetica').fillColor('#64748b')
+          .text(`${studentIds.length} joueurs | Statut: ${match?.status || 'non lancé'}${winnerName ? ` | Gagnant: ${winnerName}` : ''}`, 55);
+        doc.moveDown(0.3);
+
+        if (groupResults.length > 0) {
+          groupResults.forEach((r, ri) => {
+            const name = studentsMap[r.student_id]?.full_name || studentsMap[r.student_id]?.first_name || r.student_id;
+            const timeStr = r.time_ms ? `${Math.floor(r.time_ms / 1000)}s` : '-';
+            doc.fontSize(9).font(ri === 0 ? 'Helvetica-Bold' : 'Helvetica')
+              .fillColor(ri === 0 ? '#059669' : '#475569')
+              .text(`  ${ri + 1}. ${name} — Score: ${r.score || 0} | Paires: ${r.pairs_validated || 0} | Erreurs: ${r.errors || 0} | Temps: ${timeStr}`, 65);
+          });
+        } else {
+          doc.fontSize(9).font('Helvetica').fillColor('#94a3b8')
+            .text('  Résultats non disponibles', 65);
+        }
+        doc.moveDown(0.6);
+      });
+
+      // ---- Pied de page ----
+      doc.moveDown(1);
+      doc.strokeColor('#e2e8f0').lineWidth(0.5)
+        .moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+      doc.moveDown(0.4);
+      doc.fontSize(8).font('Helvetica').fillColor('#94a3b8')
+        .text('Crazy Chrono — Compétition de calcul mental | Généré automatiquement', { align: 'center' });
+
+      doc.end();
+    });
+
+    // 9. Envoyer l'email
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: gmailUser,
+        pass: gmailPass
+      }
+    });
+
+    const fileName = `resultats_${phaseName.replace(/\s+/g, '_').toLowerCase()}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+    await transporter.sendMail({
+      from: `"Crazy Chrono" <${gmailUser}>`,
+      to: recipientEmail,
+      subject: `📊 Résultats ${phaseName} — ${tournamentName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #1e293b;">🏆 ${tournamentName}</h2>
+          <h3 style="color: #3b82f6;">${phaseName} — Résultats</h3>
+          <p>Bonjour${recipientName ? ` ${recipientName}` : ''},</p>
+          <p>Veuillez trouver ci-joint les résultats de la phase <strong>${phaseName}</strong> du tournoi <strong>${tournamentName}</strong>.</p>
+          <ul>
+            <li><strong>Groupes:</strong> ${(groups || []).length}</li>
+            <li><strong>Joueurs:</strong> ${allStudentIds.size}</li>
+            <li><strong>Statut:</strong> ${phase.status === 'finished' ? 'Phase terminée ✅' : 'Phase en cours'}</li>
+          </ul>
+          ${ranking.length > 0 ? `
+            <h4>Top 3:</h4>
+            <ol>
+              ${ranking.slice(0, 3).map(p => `<li><strong>${p.name}</strong> — ${p.totalScore} pts, ${p.matchesWon} victoire(s)</li>`).join('')}
+            </ol>
+          ` : ''}
+          <p style="color: #64748b; font-size: 12px; margin-top: 30px;">
+            Le classement complet est disponible dans le PDF en pièce jointe.<br/>
+            — Crazy Chrono, compétition de calcul mental
+          </p>
+        </div>
+      `,
+      attachments: [{
+        filename: fileName,
+        content: pdfBuffer,
+        contentType: 'application/pdf'
+      }]
+    });
+
+    console.log(`[Tournament API] Résultats ${phaseName} envoyés à ${recipientEmail}`);
+
+    res.json({
+      success: true,
+      message: `Résultats de ${phaseName} envoyés à ${recipientEmail}`
+    });
+
+  } catch (error) {
+    console.error('[Tournament API] Error sending results:', error);
+    res.status(500).json({ success: false, error: error.message || 'Erreur serveur' });
+  }
+});
 
 module.exports = router;
