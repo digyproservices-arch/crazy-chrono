@@ -826,6 +826,170 @@ router.get('/active-matches', requireSupabase, async (req, res) => {
 });
 
 // ==========================================
+// COMPETITION BRACKET / RÉSULTATS
+// ==========================================
+
+/**
+ * GET /api/tournament/classes/:classId/competition-results
+ * Récupérer tous les groupes, matchs et résultats pour le dashboard compétition
+ */
+router.get('/classes/:classId/competition-results', requireSupabase, async (req, res) => {
+  try {
+    const { classId } = req.params;
+    
+    // 1. Récupérer tous les groupes de la classe
+    const { data: groups, error: groupsError } = await supabase
+      .from('tournament_groups')
+      .select('id, name, student_ids, match_id, status, winner_id')
+      .eq('class_id', classId)
+      .order('created_at', { ascending: true });
+    
+    if (groupsError) throw groupsError;
+    
+    // 2. Récupérer tous les matchs associés
+    const matchIds = (groups || []).map(g => g.match_id).filter(id => id);
+    let matches = [];
+    
+    if (matchIds.length > 0) {
+      const { data: matchesData, error: matchesError } = await supabase
+        .from('tournament_matches')
+        .select('id, status, room_code, created_at, finished_at, players, winner')
+        .in('id', matchIds);
+      
+      if (matchesError) throw matchesError;
+      matches = matchesData || [];
+    }
+    
+    // 3. Récupérer tous les résultats
+    let results = [];
+    if (matchIds.length > 0) {
+      const { data: resultsData, error: resultsError } = await supabase
+        .from('match_results')
+        .select('match_id, student_id, position, score, time_ms, pairs_validated, errors')
+        .in('match_id', matchIds)
+        .order('position', { ascending: true });
+      
+      if (resultsError) throw resultsError;
+      results = resultsData || [];
+    }
+    
+    // 4. Récupérer les infos des élèves
+    const allStudentIds = new Set();
+    (groups || []).forEach(g => {
+      const ids = Array.isArray(g.student_ids) ? g.student_ids : JSON.parse(g.student_ids || '[]');
+      ids.forEach(id => allStudentIds.add(id));
+    });
+    
+    let students = [];
+    if (allStudentIds.size > 0) {
+      const { data: studentsData, error: studentsError } = await supabase
+        .from('students')
+        .select('id, full_name, first_name, avatar_url')
+        .in('id', Array.from(allStudentIds));
+      
+      if (studentsError) throw studentsError;
+      students = studentsData || [];
+    }
+    
+    const studentsMap = Object.fromEntries(students.map(s => [s.id, s]));
+    
+    // 5. Enrichir les groupes avec matchs et résultats
+    const enrichedGroups = (groups || []).map(group => {
+      const match = matches.find(m => m.id === group.match_id);
+      const matchResults = results.filter(r => r.match_id === group.match_id);
+      const studentIds = Array.isArray(group.student_ids) ? group.student_ids : JSON.parse(group.student_ids || '[]');
+      
+      // Parse winner from match if available
+      let winner = null;
+      if (match?.winner) {
+        try {
+          winner = typeof match.winner === 'string' ? JSON.parse(match.winner) : match.winner;
+        } catch {}
+      }
+      
+      return {
+        id: group.id,
+        name: group.name,
+        status: group.status,
+        winnerId: group.winner_id,
+        winnerName: group.winner_id ? (studentsMap[group.winner_id]?.full_name || studentsMap[group.winner_id]?.first_name || 'Inconnu') : null,
+        students: studentIds.map(sid => ({
+          id: sid,
+          name: studentsMap[sid]?.full_name || studentsMap[sid]?.first_name || sid,
+          avatarUrl: studentsMap[sid]?.avatar_url || null
+        })),
+        match: match ? {
+          id: match.id,
+          status: match.status,
+          roomCode: match.room_code,
+          createdAt: match.created_at,
+          finishedAt: match.finished_at,
+          winner
+        } : null,
+        results: matchResults.map(r => ({
+          studentId: r.student_id,
+          studentName: studentsMap[r.student_id]?.full_name || studentsMap[r.student_id]?.first_name || r.student_id,
+          position: r.position,
+          score: r.score,
+          timeMs: r.time_ms,
+          pairsValidated: r.pairs_validated,
+          errors: r.errors
+        }))
+      };
+    });
+    
+    // 6. Classement général (agréger les résultats de tous les matchs)
+    const playerStats = {};
+    results.forEach(r => {
+      if (!playerStats[r.student_id]) {
+        playerStats[r.student_id] = {
+          studentId: r.student_id,
+          name: studentsMap[r.student_id]?.full_name || studentsMap[r.student_id]?.first_name || r.student_id,
+          avatarUrl: studentsMap[r.student_id]?.avatar_url || null,
+          totalScore: 0,
+          matchesPlayed: 0,
+          matchesWon: 0,
+          totalPairs: 0,
+          totalErrors: 0,
+          bestPosition: 999
+        };
+      }
+      const ps = playerStats[r.student_id];
+      ps.totalScore += r.score || 0;
+      ps.matchesPlayed += 1;
+      ps.totalPairs += r.pairs_validated || 0;
+      ps.totalErrors += r.errors || 0;
+      if (r.position < ps.bestPosition) ps.bestPosition = r.position;
+      if (r.position === 1) ps.matchesWon += 1;
+    });
+    
+    const overallRanking = Object.values(playerStats)
+      .sort((a, b) => {
+        if (b.matchesWon !== a.matchesWon) return b.matchesWon - a.matchesWon;
+        if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+        return a.totalErrors - b.totalErrors;
+      })
+      .map((p, idx) => ({ ...p, rank: idx + 1 }));
+    
+    res.json({
+      success: true,
+      groups: enrichedGroups,
+      overallRanking,
+      stats: {
+        totalGroups: enrichedGroups.length,
+        finishedMatches: enrichedGroups.filter(g => g.match?.status === 'finished').length,
+        pendingMatches: enrichedGroups.filter(g => !g.match || g.match.status === 'pending').length,
+        playingMatches: enrichedGroups.filter(g => g.match?.status === 'playing').length,
+        totalPlayers: allStudentIds.size
+      }
+    });
+  } catch (error) {
+    console.error('[Tournament API] Error fetching competition results:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
 // HELPERS
 // ==========================================
 

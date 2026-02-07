@@ -22,6 +22,7 @@ import TrainingArenaSetup from './components/Teacher/TrainingArenaSetup';
 import TrainingArenaManagerDashboard from './components/Teacher/TrainingArenaManagerDashboard';
 import TrainingArenaLobby from './components/Teacher/TrainingArenaLobby';
 import ArenaManagerDashboard from './components/Tournament/ArenaManagerDashboard';
+import CompetitionBracket from './components/Tournament/CompetitionBracket';
 import AdminRoles from './components/Admin/AdminRoles';
 import MonitoringDashboard from './components/MonitoringDashboard';
 import AdminInvite from './components/Admin/AdminInvite';
@@ -409,6 +410,7 @@ function App() {
               {/* Crazy Arena (Tournoi 4 joueurs) - Lobby redirige vers /carte?arena=matchId */}
               <Route path="/tournament/setup" element={<RequireAuth auth={auth}><CrazyArenaSetup /></RequireAuth>} />
               <Route path="/crazy-arena/manager" element={<RequireAuth auth={auth}><ArenaManagerDashboard /></RequireAuth>} />
+              <Route path="/crazy-arena/competition" element={<RequireAuth auth={auth}><CompetitionBracket /></RequireAuth>} />
               <Route path="/crazy-arena/lobby/:roomCode" element={<RequireAuth auth={auth}><CrazyArenaLobby /></RequireAuth>} />
               {/* Training Arena (Mode Entraînement - identique à Crazy Arena) */}
               <Route path="/training-arena/setup" element={<RequireAuth auth={auth}><TrainingArenaSetup /></RequireAuth>} />
