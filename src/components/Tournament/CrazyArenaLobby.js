@@ -34,7 +34,8 @@ export default function CrazyArenaLobby() {
         const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
         
         // Détecter si professeur/admin
-        if (auth.role === 'admin' || auth.role === 'teacher' || auth.isAdmin) {
+        const isTeacherOrAdmin = auth.role === 'admin' || auth.role === 'teacher' || auth.isAdmin;
+        if (isTeacherOrAdmin) {
           setIsTeacher(true);
         }
         
@@ -56,6 +57,22 @@ export default function CrazyArenaLobby() {
           }
         });
 
+        // ✅ Vérifier si le token a expiré (401)
+        if (response.status === 401) {
+          console.warn('[CrazyArena] ⚠️ Token expiré, tentative fallback localStorage');
+          const fallbackId = localStorage.getItem('cc_student_id');
+          const fallbackName = localStorage.getItem('cc_student_name');
+          if (fallbackId) {
+            setMyStudentId(fallbackId);
+            setStudentName(fallbackName || 'Joueur');
+            setLoading(false);
+            return { studentId: fallbackId, studentName: fallbackName || 'Joueur' };
+          }
+          setError('Votre session a expiré. Veuillez vous reconnecter.');
+          setLoading(false);
+          return null;
+        }
+
         const data = await response.json();
         
         if (data.ok && data.student) {
@@ -71,6 +88,14 @@ export default function CrazyArenaLobby() {
           localStorage.setItem('cc_student_name', studentName);
           
           return { studentId, studentName };
+        } else if (isTeacherOrAdmin) {
+          // ✅ Les professeurs n'ont pas de student_id, c'est normal
+          console.log('[CrazyArena] Professeur détecté, pas de student_id requis');
+          const teacherName = data.user?.name || auth.name || 'Professeur';
+          setMyStudentId('teacher-' + (data.user?.id || auth.id || 'unknown'));
+          setStudentName(teacherName);
+          setLoading(false);
+          return { studentId: 'teacher-' + (data.user?.id || auth.id || 'unknown'), studentName: teacherName };
         } else {
           console.error('[CrazyArena] ❌ Aucun élève lié à ce compte');
           setError('Votre compte n\'est pas lié à un élève. Contactez l\'administrateur.');
