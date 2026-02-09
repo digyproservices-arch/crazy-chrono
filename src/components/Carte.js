@@ -1243,6 +1243,12 @@ const Carte = () => {
         navigate('/');
       });
 
+      s.on('training:opponent-disconnected', ({ disconnectedPlayer, message }) => {
+        console.warn('[TRAINING] ⚠️ Adversaire déconnecté:', disconnectedPlayer);
+        setGameActive(false);
+        alert(message);
+      });
+
       s.on('training:pair-validated', ({ pairId, zoneAId, zoneBId, playerName, studentId }) => {
         console.log('[TRAINING] Paire validée par', playerName, ':', pairId);
         
@@ -1361,6 +1367,12 @@ const Carte = () => {
         setGameActive(false);
         alert('Le match a été interrompu : ' + reason + '\nVous allez être redirigé.');
         navigate('/');
+      });
+
+      s.on('arena:opponent-disconnected', ({ disconnectedPlayer, message }) => {
+        console.warn('[ARENA] ⚠️ Adversaire déconnecté:', disconnectedPlayer);
+        setGameActive(false);
+        alert(message);
       });
 
       // ✅ Listener pour countdown 3-2-1 avant tiebreaker
