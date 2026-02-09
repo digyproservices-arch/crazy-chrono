@@ -325,14 +325,15 @@ export default function Login({ onLogin }) {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>
-      <form onSubmit={handleLogin} style={{ width: 400, maxWidth: '92vw', background: '#fff', border: 'none', borderRadius: 16, padding: '32px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'linear-gradient(135deg, #0D6A7A 0%, #1AACBE 50%, #148A9C 100%)' }}>
+      <form onSubmit={handleLogin} style={{ width: 400, maxWidth: '92vw', background: '#fff', border: 'none', borderRadius: 16, padding: '32px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>🎲</div>
-          <h1 style={{ margin: '0 0 4px 0', fontSize: 26, fontWeight: 900, background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 50%, #ec4899 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>CRAZY CHRONO</h1>
-          <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Connectez-vous pour jouer ou administrer</p>
+          <img src={`${process.env.PUBLIC_URL}/images/crazy-chrono-logo.png`} alt="Crazy Chrono" style={{ height: 80, width: 'auto', objectFit: 'contain', marginBottom: 8 }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          <h1 style={{ margin: '0 0 2px 0', fontSize: 28, fontWeight: 900, color: '#F5A623', textShadow: '1px 1px 0 #4A3728', letterSpacing: 2 }}>CRAZY</h1>
+          <h1 style={{ margin: '0 0 6px 0', fontSize: 22, fontWeight: 800, color: '#1AACBE', letterSpacing: 3 }}>CHRONO</h1>
+          <p style={{ margin: 0, fontSize: 13, color: '#6B5443' }}>Connectez-vous pour jouer ou administrer</p>
         </div>
-        <h2 style={{ marginTop: 0, marginBottom: 12, fontSize: 18 }}>{signupMode ? 'Créer un compte' : 'Connexion'}</h2>
+        <h2 style={{ marginTop: 0, marginBottom: 12, fontSize: 18, color: '#4A3728' }}>{signupMode ? 'Créer un compte' : 'Connexion'}</h2>
         {signupMode && (
           <>
             <label style={{ display: 'block', marginBottom: 6 }}>Prénom *</label>
@@ -372,7 +373,7 @@ export default function Login({ onLogin }) {
         </div>
         {error && <div style={{ marginTop: 10, color: '#b91c1c' }}>{error}</div>}
         {info && <div style={{ marginTop: 10, color: '#065f46' }}>{info}</div>}
-        <button type="submit" disabled={loading} style={{ marginTop: 16, width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #10b981', background: '#10b981', color: '#fff', fontWeight: 600 }}>
+        <button type="submit" disabled={loading} style={{ marginTop: 16, width: '100%', padding: '12px 12px', borderRadius: 10, border: 'none', background: '#1AACBE', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: '0 3px 10px rgba(26,172,190,0.3)' }}>
           {loading ? 'Connexion…' : 'Se connecter'}
         </button>
         <button
@@ -386,13 +387,13 @@ export default function Login({ onLogin }) {
             await handleSignup();
           }}
           disabled={loading}
-          style={{ marginTop: 8, width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #3b82f6', background: signupMode ? '#3b82f6' : '#eff6ff', color: signupMode ? '#fff' : '#1e3a8a', fontWeight: 600 }}
+          style={{ marginTop: 8, width: '100%', padding: '12px 12px', borderRadius: 10, border: signupMode ? 'none' : '2px solid #1AACBE', background: signupMode ? '#F5A623' : 'transparent', color: signupMode ? '#4A3728' : '#1AACBE', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
         >
           {signupMode ? 'Valider l’inscription' : 'Créer un compte'}
         </button>
         {signupMode && (
           <div style={{ marginTop: 8, textAlign: 'center' }}>
-            <button type="button" onClick={handleResendConfirmation} style={{ background: 'transparent', border: 'none', color: '#2563eb', textDecoration: 'underline', cursor: 'pointer' }}>
+            <button type="button" onClick={handleResendConfirmation} style={{ background: 'transparent', border: 'none', color: '#1AACBE', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600 }}>
               Renvoyer e‑mail de confirmation
             </button>
           </div>

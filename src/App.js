@@ -420,7 +420,7 @@ function App() {
             </Routes>
           </main>
           {!gameMode && (
-            <footer style={{ background: '#0f172a', color: '#64748b', padding: '16px 24px', textAlign: 'center', fontSize: 13 }}>
+            <footer style={{ background: '#0D6A7A', color: 'rgba(255,255,255,0.7)', padding: '16px 24px', textAlign: 'center', fontSize: 13 }}>
               <p style={{ margin: 0 }}>© 2025 CRAZY CHRONO — DIGIKAZ · Tous droits réservés</p>
             </footer>
           )}

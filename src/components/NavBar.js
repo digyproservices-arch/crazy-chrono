@@ -5,8 +5,21 @@ import supabase from '../utils/supabaseClient';
 
 // ==========================================
 // NAVBAR MODERNE — CRAZY CHRONO
-// Navigation role-based: Admin / Enseignant / Élève
+// Charte graphique officielle:
+//   Teal #1AACBE | Yellow #F5A623 | Brown #4A3728
 // ==========================================
+
+const CC = {
+  teal:      '#1AACBE',
+  tealDark:  '#148A9C',
+  tealDeep:  '#0D6A7A',
+  yellow:    '#F5A623',
+  yellowLt:  '#FFC940',
+  brown:     '#4A3728',
+  brownLt:   '#6B5443',
+  white:     '#FFFFFF',
+  cream:     '#FFF9F0',
+};
 
 const NavBar = () => {
   const location = useLocation();
@@ -56,46 +69,50 @@ const NavBar = () => {
   if (isLogin) return null;
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
+  const logoSrc = `${process.env.PUBLIC_URL}/images/crazy-chrono-logo.png`;
 
   return (
     <>
       <nav style={{
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
-        padding: '0 24px',
+        background: `linear-gradient(135deg, ${CC.tealDeep} 0%, ${CC.teal} 50%, ${CC.tealDark} 100%)`,
+        padding: '0 20px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        height: 60,
+        height: 62,
         position: 'sticky',
         top: 0,
         zIndex: 1000,
-        boxShadow: '0 2px 20px rgba(0,0,0,0.3)',
-        fontFamily: 'system-ui, -apple-system, sans-serif'
+        boxShadow: '0 3px 16px rgba(13,106,122,0.35)',
+        fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif"
       }}>
         {/* ===== LOGO ===== */}
         <Link to="/modes" style={{
           display: 'flex', alignItems: 'center', gap: 10,
           textDecoration: 'none', flexShrink: 0
         }}>
-          <span style={{ fontSize: 28 }}>🎲</span>
-          <span style={{
-            fontSize: 20, fontWeight: 900, letterSpacing: 1,
-            background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 50%, #ec4899 100%)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
-          }}>
-            CRAZY CHRONO
-          </span>
+          <img
+            src={logoSrc}
+            alt="Crazy Chrono"
+            style={{ height: 42, width: 'auto', objectFit: 'contain' }}
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
+            <span style={{ fontSize: 18, fontWeight: 900, color: CC.yellow, letterSpacing: 1.5, textShadow: `1px 1px 0 ${CC.brown}` }}>
+              CRAZY
+            </span>
+            <span style={{ fontSize: 14, fontWeight: 800, color: CC.white, letterSpacing: 2, textShadow: `1px 1px 0 ${CC.brown}` }}>
+              CHRONO
+            </span>
+          </div>
         </Link>
 
         {/* ===== DESKTOP NAV ===== */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 4,
-          '@media (max-width: 768px)': { display: 'none' }
+          display: 'flex', alignItems: 'center', gap: 2
         }} className="cc-nav-desktop">
-          {/* Jouer / Modes */}
           <NavLink icon="🎮" label={isTeacher ? "Modes de jeu" : "Jouer"} to="/modes" active={isActive('/modes')} navigate={navigate} />
 
-          {/* Enseignant: Entraînement dropdown */}
           {isTeacher && (
             <NavDropdown icon="📚" label="Entraînement" active={isActive('/training-arena')}>
               <DropdownItem icon="➕" label="Créer une session" to="/training-arena/setup" navigate={navigate} active={isActive('/training-arena/setup')} />
@@ -103,7 +120,6 @@ const NavBar = () => {
             </NavDropdown>
           )}
 
-          {/* Enseignant: Tournoi dropdown */}
           {isTeacher && (
             <NavDropdown icon="🏆" label="Tournoi" active={isActive('/teacher/tournament') || isActive('/crazy-arena')}>
               <DropdownItem icon="⚙️" label="Configuration" to="/teacher/tournament" navigate={navigate} active={isActive('/teacher/tournament')} />
@@ -112,14 +128,10 @@ const NavBar = () => {
             </NavDropdown>
           )}
 
-          {/* Performances */}
           <NavLink icon="📊" label="Performances" to="/my-performance" active={isActive('/my-performance')} navigate={navigate} />
 
-          {/* Admin dropdown */}
           {isAdmin && (
-            <NavDropdown icon="⚙️" label="Administration" active={
-              isActive('/admin') || isActive('/debug')
-            }>
+            <NavDropdown icon="⚙️" label="Administration" active={isActive('/admin') || isActive('/debug')}>
               <DropdownItem icon="📊" label="Dashboard" to="/admin/dashboard" navigate={navigate} active={isActive('/admin/dashboard')} />
               <DropdownItem icon="👥" label="Rôles" to="/admin/roles" navigate={navigate} active={isActive('/admin/roles')} />
               <DropdownItem icon="✉️" label="Invitations" to="/admin/invite" navigate={navigate} active={isActive('/admin/invite')} />
@@ -134,44 +146,39 @@ const NavBar = () => {
         </div>
 
         {/* ===== RIGHT SIDE ===== */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-          {/* Free quota badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           {isFree() && (
             <Link to="/pricing" style={{
-              fontSize: 11, color: '#fbbf24', background: 'rgba(251,191,36,0.1)',
-              border: '1px solid rgba(251,191,36,0.3)', borderRadius: 20,
-              padding: '4px 10px', textDecoration: 'none', fontWeight: 600,
-              whiteSpace: 'nowrap'
+              fontSize: 11, color: CC.brown, background: CC.yellow,
+              border: 'none', borderRadius: 20,
+              padding: '5px 12px', textDecoration: 'none', fontWeight: 700,
+              whiteSpace: 'nowrap', boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
             }}>
               Free {quota.sessions || 0}/3 · Upgrade
             </Link>
           )}
 
-          {/* Boutique link */}
           <a href="https://crazy-chrono.com" style={{
-            fontSize: 12, color: '#94a3b8', textDecoration: 'none',
-            padding: '6px 10px', borderRadius: 6,
-            transition: 'color 0.2s'
+            fontSize: 12, color: 'rgba(255,255,255,0.7)', textDecoration: 'none',
+            padding: '6px 10px', borderRadius: 6, transition: 'color 0.2s'
           }}
-          onMouseEnter={e => e.currentTarget.style.color = '#e2e8f0'}
-          onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+          onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+          onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.7)'}
           >
             🏪 Boutique
           </a>
 
-          {/* Profile */}
           {isLogged && (
             <ProfileMenu auth={auth} role={role} onLogout={onLogout} navigate={navigate} />
           )}
 
-          {/* Mobile hamburger */}
           <button
             onClick={() => setMobileOpen(v => !v)}
             className="cc-nav-mobile-btn"
             style={{
-              display: 'none', // shown via CSS media query
-              background: 'none', border: '1px solid rgba(255,255,255,0.2)',
-              color: '#e2e8f0', borderRadius: 6, padding: '6px 8px',
+              display: 'none',
+              background: 'rgba(255,255,255,0.15)', border: 'none',
+              color: '#fff', borderRadius: 8, padding: '8px 10px',
               cursor: 'pointer', fontSize: 18
             }}
           >
@@ -183,10 +190,10 @@ const NavBar = () => {
       {/* ===== MOBILE MENU ===== */}
       {mobileOpen && (
         <div className="cc-nav-mobile-menu" style={{
-          background: '#1e293b', padding: '12px 16px',
-          borderBottom: '1px solid rgba(255,255,255,0.1)',
+          background: CC.tealDeep, padding: '12px 16px',
+          borderBottom: `3px solid ${CC.yellow}`,
           display: 'flex', flexDirection: 'column', gap: 4,
-          position: 'sticky', top: 60, zIndex: 999
+          position: 'sticky', top: 62, zIndex: 999
         }}>
           <MobileLink icon="🎮" label={isTeacher ? "Modes de jeu" : "Jouer"} to="/modes" navigate={navigate} active={isActive('/modes')} />
           {isTeacher && <MobileLink icon="📚" label="Entraînement — Créer" to="/training-arena/setup" navigate={navigate} active={isActive('/training-arena/setup')} />}
@@ -195,7 +202,7 @@ const NavBar = () => {
           {isTeacher && <MobileLink icon="📋" label="Tournoi — Matchs" to="/crazy-arena/manager" navigate={navigate} active={isActive('/crazy-arena/manager')} />}
           {isTeacher && <MobileLink icon="🏅" label="Compétition" to="/crazy-arena/competition" navigate={navigate} active={isActive('/crazy-arena/competition')} />}
           <MobileLink icon="📊" label="Performances" to="/my-performance" navigate={navigate} active={isActive('/my-performance')} />
-          {isAdmin && <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '6px 0' }} />}
+          {isAdmin && <div style={{ height: 1, background: 'rgba(255,255,255,0.15)', margin: '6px 0' }} />}
           {isAdmin && <MobileLink icon="📊" label="Admin Dashboard" to="/admin/dashboard" navigate={navigate} active={isActive('/admin/dashboard')} />}
           {isAdmin && <MobileLink icon="👥" label="Rôles" to="/admin/roles" navigate={navigate} active={isActive('/admin/roles')} />}
           {isAdmin && <MobileLink icon="✉️" label="Invitations" to="/admin/invite" navigate={navigate} active={isActive('/admin/invite')} />}
@@ -203,7 +210,6 @@ const NavBar = () => {
         </div>
       )}
 
-      {/* ===== CSS for responsive ===== */}
       <style>{`
         @media (max-width: 860px) {
           .cc-nav-desktop { display: none !important; }
@@ -218,7 +224,7 @@ const NavBar = () => {
 };
 
 // ==========================================
-// SUB-COMPONENTS
+// SUB-COMPONENTS — Brand-themed
 // ==========================================
 
 const NavLink = ({ icon, label, to, active, navigate }) => (
@@ -227,13 +233,14 @@ const NavLink = ({ icon, label, to, active, navigate }) => (
     style={{
       display: 'flex', alignItems: 'center', gap: 6,
       padding: '8px 14px', borderRadius: 8, border: 'none',
-      background: active ? 'rgba(255,255,255,0.12)' : 'transparent',
-      color: active ? '#fff' : '#94a3b8',
-      fontSize: 13, fontWeight: active ? 700 : 500,
-      cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap'
+      background: active ? 'rgba(255,255,255,0.2)' : 'transparent',
+      color: active ? CC.yellow : 'rgba(255,255,255,0.85)',
+      fontSize: 13, fontWeight: active ? 700 : 600,
+      cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap',
+      textShadow: active ? 'none' : '0 1px 2px rgba(0,0,0,0.15)'
     }}
-    onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#e2e8f0'; } }}
-    onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#94a3b8'; } }}
+    onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = '#fff'; } }}
+    onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; } }}
   >
     <span style={{ fontSize: 15 }}>{icon}</span>
     {label}
@@ -244,7 +251,6 @@ const NavDropdown = ({ icon, label, active, children }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
-  // Close on outside click
   useEffect(() => {
     if (!open) return;
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -259,23 +265,24 @@ const NavDropdown = ({ icon, label, active, children }) => {
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '8px 14px', borderRadius: 8, border: 'none',
-          background: active || open ? 'rgba(255,255,255,0.12)' : 'transparent',
-          color: active || open ? '#fff' : '#94a3b8',
-          fontSize: 13, fontWeight: active ? 700 : 500,
-          cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap'
+          background: active || open ? 'rgba(255,255,255,0.2)' : 'transparent',
+          color: active ? CC.yellow : (open ? '#fff' : 'rgba(255,255,255,0.85)'),
+          fontSize: 13, fontWeight: active ? 700 : 600,
+          cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap',
+          textShadow: '0 1px 2px rgba(0,0,0,0.15)'
         }}
-        onMouseEnter={e => { if (!active && !open) { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#e2e8f0'; } }}
-        onMouseLeave={e => { if (!active && !open) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#94a3b8'; } }}
+        onMouseEnter={e => { if (!active && !open) { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = '#fff'; } }}
+        onMouseLeave={e => { if (!active && !open) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; } }}
       >
         <span style={{ fontSize: 15 }}>{icon}</span>
         {label}
-        <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 2 }}>▾</span>
+        <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 2 }}>▾</span>
       </button>
       {open && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 6px)', left: '50%', transform: 'translateX(-50%)',
-          background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 12, boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
+          background: CC.white, border: `2px solid ${CC.teal}`,
+          borderRadius: 12, boxShadow: '0 12px 40px rgba(0,0,0,0.2)',
           padding: 6, minWidth: 220, zIndex: 1001
         }}>
           {React.Children.map(children, child =>
@@ -297,13 +304,13 @@ const DropdownItem = ({ icon, label, to, navigate, active, onClick, closeMenu })
     style={{
       display: 'flex', alignItems: 'center', gap: 10, width: '100%',
       padding: '10px 12px', borderRadius: 8, border: 'none',
-      background: active ? 'rgba(59,130,246,0.15)' : 'transparent',
-      color: active ? '#60a5fa' : '#cbd5e1',
-      fontSize: 13, fontWeight: active ? 600 : 400,
+      background: active ? `${CC.teal}15` : 'transparent',
+      color: active ? CC.teal : CC.brown,
+      fontSize: 13, fontWeight: active ? 700 : 500,
       cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
     }}
-    onMouseEnter={e => { e.currentTarget.style.background = active ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.06)'; }}
-    onMouseLeave={e => { e.currentTarget.style.background = active ? 'rgba(59,130,246,0.15)' : 'transparent'; }}
+    onMouseEnter={e => { e.currentTarget.style.background = active ? `${CC.teal}22` : '#f0fafb'; }}
+    onMouseLeave={e => { e.currentTarget.style.background = active ? `${CC.teal}15` : 'transparent'; }}
   >
     <span style={{ fontSize: 15, width: 22, textAlign: 'center' }}>{icon}</span>
     {label}
@@ -311,7 +318,7 @@ const DropdownItem = ({ icon, label, to, navigate, active, onClick, closeMenu })
 );
 
 const DropdownSeparator = () => (
-  <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '4px 8px' }} />
+  <div style={{ height: 1, background: '#e5e7eb', margin: '4px 8px' }} />
 );
 
 const MobileLink = ({ icon, label, to, navigate, active }) => (
@@ -320,9 +327,9 @@ const MobileLink = ({ icon, label, to, navigate, active }) => (
     style={{
       display: 'flex', alignItems: 'center', gap: 10,
       padding: '10px 12px', borderRadius: 8, border: 'none',
-      background: active ? 'rgba(59,130,246,0.15)' : 'transparent',
-      color: active ? '#60a5fa' : '#cbd5e1',
-      fontSize: 14, fontWeight: active ? 600 : 400,
+      background: active ? 'rgba(245,166,35,0.2)' : 'transparent',
+      color: active ? CC.yellow : 'rgba(255,255,255,0.9)',
+      fontSize: 14, fontWeight: active ? 700 : 500,
       cursor: 'pointer', textAlign: 'left', width: '100%'
     }}
   >
@@ -349,7 +356,7 @@ const ProfileMenu = ({ auth, role, onLogout, navigate }) => {
   const initials = String(name).trim().split(/\s+/).map(s => s[0]).join('').slice(0, 2).toUpperCase() || 'U';
 
   const ROLE_LABELS = { admin: 'Administrateur', teacher: 'Enseignant', student: 'Élève', guest: 'Invité' };
-  const ROLE_COLORS = { admin: '#ef4444', teacher: '#8b5cf6', student: '#3b82f6', guest: '#6b7280' };
+  const ROLE_COLORS = { admin: '#e53e3e', teacher: CC.teal, student: CC.yellow, guest: '#a0aec0' };
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
@@ -358,38 +365,38 @@ const ProfileMenu = ({ auth, role, onLogout, navigate }) => {
         style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '4px 12px 4px 4px', borderRadius: 999,
-          border: '1px solid rgba(255,255,255,0.15)',
-          background: open ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)',
+          border: '2px solid rgba(255,255,255,0.25)',
+          background: open ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.08)',
           cursor: 'pointer', transition: 'all 0.2s'
         }}
-        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-        onMouseLeave={e => { if (!open) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
+        onMouseLeave={e => { if (!open) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
       >
         <span style={{
           width: 32, height: 32, borderRadius: 999,
-          background: `linear-gradient(135deg, ${ROLE_COLORS[role]} 0%, ${ROLE_COLORS[role]}88 100%)`,
+          background: CC.yellow,
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          fontWeight: 800, fontSize: 12, color: '#fff'
+          fontWeight: 800, fontSize: 12, color: CC.brown,
+          boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
         }}>{initials}</span>
-        <span style={{ color: '#e2e8f0', fontSize: 13, fontWeight: 500, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ color: '#fff', fontSize: 13, fontWeight: 600, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {name}
         </span>
-        <span style={{ color: '#64748b', fontSize: 10 }}>▾</span>
+        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 10 }}>▾</span>
       </button>
       {open && (
         <div style={{
           position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-          background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 12, boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
+          background: CC.white, border: `2px solid ${CC.teal}`,
+          borderRadius: 12, boxShadow: '0 12px 40px rgba(0,0,0,0.18)',
           padding: 6, minWidth: 220, zIndex: 1001
         }}>
-          {/* User info header */}
-          <div style={{ padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: 4 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0' }}>{name}</div>
+          <div style={{ padding: '10px 12px', borderBottom: '1px solid #e5e7eb', marginBottom: 4 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: CC.brown }}>{name}</div>
             <div style={{
               display: 'inline-block', fontSize: 10, fontWeight: 700,
               padding: '2px 8px', borderRadius: 20, marginTop: 4,
-              background: `${ROLE_COLORS[role]}22`, color: ROLE_COLORS[role],
+              background: `${ROLE_COLORS[role]}18`, color: ROLE_COLORS[role],
               border: `1px solid ${ROLE_COLORS[role]}44`
             }}>
               {ROLE_LABELS[role] || role}
@@ -403,10 +410,10 @@ const ProfileMenu = ({ auth, role, onLogout, navigate }) => {
             style={{
               display: 'flex', alignItems: 'center', gap: 10, width: '100%',
               padding: '10px 12px', borderRadius: 8, border: 'none',
-              background: 'transparent', color: '#f87171',
-              fontSize: 13, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
+              background: 'transparent', color: '#e53e3e',
+              fontSize: 13, fontWeight: 600, cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s'
             }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.1)'}
+            onMouseEnter={e => e.currentTarget.style.background = '#fff5f5'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
             <span style={{ fontSize: 15, width: 22, textAlign: 'center' }}>🚪</span>
