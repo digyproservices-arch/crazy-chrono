@@ -325,9 +325,14 @@ export default function Login({ onLogin }) {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <form onSubmit={handleLogin} style={{ width: 380, maxWidth: '92vw', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, boxShadow: '0 8px 28px rgba(0,0,0,0.08)' }}>
-        <h2 style={{ marginTop: 0, marginBottom: 12 }}>Connexion</h2>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>
+      <form onSubmit={handleLogin} style={{ width: 400, maxWidth: '92vw', background: '#fff', border: 'none', borderRadius: 16, padding: '32px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>🎲</div>
+          <h1 style={{ margin: '0 0 4px 0', fontSize: 26, fontWeight: 900, background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 50%, #ec4899 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>CRAZY CHRONO</h1>
+          <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>Connectez-vous pour jouer ou administrer</p>
+        </div>
+        <h2 style={{ marginTop: 0, marginBottom: 12, fontSize: 18 }}>{signupMode ? 'Créer un compte' : 'Connexion'}</h2>
         {signupMode && (
           <>
             <label style={{ display: 'block', marginBottom: 6 }}>Prénom *</label>

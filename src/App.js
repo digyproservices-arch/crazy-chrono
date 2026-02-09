@@ -378,12 +378,6 @@ function App() {
         <div className="App">
           {/* Badge notifications Arena (visible partout) */}
           {auth && <NotificationBadge />}
-          {!gameMode && (
-            <header className="App-header">
-              <h1>Éditeur de Carte</h1>
-              <p>Ajoutez du texte sur votre carte</p>
-            </header>
-          )}
           {!gameMode && <NavBar />}
           <main>
             <Routes>
@@ -426,16 +420,18 @@ function App() {
             </Routes>
           </main>
           {!gameMode && (
-            <footer>
-              <p>© 2025 - Éditeur de Carte</p>
+            <footer style={{ background: '#0f172a', color: '#64748b', padding: '16px 24px', textAlign: 'center', fontSize: 13 }}>
+              <p style={{ margin: 0 }}>© 2025 CRAZY CHRONO — DIGIKAZ · Tous droits réservés</p>
             </footer>
           )}
-          {/* Global Diagnostic floating button and panel */}
+          {/* Global Diagnostic floating button - Admin only */}
+          {isAdminUI && (
           <button
             onClick={() => setDiagOpen(v=>!v)}
-            title="Diagnostic"
-            style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 10000, background: '#111827', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, padding: '8px 12px', boxShadow: '0 6px 18px rgba(0,0,0,0.25)', opacity: 0.9 }}
-          >Diagnostic</button>
+            title="Diagnostic (Ctrl+Alt+D)"
+            style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 10000, background: '#111827', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, padding: '8px 12px', boxShadow: '0 6px 18px rgba(0,0,0,0.25)', opacity: 0.7, fontSize: 12 }}
+          >🔧 Diag</button>
+          )}
           {diagOpen && (
             <div style={{ position: 'fixed', right: 12, bottom: 56, width: 420, maxWidth: '90vw', maxHeight: '70vh', overflow: 'auto', zIndex: 10000, background: '#111827', color: '#e5e7eb', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, boxShadow: '0 10px 30px rgba(0,0,0,0.4)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 10, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
