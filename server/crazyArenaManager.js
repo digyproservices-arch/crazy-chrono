@@ -765,13 +765,13 @@ class CrazyArenaManager {
           pairsToFind: match.tiebreakerPairsToFind
         });
         
-        // ✅ CRITIQUE: Émettre scores tiebreaker aux clients
+        // ✅ CRITIQUE: Émettre scores tiebreaker aux clients (score combiné = base + tiebreaker)
         const playersData = match.players.map(p => ({
           studentId: p.studentId,
           name: p.name,
           avatar: p.avatar,
-          score: p.tiebreakerScore || 0,
-          pairsValidated: p.tiebreakerPairs || 0,
+          score: (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0),
+          pairsValidated: (p.pairsBeforeTiebreaker || 0) + (p.tiebreakerPairs || 0),
           errors: p.errors || 0,
           ready: p.ready || false
         }));
@@ -985,13 +985,18 @@ class CrazyArenaManager {
       }, 1500);
     }
 
-    // Diffuser les scores
+    // Diffuser les scores (combiné base + tiebreaker si départage en cours)
+    const isTiebreaker = match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown';
     const scoresPayload = {
       scores: match.players.map(p => ({
         studentId: p.studentId,
         name: p.name,
-        score: p.score || 0,
-        pairsValidated: p.pairsValidated || 0
+        score: isTiebreaker 
+          ? (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0)
+          : (p.score || 0),
+        pairsValidated: isTiebreaker
+          ? (p.pairsBeforeTiebreaker || 0) + (p.tiebreakerPairs || 0)
+          : (p.pairsValidated || 0)
       })).sort((a, b) => b.score - a.score)
     };
     
