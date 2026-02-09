@@ -872,51 +872,12 @@ class CrazyArenaManager {
         });
       }
     } else {
-      // Erreur: retirer points
-      if (match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown') {
-        const oldScore = player.tiebreakerScore || 0;
-        player.tiebreakerScore = Math.max(0, oldScore - 2);
-        
-        logger.info('[CrazyArena][Training] Paire incorrecte - pénalité tiebreaker', { 
-          matchId, 
-          studentId,
-          oldScore,
-          newScore: player.tiebreakerScore,
-          penalty: -2
-        });
-        
-        // ✅ Émettre scores tiebreaker après erreur
-        const playersData = match.players.map(p => ({
-          studentId: p.studentId,
-          name: p.name,
-          avatar: p.avatar,
-          score: p.tiebreakerScore || 0,
-          pairsValidated: p.tiebreakerPairs || 0,
-          errors: p.errors || 0,
-          ready: p.ready || false
-        }));
-        
-        this.io.to(matchId).emit('training:players-update', {
-          matchId,
-          players: playersData
-        });
-        
-        logger.info('[CrazyArena][Training] Événement training:players-update émis après erreur (tiebreaker)', { 
-          matchId,
-          event: 'training:players-update'
-        });
-      } else {
-        const oldScore = player.score;
-        player.score = Math.max(0, oldScore - 2);
-        
-        logger.info('[CrazyArena][Training] Paire incorrecte - pénalité (mode normal)', { 
-          matchId, 
-          studentId,
-          oldScore,
-          newScore: player.score,
-          penalty: -2
-        });
-      }
+      // Mauvaise paire: aucune pénalité, juste compteur erreurs
+      logger.info('[CrazyArena][Training] Paire incorrecte - pas de pénalité', { 
+        matchId, 
+        studentId,
+        status: match.status
+      });
       player.errors = (player.errors || 0) + 1;
     }
 
@@ -1664,50 +1625,12 @@ class CrazyArenaManager {
         });
       }
     } else {
-      if (match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown') {
-        const oldScore = player.tiebreakerScore || 0;
-        player.tiebreakerScore = Math.max(0, oldScore - 2);
-        
-        logger.info('[CrazyArena][Arena] Paire incorrecte - pénalité tiebreaker', { 
-          matchId, 
-          studentId,
-          oldScore,
-          newScore: player.tiebreakerScore,
-          penalty: -2
-        });
-        
-        // ✅ FIX: Émettre scores tiebreaker après erreur (comme Training)
-        const playersData = match.players.map(p => ({
-          studentId: p.studentId,
-          name: p.name,
-          avatar: p.avatar,
-          score: p.tiebreakerScore || 0,
-          pairsValidated: p.tiebreakerPairs || 0,
-          errors: p.errors || 0,
-          ready: p.ready || false
-        }));
-        
-        this.io.to(matchId).emit('arena:players-update', {
-          matchId,
-          players: playersData
-        });
-        
-        logger.info('[CrazyArena][Arena] Événement arena:players-update émis après erreur (tiebreaker)', { 
-          matchId,
-          event: 'arena:players-update'
-        });
-      } else {
-        const oldScore = player.score;
-        player.score = Math.max(0, oldScore - 2);
-        
-        logger.info('[CrazyArena][Arena] Paire incorrecte - pénalité (mode normal)', { 
-          matchId, 
-          studentId,
-          oldScore,
-          newScore: player.score,
-          penalty: -2
-        });
-      }
+      // Mauvaise paire: aucune pénalité, juste compteur erreurs
+      logger.info('[CrazyArena][Arena] Paire incorrecte - pas de pénalité', { 
+        matchId, 
+        studentId,
+        status: match.status
+      });
       player.errors = (player.errors || 0) + 1;
     }
 
