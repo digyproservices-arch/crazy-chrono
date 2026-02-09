@@ -1335,34 +1335,58 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
   try {
     const { studentId } = req.params;
 
-    // 1. Récupérer tous les résultats de l'élève
-    const { data: results, error: resultsError } = await supabase
+    // 1. Récupérer les résultats Arena/Tournoi (match_results)
+    const { data: arenaResults, error: arenaError } = await supabase
       .from('match_results')
       .select('id, match_id, position, score, time_ms, pairs_validated, errors, created_at')
       .eq('student_id', studentId)
       .order('created_at', { ascending: true });
 
-    if (resultsError) throw resultsError;
+    if (arenaError) throw arenaError;
+
+    // 1b. Récupérer les résultats Training (training_results)
+    let trainingResults = [];
+    try {
+      const { data: tResults, error: tError } = await supabase
+        .from('training_results')
+        .select('id, session_id, position, score, time_ms, pairs_validated, errors, created_at')
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: true });
+      
+      if (!tError && tResults) {
+        trainingResults = tResults.map(r => ({
+          ...r,
+          match_id: r.session_id, // Normaliser pour compatibilité
+          mode: 'training'
+        }));
+      }
+    } catch (e) {
+      console.warn('[Tournament API] training_results query failed (table may not exist):', e.message);
+    }
+
+    // 1c. Fusionner et trier par date
+    const results = [...(arenaResults || []).map(r => ({ ...r, mode: 'arena' })), ...trainingResults]
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 
     if (!results || results.length === 0) {
       return res.json({
         success: true,
         studentId,
-        stats: { totalMatches: 0, totalWins: 0, winRate: 0, avgScore: 0, bestScore: 0, avgTime: 0, bestTime: 0, avgPairs: 0, totalPairs: 0, avgErrors: 0, totalErrors: 0, avgSpeed: 0, bestSpeed: 0 },
+        stats: { totalMatches: 0, totalWins: 0, winRate: 0, avgScore: 0, bestScore: 0, avgTime: 0, bestTime: 0, avgPairs: 0, totalPairs: 0, avgErrors: 0, totalErrors: 0, avgSpeed: 0, bestSpeed: 0, accuracy: 0 },
         history: [],
         progression: [],
         streaks: { currentWin: 0, bestWin: 0 }
       });
     }
 
-    // 2. Récupérer les matchs pour le type (arena/training) et la date
-    const matchIds = results.map(r => r.match_id).filter(Boolean);
+    // 2. Récupérer les matchs Arena pour enrichissement (type, date)
+    const arenaMatchIds = results.filter(r => r.mode === 'arena').map(r => r.match_id).filter(Boolean);
     let matchesMap = {};
-    if (matchIds.length > 0) {
+    if (arenaMatchIds.length > 0) {
       const { data: matches } = await supabase
         .from('tournament_matches')
         .select('id, status, room_code, created_at, finished_at, mode')
-        .in('id', matchIds);
+        .in('id', arenaMatchIds);
       (matches || []).forEach(m => { matchesMap[m.id] = m; });
     }
 
@@ -1413,7 +1437,7 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
         pairsValidated: r.pairs_validated || 0,
         errors: r.errors || 0,
         speed: r.time_ms > 0 && r.pairs_validated > 0 ? Math.round((r.pairs_validated / (r.time_ms / 60000)) * 10) / 10 : 0,
-        mode: match.mode || 'arena',
+        mode: r.mode || match.mode || 'arena',
         roomCode: match.room_code || null,
         isWin: r.position === 1
       };

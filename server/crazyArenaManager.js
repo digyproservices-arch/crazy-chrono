@@ -528,8 +528,8 @@ class CrazyArenaManager {
     this.io.emit('training:match-finished', { matchId });
     console.log(`[Training] 📢 Broadcast training:match-finished pour ${matchId}`);
     
-    // ✅ FIX: Sauvegarder résultats en DB (marque match 'finished' → retire notifications)
-    await this.saveResults(matchId, ranking);
+    // ✅ FIX: Sauvegarder résultats Training en DB (training_sessions + training_results)
+    await this.saveTrainingResults(matchId, ranking, match);
     
     // Nettoyer après 30s (IDENTIQUE À ARENA)
     setTimeout(() => {
@@ -2065,7 +2065,64 @@ class CrazyArenaManager {
   }
 
   /**
-   * Sauvegarder les résultats en BDD
+   * Sauvegarder les résultats Training en BDD (training_sessions + training_results)
+   */
+  async saveTrainingResults(matchId, ranking, match) {
+    const fetch = require('node-fetch');
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
+
+    console.log(`[CrazyArena][Training] 💾 Sauvegarde résultats Training pour match ${matchId}`);
+    
+    try {
+      const url = `${backendUrl}/api/training/sessions`;
+      const payload = {
+        matchId,
+        classId: match.classId || null,
+        teacherId: match.teacherId || null,
+        sessionName: match.config?.sessionName || 'Session Entraînement',
+        config: match.config || {},
+        completedAt: new Date().toISOString(),
+        results: ranking.map(p => ({
+          studentId: p.studentId,
+          position: p.position,
+          score: p.score,
+          timeMs: p.timeMs,
+          pairsValidated: p.pairsValidated || 0,
+          errors: p.errors || 0
+        }))
+      };
+      
+      console.log(`[CrazyArena][Training] 📡 Appel API: ${url}`, { 
+        matchId, 
+        resultsCount: ranking.length,
+        classId: match.classId 
+      });
+      
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      console.log(`[CrazyArena][Training] 📥 Réponse API status: ${res.status}`);
+      
+      if (!res.ok) {
+        const text = await res.text();
+        console.error(`[CrazyArena][Training] ❌ API erreur: ${res.status} - ${text}`);
+        return false;
+      }
+      
+      const data = await res.json();
+      console.log('[CrazyArena][Training] ✅ Résultats Training sauvegardés:', data);
+      return true;
+    } catch (error) {
+      console.error('[CrazyArena][Training] ❌ Erreur sauvegarde Training:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Sauvegarder les résultats Arena en BDD
    */
   async saveResults(matchId, ranking) {
     // Appeler l'API REST pour enregistrer les résultats
