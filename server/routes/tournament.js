@@ -1004,23 +1004,54 @@ router.post('/cleanup-old-matches', requireSupabase, async (req, res) => {
 });
 
 /**
- * GET /api/tournament/active-matches
- * Récupérer tous les matchs actifs (pending/playing) pour le dashboard professeur
+ * GET /api/tournament/active-matches?teacherId=xxx
+ * Récupérer les matchs actifs (pending/playing) pour le dashboard professeur
+ * Filtre par teacherId pour ne montrer que les matchs créés par ce professeur
  * Inclut les matchs Arena (DB) ET les matchs Training (mémoire)
  */
 router.get('/active-matches', requireSupabase, async (req, res) => {
   try {
+    const { teacherId, teacherEmail } = req.query;
+    
     // ✅ PARTIE 1: Matchs Arena depuis la base de données
-    const { data: arenaMatches, error: matchesError } = await supabase
+    let arenaQuery = supabase
       .from('tournament_matches')
-      .select('id, room_code, status, created_at, group_id')
+      .select('id, room_code, status, created_at, group_id, tournament_id')
       .in('status', ['pending', 'playing'])
       .order('created_at', { ascending: false });
     
+    const { data: arenaMatches, error: matchesError } = await arenaQuery;
+    
     if (matchesError) throw matchesError;
     
+    // ✅ Filtrer par teacherId/teacherEmail via tournaments.created_by
+    // Note: created_by peut contenir un UUID ou un email selon la méthode de création
+    let filteredArenaMatches = arenaMatches || [];
+    if ((teacherId || teacherEmail) && filteredArenaMatches.length > 0) {
+      const tournamentIds = [...new Set(filteredArenaMatches.map(m => m.tournament_id).filter(Boolean))];
+      if (tournamentIds.length > 0) {
+        const { data: tournaments } = await supabase
+          .from('tournaments')
+          .select('id, created_by')
+          .in('id', tournamentIds);
+        
+        const teacherTournamentIds = new Set(
+          (tournaments || []).filter(t => {
+            if (!t.created_by) return false;
+            // Match against UUID or email
+            if (teacherId && t.created_by === teacherId) return true;
+            if (teacherEmail && t.created_by === teacherEmail) return true;
+            return false;
+          }).map(t => t.id)
+        );
+        filteredArenaMatches = filteredArenaMatches.filter(m => teacherTournamentIds.has(m.tournament_id));
+      } else {
+        filteredArenaMatches = [];
+      }
+    }
+    
     // Récupérer les infos des groupes Arena associés
-    const groupIds = (arenaMatches || []).map(m => m.group_id).filter(id => id);
+    const groupIds = filteredArenaMatches.map(m => m.group_id).filter(id => id);
     let groups = [];
     
     if (groupIds.length > 0) {
@@ -1034,7 +1065,7 @@ router.get('/active-matches', requireSupabase, async (req, res) => {
     }
     
     // Enrichir les matchs Arena avec les infos des groupes
-    const enrichedArenaMatches = (arenaMatches || []).map(match => {
+    const enrichedArenaMatches = filteredArenaMatches.map(match => {
       const group = groups.find(g => g.id === match.group_id);
       const studentIds = group?.student_ids 
         ? (Array.isArray(group.student_ids) ? group.student_ids : JSON.parse(group.student_ids))
@@ -1062,8 +1093,10 @@ router.get('/active-matches', requireSupabase, async (req, res) => {
       const allMatches = Array.from(global.crazyArena.matches.values());
       
       // Filtrer les matchs Training actifs (waiting, playing, ou tie-waiting)
+      // + filtrer par teacherId si fourni
       trainingMatches = allMatches
         .filter(m => m.mode === 'training' && ['waiting', 'playing', 'tie-waiting'].includes(m.status))
+        .filter(m => !teacherId || m.teacherId === teacherId)
         .map(match => {
           const baseMatch = {
             matchId: match.matchId,

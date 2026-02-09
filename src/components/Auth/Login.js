@@ -172,6 +172,8 @@ export default function Login({ onLogin }) {
         });
         
         saveAuth(profile);
+        // Stocker l'ID utilisateur pour filtrage matchs
+        try { localStorage.setItem('cc_user_id', user.id); } catch {}
         
         // Si c'est un professeur, récupérer sa classe
         try {

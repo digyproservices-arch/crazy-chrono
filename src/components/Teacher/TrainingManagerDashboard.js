@@ -123,7 +123,7 @@ export default function TrainingManagerDashboard() {
         studentIds: match.studentIds,
         config: match.config,
         classId: localStorage.getItem('cc_class_id'),
-        teacherId: localStorage.getItem('cc_user_id')
+        teacherId: localStorage.getItem('cc_user_id') || JSON.parse(localStorage.getItem('cc_auth') || '{}').id
       });
 
       // Marquer comme créé

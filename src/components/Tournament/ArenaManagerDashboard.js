@@ -21,7 +21,13 @@ export default function ArenaManagerDashboard() {
   // Récupérer les matchs actifs depuis l'API
   const loadActiveMatches = async () => {
     try {
-      const response = await fetch(`${getBackendUrl()}/api/tournament/active-matches`);
+      const ccAuth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+      const teacherId = localStorage.getItem('cc_user_id') || ccAuth.id;
+      const teacherEmail = ccAuth.email;
+      const params = new URLSearchParams();
+      if (teacherId) params.set('teacherId', teacherId);
+      if (teacherEmail) params.set('teacherEmail', teacherEmail);
+      const response = await fetch(`${getBackendUrl()}/api/tournament/active-matches?${params.toString()}`);
       const data = await response.json();
       
       if (data.success) {
@@ -105,7 +111,6 @@ export default function ArenaManagerDashboard() {
 
     socket.on('connect', () => {
       console.log('[ArenaManager] ✅ Socket connecté, ID:', socket.id);
-      console.log('[ArenaManager] 🔍 URL backend:', getBackendUrl());
     });
     
     socket.on('disconnect', () => {

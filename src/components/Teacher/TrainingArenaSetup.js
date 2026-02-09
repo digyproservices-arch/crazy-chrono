@@ -240,7 +240,7 @@ export default function TrainingArenaSetup() {
             sessionName: group.name || 'Session Entraînement'
           },
           classId: classId,
-          teacherId: localStorage.getItem('cc_user_id') || 'teacher_1'
+          teacherId: localStorage.getItem('cc_user_id') || JSON.parse(localStorage.getItem('cc_auth') || '{}').id || 'unknown'
         })
       });
       

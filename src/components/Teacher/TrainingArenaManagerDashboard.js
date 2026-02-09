@@ -21,7 +21,13 @@ export default function TrainingArenaManagerDashboard() {
   // Récupérer les matchs actifs depuis l'API
   const loadActiveMatches = async () => {
     try {
-      const response = await fetch(`${getBackendUrl()}/api/tournament/active-matches`);
+      const ccAuth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+      const teacherId = localStorage.getItem('cc_user_id') || ccAuth.id;
+      const teacherEmail = ccAuth.email;
+      const params = new URLSearchParams();
+      if (teacherId) params.set('teacherId', teacherId);
+      if (teacherEmail) params.set('teacherEmail', teacherEmail);
+      const response = await fetch(`${getBackendUrl()}/api/tournament/active-matches?${params.toString()}`);
       const data = await response.json();
       
       if (data.success) {
@@ -120,7 +126,13 @@ export default function TrainingArenaManagerDashboard() {
       console.log('[TrainingArenaManager] 🔍 URL backend:', getBackendUrl());
       
       // Rejoindre toutes les rooms des matchs actifs (Training + Arena)
-      fetch(`${getBackendUrl()}/api/tournament/active-matches`)
+      const tidAuth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+      const tid = localStorage.getItem('cc_user_id') || tidAuth.id;
+      const tEmail = tidAuth.email;
+      const tParams = new URLSearchParams();
+      if (tid) tParams.set('teacherId', tid);
+      if (tEmail) tParams.set('teacherEmail', tEmail);
+      fetch(`${getBackendUrl()}/api/tournament/active-matches?${tParams.toString()}`)
         .then(res => res.json())
         .then(data => {
           if (data.success && data.matches) {
