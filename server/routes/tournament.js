@@ -695,6 +695,49 @@ router.get('/students/:studentId/invitations', requireSupabase, async (req, res)
 });
 
 /**
+ * GET /api/tournament/students/:studentId/training-invitations
+ * Récupérer les invitations training en attente pour un élève (matchs in-memory)
+ */
+router.get('/students/:studentId/training-invitations', async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const invitations = [];
+
+    if (global.crazyArena && global.crazyArena.matches) {
+      for (const [matchId, match] of global.crazyArena.matches.entries()) {
+        if (match.mode !== 'training') continue;
+        if (match.status === 'finished') continue;
+        // Check if this student is expected in this match
+        const expected = match.expectedPlayers || [];
+        if (!expected.includes(studentId)) continue;
+        // Check if student already has results (match done for them)
+        const hasResult = match.scores && match.scores[studentId] !== undefined && match.status === 'finished';
+        if (hasResult) continue;
+
+        invitations.push({
+          type: 'training',
+          matchId: match.matchId,
+          sessionName: match.config?.sessionName || 'Session Entraînement',
+          groupSize: expected.length,
+          config: {
+            rounds: match.config?.rounds || 3,
+            duration: match.config?.duration || 60,
+            level: match.config?.level || 'CE1'
+          },
+          status: match.status
+        });
+      }
+    }
+
+    console.log(`[Tournament API] Training invitations pour ${studentId}: ${invitations.length} trouvée(s)`);
+    res.json({ success: true, invitations });
+  } catch (error) {
+    console.error('[Tournament API] Error fetching training invitations:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * GET /api/tournament/match-by-code/:roomCode
  * Récupérer le matchId depuis un room code (pour les élèves qui rejoignent)
  * Cherche dans Arena (DB) ET Training (mémoire)

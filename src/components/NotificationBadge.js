@@ -11,10 +11,24 @@ const getBackendUrl = () => {
  * Affiche un badge avec le nombre d'invitations en attente
  * Clic → Modal avec liste des invitations + rejoindre en 1 clic
  */
+// localStorage helpers for training invitations
+const TRAINING_INV_KEY = 'cc_training_invitations';
+function loadTrainingFromStorage() {
+  try {
+    const raw = localStorage.getItem(TRAINING_INV_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+function saveTrainingToStorage(invitations) {
+  try {
+    localStorage.setItem(TRAINING_INV_KEY, JSON.stringify(invitations));
+  } catch {}
+}
+
 export default function NotificationBadge() {
   const navigate = useNavigate();
   const [invitations, setInvitations] = useState([]);
-  const [trainingInvitations, setTrainingInvitations] = useState([]);
+  const [trainingInvitations, setTrainingInvitations] = useState(() => loadTrainingFromStorage());
   const [showModal, setShowModal] = useState(false);
   const [studentId, setStudentId] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,7 +60,41 @@ export default function NotificationBadge() {
     }
   }, []);
 
-  // Fonction de chargement des invitations (stable avec useCallback)
+  // Sync training invitations to localStorage whenever they change
+  useEffect(() => {
+    saveTrainingToStorage(trainingInvitations);
+  }, [trainingInvitations]);
+
+  // Load training invitations from backend API
+  const loadTrainingInvitations = useCallback(async () => {
+    if (!studentId) return;
+    try {
+      const res = await fetch(`${getBackendUrl()}/api/tournament/students/${studentId}/training-invitations`);
+      const data = await res.json();
+      if (data.success && data.invitations) {
+        console.log('[NotificationBadge] Training invitations from API:', data.invitations.length);
+        setTrainingInvitations(prev => {
+          // Merge: keep localStorage entries that are also in API, add new API ones
+          const apiIds = new Set(data.invitations.map(i => i.matchId));
+          // Remove stale ones (not in API anymore = match finished or deleted)
+          // But keep ones from API
+          const merged = [...data.invitations];
+          // Also keep any very recent localStorage-only entries (received via socket < 5s ago)
+          prev.forEach(p => {
+            if (!apiIds.has(p.matchId) && p.timestamp && (Date.now() - p.timestamp < 10000)) {
+              merged.push(p);
+            }
+          });
+          return merged;
+        });
+      }
+    } catch (error) {
+      console.error('[NotificationBadge] Erreur chargement training invitations:', error);
+      // On error, keep localStorage data as fallback (already loaded in state)
+    }
+  }, [studentId]);
+
+  // Load Arena invitations from backend API
   const loadInvitations = useCallback(async () => {
     if (!studentId) {
       console.log('[NotificationBadge] Pas de studentId, skip loadInvitations');
@@ -59,13 +107,16 @@ export default function NotificationBadge() {
       const data = await res.json();
       
       if (data.success) {
-        console.log('[NotificationBadge] Invitations chargées:', data.invitations);
+        console.log('[NotificationBadge] Invitations Arena chargées:', data.invitations?.length);
         setInvitations(data.invitations || []);
       }
     } catch (error) {
       console.error('[NotificationBadge] Erreur chargement invitations:', error);
     }
-  }, [studentId]);
+
+    // Also load training invitations
+    await loadTrainingInvitations();
+  }, [studentId, loadTrainingInvitations]);
 
   // Charger les invitations au montage et toutes les 30 secondes
   useEffect(() => {
@@ -138,6 +189,12 @@ export default function NotificationBadge() {
       setTrainingInvitations(prev => prev.filter(inv => inv.matchId !== matchId));
     });
 
+    // Écouter suppression de match training
+    socket.on('training:match-deleted', ({ matchId }) => {
+      console.log(`[NotificationBadge] Training match ${matchId} supprimé - Retrait invitation`);
+      setTrainingInvitations(prev => prev.filter(inv => inv.matchId !== matchId));
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -153,10 +210,8 @@ export default function NotificationBadge() {
     const targetUrl = `/training-arena/lobby/${invitation.matchId}`;
     console.log('[NotificationBadge] 🚀 Redirection vers:', targetUrl);
     setShowModal(false);
-    // Retirer l'invitation de la liste
-    setTrainingInvitations(prev => prev.filter(inv => inv.matchId !== invitation.matchId));
-    // Rediriger vers le lobby Training Arena (pas /training/lobby qui n'existe pas)
-    // matchId sert aussi de roomCode pour Training
+    // ✅ NE PAS retirer l'invitation ici — elle sera retirée quand le match sera terminé
+    // (via training:match-finished ou via l'API qui ne la retournera plus)
     navigate(targetUrl);
   };
 
