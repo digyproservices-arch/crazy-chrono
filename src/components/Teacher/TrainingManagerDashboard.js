@@ -140,8 +140,14 @@ export default function TrainingManagerDashboard() {
     const match = matches.find(m => m.matchId === matchId);
     if (!match) return;
 
-    if (match.connectedPlayers === 0) {
-      alert('Aucun joueur connecté pour ce match.');
+    if (match.connectedPlayers < 2) {
+      alert('Au moins 2 joueurs doivent être connectés pour démarrer le match.');
+      return;
+    }
+
+    const allReady = match.connectedPlayers > 0 && match.readyPlayers === match.connectedPlayers;
+    if (!allReady) {
+      alert(`Tous les joueurs doivent être prêts avant de démarrer.\n\nPrêts: ${match.readyPlayers || 0}/${match.connectedPlayers}`);
       return;
     }
 
@@ -251,7 +257,8 @@ export default function TrainingManagerDashboard() {
       ) : (
         <div style={{ display: 'grid', gap: 20 }}>
           {matches.map(match => {
-            const canStart = match.connectedPlayers > 0;
+            const allReady = match.connectedPlayers >= 2 && match.readyPlayers === match.connectedPlayers;
+            const canStart = allReady;
 
             return (
               <div
@@ -378,15 +385,17 @@ export default function TrainingManagerDashboard() {
                       }}
                     >
                       {canStart 
-                        ? `🚀 DÉMARRER LE MATCH` 
-                        : '⏳ En attente de joueurs...'
+                        ? '🚀 DÉMARRER LE MATCH (tous prêts ✓)' 
+                        : match.connectedPlayers >= 2
+                          ? `⏳ En attente: ${match.readyPlayers || 0}/${match.connectedPlayers} prêts`
+                          : '⏳ En attente de joueurs...'
                       }
                     </button>
                   </div>
                 )}
 
                 {/* Message si aucun joueur */}
-                {match.status === 'waiting' && match.connectedPlayers === 0 && (
+                {match.status === 'waiting' && !canStart && (
                   <div style={{
                     marginTop: 12,
                     padding: 12,
@@ -395,7 +404,10 @@ export default function TrainingManagerDashboard() {
                     fontSize: 14,
                     color: '#92400e'
                   }}>
-                    ⚠️ Aucun joueur connecté. Les élèves doivent cliquer sur leur notification.
+                    {match.connectedPlayers < 2
+                      ? '⚠️ Au moins 2 joueurs doivent être connectés pour démarrer'
+                      : `⚠️ Tous les joueurs doivent cliquer sur "Je suis prêt" (${match.readyPlayers || 0}/${match.connectedPlayers} prêts)`
+                    }
                   </div>
                 )}
               </div>

@@ -442,10 +442,17 @@ export default function CrazyArenaLobby() {
       )}
       
       {/* Bouton Démarrer (Professeur uniquement) */}
-      {isTeacher && players.length >= 2 && countdown === null && (
+      {isTeacher && players.length >= 2 && countdown === null && (() => {
+        const readyCount = players.filter(p => p.ready).length;
+        const allReady = readyCount === players.length;
+        return (
         <div style={{ textAlign: 'center', marginTop: 32 }}>
           <button
             onClick={() => {
+              if (!allReady) {
+                alert(`Tous les joueurs doivent être prêts avant de démarrer.\n\nPrêts: ${readyCount}/${players.length}`);
+                return;
+              }
               if (socketRef.current && currentMatchId) {
                 console.log('[CrazyArena] Professeur démarre le match:', currentMatchId);
                 socketRef.current.emit('arena:force-start', { matchId: currentMatchId });
@@ -453,36 +460,46 @@ export default function CrazyArenaLobby() {
                 console.error('[CrazyArena] Socket ou matchId manquant:', { socket: !!socketRef.current, matchId: currentMatchId });
               }
             }}
+            disabled={!allReady}
             style={{
               padding: '20px 60px',
               borderRadius: 16,
-              border: '4px solid #f59e0b',
-              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-              color: '#fff',
+              border: allReady ? '4px solid #f59e0b' : '4px solid #d1d5db',
+              background: allReady 
+                ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' 
+                : '#e5e7eb',
+              color: allReady ? '#fff' : '#9ca3af',
               fontSize: 24,
               fontWeight: 900,
-              cursor: 'pointer',
-              boxShadow: '0 8px 24px rgba(245,158,11,0.4)',
+              cursor: allReady ? 'pointer' : 'not-allowed',
+              boxShadow: allReady ? '0 8px 24px rgba(245,158,11,0.4)' : 'none',
               transition: 'all 0.3s',
               textTransform: 'uppercase',
-              letterSpacing: '1px'
+              letterSpacing: '1px',
+              opacity: allReady ? 1 : 0.6
             }}
             onMouseEnter={(e) => {
-              e.target.style.transform = 'scale(1.1) translateY(-4px)';
-              e.target.style.boxShadow = '0 12px 32px rgba(245,158,11,0.6)';
+              if (allReady) {
+                e.target.style.transform = 'scale(1.1) translateY(-4px)';
+                e.target.style.boxShadow = '0 12px 32px rgba(245,158,11,0.6)';
+              }
             }}
             onMouseLeave={(e) => {
               e.target.style.transform = 'scale(1) translateY(0)';
-              e.target.style.boxShadow = '0 8px 24px rgba(245,158,11,0.4)';
+              e.target.style.boxShadow = allReady ? '0 8px 24px rgba(245,158,11,0.4)' : 'none';
             }}
           >
-            🚀 Démarrer le Match
+            {allReady ? '🚀 Démarrer le Match' : `⏳ ${readyCount}/${players.length} prêts`}
           </button>
           <div style={{ marginTop: 16, fontSize: 16, color: '#6b7280' }}>
-            {players.length}/4 joueurs connectés · Minimum 2 requis
+            {allReady 
+              ? `${players.length} joueurs connectés et prêts ✓`
+              : `⚠️ Tous les joueurs doivent cliquer sur "Je suis prêt" (${readyCount}/${players.length})`
+            }
           </div>
         </div>
-      )}
+        );
+      })()}
       
       {/* Statut */}
       <div style={{ textAlign: 'center', marginTop: 32, color: '#6b7280' }}>

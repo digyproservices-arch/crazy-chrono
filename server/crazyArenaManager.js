@@ -275,7 +275,13 @@ class CrazyArenaManager {
       return false;
     }
 
-    console.log(`[CrazyArena][Training] 🚀 Démarrage forcé du match ${matchId} avec ${match.players.length} joueur(s)`);
+    const readyCount = match.players.filter(p => p.ready).length;
+    if (readyCount !== match.players.length) {
+      console.warn(`[CrazyArena][Training] forceStart: Match ${matchId} - tous les joueurs ne sont pas prêts (${readyCount}/${match.players.length})`);
+      return false;
+    }
+
+    console.log(`[CrazyArena][Training] 🚀 Démarrage forcé du match ${matchId} avec ${match.players.length} joueur(s) (tous prêts)`);
     match.status = 'countdown';
     
     // Countdown 3, 2, 1, GO!
@@ -1264,7 +1270,13 @@ class CrazyArenaManager {
       return false;
     }
 
-    console.log(`[CrazyArena] 🚀 Démarrage forcé du match ${matchId} avec ${match.players.length} joueur(s)`);
+    const readyCount = match.players.filter(p => p.ready).length;
+    if (readyCount !== match.players.length) {
+      console.warn(`[CrazyArena] forceStart: Match ${matchId} - tous les joueurs ne sont pas prêts (${readyCount}/${match.players.length})`);
+      return false;
+    }
+
+    console.log(`[CrazyArena] 🚀 Démarrage forcé du match ${matchId} avec ${match.players.length} joueur(s) (tous prêts)`);
     this.startCountdown(matchId);
     return true;
   }

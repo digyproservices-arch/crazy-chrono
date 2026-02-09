@@ -327,6 +327,12 @@ export default function TrainingArenaManagerDashboard() {
       return;
     }
 
+    const allReady = match.connectedPlayers > 0 && match.readyPlayers === match.connectedPlayers;
+    if (!allReady) {
+      alert(`Tous les joueurs doivent être prêts avant de démarrer.\n\nPrêts: ${match.readyPlayers || 0}/${match.connectedPlayers}`);
+      return;
+    }
+
     const confirmMsg = `Démarrer le match "${match.groupName}" avec ${match.connectedPlayers} joueur(s) connecté(s) ?`;
     console.log('[TrainingArenaManager] ❓ Demande confirmation:', confirmMsg);
     
@@ -469,9 +475,9 @@ export default function TrainingArenaManagerDashboard() {
       ) : (
         <div style={{ display: 'grid', gap: 20 }}>
           {matches.map(match => {
-            const canStart = match.connectedPlayers >= 2;
-            const allReady = match.connectedPlayers > 0 && 
+            const allReady = match.connectedPlayers >= 2 && 
                            match.readyPlayers === match.connectedPlayers;
+            const canStart = allReady;
             
             console.log('[TrainingArenaManager] 🎨 RENDER match:', {
               matchId: match.matchId.slice(-8),
@@ -669,8 +675,10 @@ export default function TrainingArenaManagerDashboard() {
                     }}
                   >
                     {canStart 
-                      ? `🚀 DÉMARRER LE MATCH${allReady ? ' (tous prêts)' : ''}` 
-                      : '⏳ En attente de joueurs...'
+                      ? '🚀 DÉMARRER LE MATCH (tous prêts ✓)' 
+                      : match.connectedPlayers >= 2 
+                        ? `⏳ En attente: ${match.readyPlayers || 0}/${match.connectedPlayers} prêts`
+                        : '⏳ En attente de joueurs...'
                     }
                   </button>
 
@@ -715,7 +723,7 @@ export default function TrainingArenaManagerDashboard() {
                 </div>
 
                 {/* Message si insuffisant de joueurs */}
-                {!canStart && match.connectedPlayers < 2 && (
+                {!canStart && (
                   <div style={{
                     marginTop: 12,
                     padding: 12,
@@ -724,7 +732,10 @@ export default function TrainingArenaManagerDashboard() {
                     fontSize: 14,
                     color: '#92400e'
                   }}>
-                    ⚠️ Au moins 2 joueurs doivent être connectés pour démarrer
+                    {match.connectedPlayers < 2 
+                      ? '⚠️ Au moins 2 joueurs doivent être connectés pour démarrer'
+                      : `⚠️ Tous les joueurs doivent cliquer sur "Je suis prêt" (${match.readyPlayers || 0}/${match.connectedPlayers} prêts)`
+                    }
                   </div>
                 )}
               </div>
