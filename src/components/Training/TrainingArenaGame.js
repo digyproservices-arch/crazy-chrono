@@ -285,13 +285,6 @@ export default function TrainingArenaGame() {
       navigate('/');
     });
     
-    // ✅ FIX: Écouter si l'adversaire se déconnecte pendant le match
-    socket.on('training:opponent-disconnected', ({ disconnectedPlayer, message }) => {
-      console.warn('[TrainingArena] ⚠️ Adversaire déconnecté:', disconnectedPlayer);
-      setGameActive(false);
-      alert(message);
-    });
-    
     socket.on('training:scores-update', ({ scores }) => {
       console.log('[TrainingArena] 📊 Scores mis à jour:', scores);
       setPlayers(scores);

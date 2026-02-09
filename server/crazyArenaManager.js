@@ -2308,35 +2308,7 @@ class CrazyArenaManager {
       });
     }
 
-    // ✅ FIX: Si match en cours (playing/tiebreaker) et un joueur déconnecte, terminer le match
-    const activeStatuses = ['playing', 'tiebreaker', 'tiebreaker-countdown'];
-    if (activeStatuses.includes(match.status)) {
-      if (match.players.length === 1) {
-        // Un seul joueur restant → il gagne par forfait
-        const winner = match.players[0];
-        console.log(`[CrazyArena]${mode === 'training' ? '[Training]' : ''} ⚠️ Joueur déconnecté pendant match actif - ${winner.name} gagne par forfait`);
-        
-        const forceEndEvent = mode === 'training' ? 'training:opponent-disconnected' : 'arena:opponent-disconnected';
-        this.io.to(matchId).emit(forceEndEvent, {
-          disconnectedPlayer: player.name,
-          message: `${player.name} s'est déconnecté. Vous gagnez par forfait !`
-        });
-        
-        // Terminer le match proprement
-        if (mode === 'training') {
-          this.endTrainingGame(matchId);
-        } else {
-          this.endGame(matchId);
-        }
-        return;
-      } else if (match.players.length === 0) {
-        console.log(`[CrazyArena]${mode === 'training' ? '[Training]' : ''} ⚠️ Tous les joueurs déconnectés pendant match actif`);
-        this.cleanupMatch(matchId);
-        return;
-      }
-    }
-
-    // Si plus personne (lobby/waiting), nettoyer
+    // Si plus personne, nettoyer
     if (match.players.length === 0) {
       this.cleanupMatch(matchId);
     }
