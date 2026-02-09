@@ -36,7 +36,7 @@ export default function Pricing() {
             Accès au jeu, sessions multi‑joueurs, historique et mises à jour.
           </div>
           <div style={{ fontSize: 28, fontWeight: 800, marginTop: 8 }}>9,99 € / mois</div>
-          <button onClick={subscribe} disabled={loading} style={{ marginTop: 12, width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #3b82f6', background: '#3b82f6', color: '#fff', fontWeight: 700 }}>
+          <button onClick={subscribe} disabled={loading} style={{ marginTop: 12, width: '100%', padding: '12px 12px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #1AACBE, #148A9C)', color: '#fff', fontWeight: 700, cursor: 'pointer', boxShadow: '0 3px 10px rgba(26,172,190,0.3)' }}>
             {loading ? 'Redirection…' : 'S’abonner'}
           </button>
           {error && <div style={{ marginTop: 8, color: '#b91c1c' }}>{String(error)}</div>}

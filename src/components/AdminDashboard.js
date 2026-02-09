@@ -74,7 +74,7 @@ function AdminDashboard() {
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0f172a', color: '#e2e8f0', padding: '20px' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0D6A7A 0%, #148A9C 100%)', color: '#e2e8f0', padding: '20px' }}>
       {/* Header */}
       <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
@@ -86,10 +86,10 @@ function AdminDashboard() {
               onClick={() => navigate('/admin')}
               style={{ 
                 padding: '10px 20px', 
-                background: '#3b82f6', 
-                border: '1px solid #2563eb', 
+                background: '#F5A623', 
+                border: 'none', 
                 borderRadius: '8px',
-                color: '#fff',
+                color: '#4A3728',
                 cursor: 'pointer',
                 fontWeight: 600
               }}
@@ -100,8 +100,8 @@ function AdminDashboard() {
               onClick={() => navigate('/')}
               style={{ 
                 padding: '10px 20px', 
-                background: '#1e293b', 
-                border: '1px solid #334155', 
+                background: 'rgba(255,255,255,0.1)', 
+                border: '1px solid rgba(255,255,255,0.2)', 
                 borderRadius: '8px',
                 color: '#e2e8f0',
                 cursor: 'pointer'
@@ -116,8 +116,8 @@ function AdminDashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
           
           {/* Section 1: Vue d'ensemble */}
-          <div style={{ background: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#60a5fa' }}>
+          <div style={{ background: 'rgba(255,255,255,0.08)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#F5A623' }}>
               👥 Vue d'ensemble
             </h2>
             {stats.loading ? (
@@ -130,15 +130,15 @@ function AdminDashboard() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '14px', color: '#94a3b8' }}>Actifs aujourd'hui</span>
-                  <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>{stats.activeToday}</span>
+                  <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#F5A623' }}>{stats.activeToday}</span>
                 </div>
               </div>
             )}
           </div>
 
           {/* Section 2: Utilisation du jeu */}
-          <div style={{ background: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#34d399' }}>
+          <div style={{ background: 'rgba(255,255,255,0.08)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#F5A623' }}>
               🎮 Utilisation du jeu
             </h2>
             {stats.loading ? (
@@ -147,7 +147,7 @@ function AdminDashboard() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '14px', color: '#94a3b8' }}>Sessions aujourd'hui</span>
-                  <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#34d399' }}>{stats.sessionsToday}</span>
+                  <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#F5A623' }}>{stats.sessionsToday}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '14px', color: '#94a3b8' }}>Total sessions</span>
@@ -158,8 +158,8 @@ function AdminDashboard() {
           </div>
 
           {/* Section 3: Monitoring */}
-          <div style={{ background: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#f59e0b' }}>
+          <div style={{ background: 'rgba(255,255,255,0.08)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#F5A623' }}>
               📊 Monitoring
             </h2>
             <div style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '15px' }}>
@@ -171,8 +171,8 @@ function AdminDashboard() {
               style={{
                 width: '100%',
                 padding: '14px 20px',
-                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-                color: 'white',
+                background: 'linear-gradient(135deg, #F5A623 0%, #d4900e 100%)',
+                color: '#4A3728',
                 border: 'none',
                 borderRadius: 8,
                 cursor: 'pointer',
@@ -180,7 +180,7 @@ function AdminDashboard() {
                 fontWeight: 700,
                 transition: 'all 0.3s',
                 marginBottom: '10px',
-                boxShadow: '0 4px 12px rgba(59,130,246,0.3)',
+                boxShadow: '0 4px 12px rgba(245,166,35,0.3)',
               }}
             >
               📈 Ouvrir le Monitoring Dashboard
@@ -215,7 +215,7 @@ function AdminDashboard() {
                 padding: '10px 16px',
                 background: 'transparent',
                 color: '#94a3b8',
-                border: '1px solid #334155',
+                border: '1px solid rgba(255,255,255,0.2)',
                 borderRadius: 8,
                 cursor: 'pointer',
                 fontSize: 13,
@@ -229,8 +229,8 @@ function AdminDashboard() {
         </div>
 
         {/* Liste des utilisateurs récents */}
-        <div style={{ marginTop: '30px', background: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #334155' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#60a5fa' }}>
+        <div style={{ marginTop: '30px', background: 'rgba(255,255,255,0.08)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#F5A623' }}>
             👤 Utilisateurs récents
           </h2>
           {stats.loading ? (
@@ -239,7 +239,7 @@ function AdminDashboard() {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', fontSize: '14px', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #334155' }}>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
                     <th style={{ padding: '10px', textAlign: 'left', color: '#94a3b8' }}>Email</th>
                     <th style={{ padding: '10px', textAlign: 'left', color: '#94a3b8' }}>Rôle</th>
                     <th style={{ padding: '10px', textAlign: 'left', color: '#94a3b8' }}>Inscrit le</th>
@@ -247,14 +247,14 @@ function AdminDashboard() {
                 </thead>
                 <tbody>
                   {recentUsers.map(user => (
-                    <tr key={user.id} style={{ borderBottom: '1px solid #334155' }}>
+                    <tr key={user.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
                       <td style={{ padding: '10px', color: '#e2e8f0' }}>{user.email}</td>
                       <td style={{ padding: '10px' }}>
                         <span style={{ 
                           padding: '4px 8px', 
                           borderRadius: '4px', 
                           fontSize: '12px',
-                          background: user.role === 'admin' ? '#7c3aed' : user.role === 'editor' ? '#0891b2' : '#334155',
+                          background: user.role === 'admin' ? '#e53e3e' : user.role === 'editor' ? '#1AACBE' : 'rgba(255,255,255,0.15)',
                           color: '#fff'
                         }}>
                           {user.role || 'user'}

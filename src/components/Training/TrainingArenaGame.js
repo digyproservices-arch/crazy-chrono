@@ -784,7 +784,7 @@ export default function TrainingArenaGame() {
       left: 0;
       right: 0;
       bottom: 0;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #1AACBE 0%, #0D6A7A 100%);
       z-index: 10000;
       display: flex;
       flex-direction: column;
@@ -831,7 +831,7 @@ export default function TrainingArenaGame() {
           border-radius: 12px;
           border: none;
           background: white;
-          color: #667eea;
+          color: #1AACBE;
           font-size: 18px;
           font-weight: 700;
           cursor: pointer;

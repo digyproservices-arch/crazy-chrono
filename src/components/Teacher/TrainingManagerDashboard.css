@@ -19,12 +19,12 @@
 }
 
 .session-info-card {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #1AACBE, #0D6A7A);
   color: white;
   padding: 25px;
   border-radius: 15px;
   margin-bottom: 30px;
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 8px 25px rgba(26, 172, 190, 0.3);
 }
 
 .info-row {
@@ -71,11 +71,11 @@
 }
 
 .match-card.playing {
-  border-color: #3b82f6;
+  border-color: #1AACBE;
 }
 
 .match-card.finished {
-  border-color: #10b981;
+  border-color: #148A9C;
 }
 
 @keyframes pulse {
@@ -94,7 +94,7 @@
 
 .match-header h3 {
   font-size: 1.3rem;
-  color: #1a1a1a;
+  color: #4A3728;
   margin: 0;
 }
 
@@ -116,8 +116,8 @@
 }
 
 .status-badge.playing {
-  background: #dbeafe;
-  color: #1e40af;
+  background: #d4f0f4;
+  color: #0D6A7A;
 }
 
 .status-badge.finished {
@@ -160,7 +160,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #1AACBE, #0D6A7A);
   color: white;
   font-size: 1.2rem;
   font-weight: bold;
@@ -195,7 +195,7 @@
 
 .result-item .position {
   font-weight: bold;
-  color: #10b981;
+  color: #1AACBE;
   font-size: 1.1rem;
 }
 
@@ -206,7 +206,7 @@
 
 .result-item .score {
   font-weight: bold;
-  color: #059669;
+  color: #148A9C;
 }
 
 .lobby-actions {
@@ -230,22 +230,22 @@
 }
 
 .start-button {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: white;
+  background: linear-gradient(135deg, #F5A623, #d4900e);
+  color: #4A3728;
 }
 
 .start-button:hover {
-  background: linear-gradient(135deg, #d97706, #b45309);
+  background: linear-gradient(135deg, #d4900e, #b87a0a);
   transform: scale(1.05);
 }
 
 .results-button {
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: linear-gradient(135deg, #1AACBE, #148A9C);
   color: white;
 }
 
 .results-button:hover {
-  background: linear-gradient(135deg, #059669, #047857);
+  background: linear-gradient(135deg, #148A9C, #0D6A7A);
   transform: scale(1.05);
 }
 
@@ -253,7 +253,7 @@
   background: #f8fafc;
   padding: 25px;
   border-radius: 15px;
-  border-left: 5px solid #3b82f6;
+  border-left: 5px solid #1AACBE;
 }
 
 .instructions h3 {
@@ -288,12 +288,12 @@
 }
 
 .launch-message {
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: linear-gradient(135deg, #1AACBE, #148A9C);
   color: white;
   padding: 20px;
   border-radius: 12px;
   margin-bottom: 30px;
-  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 8px 25px rgba(26, 172, 190, 0.3);
   animation: slideIn 0.5s ease-out;
 }
 

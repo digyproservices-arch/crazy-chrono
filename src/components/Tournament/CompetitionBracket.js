@@ -14,7 +14,7 @@ const getBackendUrl = () => {
 const MEDAL_EMOJIS = ['🥇', '🥈', '🥉'];
 
 const PHASE_CONFIG = {
-  1: { name: 'CRAZY WINNER CLASSE', icon: '🏫', color: '#3b82f6', bg: '#eff6ff' },
+  1: { name: 'CRAZY WINNER CLASSE', icon: '🏫', color: '#1AACBE', bg: '#f0fafb' },
   2: { name: 'CRAZY WINNER ÉCOLE', icon: '🏛️', color: '#8b5cf6', bg: '#f5f3ff' },
   3: { name: 'CRAZY WINNER CIRCONSCRIPTION', icon: '🗺️', color: '#d97706', bg: '#fffbeb' },
   4: { name: 'CRAZY WINNER ACADÉMIQUE', icon: '🏆', color: '#dc2626', bg: '#fef2f2' }
@@ -24,7 +24,7 @@ const STATUS_CONFIG = {
   pending: { label: 'En attente', color: '#6b7280', bg: '#f3f4f6', icon: '⏳' },
   playing: { label: 'En cours', color: '#d97706', bg: '#fef3c7', icon: '🎮' },
   finished: { label: 'Terminé', color: '#059669', bg: '#d1fae5', icon: '✅' },
-  active: { label: 'Active', color: '#3b82f6', bg: '#dbeafe', icon: '▶️' },
+  active: { label: 'Active', color: '#1AACBE', bg: '#d4f0f4', icon: '▶️' },
   'tie-waiting': { label: 'Égalité', color: '#7c3aed', bg: '#ede9fe', icon: '⚖️' }
 };
 
@@ -146,7 +146,7 @@ export default function CompetitionBracket() {
         style={{
           background: '#fff',
           borderRadius: 12,
-          border: isFinished ? '2px solid #10b981' : '1px solid #e2e8f0',
+          border: isFinished ? '2px solid #148A9C' : '1px solid #e2e8f0',
           overflow: 'hidden',
           boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
         }}
@@ -202,7 +202,7 @@ export default function CompetitionBracket() {
             {group.match && (
               <div style={{ background: '#f8fafc', borderRadius: 8, padding: 12, marginBottom: 14, fontSize: 12, color: '#475569' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-                  <span>Code: <strong style={{ fontFamily: 'monospace', color: '#3b82f6' }}>{group.match.roomCode}</strong></span>
+                  <span>Code: <strong style={{ fontFamily: 'monospace', color: '#1AACBE' }}>{group.match.roomCode}</strong></span>
                   {group.match.finishedAt && <span>Terminé: {new Date(group.match.finishedAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
                 </div>
               </div>
@@ -225,7 +225,7 @@ export default function CompetitionBracket() {
                     <tr key={r.studentId} style={{ background: idx === 0 ? '#f0fdf4' : idx % 2 === 0 ? '#fff' : '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                       <td style={{ padding: '8px 10px', fontWeight: 700, fontSize: 16 }}>{MEDAL_EMOJIS[idx] || `${idx + 1}`}</td>
                       <td style={{ padding: '8px 10px', fontWeight: idx === 0 ? 700 : 500, color: idx === 0 ? '#059669' : '#1e293b' }}>{r.studentName}</td>
-                      <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: '#3b82f6' }}>{r.score} pts</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: '#1AACBE' }}>{r.score} pts</td>
                       <td style={{ padding: '8px 10px', textAlign: 'center' }}>{r.pairsValidated}</td>
                       <td style={{ padding: '8px 10px', textAlign: 'center', color: r.errors > 0 ? '#dc2626' : '#059669' }}>{r.errors}</td>
                       <td style={{ padding: '8px 10px', textAlign: 'center', fontFamily: 'monospace' }}>{formatTime(r.timeMs)}</td>
@@ -256,9 +256,9 @@ export default function CompetitionBracket() {
   const tabStyle = (active) => ({
     padding: '12px 20px',
     border: 'none',
-    borderBottom: active ? '3px solid #3b82f6' : '3px solid transparent',
+    borderBottom: active ? '3px solid #1AACBE' : '3px solid transparent',
     background: 'none',
-    color: active ? '#3b82f6' : '#6b7280',
+    color: active ? '#1AACBE' : '#6b7280',
     fontSize: 14,
     fontWeight: active ? 700 : 500,
     cursor: 'pointer',
@@ -546,7 +546,7 @@ export default function CompetitionBracket() {
                       <td style={{ padding: '10px 14px', fontWeight: isTop3 ? 700 : 500, color: '#1e293b', fontSize: isTop3 ? 15 : 13 }}>{player.name}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: player.matchesWon > 0 ? '#059669' : '#94a3b8', fontSize: 15 }}>{player.matchesWon}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'center', color: '#475569' }}>{player.matchesPlayed}</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: '#3b82f6', fontSize: 15 }}>{player.totalScore}</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: '#1AACBE', fontSize: 15 }}>{player.totalScore}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'center', color: '#475569' }}>{player.totalPairs}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'center', color: player.totalErrors > 0 ? '#dc2626' : '#059669' }}>{player.totalErrors}</td>
                     </tr>
@@ -605,7 +605,7 @@ export default function CompetitionBracket() {
                   fontSize: 14, outline: 'none', boxSizing: 'border-box',
                   transition: 'border-color 0.2s'
                 }}
-                onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; }}
+                onFocus={(e) => { e.target.style.borderColor = '#1AACBE'; }}
                 onBlur={(e) => { e.target.style.borderColor = '#d1d5db'; }}
                 disabled={sending}
               />
@@ -625,7 +625,7 @@ export default function CompetitionBracket() {
                   fontSize: 14, outline: 'none', boxSizing: 'border-box',
                   transition: 'border-color 0.2s'
                 }}
-                onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; }}
+                onFocus={(e) => { e.target.style.borderColor = '#1AACBE'; }}
                 onBlur={(e) => { e.target.style.borderColor = '#d1d5db'; }}
                 disabled={sending}
               />
@@ -658,7 +658,7 @@ export default function CompetitionBracket() {
                 disabled={sending || !emailAddress}
                 style={{
                   flex: 2, padding: '10px 16px',
-                  background: sending ? '#94a3b8' : !emailAddress ? '#cbd5e1' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                  background: sending ? '#94a3b8' : !emailAddress ? '#cbd5e1' : 'linear-gradient(135deg, #1AACBE 0%, #148A9C 100%)',
                   border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700,
                   cursor: sending || !emailAddress ? 'not-allowed' : 'pointer',
                   color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8

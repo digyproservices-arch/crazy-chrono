@@ -73,7 +73,7 @@ export default function AdminRoles() {
         </label>
         {err ? <div style={{ color:'#b91c1c' }}>{err}</div> : null}
         {msg ? <div style={{ color:'#065f46' }}>{msg}</div> : null}
-        <button type="submit" disabled={loading} style={{ padding:'10px 12px', borderRadius:8, border:'1px solid #10b981', background:'#10b981', color:'#fff', fontWeight:600 }}>
+        <button type="submit" disabled={loading} style={{ padding:'10px 14px', borderRadius:10, border:'none', background:'linear-gradient(135deg, #1AACBE, #148A9C)', color:'#fff', fontWeight:600, cursor:'pointer' }}>
           {loading ? 'Mise à jour…' : 'Mettre à jour le rôle'}
         </button>
       </form>

@@ -28,7 +28,7 @@
 
 .training-create-header h1 {
   font-size: 2rem;
-  color: #1a1a1a;
+  color: #4A3728;
   margin: 0;
 }
 
@@ -47,7 +47,7 @@
 
 .section h2 {
   font-size: 1.5rem;
-  color: #1a1a1a;
+  color: #4A3728;
   margin-bottom: 10px;
 }
 
@@ -77,13 +77,13 @@
 }
 
 .student-card:hover {
-  border-color: #3b82f6;
-  background: #eff6ff;
+  border-color: #1AACBE;
+  background: #f0fafb;
 }
 
 .student-card.selected {
-  border-color: #3b82f6;
-  background: #dbeafe;
+  border-color: #1AACBE;
+  background: #d4f0f4;
 }
 
 .student-card.disabled {
@@ -117,7 +117,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #1AACBE, #0D6A7A);
   color: white;
   font-size: 1.5rem;
   font-weight: bold;
@@ -129,13 +129,13 @@
 
 .student-name {
   font-weight: 600;
-  color: #1a1a1a;
+  color: #4A3728;
   margin-bottom: 4px;
 }
 
 .student-license {
   font-size: 0.85rem;
-  color: #10b981;
+  color: #1AACBE;
 }
 
 .student-license.expired {
@@ -148,7 +148,7 @@
   right: 10px;
   width: 30px;
   height: 30px;
-  background: #3b82f6;
+  background: #1AACBE;
   color: white;
   border-radius: 50%;
   display: flex;
@@ -170,17 +170,17 @@
 }
 
 .selection-summary {
-  background: #eff6ff;
+  background: #f0fafb;
   padding: 15px 20px;
   border-radius: 10px;
   font-size: 1.1rem;
-  color: #1e40af;
+  color: #0D6A7A;
   text-align: center;
 }
 
 .selection-summary strong {
   font-size: 1.3rem;
-  color: #1e40af;
+  color: #0D6A7A;
 }
 
 .config-form {
@@ -212,7 +212,7 @@
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #3b82f6;
+  border-color: #1AACBE;
 }
 
 .form-row {
@@ -229,7 +229,7 @@
 
 .create-button {
   padding: 18px 60px;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  background: linear-gradient(135deg, #1AACBE, #148A9C);
   color: white;
   border: none;
   border-radius: 12px;
@@ -242,7 +242,7 @@
 }
 
 .create-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, #148A9C, #0D6A7A);
   transform: scale(1.05);
 }
 

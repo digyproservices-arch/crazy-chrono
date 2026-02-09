@@ -101,7 +101,7 @@ export default function AdminInvite() {
           <button 
             type="submit" 
             disabled={loading}
-            style={{ padding: '10px 12px', borderRadius: 8, background: '#10b981', color: '#fff', border: 'none', fontWeight: 600 }}
+            style={{ padding: '10px 14px', borderRadius: 10, background: 'linear-gradient(135deg, #1AACBE, #148A9C)', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}
           >
             {loading ? 'Création...' : 'Créer invitation'}
           </button>

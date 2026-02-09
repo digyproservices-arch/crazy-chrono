@@ -18,15 +18,15 @@ const COLORS = {
   border: '#334155',
   text: '#e2e8f0',
   textMuted: '#94a3b8',
-  info: '#3b82f6',
+  info: '#1AACBE',
   warn: '#f59e0b',
   error: '#ef4444',
-  success: '#10b981',
+  success: '#148A9C',
   accent: '#8b5cf6',
 };
 
 const LEVEL_COLORS = {
-  info: '#3b82f6',
+  info: '#1AACBE',
   warn: '#f59e0b',
   error: '#ef4444',
 };
@@ -488,7 +488,7 @@ function MonitoringDashboard() {
                     onClick={() => copyToClipboard(formatLogsForCopy(filteredLogs), 'logs')}
                     style={{
                       padding: '8px 16px',
-                      background: copyFeedback === 'logs' ? '#10b981' : '#3b82f6',
+                      background: copyFeedback === 'logs' ? '#148A9C' : '#1AACBE',
                       border: 'none',
                       borderRadius: 8,
                       color: '#fff',
@@ -592,7 +592,7 @@ function MonitoringDashboard() {
                         onClick={() => copyToClipboard(formatLogsForCopy(errorLogs), 'errors')}
                         style={{
                           padding: '8px 16px',
-                          background: copyFeedback === 'errors' ? '#10b981' : '#ef4444',
+                          background: copyFeedback === 'errors' ? '#148A9C' : '#ef4444',
                           border: 'none',
                           borderRadius: 8,
                           color: '#fff',

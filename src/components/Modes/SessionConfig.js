@@ -255,7 +255,7 @@ export default function SessionConfig() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {CLASS_LEVELS.map(lv => (
             <button key={lv} onClick={() => toggleClass(lv)}
-              style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedClasses.includes(lv) ? '#10b981' : '#fff', color: selectedClasses.includes(lv) ? '#fff' : '#111' }}>
+              style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedClasses.includes(lv) ? '#1AACBE' : '#fff', color: selectedClasses.includes(lv) ? '#fff' : '#4A3728' }}>
               {lv}
             </button>
           ))}
@@ -293,7 +293,7 @@ export default function SessionConfig() {
                 const hasData = themeHasData(t);
                 return (
                   <button key={t} onClick={() => toggleTheme(t)} disabled={!hasData} title={hasData ? '' : 'Aucune donnée pour les classes sélectionnées'}
-                    style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedThemes.includes(t) ? '#6366f1' : '#fff', color: selectedThemes.includes(t) ? '#fff' : '#111', opacity: hasData ? 1 : 0.5, cursor: hasData ? 'pointer' : 'not-allowed' }}>
+                    style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedThemes.includes(t) ? '#1AACBE' : '#fff', color: selectedThemes.includes(t) ? '#fff' : '#4A3728', opacity: hasData ? 1 : 0.5, cursor: hasData ? 'pointer' : 'not-allowed' }}>
                     {t}
                   </button>
                 );
@@ -307,7 +307,7 @@ export default function SessionConfig() {
                 const hasData = themeHasData(t);
                 return (
                   <button key={t} onClick={() => toggleTheme(t)} disabled={!hasData} title={hasData ? '' : 'Aucune donnée pour les classes sélectionnées'}
-                    style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedThemes.includes(t) ? '#6366f1' : '#fff', color: selectedThemes.includes(t) ? '#fff' : '#111', opacity: hasData ? 1 : 0.5, cursor: hasData ? 'pointer' : 'not-allowed' }}>
+                    style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedThemes.includes(t) ? '#1AACBE' : '#fff', color: selectedThemes.includes(t) ? '#fff' : '#4A3728', opacity: hasData ? 1 : 0.5, cursor: hasData ? 'pointer' : 'not-allowed' }}>
                     {t}
                   </button>
                 );
@@ -321,7 +321,7 @@ export default function SessionConfig() {
                 const hasData = themeHasData(t);
                 return (
                   <button key={t} onClick={() => toggleTheme(t)} disabled={!hasData} title={hasData ? '' : 'Aucune donnée pour les classes sélectionnées'}
-                    style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedThemes.includes(t) ? '#6366f1' : '#fff', color: selectedThemes.includes(t) ? '#fff' : '#111', opacity: hasData ? 1 : 0.5, cursor: hasData ? 'pointer' : 'not-allowed' }}>
+                    style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedThemes.includes(t) ? '#1AACBE' : '#fff', color: selectedThemes.includes(t) ? '#fff' : '#4A3728', opacity: hasData ? 1 : 0.5, cursor: hasData ? 'pointer' : 'not-allowed' }}>
                     {t}
                   </button>
                 );
@@ -335,7 +335,7 @@ export default function SessionConfig() {
                 const hasData = themeHasData(t);
                 return (
                   <button key={t} onClick={() => toggleTheme(t)} disabled={!hasData} title={hasData ? '' : 'Aucune donnée pour les classes sélectionnées'}
-                    style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedThemes.includes(t) ? '#6366f1' : '#fff', color: selectedThemes.includes(t) ? '#fff' : '#111', opacity: hasData ? 1 : 0.5, cursor: hasData ? 'pointer' : 'not-allowed' }}>
+                    style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedThemes.includes(t) ? '#1AACBE' : '#fff', color: selectedThemes.includes(t) ? '#fff' : '#4A3728', opacity: hasData ? 1 : 0.5, cursor: hasData ? 'pointer' : 'not-allowed' }}>
                     {t}
                   </button>
                 );
@@ -432,7 +432,7 @@ export default function SessionConfig() {
 
       <div style={{ marginTop: 20, display: 'flex', gap: 12 }}>
         <button onClick={() => navigate('/modes')} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff' }}>Retour</button>
-        <button onClick={onStart} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #10b981', background: '#10b981', color: '#fff', fontWeight: 700 }}>
+        <button onClick={onStart} style={{ padding: '12px 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #1AACBE, #148A9C)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', boxShadow: '0 3px 10px rgba(26,172,190,0.3)' }}>
           Démarrer
         </button>
       </div>

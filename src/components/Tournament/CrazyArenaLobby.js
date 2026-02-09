@@ -222,9 +222,9 @@ export default function CrazyArenaLobby() {
         key={i}
         style={{
           padding: 20,
-          border: '3px solid ' + (player ? '#10b981' : '#d1d5db'),
+          border: '3px solid ' + (player ? '#1AACBE' : '#d1d5db'),
           borderRadius: 16,
-          background: player ? '#ecfdf5' : '#f9fafb',
+          background: player ? '#f0fafb' : '#f9fafb',
           textAlign: 'center',
           minHeight: 150,
           display: 'flex',
@@ -242,7 +242,7 @@ export default function CrazyArenaLobby() {
               height: 80, 
               borderRadius: '50%', 
               background: '#fff', 
-              border: '3px solid #10b981',
+              border: '3px solid #1AACBE',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -257,7 +257,7 @@ export default function CrazyArenaLobby() {
             {player.ready && (
               <div style={{ 
                 padding: '4px 12px', 
-                background: '#10b981', 
+                background: '#1AACBE', 
                 color: '#fff', 
                 borderRadius: 999,
                 fontSize: 12,
@@ -383,7 +383,7 @@ export default function CrazyArenaLobby() {
           <div style={{
             fontSize: 200,
             fontWeight: 900,
-            color: countdown === 0 ? '#10b981' : '#f59e0b',
+            color: countdown === 0 ? '#1AACBE' : '#F5A623',
             animation: 'pulse 0.5s infinite',
             textShadow: '0 0 30px rgba(255,255,255,0.5)'
           }}>
@@ -415,8 +415,8 @@ export default function CrazyArenaLobby() {
             style={{
               padding: '16px 40px',
               borderRadius: 12,
-              border: '3px solid #10b981',
-              background: '#10b981',
+              border: 'none',
+              background: 'linear-gradient(135deg, #1AACBE, #148A9C)',
               color: '#fff',
               fontSize: 20,
               fontWeight: 700,

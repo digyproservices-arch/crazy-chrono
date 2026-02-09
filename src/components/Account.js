@@ -116,8 +116,8 @@ const Account = () => {
             </label>
           </div>
           <div>
-            <button onClick={onSave} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #10b981', background: '#34d399', color: '#064e3b', fontWeight: 700 }}>Enregistrer</button>
-            {saved && <span style={{ marginLeft: 10, color: '#059669' }}>Enregistré ✓</span>}
+            <button onClick={onSave} style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #1AACBE, #148A9C)', color: '#fff', fontWeight: 700, cursor: 'pointer', boxShadow: '0 3px 10px rgba(26,172,190,0.3)' }}>Enregistrer</button>
+            {saved && <span style={{ marginLeft: 10, color: '#1AACBE', fontWeight: 600 }}>Enregistré ✓</span>}
           </div>
         </div>
       </div>

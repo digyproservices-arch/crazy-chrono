@@ -396,9 +396,9 @@ export default function NotificationBadge() {
                     key={inv.matchId}
                     style={{
                       padding: 16,
-                      border: '2px solid #3b82f6',
+                      border: '2px solid #1AACBE',
                       borderRadius: 12,
-                      background: '#eff6ff',
+                      background: '#f0fafb',
                       display: 'flex',
                       flexDirection: 'column',
                       gap: 12
@@ -422,7 +422,7 @@ export default function NotificationBadge() {
                         padding: '12px 20px',
                         borderRadius: 8,
                         border: 'none',
-                        background: '#3b82f6',
+                        background: '#1AACBE',
                         color: '#fff',
                         fontSize: 16,
                         fontWeight: 700,
@@ -430,11 +430,11 @@ export default function NotificationBadge() {
                         transition: 'all 0.2s'
                       }}
                       onMouseEnter={(e) => {
-                        e.target.style.background = '#2563eb';
+                        e.target.style.background = '#148A9C';
                         e.target.style.transform = 'scale(1.02)';
                       }}
                       onMouseLeave={(e) => {
-                        e.target.style.background = '#3b82f6';
+                        e.target.style.background = '#1AACBE';
                         e.target.style.transform = 'scale(1)';
                       }}
                     >

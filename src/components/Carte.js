@@ -5570,7 +5570,7 @@ setZones(dataWithRandomTexts);
               <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
                 <button onClick={startDiagRecording} disabled={diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: diagRecording ? '#064e3b' : '#065f46', color: '#ecfdf5', fontSize: 12 }}>▶ Démarrer</button>
                 <button onClick={stopDiagRecording} disabled={!diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: '#7f1d1d', color: '#fee2e2', fontSize: 12 }}>■ Arrêter</button>
-                <button onClick={downloadDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #3b82f6', background: '#1e3a8a', color: '#dbeafe', fontSize: 12 }}>📥 Télécharger</button>
+                <button onClick={downloadDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #1AACBE', background: '#0D6A7A', color: '#d4f0f4', fontSize: 12 }}>📥 Télécharger</button>
                 <button onClick={sendLogsToBackend} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: logsSent ? '1px solid #10b981' : '1px solid #8b5cf6', background: logsSent ? '#065f46' : '#5b21b6', color: '#ede9fe', fontSize: 12, transition: 'all 0.2s' }}>{logsSent ? '✓ Envoyé !' : '📤 Envoyer backend'}</button>
               </div>
               <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
@@ -6701,7 +6701,7 @@ setZones(dataWithRandomTexts);
             )}
             {!panelCollapsed && roomStatus === 'lobby' && (
             <>
-              <div style={{ marginTop: 10, padding: 8, borderRadius: 8, background: '#eff6ff', border: '1px solid #3b82f6', fontSize: 12, color: '#1e40af', textAlign: 'center' }}>
+              <div style={{ marginTop: 10, padding: 8, borderRadius: 8, background: '#f0fafb', border: '1px solid #1AACBE', fontSize: 12, color: '#0D6A7A', textAlign: 'center' }}>
                 {(() => {
                   const allReady = roomPlayers.length >= 2 && roomPlayers.every(p => p.ready);
                   if (roomPlayers.length < 2) return '⏳ En attente d\'autres joueurs...';

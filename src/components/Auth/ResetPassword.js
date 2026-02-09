@@ -109,9 +109,9 @@ export default function ResetPassword() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: '#f9fafb' }}>
-      <div style={{ width: 420, maxWidth: '92vw', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 24, boxShadow: '0 8px 28px rgba(0,0,0,0.08)' }}>
-        <h2 style={{ marginTop: 0, marginBottom: 8, fontSize: 24, fontWeight: 700, color: '#111827' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'linear-gradient(135deg, #0D6A7A 0%, #1AACBE 50%, #148A9C 100%)' }}>
+      <div style={{ width: 420, maxWidth: '92vw', background: '#fff', border: 'none', borderRadius: 16, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+        <h2 style={{ marginTop: 0, marginBottom: 8, fontSize: 24, fontWeight: 700, color: '#4A3728' }}>
           Nouveau mot de passe
         </h2>
         <p style={{ marginTop: 0, marginBottom: 20, color: '#6b7280', fontSize: 14 }}>
@@ -188,7 +188,7 @@ export default function ResetPassword() {
                 padding: '10px 12px',
                 borderRadius: 8,
                 border: 'none',
-                background: loading ? '#9ca3af' : '#10b981',
+                background: loading ? '#9ca3af' : '#1AACBE',
                 color: '#fff',
                 fontWeight: 600,
                 fontSize: 14,

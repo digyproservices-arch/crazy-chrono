@@ -968,9 +968,9 @@ function AdminPanel() {
       {/* Navigation admin */}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16, padding: '12px', background: '#f3f4f6', borderRadius: 8, border: '1px solid #d1d5db' }}>
         <strong style={{ marginRight: 8 }}>Navigation :</strong>
-        <a href="/admin/dashboard" style={{ padding: '6px 12px', borderRadius: 6, background: '#3b82f6', color: '#fff', textDecoration: 'none', fontWeight: 600 }}>📊 Dashboard</a>
+        <a href="/admin/dashboard" style={{ padding: '6px 12px', borderRadius: 6, background: '#1AACBE', color: '#fff', textDecoration: 'none', fontWeight: 600 }}>📊 Dashboard</a>
         <a href="/admin/roles" style={{ padding: '6px 12px', borderRadius: 6, background: '#8b5cf6', color: '#fff', textDecoration: 'none', fontWeight: 600 }}>👥 Rôles</a>
-        <a href="/admin/invite" style={{ padding: '6px 12px', borderRadius: 6, background: '#10b981', color: '#fff', textDecoration: 'none', fontWeight: 600 }}>✉️ Invitations</a>
+        <a href="/admin/invite" style={{ padding: '6px 12px', borderRadius: 6, background: '#148A9C', color: '#fff', textDecoration: 'none', fontWeight: 600 }}>✉️ Invitations</a>
         <a href="/debug/progress" style={{ padding: '6px 12px', borderRadius: 6, background: '#f59e0b', color: '#fff', textDecoration: 'none', fontWeight: 600 }}>🔍 Debug</a>
       </div>
       

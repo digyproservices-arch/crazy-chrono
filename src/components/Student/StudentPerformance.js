@@ -90,9 +90,9 @@ export default function StudentPerformance() {
   const tabStyle = (active) => ({
     padding: '10px 18px',
     border: 'none',
-    borderBottom: active ? '3px solid #3b82f6' : '3px solid transparent',
+    borderBottom: active ? '3px solid #1AACBE' : '3px solid transparent',
     background: 'none',
-    color: active ? '#3b82f6' : '#6b7280',
+    color: active ? '#1AACBE' : '#6b7280',
     fontSize: 14,
     fontWeight: active ? 700 : 500,
     cursor: 'pointer',
@@ -147,7 +147,7 @@ export default function StudentPerformance() {
             onClick={() => navigate('/modes')}
             style={{
               marginTop: 20, padding: '12px 28px',
-              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              background: 'linear-gradient(135deg, #1AACBE 0%, #148A9C 100%)',
               color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer'
             }}
           >
@@ -159,8 +159,8 @@ export default function StudentPerformance() {
           {/* ===== STAT CARDS ===== */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 24 }}>
             {[
-              { label: 'Matchs joués', value: stats.totalMatches, icon: '🎮', color: '#3b82f6' },
-              { label: 'Victoires', value: `${stats.totalWins} (${stats.winRate}%)`, icon: '🏆', color: '#059669' },
+              { label: 'Matchs joués', value: stats.totalMatches, icon: '🎮', color: '#1AACBE' },
+              { label: 'Victoires', value: `${stats.totalWins} (${stats.winRate}%)`, icon: '🏆', color: '#F5A623' },
               { label: 'Score moyen', value: stats.avgScore, icon: '⭐', color: '#d97706' },
               { label: 'Meilleur score', value: stats.bestScore, icon: '🔥', color: '#dc2626' },
               { label: 'Précision', value: `${stats.accuracy}%`, icon: '🎯', color: '#8b5cf6' },
@@ -240,8 +240,8 @@ export default function StudentPerformance() {
                   <AreaChart data={progression}>
                     <defs>
                       <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#1AACBE" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#1AACBE" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -255,7 +255,7 @@ export default function StudentPerformance() {
                       }}
                     />
                     <Legend />
-                    <Area type="monotone" dataKey="score" name="Score" stroke="#3b82f6" fill="url(#scoreGrad)" strokeWidth={2} dot={{ r: 3, fill: '#3b82f6' }} />
+                    <Area type="monotone" dataKey="score" name="Score" stroke="#1AACBE" fill="url(#scoreGrad)" strokeWidth={2} dot={{ r: 3, fill: '#1AACBE' }} />
                     <Line type="monotone" dataKey="avgScore" name="Moyenne (5 matchs)" stroke="#f97316" strokeWidth={2} strokeDasharray="5 5" dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -292,7 +292,7 @@ export default function StudentPerformance() {
                     <Legend />
                     <Bar dataKey="speed" name="Rapidité" radius={[4, 4, 0, 0]}>
                       {progression.map((entry, idx) => (
-                        <Cell key={idx} fill={entry.isWin ? '#059669' : '#3b82f6'} />
+                        <Cell key={idx} fill={entry.isWin ? '#F5A623' : '#1AACBE'} />
                       ))}
                     </Bar>
                     <Line type="monotone" dataKey="avgSpeed" name="Moyenne (5 matchs)" stroke="#f97316" strokeWidth={2} dot={false} />
@@ -394,7 +394,7 @@ export default function StudentPerformance() {
             <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
-                  <tr style={{ background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' }}>
+                  <tr style={{ background: 'linear-gradient(135deg, #0D6A7A 0%, #148A9C 100%)' }}>
                     <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff', width: 45 }}>#</th>
                     <th style={{ padding: '12px 14px', textAlign: 'left', fontWeight: 700, color: '#fff' }}>Date</th>
                     <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Position</th>
@@ -426,10 +426,10 @@ export default function StudentPerformance() {
                             <span style={{ color: '#94a3b8', fontWeight: 600 }}>{h.position}e</span>
                           )}
                         </td>
-                        <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: '#3b82f6', fontSize: 15 }}>
+                        <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: '#1AACBE', fontSize: 15 }}>
                           {h.score}
                         </td>
-                        <td style={{ padding: '10px 14px', textAlign: 'center', color: '#059669', fontWeight: 600 }}>
+                        <td style={{ padding: '10px 14px', textAlign: 'center', color: '#148A9C', fontWeight: 600 }}>
                           {h.pairsValidated}
                         </td>
                         <td style={{ padding: '10px 14px', textAlign: 'center', color: h.errors > 0 ? '#dc2626' : '#059669' }}>

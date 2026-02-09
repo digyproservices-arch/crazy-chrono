@@ -35,7 +35,7 @@ export default function ModeSelect() {
       padding: 24,
       borderRadius: 16,
       border: 'none',
-      background: gradient || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: gradient || 'linear-gradient(135deg, #1AACBE 0%, #0D6A7A 100%)',
       boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
       color: '#fff',
       cursor: 'pointer',
@@ -63,14 +63,14 @@ export default function ModeSelect() {
         <h1 style={{ 
           fontSize: 42, 
           fontWeight: 900, 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #1AACBE 0%, #0D6A7A 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           marginBottom: 12
         }}>
           🎮 Choisissez votre mode
         </h1>
-        <p style={{ fontSize: 16, color: '#6b7280', maxWidth: 500, margin: '0 auto' }}>
+        <p style={{ fontSize: 16, color: '#6B5443', maxWidth: 500, margin: '0 auto' }}>
           Sélectionnez un mode de jeu pour commencer à vous amuser !
         </p>
       </div>
@@ -84,21 +84,21 @@ export default function ModeSelect() {
           title="Mode Solo" 
           subtitle="Jouez seul et améliorez vos compétences à votre rythme"
           icon="🎯"
-          gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
+          gradient="linear-gradient(135deg, #1AACBE 0%, #148A9C 100%)"
           onClick={() => go('solo')} 
         />
         <Card 
           title="Multijoueur" 
           subtitle="Défiez vos amis en ligne et créez des parties privées"
           icon="👥"
-          gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
+          gradient="linear-gradient(135deg, #F5A623 0%, #d4900e 100%)"
           onClick={() => go('online')} 
         />
         <Card 
           title="Mes Performances" 
           subtitle="Analyse ta progression, ta rapidité et ta précision match par match"
           icon="📊"
-          gradient="linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)"
+          gradient="linear-gradient(135deg, #0D6A7A 0%, #148A9C 100%)"
           onClick={() => navigate('/my-performance')} 
         />
       </div>

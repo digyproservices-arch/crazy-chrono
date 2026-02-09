@@ -335,7 +335,7 @@ export default function TrainingArenaSetup() {
           onClick={() => navigate('/training-arena/manager')}
           style={{
             padding: '14px 28px',
-            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+            background: 'linear-gradient(135deg, #1AACBE 0%, #148A9C 100%)',
             color: '#fff',
             border: 'none',
             borderRadius: 12,
@@ -363,7 +363,7 @@ export default function TrainingArenaSetup() {
       </div>
       
       {tournament && (
-        <div style={{ padding: '12px 16px', background: '#eff6ff', borderRadius: 8, marginBottom: 16, border: '1px solid #3b82f6' }}>
+        <div style={{ padding: '12px 16px', background: '#f0fafb', borderRadius: 8, marginBottom: 16, border: '1px solid #1AACBE' }}>
           <strong>Tournoi:</strong> {tournament.name}<br />
           <strong>Phase actuelle:</strong> Phase {tournament.current_phase} / 4
         </div>
@@ -415,7 +415,7 @@ export default function TrainingArenaSetup() {
                     padding: '8px 12px', 
                     border: '1px solid #d1d5db', 
                     borderRadius: 8, 
-                    background: isSelected ? '#10b981' : isInGroup ? '#f3f4f6' : '#fff',
+                    background: isSelected ? '#1AACBE' : isInGroup ? '#f3f4f6' : '#fff',
                     color: isSelected ? '#fff' : isInGroup ? '#9ca3af' : '#111',
                     cursor: isDisabled ? 'not-allowed' : 'pointer',
                     opacity: isInGroup ? 0.6 : 1
@@ -442,7 +442,7 @@ export default function TrainingArenaSetup() {
             padding: '10px 20px', 
             borderRadius: 8, 
             border: 'none', 
-            background: '#10b981', 
+            background: 'linear-gradient(135deg, #1AACBE, #148A9C)', 
             color: '#fff', 
             fontWeight: 700,
             cursor: (selectedStudents.length < 2 || selectedStudents.length > 4 || !groupName.trim()) ? 'not-allowed' : 'pointer',
@@ -484,7 +484,7 @@ export default function TrainingArenaSetup() {
                       borderRadius: 999, 
                       fontSize: 12, 
                       fontWeight: 700, 
-                      background: group.status === 'finished' ? '#10b981' : group.status === 'playing' ? '#f59e0b' : '#6b7280',
+                      background: group.status === 'finished' ? '#148A9C' : group.status === 'playing' ? '#F5A623' : '#6b7280',
                       color: '#fff'
                     }}
                   >
@@ -515,8 +515,8 @@ export default function TrainingArenaSetup() {
                         style={{ 
                           padding: '8px 16px', 
                           borderRadius: 8, 
-                          border: '1px solid #3b82f6', 
-                          background: '#3b82f6', 
+                          border: 'none', 
+                          background: 'linear-gradient(135deg, #1AACBE, #148A9C)', 
                           color: '#fff', 
                           fontWeight: 700,
                           cursor: 'pointer'

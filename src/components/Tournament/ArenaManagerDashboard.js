@@ -413,7 +413,7 @@ export default function ArenaManagerDashboard() {
                     <div style={{ fontSize: 14, color: '#6b7280' }}>
                       Code: <span style={{ 
                         fontWeight: 700, 
-                        color: '#3b82f6',
+                        color: '#1AACBE',
                         fontFamily: 'monospace',
                         fontSize: 16
                       }}>
@@ -456,7 +456,7 @@ export default function ArenaManagerDashboard() {
                     <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>
                       Connectés
                     </div>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: '#3b82f6' }}>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#1AACBE' }}>
                       {match.connectedPlayers || 0}
                     </div>
                   </div>
@@ -464,7 +464,7 @@ export default function ArenaManagerDashboard() {
                     <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>
                       Prêts
                     </div>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: '#10b981' }}>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#148A9C' }}>
                       {match.readyPlayers || 0} ✓
                     </div>
                   </div>
@@ -579,8 +579,8 @@ export default function ArenaManagerDashboard() {
                     style={{
                       padding: '12px 24px',
                       background: '#fff',
-                      color: '#3b82f6',
-                      border: '2px solid #3b82f6',
+                      color: '#1AACBE',
+                      border: '2px solid #1AACBE',
                       borderRadius: 8,
                       fontSize: 14,
                       fontWeight: 600,

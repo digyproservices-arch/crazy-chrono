@@ -3,7 +3,7 @@
   margin: 0 auto;
   padding: 60px 20px;
   font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #FFF9F0 0%, #e6f7f9 100%);
   min-height: 100vh;
 }
 
@@ -15,7 +15,7 @@
 .mode-selector-header h1 {
   font-size: 3rem;
   font-weight: 900;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1AACBE 0%, #0D6A7A 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -25,7 +25,7 @@
 
 .mode-selector-header p {
   font-size: 1.25rem;
-  color: #64748b;
+  color: #6B5443;
   font-weight: 500;
 }
 
@@ -67,11 +67,11 @@
 }
 
 .training-mode::before {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #1AACBE 0%, #0D6A7A 100%);
 }
 
 .tournament-mode::before {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: linear-gradient(135deg, #F5A623 0%, #d4900e 100%);
 }
 
 .mode-icon {
@@ -88,7 +88,7 @@
 .mode-card h2 {
   font-size: 2rem;
   margin-bottom: 16px;
-  color: #1e293b;
+  color: #4A3728;
   font-weight: 800;
   letter-spacing: -0.5px;
 }
@@ -113,16 +113,16 @@
 
 .feature {
   font-size: 1.05rem;
-  color: #475569;
+  color: #4A3728;
   padding: 12px 16px;
-  background: #f8fafc;
+  background: #f0fafb;
   border-radius: 12px;
   font-weight: 600;
   transition: all 0.3s ease;
 }
 
 .feature:hover {
-  background: #e2e8f0;
+  background: #d4f0f4;
   transform: translateX(4px);
 }
 
@@ -141,14 +141,14 @@
 }
 
 .training-button {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #1AACBE 0%, #148A9C 100%);
   color: white;
 }
 
 .training-button:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #148A9C 0%, #0D6A7A 100%);
   transform: scale(1.05);
-  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 12px 32px rgba(26, 172, 190, 0.4);
 }
 
 .training-button:active {
@@ -156,14 +156,14 @@
 }
 
 .tournament-button {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: white;
+  background: linear-gradient(135deg, #F5A623 0%, #d4900e 100%);
+  color: #4A3728;
 }
 
 .tournament-button:hover {
-  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  background: linear-gradient(135deg, #d4900e 0%, #b87a0a 100%);
   transform: scale(1.05);
-  box-shadow: 0 12px 32px rgba(217, 119, 6, 0.4);
+  box-shadow: 0 12px 32px rgba(245, 166, 35, 0.4);
 }
 
 .tournament-button:active {
@@ -171,23 +171,23 @@
 }
 
 .mode-info {
-  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  background: linear-gradient(135deg, #f0fafb 0%, #e0f4f7 100%);
   border-radius: 20px;
   padding: 36px;
-  border-left: 6px solid #10b981;
+  border-left: 6px solid #1AACBE;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
 
 .mode-info p {
   font-size: 1.05rem;
-  color: #475569;
+  color: #4A3728;
   margin-bottom: 16px;
   line-height: 1.7;
   font-weight: 500;
 }
 
 .mode-info p strong {
-  color: #1e293b;
+  color: #4A3728;
   font-weight: 700;
 }
 
