@@ -69,7 +69,7 @@ const NavBar = () => {
   if (isLogin) return null;
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
-  const logoSrc = `${process.env.PUBLIC_URL}/images/crazy-chrono-logo.png`;
+  const logoSrc = `${process.env.PUBLIC_URL}/images/logo_crazy_chrono.png`;
 
   return (
     <>
