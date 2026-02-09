@@ -23,6 +23,7 @@ import TrainingArenaManagerDashboard from './components/Teacher/TrainingArenaMan
 import TrainingArenaLobby from './components/Teacher/TrainingArenaLobby';
 import ArenaManagerDashboard from './components/Tournament/ArenaManagerDashboard';
 import CompetitionBracket from './components/Tournament/CompetitionBracket';
+import StudentPerformance from './components/Student/StudentPerformance';
 import AdminRoles from './components/Admin/AdminRoles';
 import MonitoringDashboard from './components/MonitoringDashboard';
 import AdminInvite from './components/Admin/AdminInvite';
@@ -412,6 +413,8 @@ function App() {
               <Route path="/crazy-arena/manager" element={<RequireAuth auth={auth}><ArenaManagerDashboard /></RequireAuth>} />
               <Route path="/crazy-arena/competition" element={<RequireAuth auth={auth}><CompetitionBracket /></RequireAuth>} />
               <Route path="/crazy-arena/lobby/:roomCode" element={<RequireAuth auth={auth}><CrazyArenaLobby /></RequireAuth>} />
+              {/* Dashboard Performance Élève */}
+              <Route path="/my-performance" element={<RequireAuth auth={auth}><StudentPerformance /></RequireAuth>} />
               {/* Training Arena (Mode Entraînement - identique à Crazy Arena) */}
               <Route path="/training-arena/setup" element={<RequireAuth auth={auth}><TrainingArenaSetup /></RequireAuth>} />
               <Route path="/training-arena/manager" element={<RequireAuth auth={auth}><TrainingArenaManagerDashboard /></RequireAuth>} />

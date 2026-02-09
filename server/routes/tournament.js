@@ -1248,6 +1248,163 @@ function generateRoomCode() {
 }
 
 // ==========================================
+// DASHBOARD PERFORMANCE ÉLÈVE
+// ==========================================
+
+/**
+ * GET /api/tournament/students/:studentId/performance
+ * Retourne l'historique complet et les stats agrégées d'un élève
+ */
+router.get('/students/:studentId/performance', requireSupabase, async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    // 1. Récupérer tous les résultats de l'élève
+    const { data: results, error: resultsError } = await supabase
+      .from('match_results')
+      .select('id, match_id, position, score, time_ms, pairs_validated, errors, created_at')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: true });
+
+    if (resultsError) throw resultsError;
+
+    if (!results || results.length === 0) {
+      return res.json({
+        success: true,
+        studentId,
+        stats: { totalMatches: 0, totalWins: 0, winRate: 0, avgScore: 0, bestScore: 0, avgTime: 0, bestTime: 0, avgPairs: 0, totalPairs: 0, avgErrors: 0, totalErrors: 0, avgSpeed: 0, bestSpeed: 0 },
+        history: [],
+        progression: [],
+        streaks: { currentWin: 0, bestWin: 0 }
+      });
+    }
+
+    // 2. Récupérer les matchs pour le type (arena/training) et la date
+    const matchIds = results.map(r => r.match_id).filter(Boolean);
+    let matchesMap = {};
+    if (matchIds.length > 0) {
+      const { data: matches } = await supabase
+        .from('tournament_matches')
+        .select('id, status, room_code, created_at, finished_at, mode')
+        .in('id', matchIds);
+      (matches || []).forEach(m => { matchesMap[m.id] = m; });
+    }
+
+    // 3. Calculer les stats
+    const totalMatches = results.length;
+    const wins = results.filter(r => r.position === 1).length;
+    const scores = results.map(r => r.score || 0);
+    const times = results.map(r => r.time_ms || 0).filter(t => t > 0);
+    const pairs = results.map(r => r.pairs_validated || 0);
+    const errors = results.map(r => r.errors || 0);
+
+    // Vitesse = paires par minute
+    const speeds = results.map(r => {
+      if (!r.time_ms || r.time_ms <= 0 || !r.pairs_validated) return 0;
+      return (r.pairs_validated / (r.time_ms / 60000));
+    }).filter(s => s > 0);
+
+    const sum = arr => arr.reduce((a, b) => a + b, 0);
+    const avg = arr => arr.length > 0 ? sum(arr) / arr.length : 0;
+
+    const stats = {
+      totalMatches,
+      totalWins: wins,
+      winRate: totalMatches > 0 ? Math.round((wins / totalMatches) * 100) : 0,
+      avgScore: Math.round(avg(scores)),
+      bestScore: Math.max(...scores, 0),
+      avgTime: Math.round(avg(times)),
+      bestTime: times.length > 0 ? Math.min(...times) : 0,
+      avgPairs: Math.round(avg(pairs) * 10) / 10,
+      totalPairs: sum(pairs),
+      avgErrors: Math.round(avg(errors) * 10) / 10,
+      totalErrors: sum(errors),
+      avgSpeed: Math.round(avg(speeds) * 10) / 10,
+      bestSpeed: speeds.length > 0 ? Math.round(Math.max(...speeds) * 10) / 10 : 0,
+      accuracy: sum(pairs) > 0 ? Math.round((sum(pairs) / (sum(pairs) + sum(errors))) * 100) : 0
+    };
+
+    // 4. Historique enrichi
+    const history = results.map((r, idx) => {
+      const match = matchesMap[r.match_id] || {};
+      return {
+        id: r.id,
+        matchId: r.match_id,
+        date: r.created_at,
+        position: r.position,
+        score: r.score || 0,
+        timeMs: r.time_ms || 0,
+        pairsValidated: r.pairs_validated || 0,
+        errors: r.errors || 0,
+        speed: r.time_ms > 0 && r.pairs_validated > 0 ? Math.round((r.pairs_validated / (r.time_ms / 60000)) * 10) / 10 : 0,
+        mode: match.mode || 'arena',
+        roomCode: match.room_code || null,
+        isWin: r.position === 1
+      };
+    });
+
+    // 5. Données de progression (moyennes glissantes sur les 5 derniers matchs)
+    const progression = [];
+    for (let i = 0; i < results.length; i++) {
+      const windowSize = Math.min(5, i + 1);
+      const window = results.slice(Math.max(0, i - windowSize + 1), i + 1);
+      const windowScores = window.map(r => r.score || 0);
+      const windowErrors = window.map(r => r.errors || 0);
+      const windowPairs = window.map(r => r.pairs_validated || 0);
+      const windowSpeeds = window.map(r => {
+        if (!r.time_ms || r.time_ms <= 0 || !r.pairs_validated) return 0;
+        return r.pairs_validated / (r.time_ms / 60000);
+      });
+
+      progression.push({
+        index: i + 1,
+        date: results[i].created_at,
+        score: results[i].score || 0,
+        avgScore: Math.round(avg(windowScores)),
+        errors: results[i].errors || 0,
+        avgErrors: Math.round(avg(windowErrors) * 10) / 10,
+        pairs: results[i].pairs_validated || 0,
+        avgPairs: Math.round(avg(windowPairs) * 10) / 10,
+        speed: windowSpeeds[windowSpeeds.length - 1] > 0 ? Math.round(windowSpeeds[windowSpeeds.length - 1] * 10) / 10 : 0,
+        avgSpeed: Math.round(avg(windowSpeeds.filter(s => s > 0)) * 10) / 10,
+        isWin: results[i].position === 1
+      });
+    }
+
+    // 6. Séries de victoires
+    let currentWinStreak = 0;
+    let bestWinStreak = 0;
+    let tempStreak = 0;
+    for (const r of results) {
+      if (r.position === 1) {
+        tempStreak++;
+        if (tempStreak > bestWinStreak) bestWinStreak = tempStreak;
+      } else {
+        tempStreak = 0;
+      }
+    }
+    // Current streak from the end
+    for (let i = results.length - 1; i >= 0; i--) {
+      if (results[i].position === 1) currentWinStreak++;
+      else break;
+    }
+
+    res.json({
+      success: true,
+      studentId,
+      stats,
+      history,
+      progression,
+      streaks: { currentWin: currentWinStreak, bestWin: bestWinStreak }
+    });
+
+  } catch (error) {
+    console.error('[Tournament API] Error fetching student performance:', error);
+    res.status(500).json({ success: false, error: error.message || 'Erreur serveur' });
+  }
+});
+
+// ==========================================
 // ENVOI PDF RÉSULTATS PAR EMAIL
 // ==========================================
 

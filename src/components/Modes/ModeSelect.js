@@ -94,6 +94,13 @@ export default function ModeSelect() {
           gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
           onClick={() => go('online')} 
         />
+        <Card 
+          title="Mes Performances" 
+          subtitle="Analyse ta progression, ta rapidité et ta précision match par match"
+          icon="📊"
+          gradient="linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)"
+          onClick={() => navigate('/my-performance')} 
+        />
       </div>
       {Array.isArray(history) && history.length > 0 && (
         <section style={{ marginTop: 20 }}>
