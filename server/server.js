@@ -1366,8 +1366,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('training:join', async ({ matchId, studentData }, cb) => {
-    logger.info('[Server][Training] Joueur rejoint', { matchId, studentId: studentData.studentId, name: studentData.name, socketId: socket.id });
+    logger.info('[Server][Training] Joueur tente de rejoindre', { matchId, studentId: studentData.studentId, name: studentData.name, socketId: socket.id });
     const success = await crazyArena.joinTrainingMatch(socket, matchId, studentData);
+    if (success) {
+      logger.info('[Server][Training] Joueur rejoint avec succès', { matchId, studentId: studentData.studentId, socketId: socket.id });
+    } else {
+      logger.warn('[Server][Training] Échec join - match introuvable ou erreur', { matchId, studentId: studentData.studentId, socketId: socket.id });
+    }
     if (typeof cb === 'function') {
       cb({ ok: success, matchInfo: { sessionName: 'Training' } });
     }

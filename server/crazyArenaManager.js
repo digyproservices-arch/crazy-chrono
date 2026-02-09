@@ -112,6 +112,7 @@ class CrazyArenaManager {
     if (!match) {
       console.error(`[CrazyArena][Training] Match ${matchId} introuvable`);
       socket.emit('training:error', { message: 'Match introuvable' });
+      socket.emit('training:match-lost', { reason: 'Match introuvable. Le serveur a peut-être redémarré.' });
       return false;
     }
 
@@ -681,15 +682,37 @@ class CrazyArenaManager {
    * Validation de paire en mode Training (COPIE EXACTE de pairValidated Battle Royale)
    */
   trainingPairValidated(socket, data) {
-    const matchId = this.playerMatches.get(socket.id);
+    let matchId = this.playerMatches.get(socket.id);
+    
+    // ✅ Fallback: essayer data.matchId si le mapping socket→match est perdu (reconnexion)
+    if (!matchId && data.matchId) {
+      const fallbackMatch = this.matches.get(data.matchId);
+      if (fallbackMatch) {
+        // Retrouver le joueur par studentId et ré-enregistrer le socket
+        const playerByStudent = fallbackMatch.players.find(p => p.studentId === data.studentId);
+        if (playerByStudent) {
+          logger.info('[CrazyArena][Training] trainingPairValidated: Récupération mapping socket via data.matchId', { matchId: data.matchId, socketId: socket.id, studentId: data.studentId });
+          playerByStudent.socketId = socket.id;
+          this.playerMatches.set(socket.id, data.matchId);
+          socket.join(data.matchId);
+          matchId = data.matchId;
+        }
+      }
+    }
+    
     if (!matchId) {
-      logger.warn('[CrazyArena][Training] trainingPairValidated: Aucun match pour socket', { socketId: socket.id });
+      logger.warn('[CrazyArena][Training] trainingPairValidated: Aucun match pour socket', { socketId: socket.id, dataMatchId: data.matchId });
+      // ✅ Notifier le client que le match n'existe plus
+      socket.emit('training:match-lost', { reason: 'Match introuvable. Le serveur a peut-être redémarré.' });
       return;
     }
 
     const match = this.matches.get(matchId);
     if (!match) {
       logger.error('[CrazyArena][Training] trainingPairValidated: Match introuvable', { matchId, socketId: socket.id });
+      socket.emit('training:match-lost', { reason: 'Match introuvable. Le serveur a peut-être redémarré.' });
+      // Nettoyer le mapping obsolète
+      this.playerMatches.delete(socket.id);
       return;
     }
     
@@ -1466,15 +1489,34 @@ class CrazyArenaManager {
    * Un joueur valide une paire
    */
   pairValidated(socket, data) {
-    const matchId = this.playerMatches.get(socket.id);
+    let matchId = this.playerMatches.get(socket.id);
+    
+    // ✅ Fallback: essayer data.matchId si le mapping socket→match est perdu (reconnexion)
+    if (!matchId && data.matchId) {
+      const fallbackMatch = this.matches.get(data.matchId);
+      if (fallbackMatch) {
+        const playerByStudent = fallbackMatch.players.find(p => p.studentId === data.studentId);
+        if (playerByStudent) {
+          logger.info('[CrazyArena][Arena] pairValidated: Récupération mapping socket via data.matchId', { matchId: data.matchId, socketId: socket.id, studentId: data.studentId });
+          playerByStudent.socketId = socket.id;
+          this.playerMatches.set(socket.id, data.matchId);
+          socket.join(data.matchId);
+          matchId = data.matchId;
+        }
+      }
+    }
+    
     if (!matchId) {
-      logger.warn('[CrazyArena][Arena] pairValidated: Aucun match pour socket', { socketId: socket.id });
+      logger.warn('[CrazyArena][Arena] pairValidated: Aucun match pour socket', { socketId: socket.id, dataMatchId: data.matchId });
+      socket.emit('arena:match-lost', { reason: 'Match introuvable. Le serveur a peut-être redémarré.' });
       return;
     }
 
     const match = this.matches.get(matchId);
     if (!match) {
       logger.error('[CrazyArena][Arena] pairValidated: Match introuvable', { matchId, socketId: socket.id });
+      socket.emit('arena:match-lost', { reason: 'Match introuvable. Le serveur a peut-être redémarré.' });
+      this.playerMatches.delete(socket.id);
       return;
     }
     

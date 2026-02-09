@@ -1204,6 +1204,15 @@ const Carte = () => {
           s.emit('training:join', {
             matchId: trainingMatchId,
             studentData
+          }, (response) => {
+            if (response?.ok) {
+              console.log('[TRAINING] ✅ Rejoint la room du match');
+            } else {
+              console.error('[TRAINING] ❌ Échec rejoin - match introuvable (serveur redémarré ?)');
+              alert('Le match a été interrompu (le serveur a redémarré). Vous allez être redirigé.');
+              navigate('/');
+              return;
+            }
           });
           
           console.log('[TRAINING] Données jeu:', trainingData);
@@ -1227,16 +1236,13 @@ const Carte = () => {
         }
       });
       
-      s.on('disconnect', () => {
-        console.log('[TRAINING] ❌ Socket déconnecté');
-        setSocketConnected(false);
-      });
-      
-      s.on('training:error', ({ message }) => {
-        console.error('[TRAINING] ❌ Erreur backend:', message);
+      s.on('training:match-lost', ({ reason }) => {
+        console.error('[TRAINING] ❌ Match perdu:', reason);
+        setGameActive(false);
+        alert('Le match a été interrompu : ' + reason + '\nVous allez être redirigé.');
+        navigate('/');
       });
 
-      // Écouter paire validée par un joueur (comme Arena)
       s.on('training:pair-validated', ({ pairId, zoneAId, zoneBId, playerName, studentId }) => {
         console.log('[TRAINING] Paire validée par', playerName, ':', pairId);
         
@@ -1339,12 +1345,24 @@ const Carte = () => {
             studentData
           }, (response) => {
             console.log('[ARENA] Callback arena:join reçu:', response);
+            if (response && !response.ok) {
+              console.error('[ARENA] ❌ Échec rejoin - match introuvable (serveur redémarré ?)');
+              alert('Le match a été interrompu (le serveur a redémarré). Vous allez être redirigé.');
+              navigate('/');
+            }
           });
         } catch (e) {
           console.error('[ARENA] ❌ Erreur émission arena:join:', e);
         }
       });
       
+      s.on('arena:match-lost', ({ reason }) => {
+        console.error('[ARENA] ❌ Match perdu:', reason);
+        setGameActive(false);
+        alert('Le match a été interrompu : ' + reason + '\nVous allez être redirigé.');
+        navigate('/');
+      });
+
       // ✅ Listener pour countdown 3-2-1 avant tiebreaker
       s.on('arena:countdown', ({ count }) => {
         console.log('[ARENA] 📣 Countdown reçu:', count);

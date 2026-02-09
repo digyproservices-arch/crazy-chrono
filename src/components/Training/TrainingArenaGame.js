@@ -270,8 +270,19 @@ export default function TrainingArenaGame() {
       }, (response) => {
         if (response?.ok) {
           console.log('[TrainingArena] ✅ Rejoint la room du match pour recevoir événements');
+        } else {
+          console.error('[TrainingArena] ❌ Échec rejoin - match introuvable (serveur redémarré ?)');
+          alert('Le match a été interrompu (le serveur a redémarré). Vous allez être redirigé.');
+          navigate('/');
         }
       });
+    });
+    
+    // ✅ Écouter si le match est perdu (serveur redémarré pendant le jeu)
+    socket.on('training:match-lost', ({ reason }) => {
+      console.error('[TrainingArena] ❌ Match perdu:', reason);
+      alert('Le match a été interrompu : ' + reason + '\nVous allez être redirigé.');
+      navigate('/');
     });
     
     socket.on('training:scores-update', ({ scores }) => {
