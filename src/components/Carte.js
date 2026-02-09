@@ -1221,6 +1221,14 @@ const Carte = () => {
           if (trainingData.zones && Array.isArray(trainingData.zones)) {
             console.log('[TRAINING] 🎮 Chargement zones:', trainingData.zones.length);
             setZones(trainingData.zones);
+            // ✅ FIX: Synchroniser calcAngles depuis les angles serveur dès le chargement initial
+            const initAngles = {};
+            trainingData.zones.forEach(z => {
+              if ((z.type === 'calcul' || z.type === 'chiffre') && typeof z.angle === 'number') {
+                initAngles[z.id] = z.angle;
+              }
+            });
+            setCalcAngles(initAngles);
             setTimeLeft(trainingData.duration || 60);
             
             // Démarrer le jeu automatiquement (comme Arena)
@@ -1277,7 +1285,15 @@ const Carte = () => {
         if (Array.isArray(zones)) {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
           setZones(cleanZones);
-          console.log('[TRAINING] ✅ Zones mises à jour:', cleanZones.length);
+          // ✅ FIX: Synchroniser calcAngles depuis les angles serveur pour éviter que le localStorage ne les écrase
+          const serverAngles = {};
+          zones.forEach(z => {
+            if ((z.type === 'calcul' || z.type === 'chiffre') && typeof z.angle === 'number') {
+              serverAngles[z.id] = z.angle;
+            }
+          });
+          setCalcAngles(serverAngles);
+          console.log('[TRAINING] ✅ Zones mises à jour:', cleanZones.length, 'angles synced:', Object.keys(serverAngles).length);
         }
 
         // Réactiver le jeu après 50ms
@@ -1688,12 +1704,20 @@ const Carte = () => {
         
         // Mettre à jour React directement (pas de reload)
         setZones(cleanZones);
+        // ✅ FIX: Synchroniser calcAngles depuis les angles serveur
+        const tbAngles = {};
+        zones.forEach(z => {
+          if ((z.type === 'calcul' || z.type === 'chiffre') && typeof z.angle === 'number') {
+            tbAngles[z.id] = z.angle;
+          }
+        });
+        setCalcAngles(tbAngles);
         // NE PAS mettre à jour gameDuration (pas de chrono pour tiebreaker)
         setGameActive(true);
         // setStartTime n'existe pas - pas nécessaire pour tiebreaker (pas de timer)
         setIsTiebreaker(true); // Activer mode tiebreaker
         
-        console.log('[ARENA] ✅ État React mis à jour avec zones tiebreaker');
+        console.log('[ARENA] ✅ État React mis à jour avec zones tiebreaker, angles synced:', Object.keys(tbAngles).length);
       });
 
       // Écouter fin de partie Arena
@@ -1741,7 +1765,15 @@ const Carte = () => {
         if (Array.isArray(zones)) {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
           setZones(cleanZones);
-          console.log('[ARENA] ✅ Zones mises à jour (validated=false forcé):', cleanZones.length);
+          // ✅ FIX: Synchroniser calcAngles depuis les angles serveur pour éviter que le localStorage ne les écrase
+          const serverAngles = {};
+          zones.forEach(z => {
+            if ((z.type === 'calcul' || z.type === 'chiffre') && typeof z.angle === 'number') {
+              serverAngles[z.id] = z.angle;
+            }
+          });
+          setCalcAngles(serverAngles);
+          console.log('[ARENA] ✅ Zones mises à jour (validated=false forcé):', cleanZones.length, 'angles synced:', Object.keys(serverAngles).length);
         }
         
         // ✅ BUG FIX: Réactiver le jeu AVEC setTimeout pour garantir synchro React state
