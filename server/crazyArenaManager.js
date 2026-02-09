@@ -1675,6 +1675,27 @@ class CrazyArenaManager {
           newScore: player.tiebreakerScore,
           penalty: -2
         });
+        
+        // ✅ FIX: Émettre scores tiebreaker après erreur (comme Training)
+        const playersData = match.players.map(p => ({
+          studentId: p.studentId,
+          name: p.name,
+          avatar: p.avatar,
+          score: p.tiebreakerScore || 0,
+          pairsValidated: p.tiebreakerPairs || 0,
+          errors: p.errors || 0,
+          ready: p.ready || false
+        }));
+        
+        this.io.to(matchId).emit('arena:players-update', {
+          matchId,
+          players: playersData
+        });
+        
+        logger.info('[CrazyArena][Arena] Événement arena:players-update émis après erreur (tiebreaker)', { 
+          matchId,
+          event: 'arena:players-update'
+        });
       } else {
         const oldScore = player.score;
         player.score = Math.max(0, oldScore - 2);
