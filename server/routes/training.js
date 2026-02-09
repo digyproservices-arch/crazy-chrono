@@ -62,27 +62,33 @@ router.post('/sessions', requireSupabase, async (req, res) => {
     
     const sessionId = `training_${uuidv4()}`;
     
+    // Construire le payload session (class_id optionnel pour mode multijoueur classique)
+    const sessionPayload = {
+      id: sessionId,
+      match_id: matchId,
+      teacher_id: teacherId || null,
+      session_name: sessionName || 'Session',
+      config: JSON.stringify(config || {}),
+      completed_at: completedAt,
+      created_at: new Date().toISOString()
+    };
+    if (classId) sessionPayload.class_id = classId;
+    
     const { data: session, error: sessionError } = await supabase
       .from('training_sessions')
-      .insert({
-        id: sessionId,
-        match_id: matchId,
-        class_id: classId,
-        teacher_id: teacherId,
-        session_name: sessionName,
-        config: JSON.stringify(config),
-        completed_at: completedAt,
-        created_at: new Date().toISOString()
-      })
+      .insert(sessionPayload)
       .select()
       .single();
     
-    if (sessionError) throw sessionError;
+    if (sessionError) {
+      console.error('[Training API] Session insert error:', sessionError);
+      throw sessionError;
+    }
     
     for (const result of results) {
       const resultId = `training_result_${uuidv4()}`;
       
-      await supabase
+      const { error: resultError } = await supabase
         .from('training_results')
         .insert({
           id: resultId,
@@ -91,19 +97,28 @@ router.post('/sessions', requireSupabase, async (req, res) => {
           position: result.position,
           score: result.score,
           time_ms: result.timeMs,
-          pairs_validated: result.pairsValidated,
-          errors: result.errors
+          pairs_validated: result.pairsValidated || 0,
+          errors: result.errors || 0
         });
+      
+      if (resultError) {
+        console.error('[Training API] Result insert error:', resultError);
+      }
     }
     
+    // Mettre à jour les stats cumulées (best-effort, ne bloque pas si la fonction n'existe pas)
     for (const result of results) {
-      await supabase.rpc('update_student_training_stats', {
-        p_student_id: result.studentId,
-        p_sessions_played: 1,
-        p_total_score: result.score,
-        p_total_pairs: result.pairsValidated,
-        p_best_score: result.score
-      });
+      try {
+        await supabase.rpc('update_student_training_stats', {
+          p_student_id: result.studentId,
+          p_sessions_played: 1,
+          p_total_score: result.score,
+          p_total_pairs: result.pairsValidated || 0,
+          p_best_score: result.score
+        });
+      } catch (rpcErr) {
+        console.warn('[Training API] RPC update_student_training_stats failed:', rpcErr.message);
+      }
     }
     
     res.json({ 

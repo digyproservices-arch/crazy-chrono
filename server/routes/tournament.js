@@ -1489,13 +1489,88 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
       else break;
     }
 
+    // 7. Analyse de maîtrise par thème (depuis table attempts - mode Solo)
+    let themeMastery = [];
+    let soloSessionsCount = 0;
+    try {
+      // Mapper student_id → user_id via user_student_mapping
+      const { data: mapping } = await supabase
+        .from('user_student_mapping')
+        .select('user_id')
+        .eq('student_id', studentId)
+        .eq('active', true)
+        .single();
+      
+      if (mapping?.user_id) {
+        const userId = mapping.user_id;
+        
+        // Compter les sessions Solo
+        const { data: soloSessions } = await supabase
+          .from('sessions')
+          .select('id')
+          .eq('user_id', userId);
+        soloSessionsCount = soloSessions?.length || 0;
+        
+        // Récupérer toutes les tentatives pour analyse par thème
+        const { data: attempts } = await supabase
+          .from('attempts')
+          .select('theme, level_class, correct, latency_ms, item_type, objective_key')
+          .eq('user_id', userId);
+        
+        if (attempts && attempts.length > 0) {
+          // Grouper par thème
+          const themeMap = {};
+          for (const a of attempts) {
+            const theme = a.theme || 'autre';
+            if (!themeMap[theme]) {
+              themeMap[theme] = { total: 0, correct: 0, totalLatency: 0, latencyCount: 0, levels: {} };
+            }
+            themeMap[theme].total++;
+            if (a.correct) themeMap[theme].correct++;
+            if (a.latency_ms > 0) {
+              themeMap[theme].totalLatency += a.latency_ms;
+              themeMap[theme].latencyCount++;
+            }
+            // Par niveau
+            const level = a.level_class || 'inconnu';
+            if (!themeMap[theme].levels[level]) {
+              themeMap[theme].levels[level] = { total: 0, correct: 0 };
+            }
+            themeMap[theme].levels[level].total++;
+            if (a.correct) themeMap[theme].levels[level].correct++;
+          }
+          
+          // Convertir en tableau trié par taux de réussite
+          themeMastery = Object.entries(themeMap).map(([theme, data]) => ({
+            theme,
+            total: data.total,
+            correct: data.correct,
+            accuracy: data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0,
+            avgLatencyMs: data.latencyCount > 0 ? Math.round(data.totalLatency / data.latencyCount) : 0,
+            levels: Object.entries(data.levels).map(([level, ldata]) => ({
+              level,
+              total: ldata.total,
+              correct: ldata.correct,
+              accuracy: ldata.total > 0 ? Math.round((ldata.correct / ldata.total) * 100) : 0
+            })).sort((a, b) => a.accuracy - b.accuracy)
+          })).sort((a, b) => a.accuracy - b.accuracy);
+        }
+      }
+    } catch (e) {
+      console.warn('[Tournament API] Theme mastery query failed:', e.message);
+    }
+
+    // Ajouter sessions solo aux stats
+    stats.soloSessions = soloSessionsCount;
+
     res.json({
       success: true,
       studentId,
       stats,
       history,
       progression,
-      streaks: { currentWin: currentWinStreak, bestWin: bestWinStreak }
+      streaks: { currentWin: currentWinStreak, bestWin: bestWinStreak },
+      themeMastery
     });
 
   } catch (error) {

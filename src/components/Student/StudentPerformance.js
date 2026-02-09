@@ -20,6 +20,7 @@ export default function StudentPerformance() {
   const [history, setHistory] = useState([]);
   const [progression, setProgression] = useState([]);
   const [streaks, setStreaks] = useState({ currentWin: 0, bestWin: 0 });
+  const [themeMastery, setThemeMastery] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
@@ -50,6 +51,7 @@ export default function StudentPerformance() {
         setHistory(data.history || []);
         setProgression(data.progression || []);
         setStreaks(data.streaks || { currentWin: 0, bestWin: 0 });
+        setThemeMastery(data.themeMastery || []);
         setError(null);
       } else {
         setError(data.error || 'Erreur de chargement');
@@ -222,6 +224,7 @@ export default function StudentPerformance() {
             <button onClick={() => setActiveTab('overview')} style={tabStyle(activeTab === 'overview')}>📈 Progression</button>
             <button onClick={() => setActiveTab('speed')} style={tabStyle(activeTab === 'speed')}>⚡ Rapidité</button>
             <button onClick={() => setActiveTab('accuracy')} style={tabStyle(activeTab === 'accuracy')}>🎯 Précision</button>
+            <button onClick={() => setActiveTab('mastery')} style={tabStyle(activeTab === 'mastery')}>🧠 Maîtrise</button>
             <button onClick={() => setActiveTab('history')} style={tabStyle(activeTab === 'history')}>📋 Historique</button>
           </div>
 
@@ -386,6 +389,96 @@ export default function StudentPerformance() {
                   <div style={{ fontSize: 24, fontWeight: 800, color: '#7c3aed' }}>{stats.avgErrors}</div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ===== MASTERY TAB ===== */}
+          {activeTab === 'mastery' && (
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: '0 0 4px 0' }}>
+                🧠 Maîtrise par thème
+              </h3>
+              <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px 0' }}>
+                Analyse détaillée de tes points forts et axes d'amélioration
+              </p>
+
+              {themeMastery.length === 0 ? (
+                <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
+                  Joue en mode Solo pour voir ton analyse de maîtrise par thème
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {themeMastery.map((t, idx) => {
+                    const color = t.accuracy >= 80 ? '#059669' : t.accuracy >= 60 ? '#d97706' : '#dc2626';
+                    const bgColor = t.accuracy >= 80 ? '#f0fdf4' : t.accuracy >= 60 ? '#fffbeb' : '#fef2f2';
+                    const label = t.accuracy >= 80 ? '✅ Maîtrisé' : t.accuracy >= 60 ? '⚠️ En progrès' : '❌ À travailler';
+                    return (
+                      <div key={t.theme} style={{ background: bgColor, borderRadius: 12, padding: '16px 18px', border: `1px solid ${color}22` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <div>
+                            <span style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{t.theme}</span>
+                            <span style={{ fontSize: 12, color: '#64748b', marginLeft: 8 }}>{t.total} tentatives</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 12, color: '#64748b' }}>{label}</span>
+                            <span style={{ fontSize: 20, fontWeight: 800, color }}>{t.accuracy}%</span>
+                          </div>
+                        </div>
+                        {/* Progress bar */}
+                        <div style={{ height: 8, background: '#e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${t.accuracy}%`, background: color, borderRadius: 4, transition: 'width 0.5s' }} />
+                        </div>
+                        {t.avgLatencyMs > 0 && (
+                          <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
+                            ⚡ Temps moyen : {t.avgLatencyMs < 1000 ? `${t.avgLatencyMs}ms` : `${(t.avgLatencyMs / 1000).toFixed(1)}s`}
+                          </div>
+                        )}
+                        {/* Détail par niveau */}
+                        {t.levels && t.levels.length > 0 && (
+                          <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                            {t.levels.map(l => (
+                              <div key={l.level} style={{
+                                padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                                background: l.accuracy >= 80 ? '#dcfce7' : l.accuracy >= 60 ? '#fef3c7' : '#fecaca',
+                                color: l.accuracy >= 80 ? '#166534' : l.accuracy >= 60 ? '#92400e' : '#991b1b'
+                              }}>
+                                {l.level}: {l.accuracy}% ({l.correct}/{l.total})
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Résumé global */}
+              {themeMastery.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 20 }}>
+                  <div style={{ textAlign: 'center', padding: 14, background: '#f0fdf4', borderRadius: 10 }}>
+                    <div style={{ fontSize: 11, color: '#047857', fontWeight: 600 }}>Thèmes maîtrisés</div>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: '#059669' }}>
+                      {themeMastery.filter(t => t.accuracy >= 80).length}
+                    </div>
+                    <div style={{ fontSize: 10, color: '#047857' }}>≥ 80% de réussite</div>
+                  </div>
+                  <div style={{ textAlign: 'center', padding: 14, background: '#fffbeb', borderRadius: 10 }}>
+                    <div style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>En progrès</div>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: '#d97706' }}>
+                      {themeMastery.filter(t => t.accuracy >= 60 && t.accuracy < 80).length}
+                    </div>
+                    <div style={{ fontSize: 10, color: '#b45309' }}>60-79% de réussite</div>
+                  </div>
+                  <div style={{ textAlign: 'center', padding: 14, background: '#fef2f2', borderRadius: 10 }}>
+                    <div style={{ fontSize: 11, color: '#991b1b', fontWeight: 600 }}>À travailler</div>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: '#dc2626' }}>
+                      {themeMastery.filter(t => t.accuracy < 60).length}
+                    </div>
+                    <div style={{ fontSize: 10, color: '#991b1b' }}>{'<'} 60% de réussite</div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

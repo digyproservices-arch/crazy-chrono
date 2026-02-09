@@ -987,11 +987,63 @@ function endSession(roomCode) {
   if (room.roundTimer) { try { clearTimeout(room.roundTimer); } catch {} room.roundTimer = null; }
   io.to(roomCode).emit('session:end', summary);
   emitRoomState(roomCode);
+  
+  // ✅ Sauvegarder résultats Multijoueur pour les joueurs identifiés (studentId)
+  try {
+    const ranking = entries
+      .map(([id, pl], idx) => ({ socketId: id, studentId: pl.studentId, name: pl.name, score: pl.score || 0 }))
+      .sort((a, b) => b.score - a.score)
+      .map((p, idx) => ({ ...p, position: idx + 1 }));
+    
+    const identifiedPlayers = ranking.filter(p => p.studentId);
+    if (identifiedPlayers.length > 0) {
+      const fetch = require('node-fetch');
+      const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
+      fetch(`${backendUrl}/api/training/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          matchId: `mp_${roomCode}_${Date.now()}`,
+          classId: null,
+          teacherId: null,
+          sessionName: `Multijoueur - ${roomCode}`,
+          config: { mode: 'multiplayer', duration: room.duration || 60, roomCode },
+          completedAt: new Date().toISOString(),
+          results: identifiedPlayers.map(p => ({
+            studentId: p.studentId,
+            position: p.position,
+            score: p.score,
+            timeMs: (room.duration || 60) * 1000,
+            pairsValidated: p.score,
+            errors: 0
+          }))
+        })
+      }).then(r => {
+        console.log(`[MP] ✅ Résultats sauvegardés pour ${identifiedPlayers.length} joueurs (room ${roomCode}), status: ${r.status}`);
+      }).catch(e => {
+        console.warn(`[MP] ⚠️ Échec sauvegarde résultats:`, e.message);
+      });
+    }
+  } catch (e) {
+    console.warn('[MP] Erreur sauvegarde résultats:', e.message);
+  }
 }
 
 io.on('connection', (socket) => {
   let currentRoom = null;
   let playerName = `Joueur-${socket.id.slice(0,4)}`;
+
+  // Identifier le joueur (studentId) pour le tracking des stats
+  let playerStudentId = null;
+  socket.on('mp:identify', ({ studentId }) => {
+    playerStudentId = studentId || null;
+    // Mettre à jour le joueur dans la room si déjà rejoint
+    if (currentRoom) {
+      const room = getRoom(currentRoom);
+      const p = room.players.get(socket.id);
+      if (p) { p.studentId = playerStudentId; room.players.set(socket.id, p); }
+    }
+  });
 
   // Créer une salle et renvoyer le code au client (ack)
   socket.on('room:create', (cb) => {
@@ -1001,9 +1053,10 @@ io.on('connection', (socket) => {
   });
 
   // Rejoindre une salle existante (ou défaut)
-  socket.on('joinRoom', ({ roomId, name }) => {
+  socket.on('joinRoom', ({ roomId, name, studentId: sid }) => {
     const newRoom = String(roomId || 'default');
     playerName = String(name || playerName);
+    const playerStudentId = sid || null;
     // si le joueur était déjà dans une autre salle, on le retire proprement
     if (currentRoom && currentRoom !== newRoom) {
       const old = getRoom(currentRoom);
@@ -1023,7 +1076,7 @@ io.on('connection', (socket) => {
     socket.join(currentRoom);
     const room = getRoom(currentRoom);
     const existing = room.players.get(socket.id) || {};
-    room.players.set(socket.id, { name: playerName, score: existing.score || 0, ready: false });
+    room.players.set(socket.id, { name: playerName, score: existing.score || 0, ready: false, studentId: playerStudentId || existing.studentId || null });
     if (!room.hostId || !room.players.has(room.hostId)) {
       room.hostId = socket.id; // premier connecté devient hôte
     }

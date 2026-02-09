@@ -1802,6 +1802,12 @@ const Carte = () => {
       setSocketConnected(true);
       addDiag('socket:connected', { id: s.id });
       console.debug('[CC][client] socket connected', { id: s.id });
+      // Envoyer studentId au serveur pour le tracking des stats multijoueur
+      try {
+        const sid = localStorage.getItem('cc_student_id') || (JSON.parse(localStorage.getItem('cc_auth') || '{}')).studentId || null;
+        if (sid) s.emit('mp:identify', { studentId: sid });
+      } catch {}
+
       // Listen room:state to know when we are host, then apply config once
       const onRoomState = (payload) => {
         try {
