@@ -1396,6 +1396,11 @@ class CrazyArenaManager {
     
     this.io.to(matchId).emit('arena:game-start', gameStartPayload);
 
+    // 💾 PERSISTENCE: Créer match_results initiaux en DB
+    this.persistArenaMatchStart(matchId).catch(err => {
+      logger.error('[CrazyArena][Arena] Erreur persistArenaMatchStart (non-bloquante)', { matchId, error: err.message });
+    });
+
     // ⏱️ CHRONO: Diffuser le temps restant toutes les secondes
     // ✅ CORRECTION: Timer TOTAL = rounds × duration (ex: 3 × 60s = 180s)
     const roundsPerMatch = match.config.rounds || match.config.roundsPerMatch || 3;
@@ -1589,6 +1594,9 @@ class CrazyArenaManager {
           pairsFound: match.tiebreakerPairsFound,
           pairsToFind: match.tiebreakerPairsToFind
         });
+
+        // 💾 PERSISTENCE: Sauvegarder le score tiebreaker Arena en DB
+        this.persistArenaScoreUpdate(matchId, studentId);
         
         // ✅ FIX: Émettre arena:pair-validated pour déclencher les bulles d'animation (comme mode normal)
         if (pairId) {
@@ -1680,6 +1688,9 @@ class CrazyArenaManager {
           pairsValidated: player.pairsValidated
         });
       }
+
+      // 💾 PERSISTENCE: Sauvegarder le score Arena en DB (fire-and-forget)
+      this.persistArenaScoreUpdate(matchId, studentId);
     } else {
       // Mauvaise paire: aucune pénalité, juste compteur erreurs
       logger.info('[CrazyArena][Arena] Paire incorrecte - pas de pénalité', { 
@@ -1688,6 +1699,9 @@ class CrazyArenaManager {
         status: match.status
       });
       player.errors = (player.errors || 0) + 1;
+
+      // 💾 PERSISTENCE: Sauvegarder les erreurs Arena en DB
+      this.persistArenaScoreUpdate(matchId, studentId);
     }
 
     match.scores[studentId] = {
@@ -1920,12 +1934,16 @@ class CrazyArenaManager {
     // Notifier dashboard professeur (broadcast)
     this.io.emit('arena:game-end', { matchId });
 
-    // ==========================================
-    // ✅ FIX: TOUJOURS sauvegarder les résultats en DB d'abord (marque 'finished' + émet arena:match-finished)
-    // Avant, la délégation aux modes avait un bug de signature (3 args passés, 1 attendu)
-    // ce qui faisait que les matchs restaient 'playing' → notifications persistantes
-    // ==========================================
-    await this.saveResults(matchId, ranking);
+    // 💾 PERSISTENCE: Finaliser le match Arena en DB
+    if (match._arenaResultIds) {
+      await this.persistArenaMatchEnd(matchId, ranking);
+      // Émettre arena:match-finished (comme le faisait saveResults)
+      this.io.to(matchId).emit('arena:match-finished', { matchId });
+      this.io.emit('arena:match-finished', { matchId });
+    } else {
+      // Fallback legacy (si persistArenaMatchStart n'a pas été appelé)
+      await this.saveResults(matchId, ranking);
+    }
     
     // Mode-specific extras (non-bloquant - ne doit PAS empêcher le marquage 'finished')
     try {
@@ -2272,15 +2290,16 @@ class CrazyArenaManager {
    * Graceful shutdown: sauvegarder TOUS les matchs actifs avant arrêt serveur
    */
   async saveAllActiveMatches() {
+    const activeStatuses = ['playing', 'tiebreaker', 'tiebreaker-countdown', 'tie-waiting'];
     const activeMatches = [...this.matches.entries()]
-      .filter(([_, m]) => m.mode === 'training' && ['playing', 'tiebreaker', 'tiebreaker-countdown', 'tie-waiting'].includes(m.status));
+      .filter(([_, m]) => activeStatuses.includes(m.status));
 
     if (activeMatches.length === 0) {
-      logger.info('[CrazyArena] Graceful shutdown: Aucun match Training actif à sauvegarder');
+      logger.info('[CrazyArena] Graceful shutdown: Aucun match actif à sauvegarder');
       return;
     }
 
-    logger.info('[CrazyArena] Graceful shutdown: Sauvegarde de ' + activeMatches.length + ' match(s) Training actif(s)');
+    logger.info('[CrazyArena] Graceful shutdown: Sauvegarde de ' + activeMatches.length + ' match(s) actif(s)');
 
     for (const [matchId, match] of activeMatches) {
       try {
@@ -2296,16 +2315,146 @@ class CrazyArenaManager {
 
         ranking.forEach((p, idx) => { p.position = idx + 1; });
 
-        if (match._sessionId) {
-          await this.persistMatchEnd(matchId, ranking);
+        if (match.mode === 'training') {
+          if (match._sessionId) {
+            await this.persistMatchEnd(matchId, ranking);
+          } else {
+            await this.saveTrainingResults(matchId, ranking, match);
+          }
         } else {
-          await this.saveTrainingResults(matchId, ranking, match);
+          // Arena mode
+          if (match._arenaResultIds) {
+            await this.persistArenaMatchEnd(matchId, ranking);
+          } else {
+            await this.saveResults(matchId, ranking);
+          }
         }
 
-        logger.info('[CrazyArena] Graceful shutdown: Match sauvegardé', { matchId });
+        logger.info('[CrazyArena] Graceful shutdown: Match sauvegardé', { matchId, mode: match.mode });
       } catch (err) {
         logger.error('[CrazyArena] Graceful shutdown: Erreur sauvegarde match', { matchId, error: err.message });
       }
+    }
+  }
+
+  // ==========================================
+  // PERSISTENCE TEMPS RÉEL - Arena
+  // Sauvegarde progressive via Supabase direct
+  // ==========================================
+
+  /**
+   * Persister le début du match Arena en DB (crée match_results avec scores initiaux)
+   */
+  async persistArenaMatchStart(matchId) {
+    if (!this.supabase) return;
+    const match = this.matches.get(matchId);
+    if (!match) return;
+
+    try {
+      match._arenaResultIds = {};
+
+      for (const player of match.players) {
+        const resultId = `result_${uuidv4()}`;
+        match._arenaResultIds[player.studentId] = resultId;
+
+        const { error: resErr } = await this.supabase
+          .from('match_results')
+          .insert({
+            id: resultId,
+            match_id: matchId,
+            student_id: player.studentId,
+            position: 0,
+            score: 0,
+            time_ms: 0,
+            pairs_validated: 0,
+            errors: 0
+          });
+
+        if (resErr) {
+          logger.error('[CrazyArena][Arena] ❌ Erreur insert match_results', { matchId, studentId: player.studentId, error: resErr.message });
+        }
+      }
+
+      logger.info('[CrazyArena][Arena] 💾 Match Arena persisté en DB (start)', { matchId, players: match.players.length });
+    } catch (err) {
+      logger.error('[CrazyArena][Arena] ❌ Erreur persistArenaMatchStart', { matchId, error: err.message });
+    }
+  }
+
+  /**
+   * Mettre à jour le score Arena d'un joueur en DB (appelé à chaque paire validée)
+   */
+  persistArenaScoreUpdate(matchId, studentId) {
+    if (!this.supabase) return;
+    const match = this.matches.get(matchId);
+    if (!match || !match._arenaResultIds || !match._arenaResultIds[studentId]) return;
+
+    const player = match.players.find(p => p.studentId === studentId);
+    if (!player) return;
+
+    const isTiebreaker = match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown';
+    const score = isTiebreaker
+      ? (player.scoreBeforeTiebreaker || 0) + (player.tiebreakerScore || 0)
+      : (player.score || 0);
+    const pairs = isTiebreaker
+      ? (player.pairsBeforeTiebreaker || 0) + (player.tiebreakerPairs || 0)
+      : (player.pairsValidated || 0);
+
+    this.supabase
+      .from('match_results')
+      .update({
+        score,
+        pairs_validated: pairs,
+        errors: player.errors || 0,
+        time_ms: Date.now() - (match.startTime || Date.now())
+      })
+      .eq('id', match._arenaResultIds[studentId])
+      .then(({ error }) => {
+        if (error) {
+          logger.error('[CrazyArena][Arena] ❌ Erreur persistArenaScoreUpdate', { matchId, studentId, error: error.message });
+        }
+      });
+  }
+
+  /**
+   * Finaliser le match Arena en DB (positions finales)
+   */
+  async persistArenaMatchEnd(matchId, ranking) {
+    if (!this.supabase) return;
+    const match = this.matches.get(matchId);
+    if (!match || !match._arenaResultIds) return;
+
+    try {
+      for (const player of ranking) {
+        const resultId = match._arenaResultIds?.[player.studentId];
+        if (!resultId) continue;
+
+        await this.supabase
+          .from('match_results')
+          .update({
+            position: player.position,
+            score: player.score,
+            time_ms: player.timeMs,
+            pairs_validated: player.pairsValidated || 0,
+            errors: player.errors || 0
+          })
+          .eq('id', resultId);
+      }
+
+      // Marquer tournament_matches comme finished
+      await this.supabase
+        .from('tournament_matches')
+        .update({
+          status: 'finished',
+          finished_at: new Date().toISOString(),
+          players: JSON.stringify(ranking),
+          winner: JSON.stringify(ranking[0] || null)
+        })
+        .eq('id', matchId);
+
+      logger.info('[CrazyArena][Arena] 💾 Match Arena finalisé en DB', { matchId, players: ranking.length });
+    } catch (err) {
+      logger.error('[CrazyArena][Arena] ❌ Erreur persistArenaMatchEnd', { matchId, error: err.message });
     }
   }
 

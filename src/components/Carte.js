@@ -2564,6 +2564,56 @@ useEffect(() => {
   return () => clearInterval(id);
 }, [gameActive, gameDuration, arenaMatchId]);
 
+// 💾 PERSISTANCE: Sauvegarder les performances Solo/Multijoueur en DB quand la partie se termine
+const prevGameActiveRef = useRef(false);
+useEffect(() => {
+  const wasActive = prevGameActiveRef.current;
+  prevGameActiveRef.current = gameActive;
+  
+  // Détecter transition gameActive: true → false (fin de partie)
+  if (wasActive && !gameActive && !arenaMatchId && !trainingMatchId) {
+    try {
+      const studentId = localStorage.getItem('cc_student_id');
+      if (!studentId) return; // Pas d'élève identifié → pas de sauvegarde
+      
+      const pairsCount = validatedPairIdsRef.current?.size || 0;
+      if (pairsCount === 0 && score === 0) return; // Pas de jeu réel
+      
+      const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+      const isSolo = !cfg || cfg.mode === 'solo';
+      const mode = isSolo ? 'solo' : 'multiplayer';
+      
+      const backendUrl = getBackendUrl();
+      fetch(`${backendUrl}/api/training/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          matchId: `${mode}_${studentId}_${Date.now()}`,
+          classId: null,
+          teacherId: null,
+          sessionName: isSolo ? 'Session Solo' : 'Session Multijoueur',
+          config: { mode, duration: gameDuration, classes: cfg?.classes || [], themes: cfg?.themes || [] },
+          completedAt: new Date().toISOString(),
+          results: [{
+            studentId,
+            position: 1,
+            score: score,
+            timeMs: gameDuration * 1000,
+            pairsValidated: pairsCount,
+            errors: 0
+          }]
+        })
+      }).then(r => {
+        console.log(`[${mode.toUpperCase()}] 💾 Performance sauvegardée, status: ${r.status}`);
+      }).catch(e => {
+        console.warn(`[${mode.toUpperCase()}] ⚠️ Échec sauvegarde performance:`, e.message);
+      });
+    } catch (e) {
+      console.warn('[Performance] Erreur sauvegarde:', e.message);
+    }
+  }
+}, [gameActive, arenaMatchId, trainingMatchId, score, gameDuration]);
+
 // Persister la durée choisie
 useEffect(() => {
   try { localStorage.setItem('gameDuration', String(gameDuration)); } catch {}
