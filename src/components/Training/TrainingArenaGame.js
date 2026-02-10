@@ -1259,8 +1259,9 @@ export default function TrainingArenaGame() {
                 const chiffreBaseMin = chiffreRefBase ? 0.95 * chiffreRefBase : base;
                 const effectiveBase = (zone.type === 'chiffre') ? Math.max(base, chiffreBaseMin) : base;
                 const fontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * effectiveBase;
-                const angle = Number(calcAngles[zone.id] || 0);
-                const mo = mathOffsets[zone.id] || { x: 0, y: 0 };
+                // ✅ FIX: Utiliser zone.angle du serveur directement (PAS calcAngles du localStorage)
+                const angle = Number(zone.angle || 0);
+                const mo = { x: 0, y: 0 }; // Pas d'offset en mode Training (server-driven)
                 
                 const contentStr = String(zone.content ?? '').trim();
                 const isSix = (zone.type === 'chiffre') && contentStr === '6';
