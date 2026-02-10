@@ -6477,8 +6477,10 @@ setZones(dataWithRandomTexts);
                   const chiffreBaseMin = chiffreRefBase ? 0.95 * chiffreRefBase : base;
                   const effectiveBase = (zone.type === 'chiffre') ? Math.max(base, chiffreBaseMin) : base;
                   const fontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * effectiveBase;
-                  const angle = Number(calcAngles[zone.id] || 0);
-                  const mo = mathOffsets[zone.id] || { x: 0, y: 0 };
+                  // In Training/Arena mode, use server zone data directly (bypass localStorage-derived state)
+                  const isServerMode = trainingMatchId || arenaMatchId;
+                  const angle = isServerMode ? Number(zone.angle || 0) : Number(calcAngles[zone.id] || 0);
+                  const mo = isServerMode ? { x: 0, y: 0 } : (mathOffsets[zone.id] || { x: 0, y: 0 });
                   const handleRotate = (e) => {
                     if (gameActive || !editMode) return;
                     e.stopPropagation();
