@@ -1056,7 +1056,7 @@ io.on('connection', (socket) => {
   socket.on('joinRoom', ({ roomId, name, studentId: sid }) => {
     const newRoom = String(roomId || 'default');
     playerName = String(name || playerName);
-    const playerStudentId = sid || null;
+    if (sid) playerStudentId = sid;
     // si le joueur était déjà dans une autre salle, on le retire proprement
     if (currentRoom && currentRoom !== newRoom) {
       const old = getRoom(currentRoom);
