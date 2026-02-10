@@ -233,11 +233,8 @@ function generateRoundZones(seed, config = {}) {
     
     let result = zonesData.map(z => {
       const zone = { ...z };
-      // ✅ CRITIQUE: Assigner un angle par défaut UNIQUEMENT aux zones CALCUL qui n'en ont pas
-      // Les zones CHIFFRE ne doivent PAS avoir d'angle (restent horizontales)
-      if (zone.type === 'calcul' && typeof zone.angle !== 'number') {
-        zone.angle = rng() < 0.5 ? -30 : 30;
-      }
+      // ✅ FIX: NE PAS assigner d'angle ici — les angles corrects viennent de
+      // math_positions.json (via /math-positions API) et sont chargés côté client
       return zone;
     });
     const used = { image: new Set(), texte: new Set(), calcul: new Set(), chiffre: new Set() };
@@ -736,15 +733,6 @@ function generateRoundZones(seed, config = {}) {
       count: finalPairIds.length,
       zones: finalPairIds
     });
-    
-    // DEBUG: Afficher les angles des zones calcul
-    const calculZonesWithAngles = result.filter(z => z.type === 'calcul');
-    console.log('[ServerZoneGen] DEBUG Calcul zones with angles:', calculZonesWithAngles.map(z => ({
-      id: z.id,
-      content: z.content,
-      angle: z.angle,
-      hasAngle: z.angle !== undefined
-    })));
     
     return {
       zones: result,

@@ -824,8 +824,7 @@
           }
         }
       ],
-      "color": "yellow",
-      "angle": -30
+      "color": "yellow"
     },
     {
       "id": 1752572187590,
@@ -880,8 +879,7 @@
           }
         }
       ],
-      "color": "yellow",
-      "angle": 30
+      "color": "yellow"
     },
     {
       "id": 1752572384939,
@@ -936,8 +934,7 @@
           }
         }
       ],
-      "color": "yellow",
-      "angle": 30
+      "color": "yellow"
     },
     {
       "id": 1752572591501,
@@ -992,7 +989,6 @@
           }
         }
       ],
-      "color": "yellow",
-      "angle": -30
+      "color": "yellow"
     }
   ]
