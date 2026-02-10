@@ -1612,3 +1612,21 @@ server.listen(PORT, '0.0.0.0', () => {
     console.warn('[Monitoring] Erreur démarrage cron:', err.message);
   }
 });
+
+// ==========================================
+// GRACEFUL SHUTDOWN
+// Sauvegarder tous les matchs actifs avant arrêt
+// ==========================================
+async function gracefulShutdown(signal) {
+  console.log(`\n[Server] ⚠️  Signal ${signal} reçu - Sauvegarde des matchs actifs...`);
+  try {
+    await crazyArena.saveAllActiveMatches();
+    console.log('[Server] ✅ Sauvegarde terminée - Arrêt du serveur');
+  } catch (err) {
+    console.error('[Server] ❌ Erreur sauvegarde graceful shutdown:', err.message);
+  }
+  process.exit(0);
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

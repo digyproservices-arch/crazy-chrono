@@ -9,6 +9,7 @@
 // TODO: Créer helpers de sauvegarde séparés si besoin de logique spécialisée
 
 const logger = require('./logger');
+const { v4: uuidv4 } = require('uuid');
 
 class CrazyArenaManager {
   constructor(io, supabase = null) {
@@ -369,6 +370,11 @@ class CrazyArenaManager {
     
     this.io.to(matchId).emit('training:game-start', gameStartPayload);
 
+    // 💾 PERSISTENCE: Créer session + résultats initiaux en DB
+    this.persistMatchStart(matchId).catch(err => {
+      logger.error('[CrazyArena][Training] Erreur persistMatchStart (non-bloquante)', { matchId, error: err.message });
+    });
+
     // ⏱️ CHRONO: Diffuser le temps restant toutes les secondes
     // ✅ CORRECTION: Timer TOTAL = rounds × duration (ex: 3 × 60s = 180s)
     const roundsPerMatch = match.config.rounds || match.config.roundsPerMatch || 3;
@@ -559,8 +565,13 @@ class CrazyArenaManager {
     this.io.emit('training:match-finished', { matchId });
     console.log(`[Training] 📢 Broadcast training:match-finished pour ${matchId}`);
     
-    // ✅ FIX: Sauvegarder résultats Training en DB (training_sessions + training_results)
-    await this.saveTrainingResults(matchId, ranking, match);
+    // 💾 PERSISTENCE: Finaliser le match en DB (positions finales + completed_at)
+    if (match._sessionId) {
+      await this.persistMatchEnd(matchId, ranking);
+    } else {
+      // Fallback legacy (si persistMatchStart n'a pas été appelé)
+      await this.saveTrainingResults(matchId, ranking, match);
+    }
     
     // Nettoyer après 30s (IDENTIQUE À ARENA)
     setTimeout(() => {
@@ -795,6 +806,9 @@ class CrazyArenaManager {
           pairsFound: match.tiebreakerPairsFound,
           pairsToFind: match.tiebreakerPairsToFind
         });
+
+        // 💾 PERSISTENCE: Sauvegarder le score tiebreaker en DB
+        this.persistScoreUpdate(matchId, studentId);
         
         // ✅ CRITIQUE: Émettre scores tiebreaker aux clients (score combiné = base + tiebreaker)
         const playersData = match.players.map(p => ({
@@ -902,6 +916,9 @@ class CrazyArenaManager {
           pairsValidated: player.pairsValidated
         });
       }
+
+      // 💾 PERSISTENCE: Sauvegarder le score en DB (fire-and-forget)
+      this.persistScoreUpdate(matchId, studentId);
     } else {
       // Mauvaise paire: aucune pénalité, juste compteur erreurs
       logger.info('[CrazyArena][Training] Paire incorrecte - pas de pénalité', { 
@@ -910,6 +927,9 @@ class CrazyArenaManager {
         status: match.status
       });
       player.errors = (player.errors || 0) + 1;
+
+      // 💾 PERSISTENCE: Sauvegarder les erreurs en DB
+      this.persistScoreUpdate(matchId, studentId);
     }
 
     // ✅ CRITIQUE: Mettre à jour match.scores comme Arena
@@ -2095,8 +2115,203 @@ class CrazyArenaManager {
     }, 1000);
   }
 
+  // ==========================================
+  // PERSISTENCE TEMPS RÉEL - Training
+  // Sauvegarde progressive via Supabase direct
+  // ==========================================
+
+  /**
+   * Persister le début du match en DB (crée session + résultats initiaux)
+   */
+  async persistMatchStart(matchId) {
+    if (!this.supabase) return;
+    const match = this.matches.get(matchId);
+    if (!match) return;
+
+    try {
+      const sessionId = `training_${uuidv4()}`;
+      match._sessionId = sessionId;
+      match._resultIds = {};
+
+      const sessionPayload = {
+        id: sessionId,
+        match_id: matchId,
+        teacher_id: match.teacherId || null,
+        session_name: match.config?.sessionName || 'Session Entraînement',
+        config: JSON.stringify(match.config || {}),
+        completed_at: null,
+        created_at: new Date().toISOString()
+      };
+      if (match.classId) sessionPayload.class_id = match.classId;
+
+      const { error: sessErr } = await this.supabase
+        .from('training_sessions')
+        .insert(sessionPayload);
+
+      if (sessErr) {
+        logger.error('[CrazyArena][Training] ❌ Erreur insert training_sessions', { matchId, error: sessErr.message });
+        return;
+      }
+
+      for (const player of match.players) {
+        const resultId = `training_result_${uuidv4()}`;
+        match._resultIds[player.studentId] = resultId;
+
+        const { error: resErr } = await this.supabase
+          .from('training_results')
+          .insert({
+            id: resultId,
+            session_id: sessionId,
+            student_id: player.studentId,
+            position: 0,
+            score: 0,
+            time_ms: 0,
+            pairs_validated: 0,
+            errors: 0
+          });
+
+        if (resErr) {
+          logger.error('[CrazyArena][Training] ❌ Erreur insert training_results', { matchId, studentId: player.studentId, error: resErr.message });
+        }
+      }
+
+      logger.info('[CrazyArena][Training] 💾 Match persisté en DB (start)', { matchId, sessionId, players: match.players.length });
+    } catch (err) {
+      logger.error('[CrazyArena][Training] ❌ Erreur persistMatchStart', { matchId, error: err.message });
+    }
+  }
+
+  /**
+   * Mettre à jour le score d'un joueur en DB (appelé à chaque paire validée)
+   */
+  persistScoreUpdate(matchId, studentId) {
+    if (!this.supabase) return;
+    const match = this.matches.get(matchId);
+    if (!match || !match._resultIds || !match._resultIds[studentId]) return;
+
+    const player = match.players.find(p => p.studentId === studentId);
+    if (!player) return;
+
+    const isTiebreaker = match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown';
+    const score = isTiebreaker
+      ? (player.scoreBeforeTiebreaker || 0) + (player.tiebreakerScore || 0)
+      : (player.score || 0);
+    const pairs = isTiebreaker
+      ? (player.pairsBeforeTiebreaker || 0) + (player.tiebreakerPairs || 0)
+      : (player.pairsValidated || 0);
+
+    // Fire-and-forget: ne pas bloquer le jeu pour un UPDATE DB
+    this.supabase
+      .from('training_results')
+      .update({
+        score,
+        pairs_validated: pairs,
+        errors: player.errors || 0,
+        time_ms: Date.now() - (match.startTime || Date.now())
+      })
+      .eq('id', match._resultIds[studentId])
+      .then(({ error }) => {
+        if (error) {
+          logger.error('[CrazyArena][Training] ❌ Erreur persistScoreUpdate', { matchId, studentId, error: error.message });
+        }
+      });
+  }
+
+  /**
+   * Finaliser le match en DB (positions finales, completed_at)
+   */
+  async persistMatchEnd(matchId, ranking) {
+    if (!this.supabase) return;
+    const match = this.matches.get(matchId);
+    if (!match || !match._sessionId) return;
+
+    try {
+      // Marquer la session comme terminée
+      await this.supabase
+        .from('training_sessions')
+        .update({ completed_at: new Date().toISOString() })
+        .eq('id', match._sessionId);
+
+      // Mettre à jour chaque résultat avec position finale
+      for (const player of ranking) {
+        const resultId = match._resultIds?.[player.studentId];
+        if (!resultId) continue;
+
+        await this.supabase
+          .from('training_results')
+          .update({
+            position: player.position,
+            score: player.score,
+            time_ms: player.timeMs,
+            pairs_validated: player.pairsValidated || 0,
+            errors: player.errors || 0
+          })
+          .eq('id', resultId);
+      }
+
+      // Mettre à jour les stats cumulées (best-effort)
+      for (const player of ranking) {
+        try {
+          await this.supabase.rpc('update_student_training_stats', {
+            p_student_id: player.studentId,
+            p_sessions_played: 1,
+            p_total_score: player.score,
+            p_total_pairs: player.pairsValidated || 0,
+            p_best_score: player.score
+          });
+        } catch (_) { /* best-effort */ }
+      }
+
+      logger.info('[CrazyArena][Training] 💾 Match finalisé en DB', { matchId, sessionId: match._sessionId, players: ranking.length });
+    } catch (err) {
+      logger.error('[CrazyArena][Training] ❌ Erreur persistMatchEnd', { matchId, error: err.message });
+    }
+  }
+
+  /**
+   * Graceful shutdown: sauvegarder TOUS les matchs actifs avant arrêt serveur
+   */
+  async saveAllActiveMatches() {
+    const activeMatches = [...this.matches.entries()]
+      .filter(([_, m]) => m.mode === 'training' && ['playing', 'tiebreaker', 'tiebreaker-countdown', 'tie-waiting'].includes(m.status));
+
+    if (activeMatches.length === 0) {
+      logger.info('[CrazyArena] Graceful shutdown: Aucun match Training actif à sauvegarder');
+      return;
+    }
+
+    logger.info('[CrazyArena] Graceful shutdown: Sauvegarde de ' + activeMatches.length + ' match(s) Training actif(s)');
+
+    for (const [matchId, match] of activeMatches) {
+      try {
+        const isTiebreaker = match.isTiebreaker;
+        const ranking = match.players.map(p => ({
+          studentId: p.studentId,
+          name: p.name,
+          score: isTiebreaker ? (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0) : (p.score || 0),
+          pairsValidated: isTiebreaker ? (p.pairsBeforeTiebreaker || 0) + (p.tiebreakerPairs || 0) : (p.pairsValidated || 0),
+          errors: p.errors || 0,
+          timeMs: Date.now() - (match.startTime || Date.now())
+        })).sort((a, b) => b.score !== a.score ? b.score - a.score : a.timeMs - b.timeMs);
+
+        ranking.forEach((p, idx) => { p.position = idx + 1; });
+
+        if (match._sessionId) {
+          await this.persistMatchEnd(matchId, ranking);
+        } else {
+          await this.saveTrainingResults(matchId, ranking, match);
+        }
+
+        logger.info('[CrazyArena] Graceful shutdown: Match sauvegardé', { matchId });
+      } catch (err) {
+        logger.error('[CrazyArena] Graceful shutdown: Erreur sauvegarde match', { matchId, error: err.message });
+      }
+    }
+  }
+
   /**
    * Sauvegarder les résultats Training en BDD (training_sessions + training_results)
+   * LEGACY: Utilisé comme fallback si persistMatchStart n'a pas été appelé
    */
   async saveTrainingResults(matchId, ranking, match) {
     const fetch = require('node-fetch');
