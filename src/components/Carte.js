@@ -3128,8 +3128,10 @@ const handleEditGreenZone = (zone) => {
     return () => { try { document.body.classList.remove('cc-game'); document.body.style.overflow = ''; } catch {} };
   }, [hasSidebar]);
 
-  // Load saved positions/angles from backend once on mount
+  // Load saved positions/angles from backend once on mount (solo/MP classic only)
   useEffect(() => {
+    // Skip in Training/Arena mode — server provides positions via socket events
+    if (trainingMatchId || arenaMatchId) return;
     let abort = false;
     const load = async () => {
       try {
@@ -3450,19 +3452,27 @@ const handleEditGreenZone = (zone) => {
             console.log('[ARENA] Filter counts set:', { calcNum: calcCount, textImage: imageCount });
           } catch {}
           setZones(arenaData.zones);
+          // ✅ FIX: Synchroniser calcAngles et reset mathOffsets dès le chargement initial Arena
+          const arenaAngles = {};
+          arenaData.zones.forEach(z => {
+            if ((z.type === 'calcul' || z.type === 'chiffre') && typeof z.angle === 'number') {
+              arenaAngles[z.id] = z.angle;
+            }
+          });
+          setCalcAngles(arenaAngles);
+          setMathOffsets({});
           setGameActive(true);
           setTimeLeft(arenaData.duration || 60);
           setLoading(false);
           setRoomStatus('playing');
           setFullScreen(true);
-          console.log('[ARENA] Mode jeu activé - bypass lobby');
+          console.log('[ARENA] Mode jeu activé - bypass lobby, angles synced:', Object.keys(arenaAngles).length);
           return;
         }
       } catch (e) {
         console.error('[ARENA] Erreur chargement zones:', e);
       }
     }
-    
     // Détecter le mode (solo vs multijoueur)
     let isSoloMode = false;
     try {
