@@ -352,6 +352,21 @@ class CrazyArenaManager {
       zonesCount: zones.length
     });
     
+    // ✅ LOG WINSTON: Angles des zones envoyées aux clients (visible dans monitoring)
+    const calcChiffreZones = zones.filter(z => z.type === 'calcul' || z.type === 'chiffre');
+    logger.info('[Training] 📐 ZONES ANGLES game-start', {
+      matchId,
+      totalZones: zones.length,
+      calcChiffreCount: calcChiffreZones.length,
+      zonesDetail: calcChiffreZones.map(z => ({
+        id: z.id,
+        type: z.type,
+        content: String(z.content || '').substring(0, 20),
+        angle: z.angle,
+        hasAngle: typeof z.angle === 'number'
+      }))
+    });
+    
     this.io.to(matchId).emit('training:game-start', gameStartPayload);
 
     // ⏱️ CHRONO: Diffuser le temps restant toutes les secondes
@@ -376,6 +391,22 @@ class CrazyArenaManager {
         this.generateZones(match.config, matchId).then(newZones => {
           match.zones = newZones;
           console.log(`[CrazyArena][Training] 🎯 Nouvelle carte pour manche ${match.roundsPlayed + 1}: ${newZones.length} zones`);
+          
+          // ✅ LOG WINSTON: Angles des zones de la nouvelle manche
+          const newCalcChiffre = newZones.filter(z => z.type === 'calcul' || z.type === 'chiffre');
+          logger.info('[Training] 📐 ZONES ANGLES round-new', {
+            matchId,
+            roundIndex: match.roundsPlayed,
+            totalZones: newZones.length,
+            calcChiffreCount: newCalcChiffre.length,
+            zonesDetail: newCalcChiffre.map(z => ({
+              id: z.id,
+              type: z.type,
+              content: String(z.content || '').substring(0, 20),
+              angle: z.angle,
+              hasAngle: typeof z.angle === 'number'
+            }))
+          });
           
           // Émettre nouvelle carte à tous les joueurs
           this.io.to(matchId).emit('training:round-new', {
