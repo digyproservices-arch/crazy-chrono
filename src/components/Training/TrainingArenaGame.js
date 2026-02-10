@@ -239,8 +239,23 @@ export default function TrainingArenaGame() {
     setGameStartTime(gameInfo.startTime);
     setTimeLeft(gameInfo.duration || 60);
     
-    // ✅ COPIE EXACTE Arena: NE PAS reconstruire calcAngles (localStorage suffit)
-    console.log('[TrainingArena] calcAngles chargés depuis localStorage:', calcAngles);
+    // ✅ FIX ROOT CAUSE: Charger les positions/angles depuis /math-positions (comme Carte.js solo)
+    // Le localStorage cc_calc_angles peut contenir des données stale — le serveur a les bonnes valeurs
+    const apiBase = getBackendUrl();
+    fetch(`${apiBase}/math-positions`, { method: 'GET' })
+      .then(res => res.ok ? res.json() : Promise.reject('HTTP ' + res.status))
+      .then(data => {
+        const payload = data?.data && typeof data.data === 'object' ? data.data : data;
+        if (payload?.calcAngles && typeof payload.calcAngles === 'object') {
+          setCalcAngles(prev => ({ ...prev, ...payload.calcAngles }));
+          console.log('[TrainingArena] ✅ calcAngles chargés depuis /math-positions:', payload.calcAngles);
+        }
+        if (payload?.mathOffsets && typeof payload.mathOffsets === 'object') {
+          setMathOffsets(prev => ({ ...prev, ...payload.mathOffsets }));
+          console.log('[TrainingArena] ✅ mathOffsets chargés depuis /math-positions:', payload.mathOffsets);
+        }
+      })
+      .catch(e => console.warn('[TrainingArena] ⚠️ Échec chargement /math-positions:', e));
     
     // ✅ FIX CRITIQUE: Activer gameActive dès le chargement initial (comme Arena avec !gameEnded)
     // Sans ça, la première manche n'est PAS cliquable jusqu'au premier training:round-new
