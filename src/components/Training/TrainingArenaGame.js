@@ -106,22 +106,10 @@ export default function TrainingArenaGame() {
   const [selectedZones, setSelectedZones] = useState([]);
   const [players, setPlayers] = useState([]);
   const [myStudentId, setMyStudentId] = useState(null);
-  // ✅ COPIE EXACTE Arena (Carte.js ligne 3007-3014): Charger depuis localStorage UNE FOIS
-  const [calcAngles, setCalcAngles] = useState(() => {
-    try {
-      const raw = localStorage.getItem('cc_calc_angles');
-      return raw ? JSON.parse(raw) : {};
-    } catch {
-      return {};
-    }
-  });
-  // ✅ COPIE EXACTE Arena (Carte.js ligne 3016-3021): mathOffsets pour positionner calculs
-  const [mathOffsets, setMathOffsets] = useState(() => {
-    try {
-      const raw = localStorage.getItem('cc_math_offsets');
-      return raw ? JSON.parse(raw) : {};
-    } catch { return {}; }
-  });
+  // ✅ FIX: Ne PAS charger depuis localStorage - Training est server-driven
+  // Les angles viennent de zone.angle (serveur), pas de calcAngles (localStorage)
+  const [calcAngles] = useState({});
+  const [mathOffsets] = useState({});
   const [timeLeft, setTimeLeft] = useState(60);
   const [gameStartTime, setGameStartTime] = useState(null);
   const [gameEnded, setGameEnded] = useState(false);
@@ -239,8 +227,11 @@ export default function TrainingArenaGame() {
     setGameStartTime(gameInfo.startTime);
     setTimeLeft(gameInfo.duration || 60);
     
-    // ✅ COPIE EXACTE Arena: NE PAS reconstruire calcAngles (localStorage suffit)
-    console.log('[TrainingArena] calcAngles chargés depuis localStorage:', calcAngles);
+    // ✅ FIX: Diagnostic - afficher les angles serveur pour chaque zone
+    const zonesWithAngle = zonesArray.filter(z => typeof z.angle === 'number');
+    console.log('[TrainingArena] 🔧 FIX ACTIVE (v57b3575+) - calcAngles/mathOffsets ignorés');
+    console.log('[TrainingArena] 📐 Zones avec angle serveur:', zonesWithAngle.length, '/', zonesArray.length);
+    console.log('[TrainingArena] 📐 Détail angles:', zonesArray.filter(z => z.type === 'calcul' || z.type === 'chiffre').map(z => ({ id: z.id, type: z.type, content: z.content, angle: z.angle })));
     
     // ✅ FIX CRITIQUE: Activer gameActive dès le chargement initial (comme Arena avec !gameEnded)
     // Sans ça, la première manche n'est PAS cliquable jusqu'au premier training:round-new
@@ -533,7 +524,9 @@ export default function TrainingArenaGame() {
           setRoundsPlayed(roundIndex + 1);
         }
         
-        // ✅ COPIE EXACTE Arena: NE PAS reconstruire calcAngles (localStorage suffit)
+        // ✅ FIX: Diagnostic angles serveur pour nouvelles zones
+        const newZonesWithAngle = newZones.filter(z => typeof z.angle === 'number');
+        console.log('[TrainingArena] 📐 round-new: Zones avec angle serveur:', newZonesWithAngle.length, '/', newZones.length);
       }
     });
     
