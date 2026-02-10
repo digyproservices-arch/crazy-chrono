@@ -1229,6 +1229,7 @@ const Carte = () => {
               }
             });
             setCalcAngles(initAngles);
+            setMathOffsets({});
             setTimeLeft(trainingData.duration || 60);
             
             // Démarrer le jeu automatiquement (comme Arena)
@@ -1293,6 +1294,7 @@ const Carte = () => {
             }
           });
           setCalcAngles(serverAngles);
+          setMathOffsets({});
           console.log('[TRAINING] ✅ Zones mises à jour:', cleanZones.length, 'angles synced:', Object.keys(serverAngles).length);
         }
 
@@ -1712,6 +1714,7 @@ const Carte = () => {
           }
         });
         setCalcAngles(tbAngles);
+        setMathOffsets({});
         // NE PAS mettre à jour gameDuration (pas de chrono pour tiebreaker)
         setGameActive(true);
         // setStartTime n'existe pas - pas nécessaire pour tiebreaker (pas de timer)
@@ -1773,6 +1776,7 @@ const Carte = () => {
             }
           });
           setCalcAngles(serverAngles);
+          setMathOffsets({});
           console.log('[ARENA] ✅ Zones mises à jour (validated=false forcé):', cleanZones.length, 'angles synced:', Object.keys(serverAngles).length);
         }
         
