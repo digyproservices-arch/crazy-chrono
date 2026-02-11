@@ -159,6 +159,10 @@ app.locals.supabaseAdmin = supabaseAdmin;
 // Monter les routes auth (après création de supabaseAdmin)
 app.use('/api/auth', authRoutes);
 
+// ===== Progress Routes (sessions + attempts pour Maîtrise) =====
+const progressRoutes = require('./routes/progress');
+app.use('/api/progress', progressRoutes);
+
 // POST /usage/can-start { user_id }
 // Returns { ok:true, allow:boolean, limit:number, sessionsToday:number, reason?:string }
 app.post('/usage/can-start', async (req, res) => {
