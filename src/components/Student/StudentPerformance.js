@@ -25,36 +25,73 @@ export default function StudentPerformance() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
 
-  const getStudentId = () => {
-    const sid = localStorage.getItem('cc_student_id');
-    if (sid) return sid;
+  const getAllStudentIds = () => {
+    const ids = [];
+    // 1. UUID auth Supabase (toujours compatible UUID et TEXT)
     try {
       const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
-      return auth.id || null;
-    } catch { return null; }
+      if (auth.id) ids.push(auth.id);
+    } catch {}
+    // 2. Student mapping ID (peut être 's001' etc.)
+    const sid = localStorage.getItem('cc_student_id');
+    if (sid && !ids.includes(sid)) ids.push(sid);
+    return ids;
+  };
+
+  const fetchPerformance = async (studentId) => {
+    const res = await fetch(`${getBackendUrl()}/api/tournament/students/${studentId}/performance`);
+    const data = await res.json();
+    return data;
   };
 
   const loadData = useCallback(async () => {
     try {
-      const studentId = getStudentId();
-      if (!studentId) {
+      const ids = getAllStudentIds();
+      console.log('[Performance] Student IDs to try:', ids);
+      if (ids.length === 0) {
         setError('ID élève non trouvé. Veuillez vous reconnecter.');
         setLoading(false);
         return;
       }
 
-      const res = await fetch(`${getBackendUrl()}/api/tournament/students/${studentId}/performance`);
-      const data = await res.json();
+      // Essayer chaque ID jusqu'à trouver des données
+      for (const studentId of ids) {
+        try {
+          console.log('[Performance] Trying studentId:', studentId);
+          const data = await fetchPerformance(studentId);
+          console.log('[Performance] Response for', studentId, ':', JSON.stringify(data).slice(0, 300));
 
-      if (data.success) {
-        setStats(data.stats);
-        setHistory(data.history || []);
-        setProgression(data.progression || []);
-        setStreaks(data.streaks || { currentWin: 0, bestWin: 0 });
-        setThemeMastery(data.themeMastery || []);
-        setError(null);
-      } else {
-        setError(data.error || 'Erreur de chargement');
+          if (data.success && data.stats && data.stats.totalMatches > 0) {
+            setStats(data.stats);
+            setHistory(data.history || []);
+            setProgression(data.progression || []);
+            setStreaks(data.streaks || { currentWin: 0, bestWin: 0 });
+            setThemeMastery(data.themeMastery || []);
+            setError(null);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.warn('[Performance] Error for', studentId, ':', err.message);
+        }
+      }
+
+      // Aucun ID n'a retourné de données — utiliser la réponse du premier ID
+      try {
+        const data = await fetchPerformance(ids[0]);
+        if (data.success) {
+          setStats(data.stats);
+          setHistory(data.history || []);
+          setProgression(data.progression || []);
+          setStreaks(data.streaks || { currentWin: 0, bestWin: 0 });
+          setThemeMastery(data.themeMastery || []);
+          setError(null);
+        } else {
+          setError(data.error || 'Erreur de chargement');
+        }
+      } catch (err) {
+        console.error('[Performance] Erreur finale:', err);
+        setError('Erreur de connexion au serveur');
       }
     } catch (err) {
       console.error('[Performance] Erreur:', err);

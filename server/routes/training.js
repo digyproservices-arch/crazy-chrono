@@ -103,6 +103,7 @@ router.post('/sessions', requireSupabase, async (req, res) => {
       
       if (resultError) {
         console.error('[Training API] Result insert error:', resultError);
+        throw resultError;
       }
     }
     

@@ -1334,6 +1334,7 @@ function generateRoomCode() {
 router.get('/students/:studentId/performance', requireSupabase, async (req, res) => {
   try {
     const { studentId } = req.params;
+    console.log('[Performance API] Fetching performance for studentId:', studentId);
 
     // 1. Récupérer les résultats Arena/Tournoi (match_results)
     let arenaResults = [];
@@ -1346,11 +1347,12 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
 
       if (!arenaError && aResults) {
         arenaResults = aResults;
+        console.log('[Performance API] match_results:', aResults.length, 'rows');
       } else if (arenaError) {
-        console.warn('[Tournament API] match_results query failed:', arenaError.message);
+        console.warn('[Performance API] match_results query failed:', arenaError.message);
       }
     } catch (e) {
-      console.warn('[Tournament API] match_results query exception:', e.message);
+      console.warn('[Performance API] match_results query exception:', e.message);
     }
 
     // 1b. Récupérer les résultats Training (training_results)
@@ -1368,10 +1370,15 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
           match_id: r.session_id, // Normaliser pour compatibilité
           mode: 'training'
         }));
+        console.log('[Performance API] training_results:', tResults.length, 'rows');
+      } else if (tError) {
+        console.warn('[Performance API] training_results query failed:', tError.message);
       }
     } catch (e) {
-      console.warn('[Tournament API] training_results query failed (table may not exist):', e.message);
+      console.warn('[Performance API] training_results query exception:', e.message);
     }
+    
+    console.log('[Performance API] Total: arena=', arenaResults.length, 'training=', trainingResults.length);
 
     // 1c. Fusionner et trier par date
     const results = [...(arenaResults || []).map(r => ({ ...r, mode: 'arena' })), ...trainingResults]
