@@ -155,6 +155,11 @@ export default function TrainingArenaLobby() {
       socket.on('training:error', ({ message }) => {
         setError(message);
       });
+
+      socket.on('training:match-lost', ({ reason }) => {
+        console.error('[TrainingArena] Match perdu:', reason);
+        setError('Le match a été interrompu : ' + (reason || 'serveur redémarré'));
+      });
       
       socket.on('training:player-joined', ({ players: updatedPlayers, count }) => {
         setPlayers(updatedPlayers);

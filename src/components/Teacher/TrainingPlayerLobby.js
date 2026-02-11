@@ -86,6 +86,11 @@ export default function TrainingPlayerLobby() {
       socket.on('training:error', ({ message }) => {
         setError(message);
       });
+
+      socket.on('training:match-lost', ({ reason }) => {
+        console.error('[TrainingLobby] Match perdu:', reason);
+        setError('Le match a été interrompu : ' + (reason || 'serveur redémarré'));
+      });
       
       socket.on('training:player-joined', ({ players: updatedPlayers }) => {
         console.log('[TrainingLobby] Joueurs mis à jour:', updatedPlayers);
