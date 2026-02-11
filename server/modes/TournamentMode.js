@@ -1,5 +1,5 @@
 const BattleRoyaleEngine = require('../core/BattleRoyaleEngine');
-const fetch = require('node-fetch');
+// Node 18+ has native fetch - no need for node-fetch
 
 class TournamentMode extends BattleRoyaleEngine {
   constructor(io, config) {

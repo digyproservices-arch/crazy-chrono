@@ -1009,7 +1009,6 @@ function endSession(roomCode) {
     const identifiedPlayers = ranking.filter(p => p.studentId);
     emitPerfEvent('endSession:identified', { room: roomCode, identified: identifiedPlayers.length, total: ranking.length });
     if (identifiedPlayers.length > 0) {
-      const fetch = require('node-fetch');
       const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
       fetch(`${backendUrl}/api/training/sessions`, {
         method: 'POST',

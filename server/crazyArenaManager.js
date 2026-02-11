@@ -2463,7 +2463,6 @@ class CrazyArenaManager {
    * LEGACY: Utilisé comme fallback si persistMatchStart n'a pas été appelé
    */
   async saveTrainingResults(matchId, ranking, match) {
-    const fetch = require('node-fetch');
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
 
     console.log(`[CrazyArena][Training] 💾 Sauvegarde résultats Training pour match ${matchId}`);
@@ -2521,7 +2520,6 @@ class CrazyArenaManager {
    */
   async saveResults(matchId, ranking) {
     // Appeler l'API REST pour enregistrer les résultats
-    const fetch = require('node-fetch');
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
 
     console.log(`[CrazyArena] 💾 Sauvegarde résultats pour match ${matchId}`);
