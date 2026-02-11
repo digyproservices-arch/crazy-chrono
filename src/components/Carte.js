@@ -2615,7 +2615,14 @@ useEffect(() => {
   if (wasActive && !gameActive && !arenaMatchId && !trainingMatchId) {
     emitMonitoringEvent('perf:transition', { from: 'active', to: 'inactive' });
     try {
-      const studentId = localStorage.getItem('cc_student_id');
+      let studentId = localStorage.getItem('cc_student_id');
+      // Fallback: utiliser l'ID auth Supabase si pas de student mapping
+      if (!studentId) {
+        try {
+          const authData = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+          if (authData.id) studentId = authData.id;
+        } catch {}
+      }
       const pairsCount = validatedPairIdsRef.current?.size || 0;
       const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
       const isSolo = !cfg || cfg.mode === 'solo';
@@ -2631,7 +2638,7 @@ useEffect(() => {
       });
 
       if (!studentId) {
-        emitMonitoringEvent('perf:save-skipped', { reason: 'cc_student_id manquant' });
+        emitMonitoringEvent('perf:save-skipped', { reason: 'cc_student_id et cc_auth.id manquants' });
         return;
       }
       
