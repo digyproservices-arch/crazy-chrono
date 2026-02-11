@@ -68,7 +68,7 @@ router.post('/sessions', requireSupabase, async (req, res) => {
       match_id: matchId,
       teacher_id: teacherId || null,
       session_name: sessionName || 'Session',
-      config: JSON.stringify(config || {}),
+      config: config || {},
       completed_at: completedAt,
       created_at: new Date().toISOString()
     };
@@ -128,7 +128,8 @@ router.post('/sessions', requireSupabase, async (req, res) => {
     });
   } catch (error) {
     console.error('[Training API] Error saving session:', error);
-    res.status(500).json({ success: false, error: error.message });
+    console.error('[Training API] Request body was:', JSON.stringify(req.body).slice(0, 500));
+    res.status(500).json({ success: false, error: error.message || String(error) });
   }
 });
 

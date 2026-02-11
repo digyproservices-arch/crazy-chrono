@@ -1030,8 +1030,13 @@ function endSession(roomCode) {
             errors: 0
           }))
         })
-      }).then(r => {
-        emitPerfEvent('save:success', { room: roomCode, players: identifiedPlayers.length, status: r.status });
+      }).then(async r => {
+        if (r.ok) {
+          emitPerfEvent('save:success', { room: roomCode, players: identifiedPlayers.length, status: r.status });
+        } else {
+          const body = await r.text().catch(() => '');
+          emitPerfEvent('save:error', { room: roomCode, status: r.status, body: body.slice(0, 300) });
+        }
       }).catch(e => {
         emitPerfEvent('save:error', { room: roomCode, error: e.message });
       });

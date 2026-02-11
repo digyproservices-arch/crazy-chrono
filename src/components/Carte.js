@@ -2651,8 +2651,13 @@ useEffect(() => {
             errors: 0
           }]
         })
-      }).then(r => {
-        emitMonitoringEvent('perf:save-result', { mode, studentId, status: r.status, ok: r.ok });
+      }).then(async r => {
+        if (r.ok) {
+          emitMonitoringEvent('perf:save-result', { mode, studentId, status: r.status, ok: true });
+        } else {
+          const body = await r.text().catch(() => '');
+          emitMonitoringEvent('perf:save-result', { mode, studentId, status: r.status, ok: false, body: body.slice(0, 300) });
+        }
       }).catch(e => {
         emitMonitoringEvent('perf:save-result', { mode, studentId, error: e.message });
       });
