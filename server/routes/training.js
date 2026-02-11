@@ -64,13 +64,13 @@ router.post('/sessions', requireSupabase, async (req, res) => {
     // id auto-généré par Supabase (UUID)
     const sessionPayload = {
       match_id: matchId,
-      teacher_id: teacherId || null,
+      teacher_id: teacherId || 'none',
       session_name: sessionName || 'Session',
       config: config || {},
+      class_id: classId || 'solo',
       completed_at: completedAt,
       created_at: new Date().toISOString()
     };
-    if (classId) sessionPayload.class_id = classId;
     
     const { data: session, error: sessionError } = await supabase
       .from('training_sessions')
