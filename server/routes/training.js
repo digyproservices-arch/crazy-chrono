@@ -64,10 +64,10 @@ router.post('/sessions', requireSupabase, async (req, res) => {
     // id auto-généré par Supabase (UUID)
     const sessionPayload = {
       match_id: matchId,
-      teacher_id: teacherId || 'none',
+      teacher_id: teacherId || null,
       session_name: sessionName || 'Session',
       config: config || {},
-      class_id: classId || 'solo',
+      class_id: classId || null,
       completed_at: completedAt,
       created_at: new Date().toISOString()
     };
