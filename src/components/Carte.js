@@ -1106,6 +1106,10 @@ const Carte = () => {
   const [arenaGameEndOverlay, setArenaGameEndOverlay] = useState(null); // { ranking: [], winner: {}, duration: number }
   // Overlay fin de partie Solo (performance du joueur)
   const [soloGameEndOverlay, setSoloGameEndOverlay] = useState(null); // { score, pairsValidated, duration, mode }
+  // Session tracking refs (pour sauvegarder une seule fois en fin de session, pas par manche)
+  const sessionStartTimeRef = useRef(null);
+  const sessionSaveTimerRef = useRef(null);
+  const scoreRef = useRef(0);
   // Rounds/session
   const [roundsPerSession, setRoundsPerSession] = useState(null); // null => infini
   // Dernière paire gagnée + historique pour le bandeau multi réduit
@@ -1125,6 +1129,7 @@ const Carte = () => {
   const [validatedPairIds, setValidatedPairIds] = useState(new Set());
   const validatedPairIdsRef = useRef(new Set());
   useEffect(() => { validatedPairIdsRef.current = validatedPairIds; }, [validatedPairIds]);
+  useEffect(() => { scoreRef.current = score; }, [score]);
 
   // --- Assignment guard to avoid overlapping reshuffles ---
   const assignInFlightRef = useRef(false);
@@ -2605,85 +2610,117 @@ useEffect(() => {
   return () => clearInterval(id);
 }, [gameActive, gameDuration, arenaMatchId]);
 
-// 💾 PERSISTANCE: Sauvegarder les performances Solo/Multijoueur en DB quand la partie se termine
+// 💾 PERSISTANCE: Sauvegarder les performances Solo/Multijoueur en DB quand la SESSION se termine
+// Utilise un debounce de 3s pour distinguer "fin de manche" (round:new relance gameActive) de "fin de session"
 const prevGameActiveRef = useRef(false);
 useEffect(() => {
   const wasActive = prevGameActiveRef.current;
   prevGameActiveRef.current = gameActive;
   
-  // Détecter transition gameActive: true → false (fin de partie)
+  // Nouvelle manche démarre → annuler le timer de sauvegarde en attente
+  if (!wasActive && gameActive) {
+    if (sessionSaveTimerRef.current) {
+      clearTimeout(sessionSaveTimerRef.current);
+      sessionSaveTimerRef.current = null;
+    }
+    // Enregistrer le début de session si pas déjà fait (fallback mode local)
+    if (!sessionStartTimeRef.current) sessionStartTimeRef.current = Date.now();
+    return;
+  }
+  
+  // Détecter transition gameActive: true → false (fin de manche OU fin de session)
   if (wasActive && !gameActive && !arenaMatchId && !trainingMatchId) {
     emitMonitoringEvent('perf:transition', { from: 'active', to: 'inactive' });
-    try {
-      // Préférer l'UUID auth Supabase (compatible UUID et TEXT en DB)
-      let studentId = null;
+    
+    // Annuler tout timer précédent
+    if (sessionSaveTimerRef.current) clearTimeout(sessionSaveTimerRef.current);
+    
+    // Attendre 3s : si gameActive repasse à true (nouvelle manche), le timer sera annulé
+    // Sinon, c'est la vraie fin de session → sauvegarder
+    sessionSaveTimerRef.current = setTimeout(() => {
+      sessionSaveTimerRef.current = null;
       try {
-        const authData = JSON.parse(localStorage.getItem('cc_auth') || '{}');
-        if (authData.id) studentId = authData.id;
-      } catch {}
-      // Fallback: cc_student_id si pas d'auth
-      if (!studentId) studentId = localStorage.getItem('cc_student_id');
-      const pairsCount = validatedPairIdsRef.current?.size || 0;
-      const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
-      const isSolo = !cfg || cfg.mode === 'solo';
-      const mode = isSolo ? 'solo' : 'multiplayer';
+        // Lire le score via ref (valeur la plus récente, pas stale closure)
+        const finalScore = scoreRef.current;
+        
+        // Préférer l'UUID auth Supabase (compatible UUID et TEXT en DB)
+        let studentId = null;
+        try {
+          const authData = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+          if (authData.id) studentId = authData.id;
+        } catch {}
+        if (!studentId) studentId = localStorage.getItem('cc_student_id');
+        
+        const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+        const isSolo = !cfg || cfg.mode === 'solo';
+        const mode = isSolo ? 'solo' : 'multiplayer';
+        
+        // Nombre de paires = score (chaque paire validée donne +1)
+        const pairsCount = finalScore;
+        
+        // Durée réelle de la session (toutes manches confondues)
+        const sessionElapsedSec = sessionStartTimeRef.current
+          ? Math.round((Date.now() - sessionStartTimeRef.current) / 1000)
+          : gameDuration;
+        sessionStartTimeRef.current = null; // reset pour prochaine session
 
-      // Afficher l'overlay de fin de partie Solo
-      setSoloGameEndOverlay({
-        score,
-        pairsValidated: pairsCount,
-        duration: gameDuration,
-        mode,
-        timestamp: Date.now()
-      });
+        // Afficher l'overlay de fin de partie Solo
+        setSoloGameEndOverlay({
+          score: finalScore,
+          pairsValidated: pairsCount,
+          duration: sessionElapsedSec,
+          mode,
+          timestamp: Date.now()
+        });
 
-      if (!studentId) {
-        emitMonitoringEvent('perf:save-skipped', { reason: 'cc_student_id et cc_auth.id manquants' });
-        return;
-      }
-      
-      if (pairsCount === 0 && score === 0) {
-        emitMonitoringEvent('perf:save-skipped', { reason: 'score=0 et pairsCount=0', studentId });
-        return;
-      }
-      
-      emitMonitoringEvent('perf:save-attempt', { mode, studentId, score, pairsCount, duration: gameDuration });
-      
-      const backendUrl = getBackendUrl();
-      fetch(`${backendUrl}/api/training/sessions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          matchId: `${mode}_${studentId}_${Date.now()}`,
-          classId: null,
-          teacherId: null,
-          sessionName: isSolo ? 'Session Solo' : 'Session Multijoueur',
-          config: { mode, duration: gameDuration, classes: cfg?.classes || [], themes: cfg?.themes || [] },
-          completedAt: new Date().toISOString(),
-          results: [{
-            studentId,
-            position: 1,
-            score: score,
-            timeMs: gameDuration * 1000,
-            pairsValidated: pairsCount,
-            errors: 0
-          }]
-        })
-      }).then(async r => {
-        if (r.ok) {
-          emitMonitoringEvent('perf:save-result', { mode, studentId, status: r.status, ok: true });
-        } else {
-          const body = await r.text().catch(() => '');
-          emitMonitoringEvent('perf:save-result', { mode, studentId, status: r.status, ok: false, body: body.slice(0, 300) });
+        if (!studentId) {
+          emitMonitoringEvent('perf:save-skipped', { reason: 'cc_student_id et cc_auth.id manquants' });
+          return;
         }
-      }).catch(e => {
-        emitMonitoringEvent('perf:save-result', { mode, studentId, error: e.message });
-      });
-    } catch (e) {
-      emitMonitoringEvent('perf:save-result', { error: e.message });
-    }
+        
+        if (pairsCount === 0 && finalScore === 0) {
+          emitMonitoringEvent('perf:save-skipped', { reason: 'score=0', studentId });
+          return;
+        }
+        
+        emitMonitoringEvent('perf:save-attempt', { mode, studentId, score: finalScore, pairsCount, duration: sessionElapsedSec });
+        
+        const backendUrl = getBackendUrl();
+        fetch(`${backendUrl}/api/training/sessions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            matchId: `${mode}_${studentId}_${Date.now()}`,
+            classId: null,
+            teacherId: null,
+            sessionName: isSolo ? 'Session Solo' : 'Session Multijoueur',
+            config: { mode, duration: sessionElapsedSec, classes: cfg?.classes || [], themes: cfg?.themes || [] },
+            completedAt: new Date().toISOString(),
+            results: [{
+              studentId,
+              position: 1,
+              score: finalScore,
+              timeMs: sessionElapsedSec * 1000,
+              pairsValidated: pairsCount,
+              errors: 0
+            }]
+          })
+        }).then(async r => {
+          if (r.ok) {
+            emitMonitoringEvent('perf:save-result', { mode, studentId, status: r.status, ok: true });
+          } else {
+            const body = await r.text().catch(() => '');
+            emitMonitoringEvent('perf:save-result', { mode, studentId, status: r.status, ok: false, body: body.slice(0, 300) });
+          }
+        }).catch(e => {
+          emitMonitoringEvent('perf:save-result', { mode, studentId, error: e.message });
+        });
+      } catch (e) {
+        emitMonitoringEvent('perf:save-result', { error: e.message });
+      }
+    }, 3000); // 3s debounce: distingue fin de manche vs fin de session
   }
-}, [gameActive, arenaMatchId, trainingMatchId, score, gameDuration, emitMonitoringEvent]);
+}, [gameActive, arenaMatchId, trainingMatchId, gameDuration, emitMonitoringEvent]);
 
 // Persister la durée choisie
 useEffect(() => {
@@ -2725,6 +2762,10 @@ function startGame() {
 function doStart() {
   try {
     try { window.ccAddDiag && window.ccAddDiag('doStart:called'); } catch {}
+    // Enregistrer le début de la session pour calculer la durée totale
+    sessionStartTimeRef.current = Date.now();
+    // Annuler tout timer de sauvegarde en cours d'une session précédente
+    if (sessionSaveTimerRef.current) { clearTimeout(sessionSaveTimerRef.current); sessionSaveTimerRef.current = null; }
     // Réinitialiser le Set des paires validées au début d'une nouvelle session
     setValidatedPairIds(new Set());
     try { window.ccAddDiag && window.ccAddDiag('session:reset:validatedPairs'); } catch {}
