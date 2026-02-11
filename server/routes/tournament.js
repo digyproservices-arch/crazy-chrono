@@ -1526,18 +1526,22 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
       console.log('[Performance API] Theme mastery: userId=', userId, '(from mapping:', userId !== studentId, ')');
       
       {
+        // IDs possibles: le UUID résolu ET le studentId original (car user_id est TEXT)
+        const possibleIds = [...new Set([userId, studentId].filter(Boolean))];
+        console.log('[Performance API] Theme mastery: searching with possibleIds=', possibleIds);
+        
         // Compter les sessions Solo
         const { data: soloSessions } = await supabase
           .from('sessions')
           .select('id')
-          .eq('user_id', userId);
+          .in('user_id', possibleIds);
         soloSessionsCount = soloSessions?.length || 0;
         
         // Récupérer toutes les tentatives pour analyse par thème
         const { data: attempts } = await supabase
           .from('attempts')
           .select('theme, level_class, correct, latency_ms, item_type, objective_key')
-          .eq('user_id', userId);
+          .in('user_id', possibleIds);
         
         if (attempts && attempts.length > 0) {
           // Grouper par thème

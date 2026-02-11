@@ -1084,9 +1084,15 @@ io.on('connection', (socket) => {
     socket.join('monitoring');
     socket.emit('monitoring:perf', { type: 'connected', ts: new Date().toISOString(), msg: 'Connecté au monitoring temps réel' });
   });
-  // Monitoring: relayer les events client vers la room monitoring
+  // Monitoring: relayer les events client vers la room monitoring + logger dans Winston
   socket.on('monitoring:client-event', (data) => {
-    try { io.to('monitoring').emit('monitoring:perf', { ...data, source: 'client', ts: new Date().toISOString() }); } catch {}
+    try {
+      const enriched = { ...data, source: 'client', ts: new Date().toISOString() };
+      io.to('monitoring').emit('monitoring:perf', enriched);
+      // Logger dans Winston pour visibilité dans Render logs
+      const evType = data?.type || 'unknown';
+      logger.info(`[Client] ${evType}`, enriched);
+    } catch {}
   });
 
   socket.on('mp:identify', ({ studentId }) => {

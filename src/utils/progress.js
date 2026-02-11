@@ -34,6 +34,11 @@ export async function startSession(cfg = {}) {
   // Guests are skipped silently
   if (!auth || String(auth.id || '').startsWith('guest:')) { emitLog('progress:skip', { reason: 'no auth or guest' }); return null; }
   userId = auth.id || null;
+  // Fallback: si cc_auth n'a pas d'id, utiliser cc_student_id (le backend résoudra en UUID)
+  if (!userId) {
+    try { userId = localStorage.getItem('cc_student_id') || null; } catch {}
+    if (userId) emitLog('progress:userId-fallback', { userId, source: 'cc_student_id' });
+  }
   if (!userId) { emitLog('progress:skip', { reason: 'no userId found' }); return null; }
 
   try {

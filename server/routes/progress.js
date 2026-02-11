@@ -1,14 +1,39 @@
 const express = require('express');
 const router = express.Router();
 
+// Helper: resolve non-UUID user_id (e.g. "s001") to auth UUID via user_student_mapping
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+async function resolveUserId(supabase, rawId) {
+  if (!rawId) return null;
+  if (UUID_RE.test(rawId)) return rawId; // already a UUID
+  try {
+    const { data } = await supabase
+      .from('user_student_mapping')
+      .select('user_id')
+      .eq('student_id', rawId)
+      .eq('active', true)
+      .single();
+    if (data?.user_id) {
+      console.log(`[Progress API] Resolved "${rawId}" → ${data.user_id}`);
+      return data.user_id;
+    }
+  } catch {}
+  console.warn(`[Progress API] Could not resolve "${rawId}" to UUID, using as-is`);
+  return rawId;
+}
+
 // POST /api/progress/session — Create a progress session (bypasses RLS via supabaseAdmin)
 router.post('/session', async (req, res) => {
   try {
     const supabase = req.app.locals.supabaseAdmin;
     if (!supabase) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
 
-    const { user_id, mode, classes, themes, duration_seconds } = req.body || {};
-    if (!user_id) return res.status(400).json({ ok: false, error: 'missing user_id' });
+    const { user_id: rawUserId, mode, classes, themes, duration_seconds } = req.body || {};
+    if (!rawUserId) return res.status(400).json({ ok: false, error: 'missing user_id' });
+
+    // Resolve non-UUID user_id to auth UUID
+    const user_id = await resolveUserId(supabase, rawUserId);
+    console.log(`[Progress API] POST /session user_id=${user_id} mode=${mode}`);
 
     const payload = {
       user_id,
@@ -20,10 +45,11 @@ router.post('/session', async (req, res) => {
 
     const { data, error } = await supabase.from('sessions').insert(payload).select('id').single();
     if (error) {
-      console.warn('[Progress API] session insert error:', error.message);
-      return res.status(500).json({ ok: false, error: error.message });
+      console.warn('[Progress API] session insert error:', error.message, error.code);
+      return res.status(500).json({ ok: false, error: error.message, code: error.code });
     }
 
+    console.log(`[Progress API] Session created: ${data?.id}`);
     return res.json({ ok: true, sessionId: data?.id });
   } catch (e) {
     console.error('[Progress API] session exception:', e.message);
