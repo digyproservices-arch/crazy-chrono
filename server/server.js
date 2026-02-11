@@ -999,12 +999,33 @@ function endSession(roomCode) {
   emitRoomState(roomCode);
   
   // ✅ Sauvegarder résultats Multijoueur pour les joueurs identifiés (studentId)
-  try {
+  (async () => { try {
+    const isUUID = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
     const ranking = entries
       .map(([id, pl], idx) => ({ socketId: id, studentId: pl.studentId, name: pl.name, score: pl.score || 0 }))
       .sort((a, b) => b.score - a.score)
       .map((p, idx) => ({ ...p, position: idx + 1 }));
     
+    // Résoudre les studentIds non-UUID (ex: "s001") vers UUID auth via user_student_mapping
+    if (supabaseAdmin) {
+      for (const p of ranking) {
+        if (p.studentId && !isUUID(p.studentId)) {
+          try {
+            const { data: mapping } = await supabaseAdmin
+              .from('user_student_mapping')
+              .select('user_id')
+              .eq('student_id', p.studentId)
+              .eq('active', true)
+              .single();
+            if (mapping?.user_id) {
+              emitPerfEvent('endSession:resolve', { from: p.studentId, to: mapping.user_id });
+              p.studentId = mapping.user_id;
+            }
+          } catch {}
+        }
+      }
+    }
+
     emitPerfEvent('endSession', { room: roomCode, players: ranking.map(p => ({ name: p.name, studentId: p.studentId, score: p.score })) });
     const identifiedPlayers = ranking.filter(p => p.studentId);
     emitPerfEvent('endSession:identified', { room: roomCode, identified: identifiedPlayers.length, total: ranking.length });
@@ -1045,7 +1066,7 @@ function endSession(roomCode) {
     }
   } catch (e) {
     emitPerfEvent('save:exception', { room: roomCode, error: e.message });
-  }
+  } })();
 }
 
 io.on('connection', (socket) => {

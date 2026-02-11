@@ -1889,7 +1889,7 @@ const Carte = () => {
       console.debug('[CC][client] socket connected', { id: s.id });
       // Envoyer studentId au serveur pour le tracking des stats multijoueur
       try {
-        const sid = localStorage.getItem('cc_student_id') || (JSON.parse(localStorage.getItem('cc_auth') || '{}')).studentId || null;
+        const sid = (JSON.parse(localStorage.getItem('cc_auth') || '{}')).id || localStorage.getItem('cc_student_id') || null;
         if (sid) s.emit('mp:identify', { studentId: sid });
       } catch {}
 
@@ -2798,7 +2798,7 @@ function doStart() {
       const wantRounds = parseInt(cfg2?.rounds, 10);
       const wantDuration = parseInt(cfg2?.duration, 10);
       // 1) Joindre la salle et pousser la config demandée
-      try { const _sid = localStorage.getItem('cc_student_id') || null; socket.emit('joinRoom', { roomId, name: playerName, studentId: _sid }); } catch {}
+      try { let _sid = null; try { _sid = JSON.parse(localStorage.getItem('cc_auth') || '{}').id || null; } catch {} if (!_sid) _sid = localStorage.getItem('cc_student_id') || null; socket.emit('joinRoom', { roomId, name: playerName, studentId: _sid }); } catch {}
       try {
         if (Number.isFinite(wantDuration) && wantDuration >= 10 && wantDuration <= 600) {
           console.debug('[CC][client] emit room:duration:set', wantDuration);
