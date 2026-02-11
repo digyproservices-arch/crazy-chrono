@@ -1104,6 +1104,8 @@ const Carte = () => {
   const [winnerOverlay, setWinnerOverlay] = useState(null); // { text: string, until: number }
   // Overlay fin de partie Arena (podium + classement)
   const [arenaGameEndOverlay, setArenaGameEndOverlay] = useState(null); // { ranking: [], winner: {}, duration: number }
+  // Overlay fin de partie Solo (performance du joueur)
+  const [soloGameEndOverlay, setSoloGameEndOverlay] = useState(null); // { score, pairsValidated, duration, mode }
   // Rounds/session
   const [roundsPerSession, setRoundsPerSession] = useState(null); // null => infini
   // Dernière paire gagnée + historique pour le bandeau multi réduit
@@ -2614,20 +2616,29 @@ useEffect(() => {
     emitMonitoringEvent('perf:transition', { from: 'active', to: 'inactive' });
     try {
       const studentId = localStorage.getItem('cc_student_id');
+      const pairsCount = validatedPairIdsRef.current?.size || 0;
+      const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+      const isSolo = !cfg || cfg.mode === 'solo';
+      const mode = isSolo ? 'solo' : 'multiplayer';
+
+      // Afficher l'overlay de fin de partie Solo
+      setSoloGameEndOverlay({
+        score,
+        pairsValidated: pairsCount,
+        duration: gameDuration,
+        mode,
+        timestamp: Date.now()
+      });
+
       if (!studentId) {
         emitMonitoringEvent('perf:save-skipped', { reason: 'cc_student_id manquant' });
         return;
       }
       
-      const pairsCount = validatedPairIdsRef.current?.size || 0;
       if (pairsCount === 0 && score === 0) {
         emitMonitoringEvent('perf:save-skipped', { reason: 'score=0 et pairsCount=0', studentId });
         return;
       }
-      
-      const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
-      const isSolo = !cfg || cfg.mode === 'solo';
-      const mode = isSolo ? 'solo' : 'multiplayer';
       
       emitMonitoringEvent('perf:save-attempt', { mode, studentId, score, pairsCount, duration: gameDuration });
       
@@ -7207,6 +7218,78 @@ setZones(dataWithRandomTexts);
         );
       })()}
       
+      {/* Overlay fin de partie Solo/Multijoueur */}
+      {soloGameEndOverlay && (() => {
+        const ov = soloGameEndOverlay;
+        const ppm = ov.duration > 0 ? ((ov.score / ov.duration) * 60).toFixed(1) : '0';
+        return (
+          <div
+            style={{
+              position: 'fixed', inset: 0, zIndex: 5000,
+              background: 'linear-gradient(135deg, rgba(20, 138, 156, 0.95) 0%, rgba(26, 172, 190, 0.95) 100%)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              padding: isMobile ? '16px' : '32px',
+              animation: 'fadeIn 0.5s ease-out'
+            }}
+          >
+            <div style={{ fontSize: isMobile ? 28 : 44, fontWeight: 900, color: '#fff', marginBottom: 24, textShadow: '0 4px 12px rgba(0,0,0,0.3)', animation: 'slideDown 0.6s ease-out' }}>
+              {ov.mode === 'solo' ? '🎯 Partie Solo terminée' : '🎮 Partie terminée'}
+            </div>
+            <div style={{
+              background: 'rgba(255,255,255,0.15)', borderRadius: 24, padding: isMobile ? '24px 32px' : '32px 48px',
+              marginBottom: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+              backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)',
+              animation: 'scaleIn 0.7s ease-out 0.2s both'
+            }}>
+              <div style={{ fontSize: isMobile ? 56 : 80, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{ov.score}</div>
+              <div style={{ fontSize: isMobile ? 16 : 20, color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>points</div>
+            </div>
+            <div style={{
+              display: 'flex', gap: isMobile ? 16 : 32, marginBottom: 32, flexWrap: 'wrap', justifyContent: 'center',
+              animation: 'slideUp 0.6s ease-out 0.4s both'
+            }}>
+              {[
+                { icon: '🧩', label: 'Paires', value: ov.pairsValidated },
+                { icon: '⏱️', label: 'Durée', value: `${ov.duration}s` },
+                { icon: '⚡', label: 'Pts/min', value: ppm },
+              ].map((stat, i) => (
+                <div key={i} style={{
+                  background: 'rgba(255,255,255,0.12)', borderRadius: 16, padding: isMobile ? '12px 20px' : '16px 28px',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 90,
+                  border: '1px solid rgba(255,255,255,0.15)'
+                }}>
+                  <div style={{ fontSize: 24 }}>{stat.icon}</div>
+                  <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: '#fff' }}>{stat.value}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{stat.label}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 16, animation: 'slideUp 0.6s ease-out 0.6s both' }}>
+              <button
+                onClick={() => { setSoloGameEndOverlay(null); startGame(); }}
+                style={{
+                  background: '#fff', color: '#148A9C', border: 'none', borderRadius: 14,
+                  padding: isMobile ? '14px 28px' : '16px 40px', fontSize: isMobile ? 16 : 20,
+                  fontWeight: 800, cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
+                }}
+              >
+                🔄 Rejouer
+              </button>
+              <button
+                onClick={() => setSoloGameEndOverlay(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: 14, padding: isMobile ? '14px 28px' : '16px 40px',
+                  fontSize: isMobile ? 16 : 20, fontWeight: 700, cursor: 'pointer'
+                }}
+              >
+                ✕ Fermer
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; }
