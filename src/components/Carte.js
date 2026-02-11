@@ -2764,7 +2764,7 @@ function startGame() {
   doStart();
 }
 
-function doStart() {
+async function doStart() {
   try {
     try { window.ccAddDiag && window.ccAddDiag('doStart:called'); } catch {}
     // Enregistrer le début de la session pour calculer la durée totale
@@ -2777,10 +2777,10 @@ function doStart() {
     // Si connecté au serveur, lancer une session SOLO via le backend
   if (socket && socket.connected) {
     try {
-      // Démarrer une session de progression côté Supabase aussi en mode socket
+      // Démarrer une session de progression via API backend (await pour avoir sessionId avant gameplay)
       try {
         const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
-        pgStartSession({
+        await pgStartSession({
           mode: 'solo',
           classes: Array.isArray(cfg?.classes) ? cfg.classes : [],
           themes: Array.isArray(cfg?.themes) ? cfg.themes : [],
@@ -2855,10 +2855,10 @@ function doStart() {
   setGameMsg('');
   try { enterGameFullscreen(); } catch {}
   try { setPanelCollapsed(true); } catch {}
-  // Démarrer une session de progression côté Supabase (si connecté)
+  // Démarrer une session de progression via API backend (await pour avoir sessionId avant gameplay)
   try {
     const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
-    pgStartSession({
+    await pgStartSession({
       mode: 'solo',
       classes: Array.isArray(cfg?.classes) ? cfg.classes : [],
       themes: Array.isArray(cfg?.themes) ? cfg.themes : [],
