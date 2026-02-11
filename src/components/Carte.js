@@ -2639,6 +2639,8 @@ useEffect(() => {
     // Sinon, c'est la vraie fin de session → sauvegarder
     sessionSaveTimerRef.current = setTimeout(() => {
       sessionSaveTimerRef.current = null;
+      // Flush les tentatives restantes dans le buffer (progress.js)
+      try { pgFlushAttempts(); } catch {}
       try {
         // Lire le score via ref (valeur la plus récente, pas stale closure)
         const finalScore = scoreRef.current;

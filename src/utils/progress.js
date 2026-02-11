@@ -22,17 +22,27 @@ export async function startSession(cfg = {}) {
   sessionId = null;
   userId = null;
 
-  if (!supabase) return null; // no backend configured
+  if (!supabase) { console.warn('[progress] no supabase client'); return null; }
   const auth = getAuth();
-  // Require a real Supabase user for RLS
   // Guests are skipped silently
-  if (!auth || String(auth.id || '').startsWith('guest:')) return null;
+  if (!auth || String(auth.id || '').startsWith('guest:')) { console.warn('[progress] no auth or guest'); return null; }
 
   try {
-    const { data: sess } = await supabase.auth.getSession();
-    const supaUser = sess?.session?.user;
-    if (!supaUser) return null;
-    userId = supaUser.id;
+    // Tenter d'obtenir le userId via Supabase auth session
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const supaUser = sess?.session?.user;
+      if (supaUser) userId = supaUser.id;
+    } catch (e) {
+      console.warn('[progress] supabase.auth.getSession failed:', e?.message);
+    }
+    // Fallback: utiliser cc_auth.id directement
+    if (!userId && auth.id) {
+      userId = auth.id;
+      console.log('[progress] using cc_auth.id as userId fallback:', userId);
+    }
+    if (!userId) { console.warn('[progress] no userId found'); return null; }
+
     const payload = {
       user_id: userId,
       mode: cfg?.mode || 'solo',
@@ -43,17 +53,22 @@ export async function startSession(cfg = {}) {
     const { data, error } = await supabase.from('sessions').insert(payload).select('id').single();
     if (error) throw error;
     sessionId = data?.id || null;
+    console.log('[progress] session started:', sessionId, 'userId:', userId);
     return sessionId;
   } catch (e) {
     // eslint-disable-next-line no-console
-    console.warn('[progress] startSession failed:', e);
+    console.warn('[progress] startSession failed:', e?.message || e);
     return null;
   }
 }
 
 export async function recordAttempt(a) {
   // a = { item_type, item_id, objective_key, correct, latency_ms, level_class, theme, round_index }
-  if (!sessionId || !userId || !supabase) return; // ignore if not logged supabase session
+  if (!sessionId || !userId || !supabase) {
+    // Log once to help diagnose
+    if (!sessionId && a?.correct !== undefined) console.warn('[progress] recordAttempt skipped: no sessionId');
+    return;
+  }
   const row = {
     session_id: sessionId,
     user_id: userId,
@@ -78,6 +93,7 @@ export async function flushAttempts() {
   try {
     const { error } = await supabase.from('attempts').insert(toSend);
     if (error) throw error;
+    console.log('[progress] flushed', toSend.length, 'attempts');
   } catch (e) {
     // on failure, try to requeue (best-effort)
     buffer = [...toSend, ...buffer];

@@ -1510,16 +1510,22 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
     let soloSessionsCount = 0;
     try {
       // Mapper student_id → user_id via user_student_mapping
-      const { data: mapping } = await supabase
-        .from('user_student_mapping')
-        .select('user_id')
-        .eq('student_id', studentId)
-        .eq('active', true)
-        .single();
+      let userId = null;
+      try {
+        const { data: mapping } = await supabase
+          .from('user_student_mapping')
+          .select('user_id')
+          .eq('student_id', studentId)
+          .eq('active', true)
+          .single();
+        if (mapping?.user_id) userId = mapping.user_id;
+      } catch {}
       
-      if (mapping?.user_id) {
-        const userId = mapping.user_id;
-        
+      // Fallback: studentId peut déjà être le user_id (auth UUID utilisé directement)
+      if (!userId) userId = studentId;
+      console.log('[Performance API] Theme mastery: userId=', userId, '(from mapping:', userId !== studentId, ')');
+      
+      {
         // Compter les sessions Solo
         const { data: soloSessions } = await supabase
           .from('sessions')
