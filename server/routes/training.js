@@ -60,14 +60,17 @@ router.post('/sessions', requireSupabase, async (req, res) => {
   try {
     const { matchId, classId, teacherId, sessionName, results, config, completedAt } = req.body;
     
-    // Construire le payload session (class_id optionnel pour mode multijoueur classique)
-    // id auto-généré par Supabase (UUID)
+    // Construire le payload session
+    // match_id doit être un UUID valide (la colonne est UUID en production)
+    // class_id ne peut pas être null (contrainte NOT NULL en production)
+    const isValidUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+    const safeMatchId = isValidUuid(matchId) ? matchId : uuidv4();
     const sessionPayload = {
-      match_id: matchId,
+      match_id: safeMatchId,
       teacher_id: teacherId || null,
       session_name: sessionName || 'Session',
       config: config || {},
-      class_id: classId || null,
+      class_id: classId || 'solo',
       completed_at: completedAt,
       created_at: new Date().toISOString()
     };

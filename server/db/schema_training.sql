@@ -6,8 +6,8 @@
 -- Table des sessions d'entraînement
 CREATE TABLE IF NOT EXISTS training_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  match_id TEXT NOT NULL,
-  class_id TEXT,
+  match_id UUID NOT NULL DEFAULT gen_random_uuid(),
+  class_id TEXT NOT NULL DEFAULT 'solo',
   teacher_id TEXT,
   session_name TEXT DEFAULT 'Session',
   config JSONB DEFAULT '{}',

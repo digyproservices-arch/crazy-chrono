@@ -1336,13 +1336,22 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
     const { studentId } = req.params;
 
     // 1. Récupérer les résultats Arena/Tournoi (match_results)
-    const { data: arenaResults, error: arenaError } = await supabase
-      .from('match_results')
-      .select('id, match_id, position, score, time_ms, pairs_validated, errors, created_at')
-      .eq('student_id', studentId)
-      .order('created_at', { ascending: true });
+    let arenaResults = [];
+    try {
+      const { data: aResults, error: arenaError } = await supabase
+        .from('match_results')
+        .select('id, match_id, position, score, time_ms, pairs_validated, errors, created_at')
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: true });
 
-    if (arenaError) throw arenaError;
+      if (!arenaError && aResults) {
+        arenaResults = aResults;
+      } else if (arenaError) {
+        console.warn('[Tournament API] match_results query failed:', arenaError.message);
+      }
+    } catch (e) {
+      console.warn('[Tournament API] match_results query exception:', e.message);
+    }
 
     // 1b. Récupérer les résultats Training (training_results)
     let trainingResults = [];
