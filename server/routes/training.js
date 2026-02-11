@@ -60,11 +60,9 @@ router.post('/sessions', requireSupabase, async (req, res) => {
   try {
     const { matchId, classId, teacherId, sessionName, results, config, completedAt } = req.body;
     
-    const sessionId = `training_${uuidv4()}`;
-    
     // Construire le payload session (class_id optionnel pour mode multijoueur classique)
+    // id auto-généré par Supabase (UUID)
     const sessionPayload = {
-      id: sessionId,
       match_id: matchId,
       teacher_id: teacherId || null,
       session_name: sessionName || 'Session',
@@ -84,14 +82,13 @@ router.post('/sessions', requireSupabase, async (req, res) => {
       console.error('[Training API] Session insert error:', sessionError);
       throw sessionError;
     }
+
+    const sessionId = session.id;
     
     for (const result of results) {
-      const resultId = `training_result_${uuidv4()}`;
-      
       const { error: resultError } = await supabase
         .from('training_results')
         .insert({
-          id: resultId,
           session_id: sessionId,
           student_id: result.studentId,
           position: result.position,

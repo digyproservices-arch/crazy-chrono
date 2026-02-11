@@ -5,7 +5,7 @@
 
 -- Table des sessions d'entraînement
 CREATE TABLE IF NOT EXISTS training_sessions (
-  id TEXT PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   match_id TEXT NOT NULL,
   class_id TEXT,
   teacher_id TEXT,
@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS training_sessions (
 
 -- Table des résultats individuels par session
 CREATE TABLE IF NOT EXISTS training_results (
-  id TEXT PRIMARY KEY,
-  session_id TEXT NOT NULL REFERENCES training_sessions(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL REFERENCES training_sessions(id) ON DELETE CASCADE,
   student_id TEXT NOT NULL,
   position INTEGER DEFAULT 1,
   score INTEGER DEFAULT 0,
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS training_results (
 
 -- Table des stats cumulées par élève
 CREATE TABLE IF NOT EXISTS student_training_stats (
-  student_id TEXT PRIMARY KEY,
+  student_id TEXT PRIMARY KEY,  -- TEXT car valeurs comme 's001'
   sessions_played INTEGER DEFAULT 0,
   total_score INTEGER DEFAULT 0,
   total_pairs INTEGER DEFAULT 0,
