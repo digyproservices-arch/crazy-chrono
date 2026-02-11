@@ -10,6 +10,13 @@ let userId = null;
 let buffer = [];
 const FLUSH_EVERY = 10; // flush after N attempts
 
+// Monitoring callback (set by Carte.js via setMonitorCallback)
+let monitorCb = null;
+export function setMonitorCallback(cb) { monitorCb = cb; }
+function emitLog(event, data) {
+  try { if (monitorCb) monitorCb(event, data); } catch {}
+}
+
 function getAuth() {
   try {
     const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
@@ -22,10 +29,10 @@ export async function startSession(cfg = {}) {
   sessionId = null;
   userId = null;
 
-  if (!supabase) { console.warn('[progress] no supabase client'); return null; }
+  if (!supabase) { emitLog('progress:skip', { reason: 'no supabase client' }); return null; }
   const auth = getAuth();
   // Guests are skipped silently
-  if (!auth || String(auth.id || '').startsWith('guest:')) { console.warn('[progress] no auth or guest'); return null; }
+  if (!auth || String(auth.id || '').startsWith('guest:')) { emitLog('progress:skip', { reason: 'no auth or guest' }); return null; }
 
   try {
     // Tenter d'obtenir le userId via Supabase auth session
@@ -34,14 +41,14 @@ export async function startSession(cfg = {}) {
       const supaUser = sess?.session?.user;
       if (supaUser) userId = supaUser.id;
     } catch (e) {
-      console.warn('[progress] supabase.auth.getSession failed:', e?.message);
+      emitLog('progress:auth-warn', { reason: 'supabase.auth.getSession failed', error: e?.message });
     }
     // Fallback: utiliser cc_auth.id directement
     if (!userId && auth.id) {
       userId = auth.id;
-      console.log('[progress] using cc_auth.id as userId fallback:', userId);
+      emitLog('progress:auth-fallback', { userId });
     }
-    if (!userId) { console.warn('[progress] no userId found'); return null; }
+    if (!userId) { emitLog('progress:skip', { reason: 'no userId found' }); return null; }
 
     const payload = {
       user_id: userId,
@@ -53,11 +60,10 @@ export async function startSession(cfg = {}) {
     const { data, error } = await supabase.from('sessions').insert(payload).select('id').single();
     if (error) throw error;
     sessionId = data?.id || null;
-    console.log('[progress] session started:', sessionId, 'userId:', userId);
+    emitLog('progress:session-started', { sessionId, userId });
     return sessionId;
   } catch (e) {
-    // eslint-disable-next-line no-console
-    console.warn('[progress] startSession failed:', e?.message || e);
+    emitLog('progress:session-failed', { error: e?.message || String(e) });
     return null;
   }
 }
@@ -65,8 +71,7 @@ export async function startSession(cfg = {}) {
 export async function recordAttempt(a) {
   // a = { item_type, item_id, objective_key, correct, latency_ms, level_class, theme, round_index }
   if (!sessionId || !userId || !supabase) {
-    // Log once to help diagnose
-    if (!sessionId && a?.correct !== undefined) console.warn('[progress] recordAttempt skipped: no sessionId');
+    if (!sessionId && a?.correct !== undefined) emitLog('progress:attempt-skipped', { reason: 'no sessionId', correct: a?.correct, theme: a?.theme });
     return;
   }
   const row = {
@@ -93,11 +98,10 @@ export async function flushAttempts() {
   try {
     const { error } = await supabase.from('attempts').insert(toSend);
     if (error) throw error;
-    console.log('[progress] flushed', toSend.length, 'attempts');
+    emitLog('progress:flushed', { count: toSend.length });
   } catch (e) {
     // on failure, try to requeue (best-effort)
     buffer = [...toSend, ...buffer];
-    // eslint-disable-next-line no-console
-    console.warn('[progress] flush failed, will retry later:', e?.message || e);
+    emitLog('progress:flush-failed', { error: e?.message || String(e), buffered: buffer.length });
   }
 }

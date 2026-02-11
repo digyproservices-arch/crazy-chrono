@@ -5,7 +5,7 @@ import '../styles/Carte.css';
 import { pointToSvgCoords, polygonToPointsStr, segmentsToSvgPath, pointsToBezierPath } from './CarteUtils';
 import { getBackendUrl } from '../utils/subscription';
 import { assignElementsToZones, fetchElements } from '../utils/elementsLoader';
-import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts } from '../utils/progress';
+import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
 import { isFree, canStartSessionToday, incrementSessionCount } from '../utils/subscription';
 
 // Single shared AudioContext for smoother audio on low devices
@@ -652,6 +652,9 @@ const Carte = () => {
       }
     } catch {}
   }, []);
+
+  // Brancher le monitoring de progress.js sur emitMonitoringEvent
+  useEffect(() => { pgSetMonitorCallback(emitMonitoringEvent); }, [emitMonitoringEvent]);
 
   // Résoudre cc_student_id au montage (même logique que Arena/Training lobbies)
   useEffect(() => {
