@@ -38,6 +38,16 @@ logger.info('[Server] Starting Crazy Chrono backend...', {
   env: process.env.NODE_ENV || 'development' 
 });
 
+// ==========================================
+// PERFORMANCE MONITORING - Real-time event emitter
+// Logs via Winston + emits to monitoring room
+// ==========================================
+function emitPerfEvent(type, data = {}) {
+  const event = { type, ...data, ts: new Date().toISOString() };
+  logger.info(`[Perf][${type}]`, event);
+  try { io.to('monitoring').emit('monitoring:perf', event); } catch {}
+}
+
 // Initialiser Supabase Admin AVANT CrazyArenaManager
 let supabaseAdmin = null;
 try {
@@ -995,9 +1005,9 @@ function endSession(roomCode) {
       .sort((a, b) => b.score - a.score)
       .map((p, idx) => ({ ...p, position: idx + 1 }));
     
-    console.log(`[MP] endSession room=${roomCode} players:`, ranking.map(p => ({ name: p.name, studentId: p.studentId, score: p.score })));
+    emitPerfEvent('endSession', { room: roomCode, players: ranking.map(p => ({ name: p.name, studentId: p.studentId, score: p.score })) });
     const identifiedPlayers = ranking.filter(p => p.studentId);
-    console.log(`[MP] identifiedPlayers: ${identifiedPlayers.length}/${ranking.length}`);
+    emitPerfEvent('endSession:identified', { room: roomCode, identified: identifiedPlayers.length, total: ranking.length });
     if (identifiedPlayers.length > 0) {
       const fetch = require('node-fetch');
       const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
@@ -1021,13 +1031,15 @@ function endSession(roomCode) {
           }))
         })
       }).then(r => {
-        console.log(`[MP] ✅ Résultats sauvegardés pour ${identifiedPlayers.length} joueurs (room ${roomCode}), status: ${r.status}`);
+        emitPerfEvent('save:success', { room: roomCode, players: identifiedPlayers.length, status: r.status });
       }).catch(e => {
-        console.warn(`[MP] ⚠️ Échec sauvegarde résultats:`, e.message);
+        emitPerfEvent('save:error', { room: roomCode, error: e.message });
       });
+    } else {
+      emitPerfEvent('save:skipped', { room: roomCode, reason: 'no identified players' });
     }
   } catch (e) {
-    console.warn('[MP] Erreur sauvegarde résultats:', e.message);
+    emitPerfEvent('save:exception', { room: roomCode, error: e.message });
   }
 }
 
@@ -1037,15 +1049,25 @@ io.on('connection', (socket) => {
 
   // Identifier le joueur (studentId) pour le tracking des stats
   let playerStudentId = null;
+  // Monitoring: permettre au dashboard de rejoindre la room monitoring
+  socket.on('monitoring:join', () => {
+    socket.join('monitoring');
+    socket.emit('monitoring:perf', { type: 'connected', ts: new Date().toISOString(), msg: 'Connecté au monitoring temps réel' });
+  });
+  // Monitoring: relayer les events client vers la room monitoring
+  socket.on('monitoring:client-event', (data) => {
+    try { io.to('monitoring').emit('monitoring:perf', { ...data, source: 'client', ts: new Date().toISOString() }); } catch {}
+  });
+
   socket.on('mp:identify', ({ studentId }) => {
     playerStudentId = studentId || null;
-    console.log(`[MP] mp:identify reçu socketId=${socket.id} studentId=${playerStudentId}`);
+    emitPerfEvent('mp:identify', { socketId: socket.id, studentId: playerStudentId });
     // Mettre à jour le joueur dans la room si déjà rejoint
     if (currentRoom) {
       const room = getRoom(currentRoom);
       const p = room.players.get(socket.id);
       if (p) { p.studentId = playerStudentId; room.players.set(socket.id, p); }
-      console.log(`[MP] mp:identify mis à jour dans room=${currentRoom}`);
+      emitPerfEvent('mp:identify-updated', { socketId: socket.id, room: currentRoom, studentId: playerStudentId });
     }
   });
 
@@ -1061,7 +1083,7 @@ io.on('connection', (socket) => {
     const newRoom = String(roomId || 'default');
     playerName = String(name || playerName);
     if (sid) playerStudentId = sid;
-    console.log(`[MP] joinRoom socketId=${socket.id} room=${newRoom} studentId=${playerStudentId} (sid=${sid||'null'})`);
+    emitPerfEvent('joinRoom', { socketId: socket.id, room: newRoom, studentId: playerStudentId, sidFromClient: sid || null });
     // si le joueur était déjà dans une autre salle, on le retire proprement
     if (currentRoom && currentRoom !== newRoom) {
       const old = getRoom(currentRoom);

@@ -643,23 +643,44 @@ const Carte = () => {
     fetchWithTimeout(`${getBackendUrl()}/healthz`, { cache: 'no-store' }, 1500).catch(() => {});
   }, []);
 
+  // Helper: émettre un event vers le monitoring temps réel (via Socket.IO)
+  const emitMonitoringEvent = useCallback((type, data = {}) => {
+    try {
+      const s = socketRef.current;
+      if (s && s.connected) {
+        s.emit('monitoring:client-event', { type, ...data });
+      }
+    } catch {}
+  }, []);
+
   // Résoudre cc_student_id au montage (même logique que Arena/Training lobbies)
   useEffect(() => {
-    if (localStorage.getItem('cc_student_id')) return; // déjà défini
+    const existing = localStorage.getItem('cc_student_id');
+    if (existing) {
+      emitMonitoringEvent('cc_student_id:resolved', { studentId: existing, source: 'localStorage' });
+      return;
+    }
     try {
       const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
-      if (!auth.token) return;
+      if (!auth.token) {
+        emitMonitoringEvent('cc_student_id:missing', { reason: 'no auth token' });
+        return;
+      }
       fetch(`${getBackendUrl()}/api/auth/me`, {
         headers: { 'Authorization': `Bearer ${auth.token}` }
       }).then(r => r.json()).then(data => {
         if (data.ok && data.student) {
           localStorage.setItem('cc_student_id', data.student.id);
           localStorage.setItem('cc_student_name', data.student.fullName || data.student.firstName || 'Joueur');
-          console.log('[Carte] cc_student_id résolu:', data.student.id);
+          emitMonitoringEvent('cc_student_id:resolved', { studentId: data.student.id, source: 'api/auth/me' });
+        } else {
+          emitMonitoringEvent('cc_student_id:missing', { reason: 'no student in response', isTeacher: data.user?.role });
         }
-      }).catch(() => {});
+      }).catch(e => {
+        emitMonitoringEvent('cc_student_id:missing', { reason: 'fetch error', error: e.message });
+      });
     } catch {}
-  }, []);
+  }, [emitMonitoringEvent]);
 
   // Determine if diagnostic UI is allowed (admin-only toggle)
   useEffect(() => {
@@ -2590,19 +2611,25 @@ useEffect(() => {
   
   // Détecter transition gameActive: true → false (fin de partie)
   if (wasActive && !gameActive && !arenaMatchId && !trainingMatchId) {
-    console.log('[Performance] 🔍 Transition gameActive: true→false détectée');
+    emitMonitoringEvent('perf:transition', { from: 'active', to: 'inactive' });
     try {
       const studentId = localStorage.getItem('cc_student_id');
-      console.log('[Performance] cc_student_id:', studentId || 'NON DÉFINI');
-      if (!studentId) { console.warn('[Performance] ⚠️ Pas de cc_student_id → sauvegarde ignorée'); return; }
+      if (!studentId) {
+        emitMonitoringEvent('perf:save-skipped', { reason: 'cc_student_id manquant' });
+        return;
+      }
       
       const pairsCount = validatedPairIdsRef.current?.size || 0;
-      console.log('[Performance] score:', score, 'pairsCount:', pairsCount);
-      if (pairsCount === 0 && score === 0) { console.warn('[Performance] ⚠️ score=0 et pairsCount=0 → sauvegarde ignorée'); return; }
+      if (pairsCount === 0 && score === 0) {
+        emitMonitoringEvent('perf:save-skipped', { reason: 'score=0 et pairsCount=0', studentId });
+        return;
+      }
       
       const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
       const isSolo = !cfg || cfg.mode === 'solo';
       const mode = isSolo ? 'solo' : 'multiplayer';
+      
+      emitMonitoringEvent('perf:save-attempt', { mode, studentId, score, pairsCount, duration: gameDuration });
       
       const backendUrl = getBackendUrl();
       fetch(`${backendUrl}/api/training/sessions`, {
@@ -2625,15 +2652,15 @@ useEffect(() => {
           }]
         })
       }).then(r => {
-        console.log(`[${mode.toUpperCase()}] 💾 Performance sauvegardée, status: ${r.status}`);
+        emitMonitoringEvent('perf:save-result', { mode, studentId, status: r.status, ok: r.ok });
       }).catch(e => {
-        console.warn(`[${mode.toUpperCase()}] ⚠️ Échec sauvegarde performance:`, e.message);
+        emitMonitoringEvent('perf:save-result', { mode, studentId, error: e.message });
       });
     } catch (e) {
-      console.warn('[Performance] Erreur sauvegarde:', e.message);
+      emitMonitoringEvent('perf:save-result', { error: e.message });
     }
   }
-}, [gameActive, arenaMatchId, trainingMatchId, score, gameDuration]);
+}, [gameActive, arenaMatchId, trainingMatchId, score, gameDuration, emitMonitoringEvent]);
 
 // Persister la durée choisie
 useEffect(() => {

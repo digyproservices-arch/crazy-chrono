@@ -3,9 +3,10 @@
 // Graphiques temporels, sélecteur date/heure, indicateurs d'erreurs
 // ==========================================
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getBackendUrl } from '../utils/apiHelpers';
+import { io } from 'socket.io-client';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -51,8 +52,13 @@ function MonitoringDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview'); // overview | logs | errors
+  const [activeTab, setActiveTab] = useState('overview'); // overview | logs | errors | performance
   const [copyFeedback, setCopyFeedback] = useState(null); // 'logs' | 'errors' | null
+  const [perfEvents, setPerfEvents] = useState([]);
+  const [perfConnected, setPerfConnected] = useState(false);
+  const perfSocketRef = useRef(null);
+  const perfBottomRef = useRef(null);
+  const [perfAutoScroll, setPerfAutoScroll] = useState(true);
 
   const copyToClipboard = async (text, source) => {
     try {
@@ -137,6 +143,30 @@ function MonitoringDashboard() {
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
+
+  // Socket.IO connection for real-time performance monitoring
+  useEffect(() => {
+    if (activeTab !== 'performance') return;
+    const base = getBackendUrl();
+    const s = io(base, { transports: ['websocket'], withCredentials: false });
+    perfSocketRef.current = s;
+    s.on('connect', () => {
+      setPerfConnected(true);
+      s.emit('monitoring:join');
+    });
+    s.on('disconnect', () => setPerfConnected(false));
+    s.on('monitoring:perf', (event) => {
+      setPerfEvents(prev => [...prev.slice(-499), event]);
+    });
+    return () => { s.disconnect(); perfSocketRef.current = null; };
+  }, [activeTab]);
+
+  // Auto-scroll performance log
+  useEffect(() => {
+    if (perfAutoScroll && perfBottomRef.current) {
+      perfBottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [perfEvents, perfAutoScroll]);
 
   useEffect(() => {
     if (activeTab === 'logs' || activeTab === 'errors') {
@@ -269,6 +299,7 @@ function MonitoringDashboard() {
             { id: 'overview', label: '📈 Vue d\'ensemble', icon: '' },
             { id: 'logs', label: '📋 Logs détaillés', icon: '' },
             { id: 'errors', label: `🔴 Erreurs (${totalErrors})`, icon: '' },
+            { id: 'performance', label: `🎯 Performance${perfConnected ? ' 🟢' : ''}`, icon: '' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -559,6 +590,85 @@ function MonitoringDashboard() {
               </div>
             )}
 
+            {/* ====== PERFORMANCE TAB ====== */}
+            {activeTab === 'performance' && (
+              <div>
+                {/* Status Bar */}
+                <div style={{ ...cardStyle, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                      width: 12, height: 12, borderRadius: '50%',
+                      background: perfConnected ? '#22c55e' : '#ef4444',
+                      boxShadow: perfConnected ? '0 0 8px #22c55e' : '0 0 8px #ef4444',
+                    }} />
+                    <span style={{ fontSize: 14, color: perfConnected ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
+                      {perfConnected ? 'Connecté au monitoring temps réel' : 'Déconnecté'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: COLORS.textMuted, cursor: 'pointer' }}>
+                      <input type="checkbox" checked={perfAutoScroll} onChange={e => setPerfAutoScroll(e.target.checked)} style={{ accentColor: COLORS.success }} />
+                      Auto-scroll
+                    </label>
+                    <button onClick={() => setPerfEvents([])} style={btnStyle('#334155')}>
+                      🗑️ Vider
+                    </button>
+                    <button
+                      onClick={() => copyToClipboard(perfEvents.map(e => `${e.ts} [${e.type}] ${e.source === 'client' ? '📱' : '🖥️'} ${JSON.stringify(e)}`).join('\n'), 'perf')}
+                      style={btnStyle(COLORS.info)}
+                    >
+                      {copyFeedback === 'perf' ? '✅ Copié !' : '📋 Copier'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Event Legend */}
+                <div style={{ ...cardStyle, marginBottom: 16, display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12 }}>
+                  <span style={{ color: COLORS.textMuted }}>Légende :</span>
+                  <span><b style={{ color: '#22c55e' }}>●</b> save:success</span>
+                  <span><b style={{ color: '#ef4444' }}>●</b> save:error / save:skipped</span>
+                  <span><b style={{ color: '#3b82f6' }}>●</b> mp:identify / joinRoom</span>
+                  <span><b style={{ color: '#f59e0b' }}>●</b> endSession</span>
+                  <span><b style={{ color: '#a855f7' }}>●</b> client events</span>
+                </div>
+
+                {/* Live Event Stream */}
+                <div style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
+                  <div style={{ padding: '12px 20px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 'bold' }}>📡 Flux temps réel ({perfEvents.length} events)</h3>
+                  </div>
+                  <div style={{ maxHeight: '60vh', overflowY: 'auto', padding: '8px 0', fontFamily: 'monospace', fontSize: 12 }}>
+                    {perfEvents.length === 0 ? (
+                      <div style={{ padding: 40, textAlign: 'center', color: COLORS.textMuted }}>
+                        En attente d'événements... Jouez une partie pour voir les logs ici.
+                      </div>
+                    ) : perfEvents.map((evt, i) => {
+                      const color = getPerfEventColor(evt.type);
+                      const icon = evt.source === 'client' ? '📱' : '🖥️';
+                      return (
+                        <div key={i} style={{
+                          padding: '6px 16px',
+                          borderLeft: `3px solid ${color}`,
+                          background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)',
+                          display: 'flex', gap: 10, alignItems: 'flex-start',
+                        }}>
+                          <span style={{ color: COLORS.textMuted, whiteSpace: 'nowrap', minWidth: 75 }}>
+                            {evt.ts ? new Date(evt.ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
+                          </span>
+                          <span style={{ fontSize: 14 }}>{icon}</span>
+                          <span style={{ color, fontWeight: 700, minWidth: 140 }}>{evt.type}</span>
+                          <span style={{ color: COLORS.text, wordBreak: 'break-word', flex: 1 }}>
+                            {formatPerfEventData(evt)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    <div ref={perfBottomRef} />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* ====== ERRORS TAB ====== */}
             {activeTab === 'errors' && (
               <div>
@@ -732,5 +842,36 @@ const tdStyle = {
   padding: '8px',
   color: COLORS.text,
 };
+
+// ========== Performance Monitoring Helpers ==========
+
+function getPerfEventColor(type) {
+  if (!type) return '#94a3b8';
+  if (type.startsWith('save:success')) return '#22c55e';
+  if (type.startsWith('save:error') || type.startsWith('save:exception')) return '#ef4444';
+  if (type.startsWith('save:skipped')) return '#f59e0b';
+  if (type.startsWith('mp:identify') || type === 'joinRoom') return '#3b82f6';
+  if (type.startsWith('endSession')) return '#f59e0b';
+  if (type === 'cc_student_id:resolved' || type === 'cc_student_id:missing') return '#8b5cf6';
+  if (type === 'perf:transition' || type === 'perf:save-attempt' || type === 'perf:save-result') return '#a855f7';
+  if (type === 'connected') return '#22c55e';
+  return '#94a3b8';
+}
+
+function formatPerfEventData(evt) {
+  if (!evt) return '';
+  const skip = new Set(['type', 'ts', 'source']);
+  const parts = [];
+  for (const [k, v] of Object.entries(evt)) {
+    if (skip.has(k)) continue;
+    if (v === null || v === undefined) continue;
+    if (typeof v === 'object') {
+      parts.push(`${k}=${JSON.stringify(v)}`);
+    } else {
+      parts.push(`${k}=${v}`);
+    }
+  }
+  return parts.join('  ');
+}
 
 export default MonitoringDashboard;
