@@ -643,6 +643,24 @@ const Carte = () => {
     fetchWithTimeout(`${getBackendUrl()}/healthz`, { cache: 'no-store' }, 1500).catch(() => {});
   }, []);
 
+  // Résoudre cc_student_id au montage (même logique que Arena/Training lobbies)
+  useEffect(() => {
+    if (localStorage.getItem('cc_student_id')) return; // déjà défini
+    try {
+      const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+      if (!auth.token) return;
+      fetch(`${getBackendUrl()}/api/auth/me`, {
+        headers: { 'Authorization': `Bearer ${auth.token}` }
+      }).then(r => r.json()).then(data => {
+        if (data.ok && data.student) {
+          localStorage.setItem('cc_student_id', data.student.id);
+          localStorage.setItem('cc_student_name', data.student.fullName || data.student.firstName || 'Joueur');
+          console.log('[Carte] cc_student_id résolu:', data.student.id);
+        }
+      }).catch(() => {});
+    } catch {}
+  }, []);
+
   // Determine if diagnostic UI is allowed (admin-only toggle)
   useEffect(() => {
     const urlHasAdmin = () => {
@@ -2572,12 +2590,15 @@ useEffect(() => {
   
   // Détecter transition gameActive: true → false (fin de partie)
   if (wasActive && !gameActive && !arenaMatchId && !trainingMatchId) {
+    console.log('[Performance] 🔍 Transition gameActive: true→false détectée');
     try {
       const studentId = localStorage.getItem('cc_student_id');
-      if (!studentId) return; // Pas d'élève identifié → pas de sauvegarde
+      console.log('[Performance] cc_student_id:', studentId || 'NON DÉFINI');
+      if (!studentId) { console.warn('[Performance] ⚠️ Pas de cc_student_id → sauvegarde ignorée'); return; }
       
       const pairsCount = validatedPairIdsRef.current?.size || 0;
-      if (pairsCount === 0 && score === 0) return; // Pas de jeu réel
+      console.log('[Performance] score:', score, 'pairsCount:', pairsCount);
+      if (pairsCount === 0 && score === 0) { console.warn('[Performance] ⚠️ score=0 et pairsCount=0 → sauvegarde ignorée'); return; }
       
       const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
       const isSolo = !cfg || cfg.mode === 'solo';

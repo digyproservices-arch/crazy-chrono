@@ -995,7 +995,9 @@ function endSession(roomCode) {
       .sort((a, b) => b.score - a.score)
       .map((p, idx) => ({ ...p, position: idx + 1 }));
     
+    console.log(`[MP] endSession room=${roomCode} players:`, ranking.map(p => ({ name: p.name, studentId: p.studentId, score: p.score })));
     const identifiedPlayers = ranking.filter(p => p.studentId);
+    console.log(`[MP] identifiedPlayers: ${identifiedPlayers.length}/${ranking.length}`);
     if (identifiedPlayers.length > 0) {
       const fetch = require('node-fetch');
       const backendUrl = process.env.BACKEND_URL || 'http://localhost:4000';
@@ -1037,11 +1039,13 @@ io.on('connection', (socket) => {
   let playerStudentId = null;
   socket.on('mp:identify', ({ studentId }) => {
     playerStudentId = studentId || null;
+    console.log(`[MP] mp:identify reçu socketId=${socket.id} studentId=${playerStudentId}`);
     // Mettre à jour le joueur dans la room si déjà rejoint
     if (currentRoom) {
       const room = getRoom(currentRoom);
       const p = room.players.get(socket.id);
       if (p) { p.studentId = playerStudentId; room.players.set(socket.id, p); }
+      console.log(`[MP] mp:identify mis à jour dans room=${currentRoom}`);
     }
   });
 
@@ -1057,6 +1061,7 @@ io.on('connection', (socket) => {
     const newRoom = String(roomId || 'default');
     playerName = String(name || playerName);
     if (sid) playerStudentId = sid;
+    console.log(`[MP] joinRoom socketId=${socket.id} room=${newRoom} studentId=${playerStudentId} (sid=${sid||'null'})`);
     // si le joueur était déjà dans une autre salle, on le retire proprement
     if (currentRoom && currentRoom !== newRoom) {
       const old = getRoom(currentRoom);
