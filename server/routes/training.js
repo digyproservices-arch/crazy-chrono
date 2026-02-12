@@ -60,6 +60,25 @@ router.post('/sessions', requireSupabase, async (req, res) => {
   try {
     const { matchId, classId, teacherId, sessionName, results, config, completedAt } = req.body;
     
+    // ── Déduplication : empêcher un double enregistrement pour le même joueur dans les 60s ──
+    if (Array.isArray(results) && results.length === 1) {
+      const r0 = results[0];
+      if (r0.studentId) {
+        const cutoff = new Date(Date.now() - 60 * 1000).toISOString();
+        const { data: recent } = await supabase
+          .from('training_results')
+          .select('id, score, created_at')
+          .eq('student_id', r0.studentId)
+          .gte('created_at', cutoff)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (recent && recent.length > 0 && recent[0].score === r0.score) {
+          console.warn('[Training API] Duplicate detected, skipping save', { studentId: r0.studentId, score: r0.score, existingId: recent[0].id });
+          return res.json({ success: true, deduplicated: true, message: 'Session déjà enregistrée (doublon détecté)' });
+        }
+      }
+    }
+    
     // Construire le payload session
     // match_id doit être un UUID valide (la colonne est UUID en production)
     // class_id ne peut pas être null (contrainte NOT NULL en production)
