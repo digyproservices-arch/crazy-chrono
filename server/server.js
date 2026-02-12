@@ -1287,6 +1287,7 @@ io.on('connection', (socket) => {
     room.roundsPlayed = 0;
     // Réinitialiser les erreurs de chaque joueur pour cette nouvelle session
     for (const [id, pl] of room.players.entries()) {
+      pl.score = 0;
       pl.errors = 0;
       room.players.set(id, pl);
     }
