@@ -2788,6 +2788,9 @@ function startGame() {
 async function doStart() {
   try {
     try { window.ccAddDiag && window.ccAddDiag('doStart:called'); } catch {}
+    // Reset score pour nouvelle partie
+    setScore(0);
+    scoreRef.current = 0;
     // Enregistrer le début de la session pour calculer la durée totale
     sessionStartTimeRef.current = Date.now();
     // Annuler tout timer de sauvegarde en cours d'une session précédente
