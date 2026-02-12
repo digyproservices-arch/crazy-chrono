@@ -637,6 +637,8 @@ const Carte = () => {
   const [imageAnalysisOpen, setImageAnalysisOpen] = useState(false);
   const [imageStats, setImageStats] = useState(null);
   const autoStartRef = useRef(false);
+  // Ref pour stocker assocData (accessible au click handler pour extraire la catégorie des zones)
+  const assocDataRef = useRef({});
 
   // Prewarm backend (non-blocking) to reduce cold-start latency
   useEffect(() => {
@@ -2978,27 +2980,48 @@ function handleGameClick(zone) {
         levelClass = Array.isArray(cfg?.classes) && cfg.classes[0] ? String(cfg.classes[0]) : '';
         cfgTheme = Array.isArray(cfg?.themes) && cfg.themes[0] ? String(cfg.themes[0]) : '';
       } catch {}
+      // Mapping thème code → label lisible
+      const THEME_DISPLAY = { 'botanique': 'Plantes médicinales', 'multiplication': 'Tables de multiplication', 'geographie': 'Géographie', 'animaux': 'Animaux', 'fruits': 'Fruits & Légumes' };
+      const themeLabel = (code) => { if (!code) return ''; const c = String(code).toLowerCase().trim(); return THEME_DISPLAY[c] || (c.charAt(0).toUpperCase() + c.slice(1)); };
       // TOUJOURS extraire itemDetail et thème granulaire (même si config a un thème)
       if (item_type === 'calcnum') {
         const calculZone = t1 === 'calcul' ? ZA : ZB;
         const chiffreZone = t1 === 'chiffre' ? ZA : ZB;
         const calcText = String(calculZone?.content || '').trim();
         const chiffreText = String(chiffreZone?.content || '').trim();
-        const factors = calcText.match(/(\d+)\s*[×x*]\s*(\d+)/);
-        if (factors) {
-          const table = Math.min(parseInt(factors[1], 10), parseInt(factors[2], 10));
+        const mulMatch = calcText.match(/(\d+)\s*[×x*]\s*(\d+)/);
+        const addMatch = !mulMatch && calcText.match(/(\d+)\s*[+]\s*(\d+)/);
+        const subMatch = !mulMatch && !addMatch && calcText.match(/(\d+)\s*[-]\s*(\d+)/);
+        if (mulMatch) {
+          const table = Math.min(parseInt(mulMatch[1], 10), parseInt(mulMatch[2], 10));
           theme = `Table de ${table}`;
           itemDetail = `${calcText} = ${chiffreText}`;
+        } else if (addMatch) {
+          theme = 'Additions';
+          itemDetail = `${calcText} = ${chiffreText}`;
+        } else if (subMatch) {
+          theme = 'Soustractions';
+          itemDetail = `${calcText} = ${chiffreText}`;
         } else {
-          theme = cfgTheme || 'Calculs & Chiffres';
-          itemDetail = calcText || chiffreText;
+          theme = cfgTheme ? themeLabel(cfgTheme) : 'Calculs divers';
+          itemDetail = calcText ? `${calcText} = ${chiffreText}` : (chiffreText || '');
         }
       } else {
         const texteZone = t1 === 'texte' ? ZA : ZB;
         const imageZone = t1 === 'image' ? ZA : ZB;
         const textContent = String(texteZone?.content || texteZone?.label || '').trim();
         const imageUrl = String(imageZone?.content || '').trim();
-        theme = cfgTheme || 'Images & Textes';
+        // Chercher la catégorie réelle depuis assocData (ex: "botanique" → "Plantes médicinales")
+        let zoneTheme = '';
+        try {
+          const ad = assocDataRef.current || {};
+          const lc = textContent.toLowerCase().trim();
+          const texteEntry = (ad.textes || []).find(t => String(t.content || '').toLowerCase().trim() === lc);
+          if (texteEntry && Array.isArray(texteEntry.themes) && texteEntry.themes[0]) {
+            zoneTheme = themeLabel(texteEntry.themes[0]);
+          }
+        } catch {}
+        theme = zoneTheme || (cfgTheme ? themeLabel(cfgTheme) : 'Images & Textes');
         try { itemDetail = JSON.stringify({ text: textContent, img: imageUrl }); } catch { itemDetail = textContent; }
       }
       if (okPair) {
@@ -3937,6 +3960,7 @@ setZones(dataWithRandomTexts);
       try {
         const respAssoc = await fetch(process.env.PUBLIC_URL + '/data/associations.json');
         assocData = await respAssoc.json();
+        try { assocDataRef.current = assocData; } catch {}
       } catch (e) {
         console.warn('Impossible de charger associations.json pour l\'attribution:', e);
         if (deterministicSync) {
