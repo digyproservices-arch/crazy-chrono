@@ -430,10 +430,15 @@ export default function StudentPerformance() {
           {/* ===== STAT CARDS ===== */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 24 }}>
             {[
-              { label: 'Matchs joués', value: stats.totalMatches, icon: '🎮', color: '#1AACBE' },
-              { label: 'Victoires', value: `${stats.totalWins} (${stats.winRate}%)`, icon: '🏆', color: '#F5A623' },
+              { label: 'Parties jouées', value: stats.totalMatches, icon: '🎮', color: '#1AACBE' },
+              ...(stats.competitiveMatches > 0 ? [
+                { label: 'Victoires', value: `${stats.totalWins} (${stats.winRate}%)`, icon: '🏆', color: '#F5A623', subtitle: `sur ${stats.competitiveMatches} matchs` }
+              ] : []),
+              ...(stats.soloMatches > 0 ? [
+                { label: 'Sessions solo', value: stats.soloMatches, icon: '🎯', color: '#0d9488' },
+                { label: 'Record solo', value: stats.soloBestScore || 0, icon: '🔥', color: '#dc2626' }
+              ] : []),
               { label: 'Score moyen', value: stats.avgScore, icon: '⭐', color: '#d97706' },
-              { label: 'Meilleur score', value: stats.bestScore, icon: '🔥', color: '#dc2626' },
               { label: 'Précision', value: `${stats.accuracy}%`, icon: '🎯', color: '#8b5cf6' },
               { label: 'Rapidité moy.', value: `${stats.avgSpeed}/min`, icon: '⚡', color: '#0891b2' }
             ].map((s, i) => (
@@ -449,8 +454,8 @@ export default function StudentPerformance() {
             ))}
           </div>
 
-          {/* Streaks */}
-          {(streaks.currentWin > 0 || streaks.bestWin > 0) && (
+          {/* Streaks (compétitif uniquement) */}
+          {stats.competitiveMatches > 0 && (streaks.currentWin > 0 || streaks.bestWin > 0) && (
             <div style={{
               display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap'
             }}>

@@ -1364,13 +1364,29 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
         .eq('student_id', studentId)
         .order('created_at', { ascending: true });
       
-      if (!tError && tResults) {
-        trainingResults = tResults.map(r => ({
-          ...r,
-          match_id: r.session_id, // Normaliser pour compatibilité
-          mode: 'training'
-        }));
-        console.log('[Performance API] training_results:', tResults.length, 'rows');
+      if (!tError && tResults && tResults.length > 0) {
+        // Joindre avec training_sessions pour déterminer le mode (solo vs compétitif)
+        const sessionIds = [...new Set(tResults.map(r => r.session_id).filter(Boolean))];
+        let sessionsMap = {};
+        if (sessionIds.length > 0) {
+          const { data: sessions } = await supabase
+            .from('training_sessions')
+            .select('id, class_id, config')
+            .in('id', sessionIds);
+          (sessions || []).forEach(s => { sessionsMap[s.id] = s; });
+        }
+        
+        trainingResults = tResults.map(r => {
+          const session = sessionsMap[r.session_id] || {};
+          const configMode = session.config?.mode || null;
+          const isSolo = session.class_id === 'solo' || configMode === 'solo' || r.position === null;
+          return {
+            ...r,
+            match_id: r.session_id,
+            mode: isSolo ? 'solo' : 'training'
+          };
+        });
+        console.log('[Performance API] training_results:', tResults.length, 'rows (solo:', trainingResults.filter(r => r.mode === 'solo').length, ', compétitif:', trainingResults.filter(r => r.mode === 'training').length, ')');
       } else if (tError) {
         console.warn('[Performance API] training_results query failed:', tError.message);
       }
@@ -1388,7 +1404,7 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
       return res.json({
         success: true,
         studentId,
-        stats: { totalMatches: 0, totalWins: 0, winRate: 0, avgScore: 0, bestScore: 0, avgTime: 0, bestTime: 0, avgPairs: 0, totalPairs: 0, avgErrors: 0, totalErrors: 0, avgSpeed: 0, bestSpeed: 0, accuracy: 0 },
+        stats: { totalMatches: 0, competitiveMatches: 0, soloMatches: 0, totalWins: 0, winRate: 0, avgScore: 0, bestScore: 0, avgTime: 0, bestTime: 0, avgPairs: 0, totalPairs: 0, avgErrors: 0, totalErrors: 0, avgSpeed: 0, bestSpeed: 0, accuracy: 0, soloBestScore: 0, soloAvgScore: 0, soloBestSpeed: 0 },
         history: [],
         progression: [],
         streaks: { currentWin: 0, bestWin: 0 }
@@ -1406,9 +1422,12 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
       (matches || []).forEach(m => { matchesMap[m.id] = m; });
     }
 
-    // 3. Calculer les stats
+    // 3. Calculer les stats (séparer solo et compétitif)
+    const competitiveResults = results.filter(r => r.mode !== 'solo');
+    const soloResults = results.filter(r => r.mode === 'solo');
     const totalMatches = results.length;
-    const wins = results.filter(r => r.position === 1).length;
+    const competitiveMatches = competitiveResults.length;
+    const wins = competitiveResults.filter(r => r.position === 1).length;
     const scores = results.map(r => r.score || 0);
     const times = results.map(r => r.time_ms || 0).filter(t => t > 0);
     const pairs = results.map(r => r.pairs_validated || 0);
@@ -1420,13 +1439,22 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
       return (r.pairs_validated / (r.time_ms / 60000));
     }).filter(s => s > 0);
 
+    // Stats solo spécifiques (records)
+    const soloScores = soloResults.map(r => r.score || 0);
+    const soloSpeeds = soloResults.map(r => {
+      if (!r.time_ms || r.time_ms <= 0 || !r.pairs_validated) return 0;
+      return (r.pairs_validated / (r.time_ms / 60000));
+    }).filter(s => s > 0);
+
     const sum = arr => arr.reduce((a, b) => a + b, 0);
     const avg = arr => arr.length > 0 ? sum(arr) / arr.length : 0;
 
     const stats = {
       totalMatches,
+      competitiveMatches,
+      soloMatches: soloResults.length,
       totalWins: wins,
-      winRate: totalMatches > 0 ? Math.round((wins / totalMatches) * 100) : 0,
+      winRate: competitiveMatches > 0 ? Math.round((wins / competitiveMatches) * 100) : 0,
       avgScore: Math.round(avg(scores)),
       bestScore: Math.max(...scores, 0),
       avgTime: Math.round(avg(times)),
@@ -1437,7 +1465,10 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
       totalErrors: sum(errors),
       avgSpeed: Math.round(avg(speeds) * 10) / 10,
       bestSpeed: speeds.length > 0 ? Math.round(Math.max(...speeds) * 10) / 10 : 0,
-      accuracy: sum(pairs) > 0 ? Math.round((sum(pairs) / (sum(pairs) + sum(errors))) * 100) : 0
+      accuracy: sum(pairs) > 0 ? Math.round((sum(pairs) / (sum(pairs) + sum(errors))) * 100) : 0,
+      soloBestScore: soloScores.length > 0 ? Math.max(...soloScores) : 0,
+      soloAvgScore: Math.round(avg(soloScores)),
+      soloBestSpeed: soloSpeeds.length > 0 ? Math.round(Math.max(...soloSpeeds) * 10) / 10 : 0
     };
 
     // 4. Historique enrichi
@@ -1455,7 +1486,7 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
         speed: r.time_ms > 0 && r.pairs_validated > 0 ? Math.round((r.pairs_validated / (r.time_ms / 60000)) * 10) / 10 : 0,
         mode: r.mode || match.mode || 'arena',
         roomCode: match.room_code || null,
-        isWin: r.position === 1
+        isWin: r.mode !== 'solo' && r.position === 1
       };
     });
 
@@ -1483,15 +1514,15 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
         avgPairs: Math.round(avg(windowPairs) * 10) / 10,
         speed: windowSpeeds[windowSpeeds.length - 1] > 0 ? Math.round(windowSpeeds[windowSpeeds.length - 1] * 10) / 10 : 0,
         avgSpeed: Math.round(avg(windowSpeeds.filter(s => s > 0)) * 10) / 10,
-        isWin: results[i].position === 1
+        isWin: results[i].mode !== 'solo' && results[i].position === 1
       });
     }
 
-    // 6. Séries de victoires
+    // 6. Séries de victoires (compétitif uniquement, le solo n'a pas de victoires)
     let currentWinStreak = 0;
     let bestWinStreak = 0;
     let tempStreak = 0;
-    for (const r of results) {
+    for (const r of competitiveResults) {
       if (r.position === 1) {
         tempStreak++;
         if (tempStreak > bestWinStreak) bestWinStreak = tempStreak;
@@ -1500,8 +1531,8 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
       }
     }
     // Current streak from the end
-    for (let i = results.length - 1; i >= 0; i--) {
-      if (results[i].position === 1) currentWinStreak++;
+    for (let i = competitiveResults.length - 1; i >= 0; i--) {
+      if (competitiveResults[i].position === 1) currentWinStreak++;
       else break;
     }
 

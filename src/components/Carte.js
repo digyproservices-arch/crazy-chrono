@@ -2724,7 +2724,7 @@ useEffect(() => {
             completedAt: new Date().toISOString(),
             results: [{
               studentId,
-              position: 1,
+              position: isSolo ? null : 1,
               score: finalScore,
               timeMs: sessionElapsedSec * 1000,
               pairsValidated: pairsCount,
