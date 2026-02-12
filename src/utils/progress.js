@@ -92,11 +92,26 @@ export async function startSession(cfg = {}) {
   }
 }
 
+let _lazyInitInProgress = false;
 export async function recordAttempt(a) {
   // a = { item_type, item_id, objective_key, correct, latency_ms, level_class, theme, round_index }
+  // Lazy init: if startSession was never called, create session now
+  if (!sessionId && !_lazyInitInProgress) {
+    _lazyInitInProgress = true;
+    _log('recordAttempt:lazyInit', { theme: a?.theme });
+    try {
+      const cfg = (() => { try { return JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch { return null; } })();
+      await startSession({
+        mode: 'solo',
+        classes: Array.isArray(cfg?.classes) ? cfg.classes : [],
+        themes: Array.isArray(cfg?.themes) ? cfg.themes : [],
+      });
+    } catch {}
+    _lazyInitInProgress = false;
+  }
   if (!sessionId || !userId) {
     if (!sessionId && a?.correct !== undefined) {
-      _log('recordAttempt:SKIPPED', { reason: 'no sessionId', theme: a?.theme, correct: a?.correct });
+      _log('recordAttempt:SKIPPED', { reason: 'no sessionId after lazyInit', theme: a?.theme, correct: a?.correct });
       emitLog('progress:attempt-skipped', { reason: 'no sessionId', correct: a?.correct, theme: a?.theme });
     }
     return;
