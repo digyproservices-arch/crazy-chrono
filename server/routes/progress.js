@@ -95,6 +95,45 @@ router.post('/attempts', async (req, res) => {
   }
 });
 
+// GET /api/progress/debug/:userId — Show data for a specific user (diagnostic)
+router.get('/debug/:userId', async (req, res) => {
+  try {
+    const supabase = req.app.locals.supabaseAdmin;
+    if (!supabase) return res.status(503).json({ error: 'supabase_not_configured' });
+    const { userId } = req.params;
+
+    // Check sessions
+    const { data: sessions, error: se } = await supabase
+      .from('sessions').select('id, user_id, mode, themes, created_at')
+      .eq('user_id', userId).order('created_at', { ascending: false }).limit(5);
+
+    // Check attempts
+    const { data: attempts, error: ae } = await supabase
+      .from('attempts').select('user_id, theme, level_class, correct, latency_ms, item_type, created_at')
+      .eq('user_id', userId).order('created_at', { ascending: false }).limit(10);
+
+    // Check training_results
+    const { data: training, error: te } = await supabase
+      .from('training_results').select('student_id, score, pairs_validated, created_at')
+      .eq('student_id', userId).order('created_at', { ascending: false }).limit(5);
+
+    // List distinct user_ids in sessions (to find the right one)
+    const { data: distinctUsers } = await supabase
+      .from('sessions').select('user_id').limit(20);
+    const uniqueUserIds = [...new Set((distinctUsers || []).map(r => r.user_id))];
+
+    return res.json({
+      query_userId: userId,
+      sessions: { count: sessions?.length || 0, error: se?.message || null, rows: sessions || [] },
+      attempts: { count: attempts?.length || 0, error: ae?.message || null, rows: attempts || [] },
+      training_results: { count: training?.length || 0, error: te?.message || null, rows: training || [] },
+      all_session_user_ids: uniqueUserIds
+    });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/progress/health — Diagnostic endpoint (testable via browser)
 router.get('/health', async (req, res) => {
   const diag = { route: true, supabase: false, sessions_table: false, attempts_table: false, sessions_count: 0, attempts_count: 0, error: null };
