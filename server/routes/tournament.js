@@ -1433,16 +1433,17 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
     const pairs = results.map(r => r.pairs_validated || 0);
     const errors = results.map(r => r.errors || 0);
 
-    // Vitesse = paires par minute
+    // Vitesse = paires par minute (seuil minimum 10s pour éviter les valeurs aberrantes)
+    const MIN_TIME_MS = 10000; // 10 secondes minimum pour un calcul de vitesse fiable
     const speeds = results.map(r => {
-      if (!r.time_ms || r.time_ms <= 0 || !r.pairs_validated) return 0;
+      if (!r.time_ms || r.time_ms < MIN_TIME_MS || !r.pairs_validated) return 0;
       return (r.pairs_validated / (r.time_ms / 60000));
     }).filter(s => s > 0);
 
     // Stats solo spécifiques (records)
     const soloScores = soloResults.map(r => r.score || 0);
     const soloSpeeds = soloResults.map(r => {
-      if (!r.time_ms || r.time_ms <= 0 || !r.pairs_validated) return 0;
+      if (!r.time_ms || r.time_ms < MIN_TIME_MS || !r.pairs_validated) return 0;
       return (r.pairs_validated / (r.time_ms / 60000));
     }).filter(s => s > 0);
 
@@ -1483,7 +1484,7 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
         timeMs: r.time_ms || 0,
         pairsValidated: r.pairs_validated || 0,
         errors: r.errors || 0,
-        speed: r.time_ms > 0 && r.pairs_validated > 0 ? Math.round((r.pairs_validated / (r.time_ms / 60000)) * 10) / 10 : 0,
+        speed: r.time_ms >= MIN_TIME_MS && r.pairs_validated > 0 ? Math.round((r.pairs_validated / (r.time_ms / 60000)) * 10) / 10 : 0,
         mode: r.mode || match.mode || 'arena',
         roomCode: match.room_code || null,
         isWin: r.mode !== 'solo' && r.position === 1
@@ -1499,7 +1500,7 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
       const windowErrors = window.map(r => r.errors || 0);
       const windowPairs = window.map(r => r.pairs_validated || 0);
       const windowSpeeds = window.map(r => {
-        if (!r.time_ms || r.time_ms <= 0 || !r.pairs_validated) return 0;
+        if (!r.time_ms || r.time_ms < MIN_TIME_MS || !r.pairs_validated) return 0;
         return r.pairs_validated / (r.time_ms / 60000);
       });
 
