@@ -1050,7 +1050,7 @@ function endSession(roomCode) {
             studentId: p.studentId,
             position: p.position,
             score: p.score,
-            timeMs: (room.duration || 60) * 1000,
+            timeMs: room.sessionStartedAt ? (Date.now() - room.sessionStartedAt) : ((room.duration || 60) * 1000),
             pairsValidated: p.score,
             errors: p.errors || 0
           }))
@@ -1243,6 +1243,7 @@ io.on('connection', (socket) => {
       room.players.set(id, pl);
     }
     room.sessionActive = true;
+    room.sessionStartedAt = Date.now();
     room.status = 'countdown';
     room.roundsPlayed = 0;
     emitRoomState(currentRoom);
@@ -1278,6 +1279,7 @@ io.on('connection', (socket) => {
     }
     // Initialiser une session même en solo afin que les timeouts et résultats enchaînent correctement
     room.sessionActive = true;
+    room.sessionStartedAt = Date.now();
     room.status = 'playing';
     room.resolved = false;
     room.roundsPlayed = 0;

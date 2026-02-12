@@ -2690,6 +2690,13 @@ useEffect(() => {
           return;
         }
         
+        // Si le socket est connecté, le serveur sauvegarde via endSession → ne pas sauvegarder en double
+        const s = socketRef.current;
+        if (s && s.connected) {
+          emitMonitoringEvent('perf:save-skipped', { reason: 'socket connected, server saves via endSession', studentId });
+          return;
+        }
+        
         emitMonitoringEvent('perf:save-attempt', { mode, studentId, score: finalScore, pairsCount, duration: sessionElapsedSec });
         
         const backendUrl = getBackendUrl();
