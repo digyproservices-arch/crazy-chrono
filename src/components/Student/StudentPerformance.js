@@ -32,12 +32,49 @@ function MasteryTab({ themeMastery }) {
 
   const getColor = (acc) => acc >= 80 ? '#059669' : acc >= 60 ? '#d97706' : '#dc2626';
   const getBg = (acc) => acc >= 80 ? '#f0fdf4' : acc >= 60 ? '#fffbeb' : '#fef2f2';
-  const getLabel = (acc) => acc >= 80 ? '✅ Maîtrisé' : acc >= 60 ? '⚠️ En progrès' : '❌ À travailler';
   const fmtLatency = (ms) => !ms ? '' : ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
+
+  // Mastery label: requires both accuracy AND coverage (minimum unique items)
+  const getMasteryLabel = (t) => {
+    const isTable = t.theme.startsWith('Table de ');
+    const uniqueItems = (t.items || []).length;
+    // For tables: require at least 5 unique calculations to be "Maîtrisé"
+    // For other themes: require at least 3 unique items
+    const minCoverage = isTable ? 5 : 3;
+    if (t.accuracy >= 80 && uniqueItems >= minCoverage) return '✅ Maîtrisé';
+    if (t.accuracy >= 80 && uniqueItems < minCoverage) return '🔍 Vu partiellement';
+    if (t.accuracy >= 60) return '⚠️ En progrès';
+    return '❌ À travailler';
+  };
+
+  // Resolve image URL (relative → absolute with PUBLIC_URL)
+  const resolveImg = (raw) => {
+    if (!raw) return null;
+    if (raw.startsWith('http')) return raw;
+    const base = (process.env.PUBLIC_URL || '').replace(/\/$/, '');
+    const path = raw.startsWith('/') ? raw : (raw.startsWith('images/') ? '/' + raw : '/images/' + raw);
+    return base + path;
+  };
+
+  // Parse item_id: can be JSON {text, img} for image-texte or plain string for calc
+  const parseItem = (raw) => {
+    if (!raw) return { text: '', img: null };
+    // Skip cryptic IDs (assoc-calc-..., assoc-img-..., UUIDs joined by |)
+    if (/^assoc-/.test(raw) || /^[a-f0-9-]{20,}\|/.test(raw) || /^\d{10,}\|/.test(raw)) {
+      return { text: null, img: null, hidden: true };
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && parsed.text) {
+        return { text: parsed.text, img: parsed.img ? resolveImg(parsed.img) : null };
+      }
+    } catch {}
+    return { text: raw, img: null };
+  };
 
   // Separate multiplication tables from other themes for grouped display
   const tables = themeMastery.filter(t => t.theme.startsWith('Table de '));
-  const others = themeMastery.filter(t => !t.theme.startsWith('Table de '));
+  const others = themeMastery.filter(t => !t.theme.startsWith('Table de ') && t.theme !== 'autre');
 
   // Aggregate multiplication tables stats
   const tablesAgg = tables.length > 0 ? {
@@ -47,22 +84,36 @@ function MasteryTab({ themeMastery }) {
     avgLatencyMs: Math.round(tables.reduce((s, t) => s + (t.avgLatencyMs * t.total), 0) / Math.max(1, tables.reduce((s, t) => s + t.total, 0)))
   } : null;
 
-  const renderItemGrid = (items) => {
+  const renderItemGrid = (items, themeType) => {
     if (!items || items.length === 0) return null;
+    // Filter out items with cryptic IDs
+    const displayItems = items.map(it => ({ ...it, parsed: parseItem(it.item) })).filter(it => !it.parsed.hidden);
+    if (displayItems.length === 0) return null;
+    const isImgTxt = themeType === 'imgtxt';
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 6, marginTop: 10 }}>
-        {items.map((it, i) => {
+      <div style={{ display: 'grid', gridTemplateColumns: isImgTxt ? 'repeat(auto-fill, minmax(220px, 1fr))' : 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8, marginTop: 10 }}>
+        {displayItems.map((it, i) => {
           const c = getColor(it.accuracy);
           const icon = it.accuracy >= 80 ? '✓' : it.accuracy >= 60 ? '~' : '✗';
+          const p = it.parsed;
           return (
             <div key={i} style={{
               display: 'flex', alignItems: 'center', gap: 8,
-              padding: '6px 10px', borderRadius: 8, fontSize: 12,
+              padding: '8px 10px', borderRadius: 8, fontSize: 12,
               background: getBg(it.accuracy), border: `1px solid ${c}22`
             }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: c, minWidth: 16, textAlign: 'center' }}>{icon}</span>
+              <span style={{ fontSize: 16, fontWeight: 700, color: c, minWidth: 18, textAlign: 'center' }}>{icon}</span>
+              {p.img && (
+                <img
+                  src={p.img} alt={p.text || ''}
+                  style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, border: '1px solid #e2e8f0', flexShrink: 0 }}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              )}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.item}</div>
+                <div style={{ fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {p.text || it.item}
+                </div>
                 <div style={{ fontSize: 10, color: '#64748b' }}>
                   {it.correct}/{it.total} — {it.accuracy}%{it.avgLatencyMs > 0 ? ` — ${fmtLatency(it.avgLatencyMs)}` : ''}
                 </div>
@@ -77,7 +128,12 @@ function MasteryTab({ themeMastery }) {
   const renderThemeCard = (t) => {
     const color = getColor(t.accuracy);
     const isExpanded = expandedThemes[t.theme];
-    const hasItems = t.items && t.items.length > 0;
+    const displayItems = (t.items || []).filter(it => !parseItem(it.item).hidden);
+    const hasItems = displayItems.length > 0;
+    const label = getMasteryLabel(t);
+    const isTable = t.theme.startsWith('Table de ');
+    // Determine if this theme has image-texte items
+    const themeType = displayItems.some(it => { try { const p = JSON.parse(it.item); return p && p.img; } catch { return false; } }) ? 'imgtxt' : 'calc';
     return (
       <div key={t.theme} style={{ background: getBg(t.accuracy), borderRadius: 12, padding: '16px 18px', border: `1px solid ${color}22` }}>
         <div
@@ -87,10 +143,12 @@ function MasteryTab({ themeMastery }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {hasItems && <span style={{ fontSize: 12, color: '#64748b', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>}
             <span style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{t.theme}</span>
-            <span style={{ fontSize: 12, color: '#64748b' }}>{t.total} tentatives</span>
+            <span style={{ fontSize: 12, color: '#64748b' }}>
+              {t.total} tentatives{hasItems ? ` · ${displayItems.length} élément${displayItems.length > 1 ? 's' : ''} vu${displayItems.length > 1 ? 's' : ''}` : ''}
+            </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 12, color: '#64748b' }}>{getLabel(t.accuracy)}</span>
+            <span style={{ fontSize: 12, color: '#64748b' }}>{label}</span>
             <span style={{ fontSize: 20, fontWeight: 800, color }}>{t.accuracy}%</span>
           </div>
         </div>
@@ -99,6 +157,11 @@ function MasteryTab({ themeMastery }) {
         </div>
         <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           {t.avgLatencyMs > 0 && <span style={{ fontSize: 11, color: '#64748b' }}>⚡ {fmtLatency(t.avgLatencyMs)}</span>}
+          {isTable && hasItems && (
+            <span style={{ fontSize: 11, color: '#64748b' }}>
+              📊 Couverture : {displayItems.length}/10 calculs
+            </span>
+          )}
           {t.levels && t.levels.length > 0 && t.levels.map(l => (
             <span key={l.level} style={{
               padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600,
@@ -109,10 +172,15 @@ function MasteryTab({ themeMastery }) {
             </span>
           ))}
         </div>
-        {isExpanded && hasItems && renderItemGrid(t.items)}
+        {isExpanded && hasItems && renderItemGrid(displayItems.map(it => ({ ...it })), themeType)}
       </div>
     );
   };
+
+  // Count mastery using the new coverage-aware label
+  const masteredCount = themeMastery.filter(t => getMasteryLabel(t) === '✅ Maîtrisé').length;
+  const progressCount = themeMastery.filter(t => { const l = getMasteryLabel(t); return l === '⚠️ En progrès' || l === '🔍 Vu partiellement'; }).length;
+  const needsWorkCount = themeMastery.filter(t => getMasteryLabel(t) === '❌ À travailler').length;
 
   return (
     <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
@@ -160,23 +228,17 @@ function MasteryTab({ themeMastery }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 20 }}>
         <div style={{ textAlign: 'center', padding: 14, background: '#f0fdf4', borderRadius: 10 }}>
           <div style={{ fontSize: 11, color: '#047857', fontWeight: 600 }}>Thèmes maîtrisés</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#059669' }}>
-            {themeMastery.filter(t => t.accuracy >= 80).length}
-          </div>
-          <div style={{ fontSize: 10, color: '#047857' }}>≥ 80% de réussite</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#059669' }}>{masteredCount}</div>
+          <div style={{ fontSize: 10, color: '#047857' }}>≥ 80% + couverture</div>
         </div>
         <div style={{ textAlign: 'center', padding: 14, background: '#fffbeb', borderRadius: 10 }}>
           <div style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>En progrès</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#d97706' }}>
-            {themeMastery.filter(t => t.accuracy >= 60 && t.accuracy < 80).length}
-          </div>
-          <div style={{ fontSize: 10, color: '#b45309' }}>60-79% de réussite</div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#d97706' }}>{progressCount}</div>
+          <div style={{ fontSize: 10, color: '#b45309' }}>Couverture partielle</div>
         </div>
         <div style={{ textAlign: 'center', padding: 14, background: '#fef2f2', borderRadius: 10 }}>
           <div style={{ fontSize: 11, color: '#991b1b', fontWeight: 600 }}>À travailler</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: '#dc2626' }}>
-            {themeMastery.filter(t => t.accuracy < 60).length}
-          </div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#dc2626' }}>{needsWorkCount}</div>
           <div style={{ fontSize: 10, color: '#991b1b' }}>{'<'} 60% de réussite</div>
         </div>
       </div>

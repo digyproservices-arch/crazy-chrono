@@ -2970,33 +2970,36 @@ function handleGameClick(zone) {
       let item_type = ((t1 === 'image' && t2 === 'texte') || (t1 === 'texte' && t2 === 'image')) ? 'imgtxt' : 'calcnum';
       let latency = Math.max(0, Date.now() - (firstClickTsRef.current || Date.now()));
       let levelClass = '';
+      let cfgTheme = '';
       let theme = '';
       let itemDetail = '';
       try {
         const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
         levelClass = Array.isArray(cfg?.classes) && cfg.classes[0] ? String(cfg.classes[0]) : '';
-        theme = Array.isArray(cfg?.themes) && cfg.themes[0] ? String(cfg.themes[0]) : '';
+        cfgTheme = Array.isArray(cfg?.themes) && cfg.themes[0] ? String(cfg.themes[0]) : '';
       } catch {}
-      if (!theme) {
-        if (item_type === 'calcnum') {
-          const calculZone = t1 === 'calcul' ? ZA : ZB;
-          const chiffreZone = t1 === 'chiffre' ? ZA : ZB;
-          const calcText = String(calculZone?.content || '').trim();
-          const chiffreText = String(chiffreZone?.content || '').trim();
-          const factors = calcText.match(/(\d+)\s*[×x*]\s*(\d+)/);
-          if (factors) {
-            const table = Math.min(parseInt(factors[1], 10), parseInt(factors[2], 10));
-            theme = `Table de ${table}`;
-            itemDetail = `${calcText} = ${chiffreText}`;
-          } else {
-            theme = 'Calculs & Chiffres';
-            itemDetail = calcText || chiffreText;
-          }
+      // TOUJOURS extraire itemDetail et thème granulaire (même si config a un thème)
+      if (item_type === 'calcnum') {
+        const calculZone = t1 === 'calcul' ? ZA : ZB;
+        const chiffreZone = t1 === 'chiffre' ? ZA : ZB;
+        const calcText = String(calculZone?.content || '').trim();
+        const chiffreText = String(chiffreZone?.content || '').trim();
+        const factors = calcText.match(/(\d+)\s*[×x*]\s*(\d+)/);
+        if (factors) {
+          const table = Math.min(parseInt(factors[1], 10), parseInt(factors[2], 10));
+          theme = `Table de ${table}`;
+          itemDetail = `${calcText} = ${chiffreText}`;
         } else {
-          const texteZone = t1 === 'texte' ? ZA : ZB;
-          theme = 'Images & Textes';
-          itemDetail = String(texteZone?.content || '').trim();
+          theme = cfgTheme || 'Calculs & Chiffres';
+          itemDetail = calcText || chiffreText;
         }
+      } else {
+        const texteZone = t1 === 'texte' ? ZA : ZB;
+        const imageZone = t1 === 'image' ? ZA : ZB;
+        const textContent = String(texteZone?.content || texteZone?.label || '').trim();
+        const imageUrl = String(imageZone?.content || '').trim();
+        theme = cfgTheme || 'Images & Textes';
+        try { itemDetail = JSON.stringify({ text: textContent, img: imageUrl }); } catch { itemDetail = textContent; }
       }
       if (okPair) {
         console.log('[GAME] OK pair', { a, b, ZA: { id: ZA.id, type: ZA.type, pairId: ZA.pairId }, ZB: { id: ZB.id, type: ZB.type, pairId: ZB.pairId } });
