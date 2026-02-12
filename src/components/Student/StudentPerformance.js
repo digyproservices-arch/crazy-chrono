@@ -40,7 +40,7 @@ function MasteryTab({ themeMastery }) {
     const uniqueItems = (t.items || []).length;
     // For tables: require at least 5 unique calculations to be "Maîtrisé"
     // For other themes: require at least 3 unique items
-    const minCoverage = isTable ? 5 : 3;
+    const minCoverage = isTable ? 10 : 3;
     if (t.accuracy >= 80 && uniqueItems >= minCoverage) return '✅ Maîtrisé';
     if (t.accuracy >= 80 && uniqueItems < minCoverage) return '🔍 Vu partiellement';
     if (t.accuracy >= 60) return '⚠️ En progrès';
