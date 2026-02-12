@@ -2971,12 +2971,33 @@ function handleGameClick(zone) {
       let latency = Math.max(0, Date.now() - (firstClickTsRef.current || Date.now()));
       let levelClass = '';
       let theme = '';
+      let itemDetail = '';
       try {
         const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
         levelClass = Array.isArray(cfg?.classes) && cfg.classes[0] ? String(cfg.classes[0]) : '';
         theme = Array.isArray(cfg?.themes) && cfg.themes[0] ? String(cfg.themes[0]) : '';
       } catch {}
-      if (!theme) theme = item_type === 'imgtxt' ? 'Images & Textes' : 'Calculs & Chiffres';
+      if (!theme) {
+        if (item_type === 'calcnum') {
+          const calculZone = t1 === 'calcul' ? ZA : ZB;
+          const chiffreZone = t1 === 'chiffre' ? ZA : ZB;
+          const calcText = String(calculZone?.content || '').trim();
+          const chiffreText = String(chiffreZone?.content || '').trim();
+          const factors = calcText.match(/(\d+)\s*[×x*]\s*(\d+)/);
+          if (factors) {
+            const table = Math.min(parseInt(factors[1], 10), parseInt(factors[2], 10));
+            theme = `Table de ${table}`;
+            itemDetail = `${calcText} = ${chiffreText}`;
+          } else {
+            theme = 'Calculs & Chiffres';
+            itemDetail = calcText || chiffreText;
+          }
+        } else {
+          const texteZone = t1 === 'texte' ? ZA : ZB;
+          theme = 'Images & Textes';
+          itemDetail = String(texteZone?.content || '').trim();
+        }
+      }
       if (okPair) {
         console.log('[GAME] OK pair', { a, b, ZA: { id: ZA.id, type: ZA.type, pairId: ZA.pairId }, ZB: { id: ZB.id, type: ZB.type, pairId: ZB.pairId } });
         // ✅ FIX DISPARITÉ: Activer verrou pendant traitement
@@ -3062,7 +3083,7 @@ function handleGameClick(zone) {
           }
         }
           // Enregistrer tentative OK
-          try { pgRecordAttempt({ item_type, item_id: pairKey || `${ZA?.id}|${ZB?.id}`, objective_key: `${levelClass}:${theme}`, correct: true, latency_ms: latency, level_class: levelClass, theme, round_index: Number(roundsPlayed)||0 }); } catch {}
+          try { pgRecordAttempt({ item_type, item_id: itemDetail || pairKey || `${ZA?.id}|${ZB?.id}`, objective_key: `${levelClass}:${theme}`, correct: true, latency_ms: latency, level_class: levelClass, theme, round_index: Number(roundsPlayed)||0 }); } catch {}
           // Historique local (solo): ajouter une entrée simple
           try {
             if (!(socket && socket.connected)) {
@@ -3114,7 +3135,7 @@ function handleGameClick(zone) {
         playWrongSound();
         showWrongFlash();
         // Enregistrer tentative KO
-        try { pgRecordAttempt({ item_type, item_id: `${ZA?.id}|${ZB?.id}`, objective_key: `${levelClass}:${theme}`, correct: false, latency_ms: latency, level_class: levelClass, theme, round_index: Number(roundsPlayed)||0 }); } catch {}
+        try { pgRecordAttempt({ item_type, item_id: itemDetail || `${ZA?.id}|${ZB?.id}`, objective_key: `${levelClass}:${theme}`, correct: false, latency_ms: latency, level_class: levelClass, theme, round_index: Number(roundsPlayed)||0 }); } catch {}
         // laisser l'effet visuel un court instant puis reset
         setTimeout(() => { setGameSelectedIds([]); setGameMsg(''); setShowBigCross(false); }, 400);
       }

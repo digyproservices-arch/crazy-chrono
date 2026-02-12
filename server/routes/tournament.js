@@ -1540,7 +1540,7 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
         // Récupérer toutes les tentatives pour analyse par thème
         const { data: attempts } = await supabase
           .from('attempts')
-          .select('theme, level_class, correct, latency_ms, item_type, objective_key')
+          .select('theme, level_class, correct, latency_ms, item_type, item_id, objective_key')
           .in('user_id', possibleIds);
         
         if (attempts && attempts.length > 0) {
@@ -1549,7 +1549,7 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
           for (const a of attempts) {
             const theme = a.theme || 'autre';
             if (!themeMap[theme]) {
-              themeMap[theme] = { total: 0, correct: 0, totalLatency: 0, latencyCount: 0, levels: {} };
+              themeMap[theme] = { total: 0, correct: 0, totalLatency: 0, latencyCount: 0, levels: {}, items: {} };
             }
             themeMap[theme].total++;
             if (a.correct) themeMap[theme].correct++;
@@ -1564,6 +1564,19 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
             }
             themeMap[theme].levels[level].total++;
             if (a.correct) themeMap[theme].levels[level].correct++;
+            // Par item (calcul exact ou association précise)
+            const itemKey = a.item_id || '';
+            if (itemKey) {
+              if (!themeMap[theme].items[itemKey]) {
+                themeMap[theme].items[itemKey] = { total: 0, correct: 0, totalLatency: 0, latencyCount: 0 };
+              }
+              themeMap[theme].items[itemKey].total++;
+              if (a.correct) themeMap[theme].items[itemKey].correct++;
+              if (a.latency_ms > 0) {
+                themeMap[theme].items[itemKey].totalLatency += a.latency_ms;
+                themeMap[theme].items[itemKey].latencyCount++;
+              }
+            }
           }
           
           // Convertir en tableau trié par taux de réussite
@@ -1578,6 +1591,13 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
               total: ldata.total,
               correct: ldata.correct,
               accuracy: ldata.total > 0 ? Math.round((ldata.correct / ldata.total) * 100) : 0
+            })).sort((a, b) => a.accuracy - b.accuracy),
+            items: Object.entries(data.items).map(([item, idata]) => ({
+              item,
+              total: idata.total,
+              correct: idata.correct,
+              accuracy: idata.total > 0 ? Math.round((idata.correct / idata.total) * 100) : 0,
+              avgLatencyMs: idata.latencyCount > 0 ? Math.round(idata.totalLatency / idata.latencyCount) : 0
             })).sort((a, b) => a.accuracy - b.accuracy)
           })).sort((a, b) => a.accuracy - b.accuracy);
         }
