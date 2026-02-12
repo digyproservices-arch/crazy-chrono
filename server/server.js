@@ -1006,7 +1006,7 @@ function endSession(roomCode) {
   (async () => { try {
     const isUUID = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
     const ranking = entries
-      .map(([id, pl], idx) => ({ socketId: id, studentId: pl.studentId, name: pl.name, score: pl.score || 0 }))
+      .map(([id, pl], idx) => ({ socketId: id, studentId: pl.studentId, name: pl.name, score: pl.score || 0, errors: pl.errors || 0 }))
       .sort((a, b) => b.score - a.score)
       .map((p, idx) => ({ ...p, position: idx + 1 }));
     
@@ -1030,7 +1030,7 @@ function endSession(roomCode) {
       }
     }
 
-    emitPerfEvent('endSession', { room: roomCode, players: ranking.map(p => ({ name: p.name, studentId: p.studentId, score: p.score })) });
+    emitPerfEvent('endSession', { room: roomCode, players: ranking.map(p => ({ name: p.name, studentId: p.studentId, score: p.score, errors: p.errors || 0 })) });
     const identifiedPlayers = ranking.filter(p => p.studentId);
     emitPerfEvent('endSession:identified', { room: roomCode, identified: identifiedPlayers.length, total: ranking.length });
     if (identifiedPlayers.length > 0) {
@@ -1466,6 +1466,7 @@ io.on('connection', (socket) => {
     if (pl) {
       pl.errors = (pl.errors || 0) + 1;
       room.players.set(socket.id, pl);
+      console.log(`[MP] pair:error room=${currentRoom} player=${socket.id} errors=${pl.errors}`);
     }
   });
 
