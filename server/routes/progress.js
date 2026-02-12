@@ -95,4 +95,32 @@ router.post('/attempts', async (req, res) => {
   }
 });
 
+// GET /api/progress/health — Diagnostic endpoint (testable via browser)
+router.get('/health', async (req, res) => {
+  const diag = { route: true, supabase: false, sessions_table: false, attempts_table: false, sessions_count: 0, attempts_count: 0, error: null };
+  try {
+    const supabase = req.app.locals.supabaseAdmin;
+    diag.supabase = !!supabase;
+    if (!supabase) { diag.error = 'supabaseAdmin not configured'; return res.json(diag); }
+
+    const { data: s, error: se } = await supabase.from('sessions').select('id', { count: 'exact', head: false }).limit(0);
+    diag.sessions_table = !se;
+    if (se) diag.error = `sessions: ${se.message}`;
+
+    const { data: a, error: ae } = await supabase.from('attempts').select('id', { count: 'exact', head: false }).limit(0);
+    diag.attempts_table = !ae;
+    if (ae) diag.error = (diag.error || '') + ` attempts: ${ae.message}`;
+
+    // Count rows
+    const { count: sc } = await supabase.from('sessions').select('*', { count: 'exact', head: true });
+    const { count: ac } = await supabase.from('attempts').select('*', { count: 'exact', head: true });
+    diag.sessions_count = sc || 0;
+    diag.attempts_count = ac || 0;
+  } catch (e) {
+    diag.error = e.message;
+  }
+  console.log('[Progress API] GET /health', JSON.stringify(diag));
+  return res.json(diag);
+});
+
 module.exports = router;
