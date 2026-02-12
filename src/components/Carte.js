@@ -2976,6 +2976,7 @@ function handleGameClick(zone) {
         levelClass = Array.isArray(cfg?.classes) && cfg.classes[0] ? String(cfg.classes[0]) : '';
         theme = Array.isArray(cfg?.themes) && cfg.themes[0] ? String(cfg.themes[0]) : '';
       } catch {}
+      if (!theme) theme = item_type === 'imgtxt' ? 'Images & Textes' : 'Calculs & Chiffres';
       if (okPair) {
         console.log('[GAME] OK pair', { a, b, ZA: { id: ZA.id, type: ZA.type, pairId: ZA.pairId }, ZB: { id: ZB.id, type: ZB.type, pairId: ZB.pairId } });
         // ✅ FIX DISPARITÉ: Activer verrou pendant traitement
