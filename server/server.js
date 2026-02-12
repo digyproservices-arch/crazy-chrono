@@ -1052,7 +1052,7 @@ function endSession(roomCode) {
             score: p.score,
             timeMs: (room.duration || 60) * 1000,
             pairsValidated: p.score,
-            errors: 0
+            errors: p.errors || 0
           }))
         })
       }).then(async r => {
@@ -1139,7 +1139,7 @@ io.on('connection', (socket) => {
     socket.join(currentRoom);
     const room = getRoom(currentRoom);
     const existing = room.players.get(socket.id) || {};
-    room.players.set(socket.id, { name: playerName, score: existing.score || 0, ready: false, studentId: playerStudentId || existing.studentId || null });
+    room.players.set(socket.id, { name: playerName, score: existing.score || 0, errors: existing.errors || 0, ready: false, studentId: playerStudentId || existing.studentId || null });
     if (!room.hostId || !room.players.has(room.hostId)) {
       room.hostId = socket.id; // premier connecté devient hôte
     }
@@ -1235,9 +1235,10 @@ io.on('connection', (socket) => {
     const playersArr = Array.from(room.players.values());
     const allReady = playersArr.length >= 2 && playersArr.every(p => p.ready);
     if (!allReady) return;
-    // reset scores for new session
+    // reset scores and errors for new session
     for (const [id, pl] of room.players.entries()) {
       pl.score = 0;
+      pl.errors = 0;
       pl.ready = false;
       room.players.set(id, pl);
     }
@@ -1280,6 +1281,11 @@ io.on('connection', (socket) => {
     room.status = 'playing';
     room.resolved = false;
     room.roundsPlayed = 0;
+    // Réinitialiser les erreurs de chaque joueur pour cette nouvelle session
+    for (const [id, pl] of room.players.entries()) {
+      pl.errors = 0;
+      room.players.set(id, pl);
+    }
     emitRoomState(currentRoom);
     // Utiliser la même mécanique que room:start pour garantir roundIndex/roundsTotal et timers
     startRound(currentRoom);
@@ -1449,6 +1455,18 @@ io.on('connection', (socket) => {
       }
     }, Math.max(50, TIE_WINDOW_MS));
     room.pendingClaims.set(claimKey, entry);
+  });
+
+  // Comptabiliser les erreurs (mauvaises associations) côté serveur
+  socket.on('pair:error', () => {
+    if (!currentRoom) return;
+    const room = getRoom(currentRoom);
+    if (room.status !== 'playing') return;
+    const pl = room.players.get(socket.id);
+    if (pl) {
+      pl.errors = (pl.errors || 0) + 1;
+      room.players.set(socket.id, pl);
+    }
   });
 
   // Fin de session (hôte): annonce le gagnant et passe en lobby

@@ -3160,6 +3160,8 @@ function handleGameClick(zone) {
         setShowBigCross(true);
         playWrongSound();
         showWrongFlash();
+        // Notifier le serveur de l'erreur pour le tracking des stats
+        try { if (socket && socket.connected) socket.emit('pair:error'); } catch {}
         // Enregistrer tentative KO
         try { pgRecordAttempt({ item_type, item_id: itemDetail || `${ZA?.id}|${ZB?.id}`, objective_key: `${levelClass}:${theme}`, correct: false, latency_ms: latency, level_class: levelClass, theme, round_index: Number(roundsPlayed)||0 }); } catch {}
         // laisser l'effet visuel un court instant puis reset
