@@ -9,7 +9,7 @@ import { getBackendUrl } from './subscription';
 let sessionId = null;
 let userId = null;
 let buffer = [];
-const FLUSH_EVERY = 10; // flush after N attempts
+const FLUSH_EVERY = 3; // flush after N attempts (low to avoid losing data in short games)
 
 // Log queue — sent via HTTP to /api/progress/log (visible in Render logs, no socket needed)
 let _logQueue = [];

@@ -144,7 +144,7 @@ function MasteryTab({ themeMastery }) {
             {hasItems && <span style={{ fontSize: 12, color: '#64748b', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>}
             <span style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{t.theme}</span>
             <span style={{ fontSize: 12, color: '#64748b' }}>
-              {t.total} tentatives{hasItems ? ` · ${displayItems.length} élément${displayItems.length > 1 ? 's' : ''} vu${displayItems.length > 1 ? 's' : ''}` : ''}
+              {t.correct}/{t.total} réussites{hasItems ? ` · ${displayItems.length} élément${displayItems.length > 1 ? 's' : ''} vu${displayItems.length > 1 ? 's' : ''}` : ''}
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
