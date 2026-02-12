@@ -988,12 +988,14 @@ function endSession(roomCode) {
     const sc = pl.score || 0;
     if (sc > best) { best = sc; winner = { id, name: pl.name, score: sc }; }
   }
+  const sessionDurationSec = room.sessionStartedAt ? Math.round((Date.now() - room.sessionStartedAt) / 1000) : (room.duration || 60);
   const summary = {
     endedAt: Date.now(),
     roomCode,
     winner: winner || null,
     winnerTitle: winner ? 'Crazy Winner' : null,
-    scores: entries.map(([id, pl]) => ({ id, name: pl.name, score: pl.score || 0 }))
+    scores: entries.map(([id, pl]) => ({ id, name: pl.name, score: pl.score || 0, errors: pl.errors || 0 })),
+    duration: sessionDurationSec
   };
   try { room.sessions.push(summary); } catch {}
   room.sessionActive = false;

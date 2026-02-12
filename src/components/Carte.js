@@ -2236,31 +2236,44 @@ const Carte = () => {
 
     // Fin de session
     s.on('session:end', (summary) => {
-      const w = summary && summary.winner;
-      const title = summary?.winnerTitle || 'Crazy Winner';
-      // Détection d'égalité basée sur les derniers scores connus côté client
-      const scoresList = Array.isArray(scoresRef.current) ? scoresRef.current : [];
-      const maxScore = scoresList.length ? Math.max(...scoresList.map(p => p.score || 0)) : (w?.score ?? 0);
-      const topPlayers = scoresList.filter(p => (p.score || 0) === maxScore);
-      if (topPlayers.length >= 2) {
-        const names = topPlayers.map(p => p.name).filter(Boolean).join(' & ');
-        setMpMsg(`Session terminée. Égalité: ${names} (score ${maxScore})`);
-        try { setWinnerOverlay({ text: `Égalité (${maxScore})`, until: Date.now() + 4500 }); setTimeout(() => setWinnerOverlay(null), 4500); } catch {}
-      } else {
-        const name = w?.name || 'Aucun gagnant';
-        setMpMsg(`Session terminée. Vainqueur: ${name} (score ${w?.score ?? 0})`);
-        try { playCorrectSound?.(); } catch {}
-        try { showConfetti?.(); } catch {}
-        try { setWinnerOverlay({ text: `${title}: ${name}`, until: Date.now() + 4500 }); setTimeout(() => setWinnerOverlay(null), 4500); } catch {}
-      }
+      console.log('[CC] session:end received', summary);
+      // Annuler le debounce timer pour ne pas écraser l'overlay
+      if (sessionSaveTimerRef.current) { clearTimeout(sessionSaveTimerRef.current); sessionSaveTimerRef.current = null; }
+
       // Sortie du mode jeu / plein écran et reset des états de manche
       try { setGameActive(false); } catch {}
       try { setGameSelectedIds([]); } catch {}
       try { setCurrentTargetPairKey(null); } catch {}
       try { exitGameFullscreen(); } catch {}
-      try { setRoomStatus('lobby'); } catch {}
-      // Rouvrir le panneau pour retrouver les commandes de lobby
-      try { setPanelCollapsed(false); } catch {}
+
+      // Confetti + son pour célébrer
+      try { playCorrectSound?.(); } catch {}
+      try { showConfetti?.(); } catch {}
+
+      // Construire les données overlay à partir du summary serveur
+      const scores = Array.isArray(summary?.scores) ? summary.scores : [];
+      const mySocketId = socketRef.current?.id;
+      const myEntry = scores.find(p => p.id === mySocketId) || scores[0] || {};
+      const myScore = myEntry.score || 0;
+      const myErrors = myEntry.errors || 0;
+      const sessionDur = summary?.duration || gameDuration;
+      const isMultiplayer = scores.length > 1;
+
+      // Afficher l'overlay de fin de match (solo ou MP)
+      setSoloGameEndOverlay({
+        score: myScore,
+        pairsValidated: myScore,
+        duration: sessionDur,
+        errors: myErrors,
+        mode: isMultiplayer ? 'multiplayer' : 'solo',
+        ranking: isMultiplayer ? scores.sort((a, b) => (b.score || 0) - (a.score || 0)) : null,
+        winner: summary?.winner || null,
+        timestamp: Date.now()
+      });
+
+      // Reset session start time
+      sessionStartTimeRef.current = null;
+
       // Historique client: enregistrer la session terminée
       try {
         const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
@@ -2270,7 +2283,7 @@ const Carte = () => {
           roomCode: summary?.roomCode || roomId,
           mode: cfg?.mode || null,
           winner: summary?.winner || null,
-          scores: Array.isArray(summary?.scores) ? summary.scores : [],
+          scores: scores,
           roundsPerSession: Number.isFinite(roundsPerSession) ? roundsPerSession : null,
           roundsPlayed: typeof roundsPlayed === 'number' ? roundsPlayed : null
         };
@@ -2286,8 +2299,6 @@ const Carte = () => {
           }
         });
       } catch {}
-      // Rediriger vers la sélection des modes après un court délai
-      setTimeout(() => { try { navigate('/modes'); } catch {} }, 500);
     });
 
     s.on('pair:valid', (payload) => {
@@ -2665,17 +2676,25 @@ useEffect(() => {
         // Nombre de paires = score (chaque paire validée donne +1)
         const pairsCount = finalScore;
         
+        // Si le socket est connecté, session:end gère l'overlay + la sauvegarde → ne rien faire ici
+        const s = socketRef.current;
+        if (s && s.connected) {
+          emitMonitoringEvent('perf:save-skipped', { reason: 'socket connected, session:end handles overlay+save', studentId });
+          return;
+        }
+        
         // Durée réelle de la session (toutes manches confondues)
         const sessionElapsedSec = sessionStartTimeRef.current
           ? Math.round((Date.now() - sessionStartTimeRef.current) / 1000)
           : gameDuration;
         sessionStartTimeRef.current = null; // reset pour prochaine session
 
-        // Afficher l'overlay de fin de partie Solo
+        // Afficher l'overlay de fin de partie (mode déconnecté / fallback)
         setSoloGameEndOverlay({
           score: finalScore,
           pairsValidated: pairsCount,
           duration: sessionElapsedSec,
+          errors: 0,
           mode,
           timestamp: Date.now()
         });
@@ -2687,13 +2706,6 @@ useEffect(() => {
         
         if (pairsCount === 0 && finalScore === 0) {
           emitMonitoringEvent('perf:save-skipped', { reason: 'score=0', studentId });
-          return;
-        }
-        
-        // Si le socket est connecté, le serveur sauvegarde via endSession → ne pas sauvegarder en double
-        const s = socketRef.current;
-        if (s && s.connected) {
-          emitMonitoringEvent('perf:save-skipped', { reason: 'socket connected, server saves via endSession', studentId });
           return;
         }
         
@@ -7333,53 +7345,110 @@ setZones(dataWithRandomTexts);
       {soloGameEndOverlay && (() => {
         const ov = soloGameEndOverlay;
         const ppm = ov.duration > 0 ? ((ov.score / ov.duration) * 60).toFixed(1) : '0';
+        const hasRanking = Array.isArray(ov.ranking) && ov.ranking.length > 1;
+        const medals = ['🥇', '🥈', '🥉'];
         return (
           <div
             style={{
               position: 'fixed', inset: 0, zIndex: 5000,
-              background: 'linear-gradient(135deg, rgba(20, 138, 156, 0.95) 0%, rgba(26, 172, 190, 0.95) 100%)',
+              background: ov.mode === 'multiplayer'
+                ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.95) 0%, rgba(99, 102, 241, 0.95) 100%)'
+                : 'linear-gradient(135deg, rgba(20, 138, 156, 0.95) 0%, rgba(26, 172, 190, 0.95) 100%)',
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               padding: isMobile ? '16px' : '32px',
-              animation: 'fadeIn 0.5s ease-out'
+              animation: 'fadeIn 0.5s ease-out',
+              overflowY: 'auto'
             }}
           >
             <div style={{ fontSize: isMobile ? 28 : 44, fontWeight: 900, color: '#fff', marginBottom: 24, textShadow: '0 4px 12px rgba(0,0,0,0.3)', animation: 'slideDown 0.6s ease-out' }}>
-              {ov.mode === 'solo' ? '🎯 Partie Solo terminée' : '🎮 Partie terminée'}
+              {ov.mode === 'solo' ? '🎯 Partie Solo terminée' : '🏆 Partie terminée'}
             </div>
+
+            {/* Score principal + gagnant MP */}
             <div style={{
               background: 'rgba(255,255,255,0.15)', borderRadius: 24, padding: isMobile ? '24px 32px' : '32px 48px',
               marginBottom: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
               backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)',
               animation: 'scaleIn 0.7s ease-out 0.2s both'
             }}>
+              {hasRanking && ov.winner && (
+                <div style={{ fontSize: isMobile ? 16 : 20, color: 'rgba(255,255,255,0.85)', fontWeight: 700, marginBottom: 4 }}>
+                  Vainqueur : {ov.winner.name}
+                </div>
+              )}
               <div style={{ fontSize: isMobile ? 56 : 80, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{ov.score}</div>
               <div style={{ fontSize: isMobile ? 16 : 20, color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>points</div>
             </div>
+
+            {/* Stats */}
             <div style={{
-              display: 'flex', gap: isMobile ? 16 : 32, marginBottom: 32, flexWrap: 'wrap', justifyContent: 'center',
+              display: 'flex', gap: isMobile ? 12 : 24, marginBottom: hasRanking ? 20 : 32, flexWrap: 'wrap', justifyContent: 'center',
               animation: 'slideUp 0.6s ease-out 0.4s both'
             }}>
               {[
                 { icon: '🧩', label: 'Paires', value: ov.pairsValidated },
+                { icon: '❌', label: 'Erreurs', value: ov.errors || 0 },
                 { icon: '⏱️', label: 'Durée', value: `${ov.duration}s` },
                 { icon: '⚡', label: 'Pts/min', value: ppm },
               ].map((stat, i) => (
                 <div key={i} style={{
-                  background: 'rgba(255,255,255,0.12)', borderRadius: 16, padding: isMobile ? '12px 20px' : '16px 28px',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 90,
+                  background: 'rgba(255,255,255,0.12)', borderRadius: 16, padding: isMobile ? '10px 16px' : '14px 24px',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 80,
                   border: '1px solid rgba(255,255,255,0.15)'
                 }}>
-                  <div style={{ fontSize: 24 }}>{stat.icon}</div>
-                  <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: '#fff' }}>{stat.value}</div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{stat.label}</div>
+                  <div style={{ fontSize: 22 }}>{stat.icon}</div>
+                  <div style={{ fontSize: isMobile ? 20 : 26, fontWeight: 800, color: '#fff' }}>{stat.value}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{stat.label}</div>
                 </div>
               ))}
             </div>
+
+            {/* Classement MP */}
+            {hasRanking && (
+              <div style={{
+                background: 'rgba(255,255,255,0.95)', borderRadius: 16, padding: isMobile ? '12px' : '20px',
+                maxWidth: isMobile ? '90vw' : '500px', width: '100%', marginBottom: 24,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+                animation: 'slideUp 0.6s ease-out 0.5s both'
+              }}>
+                <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 700, color: '#4f46e5', marginBottom: 12, textAlign: 'center' }}>
+                  Classement
+                </div>
+                {ov.ranking.map((player, idx) => {
+                  const isTop3 = idx < 3;
+                  const bgColors = [
+                    'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                    'linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%)',
+                    'linear-gradient(135deg, #fed7aa 0%, #fdba74 100%)'
+                  ];
+                  return (
+                    <div key={player.id || idx} style={{
+                      display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12,
+                      padding: isMobile ? '8px 10px' : '10px 14px', marginBottom: 6, borderRadius: 10,
+                      background: isTop3 ? bgColors[idx] : '#f9fafb',
+                      border: isTop3 ? '2px solid rgba(0,0,0,0.1)' : '1px solid #e5e7eb'
+                    }}>
+                      <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 900, minWidth: 32, textAlign: 'center' }}>
+                        {isTop3 ? medals[idx] : `${idx + 1}`}
+                      </div>
+                      <div style={{ flex: 1, fontSize: isMobile ? 14 : 16, fontWeight: isTop3 ? 700 : 600, color: '#1f2937', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {player.name}
+                      </div>
+                      <div style={{ fontSize: isMobile ? 14 : 16, fontWeight: 700, color: '#6b7280' }}>
+                        {player.score} pts {player.errors ? `· ${player.errors} err` : ''}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Boutons */}
             <div style={{ display: 'flex', gap: 16, animation: 'slideUp 0.6s ease-out 0.6s both' }}>
               <button
                 onClick={() => { setSoloGameEndOverlay(null); startGame(); }}
                 style={{
-                  background: '#fff', color: '#148A9C', border: 'none', borderRadius: 14,
+                  background: '#fff', color: ov.mode === 'multiplayer' ? '#4f46e5' : '#148A9C', border: 'none', borderRadius: 14,
                   padding: isMobile ? '14px 28px' : '16px 40px', fontSize: isMobile ? 16 : 20,
                   fontWeight: 800, cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
                 }}
@@ -7387,14 +7456,14 @@ setZones(dataWithRandomTexts);
                 🔄 Rejouer
               </button>
               <button
-                onClick={() => setSoloGameEndOverlay(null)}
+                onClick={() => { setSoloGameEndOverlay(null); try { navigate('/modes'); } catch {} }}
                 style={{
                   background: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)',
                   borderRadius: 14, padding: isMobile ? '14px 28px' : '16px 40px',
                   fontSize: isMobile ? 16 : 20, fontWeight: 700, cursor: 'pointer'
                 }}
               >
-                ✕ Fermer
+                Quitter
               </button>
             </div>
           </div>
