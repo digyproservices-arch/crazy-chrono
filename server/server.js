@@ -1679,9 +1679,20 @@ io.on('connection', (socket) => {
       const first = room.players.keys().next();
       room.hostId = first.done ? null : first.value;
     }
-    // si plus personne, supprimer la salle
+    // si plus personne, nettoyer les timers et supprimer la salle
     if (room.players.size === 0) {
+      if (room.roundTimer) { try { clearTimeout(room.roundTimer); } catch {} room.roundTimer = null; }
+      try {
+        if (room.pendingClaims && room.pendingClaims.size) {
+          for (const [, entry] of room.pendingClaims.entries()) {
+            try { if (entry && entry.timer) clearTimeout(entry.timer); } catch {}
+          }
+          room.pendingClaims.clear();
+        }
+      } catch {}
+      room.sessionActive = false;
       rooms.delete(currentRoom);
+      console.log(`[MP] Room ${currentRoom} supprimée (dernier joueur déconnecté)`);
     } else {
       emitRoomState(currentRoom);
     }
