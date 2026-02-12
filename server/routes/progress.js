@@ -95,6 +95,17 @@ router.post('/attempts', async (req, res) => {
   }
 });
 
+// POST /api/progress/log — Receive client-side progress debug events (always visible in Render logs)
+router.post('/log', (req, res) => {
+  const { events } = req.body || {};
+  if (Array.isArray(events)) {
+    for (const e of events) {
+      console.log(`[Client:Progress] ${e.tag || 'info'}`, JSON.stringify(e.data || {}));
+    }
+  }
+  res.json({ ok: true });
+});
+
 // GET /api/progress/debug/:userId — Show data for a specific user (diagnostic)
 router.get('/debug/:userId', async (req, res) => {
   try {
