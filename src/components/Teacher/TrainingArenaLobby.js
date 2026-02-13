@@ -77,6 +77,7 @@ export default function TrainingArenaLobby() {
         
         if (data.ok && data.student) {
           const studentId = data.student.id;
+          const authId = data.user?.id || null; // UUID Supabase auth pour persistance DB
           const studentName = data.student.fullName || data.student.firstName || 'Joueur';
           
           setMyStudentId(studentId);
@@ -87,7 +88,7 @@ export default function TrainingArenaLobby() {
           localStorage.setItem('cc_student_id', studentId);
           localStorage.setItem('cc_student_name', studentName);
           
-          return { studentId, studentName };
+          return { studentId, authId, studentName };
         } else if (isTeacherOrAdmin) {
           // ✅ Les professeurs n'ont pas de student_id, c'est normal
           console.log('[TrainingArena] Professeur détecté, pas de student_id requis');
@@ -118,7 +119,7 @@ export default function TrainingArenaLobby() {
     fetchUserData().then(async (userData) => {
       if (!userData) return; // Erreur, pas de student lié
       
-      const { studentId, studentName } = userData;
+      const { studentId, authId, studentName } = userData;
       
       // ✅ Pour Training: matchId = roomCode (pas besoin d'API)
       // Les matchs Training sont en mémoire, pas en DB
@@ -142,6 +143,7 @@ export default function TrainingArenaLobby() {
           matchId: matchId,
           studentData: {
             studentId,
+            authId: authId || null,
             name: studentName,
             avatar: '/avatars/default.png'
           }

@@ -144,6 +144,7 @@ class CrazyArenaManager {
     const player = {
       socketId: socket.id,
       studentId: studentData.studentId,
+      authId: studentData.authId || null,
       name: studentData.name,
       avatar: studentData.avatar || '/avatars/default.png',
       ready: false,
@@ -492,6 +493,7 @@ class CrazyArenaManager {
     // Trier les joueurs par score DESC, puis temps ASC
     const ranking = match.players.map(p => ({
       studentId: p.studentId,
+      authId: p.authId || null,
       name: p.name,
       avatar: p.avatar,
       score: p.score,
@@ -2180,12 +2182,20 @@ class CrazyArenaManager {
         const resultId = uuidv4();
         match._resultIds[player.studentId] = resultId;
 
+        // Utiliser authId (UUID Supabase auth) pour la colonne student_id (type UUID en DB)
+        // Fallback: si authId absent, utiliser studentId seulement s'il est un UUID valide
+        const dbStudentId = player.authId || (isValidUuid(player.studentId) ? player.studentId : null);
+        if (!dbStudentId) {
+          logger.error('[CrazyArena][Training] ❌ Pas d\'UUID valide pour student_id, skip insert', { matchId, studentId: player.studentId });
+          continue;
+        }
+
         const { error: resErr } = await this.supabase
           .from('training_results')
           .insert({
             id: resultId,
             session_id: sessionId,
-            student_id: player.studentId,
+            student_id: dbStudentId,
             position: 0,
             score: 0,
             time_ms: 0,
@@ -2194,7 +2204,7 @@ class CrazyArenaManager {
           });
 
         if (resErr) {
-          logger.error('[CrazyArena][Training] ❌ Erreur insert training_results', { matchId, studentId: player.studentId, error: resErr.message });
+          logger.error('[CrazyArena][Training] ❌ Erreur insert training_results', { matchId, studentId: player.studentId, dbStudentId, error: resErr.message });
         }
       }
 
@@ -2273,10 +2283,13 @@ class CrazyArenaManager {
       }
 
       // Mettre à jour les stats cumulées (best-effort)
+      const isValidUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
       for (const player of ranking) {
+        const dbStudentId = player.authId || (isValidUuid(player.studentId) ? player.studentId : null);
+        if (!dbStudentId) continue;
         try {
           await this.supabase.rpc('update_student_training_stats', {
-            p_student_id: player.studentId,
+            p_student_id: dbStudentId,
             p_sessions_played: 1,
             p_total_score: player.score,
             p_total_pairs: player.pairsValidated || 0,
@@ -2311,6 +2324,7 @@ class CrazyArenaManager {
         const isTiebreaker = match.isTiebreaker;
         const ranking = match.players.map(p => ({
           studentId: p.studentId,
+          authId: p.authId || null,
           name: p.name,
           score: isTiebreaker ? (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0) : (p.score || 0),
           pairsValidated: isTiebreaker ? (p.pairsBeforeTiebreaker || 0) + (p.tiebreakerPairs || 0) : (p.pairsValidated || 0),
@@ -2483,7 +2497,7 @@ class CrazyArenaManager {
         config: match.config || {},
         completedAt: new Date().toISOString(),
         results: ranking.map(p => ({
-          studentId: p.studentId,
+          studentId: p.authId || p.studentId,
           position: p.position,
           score: p.score,
           timeMs: p.timeMs,
