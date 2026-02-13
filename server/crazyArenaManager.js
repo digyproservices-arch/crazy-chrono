@@ -2151,16 +2151,20 @@ class CrazyArenaManager {
       match._sessionId = sessionId;
       match._resultIds = {};
 
+      // match_id doit être un UUID valide (la colonne est UUID en production)
+      const isValidUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+      const rawMatchUuid = matchId ? matchId.replace(/^match_/, '') : '';
+      const safeMatchId = isValidUuid(rawMatchUuid) ? rawMatchUuid : uuidv4();
       const sessionPayload = {
         id: sessionId,
-        match_id: matchId,
+        match_id: safeMatchId,
         teacher_id: match.teacherId || null,
         session_name: match.config?.sessionName || 'Session Entraînement',
-        config: JSON.stringify(match.config || {}),
+        config: match.config || {},
+        class_id: match.classId || 'training',
         completed_at: null,
         created_at: new Date().toISOString()
       };
-      if (match.classId) sessionPayload.class_id = match.classId;
 
       const { error: sessErr } = await this.supabase
         .from('training_sessions')
@@ -2168,6 +2172,7 @@ class CrazyArenaManager {
 
       if (sessErr) {
         logger.error('[CrazyArena][Training] ❌ Erreur insert training_sessions', { matchId, error: sessErr.message });
+        match._sessionId = null; // Permettre le fallback saveTrainingResults si l'insert échoue
         return;
       }
 
