@@ -2147,7 +2147,7 @@ class CrazyArenaManager {
     if (!match) return;
 
     try {
-      const sessionId = `training_${uuidv4()}`;
+      const sessionId = uuidv4();
       match._sessionId = sessionId;
       match._resultIds = {};
 
@@ -2172,7 +2172,7 @@ class CrazyArenaManager {
       }
 
       for (const player of match.players) {
-        const resultId = `training_result_${uuidv4()}`;
+        const resultId = uuidv4();
         match._resultIds[player.studentId] = resultId;
 
         const { error: resErr } = await this.supabase
