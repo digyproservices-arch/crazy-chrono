@@ -811,6 +811,8 @@ class CrazyArenaManager {
 
         // 💾 PERSISTENCE: Sauvegarder le score tiebreaker en DB
         this.persistScoreUpdate(matchId, studentId);
+        // 📊 MAÎTRISE: Enregistrer la tentative pour le suivi par thème
+        this.persistAttempt(match, player, { isCorrect: true, pairId, zoneAId, zoneBId });
         
         // ✅ CRITIQUE: Émettre scores tiebreaker aux clients (score combiné = base + tiebreaker)
         const playersData = match.players.map(p => ({
@@ -933,6 +935,9 @@ class CrazyArenaManager {
       // 💾 PERSISTENCE: Sauvegarder les erreurs en DB
       this.persistScoreUpdate(matchId, studentId);
     }
+
+    // 📊 MAÎTRISE: Enregistrer la tentative pour le suivi par thème (correct et incorrect)
+    this.persistAttempt(match, player, { isCorrect, pairId, zoneAId, zoneBId });
 
     // ✅ CRITIQUE: Mettre à jour match.scores comme Arena
     match.scores[studentId] = {
@@ -2228,6 +2233,70 @@ class CrazyArenaManager {
       logger.info('[CrazyArena][Training] 💾 Match persisté en DB (start)', { matchId, sessionId, players: match.players.length });
     } catch (err) {
       logger.error('[CrazyArena][Training] ❌ Erreur persistMatchStart', { matchId, error: err.message });
+    }
+  }
+
+  /**
+   * Enregistrer une tentative dans la table `attempts` pour le suivi de maîtrise
+   * (aligné avec le mode Solo qui utilise la même table via progress.js)
+   */
+  persistAttempt(match, player, { isCorrect, pairId, zoneAId, zoneBId }) {
+    if (!this.supabase) return;
+    const dbStudentId = player.authId;
+    if (!dbStudentId) return;
+
+    try {
+      // Latence: temps depuis la dernière paire validée par ce joueur
+      const now = Date.now();
+      const latencyMs = now - (player._lastPairTs || match.startTime || now);
+      player._lastPairTs = now;
+
+      // Extraire thème et type depuis les zones du match
+      let theme = null;
+      let item_type = null;
+      let item_id = pairId || `${zoneAId}|${zoneBId}`;
+
+      const zones = match.zones || [];
+      const zA = zones.find(z => String(z.id) === String(zoneAId));
+      const zB = zones.find(z => String(z.id) === String(zoneBId));
+
+      const calcZone = [zA, zB].find(z => z && z.type === 'calcul');
+      const numZone = [zA, zB].find(z => z && z.type === 'chiffre');
+      const imgZone = [zA, zB].find(z => z && z.type === 'image');
+      const txtZone = [zA, zB].find(z => z && z.type === 'texte');
+
+      if (calcZone && numZone) {
+        item_type = 'calc';
+        const m = calcZone.content ? calcZone.content.match(/^(\d+)\s*×/) : null;
+        theme = m ? `Table de ${m[1]}` : 'Multiplication';
+        item_id = calcZone.content || pairId;
+      } else if (imgZone || txtZone) {
+        item_type = 'img-txt';
+        theme = 'Images-Texte';
+        if (txtZone && txtZone.content) {
+          item_id = JSON.stringify({ text: txtZone.content, img: imgZone ? imgZone.content : null });
+        }
+      }
+
+      // Fire-and-forget insert
+      this.supabase.from('attempts').insert({
+        session_id: null,
+        user_id: dbStudentId,
+        item_type,
+        item_id,
+        objective_key: theme ? `training:${theme}` : null,
+        correct: isCorrect,
+        latency_ms: latencyMs > 0 && latencyMs < 300000 ? Math.round(latencyMs) : null,
+        level_class: (match.config && match.config.classes && match.config.classes[0]) || null,
+        theme,
+        round_index: match.roundsPlayed || 0
+      }).then(({ error }) => {
+        if (error) {
+          logger.warn('[CrazyArena][Training] ⚠️ persistAttempt insert failed', { error: error.message, studentId: player.studentId });
+        }
+      });
+    } catch (err) {
+      // best-effort, ne pas bloquer le jeu
     }
   }
 
