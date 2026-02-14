@@ -2182,9 +2182,26 @@ class CrazyArenaManager {
         const resultId = uuidv4();
         match._resultIds[player.studentId] = resultId;
 
-        // Utiliser authId (UUID Supabase auth) pour la colonne student_id (type UUID en DB)
-        // Fallback: si authId absent, utiliser studentId seulement s'il est un UUID valide
-        const dbStudentId = player.authId || (isValidUuid(player.studentId) ? player.studentId : null);
+        // Résoudre le student_id en UUID valide pour la colonne DB (type UUID)
+        // Priorité: 1) authId du client 2) studentId si déjà UUID 3) lookup user_student_mapping
+        let dbStudentId = player.authId || (isValidUuid(player.studentId) ? player.studentId : null);
+        if (!dbStudentId && this.supabase) {
+          try {
+            const { data: mapping } = await this.supabase
+              .from('user_student_mapping')
+              .select('user_id')
+              .eq('student_id', player.studentId)
+              .eq('active', true)
+              .single();
+            if (mapping?.user_id) {
+              dbStudentId = mapping.user_id;
+              player.authId = dbStudentId; // Cache pour persistMatchEnd
+              logger.info('[CrazyArena][Training] 🔍 Lookup user_student_mapping OK', { studentId: player.studentId, authId: dbStudentId });
+            }
+          } catch (lookupErr) {
+            logger.warn('[CrazyArena][Training] ⚠️ Lookup user_student_mapping échoué', { studentId: player.studentId, error: lookupErr.message });
+          }
+        }
         if (!dbStudentId) {
           logger.error('[CrazyArena][Training] ❌ Pas d\'UUID valide pour student_id, skip insert', { matchId, studentId: player.studentId });
           continue;
