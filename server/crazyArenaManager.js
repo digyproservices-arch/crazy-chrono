@@ -1179,6 +1179,7 @@ class CrazyArenaManager {
     const player = {
       socketId: socket.id,
       studentId: studentData.studentId,
+      authId: studentData.authId || null,
       name: studentData.name,
       avatar: studentData.avatar || '/avatars/default.png',
       ready: false,
@@ -1604,6 +1605,8 @@ class CrazyArenaManager {
 
         // 💾 PERSISTENCE: Sauvegarder le score tiebreaker Arena en DB
         this.persistArenaScoreUpdate(matchId, studentId);
+        // 📊 MAÎTRISE: Enregistrer la tentative pour le suivi par thème
+        this.persistAttempt(match, player, { isCorrect: true, pairId, zoneAId, zoneBId });
         
         // ✅ FIX: Émettre arena:pair-validated pour déclencher les bulles d'animation (comme mode normal)
         if (pairId) {
@@ -1710,6 +1713,9 @@ class CrazyArenaManager {
       // 💾 PERSISTENCE: Sauvegarder les erreurs Arena en DB
       this.persistArenaScoreUpdate(matchId, studentId);
     }
+
+    // 📊 MAÎTRISE: Enregistrer la tentative pour le suivi par thème (correct et incorrect)
+    this.persistAttempt(match, player, { isCorrect, pairId, zoneAId, zoneBId });
 
     match.scores[studentId] = {
       score: player.score,
@@ -1869,6 +1875,7 @@ class CrazyArenaManager {
     // Trier les joueurs par score DESC, puis temps ASC
     const ranking = match.players.map(p => ({
       studentId: p.studentId,
+      authId: p.authId || null,
       name: p.name,
       avatar: p.avatar,
       score: p.score,
@@ -2457,17 +2464,42 @@ class CrazyArenaManager {
 
     try {
       match._arenaResultIds = {};
+      const isValidUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
       for (const player of match.players) {
-        const resultId = `result_${uuidv4()}`;
+        const resultId = uuidv4();
         match._arenaResultIds[player.studentId] = resultId;
+
+        // Résoudre student_id en UUID valide (même logique que Training)
+        let dbStudentId = player.authId || (isValidUuid(player.studentId) ? player.studentId : null);
+        if (!dbStudentId && this.supabase) {
+          try {
+            const { data: mapping } = await this.supabase
+              .from('user_student_mapping')
+              .select('user_id')
+              .eq('student_id', player.studentId)
+              .eq('active', true)
+              .single();
+            if (mapping?.user_id) {
+              dbStudentId = mapping.user_id;
+              player.authId = dbStudentId;
+              logger.info('[CrazyArena][Arena] 🔍 Lookup user_student_mapping OK', { studentId: player.studentId, authId: dbStudentId });
+            }
+          } catch (lookupErr) {
+            logger.warn('[CrazyArena][Arena] ⚠️ Lookup user_student_mapping échoué', { studentId: player.studentId, error: lookupErr.message });
+          }
+        }
+        if (!dbStudentId) {
+          logger.error('[CrazyArena][Arena] ❌ Pas d\'UUID valide pour student_id, skip insert', { matchId, studentId: player.studentId });
+          continue;
+        }
 
         const { error: resErr } = await this.supabase
           .from('match_results')
           .insert({
             id: resultId,
             match_id: matchId,
-            student_id: player.studentId,
+            student_id: dbStudentId,
             position: 0,
             score: 0,
             time_ms: 0,
@@ -2476,7 +2508,7 @@ class CrazyArenaManager {
           });
 
         if (resErr) {
-          logger.error('[CrazyArena][Arena] ❌ Erreur insert match_results', { matchId, studentId: player.studentId, error: resErr.message });
+          logger.error('[CrazyArena][Arena] ❌ Erreur insert match_results', { matchId, studentId: player.studentId, dbStudentId, error: resErr.message });
         }
       }
 

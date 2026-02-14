@@ -77,6 +77,7 @@ export default function CrazyArenaLobby() {
         
         if (data.ok && data.student) {
           const studentId = data.student.id;
+          const authId = data.user?.id || null;
           const studentName = data.student.fullName || data.student.firstName || 'Joueur';
           
           setMyStudentId(studentId);
@@ -87,7 +88,7 @@ export default function CrazyArenaLobby() {
           localStorage.setItem('cc_student_id', studentId);
           localStorage.setItem('cc_student_name', studentName);
           
-          return { studentId, studentName };
+          return { studentId, authId, studentName };
         } else if (isTeacherOrAdmin) {
           // ✅ Les professeurs n'ont pas de student_id, c'est normal
           console.log('[CrazyArena] Professeur détecté, pas de student_id requis');
@@ -133,7 +134,7 @@ export default function CrazyArenaLobby() {
     fetchUserData().then(async (userData) => {
       if (!userData) return; // Erreur, pas de student lié
       
-      const { studentId, studentName } = userData;
+      const { studentId, authId, studentName } = userData;
       
       // Récupérer le matchId depuis le roomCode
       const matchId = await getMatchIdFromRoomCode(roomCode);
@@ -158,6 +159,7 @@ export default function CrazyArenaLobby() {
           matchId: matchId,
           studentData: {
             studentId,
+            authId: authId || null,
             name: studentName,
             avatar: '/avatars/default.png'
           }
