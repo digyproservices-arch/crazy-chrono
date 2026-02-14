@@ -2273,12 +2273,12 @@ class CrazyArenaManager {
       const txtZone = [zA, zB].find(z => z && z.type === 'texte');
 
       if (calcZone && numZone) {
-        item_type = 'calc';
+        item_type = 'calcnum';
         const m = calcZone.content ? calcZone.content.match(/^(\d+)\s*×/) : null;
         theme = m ? `Table de ${m[1]}` : 'Multiplication';
         item_id = calcZone.content || pairId;
       } else if (imgZone || txtZone) {
-        item_type = 'img-txt';
+        item_type = 'imgtxt';
         theme = 'Images-Texte';
         if (txtZone && txtZone.content) {
           item_id = JSON.stringify({ text: txtZone.content, img: imgZone ? imgZone.content : null });
