@@ -156,7 +156,7 @@ function MasteryTab({ themeMastery }) {
           {t.avgLatencyMs > 0 && <span style={{ fontSize: 11, color: '#64748b' }}>⚡ {fmtLatency(t.avgLatencyMs)}</span>}
           {hasItems && (
             <span style={{ fontSize: 11, color: '#64748b' }}>
-              📊 Couverture : {t.uniqueItemsMastered || displayItems.length}/{t.expectedItems || '?'} {isTable ? 'calculs' : 'éléments'}
+              📊 Couverture : {t.uniqueItemsMastered || displayItems.length}/{t.expectedItems || '?'} {isTable ? 'calculs' : 'éléments'}{t.studentLevel && !isTable ? ` (niv. ${t.studentLevel})` : ''}
             </span>
           )}
           <span style={{ fontSize: 11, color: getColor(t.accuracy), fontWeight: 600 }}>

@@ -23,15 +23,26 @@ function getAssocData() {
   } catch { _assocCache = {}; }
   return _assocCache;
 }
-function getExpectedItemsForTheme(themeName) {
+const LEVEL_ORDER = ['CP', 'CE1', 'CE2', 'CM1', 'CM2', '6e', '5e', '4e', '3e'];
+const THEME_TO_CODE = { 'Plantes médicinales': 'botanique', 'Géographie': 'geographie', 'Animaux': 'animaux', 'Fruits & Légumes': 'fruits' };
+
+function getExpectedItemsForTheme(themeName, studentLevel) {
   if (themeName.startsWith('Table de ')) return 10;
-  const THEME_TO_CODE = { 'Plantes médicinales': 'botanique', 'Géographie': 'geographie', 'Animaux': 'animaux', 'Fruits & Légumes': 'fruits' };
   const code = THEME_TO_CODE[themeName];
-  if (code) {
-    const ad = getAssocData();
-    if (ad.textes) return ad.textes.filter(t => (t.themes || []).includes(code)).length;
+  if (!code) return null;
+  const ad = getAssocData();
+  if (!ad.textes) return null;
+  const maxIdx = studentLevel ? LEVEL_ORDER.indexOf(studentLevel) : -1;
+  if (maxIdx < 0) {
+    // Pas de niveau connu → compter tous les items du thème
+    return ad.textes.filter(t => (t.themes || []).includes(code)).length;
   }
-  return null;
+  // Compter les items dont le levelClass est <= au niveau du joueur
+  return ad.textes.filter(t => {
+    if (!(t.themes || []).includes(code)) return false;
+    const tIdx = LEVEL_ORDER.indexOf(t.levelClass);
+    return tIdx >= 0 && tIdx <= maxIdx;
+  }).length;
 }
 
 // Connexion Supabase
@@ -1656,9 +1667,18 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
             })).sort((a, b) => a.accuracy - b.accuracy)
           })).sort((a, b) => a.accuracy - b.accuracy);
 
-          // Enrichir chaque thème avec expectedItems et coveragePct
+          // Enrichir chaque thème avec expectedItems et coveragePct par niveau
           for (const t of themeMastery) {
-            const expected = getExpectedItemsForTheme(t.theme);
+            // Déterminer le niveau le plus élevé joué pour ce thème
+            let maxLevelIdx = -1;
+            for (const l of (t.levels || [])) {
+              const idx = LEVEL_ORDER.indexOf(l.level);
+              if (idx > maxLevelIdx) maxLevelIdx = idx;
+            }
+            const studentLevel = maxLevelIdx >= 0 ? LEVEL_ORDER[maxLevelIdx] : null;
+            t.studentLevel = studentLevel;
+
+            const expected = getExpectedItemsForTheme(t.theme, studentLevel);
             t.expectedItems = expected || t.items.length;
             const masteredItems = (t.items || []).filter(i => i.accuracy >= 80).length;
             t.uniqueItemsMastered = masteredItems;
