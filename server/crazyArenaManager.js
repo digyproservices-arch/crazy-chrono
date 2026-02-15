@@ -2279,7 +2279,9 @@ class CrazyArenaManager {
         item_id = calcZone.content || pairId;
       } else if (imgZone || txtZone) {
         item_type = 'imgtxt';
-        theme = 'Images-Texte';
+        const THEME_DISPLAY = { 'botanique': 'Plantes médicinales', 'multiplication': 'Tables de multiplication', 'geographie': 'Géographie', 'animaux': 'Animaux', 'fruits': 'Fruits & Légumes' };
+        const cfgTheme = (match.config && match.config.themes && match.config.themes[0]) || '';
+        theme = THEME_DISPLAY[cfgTheme] || cfgTheme || 'Images & Textes';
         if (txtZone && txtZone.content) {
           item_id = JSON.stringify({ text: txtZone.content, img: imgZone ? imgZone.content : null });
         }

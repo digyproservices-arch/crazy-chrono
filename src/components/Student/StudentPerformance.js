@@ -34,15 +34,11 @@ function MasteryTab({ themeMastery }) {
   const getBg = (acc) => acc >= 80 ? '#f0fdf4' : acc >= 60 ? '#fffbeb' : '#fef2f2';
   const fmtLatency = (ms) => !ms ? '' : ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
 
-  // Mastery label: requires both accuracy AND coverage (minimum unique items)
+  // Mastery label: requires FULL coverage (all items seen and mastered) + high accuracy
   const getMasteryLabel = (t) => {
-    const isTable = t.theme.startsWith('Table de ');
-    const uniqueItems = (t.items || []).length;
-    // For tables: require at least 5 unique calculations to be "Maîtrisé"
-    // For other themes: require at least 3 unique items
-    const minCoverage = isTable ? 10 : 3;
-    if (t.accuracy >= 80 && uniqueItems >= minCoverage) return '✅ Maîtrisé';
-    if (t.accuracy >= 80 && uniqueItems < minCoverage) return '🔍 Vu partiellement';
+    const cov = typeof t.coveragePct === 'number' ? t.coveragePct : 0;
+    if (cov >= 100 && t.accuracy >= 80) return '✅ Maîtrisé';
+    if (t.accuracy >= 80 && cov < 100) return '🔍 Vu partiellement';
     if (t.accuracy >= 60) return '⚠️ En progrès';
     return '❌ À travailler';
   };
@@ -126,7 +122,8 @@ function MasteryTab({ themeMastery }) {
   };
 
   const renderThemeCard = (t) => {
-    const color = getColor(t.accuracy);
+    const covPct = typeof t.coveragePct === 'number' ? t.coveragePct : t.accuracy;
+    const color = getColor(covPct);
     const isExpanded = expandedThemes[t.theme];
     const displayItems = (t.items || []).filter(it => !parseItem(it.item).hidden);
     const hasItems = displayItems.length > 0;
@@ -135,7 +132,7 @@ function MasteryTab({ themeMastery }) {
     // Determine if this theme has image-texte items
     const themeType = displayItems.some(it => { try { const p = JSON.parse(it.item); return p && p.img; } catch { return false; } }) ? 'imgtxt' : 'calc';
     return (
-      <div key={t.theme} style={{ background: getBg(t.accuracy), borderRadius: 12, padding: '16px 18px', border: `1px solid ${color}22` }}>
+      <div key={t.theme} style={{ background: getBg(covPct), borderRadius: 12, padding: '16px 18px', border: `1px solid ${color}22` }}>
         <div
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, cursor: hasItems ? 'pointer' : 'default' }}
           onClick={() => hasItems && toggleTheme(t.theme)}
@@ -149,19 +146,22 @@ function MasteryTab({ themeMastery }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 12, color: '#64748b' }}>{label}</span>
-            <span style={{ fontSize: 20, fontWeight: 800, color }}>{t.accuracy}%</span>
+            <span style={{ fontSize: 20, fontWeight: 800, color }}>{typeof t.coveragePct === 'number' ? t.coveragePct : t.accuracy}%</span>
           </div>
         </div>
         <div style={{ height: 8, background: '#e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${t.accuracy}%`, background: color, borderRadius: 4, transition: 'width 0.5s' }} />
+          <div style={{ height: '100%', width: `${Math.min(100, typeof t.coveragePct === 'number' ? t.coveragePct : t.accuracy)}%`, background: color, borderRadius: 4, transition: 'width 0.5s' }} />
         </div>
         <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           {t.avgLatencyMs > 0 && <span style={{ fontSize: 11, color: '#64748b' }}>⚡ {fmtLatency(t.avgLatencyMs)}</span>}
-          {isTable && hasItems && (
+          {hasItems && (
             <span style={{ fontSize: 11, color: '#64748b' }}>
-              📊 Couverture : {displayItems.length}/10 calculs
+              📊 Couverture : {t.uniqueItemsMastered || displayItems.length}/{t.expectedItems || '?'} {isTable ? 'calculs' : 'éléments'}
             </span>
           )}
+          <span style={{ fontSize: 11, color: getColor(t.accuracy), fontWeight: 600 }}>
+            CP: {t.accuracy}% ({t.correct}/{t.total})
+          </span>
           {t.levels && t.levels.length > 0 && t.levels.map(l => (
             <span key={l.level} style={{
               padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600,

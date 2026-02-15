@@ -10,6 +10,29 @@ const { createClient } = require('@supabase/supabase-js');
 const { sendGroupInvitations } = require('../utils/emailNotifications');
 const PDFDocument = require('pdfkit');
 const nodemailer = require('nodemailer');
+const fs = require('fs');
+const path = require('path');
+
+// Cache associations.json pour calcul expectedItems (maîtrise)
+let _assocCache = null;
+function getAssocData() {
+  if (_assocCache) return _assocCache;
+  try {
+    const p = path.join(__dirname, '../../public/data/associations.json');
+    _assocCache = JSON.parse(fs.readFileSync(p, 'utf-8'));
+  } catch { _assocCache = {}; }
+  return _assocCache;
+}
+function getExpectedItemsForTheme(themeName) {
+  if (themeName.startsWith('Table de ')) return 10;
+  const THEME_TO_CODE = { 'Plantes médicinales': 'botanique', 'Géographie': 'geographie', 'Animaux': 'animaux', 'Fruits & Légumes': 'fruits' };
+  const code = THEME_TO_CODE[themeName];
+  if (code) {
+    const ad = getAssocData();
+    if (ad.textes) return ad.textes.filter(t => (t.themes || []).includes(code)).length;
+  }
+  return null;
+}
 
 // Connexion Supabase
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -1632,6 +1655,15 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
               avgLatencyMs: idata.latencyCount > 0 ? Math.round(idata.totalLatency / idata.latencyCount) : 0
             })).sort((a, b) => a.accuracy - b.accuracy)
           })).sort((a, b) => a.accuracy - b.accuracy);
+
+          // Enrichir chaque thème avec expectedItems et coveragePct
+          for (const t of themeMastery) {
+            const expected = getExpectedItemsForTheme(t.theme);
+            t.expectedItems = expected || t.items.length;
+            const masteredItems = (t.items || []).filter(i => i.accuracy >= 80).length;
+            t.uniqueItemsMastered = masteredItems;
+            t.coveragePct = t.expectedItems > 0 ? Math.round((masteredItems / t.expectedItems) * 100) : 0;
+          }
         }
       }
     } catch (e) {
