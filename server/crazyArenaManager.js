@@ -105,7 +105,21 @@ class CrazyArenaManager {
       const config = typeof session.config === 'string' ? JSON.parse(session.config) : (session.config || {});
       const studentIds = (results || []).map(r => r.student_id);
 
-      console.log(`[CrazyArena][Training] 🔄 Restauration match ${matchId} depuis DB (session ${session.id}, ${studentIds.length} joueurs)`);
+      // Détecter si le jeu était déjà en cours (scores > 0 = game was playing)
+      const wasInProgress = (results || []).some(r => (r.score || 0) > 0 || (r.pairs_validated || 0) > 0);
+      
+      // Restaurer les scores depuis la DB
+      const restoredScores = {};
+      (results || []).forEach(r => {
+        restoredScores[r.student_id] = {
+          score: r.score || 0,
+          pairsValidated: r.pairs_validated || 0,
+          errors: r.errors || 0,
+          timeMs: 0
+        };
+      });
+
+      console.log(`[CrazyArena][Training] 🔄 Restauration match ${matchId} depuis DB (session ${session.id}, ${studentIds.length} joueurs, wasInProgress=${wasInProgress})`);
 
       // Recréer le match en mémoire
       this.matches.set(matchId, {
@@ -126,7 +140,7 @@ class CrazyArenaManager {
         status: 'waiting',
         expectedPlayers: studentIds,
         roundsPlayed: 0,
-        scores: {},
+        scores: restoredScores,
         zones: null,
         startTime: null,
         endTime: null,
@@ -134,11 +148,12 @@ class CrazyArenaManager {
         countdownTimeout: null,
         gameTimeout: null,
         _sessionId: session.id,
-        _recoveredFromDB: true
+        _recoveredFromDB: true,
+        _needsGameRestart: wasInProgress
       });
 
       const match = this.matches.get(matchId);
-      console.log(`[CrazyArena][Training] ✅ Match ${matchId} restauré depuis DB — en attente de reconnexion des joueurs`);
+      console.log(`[CrazyArena][Training] ✅ Match ${matchId} restauré depuis DB — ${wasInProgress ? '⚡ jeu en cours, redémarrage auto quand joueurs rejoignent' : 'en attente de reconnexion des joueurs'}`);
       return match;
     } catch (err) {
       console.error('[CrazyArena][Training] Erreur loadTrainingMatchFromDatabase:', err);
@@ -238,8 +253,27 @@ class CrazyArenaManager {
         count: match.players.length  // ✅ Comme Arena (reconnexion)
       });
       
+      // ✅ AUTO-RESTART sur reconnexion aussi (si dernier joueur attendu)
+      if (match._needsGameRestart && match.status === 'waiting' && match.players.length >= match.expectedPlayers.length) {
+        console.log(`[CrazyArena][Training] ⚡ Reconnexion complète pour match restauré ${matchId} — redémarrage automatique !`);
+        match._needsGameRestart = false;
+        match.status = 'countdown';
+        let count = 3;
+        const interval = setInterval(() => {
+          this.io.to(matchId).emit('training:countdown', { count });
+          count--;
+          if (count < 0) {
+            clearInterval(interval);
+            this.startTrainingGame(matchId);
+          }
+        }, 1000);
+      }
+
       return true;
     }
+
+    // Restaurer le score depuis la DB si match récupéré
+    const restoredScore = (match._recoveredFromDB && match.scores[studentData.studentId]) || null;
 
     const player = {
       socketId: socket.id,
@@ -248,9 +282,9 @@ class CrazyArenaManager {
       name: studentData.name,
       avatar: studentData.avatar || '/avatars/default.png',
       ready: false,
-      score: 0,
-      pairsValidated: 0,
-      errors: 0,
+      score: restoredScore ? restoredScore.score : 0,
+      pairsValidated: restoredScore ? restoredScore.pairsValidated : 0,
+      errors: restoredScore ? restoredScore.errors : 0,
       timeMs: 0
     };
 
@@ -258,7 +292,7 @@ class CrazyArenaManager {
     this.playerMatches.set(socket.id, matchId);  // ✅ Mapping socket → matchId
     socket.join(matchId);
 
-    console.log(`[CrazyArena][Training] ${studentData.name} a rejoint le match ${matchId} (${match.players.length}/${match.expectedPlayers.length})`);
+    console.log(`[CrazyArena][Training] ${studentData.name} a rejoint le match ${matchId} (${match.players.length}/${match.expectedPlayers.length})${restoredScore ? ` [score restauré: ${restoredScore.score}]` : ''}`);
 
     // Notifier tous les joueurs
     this.io.to(matchId).emit('training:player-joined', {
@@ -281,6 +315,26 @@ class CrazyArenaManager {
         ready: p.ready
       }))
     });
+
+    // ✅ AUTO-RESTART: Si le match était en cours avant le redémarrage serveur,
+    // relancer automatiquement le jeu quand tous les joueurs attendus ont rejoint
+    if (match._needsGameRestart && match.players.length >= match.expectedPlayers.length) {
+      console.log(`[CrazyArena][Training] ⚡ Tous les joueurs ont rejoint le match restauré ${matchId} — redémarrage automatique du jeu !`);
+      match._needsGameRestart = false;
+      
+      // Court countdown (2s) puis démarrage
+      match.status = 'countdown';
+      let count = 3;
+      const interval = setInterval(() => {
+        this.io.to(matchId).emit('training:countdown', { count });
+        count--;
+        if (count < 0) {
+          clearInterval(interval);
+          console.log(`[CrazyArena][Training] ⚡ Countdown terminé, redémarrage jeu restauré...`);
+          this.startTrainingGame(matchId);
+        }
+      }, 1000);
+    }
 
     return true;
   }
@@ -426,9 +480,17 @@ class CrazyArenaManager {
     
     console.log(`[CrazyArena][Training] 🎯 Carte générée: ${zones.length} zones, 1 paire à trouver (règle: 1 paire/carte)`);
 
-    // Initialiser les scores
+    // Initialiser les scores (préserver les scores restaurés depuis DB si match récupéré)
+    const isRecovered = match._recoveredFromDB;
     match.players.forEach(p => {
-      match.scores[p.studentId] = { score: 0, pairsValidated: 0, errors: 0, timeMs: 0 };
+      if (isRecovered && match.scores[p.studentId] && match.scores[p.studentId].score > 0) {
+        console.log(`[CrazyArena][Training] 🔄 Score restauré pour ${p.studentId}: ${match.scores[p.studentId].score} pts`);
+        p.score = match.scores[p.studentId].score;
+        p.pairsValidated = match.scores[p.studentId].pairsValidated;
+        p.errors = match.scores[p.studentId].errors;
+      } else {
+        match.scores[p.studentId] = { score: 0, pairsValidated: 0, errors: 0, timeMs: 0 };
+      }
     });
 
     // Notifier le démarrage avec les zones ET la config
@@ -442,7 +504,7 @@ class CrazyArenaManager {
         studentId: p.studentId,
         name: p.name,
         avatar: p.avatar,
-        score: 0
+        score: p.score || 0
       }))
     };
     
