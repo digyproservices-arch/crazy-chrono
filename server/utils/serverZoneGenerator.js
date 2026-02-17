@@ -231,10 +231,38 @@ function generateRoundZones(seed, config = {}) {
     const calculIds = [...calculToChiffres.keys()];
     const chiffreIds = [...chiffreToCalculs.keys()];
     
+    // ✅ FIX: Charger math_positions.json pour injecter angle + offset dans les zones
+    // En mode Arena/Training, le client utilise zone.angle directement (pas localStorage)
+    let mathPositions = { calcAngles: {}, mathOffsets: {} };
+    try {
+      const mpPath = path.join(__dirname, '..', '..', 'public', 'data', 'math_positions.json');
+      if (fs.existsSync(mpPath)) {
+        mathPositions = JSON.parse(fs.readFileSync(mpPath, 'utf8'));
+        console.log('[ServerZoneGen] math_positions.json chargé:', {
+          anglesCount: Object.keys(mathPositions.calcAngles || {}).length,
+          offsetsCount: Object.keys(mathPositions.mathOffsets || {}).length
+        });
+      } else {
+        console.warn('[ServerZoneGen] math_positions.json introuvable:', mpPath);
+      }
+    } catch (mpErr) {
+      console.warn('[ServerZoneGen] Erreur chargement math_positions.json:', mpErr.message);
+    }
+    const mpAngles = mathPositions.calcAngles || {};
+    const mpOffsets = mathPositions.mathOffsets || {};
+
     let result = zonesData.map(z => {
       const zone = { ...z };
-      // ✅ FIX: NE PAS assigner d'angle ici — les angles corrects viennent de
-      // math_positions.json (via /math-positions API) et sont chargés côté client
+      // Injecter angle et offset depuis math_positions.json pour calcul/chiffre
+      if ((zone.type === 'calcul' || zone.type === 'chiffre') && zone.id) {
+        const zoneIdStr = String(zone.id);
+        if (mpAngles[zoneIdStr] !== undefined) {
+          zone.angle = mpAngles[zoneIdStr];
+        }
+        if (mpOffsets[zoneIdStr]) {
+          zone.mathOffset = mpOffsets[zoneIdStr];
+        }
+      }
       return zone;
     });
     const used = { image: new Set(), texte: new Set(), calcul: new Set(), chiffre: new Set() };

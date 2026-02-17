@@ -61,7 +61,7 @@ function interpolateArc(points, idxStart, idxEnd, marginPx) {
   return { newStart, newEnd, r, centerX, centerY, largeArcFlag: 0, sweepFlag: 1, arcLen, delta };
 }
 
-function getArcPathFromZonePoints(points, zoneId, selectedArcPoints, arcPointsFromZone, marginPx = 0) {
+function getArcPathFromZonePoints(points, zoneId, selectedArcPoints, arcPointsFromZone, marginPx = 0, autoFlip = false) {
   if (!points || points.length < 2) return '';
   let idxStart, idxEnd;
   if (Array.isArray(arcPointsFromZone) && arcPointsFromZone.length === 2) {
@@ -75,6 +75,20 @@ function getArcPathFromZonePoints(points, zoneId, selectedArcPoints, arcPointsFr
     idxEnd = 1;
   }
   const { newStart, newEnd, r, centerX, centerY, largeArcFlag, sweepFlag } = interpolateArc(points, idxStart, idxEnd, marginPx);
+
+  // Auto-flip: si le milieu de l'arc est en bas du cercle, le texte serait à l'envers
+  if (autoFlip) {
+    const startAngle = Math.atan2(newStart.y - centerY, newStart.x - centerX);
+    const endAngle = Math.atan2(newEnd.y - centerY, newEnd.x - centerX);
+    let arcDelta = endAngle - startAngle;
+    if (arcDelta < 0) arcDelta += 2 * Math.PI;
+    const midAngle = startAngle + arcDelta / 2;
+    const normMid = ((midAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    if (normMid > 0.05 && normMid < Math.PI - 0.05) {
+      return `M ${newEnd.x},${newEnd.y} A ${r},${r} 0 ${largeArcFlag},${sweepFlag === 1 ? 0 : 1} ${newStart.x},${newStart.y}`;
+    }
+  }
+
   return `M ${newStart.x},${newStart.y} A ${r},${r} 0 ${largeArcFlag},${sweepFlag} ${newEnd.x},${newEnd.y}`;
 }
 
@@ -1166,7 +1180,7 @@ export default function TrainingArenaGame() {
               </clipPath>
             ))}
             {zones.filter(z => z.type !== 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
-              <path id={`text-curve-${zone.id}`} key={`textcurve-${zone.id}`} d={getArcPathFromZonePoints(zone.points, zone.id, {}, zone.arcPoints)} fill="none" />
+              <path id={`text-curve-${zone.id}`} key={`textcurve-${zone.id}`} d={getArcPathFromZonePoints(zone.points, zone.id, {}, zone.arcPoints, 0, true)} fill="none" />
             ))}
           </defs>
           {zones.filter(z => z && typeof z === 'object').map((zone) => (
@@ -1274,8 +1288,8 @@ export default function TrainingArenaGame() {
                 const chiffreBaseMin = chiffreRefBase ? 0.95 * chiffreRefBase : base;
                 const effectiveBase = (zone.type === 'chiffre') ? Math.max(base, chiffreBaseMin) : base;
                 const fontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * effectiveBase;
-                const angle = Number(calcAngles[zone.id] || 0);
-                const mo = mathOffsets[zone.id] || { x: 0, y: 0 };
+                const angle = Number(calcAngles[zone.id] ?? zone.angle ?? 0);
+                const mo = mathOffsets[zone.id] || zone.mathOffset || { x: 0, y: 0 };
                 
                 const contentStr = String(zone.content ?? '').trim();
                 const isSix = (zone.type === 'chiffre') && contentStr === '6';

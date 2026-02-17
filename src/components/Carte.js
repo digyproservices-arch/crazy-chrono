@@ -568,7 +568,7 @@ function interpolateArc(points, idxStart, idxEnd, marginPx) {
   return { newStart, newEnd, r, centerX, centerY, largeArcFlag: 0, sweepFlag: 1, arcLen, delta };
 }
 
-function getArcPathFromZonePoints(points, zoneId, selectedArcPoints, arcPointsFromZone, marginPx = 0) {
+function getArcPathFromZonePoints(points, zoneId, selectedArcPoints, arcPointsFromZone, marginPx = 0, autoFlip = false) {
   if (!points || points.length < 2) return '';
   let idxStart, idxEnd;
   if (Array.isArray(arcPointsFromZone) && arcPointsFromZone.length === 2) {
@@ -582,6 +582,22 @@ function getArcPathFromZonePoints(points, zoneId, selectedArcPoints, arcPointsFr
     idxEnd = 1;
   }
   const { newStart, newEnd, r, centerX, centerY, largeArcFlag, sweepFlag } = interpolateArc(points, idxStart, idxEnd, marginPx);
+
+  // Auto-flip: si le milieu de l'arc est en bas du cercle, le texte serait à l'envers
+  // car la tangente clockwise pointe vers la gauche. Inverser l'arc pour que le texte soit lisible.
+  if (autoFlip) {
+    const startAngle = Math.atan2(newStart.y - centerY, newStart.x - centerX);
+    const endAngle = Math.atan2(newEnd.y - centerY, newEnd.x - centerX);
+    let arcDelta = endAngle - startAngle;
+    if (arcDelta < 0) arcDelta += 2 * Math.PI;
+    const midAngle = startAngle + arcDelta / 2;
+    const normMid = ((midAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    // Bottom half in SVG: normMid ∈ (0, π) → tangente clockwise va vers la gauche → texte à l'envers
+    if (normMid > 0.05 && normMid < Math.PI - 0.05) {
+      return `M ${newEnd.x},${newEnd.y} A ${r},${r} 0 ${largeArcFlag},${sweepFlag === 1 ? 0 : 1} ${newStart.x},${newStart.y}`;
+    }
+  }
+
   return `M ${newStart.x},${newStart.y} A ${r},${r} 0 ${largeArcFlag},${sweepFlag} ${newEnd.x},${newEnd.y}`;
 }
 
@@ -6443,9 +6459,9 @@ setZones(dataWithRandomTexts);
               <path d={pointsToBezierPath(zone.points)} />
             </clipPath>
           ))}
-          {/* Paths pour texte courbé (zones non-image) */}
+          {/* Paths pour texte courbé (zones non-image) — autoFlip en mode jeu pour éviter texte à l'envers */}
           {zones.filter(z => z.type !== 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
-            <path id={`text-curve-${zone.id}`} key={`textcurve-${zone.id}`} d={getArcPathFromZonePoints(zone.points, zone.id, selectedArcPoints, zone.arcPoints)} fill="none" />
+            <path id={`text-curve-${zone.id}`} key={`textcurve-${zone.id}`} d={getArcPathFromZonePoints(zone.points, zone.id, selectedArcPoints, zone.arcPoints, 0, !!(arenaMatchId || trainingMatchId))} fill="none" />
           ))}
         </defs>
           {/* Chemin en cours de dessin façon Illustrator */}
@@ -6720,7 +6736,7 @@ setZones(dataWithRandomTexts);
                   // In Training/Arena mode, use server zone data directly (bypass localStorage-derived state)
                   const isServerMode = trainingMatchId || arenaMatchId;
                   const angle = isServerMode ? Number(zone.angle || 0) : Number(calcAngles[zone.id] || 0);
-                  const mo = isServerMode ? { x: 0, y: 0 } : (mathOffsets[zone.id] || { x: 0, y: 0 });
+                  const mo = isServerMode ? (zone.mathOffset || { x: 0, y: 0 }) : (mathOffsets[zone.id] || { x: 0, y: 0 });
                   const handleRotate = (e) => {
                     if (gameActive || !editMode) return;
                     e.stopPropagation();
