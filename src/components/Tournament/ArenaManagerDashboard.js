@@ -304,9 +304,9 @@ export default function ArenaManagerDashboard() {
     });
   };
 
-  // Voir le lobby d'un match (optionnel)
-  const handleViewLobby = (roomCode) => {
-    navigate(`/crazy-arena/lobby/${roomCode}`);
+  // Voir le match en direct (mode spectateur)
+  const handleSpectate = (matchId) => {
+    navigate(`/crazy-arena/spectate/${matchId}`);
   };
 
   if (loading) {
@@ -588,7 +588,7 @@ export default function ArenaManagerDashboard() {
                   </button>
 
                   <button
-                    onClick={() => handleViewLobby(match.roomCode)}
+                    onClick={() => handleSpectate(match.matchId)}
                     style={{
                       padding: '12px 24px',
                       background: '#fff',
@@ -600,7 +600,7 @@ export default function ArenaManagerDashboard() {
                       cursor: 'pointer'
                     }}
                   >
-                    👁️ Voir lobby
+                    👁️ Voir en direct
                   </button>
 
                   <button

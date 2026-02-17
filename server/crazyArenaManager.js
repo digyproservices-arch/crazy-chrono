@@ -1095,24 +1095,34 @@ class CrazyArenaManager {
   }
 
   /**
-   * Récupérer l'état d'un match (pour dashboard professeur)
+   * Récupérer l'état d'un match (pour dashboard professeur / spectateur)
    */
   getMatchState(matchId) {
     const match = this.matches.get(matchId);
     if (!match) return null;
 
+    const config = match.config || {};
+    const roundsPerMatch = config.rounds || 3;
+    const durationPerRound = config.duration || 60;
+
     return {
       matchId: match.id,
       roomCode: match.roomCode,
+      mode: match.mode,
       status: match.status,
       players: match.players.map(p => ({
         studentId: p.studentId,
         name: p.name,
         avatar: p.avatar,
         ready: p.ready,
-        score: p.score
+        score: p.score || 0,
+        pairsFound: p.pairsFound || 0
       })),
-      currentRound: 0
+      currentRound: (match.roundsPlayed || 0) + 1,
+      totalRounds: roundsPerMatch,
+      durationPerRound,
+      startTime: match.startTime,
+      config: { rounds: roundsPerMatch, duration: durationPerRound, themes: config.themes || [] }
     };
   }
 

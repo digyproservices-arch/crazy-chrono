@@ -1654,6 +1654,20 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('arena:spectate-join', ({ matchId }, cb) => {
+    // Mode spectateur: rejoindre la room pour recevoir tous les événements en lecture seule
+    console.log(`[Server] 👁️ Spectateur rejoint le match ${matchId}`);
+    socket.join(matchId);
+    
+    const state = crazyArena.getMatchState(matchId);
+    if (state) {
+      socket.emit('arena:spectate-state', state);
+    }
+    if (typeof cb === 'function') {
+      cb({ ok: !!state, state });
+    }
+  });
+
   // Joueur clique "Je suis prêt" pour le départage
   socket.on('arena:player-ready-tiebreaker', ({ matchId, studentId, playerName }) => {
     logger.info('[Server][Arena] Joueur prêt pour départage', { matchId, studentId, playerName, socketId: socket.id });
