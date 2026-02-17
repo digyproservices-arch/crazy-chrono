@@ -60,6 +60,93 @@ class CrazyArenaManager {
   }
 
   /**
+   * Charger un match TRAINING depuis Supabase (en cas de redémarrage du backend)
+   * Cherche dans training_sessions par match_id (UUID sans préfixe match_)
+   */
+  async loadTrainingMatchFromDatabase(matchId) {
+    if (!this.supabase) {
+      console.warn('[CrazyArena][Training] Supabase non configuré, impossible de récupérer le match');
+      return null;
+    }
+
+    try {
+      const isValidUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+      const rawUuid = matchId.replace(/^match_/, '');
+      if (!isValidUuid(rawUuid)) {
+        console.log(`[CrazyArena][Training] Match ${matchId} - UUID invalide après strip: ${rawUuid}`);
+        return null;
+      }
+
+      // Chercher session active (completed_at IS NULL)
+      const { data: session, error } = await this.supabase
+        .from('training_sessions')
+        .select('*')
+        .eq('match_id', rawUuid)
+        .is('completed_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('[CrazyArena][Training] Erreur query training_sessions:', error.message);
+        return null;
+      }
+      if (!session) {
+        console.log(`[CrazyArena][Training] Aucune session active trouvée pour match_id=${rawUuid}`);
+        return null;
+      }
+
+      // Récupérer les résultats (joueurs inscrits)
+      const { data: results } = await this.supabase
+        .from('training_results')
+        .select('student_id, score, pairs_validated, errors')
+        .eq('session_id', session.id);
+
+      const config = typeof session.config === 'string' ? JSON.parse(session.config) : (session.config || {});
+      const studentIds = (results || []).map(r => r.student_id);
+
+      console.log(`[CrazyArena][Training] 🔄 Restauration match ${matchId} depuis DB (session ${session.id}, ${studentIds.length} joueurs)`);
+
+      // Recréer le match en mémoire
+      this.matches.set(matchId, {
+        matchId,
+        mode: 'training',
+        classId: session.class_id,
+        teacherId: session.teacher_id,
+        roomCode: matchId,
+        config: {
+          rounds: config.rounds || 3,
+          duration: config.duration || config.durationPerRound || 60,
+          classes: config.classes || [],
+          themes: config.themes || [],
+          level: config.level || 'CE1',
+          sessionName: config.sessionName || session.session_name || 'Session Entraînement'
+        },
+        players: [],
+        status: 'waiting',
+        expectedPlayers: studentIds,
+        roundsPlayed: 0,
+        scores: {},
+        zones: null,
+        startTime: null,
+        endTime: null,
+        timerInterval: null,
+        countdownTimeout: null,
+        gameTimeout: null,
+        _sessionId: session.id,
+        _recoveredFromDB: true
+      });
+
+      const match = this.matches.get(matchId);
+      console.log(`[CrazyArena][Training] ✅ Match ${matchId} restauré depuis DB — en attente de reconnexion des joueurs`);
+      return match;
+    } catch (err) {
+      console.error('[CrazyArena][Training] Erreur loadTrainingMatchFromDatabase:', err);
+      return null;
+    }
+  }
+
+  /**
    * Créer un match en mode ENTRAÎNEMENT (sans Supabase)
    */
   createTrainingMatch(matchId, studentIds, config, classId, teacherId) {
@@ -115,10 +202,16 @@ class CrazyArenaManager {
    * Un joueur rejoint un match training (clone de joinMatch pour Training)
    */
   async joinTrainingMatch(socket, matchId, studentData) {
-    const match = this.matches.get(matchId);
+    let match = this.matches.get(matchId);
+    
+    // Si match non trouvé en mémoire, tenter de restaurer depuis la DB
+    if (!match) {
+      console.log(`[CrazyArena][Training] Match ${matchId} non trouvé en mémoire, tentative de restauration depuis DB...`);
+      match = await this.loadTrainingMatchFromDatabase(matchId);
+    }
     
     if (!match) {
-      console.error(`[CrazyArena][Training] Match ${matchId} introuvable`);
+      console.error(`[CrazyArena][Training] Match ${matchId} introuvable (mémoire + DB)`);
       socket.emit('training:error', { message: 'Match introuvable' });
       socket.emit('training:match-lost', { reason: 'Match introuvable. Le serveur a peut-être redémarré.' });
       return false;
@@ -752,16 +845,14 @@ class CrazyArenaManager {
     }
     
     if (!matchId) {
-      logger.warn('[CrazyArena][Training] trainingPairValidated: Aucun match pour socket', { socketId: socket.id, dataMatchId: data.matchId });
-      // ✅ Notifier le client que le match n'existe plus
-      socket.emit('training:match-lost', { reason: 'Match introuvable. Le serveur a peut-être redémarré.' });
+      logger.warn('[CrazyArena][Training] trainingPairValidated: Aucun match pour socket (attente rejoin)', { socketId: socket.id, dataMatchId: data.matchId });
+      // Ne PAS émettre training:match-lost ici — le handler training:join fera la récupération DB
       return;
     }
 
     const match = this.matches.get(matchId);
     if (!match) {
-      logger.error('[CrazyArena][Training] trainingPairValidated: Match introuvable', { matchId, socketId: socket.id });
-      socket.emit('training:match-lost', { reason: 'Match introuvable. Le serveur a peut-être redémarré.' });
+      logger.warn('[CrazyArena][Training] trainingPairValidated: Match introuvable (attente rejoin)', { matchId, socketId: socket.id });
       // Nettoyer le mapping obsolète
       this.playerMatches.delete(socket.id);
       return;
@@ -2218,6 +2309,12 @@ class CrazyArenaManager {
     if (!this.supabase) return;
     const match = this.matches.get(matchId);
     if (!match) return;
+
+    // Si le match a été restauré depuis la DB, ne pas recréer la session
+    if (match._sessionId && match._recoveredFromDB) {
+      logger.info('[CrazyArena][Training] Match restauré depuis DB, skip persistMatchStart (session existante)', { matchId, sessionId: match._sessionId });
+      return;
+    }
 
     try {
       const sessionId = uuidv4();
