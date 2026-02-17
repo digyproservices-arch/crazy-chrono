@@ -45,11 +45,11 @@ class CrazyArenaManager {
       const config = typeof data.config === 'string' ? JSON.parse(data.config) : data.config;
       this.createMatch(matchId, data.room_code, config);
       
-      // Si le match était in_progress en DB, le remettre en waiting pour que les joueurs re-rejoignent
-      // (les joueurs devront se reconnecter après un redémarrage serveur)
+      // Si le match était in_progress en DB, marquer pour auto-reprise quand les joueurs se reconnectent
       const match = this.matches.get(matchId);
       if (match && data.status === 'in_progress') {
-        console.log(`[CrazyArena] Match ${matchId} était in_progress en DB, remis en waiting pour reconnexion`);
+        match.wasInProgress = true;
+        console.log(`[CrazyArena] Match ${matchId} était in_progress en DB, marqué wasInProgress=true pour auto-reprise`);
       }
       
       return match;
@@ -1243,8 +1243,20 @@ class CrazyArenaManager {
     });
     console.log(`[CrazyArena] arena:player-joined et arena:players-update émis avec succès`);
 
-    // Ne PAS démarrer automatiquement - attendre que tous soient prêts
-    // Le countdown se lancera via playerReady() quand tous seront prêts
+    // ✅ AUTO-REPRISE: Si le match était in_progress avant un redémarrage serveur,
+    // relancer automatiquement dès que 2+ joueurs se sont reconnectés
+    if (match.wasInProgress && match.players.length >= 2 && match.status === 'waiting') {
+      console.log(`[CrazyArena] 🔄 Auto-reprise du match ${matchId} après redémarrage serveur (${match.players.length} joueurs reconnectés)`);
+      // Petit délai pour laisser les autres joueurs se reconnecter aussi
+      setTimeout(() => {
+        const m = this.matches.get(matchId);
+        if (m && m.status === 'waiting' && m.wasInProgress) {
+          console.log(`[CrazyArena] 🚀 Reprise effective du match ${matchId} avec ${m.players.length} joueur(s)`);
+          delete m.wasInProgress;
+          this.startGame(matchId, true);
+        }
+      }, 3000); // 3s de grâce pour que tous les joueurs se reconnectent
+    }
 
     return true;
   }
@@ -1374,7 +1386,7 @@ class CrazyArenaManager {
   /**
    * Démarrer la partie
    */
-  async startGame(matchId) {
+  async startGame(matchId, isResume = false) {
     const match = this.matches.get(matchId);
     if (!match) return;
 
@@ -1421,10 +1433,14 @@ class CrazyArenaManager {
     
     this.io.to(matchId).emit('arena:game-start', gameStartPayload);
 
-    // 💾 PERSISTENCE: Créer match_results initiaux en DB
-    this.persistArenaMatchStart(matchId).catch(err => {
-      logger.error('[CrazyArena][Arena] Erreur persistArenaMatchStart (non-bloquante)', { matchId, error: err.message });
-    });
+    // 💾 PERSISTENCE: Créer match_results initiaux en DB (skip si reprise après redémarrage)
+    if (!isResume) {
+      this.persistArenaMatchStart(matchId).catch(err => {
+        logger.error('[CrazyArena][Arena] Erreur persistArenaMatchStart (non-bloquante)', { matchId, error: err.message });
+      });
+    } else {
+      console.log(`[CrazyArena] 🔄 Reprise: skip persistArenaMatchStart (match_results déjà en DB)`);
+    }
 
     // ⏱️ CHRONO: Diffuser le temps restant toutes les secondes
     // ✅ CORRECTION: Timer TOTAL = rounds × duration (ex: 3 × 60s = 180s)
