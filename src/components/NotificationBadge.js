@@ -183,6 +183,22 @@ export default function NotificationBadge() {
       });
     });
 
+    // ✅ NOUVEAU: Écouter invitations Arena Mode (instant, comme Training)
+    socket.on(`arena:invite:${studentId}`, (data) => {
+      console.log(`[NotificationBadge] Invitation Arena reçue:`, data);
+      const newInvite = {
+        matchId: data.matchId,
+        roomCode: data.roomCode,
+        groupSize: data.groupSize,
+        config: data.config,
+        timestamp: Date.now()
+      };
+      setInvitations(prev => {
+        if (prev.some(inv => inv.matchId === data.matchId)) return prev;
+        return [...prev, newInvite];
+      });
+    });
+
     // Écouter fin de match training
     socket.on('training:match-finished', ({ matchId }) => {
       console.log(`[NotificationBadge] Training match ${matchId} terminé - Retrait invitation`);

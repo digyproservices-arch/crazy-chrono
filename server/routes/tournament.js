@@ -607,6 +607,19 @@ router.post('/matches', requireSupabase, async (req, res) => {
           ? groupData.student_ids 
           : JSON.parse(groupData.student_ids);
         
+        // ✅ Émettre notifications Socket.IO instantanées pour chaque élève (comme Training)
+        if (global.crazyArena && global.crazyArena.io) {
+          studentIds.forEach(sid => {
+            global.crazyArena.io.emit(`arena:invite:${sid}`, {
+              matchId,
+              roomCode,
+              groupSize: studentIds.length,
+              config: config || {}
+            });
+          });
+          console.log(`[Tournament API] ✅ Notifications Socket.IO Arena envoyées à ${studentIds.length} élève(s)`);
+        }
+        
         // Récupérer les infos des élèves avec leurs emails depuis Auth
         const { data: mappings } = await supabase
           .from('user_student_mapping')
@@ -1058,6 +1071,8 @@ router.get('/active-matches', requireSupabase, async (req, res) => {
     
     if (matchesError) throw matchesError;
     
+    console.log(`[Tournament API] 🔍 active-matches: teacherId=${teacherId}, teacherEmail=${teacherEmail}, arenaMatchesDB=${(arenaMatches||[]).length}`);
+    
     // ✅ Filtrer par teacherId/teacherEmail via tournaments.created_by
     // Note: created_by peut contenir un UUID ou un email selon la méthode de création
     let filteredArenaMatches = arenaMatches || [];
@@ -1069,6 +1084,8 @@ router.get('/active-matches', requireSupabase, async (req, res) => {
           .select('id, created_by')
           .in('id', tournamentIds);
         
+        console.log(`[Tournament API] 🔍 Tournaments trouvés:`, (tournaments||[]).map(t => ({ id: t.id?.slice(-8), created_by: t.created_by })));
+        
         const teacherTournamentIds = new Set(
           (tournaments || []).filter(t => {
             if (!t.created_by) return false;
@@ -1078,8 +1095,11 @@ router.get('/active-matches', requireSupabase, async (req, res) => {
             return false;
           }).map(t => t.id)
         );
+        
+        console.log(`[Tournament API] 🔍 Après filtre teacherId: ${filteredArenaMatches.length} → ${filteredArenaMatches.filter(m => teacherTournamentIds.has(m.tournament_id)).length} matchs`);
         filteredArenaMatches = filteredArenaMatches.filter(m => teacherTournamentIds.has(m.tournament_id));
       } else {
+        console.log(`[Tournament API] ⚠️ Aucun tournament_id trouvé dans les matchs → 0 matchs Arena DB`);
         filteredArenaMatches = [];
       }
     }
@@ -1120,7 +1140,48 @@ router.get('/active-matches', requireSupabase, async (req, res) => {
       };
     });
     
-    // ✅ PARTIE 2: Matchs Training depuis la mémoire (CrazyArenaManager)
+    // ✅ PARTIE 2: Enrichir matchs Arena DB avec données temps réel de la mémoire
+    if (global.crazyArena && global.crazyArena.matches) {
+      for (const em of enrichedArenaMatches) {
+        const memMatch = global.crazyArena.matches.get(em.matchId);
+        if (memMatch) {
+          em.connectedPlayers = memMatch.players.length;
+          em.readyPlayers = memMatch.players.filter(p => p.ready).length;
+          em.status = memMatch.status === 'waiting' ? 'pending' : memMatch.status;
+          em.players = memMatch.players.map(p => ({ studentId: p.studentId, name: p.name, ready: p.ready, score: p.score }));
+        }
+      }
+    }
+    
+    // ✅ PARTIE 3: Matchs Arena en mémoire absents de la DB (fallback)
+    let arenaMemoryMatches = [];
+    if (global.crazyArena && global.crazyArena.matches) {
+      const dbMatchIds = new Set(enrichedArenaMatches.map(m => m.matchId));
+      const allMemMatches = Array.from(global.crazyArena.matches.values());
+      
+      arenaMemoryMatches = allMemMatches
+        .filter(m => m.mode === 'arena' && ['waiting', 'playing', 'tie-waiting'].includes(m.status))
+        .filter(m => !dbMatchIds.has(m.matchId)) // Pas déjà dans la DB
+        .map(match => ({
+          matchId: match.matchId,
+          roomCode: match.roomCode || match.matchId,
+          status: match.status === 'waiting' ? 'pending' : match.status,
+          createdAt: new Date().toISOString(),
+          groupName: 'Match Arena',
+          totalPlayers: match.players.length,
+          studentIds: match.players.map(p => p.studentId),
+          mode: 'arena',
+          connectedPlayers: match.players.length,
+          readyPlayers: match.players.filter(p => p.ready).length,
+          players: match.players.map(p => ({ studentId: p.studentId, name: p.name, ready: p.ready, score: p.score }))
+        }));
+      
+      if (arenaMemoryMatches.length > 0) {
+        console.log(`[Tournament API] ✅ ${arenaMemoryMatches.length} matchs Arena mémoire-only ajoutés`);
+      }
+    }
+    
+    // ✅ PARTIE 4: Matchs Training depuis la mémoire (CrazyArenaManager)
     let trainingMatches = [];
     
     if (global.crazyArena && global.crazyArena.matches) {
@@ -1136,7 +1197,7 @@ router.get('/active-matches', requireSupabase, async (req, res) => {
             matchId: match.matchId,
             roomCode: match.roomCode || match.matchId,
             status: match.status === 'waiting' ? 'pending' : match.status,
-            createdAt: new Date().toISOString(), // Pas de created_at en mémoire
+            createdAt: new Date().toISOString(),
             groupName: match.config?.sessionName || 'Session Training',
             totalPlayers: match.expectedPlayers?.length || match.players.length,
             studentIds: match.expectedPlayers || match.players.map(p => p.studentId),
@@ -1167,10 +1228,10 @@ router.get('/active-matches', requireSupabase, async (req, res) => {
       console.log(`[Tournament API] ✅ ${trainingMatches.length} matchs Training actifs trouvés en mémoire`);
     }
     
-    // ✅ FUSIONNER Arena + Training
-    const allActiveMatches = [...enrichedArenaMatches, ...trainingMatches];
+    // ✅ FUSIONNER Arena DB + Arena mémoire + Training
+    const allActiveMatches = [...enrichedArenaMatches, ...arenaMemoryMatches, ...trainingMatches];
     
-    console.log(`[Tournament API] ✅ Total matchs actifs: ${allActiveMatches.length} (Arena: ${enrichedArenaMatches.length}, Training: ${trainingMatches.length})`);
+    console.log(`[Tournament API] ✅ Total matchs actifs: ${allActiveMatches.length} (Arena DB: ${enrichedArenaMatches.length}, Arena mem: ${arenaMemoryMatches.length}, Training: ${trainingMatches.length})`);
     
     res.json({ success: true, matches: allActiveMatches });
   } catch (error) {
