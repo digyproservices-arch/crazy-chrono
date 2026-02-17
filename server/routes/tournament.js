@@ -1241,6 +1241,95 @@ router.get('/active-matches', requireSupabase, async (req, res) => {
 });
 
 // ==========================================
+// RÉSULTATS D'UN MATCH INDIVIDUEL
+// ==========================================
+
+/**
+ * GET /api/tournament/matches/:matchId/results
+ * Récupérer les résultats d'un match (Arena ou Training)
+ * Cherche d'abord dans match_results (Arena), puis dans training_results (Training)
+ */
+router.get('/matches/:matchId/results', requireSupabase, async (req, res) => {
+  try {
+    const { matchId } = req.params;
+    
+    // 1. Chercher dans match_results (Arena)
+    const { data: arenaResults, error: arenaError } = await supabase
+      .from('match_results')
+      .select('match_id, student_id, position, score, time_ms, pairs_validated, errors')
+      .eq('match_id', matchId)
+      .order('position', { ascending: true });
+    
+    if (arenaError) console.warn('[Tournament API] match_results query error:', arenaError.message);
+    
+    if (arenaResults && arenaResults.length > 0) {
+      // Récupérer les noms des élèves
+      const studentIds = arenaResults.map(r => r.student_id);
+      const { data: students } = await supabase
+        .from('students')
+        .select('id, full_name, first_name, avatar_url')
+        .in('id', studentIds);
+      
+      const studentsMap = Object.fromEntries((students || []).map(s => [s.id, s]));
+      
+      const enrichedResults = arenaResults.map(r => ({
+        ...r,
+        studentName: studentsMap[r.student_id]?.full_name || studentsMap[r.student_id]?.first_name || r.student_id,
+        avatar: studentsMap[r.student_id]?.avatar_url || null
+      }));
+      
+      return res.json({ success: true, mode: 'arena', results: enrichedResults });
+    }
+    
+    // 2. Chercher dans training_sessions / training_results (Training)
+    const { data: sessions } = await supabase
+      .from('training_sessions')
+      .select('id, session_name, completed_at')
+      .eq('match_id', matchId)
+      .order('completed_at', { ascending: false })
+      .limit(1);
+    
+    if (sessions && sessions.length > 0) {
+      const sessionId = sessions[0].id;
+      const { data: trainingResults, error: trError } = await supabase
+        .from('training_results')
+        .select('session_id, student_id, position, score, time_ms, pairs_validated, errors')
+        .eq('session_id', sessionId)
+        .order('position', { ascending: true });
+      
+      if (trError) throw trError;
+      
+      const studentIds = (trainingResults || []).map(r => r.student_id);
+      const { data: students } = await supabase
+        .from('students')
+        .select('id, full_name, first_name, avatar_url')
+        .in('id', studentIds.length > 0 ? studentIds : ['__none__']);
+      
+      const studentsMap = Object.fromEntries((students || []).map(s => [s.id, s]));
+      
+      const enrichedResults = (trainingResults || []).map(r => ({
+        ...r,
+        studentName: studentsMap[r.student_id]?.full_name || studentsMap[r.student_id]?.first_name || r.student_id,
+        avatar: studentsMap[r.student_id]?.avatar_url || null
+      }));
+      
+      return res.json({ 
+        success: true, 
+        mode: 'training', 
+        sessionName: sessions[0].session_name,
+        results: enrichedResults 
+      });
+    }
+    
+    // 3. Aucun résultat trouvé
+    res.json({ success: true, mode: 'unknown', results: [], message: 'Aucun résultat trouvé pour ce match' });
+  } catch (error) {
+    console.error('[Tournament API] Error fetching match results:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
 // COMPETITION BRACKET / RÉSULTATS
 // ==========================================
 
