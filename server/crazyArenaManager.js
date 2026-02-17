@@ -1158,12 +1158,19 @@ class CrazyArenaManager {
     
     if (existingPlayer) {
       // RECONNEXION : Mettre à jour le socketId et rejoindre la room
-      console.log(`[CrazyArena] 🔄 Reconnexion de ${studentData.name} (status=${match.status})`);
+      console.log(`[CrazyArena] 🔄 Reconnexion de ${studentData.name} (status=${match.status}, wasDisconnected=${!!existingPlayer.disconnected})`);
+      
+      // Nettoyer l'ancien mapping socket si différent
+      if (existingPlayer._oldSocketId && existingPlayer._oldSocketId !== socket.id) {
+        this.playerMatches.delete(existingPlayer._oldSocketId);
+      }
       existingPlayer.socketId = socket.id;
+      existingPlayer.disconnected = false;
+      delete existingPlayer.disconnectedAt;
+      delete existingPlayer._oldSocketId;
       this.playerMatches.set(socket.id, matchId);
       
       // Rejoindre la room Socket.IO
-      console.log(`[CrazyArena] AVANT socket.join(${matchId}) [RECONNECT] pour ${studentData.name}`);
       socket.join(matchId);
       console.log(`[CrazyArena] APRÈS socket.join(${matchId}) [RECONNECT] - socket.rooms:`, Array.from(socket.rooms));
       
@@ -1177,6 +1184,13 @@ class CrazyArenaManager {
         })),
         count: match.players.length
       });
+      
+      // ✅ Si le match était en pause (joueur déconnecté), reprendre automatiquement
+      if (match.status === 'paused' && match._pauseState && 
+          match._pauseState.disconnectedStudentId === studentData.studentId) {
+        console.log(`[CrazyArena] ▶️ Joueur déconnecté ${studentData.name} reconnecté → reprise du match`);
+        this.resumeMatch(matchId);
+      }
       
       return true;
     }
@@ -1586,6 +1600,11 @@ class CrazyArenaManager {
       return;
     }
     
+    if (match.status === 'paused') {
+      // Match en pause — ne pas logger en warning, c'est un comportement normal
+      socket.emit('arena:action-blocked', { reason: 'Match en pause — un joueur est déconnecté' });
+      return;
+    }
     if (match.status !== 'playing' && match.status !== 'tiebreaker' && match.status !== 'tiebreaker-countdown') {
       logger.warn('[CrazyArena][Arena] pairValidated: Statut invalide', { matchId, status: match.status, expected: ['playing', 'tiebreaker', 'tiebreaker-countdown'] });
       return;
@@ -2843,6 +2862,7 @@ class CrazyArenaManager {
 
   /**
    * Déconnexion d'un joueur (GÉNÉRIQUE: Training + Arena)
+   * Approche Chess.com: pause le match, grace period 15s, forfait si pas de reconnexion
    */
   handleDisconnect(socket) {
     const matchId = this.playerMatches.get(socket.id);
@@ -2851,18 +2871,32 @@ class CrazyArenaManager {
     const match = this.matches.get(matchId);
     if (!match) return;
 
+    const player = match.players.find(p => p.socketId === socket.id);
+    if (!player) return;
+
+    const mode = match.mode || 'arena';
+    console.log(`[CrazyArena]${mode === 'training' ? '[Training]' : ''} ${player.name} s'est déconnecté du match ${matchId} (status=${match.status})`);
+
+    // Si le match est en cours (playing/tiebreaker), mettre en PAUSE au lieu de retirer le joueur
+    if (match.status === 'playing' || match.status === 'tiebreaker') {
+      player.disconnected = true;
+      player.disconnectedAt = Date.now();
+      // NE PAS supprimer le mapping playerMatches ici — on le garde pour la reconnexion éventuelle
+      // Mais marquer l'ancien socketId comme invalide
+      player._oldSocketId = socket.id;
+
+      this.pauseMatch(matchId, player);
+      return;
+    }
+
+    // En dehors du jeu (waiting, countdown, ended) : retirer le joueur normalement
     const playerIndex = match.players.findIndex(p => p.socketId === socket.id);
-    if (playerIndex === -1) return;
-
-    const player = match.players[playerIndex];
-    const mode = match.mode || 'arena'; // Détecter le mode
-    console.log(`[CrazyArena]${mode === 'training' ? '[Training]' : ''} ${player.name} s'est déconnecté du match ${matchId}`);
-
-    // Retirer le joueur
-    match.players.splice(playerIndex, 1);
+    if (playerIndex !== -1) {
+      match.players.splice(playerIndex, 1);
+    }
     this.playerMatches.delete(socket.id);
 
-    // Notifier les autres joueurs avec le bon event selon le mode
+    // Notifier les autres joueurs
     if (match.players.length > 0) {
       const eventName = mode === 'training' ? 'training:player-left' : 'arena:player-left';
       this.io.to(matchId).emit(eventName, {
@@ -2874,6 +2908,195 @@ class CrazyArenaManager {
 
     // Si plus personne, nettoyer
     if (match.players.length === 0) {
+      this.cleanupMatch(matchId);
+    }
+  }
+
+  /**
+   * Mettre un match en PAUSE (un joueur s'est déconnecté pendant la partie)
+   * Timer gelé pour tous, grace period de 15s avant forfait
+   */
+  pauseMatch(matchId, disconnectedPlayer) {
+    const match = this.matches.get(matchId);
+    if (!match) return;
+
+    // Sauvegarder l'état avant pause pour pouvoir reprendre
+    const now = Date.now();
+    match._pauseState = {
+      previousStatus: match.status,
+      pausedAt: now,
+      elapsedBeforePause: Math.floor((now - match.startTime) / 1000),
+      disconnectedStudentId: disconnectedPlayer.studentId,
+      disconnectedPlayerName: disconnectedPlayer.name
+    };
+
+    match.status = 'paused';
+
+    // Geler le timer
+    if (match.timerInterval) {
+      clearInterval(match.timerInterval);
+      match.timerInterval = null;
+      console.log(`[CrazyArena] ⏸️ Timer gelé pour match ${matchId}`);
+    }
+
+    const GRACE_PERIOD_MS = 15000; // 15 secondes
+
+    // Notifier tous les joueurs connectés
+    this.io.to(matchId).emit('arena:match-paused', {
+      matchId,
+      reason: 'player-disconnected',
+      disconnectedPlayer: disconnectedPlayer.name,
+      disconnectedStudentId: disconnectedPlayer.studentId,
+      gracePeriodMs: GRACE_PERIOD_MS,
+      pausedAt: now
+    });
+
+    console.log(`[CrazyArena] ⏸️ Match ${matchId} en PAUSE — ${disconnectedPlayer.name} déconnecté — grace period ${GRACE_PERIOD_MS / 1000}s`);
+
+    // Lancer le timeout forfait
+    match._forfeitTimeout = setTimeout(() => {
+      const m = this.matches.get(matchId);
+      if (!m || m.status !== 'paused') return;
+
+      console.log(`[CrazyArena] ⏰ Grace period expirée pour match ${matchId} — forfait de ${disconnectedPlayer.name}`);
+      this.forfeitPlayer(matchId, disconnectedPlayer.studentId);
+    }, GRACE_PERIOD_MS);
+  }
+
+  /**
+   * Reprendre un match après reconnexion du joueur déconnecté
+   */
+  resumeMatch(matchId) {
+    const match = this.matches.get(matchId);
+    if (!match || match.status !== 'paused' || !match._pauseState) return;
+
+    // Annuler le timeout forfait
+    if (match._forfeitTimeout) {
+      clearTimeout(match._forfeitTimeout);
+      match._forfeitTimeout = null;
+    }
+
+    const pauseState = match._pauseState;
+    const pauseDuration = Date.now() - pauseState.pausedAt;
+
+    // Restaurer le status
+    match.status = pauseState.previousStatus;
+
+    // Ajuster startTime pour compenser la durée de la pause (le timer reprend là où il était)
+    match.startTime += pauseDuration;
+
+    console.log(`[CrazyArena] ▶️ Match ${matchId} REPRIS — pause de ${Math.round(pauseDuration / 1000)}s — ${pauseState.disconnectedPlayerName} reconnecté`);
+
+    // Relancer le timer
+    this._restartTimer(matchId);
+
+    // Notifier tous les joueurs
+    this.io.to(matchId).emit('arena:match-resumed', {
+      matchId,
+      reconnectedPlayer: pauseState.disconnectedPlayerName,
+      reconnectedStudentId: pauseState.disconnectedStudentId,
+      pauseDurationMs: pauseDuration
+    });
+
+    delete match._pauseState;
+  }
+
+  /**
+   * Relancer le timer après une pause (réutilise la même logique que startGame)
+   */
+  _restartTimer(matchId) {
+    const match = this.matches.get(matchId);
+    if (!match) return;
+
+    const roundsPerMatch = match.config.rounds || match.config.roundsPerMatch || 3;
+    const durationPerRound = match.config.duration || match.config.durationPerRound || 60;
+    const totalDuration = roundsPerMatch * durationPerRound;
+
+    match.timerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - match.startTime) / 1000);
+      const timeLeft = Math.max(0, totalDuration - elapsed);
+
+      const currentRound = Math.floor(elapsed / durationPerRound);
+      if (currentRound > match.roundsPlayed && currentRound < roundsPerMatch) {
+        match.roundsPlayed = currentRound;
+        this.generateZones(match.config, matchId).then(newZones => {
+          match.zones = newZones;
+          this.io.to(matchId).emit('arena:round-new', {
+            zones: newZones,
+            roundIndex: match.roundsPlayed,
+            totalRounds: roundsPerMatch,
+            timestamp: Date.now()
+          });
+        }).catch(err => {
+          console.error('[CrazyArena] Erreur génération nouvelle carte manche:', err);
+        });
+      }
+
+      const elapsedInRound = elapsed % durationPerRound;
+      const timeLeftInRound = Math.max(0, durationPerRound - elapsedInRound);
+
+      this.io.to(matchId).emit('arena:timer-tick', {
+        timeLeft: timeLeftInRound,
+        elapsed,
+        duration: totalDuration,
+        currentRound: match.roundsPlayed + 1,
+        totalRounds: roundsPerMatch
+      });
+
+      if (timeLeft === 0) {
+        clearInterval(match.timerInterval);
+        this.endGame(matchId);
+      }
+    }, 1000);
+  }
+
+  /**
+   * Forfait d'un joueur déconnecté (grace period expirée)
+   */
+  forfeitPlayer(matchId, studentId) {
+    const match = this.matches.get(matchId);
+    if (!match) return;
+
+    // Annuler le timeout forfait si encore actif
+    if (match._forfeitTimeout) {
+      clearTimeout(match._forfeitTimeout);
+      match._forfeitTimeout = null;
+    }
+
+    console.log(`[CrazyArena] 🏳️ Forfait de ${studentId} dans match ${matchId}`);
+
+    // Retirer le joueur forfait
+    const playerIndex = match.players.findIndex(p => p.studentId === studentId);
+    if (playerIndex !== -1) {
+      const player = match.players[playerIndex];
+      this.playerMatches.delete(player.socketId);
+      if (player._oldSocketId) this.playerMatches.delete(player._oldSocketId);
+      match.players.splice(playerIndex, 1);
+    }
+
+    // Notifier tous les joueurs du forfait
+    this.io.to(matchId).emit('arena:player-forfeit', {
+      matchId,
+      forfeitStudentId: studentId,
+      remainingPlayers: match.players.length
+    });
+
+    // S'il reste des joueurs, reprendre le match
+    if (match.players.length >= 1) {
+      // Restaurer le status et relancer
+      if (match._pauseState) {
+        match.status = match._pauseState.previousStatus;
+        const pauseDuration = Date.now() - match._pauseState.pausedAt;
+        match.startTime += pauseDuration;
+        delete match._pauseState;
+      } else {
+        match.status = 'playing';
+      }
+
+      this._restartTimer(matchId);
+      console.log(`[CrazyArena] ▶️ Match ${matchId} repris après forfait — ${match.players.length} joueur(s) restant(s)`);
+    } else {
+      // Plus personne → terminer
       this.cleanupMatch(matchId);
     }
   }

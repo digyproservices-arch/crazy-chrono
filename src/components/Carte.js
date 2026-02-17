@@ -374,8 +374,41 @@ function getInitials(name) {
   return parts.map(p => (p && p[0] ? p[0].toUpperCase() : '')).join('');
 }
 
-// Anti-doublon: empêche de lancer deux fois l'animation pour la même paire en <800ms
+function ArenaPauseOverlay({ disconnectedPlayer, gracePeriodMs }) {
+  const [secondsLeft, setSecondsLeft] = React.useState(Math.ceil((gracePeriodMs || 15000) / 1000));
+  React.useEffect(() => {
+    const iv = setInterval(() => {
+      setSecondsLeft(s => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(iv);
+  }, []);
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 50,
+      background: 'rgba(0,0,0,0.75)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      color: '#fff', textAlign: 'center', pointerEvents: 'all'
+    }}>
+      <div style={{ fontSize: 64, marginBottom: 16 }}>&#9208;</div>
+      <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Match en pause</div>
+      <div style={{ fontSize: 18, marginBottom: 20, opacity: 0.9 }}>
+        <strong>{disconnectedPlayer || 'Un joueur'}</strong> s'est d&#233;connect&#233;
+      </div>
+      <div style={{
+        fontSize: 48, fontWeight: 900, color: secondsLeft <= 5 ? '#ef4444' : '#f59e0b',
+        marginBottom: 12, transition: 'color 0.3s'
+      }}>
+        {secondsLeft}s
+      </div>
+      <div style={{ fontSize: 14, opacity: 0.7 }}>
+        Reprise automatique &#224; la reconnexion ou forfait dans {secondsLeft}s
+      </div>
+    </div>
+  );
+}
+
 let __lastBubbleSig = { sig: '', ts: 0 };
+
 export function animateBubblesFromZones(aId, bId, color = '#3b82f6', ZA = null, ZB = null, borderColor = null, label = '') {
   try {
     const ids = [aId, bId].filter(v => v !== undefined && v !== null).map(v => String(v));
@@ -1496,6 +1529,24 @@ const Carte = () => {
         console.error('[ARENA] ❌ Erreur backend:', message);
       });
       
+      // ⏸️ PAUSE: Un joueur s'est déconnecté pendant la partie
+      s.on('arena:match-paused', ({ disconnectedPlayer, gracePeriodMs }) => {
+        console.log('[ARENA] ⏸️ Match en PAUSE —', disconnectedPlayer, 'déconnecté');
+        setArenaPauseInfo({ paused: true, disconnectedPlayer, gracePeriodMs: gracePeriodMs || 15000 });
+      });
+
+      // ▶️ REPRISE: Le joueur déconnecté s'est reconnecté
+      s.on('arena:match-resumed', ({ reconnectedPlayer }) => {
+        console.log('[ARENA] ▶️ Match REPRIS —', reconnectedPlayer, 'reconnecté');
+        setArenaPauseInfo(null);
+      });
+
+      // 🏳️ FORFAIT: Un joueur n'a pas pu se reconnecter à temps
+      s.on('arena:player-forfeit', ({ forfeitStudentId, remainingPlayers }) => {
+        console.log('[ARENA] 🏳️ Forfait de', forfeitStudentId, '— joueurs restants:', remainingPlayers);
+        setArenaPauseInfo(null);
+      });
+
       // Écouter paire validée par un autre joueur
       s.on('arena:pair-validated', ({ pairId, zoneAId, zoneBId, playerName, studentId }) => {
         console.log('[ARENA] Paire validée par', playerName, ':', pairId);
@@ -3325,6 +3376,7 @@ const handleEditGreenZone = (zone) => {
   const [countdown, setCountdown] = useState(null);
   const [isTiebreaker, setIsTiebreaker] = useState(false);
   const [countdownT, setCountdownT] = useState(null);
+  const [arenaPauseInfo, setArenaPauseInfo] = useState(null); // { paused, disconnectedPlayer, gracePeriodMs }
   // Rotation en degrés des contenus pour zones calcul/chiffre (par id de zone)
   const [calcAngles, setCalcAngles] = useState(() => {
     try {
@@ -6421,6 +6473,12 @@ setZones(dataWithRandomTexts);
           <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', background: '#222', color: '#fff', padding: '6px 10px', borderRadius: 8, fontWeight: 700, zIndex: 7 }}>
             {gameMsg}
           </div>
+        )}
+        {arenaPauseInfo && arenaPauseInfo.paused && (
+          <ArenaPauseOverlay
+            disconnectedPlayer={arenaPauseInfo.disconnectedPlayer}
+            gracePeriodMs={arenaPauseInfo.gracePeriodMs}
+          />
         )}
         <object
           type="image/svg+xml"
