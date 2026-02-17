@@ -140,8 +140,8 @@ export default function ArenaSpectator() {
   const [pauseInfo, setPauseInfo] = useState(null);
   const [flashPair, setFlashPair] = useState(null); // { zoneAId, zoneBId, color, playerName }
 
-  const addEvent = useCallback((text, type = 'info') => {
-    setEvents(prev => [{ text, type, time: Date.now() }, ...prev].slice(0, 50));
+  const addEvent = useCallback((text, type = 'info', extra = null) => {
+    setEvents(prev => [{ text, type, time: Date.now(), ...(extra || {}) }, ...prev].slice(0, 50));
   }, []);
 
   useEffect(() => {
@@ -272,18 +272,64 @@ export default function ArenaSpectator() {
           const borderColor = (typeof playerIdx === 'number' && playerIdx >= 0)
             ? PLAYER_BORDER_COLORS[Math.floor(playerIdx / PLAYER_COLORS.length) % PLAYER_BORDER_COLORS.length]
             : '#ffffff';
-          addEvent(`${name} a trouvé une paire ! (${score || '?'} pts)`, 'pair');
+
+          // ✅ Historique pédagogique: extraire infos des zones (comme TrainingArenaGame)
+          const currentZones = zonesRef.current || [];
+          const ZA = currentZones.find(z => z.id === data?.zoneAId);
+          const ZB = currentZones.find(z => z.id === data?.zoneBId);
+          let pairExtra = { playerName: name, playerIdx, color, borderColor, initials: getInitials(name) };
+
+          if (ZA && ZB) {
+            const typeA = ZA?.type || '';
+            const typeB = ZB?.type || '';
+            const textFor = (Z) => (Z?.label || Z?.content || Z?.text || Z?.value || '').toString().trim() || '…';
+            const textA = textFor(ZA);
+            const textB = textFor(ZB);
+            let kind = null, calcExpr = null, calcResult = null, imageSrc = null, imageLabel = null;
+            let displayText = `${textA} ↔ ${textB}`;
+
+            if ((typeA === 'calcul' && typeB === 'chiffre') || (typeA === 'chiffre' && typeB === 'calcul')) {
+              kind = 'calcnum';
+              const calcZone = typeA === 'calcul' ? ZA : ZB;
+              const numZone = typeA === 'chiffre' ? ZA : ZB;
+              calcExpr = textFor(calcZone);
+              calcResult = textFor(numZone);
+              displayText = `${calcExpr} = ${calcResult}`;
+            } else if ((typeA === 'image' && typeB === 'texte') || (typeA === 'texte' && typeB === 'image')) {
+              kind = 'imgtxt';
+              const imgZone = typeA === 'image' ? ZA : ZB;
+              const txtZone = typeA === 'texte' ? ZA : ZB;
+              const raw = imgZone?.content || imgZone?.url || imgZone?.path || imgZone?.src || '';
+              if (raw) imageSrc = resolveImageSrc(String(raw));
+              imageLabel = textFor(txtZone);
+              displayText = imageLabel || `${textA} ↔ ${textB}`;
+            } else if (typeA === 'texte' && typeB === 'texte') {
+              kind = 'txttxt';
+              displayText = `${textA} ↔ ${textB}`;
+            }
+
+            pairExtra = { ...pairExtra, kind, calcExpr, calcResult, imageSrc, imageLabel, displayText };
+          }
+
+          addEvent(`${name} a trouvé une paire !`, 'pair', pairExtra);
+
           // Flash visuel sur les zones validées
           if (data?.zoneAId && data?.zoneBId) {
             setFlashPair({ zoneAId: data.zoneAId, zoneBId: data.zoneBId, color, playerName: name });
             setTimeout(() => setFlashPair(null), 1200);
-            // ✅ Animation bulles (identique joueur)
-            const currentZones = zonesRef.current || [];
-            const ZA = currentZones.find(z => z.id === data.zoneAId);
-            const ZB = currentZones.find(z => z.id === data.zoneBId);
+            // ✅ Animation bulles — requestAnimationFrame pour garantir que le DOM est prêt
             if (ZA && ZB) {
               const label = getInitials(name);
-              animateBubblesFromZones(data.zoneAId, data.zoneBId, color, ZA, ZB, borderColor, label);
+              const aId = data.zoneAId, bId = data.zoneBId;
+              requestAnimationFrame(() => {
+                try {
+                  animateBubblesFromZones(aId, bId, color, ZA, ZB, borderColor, label);
+                } catch (e) {
+                  console.warn('[Spectator] Erreur animation bulles:', e);
+                }
+              });
+            } else {
+              console.warn('[Spectator] Zones introuvables pour animation:', data?.zoneAId, data?.zoneBId, 'zonesRef count:', currentZones.length);
             }
           }
           if (studentId) {
@@ -304,10 +350,14 @@ export default function ArenaSpectator() {
       socket.on(`${prefix}:round-new`, ({ zones: newZones, roundIndex, totalRounds: tr }) => {
         setCurrentRound((roundIndex || 0) + 1);
         if (tr) setTotalRounds(tr);
+        // ✅ Délai 300ms: laisser l'animation des bulles capturer les positions DOM
+        // avant que React ne remplace les anciennes zones par les nouvelles
         if (Array.isArray(newZones) && newZones.length > 0) {
-          setZones(newZones);
-          zonesRef.current = newZones;
-          invalidateZoneCenterCache();
+          setTimeout(() => {
+            setZones(newZones);
+            zonesRef.current = newZones;
+            invalidateZoneCenterCache();
+          }, 300);
         }
         addEvent(`Nouvelle carte ! Manche ${(roundIndex || 0) + 1}`, 'round');
       });
@@ -829,6 +879,61 @@ export default function ArenaSpectator() {
                   tie: '#f97316', join: '#06b6d4', system: '#64748b', error: '#ef4444',
                   pause: CC.yellow, resume: '#10b981', forfeit: '#ef4444', info: '#94a3b8'
                 };
+                const isPair = ev.type === 'pair' && ev.color;
+                // Pour les paires: affichage pédagogique riche
+                if (isPair) {
+                  const pairLabel = (() => {
+                    if (ev.kind === 'calcnum' && ev.calcExpr && ev.calcResult) return `${ev.calcExpr} = ${ev.calcResult}`;
+                    if (ev.kind === 'imgtxt' && ev.imageLabel) return ev.imageLabel;
+                    return ev.displayText || ev.text || '';
+                  })();
+                  return (
+                    <div key={i} style={{
+                      padding: '7px 10px', borderRadius: 10,
+                      background: `${ev.color}12`,
+                      border: `1px solid ${ev.color}33`,
+                      animation: i === 0 ? 'fadeIn 0.3s ease' : 'none',
+                      display: 'flex', flexDirection: 'column', gap: 3
+                    }}>
+                      {/* Ligne 1: pastille couleur + nom joueur + heure */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{
+                          width: 10, height: 10, borderRadius: 999, flexShrink: 0,
+                          background: ev.color || '#22c55e',
+                          border: ev.borderColor ? `2px solid ${ev.borderColor}` : 'none',
+                          boxShadow: `0 0 6px ${ev.color || '#22c55e'}66`
+                        }} />
+                        <span style={{ fontWeight: 700, fontSize: 12, color: '#f1f5f9', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {ev.playerName || 'Joueur'}
+                        </span>
+                        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, flexShrink: 0 }}>
+                          {new Date(ev.time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </span>
+                      </div>
+                      {/* Ligne 2: contenu pédagogique (image + texte, ou calcul = résultat) */}
+                      <div style={{ marginLeft: 16, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                        {ev.kind === 'imgtxt' && ev.imageSrc && (
+                          <img src={ev.imageSrc} alt={ev.imageLabel || 'Image'} style={{
+                            width: 28, height: 28, borderRadius: 6, objectFit: 'cover', flexShrink: 0,
+                            border: '1px solid rgba(255,255,255,0.2)'
+                          }} />
+                        )}
+                        {ev.kind === 'calcnum' ? (
+                          <span style={{ fontSize: 12, color: '#e2e8f0' }}>
+                            <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{ev.calcExpr}</span>
+                            <span style={{ color: ev.color, fontWeight: 800, margin: '0 4px' }}>=</span>
+                            <span style={{ fontFamily: 'monospace', fontWeight: 700, color: ev.color }}>{ev.calcResult}</span>
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 12, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {pairLabel}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+                // Pour les autres événements: format simple
                 return (
                   <div key={i} style={{
                     padding: '6px 10px', borderRadius: 8,
