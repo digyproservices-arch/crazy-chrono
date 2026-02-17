@@ -484,6 +484,9 @@ app.get('/', (req, res) => {
 app.get('/healthz', (req, res) => {
   res.json({ ok: true, ts: new Date().toISOString(), uptime: process.uptime() });
 });
+app.get('/health', (req, res) => {
+  res.json({ ok: true, ts: new Date().toISOString(), uptime: process.uptime() });
+});
 
 // Debug: expose whether Supabase admin is configured (no secrets leaked)
 app.get('/debug/supabase', (req, res) => {

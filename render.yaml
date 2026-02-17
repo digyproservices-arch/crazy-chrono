@@ -16,4 +16,4 @@ services:
         value: https://app.crazy-chrono.com
       - key: FREE_SESSIONS_PER_DAY
         value: 3
-    healthCheckPath: /health
+    healthCheckPath: /healthz
