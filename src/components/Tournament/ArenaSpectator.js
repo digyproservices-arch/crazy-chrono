@@ -1,13 +1,113 @@
 // ==========================================
 // MODE SPECTATEUR - MATCH ARENA EN DIRECT
-// Vue lecture seule pour professeur / diffusion TV
+// Vue streaming: carte de jeu + classement + fil en direct
+// Charte graphique Crazy Chrono (Teal/Yellow/Brown)
 // ==========================================
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
+import { pointsToBezierPath } from '../CarteUtils';
+import '../../styles/Carte.css';
 
 const getBackendUrl = () => process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
+
+// Charte graphique Crazy Chrono
+const CC = {
+  teal: '#1AACBE',
+  tealDark: '#148A9C',
+  tealDeep: '#0D6A7A',
+  yellow: '#F5A623',
+  yellowLt: '#FFC940',
+  brown: '#4A3728',
+  bgGradient: 'linear-gradient(135deg, #0D6A7A 0%, #148A9C 30%, #1AACBE 60%, #148A9C 100%)',
+  cardBg: 'rgba(255,255,255,0.08)',
+  cardBorder: 'rgba(255,255,255,0.15)',
+};
+
+const PLAYER_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899', '#0ea5e9'];
+
+// --- SVG helpers (copie exacte TrainingArenaGame.js) ---
+function interpolateArc(points, idxStart, idxEnd, marginPx) {
+  const start = points[idxStart];
+  const end = points[idxEnd];
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+  const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const r = (Math.hypot(start.x - centerX, start.y - centerY) + Math.hypot(end.x - centerX, end.y - centerY)) / 2;
+  const angleStart = Math.atan2(start.y - centerY, start.x - centerX);
+  const angleEnd = Math.atan2(end.y - centerY, end.x - centerX);
+  let delta = angleEnd - angleStart;
+  if (delta < 0) delta += 2 * Math.PI;
+  const marginAngle = marginPx / r;
+  const newAngleStart = angleStart + marginAngle;
+  const newAngleEnd = angleEnd - marginAngle;
+  const newStart = { x: centerX + r * Math.cos(newAngleStart), y: centerY + r * Math.sin(newAngleStart) };
+  const newEnd = { x: centerX + r * Math.cos(newAngleEnd), y: centerY + r * Math.sin(newAngleEnd) };
+  return { newStart, newEnd, r, centerX, centerY, largeArcFlag: 0, sweepFlag: 1, arcLen: r * delta, delta };
+}
+
+function getArcPathFromZonePoints(points, zoneId, arcPointsFromZone, marginPx = 0) {
+  if (!points || points.length < 2) return '';
+  let idxStart, idxEnd;
+  if (Array.isArray(arcPointsFromZone) && arcPointsFromZone.length === 2) {
+    idxStart = arcPointsFromZone[0]; idxEnd = arcPointsFromZone[1];
+  } else { idxStart = 0; idxEnd = 1; }
+  const { newStart, newEnd, r, centerX, centerY, largeArcFlag, sweepFlag } = interpolateArc(points, idxStart, idxEnd, marginPx);
+  // Auto-flip
+  const startAngle = Math.atan2(newStart.y - centerY, newStart.x - centerX);
+  const endAngle = Math.atan2(newEnd.y - centerY, newEnd.x - centerX);
+  let arcDelta = endAngle - startAngle;
+  if (arcDelta < 0) arcDelta += 2 * Math.PI;
+  const midAngle = startAngle + arcDelta / 2;
+  const normMid = ((midAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  if (normMid > 0.05 && normMid < Math.PI - 0.05) {
+    return `M ${newEnd.x},${newEnd.y} A ${r},${r} 0 ${largeArcFlag},${sweepFlag === 1 ? 0 : 1} ${newStart.x},${newStart.y}`;
+  }
+  return `M ${newStart.x},${newStart.y} A ${r},${r} 0 ${largeArcFlag},${sweepFlag} ${newEnd.x},${newEnd.y}`;
+}
+
+function getZoneBoundingBox(points) {
+  const xs = points.map(p => p.x); const ys = points.map(p => p.y);
+  return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+}
+
+function resolveImageSrc(raw) {
+  if (!raw) return null;
+  const normalized = raw.startsWith('http') ? raw
+    : process.env.PUBLIC_URL + '/' + (raw.startsWith('/') ? raw.slice(1) : (raw.startsWith('images/') ? raw : 'images/' + raw));
+  return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
+}
+
+// --- Pause Overlay ---
+function SpectatorPauseOverlay({ disconnectedPlayer, gracePeriodMs }) {
+  const [secondsLeft, setSecondsLeft] = React.useState(Math.ceil((gracePeriodMs || 15000) / 1000));
+  React.useEffect(() => {
+    const iv = setInterval(() => setSecondsLeft(s => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 50,
+      background: 'rgba(0,0,0,0.7)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      color: '#fff', textAlign: 'center', pointerEvents: 'none', borderRadius: 16
+    }}>
+      <div style={{ fontSize: 56, marginBottom: 12 }}>&#9208;</div>
+      <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>Match en pause</div>
+      <div style={{ fontSize: 16, marginBottom: 16, opacity: 0.9 }}>
+        <strong>{disconnectedPlayer || 'Un joueur'}</strong> s'est d&#233;connect&#233;
+      </div>
+      <div style={{ fontSize: 42, fontWeight: 900, color: secondsLeft <= 5 ? '#ef4444' : CC.yellow, transition: 'color 0.3s' }}>
+        {secondsLeft}s
+      </div>
+      <div style={{ fontSize: 13, opacity: 0.65, marginTop: 8 }}>
+        Reprise automatique &#224; la reconnexion ou forfait
+      </div>
+    </div>
+  );
+}
 
 export default function ArenaSpectator() {
   const { matchId } = useParams();
@@ -25,9 +125,12 @@ export default function ArenaSpectator() {
   const [countdown, setCountdown] = useState(null);
   const [mode, setMode] = useState('arena');
   const [error, setError] = useState(null);
+  const [zones, setZones] = useState([]);
+  const [pauseInfo, setPauseInfo] = useState(null);
+  const [flashPair, setFlashPair] = useState(null); // { zoneAId, zoneBId, color, playerName }
 
   const addEvent = useCallback((text, type = 'info') => {
-    setEvents(prev => [{ text, type, time: Date.now() }, ...prev].slice(0, 30));
+    setEvents(prev => [{ text, type, time: Date.now() }, ...prev].slice(0, 50));
   }, []);
 
   useEffect(() => {
@@ -47,7 +150,6 @@ export default function ArenaSpectator() {
     });
     socketRef.current = socket;
 
-    // Timeout si pas de réponse après 8s
     const connectionTimeout = setTimeout(() => {
       if (status === 'connecting') {
         setStatus('not-found');
@@ -70,6 +172,10 @@ export default function ArenaSpectator() {
             setTotalRounds(s.totalRounds || 3);
             setMode(s.mode || 'arena');
             setError(null);
+            if (Array.isArray(s.zones) && s.zones.length > 0) setZones(s.zones);
+            if (s.pauseState) {
+              setPauseInfo({ paused: true, disconnectedPlayer: s.pauseState.disconnectedPlayer, gracePeriodMs: s.pauseState.gracePeriodMs || 15000 });
+            }
             addEvent('Connecté au match en direct', 'system');
           } else {
             setStatus('not-found');
@@ -100,28 +206,19 @@ export default function ArenaSpectator() {
       addEvent('Reconnecté au match', 'system');
     });
 
-    // État initial du spectateur
     socket.on('arena:spectate-state', (state) => {
       setMatchState(state);
       setPlayers(state.players || []);
       setStatus(state.status);
       setMode(state.mode || 'arena');
+      if (Array.isArray(state.zones) && state.zones.length > 0) setZones(state.zones);
     });
 
-    // === EVENTS ARENA ===
+    // === EVENTS ARENA + TRAINING ===
     const setupListeners = (prefix) => {
-      socket.on(`${prefix}:players-update`, ({ players: p }) => {
-        if (p) setPlayers(p);
-      });
-
-      socket.on(`${prefix}:player-joined`, ({ players: p }) => {
-        if (p) setPlayers(p);
-        addEvent('Un joueur a rejoint le match', 'join');
-      });
-
-      socket.on(`${prefix}:player-ready`, ({ players: p }) => {
-        if (p) setPlayers(p);
-      });
+      socket.on(`${prefix}:players-update`, ({ players: p }) => { if (p) setPlayers(p); });
+      socket.on(`${prefix}:player-joined`, ({ players: p }) => { if (p) setPlayers(p); addEvent('Un joueur a rejoint le match', 'join'); });
+      socket.on(`${prefix}:player-ready`, ({ players: p }) => { if (p) setPlayers(p); });
 
       socket.on(`${prefix}:countdown`, ({ count }) => {
         setCountdown(count);
@@ -132,7 +229,8 @@ export default function ArenaSpectator() {
         setStatus('playing');
         setCountdown(null);
         setCurrentRound(1);
-        addEvent('🚀 Le match commence !', 'start');
+        if (Array.isArray(data?.zones) && data.zones.length > 0) setZones(data.zones);
+        addEvent('Le match commence !', 'start');
       });
 
       socket.on(`${prefix}:timer-tick`, ({ timeLeft: tl, currentRound: cr, totalRounds: tr }) => {
@@ -146,7 +244,14 @@ export default function ArenaSpectator() {
           const name = data?.playerName || data?.studentId || '?';
           const score = data?.score;
           const studentId = data?.studentId;
-          addEvent(`✅ ${name} a trouvé une paire ! (${score || '?'} pts)`, 'pair');
+          const playerIdx = data?.playerIdx;
+          const color = (typeof playerIdx === 'number' && playerIdx >= 0) ? PLAYER_COLORS[playerIdx % PLAYER_COLORS.length] : '#22c55e';
+          addEvent(`${name} a trouvé une paire ! (${score || '?'} pts)`, 'pair');
+          // Flash visuel sur les zones validées
+          if (data?.zoneAId && data?.zoneBId) {
+            setFlashPair({ zoneAId: data.zoneAId, zoneBId: data.zoneBId, color, playerName: name });
+            setTimeout(() => setFlashPair(null), 1200);
+          }
           if (studentId) {
             setPlayers(prev => prev.map(p =>
               p.studentId === studentId ? { ...p, score: score || p.score, pairsFound: (p.pairsFound || 0) + 1 } : p
@@ -157,25 +262,28 @@ export default function ArenaSpectator() {
         }
       });
 
-      socket.on(`${prefix}:scores-update`, ({ players: p }) => {
+      socket.on(`${prefix}:scores-update`, ({ players: p, scores }) => {
         if (p) setPlayers(p);
+        else if (scores) setPlayers(scores);
       });
 
-      socket.on(`${prefix}:round-new`, ({ roundIndex, totalRounds: tr }) => {
+      socket.on(`${prefix}:round-new`, ({ zones: newZones, roundIndex, totalRounds: tr }) => {
         setCurrentRound((roundIndex || 0) + 1);
         if (tr) setTotalRounds(tr);
-        addEvent(`🗺️ Nouvelle carte ! Manche ${(roundIndex || 0) + 1}`, 'round');
+        if (Array.isArray(newZones) && newZones.length > 0) setZones(newZones);
+        addEvent(`Nouvelle carte ! Manche ${(roundIndex || 0) + 1}`, 'round');
       });
 
       socket.on(`${prefix}:tie-detected`, ({ tiedPlayers }) => {
         setStatus('tie-waiting');
         const names = (tiedPlayers || []).map(p => p.name || p.studentId).join(', ');
-        addEvent(`⚖️ Égalité détectée : ${names}`, 'tie');
+        addEvent(`Égalité détectée : ${names}`, 'tie');
       });
 
-      socket.on(`${prefix}:tiebreaker-start`, () => {
+      socket.on(`${prefix}:tiebreaker-start`, (data) => {
         setStatus('tiebreaker');
-        addEvent('⚡ Départage en cours !', 'start');
+        if (Array.isArray(data?.zones) && data.zones.length > 0) setZones(data.zones);
+        addEvent('Départage en cours !', 'start');
       });
 
       socket.on(`${prefix}:game-end`, (data) => {
@@ -184,17 +292,33 @@ export default function ArenaSpectator() {
           const r = data?.ranking || [];
           setRanking(r);
           const winnerName = data?.winner?.name || data?.winner?.studentId || (r[0]?.name) || '?';
-          const dur = data?.duration ? Math.round(data.duration / 1000) : '?';
-          addEvent(`🏆 Match terminé ! Vainqueur : ${winnerName} (${dur}s)`, 'end');
+          addEvent(`Match terminé ! Vainqueur : ${winnerName}`, 'end');
         } catch (err) {
-          console.error('[Spectator] Erreur game-end:', err);
           setStatus('finished');
           addEvent('Match terminé', 'end');
         }
       });
+
+      // Pause / Resume / Forfait
+      socket.on(`${prefix}:match-paused`, ({ disconnectedPlayer, gracePeriodMs }) => {
+        console.log('[Spectator] ⏸️ Match en PAUSE —', disconnectedPlayer);
+        setPauseInfo({ paused: true, disconnectedPlayer, gracePeriodMs: gracePeriodMs || 15000 });
+        addEvent(`⏸️ ${disconnectedPlayer || 'Un joueur'} s'est déconnecté — match en pause`, 'pause');
+      });
+
+      socket.on(`${prefix}:match-resumed`, ({ reconnectedPlayer }) => {
+        console.log('[Spectator] ▶️ Match REPRIS —', reconnectedPlayer);
+        setPauseInfo(null);
+        addEvent(`▶️ ${reconnectedPlayer || 'Le joueur'} s'est reconnecté — reprise !`, 'resume');
+      });
+
+      socket.on(`${prefix}:player-forfeit`, ({ forfeitStudentId, remainingPlayers }) => {
+        console.log('[Spectator] 🏳️ Forfait —', forfeitStudentId);
+        setPauseInfo(null);
+        addEvent(`🏳️ Forfait de ${forfeitStudentId} — ${remainingPlayers} joueur(s) restant(s)`, 'forfeit');
+      });
     };
 
-    // Écouter les deux préfixes (arena + training) car le match peut être l'un ou l'autre
     setupListeners('arena');
     setupListeners('training');
 
@@ -208,17 +332,20 @@ export default function ArenaSpectator() {
   // Trier les joueurs par score décroissant
   const sortedPlayers = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
 
+  const svgPath = `${process.env.PUBLIC_URL}/images/carte-svg.svg`;
+
   const getStatusLabel = () => {
     switch (status) {
-      case 'connecting': return { text: 'Connexion...', color: '#6b7280', bg: '#f3f4f6' };
-      case 'not-found': return { text: 'Match introuvable', color: '#ef4444', bg: '#fef2f2' };
+      case 'connecting': return { text: 'Connexion...', color: '#94a3b8', bg: 'rgba(255,255,255,0.1)' };
+      case 'not-found': return { text: 'Match introuvable', color: '#ef4444', bg: 'rgba(239,68,68,0.15)' };
       case 'pending':
-      case 'waiting': return { text: 'En attente', color: '#f59e0b', bg: '#fffbeb' };
-      case 'playing': return { text: '🔴 EN DIRECT', color: '#ef4444', bg: '#fef2f2' };
-      case 'tie-waiting': return { text: '⚖️ Égalité', color: '#8b5cf6', bg: '#f5f3ff' };
-      case 'tiebreaker': return { text: '⚡ Départage', color: '#f97316', bg: '#fff7ed' };
-      case 'finished': return { text: '🏁 Terminé', color: '#10b981', bg: '#ecfdf5' };
-      default: return { text: status, color: '#6b7280', bg: '#f3f4f6' };
+      case 'waiting': return { text: 'En attente', color: CC.yellow, bg: 'rgba(245,166,35,0.15)' };
+      case 'playing': return { text: '🔴 EN DIRECT', color: '#ef4444', bg: 'rgba(239,68,68,0.15)' };
+      case 'paused': return { text: '⏸️ PAUSE', color: CC.yellow, bg: 'rgba(245,166,35,0.15)' };
+      case 'tie-waiting': return { text: '⚖️ Égalité', color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)' };
+      case 'tiebreaker': return { text: '⚡ Départage', color: '#f97316', bg: 'rgba(249,115,22,0.15)' };
+      case 'finished': return { text: '🏁 Terminé', color: '#10b981', bg: 'rgba(16,185,129,0.15)' };
+      default: return { text: status, color: '#94a3b8', bg: 'rgba(255,255,255,0.1)' };
     }
   };
 
@@ -231,18 +358,18 @@ export default function ArenaSpectator() {
     return `#${idx + 1}`;
   };
 
-  const getPlayerColor = (idx) => {
-    const colors = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'];
-    return colors[idx % colors.length];
-  };
+  const getPlayerColor = (idx) => PLAYER_COLORS[idx % PLAYER_COLORS.length];
+
+  // Check if a zone is currently being flashed (pair just validated)
+  const isFlashedZone = (zoneId) => flashPair && (flashPair.zoneAId === zoneId || flashPair.zoneBId === zoneId);
 
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+      background: CC.bgGradient,
       color: '#fff',
       fontFamily: "'Inter', -apple-system, sans-serif",
-      padding: '20px',
+      padding: '16px 20px',
       overflow: 'hidden'
     }}>
       {/* Header */}
@@ -250,43 +377,62 @@ export default function ArenaSpectator() {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 24,
-        padding: '16px 24px',
-        background: 'rgba(255,255,255,0.05)',
-        borderRadius: 16,
+        marginBottom: 16,
+        padding: '12px 20px',
+        background: CC.cardBg,
+        borderRadius: 14,
         backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255,255,255,0.1)'
+        border: `1px solid ${CC.cardBorder}`
       }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, letterSpacing: -0.5 }}>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: -0.5 }}>
             👁️ Mode Spectateur
           </h1>
-          <span style={{ fontSize: 13, color: '#94a3b8' }}>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
             Match {matchState?.roomCode || matchId?.slice(-8)} • {mode === 'training' ? 'Entraînement' : 'Arena'}
           </span>
         </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {/* Timer pill */}
+          {timeLeft !== null && (status === 'playing' || status === 'tiebreaker') && (
+            <div style={{
+              padding: '6px 16px',
+              borderRadius: 20,
+              fontWeight: 900,
+              fontSize: 20,
+              color: timeLeft <= 10 ? '#ef4444' : timeLeft <= 30 ? CC.yellow : '#10b981',
+              background: 'rgba(0,0,0,0.3)',
+              fontVariantNumeric: 'tabular-nums',
+              minWidth: 60,
+              textAlign: 'center'
+            }}>
+              ⏱️ {timeLeft}s
+            </div>
+          )}
           <div style={{
-            padding: '8px 20px',
+            padding: '6px 16px',
             borderRadius: 20,
             fontWeight: 700,
-            fontSize: 14,
+            fontSize: 13,
             color: statusInfo.color,
             background: statusInfo.bg,
             animation: status === 'playing' ? 'pulse 2s infinite' : 'none'
           }}>
             {statusInfo.text}
           </div>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+            Manche {currentRound}/{totalRounds}
+          </span>
           <button
             onClick={() => navigate(-1)}
             style={{
-              padding: '8px 16px',
-              borderRadius: 10,
-              border: '1px solid rgba(255,255,255,0.2)',
-              background: 'rgba(255,255,255,0.1)',
+              padding: '6px 14px',
+              borderRadius: 8,
+              border: `1px solid ${CC.cardBorder}`,
+              background: CC.cardBg,
               color: '#fff',
               cursor: 'pointer',
-              fontSize: 13
+              fontSize: 12
             }}
           >
             ← Retour
@@ -295,35 +441,32 @@ export default function ArenaSpectator() {
       </div>
 
       {/* Error / Connecting states */}
-      {(status === 'connecting' || status === 'not-found' || error) && (
+      {(status === 'connecting' || status === 'not-found') && (
         <div style={{
           textAlign: 'center',
           padding: 60,
-          background: 'rgba(255,255,255,0.05)',
+          background: CC.cardBg,
           borderRadius: 16,
-          border: '1px solid rgba(255,255,255,0.1)',
+          border: `1px solid ${CC.cardBorder}`,
           marginBottom: 24
         }}>
           {status === 'connecting' && (
             <>
               <div style={{ fontSize: 48, marginBottom: 16, animation: 'pulse 1.5s infinite' }}>📡</div>
               <h2 style={{ margin: '0 0 8px', fontSize: 20 }}>Connexion au match...</h2>
-              <p style={{ color: '#64748b', margin: 0 }}>Match ID: {matchId?.slice(-12)}</p>
+              <p style={{ color: 'rgba(255,255,255,0.5)', margin: 0 }}>Match ID: {matchId?.slice(-12)}</p>
             </>
           )}
           {status === 'not-found' && (
             <>
               <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
               <h2 style={{ margin: '0 0 8px', fontSize: 20 }}>Match introuvable</h2>
-              <p style={{ color: '#94a3b8', margin: '0 0 16px' }}>{error || 'Le match n\'existe pas ou est terminé'}</p>
+              <p style={{ color: 'rgba(255,255,255,0.6)', margin: '0 0 16px' }}>{error || 'Le match n\'existe pas ou est terminé'}</p>
               <button onClick={() => navigate(-1)} style={{
                 padding: '10px 24px', borderRadius: 8, border: 'none',
-                background: '#3b82f6', color: '#fff', cursor: 'pointer', fontWeight: 600
+                background: CC.yellow, color: CC.brown, cursor: 'pointer', fontWeight: 700
               }}>← Retour au dashboard</button>
             </>
-          )}
-          {error && status !== 'not-found' && (
-            <p style={{ color: '#f87171', margin: '8px 0 0', fontSize: 14 }}>{error}</p>
           )}
         </div>
       )}
@@ -331,157 +474,259 @@ export default function ArenaSpectator() {
       {/* Countdown overlay */}
       {countdown !== null && countdown > 0 && (
         <div style={{
-          position: 'fixed',
-          inset: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 100,
-          background: 'rgba(0,0,0,0.7)',
-          backdropFilter: 'blur(8px)'
+          position: 'fixed', inset: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 100, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)'
         }}>
           <div style={{
-            fontSize: 120,
-            fontWeight: 900,
-            color: '#f59e0b',
-            textShadow: '0 0 40px rgba(245,158,11,0.5)',
-            animation: 'bounce 0.5s ease'
+            fontSize: 120, fontWeight: 900, color: CC.yellow,
+            textShadow: `0 0 40px ${CC.yellow}88`, animation: 'bounce 0.5s ease'
           }}>
             {countdown}
           </div>
         </div>
       )}
 
-      {/* Main content */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 20, maxWidth: 1200, margin: '0 auto' }}>
-        {/* Left: Scoreboard */}
-        <div>
-          {/* Timer bar */}
-          {timeLeft !== null && status === 'playing' && (
-            <div style={{
-              marginBottom: 20,
-              padding: '16px 24px',
-              background: 'rgba(255,255,255,0.05)',
-              borderRadius: 16,
-              border: '1px solid rgba(255,255,255,0.1)'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 14, color: '#94a3b8' }}>
-                  ⏱️ Manche {currentRound}/{totalRounds}
-                </span>
-                <span style={{
-                  fontSize: 28,
-                  fontWeight: 900,
-                  color: timeLeft <= 10 ? '#ef4444' : timeLeft <= 30 ? '#f59e0b' : '#10b981',
-                  fontVariantNumeric: 'tabular-nums'
-                }}>
-                  {timeLeft}s
-                </span>
-              </div>
-              <div style={{
-                height: 8,
-                borderRadius: 4,
-                background: 'rgba(255,255,255,0.1)',
-                overflow: 'hidden'
-              }}>
+      {/* Main content: Carte (left) + Sidebar (right) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, maxWidth: 1400, margin: '0 auto', height: 'calc(100vh - 100px)' }}>
+
+        {/* ===== LEFT: GAME CARD ===== */}
+        <div style={{
+          position: 'relative',
+          background: CC.cardBg,
+          borderRadius: 16,
+          border: `1px solid ${CC.cardBorder}`,
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          {zones.length > 0 ? (
+            <div className="carte" style={{ position: 'relative', width: '100%', height: '100%' }}>
+              {/* Pause overlay on top of card */}
+              {pauseInfo && pauseInfo.paused && (
+                <SpectatorPauseOverlay
+                  disconnectedPlayer={pauseInfo.disconnectedPlayer}
+                  gracePeriodMs={pauseInfo.gracePeriodMs}
+                />
+              )}
+              <object
+                type="image/svg+xml"
+                data={svgPath}
+                className="carte-bg"
+              >
+                Votre navigateur ne supporte pas les SVG
+              </object>
+              <svg
+                className="carte-svg-overlay"
+                width={1000}
+                height={1000}
+                viewBox="0 0 1000 1000"
+                style={{
+                  position: 'absolute', top: 0, left: 0,
+                  pointerEvents: 'none', width: '100%', height: '100%', zIndex: 2
+                }}
+              >
+                <defs>
+                  {zones.filter(z => z.type === 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
+                    <clipPath id={`sp-clip-${zone.id}`} key={`sp-clip-${zone.id}`} clipPathUnits="userSpaceOnUse">
+                      <path d={pointsToBezierPath(zone.points)} />
+                    </clipPath>
+                  ))}
+                  {zones.filter(z => z.type !== 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
+                    <path id={`sp-text-curve-${zone.id}`} key={`sp-tc-${zone.id}`} d={getArcPathFromZonePoints(zone.points, zone.id, zone.arcPoints, 0)} fill="none" />
+                  ))}
+                </defs>
+                {zones.filter(z => z && typeof z === 'object').map((zone) => {
+                  const flashed = isFlashedZone(zone.id);
+                  return (
+                    <g key={zone.id} data-zone-id={zone.id}>
+                      {/* Image zones */}
+                      {zone.type === 'image' && zone.content && (() => {
+                        const src = resolveImageSrc(zone.content);
+                        const bbox = getZoneBoundingBox(zone.points);
+                        return (
+                          <image
+                            href={src}
+                            xlinkHref={src}
+                            x={bbox.x} y={bbox.y}
+                            width={bbox.width} height={bbox.height}
+                            style={{ pointerEvents: 'none', objectFit: 'cover' }}
+                            preserveAspectRatio="xMidYMid slice"
+                            clipPath={`url(#sp-clip-${zone.id})`}
+                          />
+                        );
+                      })()}
+                      {/* Zone path fill */}
+                      <path
+                        d={pointsToBezierPath(zone.points)}
+                        fill={flashed ? `${flashPair.color}55` : (zone.type === 'image' ? 'rgba(255,214,0,0.01)' : 'rgba(40,167,69,0.01)')}
+                        stroke={flashed ? flashPair.color : 'none'}
+                        strokeWidth={flashed ? 3 : 0}
+                        style={{ transition: 'fill 0.3s, stroke 0.3s' }}
+                      />
+                      {/* Flash glow */}
+                      {flashed && (
+                        <path
+                          d={pointsToBezierPath(zone.points)}
+                          fill="none"
+                          stroke={flashPair.color}
+                          strokeWidth={6}
+                          opacity={0.5}
+                          style={{ filter: `drop-shadow(0 0 8px ${flashPair.color})` }}
+                        />
+                      )}
+                      {/* Text zones */}
+                      {zone.type === 'texte' && (() => {
+                        let idxStart = 0, idxEnd = 1;
+                        if (Array.isArray(zone.arcPoints) && zone.arcPoints.length === 2) {
+                          idxStart = zone.arcPoints[0]; idxEnd = zone.arcPoints[1];
+                        }
+                        const pts = Array.isArray(zone.points) && zone.points.length >= 2 ? zone.points : [{x:0,y:0},{x:1,y:1}];
+                        const { r, delta } = interpolateArc(pts, idxStart, idxEnd, 0);
+                        const arcLen = r * delta;
+                        const textValue = zone.content || zone.label || '';
+                        const safeText = typeof textValue === 'string' ? textValue : '';
+                        const baseFontSize = 32;
+                        const textLen = safeText.length * baseFontSize * 0.6;
+                        const marginPx = 24;
+                        const fontSize = textLen > arcLen - 2 * marginPx
+                          ? Math.max(12, (arcLen - 2 * marginPx) / (safeText.length * 0.6))
+                          : baseFontSize;
+                        return (
+                          <text fontSize={fontSize} fontFamily="Arial" fill="#fff" fontWeight="bold">
+                            <textPath xlinkHref={`#sp-text-curve-${zone.id}`} startOffset="50%" textAnchor="middle" dominantBaseline="middle">
+                              {textValue}
+                            </textPath>
+                          </text>
+                        );
+                      })()}
+                      {/* Calcul / Chiffre zones */}
+                      {(zone.type === 'calcul' || zone.type === 'chiffre') && zone.content && (() => {
+                        const bbox = getZoneBoundingBox(zone.points);
+                        const cx = bbox.x + bbox.width / 2;
+                        const cy = bbox.y + bbox.height / 2;
+                        const base = Math.max(12, Math.min(bbox.width, bbox.height));
+                        const fontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * base;
+                        const angle = Number(zone.angle ?? 0);
+                        const mo = zone.mathOffset || { x: 0, y: 0 };
+                        const contentStr = String(zone.content ?? '').trim();
+                        const isSix = zone.type === 'chiffre' && contentStr === '6';
+                        const offsetX = isSix ? (-0.04 * fontSize) : 0;
+                        const isChiffre = zone.type === 'chiffre';
+                        return (
+                          <g transform={`translate(${mo.x || 0} ${mo.y || 0}) rotate(${angle} ${cx} ${cy})`}>
+                            <text
+                              x={cx} y={cy}
+                              transform={offsetX ? `translate(${offsetX} 0)` : undefined}
+                              textAnchor="middle" alignmentBaseline="middle"
+                              fontSize={fontSize}
+                              fill="#456451"
+                              fontWeight="bold"
+                              stroke="none"
+                            >
+                              {zone.content}
+                            </text>
+                            {isChiffre && (() => {
+                              const underLen = 0.5 * fontSize;
+                              const half = underLen / 2;
+                              const uy = cy + 0.54 * fontSize;
+                              const strokeW = Math.max(1, 0.09 * fontSize);
+                              const cxAdj = cx + (offsetX || 0);
+                              return <line x1={cxAdj - half} y1={uy} x2={cxAdj + half} y2={uy} stroke="#456451" strokeWidth={strokeW} strokeLinecap="round" />;
+                            })()}
+                          </g>
+                        );
+                      })()}
+                    </g>
+                  );
+                })}
+              </svg>
+              {/* Flash pair label */}
+              {flashPair && (
                 <div style={{
-                  height: '100%',
-                  borderRadius: 4,
-                  width: `${Math.min(100, (timeLeft / (matchState?.durationPerRound || 60)) * 100)}%`,
-                  background: timeLeft <= 10 ? '#ef4444' : timeLeft <= 30 ? '#f59e0b' : '#10b981',
-                  transition: 'width 1s linear, background 0.3s'
-                }} />
-              </div>
+                  position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
+                  background: flashPair.color, color: '#fff', padding: '6px 18px',
+                  borderRadius: 20, fontWeight: 700, fontSize: 14, zIndex: 10,
+                  boxShadow: `0 0 20px ${flashPair.color}66`,
+                  animation: 'fadeIn 0.2s ease'
+                }}>
+                  ✅ {flashPair.playerName}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.5)' }}>
+              {pauseInfo && pauseInfo.paused ? (
+                <SpectatorPauseOverlay disconnectedPlayer={pauseInfo.disconnectedPlayer} gracePeriodMs={pauseInfo.gracePeriodMs} />
+              ) : (
+                <>
+                  <div style={{ fontSize: 64, marginBottom: 16 }}>🗺️</div>
+                  <div style={{ fontSize: 18, fontWeight: 600 }}>En attente de la carte...</div>
+                  <div style={{ fontSize: 13, marginTop: 8, opacity: 0.6 }}>La carte apparaîtra au lancement du match</div>
+                </>
+              )}
             </div>
           )}
+        </div>
+
+        {/* ===== RIGHT: SCOREBOARD + FEED ===== */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden' }}>
 
           {/* Scoreboard */}
           <div style={{
-            background: 'rgba(255,255,255,0.05)',
-            borderRadius: 16,
-            border: '1px solid rgba(255,255,255,0.1)',
-            padding: 24,
-            minHeight: 300
+            background: CC.cardBg,
+            borderRadius: 14,
+            border: `1px solid ${CC.cardBorder}`,
+            padding: '16px 18px',
+            flex: '0 0 auto'
           }}>
-            <h2 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700, color: '#e2e8f0' }}>
+            <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>
               🏆 Classement en direct
-            </h2>
-
+            </h3>
             {sortedPlayers.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>
-                <div style={{ fontSize: 48, marginBottom: 12 }}>⏳</div>
-                En attente des joueurs...
+              <div style={{ textAlign: 'center', padding: 20, color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>
+                ⏳ En attente des joueurs...
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {sortedPlayers.map((player, idx) => (
                   <div
                     key={player.studentId}
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 16,
-                      padding: '16px 20px',
-                      borderRadius: 14,
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 12px', borderRadius: 10,
                       background: idx === 0 && status === 'playing'
-                        ? 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05))'
+                        ? `linear-gradient(135deg, ${CC.yellow}22, ${CC.yellow}0A)`
                         : 'rgba(255,255,255,0.03)',
-                      border: `1px solid ${idx === 0 && status === 'playing' ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.05)'}`,
+                      border: `1px solid ${idx === 0 && status === 'playing' ? `${CC.yellow}44` : 'rgba(255,255,255,0.05)'}`,
                       transition: 'all 0.3s ease'
                     }}
                   >
-                    {/* Rank */}
-                    <div style={{
-                      fontSize: idx < 3 ? 28 : 18,
-                      fontWeight: 900,
-                      minWidth: 44,
-                      textAlign: 'center'
-                    }}>
+                    <div style={{ fontSize: idx < 3 ? 22 : 15, fontWeight: 900, minWidth: 32, textAlign: 'center' }}>
                       {getMedal(idx)}
                     </div>
-
-                    {/* Avatar */}
                     <div style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: '50%',
+                      width: 36, height: 36, borderRadius: '50%',
                       background: `linear-gradient(135deg, ${getPlayerColor(idx)}, ${getPlayerColor(idx)}88)`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 20,
-                      fontWeight: 800,
-                      color: '#fff',
-                      flexShrink: 0,
-                      border: `3px solid ${getPlayerColor(idx)}44`
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 16, fontWeight: 800, color: '#fff', flexShrink: 0,
+                      border: `2px solid ${getPlayerColor(idx)}44`
                     }}>
                       {(player.name || '?')[0].toUpperCase()}
                     </div>
-
-                    {/* Name */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{
-                        fontSize: 16,
-                        fontWeight: 700,
-                        color: '#f1f5f9',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {player.name || player.studentId}
                       </div>
-                      <div style={{ fontSize: 12, color: '#64748b' }}>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
                         {player.ready ? '✅ Prêt' : status === 'playing' ? `${player.pairsFound || 0} paires` : '⏳ En attente'}
                       </div>
                     </div>
-
-                    {/* Score */}
                     <div style={{
-                      fontSize: 32,
-                      fontWeight: 900,
+                      fontSize: 26, fontWeight: 900,
                       color: getPlayerColor(idx),
-                      fontVariantNumeric: 'tabular-nums',
-                      textShadow: `0 0 20px ${getPlayerColor(idx)}44`
+                      fontVariantNumeric: 'tabular-nums'
                     }}>
                       {player.score || 0}
                     </div>
@@ -494,81 +739,70 @@ export default function ArenaSpectator() {
           {/* Podium final */}
           {ranking && ranking.length > 0 && status === 'finished' && (
             <div style={{
-              marginTop: 20,
-              padding: 24,
-              background: 'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(234,179,8,0.05))',
-              borderRadius: 16,
-              border: '1px solid rgba(245,158,11,0.2)',
+              padding: 16,
+              background: `linear-gradient(135deg, ${CC.yellow}1A, ${CC.yellow}08)`,
+              borderRadius: 14,
+              border: `1px solid ${CC.yellow}33`,
               textAlign: 'center'
             }}>
-              <h2 style={{ margin: '0 0 16px', fontSize: 24, fontWeight: 800 }}>🏆 Podium Final</h2>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: 24, flexWrap: 'wrap' }}>
+              <h3 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 800 }}>🏆 Podium</h3>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
                 {ranking.slice(0, 3).map((p, i) => (
                   <div key={p.studentId || i} style={{
-                    padding: '16px 24px',
-                    borderRadius: 16,
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    minWidth: 120
+                    padding: '10px 16px', borderRadius: 12,
+                    background: CC.cardBg, border: `1px solid ${CC.cardBorder}`, minWidth: 80
                   }}>
-                    <div style={{ fontSize: 40 }}>{getMedal(i)}</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, marginTop: 8 }}>{p.name || p.studentId}</div>
-                    <div style={{ fontSize: 24, fontWeight: 900, color: '#f59e0b', marginTop: 4 }}>{p.score || 0}</div>
+                    <div style={{ fontSize: 28 }}>{getMedal(i)}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, marginTop: 4 }}>{p.name || p.studentId}</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: CC.yellow, marginTop: 2 }}>{p.score || 0}</div>
                   </div>
                 ))}
               </div>
             </div>
           )}
-        </div>
 
-        {/* Right: Live event feed */}
-        <div style={{
-          background: 'rgba(255,255,255,0.05)',
-          borderRadius: 16,
-          border: '1px solid rgba(255,255,255,0.1)',
-          padding: 20,
-          maxHeight: 'calc(100vh - 140px)',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>
-            📡 Fil en direct
-          </h3>
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {events.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: 20, color: '#475569', fontSize: 13 }}>
-                En attente d'événements...
-              </div>
-            ) : events.map((ev, i) => {
-              const evColors = {
-                pair: '#10b981',
-                start: '#f59e0b',
-                end: '#8b5cf6',
-                round: '#3b82f6',
-                tie: '#f97316',
-                join: '#06b6d4',
-                system: '#64748b',
-                error: '#ef4444',
-                info: '#94a3b8'
-              };
-              return (
-                <div key={i} style={{
-                  padding: '8px 12px',
-                  borderRadius: 10,
-                  background: 'rgba(255,255,255,0.03)',
-                  borderLeft: `3px solid ${evColors[ev.type] || '#64748b'}`,
-                  fontSize: 13,
-                  color: '#cbd5e1',
-                  animation: i === 0 ? 'fadeIn 0.3s ease' : 'none'
-                }}>
-                  <span style={{ color: '#475569', fontSize: 11, marginRight: 8 }}>
-                    {new Date(ev.time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                  </span>
-                  {ev.text}
+          {/* Live event feed */}
+          <div style={{
+            background: CC.cardBg,
+            borderRadius: 14,
+            border: `1px solid ${CC.cardBorder}`,
+            padding: '14px 16px',
+            flex: 1,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0
+          }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>
+              📡 Fil en direct
+            </h3>
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {events.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 16, color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>
+                  En attente d'événements...
                 </div>
-              );
-            })}
+              ) : events.map((ev, i) => {
+                const evColors = {
+                  pair: '#10b981', start: CC.yellow, end: '#8b5cf6', round: '#3b82f6',
+                  tie: '#f97316', join: '#06b6d4', system: '#64748b', error: '#ef4444',
+                  pause: CC.yellow, resume: '#10b981', forfeit: '#ef4444', info: '#94a3b8'
+                };
+                return (
+                  <div key={i} style={{
+                    padding: '6px 10px', borderRadius: 8,
+                    background: 'rgba(255,255,255,0.03)',
+                    borderLeft: `3px solid ${evColors[ev.type] || '#64748b'}`,
+                    fontSize: 12, color: 'rgba(255,255,255,0.75)',
+                    animation: i === 0 ? 'fadeIn 0.3s ease' : 'none'
+                  }}>
+                    <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 10, marginRight: 6 }}>
+                      {new Date(ev.time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </span>
+                    {ev.text}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -588,9 +822,6 @@ export default function ArenaSpectator() {
           60% { transform: scale(1.1); }
           100% { transform: scale(1); opacity: 1; }
         }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
       `}</style>
     </div>
   );

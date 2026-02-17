@@ -1129,7 +1129,14 @@ class CrazyArenaManager {
       totalRounds: roundsPerMatch,
       durationPerRound,
       startTime: match.startTime,
-      config: { rounds: roundsPerMatch, duration: durationPerRound, themes: config.themes || [] }
+      config: { rounds: roundsPerMatch, duration: durationPerRound, themes: config.themes || [] },
+      zones: match.zones || [],
+      pauseState: match._pauseState ? {
+        disconnectedPlayer: match._pauseState.disconnectedPlayerName,
+        disconnectedStudentId: match._pauseState.disconnectedStudentId,
+        pausedAt: match._pauseState.pausedAt,
+        gracePeriodMs: 15000
+      } : null
     };
   }
 
