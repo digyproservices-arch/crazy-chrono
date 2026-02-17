@@ -1266,7 +1266,7 @@ class CrazyArenaManager {
     const durationPerRound = config.duration || 60;
 
     return {
-      matchId: match.id,
+      matchId: match.matchId || match.id,
       roomCode: match.roomCode,
       mode: match.mode,
       status: match.status,
@@ -3270,12 +3270,6 @@ class CrazyArenaManager {
     }
   }
 
-  /**
-   * Obtenir l'état d'un match
-   */
-  getMatchState(matchId) {
-    return this.matches.get(matchId);
-  }
 }
 
 module.exports = CrazyArenaManager;
