@@ -8,6 +8,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import { pointsToBezierPath } from '../CarteUtils';
+import { animateBubblesFromZones, invalidateZoneCenterCache } from '../Carte';
 import '../../styles/Carte.css';
 
 const getBackendUrl = () => process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
@@ -26,6 +27,15 @@ const CC = {
 };
 
 const PLAYER_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899', '#0ea5e9'];
+const PLAYER_BORDER_COLORS = ['#111827', '#fbbf24', '#dc2626'];
+
+function getInitials(name) {
+  const str = String(name || '').trim();
+  if (!str) return '';
+  const parts = str.split(/\s+/);
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 // --- SVG helpers (copie exacte TrainingArenaGame.js) ---
 function interpolateArc(points, idxStart, idxEnd, marginPx) {
@@ -126,6 +136,7 @@ export default function ArenaSpectator() {
   const [mode, setMode] = useState('arena');
   const [error, setError] = useState(null);
   const [zones, setZones] = useState([]);
+  const zonesRef = useRef([]);
   const [pauseInfo, setPauseInfo] = useState(null);
   const [flashPair, setFlashPair] = useState(null); // { zoneAId, zoneBId, color, playerName }
 
@@ -172,7 +183,11 @@ export default function ArenaSpectator() {
             setTotalRounds(s.totalRounds || 3);
             setMode(s.mode || 'arena');
             setError(null);
-            if (Array.isArray(s.zones) && s.zones.length > 0) setZones(s.zones);
+            if (Array.isArray(s.zones) && s.zones.length > 0) {
+              setZones(s.zones);
+              zonesRef.current = s.zones;
+              invalidateZoneCenterCache();
+            }
             if (s.pauseState) {
               setPauseInfo({ paused: true, disconnectedPlayer: s.pauseState.disconnectedPlayer, gracePeriodMs: s.pauseState.gracePeriodMs || 15000 });
             }
@@ -211,7 +226,11 @@ export default function ArenaSpectator() {
       setPlayers(state.players || []);
       setStatus(state.status);
       setMode(state.mode || 'arena');
-      if (Array.isArray(state.zones) && state.zones.length > 0) setZones(state.zones);
+      if (Array.isArray(state.zones) && state.zones.length > 0) {
+        setZones(state.zones);
+        zonesRef.current = state.zones;
+        invalidateZoneCenterCache();
+      }
     });
 
     // === EVENTS ARENA + TRAINING ===
@@ -229,7 +248,11 @@ export default function ArenaSpectator() {
         setStatus('playing');
         setCountdown(null);
         setCurrentRound(1);
-        if (Array.isArray(data?.zones) && data.zones.length > 0) setZones(data.zones);
+        if (Array.isArray(data?.zones) && data.zones.length > 0) {
+          setZones(data.zones);
+          zonesRef.current = data.zones;
+          invalidateZoneCenterCache();
+        }
         addEvent('Le match commence !', 'start');
       });
 
@@ -246,11 +269,22 @@ export default function ArenaSpectator() {
           const studentId = data?.studentId;
           const playerIdx = data?.playerIdx;
           const color = (typeof playerIdx === 'number' && playerIdx >= 0) ? PLAYER_COLORS[playerIdx % PLAYER_COLORS.length] : '#22c55e';
+          const borderColor = (typeof playerIdx === 'number' && playerIdx >= 0)
+            ? PLAYER_BORDER_COLORS[Math.floor(playerIdx / PLAYER_COLORS.length) % PLAYER_BORDER_COLORS.length]
+            : '#ffffff';
           addEvent(`${name} a trouvé une paire ! (${score || '?'} pts)`, 'pair');
           // Flash visuel sur les zones validées
           if (data?.zoneAId && data?.zoneBId) {
             setFlashPair({ zoneAId: data.zoneAId, zoneBId: data.zoneBId, color, playerName: name });
             setTimeout(() => setFlashPair(null), 1200);
+            // ✅ Animation bulles (identique joueur)
+            const currentZones = zonesRef.current || [];
+            const ZA = currentZones.find(z => z.id === data.zoneAId);
+            const ZB = currentZones.find(z => z.id === data.zoneBId);
+            if (ZA && ZB) {
+              const label = getInitials(name);
+              animateBubblesFromZones(data.zoneAId, data.zoneBId, color, ZA, ZB, borderColor, label);
+            }
           }
           if (studentId) {
             setPlayers(prev => prev.map(p =>
@@ -270,7 +304,11 @@ export default function ArenaSpectator() {
       socket.on(`${prefix}:round-new`, ({ zones: newZones, roundIndex, totalRounds: tr }) => {
         setCurrentRound((roundIndex || 0) + 1);
         if (tr) setTotalRounds(tr);
-        if (Array.isArray(newZones) && newZones.length > 0) setZones(newZones);
+        if (Array.isArray(newZones) && newZones.length > 0) {
+          setZones(newZones);
+          zonesRef.current = newZones;
+          invalidateZoneCenterCache();
+        }
         addEvent(`Nouvelle carte ! Manche ${(roundIndex || 0) + 1}`, 'round');
       });
 
@@ -282,7 +320,11 @@ export default function ArenaSpectator() {
 
       socket.on(`${prefix}:tiebreaker-start`, (data) => {
         setStatus('tiebreaker');
-        if (Array.isArray(data?.zones) && data.zones.length > 0) setZones(data.zones);
+        if (Array.isArray(data?.zones) && data.zones.length > 0) {
+          setZones(data.zones);
+          zonesRef.current = data.zones;
+          invalidateZoneCenterCache();
+        }
         addEvent('Départage en cours !', 'start');
       });
 
@@ -681,7 +723,7 @@ export default function ArenaSpectator() {
             padding: '16px 18px',
             flex: '0 0 auto'
           }}>
-            <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>
+            <h3 data-cc-vignette="last-pair" style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>
               🏆 Classement en direct
             </h3>
             {sortedPlayers.length === 0 ? (
