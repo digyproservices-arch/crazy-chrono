@@ -33,7 +33,7 @@ class CrazyArenaManager {
         .from('tournament_matches')
         .select('*')
         .eq('id', matchId)
-        .eq('status', 'pending')
+        .in('status', ['pending', 'in_progress'])
         .single();
 
       if (error || !data) {
@@ -45,7 +45,14 @@ class CrazyArenaManager {
       const config = typeof data.config === 'string' ? JSON.parse(data.config) : data.config;
       this.createMatch(matchId, data.room_code, config);
       
-      return this.matches.get(matchId);
+      // Si le match était in_progress en DB, le remettre en waiting pour que les joueurs re-rejoignent
+      // (les joueurs devront se reconnecter après un redémarrage serveur)
+      const match = this.matches.get(matchId);
+      if (match && data.status === 'in_progress') {
+        console.log(`[CrazyArena] Match ${matchId} était in_progress en DB, remis en waiting pour reconnexion`);
+      }
+      
+      return match;
     } catch (err) {
       console.error('[CrazyArena] Erreur chargement match depuis Supabase:', err);
       return null;
@@ -2476,42 +2483,19 @@ class CrazyArenaManager {
 
     try {
       match._arenaResultIds = {};
-      const isValidUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
+      // match_results.student_id → FK vers students(id) qui contient 's001', 's002', etc.
+      // PAS les UUIDs auth. Utiliser player.studentId directement.
       for (const player of match.players) {
         const resultId = uuidv4();
         match._arenaResultIds[player.studentId] = resultId;
-
-        // Résoudre student_id en UUID valide (même logique que Training)
-        let dbStudentId = player.authId || (isValidUuid(player.studentId) ? player.studentId : null);
-        if (!dbStudentId && this.supabase) {
-          try {
-            const { data: mapping } = await this.supabase
-              .from('user_student_mapping')
-              .select('user_id')
-              .eq('student_id', player.studentId)
-              .eq('active', true)
-              .single();
-            if (mapping?.user_id) {
-              dbStudentId = mapping.user_id;
-              player.authId = dbStudentId;
-              logger.info('[CrazyArena][Arena] 🔍 Lookup user_student_mapping OK', { studentId: player.studentId, authId: dbStudentId });
-            }
-          } catch (lookupErr) {
-            logger.warn('[CrazyArena][Arena] ⚠️ Lookup user_student_mapping échoué', { studentId: player.studentId, error: lookupErr.message });
-          }
-        }
-        if (!dbStudentId) {
-          logger.error('[CrazyArena][Arena] ❌ Pas d\'UUID valide pour student_id, skip insert', { matchId, studentId: player.studentId });
-          continue;
-        }
 
         const { error: resErr } = await this.supabase
           .from('match_results')
           .insert({
             id: resultId,
             match_id: matchId,
-            student_id: dbStudentId,
+            student_id: player.studentId,
             position: 0,
             score: 0,
             time_ms: 0,
@@ -2520,8 +2504,22 @@ class CrazyArenaManager {
           });
 
         if (resErr) {
-          logger.error('[CrazyArena][Arena] ❌ Erreur insert match_results', { matchId, studentId: player.studentId, dbStudentId, error: resErr.message });
+          logger.error('[CrazyArena][Arena] ❌ Erreur insert match_results', { matchId, studentId: player.studentId, error: resErr.message });
+        } else {
+          logger.info('[CrazyArena][Arena] ✅ match_results inséré', { matchId, studentId: player.studentId, resultId });
         }
+      }
+
+      // Mettre à jour le status du match en DB → 'in_progress'
+      const { error: statusErr } = await this.supabase
+        .from('tournament_matches')
+        .update({ status: 'in_progress', started_at: new Date().toISOString() })
+        .eq('id', matchId);
+      
+      if (statusErr) {
+        logger.error('[CrazyArena][Arena] ❌ Erreur update tournament_matches status', { matchId, error: statusErr.message });
+      } else {
+        logger.info('[CrazyArena][Arena] ✅ tournament_matches.status → in_progress', { matchId });
       }
 
       logger.info('[CrazyArena][Arena] 💾 Match Arena persisté en DB (start)', { matchId, players: match.players.length });

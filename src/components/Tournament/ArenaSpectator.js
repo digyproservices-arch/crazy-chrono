@@ -24,37 +24,80 @@ export default function ArenaSpectator() {
   const [ranking, setRanking] = useState(null);
   const [countdown, setCountdown] = useState(null);
   const [mode, setMode] = useState('arena');
+  const [error, setError] = useState(null);
 
   const addEvent = useCallback((text, type = 'info') => {
     setEvents(prev => [{ text, type, time: Date.now() }, ...prev].slice(0, 30));
   }, []);
 
   useEffect(() => {
-    if (!matchId) return;
+    if (!matchId) {
+      setStatus('not-found');
+      setError('Aucun matchId fourni');
+      return;
+    }
+
+    console.log('[Spectator] Connexion au backend:', getBackendUrl(), 'matchId:', matchId);
 
     const socket = io(getBackendUrl(), {
       transports: ['websocket', 'polling'],
-      reconnection: true
+      reconnection: true,
+      reconnectionAttempts: 10,
+      timeout: 10000
     });
     socketRef.current = socket;
 
+    // Timeout si pas de réponse après 8s
+    const connectionTimeout = setTimeout(() => {
+      if (status === 'connecting') {
+        setStatus('not-found');
+        setError('Connexion au serveur échouée (timeout)');
+        addEvent('Timeout connexion', 'error');
+      }
+    }, 8000);
+
     socket.on('connect', () => {
       console.log('[Spectator] Connecté, rejoindre match:', matchId);
+      clearTimeout(connectionTimeout);
       socket.emit('arena:spectate-join', { matchId }, (response) => {
-        if (response?.ok && response.state) {
-          const s = response.state;
-          setMatchState(s);
-          setPlayers(s.players || []);
-          setStatus(s.status);
-          setCurrentRound(s.currentRound || 1);
-          setTotalRounds(s.totalRounds || 3);
-          setMode(s.mode || 'arena');
-          addEvent('Connecté au match en direct', 'system');
-        } else {
-          setStatus('not-found');
-          addEvent('Match introuvable', 'error');
+        try {
+          if (response?.ok && response.state) {
+            const s = response.state;
+            setMatchState(s);
+            setPlayers(s.players || []);
+            setStatus(s.status || 'waiting');
+            setCurrentRound(s.currentRound || 1);
+            setTotalRounds(s.totalRounds || 3);
+            setMode(s.mode || 'arena');
+            setError(null);
+            addEvent('Connecté au match en direct', 'system');
+          } else {
+            setStatus('not-found');
+            setError('Match introuvable sur le serveur');
+            addEvent('Match introuvable', 'error');
+          }
+        } catch (err) {
+          console.error('[Spectator] Erreur traitement réponse:', err);
+          setError('Erreur: ' + err.message);
         }
       });
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('[Spectator] Erreur connexion:', err.message);
+      setError('Erreur connexion: ' + err.message);
+      addEvent('Erreur connexion serveur', 'error');
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.log('[Spectator] Déconnecté:', reason);
+      addEvent('Déconnecté du serveur', 'error');
+    });
+
+    socket.on('reconnect', () => {
+      console.log('[Spectator] Reconnecté, re-rejoindre match');
+      socket.emit('arena:spectate-join', { matchId });
+      addEvent('Reconnecté au match', 'system');
     });
 
     // État initial du spectateur
@@ -98,13 +141,20 @@ export default function ArenaSpectator() {
         if (tr) setTotalRounds(tr);
       });
 
-      socket.on(`${prefix}:pair-validated`, ({ playerName, studentId, pairId, score }) => {
-        const name = playerName || studentId;
-        addEvent(`✅ ${name} a trouvé une paire ! (${score || '?'} pts)`, 'pair');
-        // Mettre à jour le score du joueur
-        setPlayers(prev => prev.map(p =>
-          p.studentId === studentId ? { ...p, score: score || p.score, pairsFound: (p.pairsFound || 0) + 1 } : p
-        ));
+      socket.on(`${prefix}:pair-validated`, (data) => {
+        try {
+          const name = data?.playerName || data?.studentId || '?';
+          const score = data?.score;
+          const studentId = data?.studentId;
+          addEvent(`✅ ${name} a trouvé une paire ! (${score || '?'} pts)`, 'pair');
+          if (studentId) {
+            setPlayers(prev => prev.map(p =>
+              p.studentId === studentId ? { ...p, score: score || p.score, pairsFound: (p.pairsFound || 0) + 1 } : p
+            ));
+          }
+        } catch (err) {
+          console.error('[Spectator] Erreur pair-validated:', err);
+        }
       });
 
       socket.on(`${prefix}:scores-update`, ({ players: p }) => {
@@ -128,12 +178,19 @@ export default function ArenaSpectator() {
         addEvent('⚡ Départage en cours !', 'start');
       });
 
-      socket.on(`${prefix}:game-end`, ({ ranking: r, winner, duration }) => {
-        setStatus('finished');
-        setRanking(r || []);
-        const winnerName = winner?.name || winner?.studentId || '?';
-        const dur = duration ? Math.round(duration / 1000) : '?';
-        addEvent(`🏆 Match terminé ! Vainqueur : ${winnerName} (${dur}s)`, 'end');
+      socket.on(`${prefix}:game-end`, (data) => {
+        try {
+          setStatus('finished');
+          const r = data?.ranking || [];
+          setRanking(r);
+          const winnerName = data?.winner?.name || data?.winner?.studentId || (r[0]?.name) || '?';
+          const dur = data?.duration ? Math.round(data.duration / 1000) : '?';
+          addEvent(`🏆 Match terminé ! Vainqueur : ${winnerName} (${dur}s)`, 'end');
+        } catch (err) {
+          console.error('[Spectator] Erreur game-end:', err);
+          setStatus('finished');
+          addEvent('Match terminé', 'end');
+        }
       });
     };
 
@@ -142,9 +199,11 @@ export default function ArenaSpectator() {
     setupListeners('training');
 
     return () => {
+      clearTimeout(connectionTimeout);
       socket.disconnect();
     };
-  }, [matchId, addEvent]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchId]);
 
   // Trier les joueurs par score décroissant
   const sortedPlayers = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
@@ -234,6 +293,40 @@ export default function ArenaSpectator() {
           </button>
         </div>
       </div>
+
+      {/* Error / Connecting states */}
+      {(status === 'connecting' || status === 'not-found' || error) && (
+        <div style={{
+          textAlign: 'center',
+          padding: 60,
+          background: 'rgba(255,255,255,0.05)',
+          borderRadius: 16,
+          border: '1px solid rgba(255,255,255,0.1)',
+          marginBottom: 24
+        }}>
+          {status === 'connecting' && (
+            <>
+              <div style={{ fontSize: 48, marginBottom: 16, animation: 'pulse 1.5s infinite' }}>📡</div>
+              <h2 style={{ margin: '0 0 8px', fontSize: 20 }}>Connexion au match...</h2>
+              <p style={{ color: '#64748b', margin: 0 }}>Match ID: {matchId?.slice(-12)}</p>
+            </>
+          )}
+          {status === 'not-found' && (
+            <>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
+              <h2 style={{ margin: '0 0 8px', fontSize: 20 }}>Match introuvable</h2>
+              <p style={{ color: '#94a3b8', margin: '0 0 16px' }}>{error || 'Le match n\'existe pas ou est terminé'}</p>
+              <button onClick={() => navigate(-1)} style={{
+                padding: '10px 24px', borderRadius: 8, border: 'none',
+                background: '#3b82f6', color: '#fff', cursor: 'pointer', fontWeight: 600
+              }}>← Retour au dashboard</button>
+            </>
+          )}
+          {error && status !== 'not-found' && (
+            <p style={{ color: '#f87171', margin: '8px 0 0', fontSize: 14 }}>{error}</p>
+          )}
+        </div>
+      )}
 
       {/* Countdown overlay */}
       {countdown !== null && countdown > 0 && (
