@@ -31,6 +31,9 @@ export default function ArenaManagerDashboard() {
       const data = await response.json();
       
       if (data.success) {
+        // ✅ FIX: Filtrer uniquement les matchs Arena (pas les matchs Training)
+        data.matches = (data.matches || []).filter(m => m.mode === 'arena');
+        
         // FUSIONNER avec état existant au lieu d'écraser
         setMatches(prevMatches => {
           const apiMatches = data.matches || [];

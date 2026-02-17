@@ -31,6 +31,9 @@ export default function TrainingArenaManagerDashboard() {
       const data = await response.json();
       
       if (data.success) {
+        // ✅ FIX: Filtrer uniquement les matchs Training (pas les matchs Arena)
+        data.matches = (data.matches || []).filter(m => m.mode === 'training');
+        
         // Rejoindre les rooms des nouveaux matchs Training
         if (socketRef.current?.connected && data.matches) {
           const trainingMatchIds = data.matches
