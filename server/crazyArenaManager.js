@@ -2941,8 +2941,9 @@ class CrazyArenaManager {
 
     const GRACE_PERIOD_MS = 15000; // 15 secondes
 
-    // Notifier tous les joueurs connectés
-    this.io.to(matchId).emit('arena:match-paused', {
+    // Notifier tous les joueurs connectés (préfixe selon le mode)
+    const pausePrefix = (match.mode === 'training') ? 'training' : 'arena';
+    this.io.to(matchId).emit(`${pausePrefix}:match-paused`, {
       matchId,
       reason: 'player-disconnected',
       disconnectedPlayer: disconnectedPlayer.name,
@@ -2990,8 +2991,9 @@ class CrazyArenaManager {
     // Relancer le timer
     this._restartTimer(matchId);
 
-    // Notifier tous les joueurs
-    this.io.to(matchId).emit('arena:match-resumed', {
+    // Notifier tous les joueurs (préfixe selon le mode)
+    const resumePrefix = (match.mode === 'training') ? 'training' : 'arena';
+    this.io.to(matchId).emit(`${resumePrefix}:match-resumed`, {
       matchId,
       reconnectedPlayer: pauseState.disconnectedPlayerName,
       reconnectedStudentId: pauseState.disconnectedStudentId,
@@ -3074,8 +3076,9 @@ class CrazyArenaManager {
       match.players.splice(playerIndex, 1);
     }
 
-    // Notifier tous les joueurs du forfait
-    this.io.to(matchId).emit('arena:player-forfeit', {
+    // Notifier tous les joueurs du forfait (préfixe selon le mode)
+    const forfeitPrefix = (match.mode === 'training') ? 'training' : 'arena';
+    this.io.to(matchId).emit(`${forfeitPrefix}:player-forfeit`, {
       matchId,
       forfeitStudentId: studentId,
       remainingPlayers: match.players.length

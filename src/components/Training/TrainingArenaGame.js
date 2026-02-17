@@ -107,6 +107,39 @@ function getZoneBoundingBox(points) {
   };
 }
 
+function TrainingPauseOverlay({ disconnectedPlayer, gracePeriodMs }) {
+  const [secondsLeft, setSecondsLeft] = React.useState(Math.ceil((gracePeriodMs || 15000) / 1000));
+  React.useEffect(() => {
+    const iv = setInterval(() => {
+      setSecondsLeft(s => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(iv);
+  }, []);
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, zIndex: 50,
+      background: 'rgba(0,0,0,0.75)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      color: '#fff', textAlign: 'center', pointerEvents: 'all'
+    }}>
+      <div style={{ fontSize: 64, marginBottom: 16 }}>&#9208;</div>
+      <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Match en pause</div>
+      <div style={{ fontSize: 18, marginBottom: 20, opacity: 0.9 }}>
+        <strong>{disconnectedPlayer || 'Un joueur'}</strong> s'est d&#233;connect&#233;
+      </div>
+      <div style={{
+        fontSize: 48, fontWeight: 900, color: secondsLeft <= 5 ? '#ef4444' : '#f59e0b',
+        marginBottom: 12, transition: 'color 0.3s'
+      }}>
+        {secondsLeft}s
+      </div>
+      <div style={{ fontSize: 14, opacity: 0.7 }}>
+        Reprise automatique &#224; la reconnexion ou forfait dans {secondsLeft}s
+      </div>
+    </div>
+  );
+}
+
 export default function TrainingArenaGame() {
   const navigate = useNavigate();
   const socketRef = useRef(null);
@@ -152,6 +185,7 @@ export default function TrainingArenaGame() {
   const [flashWrong, setFlashWrong] = useState(false);
   const [showBigCross, setShowBigCross] = useState(false);
   const [isTiebreaker, setIsTiebreaker] = useState(false); // ✅ COPIE EXACTE Arena (Carte.js ligne 3004)
+  const [trainingPauseInfo, setTrainingPauseInfo] = useState(null); // { paused, disconnectedPlayer, gracePeriodMs }
   const mpLastPairRef = useRef(null);
   const gameActiveTimeoutRef = useRef(null);
   const lastTimerTickRef = useRef(0);
@@ -314,6 +348,24 @@ export default function TrainingArenaGame() {
       navigate('/');
     });
     
+    // ⏸️ PAUSE: Un joueur s'est déconnecté pendant la partie
+    socket.on('training:match-paused', ({ disconnectedPlayer, gracePeriodMs }) => {
+      console.log('[TrainingArena] ⏸️ Match en PAUSE —', disconnectedPlayer, 'déconnecté');
+      setTrainingPauseInfo({ paused: true, disconnectedPlayer, gracePeriodMs: gracePeriodMs || 15000 });
+    });
+
+    // ▶️ REPRISE: Le joueur déconnecté s'est reconnecté
+    socket.on('training:match-resumed', ({ reconnectedPlayer }) => {
+      console.log('[TrainingArena] ▶️ Match REPRIS —', reconnectedPlayer, 'reconnecté');
+      setTrainingPauseInfo(null);
+    });
+
+    // 🏳️ FORFAIT: Un joueur n'a pas pu se reconnecter à temps
+    socket.on('training:player-forfeit', ({ forfeitStudentId, remainingPlayers }) => {
+      console.log('[TrainingArena] 🏳️ Forfait de', forfeitStudentId, '— joueurs restants:', remainingPlayers);
+      setTrainingPauseInfo(null);
+    });
+
     socket.on('training:scores-update', ({ scores }) => {
       console.log('[TrainingArena] 📊 Scores mis à jour:', scores);
       setPlayers(scores);
@@ -1149,6 +1201,12 @@ export default function TrainingArenaGame() {
             <div style={{ position: 'absolute', top: '50%', left: '50%', width: '120%', height: 16, background: 'rgba(220,0,0,0.85)', transform: 'translate(-50%, -50%) rotate(45deg)', borderRadius: 8 }} />
             <div style={{ position: 'absolute', top: '50%', left: '50%', width: '120%', height: 16, background: 'rgba(220,0,0,0.85)', transform: 'translate(-50%, -50%) rotate(-45deg)', borderRadius: 8 }} />
           </div>
+        )}
+        {trainingPauseInfo && trainingPauseInfo.paused && (
+          <TrainingPauseOverlay
+            disconnectedPlayer={trainingPauseInfo.disconnectedPlayer}
+            gracePeriodMs={trainingPauseInfo.gracePeriodMs}
+          />
         )}
         <object
           type="image/svg+xml"
