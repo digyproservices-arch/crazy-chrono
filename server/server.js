@@ -1726,6 +1726,29 @@ server.listen(PORT, '0.0.0.0', () => {
   } catch (err) {
     console.warn('[Monitoring] Erreur démarrage cron:', err.message);
   }
+
+  // ==========================================
+  // SELF-PING KEEP-ALIVE (Render free tier)
+  // Ping notre propre URL externe toutes les 4 min
+  // pour empêcher Render de mettre le serveur en veille
+  // ==========================================
+  const selfPingUrl = process.env.RENDER_EXTERNAL_URL || process.env.BACKEND_URL;
+  if (selfPingUrl) {
+    const PING_INTERVAL_MS = 4 * 60 * 1000; // 4 minutes
+    setInterval(() => {
+      const url = `${selfPingUrl}/healthz`;
+      const mod = url.startsWith('https') ? require('https') : require('http');
+      mod.get(url, (res) => {
+        console.log(`[KeepAlive] Self-ping ${url} → ${res.statusCode} (uptime: ${Math.floor(process.uptime())}s)`);
+        res.resume(); // Consommer la réponse
+      }).on('error', (err) => {
+        console.warn(`[KeepAlive] Self-ping failed: ${err.message}`);
+      });
+    }, PING_INTERVAL_MS);
+    console.log(`[KeepAlive] ✅ Self-ping activé toutes les 4 min → ${selfPingUrl}/healthz`);
+  } else {
+    console.warn('[KeepAlive] ⚠️  RENDER_EXTERNAL_URL ou BACKEND_URL non défini — self-ping désactivé. Le serveur risque de s\'endormir sur Render free tier.');
+  }
 });
 
 // ==========================================
@@ -1745,3 +1768,24 @@ async function gracefulShutdown(signal) {
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// ==========================================
+// CRASH PROTECTION
+// Empêcher les crashes silencieux du process Node.js
+// ==========================================
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Server] ⚠️  Unhandled Promise Rejection:', reason);
+  logger.error('[Server] Unhandled Promise Rejection', { 
+    reason: String(reason), 
+    stack: reason?.stack?.substring(0, 500) 
+  });
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[Server] 🔴 Uncaught Exception:', err);
+  logger.error('[Server] Uncaught Exception', { 
+    message: err.message, 
+    stack: err.stack?.substring(0, 500) 
+  });
+  // Ne PAS faire process.exit() — laisser le serveur continuer
+});

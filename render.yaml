@@ -16,4 +16,6 @@ services:
         value: https://app.crazy-chrono.com
       - key: FREE_SESSIONS_PER_DAY
         value: 3
+      - key: BACKEND_URL
+        value: https://crazy-chrono-backend.onrender.com
     healthCheckPath: /healthz
