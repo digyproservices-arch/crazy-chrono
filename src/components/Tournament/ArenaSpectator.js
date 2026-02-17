@@ -90,6 +90,26 @@ function resolveImageSrc(raw) {
   return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
 }
 
+// --- Error Boundary (empêche page blanche si erreur de rendu) ---
+class SpectatorErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error('[Spectator] Erreur de rendu attrapée:', error, info?.componentStack); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0D6A7A', color: '#fff', textAlign: 'center', padding: 32 }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>⚠️</div>
+          <h2 style={{ margin: '0 0 8px', fontSize: 22 }}>Erreur d'affichage</h2>
+          <p style={{ opacity: 0.7, marginBottom: 20, maxWidth: 400 }}>Le mode spectateur a rencontré un problème. Rechargez la page pour reprendre.</p>
+          <button onClick={() => window.location.reload()} style={{ padding: '10px 28px', borderRadius: 8, border: 'none', background: '#F5A623', color: '#4A3728', cursor: 'pointer', fontWeight: 700, fontSize: 15 }}>🔄 Recharger</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // --- Pause Overlay ---
 function SpectatorPauseOverlay({ disconnectedPlayer, gracePeriodMs }) {
   const [secondsLeft, setSecondsLeft] = React.useState(Math.ceil((gracePeriodMs || 15000) / 1000));
@@ -119,7 +139,7 @@ function SpectatorPauseOverlay({ disconnectedPlayer, gracePeriodMs }) {
   );
 }
 
-export default function ArenaSpectator() {
+function ArenaSpectatorInner() {
   const { matchId } = useParams();
   const navigate = useNavigate();
   const socketRef = useRef(null);
@@ -606,9 +626,7 @@ export default function ArenaSpectator() {
                 type="image/svg+xml"
                 data={svgPath}
                 className="carte-bg"
-              >
-                Votre navigateur ne supporte pas les SVG
-              </object>
+              />
               <svg
                 className="carte-svg-overlay"
                 width={1000}
@@ -971,5 +989,13 @@ export default function ArenaSpectator() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function ArenaSpectator() {
+  return (
+    <SpectatorErrorBoundary>
+      <ArenaSpectatorInner />
+    </SpectatorErrorBoundary>
   );
 }
