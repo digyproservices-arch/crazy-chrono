@@ -507,7 +507,7 @@ export default function TrainingArenaSetup() {
                   </div>
                 )}
                 
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {group.status === 'pending' && (
                     <>
                       <button 
@@ -523,6 +523,37 @@ export default function TrainingArenaSetup() {
                         }}
                       >
                         🚀 Lancer le match
+                      </button>
+                      <button 
+                        onClick={() => deleteGroup(group.id)}
+                        style={{ 
+                          padding: '8px 16px', 
+                          borderRadius: 8, 
+                          border: '1px solid #ef4444', 
+                          background: '#fff', 
+                          color: '#ef4444',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        🗑️ Supprimer
+                      </button>
+                    </>
+                  )}
+                  {group.status === 'finished' && (
+                    <>
+                      <button 
+                        onClick={() => launchMatch(group)}
+                        style={{ 
+                          padding: '8px 16px', 
+                          borderRadius: 8, 
+                          border: 'none', 
+                          background: 'linear-gradient(135deg, #F5A623, #e6951a)', 
+                          color: '#fff', 
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        🔄 Relancer le match
                       </button>
                       <button 
                         onClick={() => deleteGroup(group.id)}
