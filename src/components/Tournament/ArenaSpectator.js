@@ -785,13 +785,14 @@ function ArenaSpectatorInner() {
 
           {/* Scoreboard */}
           <div style={{
-            background: CC.cardBg,
+            background: 'rgba(0,0,0,0.25)',
             borderRadius: 14,
-            border: `1px solid ${CC.cardBorder}`,
+            border: '1px solid rgba(255,255,255,0.18)',
             padding: '16px 18px',
-            flex: '0 0 auto'
+            flex: '0 0 auto',
+            backdropFilter: 'blur(8px)'
           }}>
-            <h3 data-cc-vignette="last-pair" style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>
+            <h3 data-cc-vignette="last-pair" style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: '#fff' }}>
               🏆 Classement en direct
             </h3>
             {sortedPlayers.length === 0 ? (
@@ -807,9 +808,9 @@ function ArenaSpectatorInner() {
                       display: 'flex', alignItems: 'center', gap: 10,
                       padding: '10px 12px', borderRadius: 10,
                       background: idx === 0 && status === 'playing'
-                        ? `linear-gradient(135deg, ${CC.yellow}22, ${CC.yellow}0A)`
-                        : 'rgba(255,255,255,0.03)',
-                      border: `1px solid ${idx === 0 && status === 'playing' ? `${CC.yellow}44` : 'rgba(255,255,255,0.05)'}`,
+                        ? `linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.10))`
+                        : 'rgba(255,255,255,0.10)',
+                      border: `1px solid ${idx === 0 && status === 'playing' ? `${CC.yellow}66` : 'rgba(255,255,255,0.12)'}`,
                       transition: 'all 0.3s ease'
                     }}
                   >
@@ -826,19 +827,29 @@ function ArenaSpectatorInner() {
                       {(player.name || '?')[0].toUpperCase()}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {player.name || player.studentId}
                       </div>
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
                         {player.ready ? '✅ Prêt' : status === 'playing' ? `${player.pairsFound || 0} paires` : '⏳ En attente'}
                       </div>
                     </div>
                     <div style={{
-                      fontSize: 26, fontWeight: 900,
-                      color: getPlayerColor(idx),
-                      fontVariantNumeric: 'tabular-nums'
+                      background: '#fff',
+                      borderRadius: 12,
+                      padding: '4px 12px',
+                      minWidth: 44,
+                      textAlign: 'center',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
                     }}>
-                      {player.score || 0}
+                      <div style={{
+                        fontSize: 24, fontWeight: 900,
+                        color: getPlayerColor(idx),
+                        fontVariantNumeric: 'tabular-nums',
+                        lineHeight: 1.1
+                      }}>
+                        {player.score || 0}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -873,17 +884,18 @@ function ArenaSpectatorInner() {
 
           {/* Live event feed */}
           <div style={{
-            background: CC.cardBg,
+            background: 'rgba(0,0,0,0.25)',
             borderRadius: 14,
-            border: `1px solid ${CC.cardBorder}`,
+            border: '1px solid rgba(255,255,255,0.18)',
             padding: '14px 16px',
             flex: 1,
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
-            minHeight: 0
+            minHeight: 0,
+            backdropFilter: 'blur(8px)'
           }}>
-            <h3 style={{ margin: '0 0 10px', fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: 15, fontWeight: 700, color: '#fff' }}>
               📡 Fil en direct
             </h3>
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -908,8 +920,8 @@ function ArenaSpectatorInner() {
                   return (
                     <div key={i} style={{
                       padding: '7px 10px', borderRadius: 10,
-                      background: `${ev.color}12`,
-                      border: `1px solid ${ev.color}33`,
+                      background: `rgba(255,255,255,0.10)`,
+                      border: `1px solid ${ev.color}44`,
                       animation: i === 0 ? 'fadeIn 0.3s ease' : 'none',
                       display: 'flex', flexDirection: 'column', gap: 3
                     }}>
@@ -921,10 +933,10 @@ function ArenaSpectatorInner() {
                           border: ev.borderColor ? `2px solid ${ev.borderColor}` : 'none',
                           boxShadow: `0 0 6px ${ev.color || '#22c55e'}66`
                         }} />
-                        <span style={{ fontWeight: 700, fontSize: 12, color: '#f1f5f9', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontWeight: 700, fontSize: 12, color: '#fff', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {ev.playerName || 'Joueur'}
                         </span>
-                        <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10, flexShrink: 0 }}>
+                        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, flexShrink: 0 }}>
                           {new Date(ev.time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </span>
                       </div>
@@ -937,13 +949,13 @@ function ArenaSpectatorInner() {
                           }} />
                         )}
                         {ev.kind === 'calcnum' ? (
-                          <span style={{ fontSize: 12, color: '#e2e8f0' }}>
+                          <span style={{ fontSize: 12, color: '#fff' }}>
                             <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{ev.calcExpr}</span>
-                            <span style={{ color: ev.color, fontWeight: 800, margin: '0 4px' }}>=</span>
-                            <span style={{ fontFamily: 'monospace', fontWeight: 700, color: ev.color }}>{ev.calcResult}</span>
+                            <span style={{ fontWeight: 800, margin: '0 4px', color: '#fbbf24' }}>=</span>
+                            <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#fbbf24' }}>{ev.calcResult}</span>
                           </span>
                         ) : (
-                          <span style={{ fontSize: 12, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: 12, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {pairLabel}
                           </span>
                         )}
@@ -955,12 +967,12 @@ function ArenaSpectatorInner() {
                 return (
                   <div key={i} style={{
                     padding: '6px 10px', borderRadius: 8,
-                    background: 'rgba(255,255,255,0.03)',
+                    background: 'rgba(255,255,255,0.08)',
                     borderLeft: `3px solid ${evColors[ev.type] || '#64748b'}`,
-                    fontSize: 12, color: 'rgba(255,255,255,0.75)',
+                    fontSize: 12, color: 'rgba(255,255,255,0.85)',
                     animation: i === 0 ? 'fadeIn 0.3s ease' : 'none'
                   }}>
-                    <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 10, marginRight: 6 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, marginRight: 6 }}>
                       {new Date(ev.time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                     </span>
                     {ev.text}
