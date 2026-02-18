@@ -502,7 +502,7 @@ function ArenaSpectatorInner() {
   }, [matchId]);
 
   // Trier les joueurs par score décroissant
-  const sortedPlayers = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const sortedPlayers = [...players].filter(p => p && typeof p === 'object').sort((a, b) => (b.score || 0) - (a.score || 0));
 
   const svgPath = `${process.env.PUBLIC_URL}/images/carte-svg.svg`;
 
@@ -759,6 +759,9 @@ function ArenaSpectatorInner() {
                           idxStart = zone.arcPoints[0]; idxEnd = zone.arcPoints[1];
                         }
                         const pts = Array.isArray(zone.points) && zone.points.length >= 2 ? zone.points : [{x:0,y:0},{x:1,y:1}];
+                        // ✅ FIX: Bounds-check arcPoints indices to prevent crash on undefined.x
+                        if (idxStart >= pts.length) idxStart = 0;
+                        if (idxEnd >= pts.length) idxEnd = Math.min(1, pts.length - 1);
                         const { r, delta } = interpolateArc(pts, idxStart, idxEnd, 0);
                         const arcLen = r * delta;
                         const textValue = zone.content || zone.label || '';
@@ -934,7 +937,7 @@ function ArenaSpectatorInner() {
             }}>
               <h3 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 800 }}>🏆 Podium</h3>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
-                {ranking.slice(0, 3).map((p, i) => (
+                {ranking.filter(Boolean).slice(0, 3).map((p, i) => (
                   <div key={p.studentId || i} style={{
                     padding: '10px 16px', borderRadius: 12,
                     background: CC.cardBg, border: `1px solid ${CC.cardBorder}`, minWidth: 80

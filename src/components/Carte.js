@@ -575,6 +575,10 @@ const FLIP_TEXT_ARC_ZONE_IDS = {
 
 // Calcule un arc entre deux points, mais avec une marge en pixels sur chaque extrémité
 function interpolateArc(points, idxStart, idxEnd, marginPx) {
+  // ✅ FIX: Bounds-check indices to prevent crash on undefined.x/.y
+  if (!points || points.length < 2) return { newStart: {x:0,y:0}, newEnd: {x:1,y:1}, r: 1, centerX: 0.5, centerY: 0.5, largeArcFlag: 0, sweepFlag: 1, arcLen: 1, delta: 0.01 };
+  if (idxStart >= points.length || !points[idxStart]) idxStart = 0;
+  if (idxEnd >= points.length || !points[idxEnd]) idxEnd = Math.min(1, points.length - 1);
   const start = points[idxStart];
   const end = points[idxEnd];
   const xs = points.map(p => p.x);
