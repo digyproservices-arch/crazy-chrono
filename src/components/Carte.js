@@ -660,6 +660,7 @@ const Carte = () => {
   const [isMobile, setIsMobile] = useState(false);
   // Socket and timers
   const socketRef = useRef(null);
+  const trainingEndedRef = useRef(false);
   const [socketConnected, setSocketConnected] = useState(false);
   const roundNewTimerRef = useRef(null);
   // Expose a stable alias so existing handlers using `socket` keep working
@@ -1287,6 +1288,12 @@ const Carte = () => {
         console.log('[TRAINING] ✅ Socket connecté, ID:', s.id);
         setSocketConnected(true);
         
+        // ✅ FIX: Ne pas rejoindre si le match est déjà terminé (évite "match introuvable" après cleanup)
+        if (trainingEndedRef.current) {
+          console.log('[TRAINING] ⏹️ Game déjà terminé, skip training:join sur reconnexion');
+          return;
+        }
+        
         // ✅ REJOINDRE LA ROOM (comme Arena ligne 1314)
         try {
           const trainingData = JSON.parse(localStorage.getItem('cc_training_game') || '{}');
@@ -1415,6 +1422,7 @@ const Carte = () => {
       // Écouter fin de partie (comme Arena)
       s.on('training:game-end', ({ scores, duration }) => {
         console.log('[TRAINING] 🏁 Partie terminée!', { scores });
+        trainingEndedRef.current = true;
         setGameActive(false);
         // TODO: Afficher écran de fin avec scores
       });

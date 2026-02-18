@@ -172,6 +172,7 @@ export default function TrainingArenaGame() {
   const [timeLeft, setTimeLeft] = useState(60);
   const [gameStartTime, setGameStartTime] = useState(null);
   const [gameEnded, setGameEnded] = useState(false);
+  const gameEndedRef = useRef(false);
   const [ranking, setRanking] = useState([]);
   const [winner, setWinner] = useState(null);
   const [roundsPlayed, setRoundsPlayed] = useState(0);
@@ -367,6 +368,12 @@ export default function TrainingArenaGame() {
     socket.on('connect', () => {
       console.log('[TrainingArena] Connecté pour la partie, socketId:', socket.id);
       
+      // ✅ FIX: Ne pas rejoindre si le match est déjà terminé (évite "match introuvable" après cleanup)
+      if (gameEndedRef.current) {
+        console.log('[TrainingArena] ⏹️ Game déjà terminé, skip training:join sur reconnexion');
+        return;
+      }
+      
       // CRITIQUE: Rejoindre la room du match pour recevoir les événements
       socket.emit('training:join', {
         matchId: gameInfo.matchId,
@@ -379,6 +386,11 @@ export default function TrainingArenaGame() {
         if (response?.ok) {
           console.log('[TrainingArena] ✅ Rejoint la room du match pour recevoir événements');
         } else {
+          // ✅ FIX: Ne pas alerter/rediriger si le match est terminé (cleanup normal)
+          if (gameEndedRef.current) {
+            console.log('[TrainingArena] Match nettoyé après fin de partie (normal)');
+            return;
+          }
           console.error('[TrainingArena] ❌ Échec rejoin - match introuvable (serveur redémarré ?)');
           alert('Le match a été interrompu (le serveur a redémarré). Vous allez être redirigé.');
           navigate('/');
@@ -609,6 +621,7 @@ export default function TrainingArenaGame() {
     socket.on('training:game-end', ({ ranking: finalRanking, winner: finalWinner, isTiebreaker }) => {
       console.log('[TrainingArena] Partie terminée !', finalWinner);
       setGameEnded(true);
+      gameEndedRef.current = true;
       setRanking(finalRanking);
       setWinner(finalWinner);
       
