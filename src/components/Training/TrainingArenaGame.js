@@ -1017,16 +1017,25 @@ export default function TrainingArenaGame() {
   };
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', background: CC.bgGradient }}>
+    <div style={{ position: 'relative', width: '100vw', height: 'calc(100vh - 62px)', overflow: 'hidden', background: CC.bgGradient }}>
       {/* Particules flottantes CSS-only */}
       <div className="cc-game-particles" />
-    <div className="carte" style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden', zIndex: 1 }}>
+      {/* Layout: carte à gauche, sidebar à droite (desktop) */}
+      <div style={isMobile
+        ? { width: '100%', height: '100%' }
+        : { display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, padding: '12px 16px', height: '100%', maxWidth: 1400, margin: '0 auto' }
+      }>
+      <div style={isMobile
+        ? { width: '100%', height: '100%' }
+        : { position: 'relative', borderRadius: 16, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)', border: '1px solid rgba(255,255,255,0.1)' }
+      }>
+    <div className="carte" style={{ position: 'relative', width: isMobile ? '100%' : 'auto', height: '100%', maxWidth: '100%', overflow: 'hidden', zIndex: 1 }}>
       {/* ✅ COPIE EXACTE Arena (Carte.js ligne 6078-6080): Flash rouge erreur */}
       {flashWrong && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(214,48,49,0.25)', pointerEvents: 'none', zIndex: 5 }} />
       )}
-      {/* ✅ COPIE EXACTE Arena (ligne 5713): HUD responsive - mobile = bandeau haut, desktop = pills */}
-      {isMobile ? (
+      {/* HUD: mobile uniquement — desktop HUD dans la sidebar */}
+      {isMobile && (
         <div className="mobile-hud">
           <div className="hud-left">
             {!isTiebreaker && <div className="hud-chip">⏱ {Math.max(0, timeLeft)}s</div>}
@@ -1039,97 +1048,6 @@ export default function TrainingArenaGame() {
           </div>
           <div className="hud-vignette" data-cc-vignette="last-pair" ref={mpLastPairRef} title={lastWonPair?.text || ''}>
             <span style={{ width: 12, height: 12, borderRadius: 999, display: 'inline-block', marginRight: 6, background: lastWonPair?.color || '#e5e7eb', boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none', border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none' }} />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {lastWonPair ? (
-                <><b>{lastWonPair.winnerName}</b>: {lastWonPair.text}</>
-              ) : 'Dernière paire: —'}
-            </span>
-          </div>
-        </div>
-      ) : (
-        <div style={{
-          position: 'absolute',
-          top: 16,
-          left: 16,
-          display: 'flex',
-          gap: 10,
-          zIndex: 100,
-          flexWrap: 'wrap',
-          maxWidth: '90vw',
-          alignItems: 'center'
-        }}>
-          {!isTiebreaker && (
-            <div style={{
-              background: timeLeft < 10 ? 'rgba(220,38,38,0.85)' : 'rgba(0,0,0,0.35)',
-              backdropFilter: 'blur(8px)',
-              borderRadius: 14,
-              padding: '8px 16px',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              fontSize: 18,
-              fontWeight: 900,
-              color: timeLeft < 10 ? '#fff' : timeLeft <= 30 ? CC.yellow : '#10b981',
-              fontFamily: 'monospace',
-              fontVariantNumeric: 'tabular-nums'
-            }}>
-              ⏱ {Math.max(0, timeLeft)}s
-            </div>
-          )}
-          <div style={{
-            background: '#fff',
-            borderRadius: 14,
-            padding: '6px 14px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-            display: 'flex', alignItems: 'center', gap: 6
-          }}>
-            <span style={{ fontSize: 14, color: '#666' }}>⭐</span>
-            <span style={{
-              fontSize: 22, fontWeight: 900,
-              color: (() => { const myIdx = players.findIndex(p => p.studentId === myStudentId); return myIdx >= 0 ? getPlayerColorComboByIndex(myIdx).primary : '#22c55e'; })(),
-              fontVariantNumeric: 'tabular-nums', lineHeight: 1.1
-            }}>
-              {players.find(p => p.studentId === myStudentId)?.score || 0}
-            </span>
-          </div>
-          <div style={{
-            background: 'rgba(0,0,0,0.35)',
-            backdropFilter: 'blur(8px)',
-            borderRadius: 14,
-            padding: '8px 16px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            fontSize: 14,
-            fontWeight: 700,
-            color: '#fff'
-          }}>
-            {Number.isFinite(roundsPerSession)
-              ? `Manche: ${Math.max(0, roundsPlayed || 0)} / ${roundsPerSession}`
-              : `Manche: ${Math.max(0, roundsPlayed || 0)}`}
-          </div>
-          <div ref={mpLastPairRef} data-cc-vignette="last-pair" style={{
-            background: 'rgba(0,0,0,0.35)',
-            backdropFilter: 'blur(8px)',
-            borderRadius: 14,
-            padding: '8px 14px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            fontSize: 13,
-            fontWeight: 400,
-            color: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            maxWidth: '40vw'
-          }}>
-            <span style={{ 
-              width: 12, 
-              height: 12, 
-              borderRadius: 999,
-              flexShrink: 0,
-              background: lastWonPair?.color || 'rgba(255,255,255,0.3)',
-              boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none',
-              border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none'
-            }} />
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {lastWonPair ? (
                 <><b>{lastWonPair.winnerName}</b>: {lastWonPair.text}</>
@@ -1161,75 +1079,6 @@ export default function TrainingArenaGame() {
               </div>
             );
           })}
-        </div>
-      )}
-      
-      {/* ✅ COPIE EXACTE Arena: Historique desktop = sidebar droite */}
-      {!isMobile && Array.isArray(wonPairsHistory) && wonPairsHistory.length > 0 && (
-        <div style={{
-          position: 'absolute',
-          top: 16,
-          right: 16,
-          background: 'rgba(0,0,0,0.30)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: 14,
-          padding: 14,
-          border: '1px solid rgba(255,255,255,0.18)',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
-          maxWidth: 300,
-          maxHeight: '80vh',
-          overflowY: 'auto',
-          zIndex: 100
-        }}>
-          <div 
-            style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              cursor: 'pointer', 
-              padding: '4px 0',
-              marginBottom: historyExpanded ? 8 : 0
-            }} 
-            onClick={() => setHistoryExpanded(v => !v)}
-          >
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>📚 Historique</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: '2px 8px', fontWeight: 700 }}>{wonPairsHistory.length}</div>
-          </div>
-          {historyExpanded && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 400, overflowY: 'auto' }}>
-              {wonPairsHistory.map((h, i) => {
-                const label = (() => {
-                  if (h.kind === 'calcnum' && h.calcExpr && h.calcResult) return `${h.calcExpr} = ${h.calcResult}`;
-                  if (h.kind === 'imgtxt' && h.imageLabel) return h.imageLabel;
-                  return h.text || '';
-                })();
-                return (
-                  <div key={i} style={{ fontSize: 13, padding: '6px 8px', border: `1px solid ${h.color || 'rgba(255,255,255,0.1)'}44`, borderRadius: 8, background: 'rgba(255,255,255,0.10)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ width: 10, height: 10, borderRadius: 999, background: h.color || '#e5e7eb', border: h.borderColor ? `2px solid ${h.borderColor}` : 'none', flexShrink: 0, boxShadow: `0 0 6px ${h.color || '#e5e7eb'}66` }} />
-                      <span style={{ fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.winnerName || 'Joueur'}</span>
-                    </div>
-                    <div style={{ marginLeft: 16, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                      {h.kind === 'imgtxt' && h.imageSrc && (
-                        <img src={h.imageSrc} alt={h.imageLabel || label || 'Image'} style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(255,255,255,0.2)' }} />
-                      )}
-                      {h.kind === 'calcnum' ? (
-                        <span style={{ fontSize: 12, color: '#fff' }}>
-                          <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{h.calcExpr}</span>
-                          <span style={{ fontWeight: 800, margin: '0 4px', color: '#fbbf24' }}>=</span>
-                          <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#fbbf24' }}>{h.calcResult}</span>
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: 12, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {label}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       )}
       
@@ -1438,6 +1287,221 @@ export default function TrainingArenaGame() {
           ))}
         </svg>
       </div>
+    </div>
+    </div>
+
+    {/* ===== RIGHT: SIDEBAR (desktop only) ===== */}
+    {!isMobile && (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden' }}>
+
+        {/* HUD: Timer + Score + Manche */}
+        <div style={{
+          background: 'rgba(0,0,0,0.25)',
+          borderRadius: 14,
+          border: '1px solid rgba(255,255,255,0.18)',
+          padding: '14px 16px',
+          backdropFilter: 'blur(8px)',
+          display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap'
+        }}>
+          {!isTiebreaker && (
+            <div style={{
+              background: timeLeft < 10 ? 'rgba(220,38,38,0.85)' : 'rgba(0,0,0,0.3)',
+              borderRadius: 12,
+              padding: '6px 14px',
+              border: '1px solid rgba(255,255,255,0.12)',
+              fontSize: 18,
+              fontWeight: 900,
+              color: timeLeft < 10 ? '#fff' : timeLeft <= 30 ? CC.yellow : '#10b981',
+              fontFamily: 'monospace',
+              fontVariantNumeric: 'tabular-nums'
+            }}>
+              ⏱ {Math.max(0, timeLeft)}s
+            </div>
+          )}
+          <div style={{
+            background: '#fff',
+            borderRadius: 12,
+            padding: '4px 12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            display: 'flex', alignItems: 'center', gap: 6
+          }}>
+            <span style={{ fontSize: 13, color: '#666' }}>⭐</span>
+            <span style={{
+              fontSize: 22, fontWeight: 900,
+              color: (() => { const myIdx = players.findIndex(p => p.studentId === myStudentId); return myIdx >= 0 ? getPlayerColorComboByIndex(myIdx).primary : '#22c55e'; })(),
+              fontVariantNumeric: 'tabular-nums', lineHeight: 1.1
+            }}>
+              {players.find(p => p.studentId === myStudentId)?.score || 0}
+            </span>
+          </div>
+          <div style={{
+            background: 'rgba(0,0,0,0.3)',
+            borderRadius: 12,
+            padding: '6px 14px',
+            border: '1px solid rgba(255,255,255,0.12)',
+            fontSize: 13,
+            fontWeight: 700,
+            color: '#fff'
+          }}>
+            {Number.isFinite(roundsPerSession)
+              ? `Manche ${Math.max(0, roundsPlayed || 0)} / ${roundsPerSession}`
+              : `Manche ${Math.max(0, roundsPlayed || 0)}`}
+          </div>
+        </div>
+
+        {/* Scoreboard: tous les joueurs */}
+        <div style={{
+          background: 'rgba(0,0,0,0.25)',
+          borderRadius: 14,
+          border: '1px solid rgba(255,255,255,0.18)',
+          padding: '14px 16px',
+          backdropFilter: 'blur(8px)',
+          flex: '0 0 auto'
+        }}>
+          <h3 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700, color: '#fff' }}>
+            🏆 Classement
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {[...players].sort((a, b) => (b.score || 0) - (a.score || 0)).map((player, idx) => {
+              const origIdx = players.findIndex(p => p.studentId === player.studentId);
+              const isMe = player.studentId === myStudentId;
+              const { primary: pColor } = getPlayerColorComboByIndex(origIdx);
+              return (
+                <div
+                  key={player.studentId}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 10px', borderRadius: 10,
+                    background: isMe ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)',
+                    border: `1px solid ${isMe ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)'}`,
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  <div style={{ fontSize: idx === 0 ? 20 : 14, fontWeight: 900, minWidth: 26, textAlign: 'center' }}>
+                    {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`}
+                  </div>
+                  <div style={{
+                    width: 30, height: 30, borderRadius: '50%',
+                    background: `linear-gradient(135deg, ${pColor}, ${pColor}88)`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 13, fontWeight: 800, color: '#fff', flexShrink: 0,
+                    border: `2px solid ${pColor}44`
+                  }}>
+                    {(player.name || '?')[0].toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: isMe ? 800 : 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {player.name || player.studentId} {isMe ? '(moi)' : ''}
+                    </div>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
+                      {player.pairsFound || 0} paires
+                    </div>
+                  </div>
+                  <div style={{
+                    background: '#fff',
+                    borderRadius: 10,
+                    padding: '3px 10px',
+                    minWidth: 36,
+                    textAlign: 'center',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
+                  }}>
+                    <div style={{
+                      fontSize: 20, fontWeight: 900,
+                      color: pColor,
+                      fontVariantNumeric: 'tabular-nums',
+                      lineHeight: 1.1
+                    }}>
+                      {player.score || 0}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Dernière paire validée */}
+        <div ref={mpLastPairRef} data-cc-vignette="last-pair" style={{
+          background: 'rgba(0,0,0,0.25)',
+          borderRadius: 14,
+          border: '1px solid rgba(255,255,255,0.18)',
+          padding: '12px 14px',
+          backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', gap: 8
+        }}>
+          <span style={{ 
+            width: 12, height: 12, borderRadius: 999, flexShrink: 0,
+            background: lastWonPair?.color || 'rgba(255,255,255,0.3)',
+            boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none',
+            border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none'
+          }} />
+          <span style={{ fontSize: 13, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {lastWonPair ? (
+              <><b>{lastWonPair.winnerName}</b>: {lastWonPair.text}</>
+            ) : 'Dernière paire: —'}
+          </span>
+        </div>
+
+        {/* Historique des paires validées */}
+        <div style={{
+          background: 'rgba(0,0,0,0.25)',
+          borderRadius: 14,
+          border: '1px solid rgba(255,255,255,0.18)',
+          padding: '12px 14px',
+          backdropFilter: 'blur(8px)',
+          flex: 1,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0
+        }}>
+          <h3 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700, color: '#fff' }}>
+            📚 Historique
+            {wonPairsHistory.length > 0 && (
+              <span style={{ marginLeft: 8, fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: '1px 7px', fontWeight: 600 }}>{wonPairsHistory.length}</span>
+            )}
+          </h3>
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {wonPairsHistory.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 16, color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>
+                En attente de paires validées...
+              </div>
+            ) : wonPairsHistory.map((h, i) => {
+              const label = (() => {
+                if (h.kind === 'calcnum' && h.calcExpr && h.calcResult) return `${h.calcExpr} = ${h.calcResult}`;
+                if (h.kind === 'imgtxt' && h.imageLabel) return h.imageLabel;
+                return h.text || '';
+              })();
+              return (
+                <div key={i} style={{ fontSize: 12, padding: '5px 8px', border: `1px solid ${h.color || 'rgba(255,255,255,0.1)'}44`, borderRadius: 8, background: 'rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 999, background: h.color || '#e5e7eb', border: h.borderColor ? `2px solid ${h.borderColor}` : 'none', flexShrink: 0, boxShadow: `0 0 4px ${h.color || '#e5e7eb'}66` }} />
+                    <span style={{ fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11 }}>{h.winnerName || 'Joueur'}</span>
+                  </div>
+                  <div style={{ marginLeft: 14, display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                    {h.kind === 'imgtxt' && h.imageSrc && (
+                      <img src={h.imageSrc} alt={h.imageLabel || label || 'Image'} style={{ width: 24, height: 24, borderRadius: 5, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(255,255,255,0.2)' }} />
+                    )}
+                    {h.kind === 'calcnum' ? (
+                      <span style={{ fontSize: 11, color: '#fff' }}>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{h.calcExpr}</span>
+                        <span style={{ fontWeight: 800, margin: '0 3px', color: '#fbbf24' }}>=</span>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#fbbf24' }}>{h.calcResult}</span>
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 11, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {label}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+      </div>
+    )}
     </div>
     </div>
   );
