@@ -464,7 +464,13 @@ export default function TrainingArenaSetup() {
                     disabled={isDisabled}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{s.full_name || s.first_name}</div>
+                    <div style={{ fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(`/student/${s.id}/performance`, '_blank'); }}
+                        style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2, color: 'inherit' }}
+                        title="Voir les performances"
+                      >{s.full_name || s.first_name}</span>
+                    </div>
                     {perf && perf.totalMatches > 0 && (
                       <div style={{ display: 'flex', gap: 6, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
                         <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: lc.bg, color: lc.color, fontWeight: 700, border: `1px solid ${lc.border}22` }}>
@@ -632,7 +638,11 @@ export default function TrainingArenaSetup() {
                       return (
                         <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
                           <span style={{ width: 6, height: 6, borderRadius: '50%', background: levelColors[perf?.level] || '#9ca3af', flexShrink: 0 }} />
-                          <span style={{ fontWeight: 500 }}>{s.full_name || s.first_name}</span>
+                          <span
+                            onClick={() => window.open(`/student/${s.id}/performance`, '_blank')}
+                            style={{ fontWeight: 500, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2 }}
+                            title="Voir les performances"
+                          >{s.full_name || s.first_name}</span>
                           {perf && perf.totalMatches > 0 && (
                             <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 'auto' }}>
                               {perf.level} · {perf.avgScore} pts · 🎯{perf.accuracy}%

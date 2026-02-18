@@ -1855,6 +1855,38 @@ router.get('/classes/:classId/students-performance', requireSupabase, async (req
 // ==========================================
 
 /**
+ * GET /api/tournament/students/:studentId/info
+ * Retourne le nom d'un élève (pour la vue prof)
+ */
+router.get('/students/:studentId/info', requireSupabase, async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { data } = await supabase
+      .from('students')
+      .select('id, full_name, first_name, avatar_url')
+      .eq('id', studentId)
+      .single();
+    if (data) {
+      return res.json({ success: true, name: data.full_name || data.first_name || studentId, avatar: data.avatar_url });
+    }
+    // Fallback: chercher via user_student_mapping
+    const { data: mapping } = await supabase
+      .from('user_student_mapping')
+      .select('student_id')
+      .eq('user_id', studentId)
+      .eq('active', true)
+      .single();
+    if (mapping?.student_id) {
+      const { data: s2 } = await supabase.from('students').select('full_name, first_name, avatar_url').eq('id', mapping.student_id).single();
+      if (s2) return res.json({ success: true, name: s2.full_name || s2.first_name || mapping.student_id, avatar: s2.avatar_url });
+    }
+    res.json({ success: true, name: studentId, avatar: null });
+  } catch (error) {
+    res.json({ success: true, name: req.params.studentId, avatar: null });
+  }
+});
+
+/**
  * GET /api/tournament/students/:studentId/performance
  * Retourne l'historique complet et les stats agrégées d'un élève
  */

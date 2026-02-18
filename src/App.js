@@ -417,6 +417,7 @@ function App() {
               <Route path="/tournament/group/:groupId/history" element={<RequireAuth auth={auth}><GroupMatchHistory /></RequireAuth>} />
               {/* Dashboard Performance Élève */}
               <Route path="/my-performance" element={<RequireAuth auth={auth}><StudentPerformance /></RequireAuth>} />
+              <Route path="/student/:studentId/performance" element={<RequireAuth auth={auth}><StudentPerformance /></RequireAuth>} />
               {/* Training Arena (Mode Entraînement - identique à Crazy Arena) */}
               <Route path="/training-arena/setup" element={<RequireAuth auth={auth}><TrainingArenaSetup /></RequireAuth>} />
               <Route path="/training-arena/manager" element={<RequireAuth auth={auth}><TrainingArenaManagerDashboard /></RequireAuth>} />

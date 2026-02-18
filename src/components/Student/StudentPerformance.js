@@ -4,7 +4,7 @@
 // ==========================================
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Area, AreaChart, Legend, Cell
@@ -248,6 +248,8 @@ function MasteryTab({ themeMastery }) {
 
 export default function StudentPerformance() {
   const navigate = useNavigate();
+  const { studentId: urlStudentId } = useParams();
+  const [studentName, setStudentName] = useState(null);
   const [stats, setStats] = useState(null);
   const [history, setHistory] = useState([]);
   const [progression, setProgression] = useState([]);
@@ -258,6 +260,8 @@ export default function StudentPerformance() {
   const [activeTab, setActiveTab] = useState('overview');
 
   const getAllStudentIds = () => {
+    // Si un studentId est passé via l'URL (vue prof), l'utiliser directement
+    if (urlStudentId) return [urlStudentId];
     const ids = [];
     // 1. UUID auth Supabase (toujours compatible UUID et TEXT)
     try {
@@ -277,6 +281,14 @@ export default function StudentPerformance() {
   };
 
   const loadData = useCallback(async () => {
+    // Si vue prof avec studentId URL, récupérer le nom de l'élève
+    if (urlStudentId) {
+      try {
+        const nameRes = await fetch(`${getBackendUrl()}/api/tournament/students/${urlStudentId}/info`);
+        const nameData = await nameRes.json();
+        if (nameData.success && nameData.name) setStudentName(nameData.name);
+      } catch {}
+    }
     try {
       const ids = getAllStudentIds();
       console.log('[Performance] Student IDs to try:', ids);
@@ -385,10 +397,10 @@ export default function StudentPerformance() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 26, fontWeight: 800, color: '#1e293b', margin: '0 0 4px 0' }}>
-            📊 Mes Performances
+            📊 {studentName ? `Performances de ${studentName}` : 'Mes Performances'}
           </h1>
           <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
-            Analyse de ta progression et de tes résultats
+            {studentName ? 'Vue enseignant — analyse détaillée' : 'Analyse de ta progression et de tes résultats'}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
