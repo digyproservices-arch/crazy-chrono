@@ -583,7 +583,7 @@ export default function TrainingArenaSetup() {
                   )}
                   {group.match_id && (
                     <button 
-                      onClick={() => navigate(`/tournament/match/${group.match_id}/results`)}
+                      onClick={() => navigate(`/tournament/group/${group.id}/history`)}
                       style={{ 
                         padding: '8px 16px', 
                         borderRadius: 8, 

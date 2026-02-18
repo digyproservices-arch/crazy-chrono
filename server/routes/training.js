@@ -83,7 +83,8 @@ router.post('/sessions', requireSupabase, async (req, res) => {
     // match_id doit être un UUID valide (la colonne est UUID en production)
     // class_id ne peut pas être null (contrainte NOT NULL en production)
     const isValidUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
-    const safeMatchId = isValidUuid(matchId) ? matchId : uuidv4();
+    const rawMatchUuid = matchId ? matchId.replace(/^match_/, '') : '';
+    const safeMatchId = isValidUuid(rawMatchUuid) ? rawMatchUuid : (isValidUuid(matchId) ? matchId : uuidv4());
     const sessionPayload = {
       match_id: safeMatchId,
       teacher_id: teacherId || null,

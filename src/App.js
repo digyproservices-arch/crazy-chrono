@@ -25,6 +25,7 @@ import ArenaManagerDashboard from './components/Tournament/ArenaManagerDashboard
 import ArenaSpectator from './components/Tournament/ArenaSpectator';
 import CompetitionBracket from './components/Tournament/CompetitionBracket';
 import MatchResults from './components/Tournament/MatchResults';
+import GroupMatchHistory from './components/Tournament/GroupMatchHistory';
 import StudentPerformance from './components/Student/StudentPerformance';
 import AdminRoles from './components/Admin/AdminRoles';
 import MonitoringDashboard from './components/MonitoringDashboard';
@@ -413,6 +414,7 @@ function App() {
               <Route path="/crazy-arena/lobby/:roomCode" element={<RequireAuth auth={auth}><CrazyArenaLobby /></RequireAuth>} />
               <Route path="/crazy-arena/spectate/:matchId" element={<RequireAuth auth={auth}><ArenaSpectator /></RequireAuth>} />
               <Route path="/tournament/match/:matchId/results" element={<RequireAuth auth={auth}><MatchResults /></RequireAuth>} />
+              <Route path="/tournament/group/:groupId/history" element={<RequireAuth auth={auth}><GroupMatchHistory /></RequireAuth>} />
               {/* Dashboard Performance Élève */}
               <Route path="/my-performance" element={<RequireAuth auth={auth}><StudentPerformance /></RequireAuth>} />
               {/* Training Arena (Mode Entraînement - identique à Crazy Arena) */}
