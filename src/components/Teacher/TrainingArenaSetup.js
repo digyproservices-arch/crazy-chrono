@@ -50,6 +50,7 @@ export default function TrainingArenaSetup() {
   const [groupName, setGroupName] = useState('');
   const [loading, setLoading] = useState(true);
   const [tournament, setTournament] = useState(null);
+  const [perfMap, setPerfMap] = useState({}); // studentId → performance stats
   
   // Charger les données au montage (CACHE DÉSACTIVÉ pour stabilité)
   useEffect(() => {
@@ -121,6 +122,20 @@ export default function TrainingArenaSetup() {
       console.log('[TrainingArena] 👥 Groups data:', groupsData);
       console.log('[TrainingArena] 👥 Groups count:', groupsData.groups?.length || 0);
       setGroups(groupsData.groups || []);
+      
+      // 4. Récupérer les performances des élèves
+      try {
+        const perfRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/students-performance`);
+        const perfData = await perfRes.json();
+        if (perfData.success && perfData.students) {
+          const map = {};
+          perfData.students.forEach(s => { map[s.studentId] = s; });
+          setPerfMap(map);
+          console.log('[TrainingArena] 📊 Performance data loaded for', perfData.students.length, 'students');
+        }
+      } catch (perfErr) {
+        console.warn('[TrainingArena] ⚠️ Performance data unavailable:', perfErr.message);
+      }
       
       console.log('[TrainingArena] ✅ Chargement terminé!');
       console.log('[TrainingArena] 📊 État final - Students:', studentsData.students?.length, 'Groups:', groupsData.groups?.length);
@@ -410,11 +425,20 @@ export default function TrainingArenaSetup() {
             </div>
           )}
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8, marginTop: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 8, marginTop: 8 }}>
             {students.map(s => {
               const isInGroup = studentsInGroups.has(s.id);
               const isSelected = selectedStudents.includes(s.id);
               const isDisabled = isInGroup || (!isSelected && selectedStudents.length >= 4);
+              const perf = perfMap[s.id];
+              const levelColors = {
+                'Expert': { bg: '#fef3c7', color: '#92400e', border: '#f59e0b' },
+                'Avancé': { bg: '#dbeafe', color: '#1e40af', border: '#3b82f6' },
+                'Intermédiaire': { bg: '#e0f2fe', color: '#075985', border: '#0ea5e9' },
+                'Débutant': { bg: '#fee2e2', color: '#991b1b', border: '#ef4444' },
+                'Nouveau': { bg: '#f3f4f6', color: '#6b7280', border: '#9ca3af' }
+              };
+              const lc = levelColors[perf?.level] || levelColors['Nouveau'];
               
               return (
                 <label 
@@ -424,12 +448,13 @@ export default function TrainingArenaSetup() {
                     alignItems: 'center', 
                     gap: 8, 
                     padding: '8px 12px', 
-                    border: '1px solid #d1d5db', 
-                    borderRadius: 8, 
-                    background: isSelected ? '#1AACBE' : isInGroup ? '#f3f4f6' : '#fff',
-                    color: isSelected ? '#fff' : isInGroup ? '#9ca3af' : '#111',
+                    border: isSelected ? '2px solid #1AACBE' : `1px solid ${isInGroup ? '#e5e7eb' : '#d1d5db'}`, 
+                    borderRadius: 10, 
+                    background: isSelected ? '#f0fdfa' : isInGroup ? '#f3f4f6' : '#fff',
+                    color: isInGroup ? '#9ca3af' : '#111',
                     cursor: isDisabled ? 'not-allowed' : 'pointer',
-                    opacity: isInGroup ? 0.6 : 1
+                    opacity: isInGroup ? 0.6 : 1,
+                    transition: 'all 0.15s'
                   }}
                 >
                   <input 
@@ -438,30 +463,122 @@ export default function TrainingArenaSetup() {
                     onChange={() => toggleStudentSelection(s.id)}
                     disabled={isDisabled}
                   />
-                  <span>{s.full_name || s.first_name}</span>
-                  {isInGroup && <span style={{ fontSize: 11, marginLeft: 'auto' }}>📦 Déjà groupé</span>}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{s.full_name || s.first_name}</div>
+                    {perf && perf.totalMatches > 0 && (
+                      <div style={{ display: 'flex', gap: 6, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: lc.bg, color: lc.color, fontWeight: 700, border: `1px solid ${lc.border}22` }}>
+                          {perf.level}
+                        </span>
+                        <span style={{ fontSize: 10, color: '#6b7280' }}>📊 {perf.avgScore} pts</span>
+                        <span style={{ fontSize: 10, color: '#6b7280' }}>🎯 {perf.accuracy}%</span>
+                        {perf.competitiveMatches > 0 && (
+                          <span style={{ fontSize: 10, color: '#6b7280' }}>🏆 {perf.winRate}%</span>
+                        )}
+                        <span style={{ fontSize: 10, color: '#9ca3af' }}>{perf.totalMatches} match{perf.totalMatches > 1 ? 's' : ''}</span>
+                      </div>
+                    )}
+                    {(!perf || perf.totalMatches === 0) && (
+                      <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>Aucune donnée de performance</div>
+                    )}
+                  </div>
+                  {isInGroup && <span style={{ fontSize: 11, flexShrink: 0 }}>📦</span>}
                 </label>
               );
             })}
           </div>
         </div>
         
-        <button 
-          onClick={createGroup}
-          disabled={selectedStudents.length < 2 || selectedStudents.length > 4 || !groupName.trim()}
-          style={{ 
-            padding: '10px 20px', 
-            borderRadius: 8, 
-            border: 'none', 
-            background: 'linear-gradient(135deg, #1AACBE, #148A9C)', 
-            color: '#fff', 
-            fontWeight: 700,
-            cursor: (selectedStudents.length < 2 || selectedStudents.length > 4 || !groupName.trim()) ? 'not-allowed' : 'pointer',
-            opacity: (selectedStudents.length < 2 || selectedStudents.length > 4 || !groupName.trim()) ? 0.5 : 1
-          }}
-        >
-          Créer le groupe ({selectedStudents.length} élève(s))
-        </button>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button 
+            onClick={createGroup}
+            disabled={selectedStudents.length < 2 || selectedStudents.length > 4 || !groupName.trim()}
+            style={{ 
+              padding: '10px 20px', 
+              borderRadius: 8, 
+              border: 'none', 
+              background: 'linear-gradient(135deg, #1AACBE, #148A9C)', 
+              color: '#fff', 
+              fontWeight: 700,
+              cursor: (selectedStudents.length < 2 || selectedStudents.length > 4 || !groupName.trim()) ? 'not-allowed' : 'pointer',
+              opacity: (selectedStudents.length < 2 || selectedStudents.length > 4 || !groupName.trim()) ? 0.5 : 1
+            }}
+          >
+            Créer le groupe ({selectedStudents.length} élève(s))
+          </button>
+          
+          {availableStudents.length >= 2 && (
+            <button
+              onClick={() => {
+                // Auto-grouper par niveau : trier les élèves disponibles par levelScore et faire des groupes équilibrés de 2-4
+                const sorted = [...availableStudents].sort((a, b) => {
+                  const pa = perfMap[a.id]?.levelScore || 0;
+                  const pb = perfMap[b.id]?.levelScore || 0;
+                  return pb - pa;
+                });
+                const groupSize = sorted.length <= 4 ? sorted.length : sorted.length <= 8 ? Math.ceil(sorted.length / 2) : Math.ceil(sorted.length / Math.ceil(sorted.length / 4));
+                const autoGroups = [];
+                // Serpentine distribution for balanced groups
+                const numGroups = Math.ceil(sorted.length / Math.min(4, Math.max(2, groupSize)));
+                const buckets = Array.from({ length: numGroups }, () => []);
+                sorted.forEach((s, i) => {
+                  const round = Math.floor(i / numGroups);
+                  const idx = round % 2 === 0 ? (i % numGroups) : (numGroups - 1 - (i % numGroups));
+                  if (buckets[idx].length < 4) buckets[idx].push(s);
+                });
+                // Filter valid groups (2-4 students)
+                const validGroups = buckets.filter(b => b.length >= 2);
+                if (validGroups.length === 0) {
+                  alert('Pas assez d\'élèves disponibles pour créer des groupes.');
+                  return;
+                }
+                const msg = validGroups.map((g, i) => {
+                  const names = g.map(s => {
+                    const p = perfMap[s.id];
+                    return `${s.full_name || s.first_name} (${p?.level || 'Nouveau'})`;
+                  }).join(', ');
+                  return `Groupe ${groups.length + i + 1}: ${names}`;
+                }).join('\n');
+                if (window.confirm(`Créer ${validGroups.length} groupe(s) équilibré(s) par niveau ?\n\n${msg}`)) {
+                  validGroups.forEach(async (g, i) => {
+                    const name = `Groupe ${groups.length + i + 1}`;
+                    const ids = g.map(s => s.id);
+                    try {
+                      const classId = localStorage.getItem('cc_class_id');
+                      await fetch(`${getBackendUrl()}/api/tournament/groups`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          tournamentId: tournament.id,
+                          phaseLevel: tournament.current_phase,
+                          classId,
+                          name,
+                          studentIds: ids
+                        })
+                      });
+                    } catch (err) {
+                      console.error('[TrainingArena] Auto-group error:', err);
+                    }
+                  });
+                  // Refresh after a short delay to let all creates finish
+                  setTimeout(() => loadTournamentData(), 1500);
+                }
+              }}
+              style={{
+                padding: '10px 20px',
+                borderRadius: 8,
+                border: '1px solid #f59e0b',
+                background: '#fffbeb',
+                color: '#92400e',
+                fontWeight: 700,
+                cursor: 'pointer',
+                fontSize: 13
+              }}
+            >
+              ⚡ Grouper par niveau ({availableStudents.length} élèves)
+            </button>
+          )}
+        </div>
       </section>
       
       {/* Liste des groupes créés */}
@@ -505,11 +622,26 @@ export default function TrainingArenaSetup() {
                 
                 <div style={{ marginBottom: 12 }}>
                   <strong>Élèves:</strong>
-                  <ul style={{ margin: '4px 0', paddingLeft: 20 }}>
-                    {groupStudents.map(s => (
-                      <li key={s.id}>{s.full_name || s.first_name}</li>
-                    ))}
-                  </ul>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+                    {groupStudents.map(s => {
+                      const perf = perfMap[s.id];
+                      const levelColors = {
+                        'Expert': '#f59e0b', 'Avancé': '#3b82f6',
+                        'Intermédiaire': '#0ea5e9', 'Débutant': '#ef4444', 'Nouveau': '#9ca3af'
+                      };
+                      return (
+                        <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: levelColors[perf?.level] || '#9ca3af', flexShrink: 0 }} />
+                          <span style={{ fontWeight: 500 }}>{s.full_name || s.first_name}</span>
+                          {perf && perf.totalMatches > 0 && (
+                            <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 'auto' }}>
+                              {perf.level} · {perf.avgScore} pts · 🎯{perf.accuracy}%
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
                 
                 {group.winner_id && (

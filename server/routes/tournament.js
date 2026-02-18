@@ -1680,6 +1680,177 @@ function generateRoomCode() {
 }
 
 // ==========================================
+// PERFORMANCE GLOBALE CLASSE (pour le prof)
+// ==========================================
+
+/**
+ * GET /api/tournament/classes/:classId/students-performance
+ * Récupérer les stats de performance de TOUS les élèves d'une classe
+ * Utilisé par le prof pour constituer des groupes équilibrés
+ */
+router.get('/classes/:classId/students-performance', requireSupabase, async (req, res) => {
+  try {
+    const { classId } = req.params;
+    
+    // 1. Récupérer les élèves de la classe
+    const { data: students, error: studErr } = await supabase
+      .from('students')
+      .select('id, full_name, first_name, avatar_url')
+      .eq('class_id', classId);
+    
+    if (studErr) throw studErr;
+    if (!students || students.length === 0) {
+      return res.json({ success: true, students: [] });
+    }
+    
+    const studentIds = students.map(s => s.id);
+    
+    // 2. Résoudre les IDs non-UUID vers auth UUIDs
+    const isValidUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+    const nonUuidIds = studentIds.filter(id => !isValidUuid(id));
+    const uuidIds = studentIds.filter(isValidUuid);
+    
+    const idToAuthMap = {};
+    const authToIdMap = {};
+    if (nonUuidIds.length > 0) {
+      const { data: mappings } = await supabase
+        .from('user_student_mapping')
+        .select('student_id, user_id')
+        .in('student_id', nonUuidIds)
+        .eq('active', true);
+      
+      for (const m of (mappings || [])) {
+        idToAuthMap[m.student_id] = m.user_id;
+        authToIdMap[m.user_id] = m.student_id;
+        uuidIds.push(m.user_id);
+      }
+    }
+    
+    const allAuthIds = [...new Set(uuidIds)];
+    
+    // 3. Récupérer tous les training_results en une seule requête
+    let trainingResults = [];
+    if (allAuthIds.length > 0) {
+      const { data: tr } = await supabase
+        .from('training_results')
+        .select('student_id, position, score, time_ms, pairs_validated, errors, created_at')
+        .in('student_id', allAuthIds)
+        .order('created_at', { ascending: false });
+      trainingResults = tr || [];
+    }
+    
+    // 4. Récupérer les match_results (Arena) aussi
+    let arenaResults = [];
+    if (allAuthIds.length > 0) {
+      const { data: ar } = await supabase
+        .from('match_results')
+        .select('student_id, position, score, time_ms, pairs_validated, errors, created_at')
+        .in('student_id', allAuthIds)
+        .order('created_at', { ascending: false });
+      arenaResults = ar || [];
+    }
+    
+    // 5. Calculer les stats par élève
+    const statsMap = {};
+    
+    // Initialiser tous les élèves
+    for (const s of students) {
+      statsMap[s.id] = {
+        studentId: s.id,
+        name: s.full_name || s.first_name || s.id,
+        avatar: s.avatar_url || null,
+        totalMatches: 0,
+        competitiveMatches: 0,
+        wins: 0,
+        avgScore: 0,
+        totalScore: 0,
+        avgPairs: 0,
+        totalPairs: 0,
+        totalErrors: 0,
+        accuracy: 0,
+        avgSpeed: 0,
+        level: null, // Débutant, Intermédiaire, Avancé, Expert
+        levelScore: 0 // Score numérique pour le tri
+      };
+    }
+    
+    // Helper: trouver l'ID original d'un auth UUID
+    const getOrigId = (authId) => authToIdMap[authId] || authId;
+    
+    // Agréger training_results
+    for (const r of trainingResults) {
+      const origId = getOrigId(r.student_id);
+      const stat = statsMap[origId];
+      if (!stat) continue;
+      stat.totalMatches++;
+      if (r.position !== null && r.position !== undefined) {
+        stat.competitiveMatches++;
+        if (r.position === 1) stat.wins++;
+      }
+      stat.totalScore += r.score || 0;
+      stat.totalPairs += r.pairs_validated || 0;
+      stat.totalErrors += r.errors || 0;
+    }
+    
+    // Agréger arena results
+    for (const r of arenaResults) {
+      const origId = getOrigId(r.student_id);
+      const stat = statsMap[origId];
+      if (!stat) continue;
+      stat.totalMatches++;
+      stat.competitiveMatches++;
+      if (r.position === 1) stat.wins++;
+      stat.totalScore += r.score || 0;
+      stat.totalPairs += r.pairs_validated || 0;
+      stat.totalErrors += r.errors || 0;
+    }
+    
+    // Calculer moyennes et niveau
+    for (const stat of Object.values(statsMap)) {
+      if (stat.totalMatches > 0) {
+        stat.avgScore = Math.round(stat.totalScore / stat.totalMatches);
+        stat.avgPairs = Math.round((stat.totalPairs / stat.totalMatches) * 10) / 10;
+        stat.accuracy = stat.totalPairs > 0
+          ? Math.round((stat.totalPairs / (stat.totalPairs + stat.totalErrors)) * 100)
+          : 0;
+        stat.winRate = stat.competitiveMatches > 0
+          ? Math.round((stat.wins / stat.competitiveMatches) * 100)
+          : 0;
+      }
+      
+      // Calcul du score de niveau composite
+      // Pondération: score moyen (40%) + précision (30%) + taux victoire (30%)
+      stat.levelScore = Math.round(
+        (stat.avgScore * 0.4) +
+        (stat.accuracy * 0.3) +
+        ((stat.winRate || 0) * 0.3)
+      );
+      
+      // Attribution du niveau
+      if (stat.totalMatches === 0) {
+        stat.level = 'Nouveau';
+      } else if (stat.levelScore >= 70) {
+        stat.level = 'Expert';
+      } else if (stat.levelScore >= 45) {
+        stat.level = 'Avancé';
+      } else if (stat.levelScore >= 25) {
+        stat.level = 'Intermédiaire';
+      } else {
+        stat.level = 'Débutant';
+      }
+    }
+    
+    // 6. Trier par levelScore décroissant
+    const sortedStudents = Object.values(statsMap).sort((a, b) => b.levelScore - a.levelScore);
+    
+    res.json({ success: true, students: sortedStudents });
+  } catch (error) {
+    console.error('[Tournament API] Error fetching class performance:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
 // DASHBOARD PERFORMANCE ÉLÈVE
 // ==========================================
 
