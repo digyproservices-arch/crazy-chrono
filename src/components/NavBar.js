@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { isFree, getDailyCounts } from '../utils/subscription';
 import supabase from '../utils/supabaseClient';
+import NetworkIndicator from './NetworkIndicator';
 
 // ==========================================
 // NAVBAR MODERNE — CRAZY CHRONO
@@ -175,6 +176,7 @@ const NavBar = () => {
 
         {/* ===== RIGHT SIDE ===== */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <NetworkIndicator />
           {isFree() && (
             <Link to="/pricing" style={{
               fontSize: 11, color: CC.brown, background: CC.yellow,
