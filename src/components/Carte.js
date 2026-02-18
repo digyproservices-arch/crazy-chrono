@@ -3029,6 +3029,11 @@ function handleGameClick(zone) {
     return;
   }
   if (processingPairRef.current) return; // verrou anti-double-clic
+  // Déselection: clic sur une zone déjà sélectionnée = la retirer
+  if (gameSelectedIds.includes(zone.id)) {
+    setGameSelectedIds(prev => prev.filter(id => id !== zone.id));
+    return;
+  }
   // si déjà 2, réinitialiser avant de prendre un nouveau clic
   if (gameSelectedIds.length >= 2) {
     setGameSelectedIds([zone.id]);
@@ -3043,8 +3048,8 @@ function handleGameClick(zone) {
     if (next.length === 2) {
       const [a, b] = next;
       if (a === b) {
-        // ignorer double clic sur la même zone
-        return [a];
+        // double clic sur la même zone = désélectionner
+        return [];
       }
       const ZA = zonesById.get(a);
       const ZB = zonesById.get(b);
@@ -6543,6 +6548,20 @@ setZones(dataWithRandomTexts);
         >
         {/* Définitions SVG */}
         <defs>
+          {/* Glow filter for hover */}
+          <filter id="zone-hover-glow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="6" result="blur" />
+            <feFlood floodColor="#22c55e" floodOpacity="0.5" result="color" />
+            <feComposite in="color" in2="blur" operator="in" result="glow" />
+            <feMerge><feMergeNode in="glow" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+          {/* Bright flash filter for validated zones */}
+          <filter id="zone-validated-flash" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="10" result="blur" />
+            <feFlood floodColor="#fbbf24" floodOpacity="0.7" result="color" />
+            <feComposite in="color" in2="blur" operator="in" result="glow" />
+            <feMerge><feMergeNode in="glow" /><feMergeNode in="glow" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
           {/* ClipPaths pour zones images */}
           {zones.filter(z => z.type === 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
             <clipPath id={`clip-zone-${zone.id}`} key={`clip-${zone.id}`} clipPathUnits="userSpaceOnUse">
@@ -6594,8 +6613,10 @@ setZones(dataWithRandomTexts);
               })}
               style={{
                 cursor: attributionMode ? 'crosshair' : 'pointer',
-                filter: hoveredZoneId === zone.id ? 'drop-shadow(0 0 8px #007bff)' : 'none',
-                opacity: 1
+                filter: (hoveredZoneId === zone.id && !attributionMode)
+                  ? 'url(#zone-hover-glow)'
+                  : 'none',
+                transition: 'filter 0.2s ease'
               }}
             >
               {/* Affichage du type/contenu si déjà attribué (optionnel) - IMAGE EN FOND */}

@@ -186,6 +186,8 @@ export default function TrainingArenaGame() {
   const [showBigCross, setShowBigCross] = useState(false);
   const [isTiebreaker, setIsTiebreaker] = useState(false); // ✅ COPIE EXACTE Arena (Carte.js ligne 3004)
   const [trainingPauseInfo, setTrainingPauseInfo] = useState(null); // { paused, disconnectedPlayer, gracePeriodMs }
+  const [hoveredZoneId, setHoveredZoneId] = useState(null);
+  const [validatedFlashZones, setValidatedFlashZones] = useState(new Set());
   const mpLastPairRef = useRef(null);
   const gameActiveTimeoutRef = useRef(null);
   const lastTimerTickRef = useRef(0);
@@ -846,6 +848,9 @@ export default function TrainingArenaGame() {
       setZones(prev => prev.map(z => 
         (z.id === zoneIdA || z.id === zoneIdB) ? { ...z, validated: true } : z
       ));
+      // Flash validation animation
+      setValidatedFlashZones(prev => new Set([...prev, zoneIdA, zoneIdB]));
+      setTimeout(() => setValidatedFlashZones(prev => { const n = new Set(prev); n.delete(zoneIdA); n.delete(zoneIdB); return n; }), 600);
       setSelectedZones([]);
       
       // Notifier le serveur avec pairId + zones IDs
@@ -1129,6 +1134,20 @@ export default function TrainingArenaGame() {
           }}
         >
           <defs>
+            {/* Glow filter for hover */}
+            <filter id="zone-hover-glow" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="6" result="blur" />
+              <feFlood floodColor="#22c55e" floodOpacity="0.5" result="color" />
+              <feComposite in="color" in2="blur" operator="in" result="glow" />
+              <feMerge><feMergeNode in="glow" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+            {/* Bright flash filter for validated zones */}
+            <filter id="zone-validated-flash" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="10" result="blur" />
+              <feFlood floodColor="#fbbf24" floodOpacity="0.7" result="color" />
+              <feComposite in="color" in2="blur" operator="in" result="glow" />
+              <feMerge><feMergeNode in="glow" /><feMergeNode in="glow" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
             {zones.filter(z => z.type === 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
               <clipPath id={`clip-zone-${zone.id}`} key={`clip-${zone.id}`} clipPathUnits="userSpaceOnUse">
                 <path d={pointsToBezierPath(zone.points)} />
@@ -1139,7 +1158,22 @@ export default function TrainingArenaGame() {
             ))}
           </defs>
           {zones.filter(z => z && typeof z === 'object').map((zone) => (
-            <g key={zone.id} data-zone-id={zone.id} id={`zone-${zone.id}`}>
+            <g
+              key={zone.id}
+              data-zone-id={zone.id}
+              id={`zone-${zone.id}`}
+              onMouseEnter={() => setHoveredZoneId(zone.id)}
+              onMouseLeave={() => setHoveredZoneId(null)}
+              style={{
+                cursor: gameActive ? 'pointer' : 'default',
+                filter: validatedFlashZones.has(zone.id)
+                  ? 'url(#zone-validated-flash)'
+                  : (hoveredZoneId === zone.id && gameActive)
+                    ? 'url(#zone-hover-glow)'
+                    : 'none',
+                transition: 'filter 0.2s ease'
+              }}
+            >
               {zone.type === 'image' && zone.content && (() => {
                 const raw = zone.content;
                 const normalized = raw.startsWith('http')
@@ -1170,13 +1204,18 @@ export default function TrainingArenaGame() {
               <path
                 d={pointsToBezierPath(zone.points)}
                 fill={(() => {
+                  const isHover = hoveredZoneId === zone.id && gameActive;
                   const isSelected = gameActive && selectedZones.includes(zone.id);
+                  const isFlash = validatedFlashZones.has(zone.id);
+                  if (isFlash) return 'rgba(251, 191, 36, 0.6)';
                   if (zone.type === 'image') {
                     if (isSelected) return 'rgba(255, 214, 0, 0.55)';
+                    if (isHover) return 'rgba(255, 214, 0, 0.35)';
                     return 'rgba(255, 214, 0, 0.01)';
                   }
                   if (zone.type === 'texte' || zone.type === 'chiffre' || zone.type === 'calcul') {
                     if (isSelected) return 'rgba(40, 167, 69, 0.55)';
+                    if (isHover) return 'rgba(40, 167, 69, 0.3)';
                     return 'rgba(40, 167, 69, 0.01)';
                   }
                   return 'transparent';
