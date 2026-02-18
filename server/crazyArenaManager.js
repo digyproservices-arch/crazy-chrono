@@ -236,9 +236,16 @@ class CrazyArenaManager {
     const existingPlayer = match.players.find(p => p.studentId === studentData.studentId);
     
     if (existingPlayer) {
-      // RECONNEXION : Mettre à jour le socketId et rejoindre la room
-      console.log(`[CrazyArena][Training] ${studentData.name} reconnecté au match ${matchId}`);
+      // RECONNEXION : Nettoyer l'ancien socket et mettre à jour
+      const oldSocketId = existingPlayer.socketId;
+      if (oldSocketId && oldSocketId !== socket.id) {
+        this.playerMatches.delete(oldSocketId);
+      }
+      console.log(`[CrazyArena][Training] ${studentData.name} reconnecté au match ${matchId} (old=${oldSocketId?.slice(-6)}, new=${socket.id.slice(-6)})`);
       existingPlayer.socketId = socket.id;
+      existingPlayer.disconnected = false;
+      delete existingPlayer.disconnectedAt;
+      delete existingPlayer._oldSocketId;
       this.playerMatches.set(socket.id, matchId);
       socket.join(matchId);
       
@@ -253,6 +260,13 @@ class CrazyArenaManager {
         count: match.players.length  // ✅ Comme Arena (reconnexion)
       });
       
+      // ✅ Si le match était en pause (joueur déconnecté), reprendre automatiquement
+      if (match.status === 'paused' && match._pauseState && 
+          match._pauseState.disconnectedStudentId === studentData.studentId) {
+        console.log(`[CrazyArena][Training] ▶️ Joueur déconnecté ${studentData.name} reconnecté → reprise du match`);
+        this.resumeMatch(matchId);
+      }
+
       // ✅ AUTO-RESTART sur reconnexion aussi (si dernier joueur attendu)
       if (match._needsGameRestart && match.status === 'waiting' && match.players.length >= match.expectedPlayers.length) {
         console.log(`[CrazyArena][Training] ⚡ Reconnexion complète pour match restauré ${matchId} — redémarrage automatique !`);
@@ -925,9 +939,24 @@ class CrazyArenaManager {
       return;
     }
 
-    const player = match.players.find(p => p.socketId === socket.id);
+    let player = match.players.find(p => p.socketId === socket.id);
+    if (!player && data.studentId) {
+      // ✅ Fallback: trouver le joueur par studentId (socket reconnecter avec nouvel ID)
+      player = match.players.find(p => p.studentId === data.studentId);
+      if (player) {
+        logger.info('[CrazyArena][Training] trainingPairValidated: Récupération joueur par studentId', { matchId, socketId: socket.id, studentId: data.studentId, oldSocketId: player.socketId?.slice(-6) });
+        // Mettre à jour le mapping socket
+        const oldSocketId = player.socketId;
+        if (oldSocketId && oldSocketId !== socket.id) {
+          this.playerMatches.delete(oldSocketId);
+        }
+        player.socketId = socket.id;
+        this.playerMatches.set(socket.id, matchId);
+        socket.join(matchId);
+      }
+    }
     if (!player) {
-      logger.warn('[CrazyArena][Training] trainingPairValidated: Joueur introuvable', { matchId, socketId: socket.id });
+      logger.warn('[CrazyArena][Training] trainingPairValidated: Joueur introuvable', { matchId, socketId: socket.id, studentId: data.studentId });
       return;
     }
 
@@ -3038,7 +3067,11 @@ class CrazyArenaManager {
     if (!match) return;
 
     const player = match.players.find(p => p.socketId === socket.id);
-    if (!player) return;
+    if (!player) {
+      // ✅ Socket obsolète (le joueur a déjà reconnecté avec un nouveau socket) — juste nettoyer le mapping
+      this.playerMatches.delete(socket.id);
+      return;
+    }
 
     const mode = match.mode || 'arena';
     console.log(`[CrazyArena]${mode === 'training' ? '[Training]' : ''} ${player.name} s'est déconnecté du match ${matchId} (status=${match.status})`);

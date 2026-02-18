@@ -901,6 +901,7 @@ export default function TrainingArenaGame() {
       // Notifier le serveur avec pairId + zones IDs
       socketRef.current?.emit('training:pair-validated', {
         studentId: myStudentId,
+        matchId: JSON.parse(localStorage.getItem('cc_training_arena_game') || '{}').matchId,
         isCorrect: true,
         timeMs,
         pairId: pairA,
@@ -921,6 +922,7 @@ export default function TrainingArenaGame() {
       // Notifier le serveur (pas de pairId car erreur)
       socketRef.current?.emit('training:pair-validated', {
         studentId: myStudentId,
+        matchId: JSON.parse(localStorage.getItem('cc_training_arena_game') || '{}').matchId,
         isCorrect: false,
         timeMs
       });

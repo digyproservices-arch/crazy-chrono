@@ -95,16 +95,22 @@ function resolveImageSrc(raw) {
 
 // --- Error Boundary (empêche page blanche si erreur de rendu) ---
 class SpectatorErrorBoundary extends React.Component {
-  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  constructor(props) { super(props); this.state = { hasError: false, error: null, retryCount: 0 }; }
   static getDerivedStateFromError(error) { return { hasError: true, error }; }
-  componentDidCatch(error, info) { console.error('[Spectator] Erreur de rendu attrapée:', error, info?.componentStack); }
+  componentDidCatch(error, info) {
+    console.error('[Spectator] Erreur de rendu attrapée:', error, info?.componentStack);
+    // ✅ Auto-recovery: réessayer après 2s (max 5 tentatives)
+    if (this.state.retryCount < 5) {
+      setTimeout(() => this.setState(s => ({ hasError: false, error: null, retryCount: s.retryCount + 1 })), 2000);
+    }
+  }
   render() {
     if (this.state.hasError) {
       return (
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0D6A7A', color: '#fff', textAlign: 'center', padding: 32 }}>
-          <div style={{ fontSize: 56, marginBottom: 16 }}>⚠️</div>
-          <h2 style={{ margin: '0 0 8px', fontSize: 22 }}>Erreur d'affichage</h2>
-          <p style={{ opacity: 0.7, marginBottom: 20, maxWidth: 400 }}>Le mode spectateur a rencontré un problème. Rechargez la page pour reprendre.</p>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>{this.state.retryCount < 5 ? '🔄' : '⚠️'}</div>
+          <h2 style={{ margin: '0 0 8px', fontSize: 22 }}>{this.state.retryCount < 5 ? 'Récupération en cours...' : 'Erreur d\'affichage'}</h2>
+          <p style={{ opacity: 0.7, marginBottom: 20, maxWidth: 400 }}>{this.state.retryCount < 5 ? 'Le spectateur se relance automatiquement...' : 'Le mode spectateur a rencontré un problème persistant.'}</p>
           <button onClick={() => window.location.reload()} style={{ padding: '10px 28px', borderRadius: 8, border: 'none', background: '#F5A623', color: '#4A3728', cursor: 'pointer', fontWeight: 700, fontSize: 15 }}>🔄 Recharger</button>
         </div>
       );
