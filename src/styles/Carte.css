@@ -459,3 +459,50 @@ h3 {
     width: 100%;
   }
 }
+
+/* ========================================
+   PARTICULES FLOTTANTES - ambiance "Crazy Chrono"
+   CSS-only, GPU-accelerated, très léger
+   ======================================== */
+.cc-game-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.cc-game-particles::before,
+.cc-game-particles::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+/* Particule 1 : grosse bulle lente */
+.cc-game-particles::before {
+  width: 180px; height: 180px;
+  background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+  left: 8%; top: 60%;
+  animation: ccFloat1 14s ease-in-out infinite;
+}
+/* Particule 2 : petite bulle rapide */
+.cc-game-particles::after {
+  width: 90px; height: 90px;
+  background: radial-gradient(circle, rgba(245,166,35,0.10) 0%, transparent 70%);
+  right: 12%; top: 20%;
+  animation: ccFloat2 10s ease-in-out 2s infinite;
+}
+
+@keyframes ccFloat1 {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0; }
+  10% { opacity: 0.6; }
+  50% { transform: translateY(-120px) translateX(40px) scale(1.15); opacity: 0.45; }
+  90% { opacity: 0.6; }
+}
+@keyframes ccFloat2 {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0; }
+  15% { opacity: 0.5; }
+  50% { transform: translateY(-80px) translateX(-30px) scale(1.2); opacity: 0.35; }
+  85% { opacity: 0.5; }
+}

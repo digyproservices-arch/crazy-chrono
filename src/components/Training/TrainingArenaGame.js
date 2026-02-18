@@ -1009,8 +1009,18 @@ export default function TrainingArenaGame() {
     return null; // Le podium sera affiché via overlay
   }
   
+  // Charte graphique Crazy Chrono
+  const CC = {
+    teal: '#1AACBE', tealDark: '#148A9C', tealDeep: '#0D6A7A',
+    yellow: '#F5A623', yellowLt: '#FFC940', brown: '#4A3728',
+    bgGradient: 'linear-gradient(135deg, #0D6A7A 0%, #148A9C 30%, #1AACBE 60%, #148A9C 100%)',
+  };
+
   return (
-    <div className="carte" style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden' }}>
+    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', background: CC.bgGradient }}>
+      {/* Particules flottantes CSS-only */}
+      <div className="cc-game-particles" />
+    <div className="carte" style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden', zIndex: 1 }}>
       {/* ✅ COPIE EXACTE Arena (Carte.js ligne 6078-6080): Flash rouge erreur */}
       {flashWrong && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(214,48,49,0.25)', pointerEvents: 'none', zIndex: 5 }} />
@@ -1039,55 +1049,73 @@ export default function TrainingArenaGame() {
       ) : (
         <div style={{
           position: 'absolute',
-          top: 20,
-          left: 20,
+          top: 16,
+          left: 16,
           display: 'flex',
-          gap: 12,
+          gap: 10,
           zIndex: 100,
           flexWrap: 'wrap',
-          maxWidth: '90vw'
+          maxWidth: '90vw',
+          alignItems: 'center'
         }}>
+          {!isTiebreaker && (
+            <div style={{
+              background: timeLeft < 10 ? 'rgba(220,38,38,0.85)' : 'rgba(0,0,0,0.35)',
+              backdropFilter: 'blur(8px)',
+              borderRadius: 14,
+              padding: '8px 16px',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              fontSize: 18,
+              fontWeight: 900,
+              color: timeLeft < 10 ? '#fff' : timeLeft <= 30 ? CC.yellow : '#10b981',
+              fontFamily: 'monospace',
+              fontVariantNumeric: 'tabular-nums'
+            }}>
+              ⏱ {Math.max(0, timeLeft)}s
+            </div>
+          )}
           <div style={{
-            background: timeLeft < 10 ? '#fee2e2' : 'rgba(255,255,255,0.95)',
-            borderRadius: 12,
+            background: '#fff',
+            borderRadius: 14,
+            padding: '6px 14px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            display: 'flex', alignItems: 'center', gap: 6
+          }}>
+            <span style={{ fontSize: 14, color: '#666' }}>⭐</span>
+            <span style={{
+              fontSize: 22, fontWeight: 900,
+              color: (() => { const myIdx = players.findIndex(p => p.studentId === myStudentId); return myIdx >= 0 ? getPlayerColorComboByIndex(myIdx).primary : '#22c55e'; })(),
+              fontVariantNumeric: 'tabular-nums', lineHeight: 1.1
+            }}>
+              {players.find(p => p.studentId === myStudentId)?.score || 0}
+            </span>
+          </div>
+          <div style={{
+            background: 'rgba(0,0,0,0.35)',
+            backdropFilter: 'blur(8px)',
+            borderRadius: 14,
             padding: '8px 16px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            fontSize: 18,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            fontSize: 14,
             fontWeight: 700,
-            color: timeLeft < 10 ? '#dc2626' : '#111',
-            fontFamily: 'monospace'
-          }}>
-            {!isTiebreaker && <span>⏱ {Math.max(0, timeLeft)}s</span>}
-          </div>
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: 12,
-            padding: '8px 16px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            fontSize: 18,
-            fontWeight: 700
-          }}>
-            ⭐ {players.find(p => p.studentId === myStudentId)?.score || 0}
-          </div>
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: 12,
-            padding: '8px 16px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            fontSize: 18,
-            fontWeight: 700
+            color: '#fff'
           }}>
             {Number.isFinite(roundsPerSession)
               ? `Manche: ${Math.max(0, roundsPlayed || 0)} / ${roundsPerSession}`
               : `Manche: ${Math.max(0, roundsPlayed || 0)}`}
           </div>
           <div ref={mpLastPairRef} data-cc-vignette="last-pair" style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: 12,
-            padding: '8px 16px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            fontSize: 14,
+            background: 'rgba(0,0,0,0.35)',
+            backdropFilter: 'blur(8px)',
+            borderRadius: 14,
+            padding: '8px 14px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            fontSize: 13,
             fontWeight: 400,
+            color: '#fff',
             display: 'flex',
             alignItems: 'center',
             gap: 8,
@@ -1096,8 +1124,9 @@ export default function TrainingArenaGame() {
             <span style={{ 
               width: 12, 
               height: 12, 
-              borderRadius: 999, 
-              background: lastWonPair?.color || '#e5e7eb',
+              borderRadius: 999,
+              flexShrink: 0,
+              background: lastWonPair?.color || 'rgba(255,255,255,0.3)',
               boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none',
               border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none'
             }} />
@@ -1139,13 +1168,15 @@ export default function TrainingArenaGame() {
       {!isMobile && Array.isArray(wonPairsHistory) && wonPairsHistory.length > 0 && (
         <div style={{
           position: 'absolute',
-          top: 20,
-          right: 20,
-          background: 'rgba(255,255,255,0.95)',
-          borderRadius: 12,
-          padding: 12,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          maxWidth: 320,
+          top: 16,
+          right: 16,
+          background: 'rgba(0,0,0,0.30)',
+          backdropFilter: 'blur(10px)',
+          borderRadius: 14,
+          padding: 14,
+          border: '1px solid rgba(255,255,255,0.18)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          maxWidth: 300,
           maxHeight: '80vh',
           overflowY: 'auto',
           zIndex: 100
@@ -1156,16 +1187,16 @@ export default function TrainingArenaGame() {
               justifyContent: 'space-between', 
               alignItems: 'center', 
               cursor: 'pointer', 
-              padding: '6px 0',
+              padding: '4px 0',
               marginBottom: historyExpanded ? 8 : 0
             }} 
             onClick={() => setHistoryExpanded(v => !v)}
           >
-            <div style={{ fontWeight: 'bold', fontSize: 14 }}>📚 Historique</div>
-            <div style={{ opacity: 0.7, fontSize: 14 }}>{wonPairsHistory.length}</div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>📚 Historique</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', background: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: '2px 8px', fontWeight: 700 }}>{wonPairsHistory.length}</div>
           </div>
           {historyExpanded && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 400, overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 400, overflowY: 'auto' }}>
               {wonPairsHistory.map((h, i) => {
                 const label = (() => {
                   if (h.kind === 'calcnum' && h.calcExpr && h.calcResult) return `${h.calcExpr} = ${h.calcResult}`;
@@ -1173,18 +1204,26 @@ export default function TrainingArenaGame() {
                   return h.text || '';
                 })();
                 return (
-                  <div key={i} style={{ fontSize: 13, padding: '6px 8px', border: '1px solid ' + (h.borderColor || '#eee'), borderRadius: 6, background: '#fff', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div key={i} style={{ fontSize: 13, padding: '6px 8px', border: `1px solid ${h.color || 'rgba(255,255,255,0.1)'}44`, borderRadius: 8, background: 'rgba(255,255,255,0.10)', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ width: 10, height: 10, borderRadius: 999, background: h.color || '#e5e7eb', border: h.borderColor ? `2px solid ${h.borderColor}` : 'none', flexShrink: 0 }} />
-                      <span style={{ fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.winnerName || 'Joueur'}</span>
+                      <span style={{ width: 10, height: 10, borderRadius: 999, background: h.color || '#e5e7eb', border: h.borderColor ? `2px solid ${h.borderColor}` : 'none', flexShrink: 0, boxShadow: `0 0 6px ${h.color || '#e5e7eb'}66` }} />
+                      <span style={{ fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.winnerName || 'Joueur'}</span>
                     </div>
                     <div style={{ marginLeft: 16, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                       {h.kind === 'imgtxt' && h.imageSrc && (
-                        <img src={h.imageSrc} alt={h.imageLabel || label || 'Image'} style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+                        <img src={h.imageSrc} alt={h.imageLabel || label || 'Image'} style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(255,255,255,0.2)' }} />
                       )}
-                      <span style={{ fontSize: 12, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {label}
-                      </span>
+                      {h.kind === 'calcnum' ? (
+                        <span style={{ fontSize: 12, color: '#fff' }}>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{h.calcExpr}</span>
+                          <span style={{ fontWeight: 800, margin: '0 4px', color: '#fbbf24' }}>=</span>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#fbbf24' }}>{h.calcResult}</span>
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 12, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {label}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -1212,9 +1251,7 @@ export default function TrainingArenaGame() {
           type="image/svg+xml"
           data={svgPath}
           className="carte-bg"
-        >
-          Votre navigateur ne supporte pas les SVG
-        </object>
+        />
         <svg
           ref={svgOverlayRef}
           className="carte-svg-overlay"
@@ -1401,6 +1438,7 @@ export default function TrainingArenaGame() {
           ))}
         </svg>
       </div>
+    </div>
     </div>
   );
 }
