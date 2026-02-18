@@ -52,16 +52,23 @@ const NavBar = () => {
     };
   }, []);
 
-  // Masquer complètement la navbar en mode jeu (plein écran tablette/mobile)
-  if (gameHidden) return null;
-
-  const isLogin = location.pathname.startsWith('/login') || location.pathname.startsWith('/forgot') || location.pathname.startsWith('/reset');
+  // ✅ FIX: Hooks MUST be called before any conditional return (Rules of Hooks)
   const role = useMemo(() => {
     if (!auth) return 'guest';
     if (auth.role === 'admin' || auth.isAdmin) return 'admin';
     if (auth.role === 'teacher' || auth.role === 'editor' || auth.isEditor) return 'teacher';
     return 'student';
   }, [auth]);
+
+  // Close mobile menu on route change
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
+
+  // Masquer complètement la navbar en mode jeu (plein écran tablette/mobile)
+  if (gameHidden) return null;
+
+  const isLogin = location.pathname.startsWith('/login') || location.pathname.startsWith('/forgot') || location.pathname.startsWith('/reset');
+  if (isLogin) return null;
+
   const isLogged = !!auth;
   const isAdmin = role === 'admin';
   const isTeacher = role === 'teacher' || role === 'admin';
@@ -72,11 +79,6 @@ const NavBar = () => {
     try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
     navigate('/login', { replace: true });
   };
-
-  // Close mobile menu on route change
-  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
-
-  if (isLogin) return null;
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
   const logoSrc = `${process.env.PUBLIC_URL}/images/logo_crazy_chrono.png`;

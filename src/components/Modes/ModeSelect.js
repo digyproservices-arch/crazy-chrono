@@ -17,17 +17,18 @@ export default function ModeSelect() {
     }
   }, []);
   
-  // Si professeur/admin, afficher TeacherModeSelector (Training/Arena)
-  if (auth.role === 'teacher' || auth.role === 'admin') {
-    return <TeacherModeSelector />;
-  }
-  
+  // ✅ FIX: Hook MUST be called before any conditional return (Rules of Hooks)
   React.useEffect(() => {
     try {
       const h = JSON.parse(localStorage.getItem('cc_history') || '[]');
       setHistory(Array.isArray(h) ? h : []);
     } catch { setHistory([]); }
   }, []);
+
+  // Si professeur/admin, afficher TeacherModeSelector (Training/Arena)
+  if (auth.role === 'teacher' || auth.role === 'admin') {
+    return <TeacherModeSelector />;
+  }
   const Card = ({ title, subtitle, onClick, icon, gradient }) => (
     <button onClick={onClick} style={{
       width: '100%',
