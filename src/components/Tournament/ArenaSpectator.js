@@ -159,18 +159,15 @@ function ArenaSpectatorInner() {
   const zonesRef = useRef([]);
   const [pauseInfo, setPauseInfo] = useState(null);
   const [flashPair, setFlashPair] = useState(null); // { zoneAId, zoneBId, color, playerName }
-  const fullscreenRequestedRef = useRef(false);
 
   // Helper: demander le plein écran natif (avec fallback webkit)
+  // Réessaye à chaque touch/clic tant que le plein écran n'est pas actif
   const requestNativeFullscreen = () => {
-    if (fullscreenRequestedRef.current) return;
-    fullscreenRequestedRef.current = true;
     try {
       const el = document.documentElement;
+      if (document.fullscreenElement || document.webkitFullscreenElement) return;
       const fsMethod = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-      if (fsMethod && !document.fullscreenElement && !document.webkitFullscreenElement) {
-        fsMethod.call(el).catch(() => {});
-      }
+      if (fsMethod) fsMethod.call(el).catch(() => {});
     } catch {}
   };
 
@@ -196,7 +193,6 @@ function ArenaSpectatorInner() {
         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
         if (fsEl) (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen)?.call(document);
       } catch {}
-      fullscreenRequestedRef.current = false;
     };
   }, []);
 

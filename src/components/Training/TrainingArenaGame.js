@@ -188,7 +188,6 @@ export default function TrainingArenaGame() {
   const [trainingPauseInfo, setTrainingPauseInfo] = useState(null); // { paused, disconnectedPlayer, gracePeriodMs }
   const [hoveredZoneId, setHoveredZoneId] = useState(null);
   const [validatedFlashZones, setValidatedFlashZones] = useState(new Set());
-  const fullscreenRequestedRef = useRef(false);
   const mpLastPairRef = useRef(null);
   const gameActiveTimeoutRef = useRef(null);
   const lastTimerTickRef = useRef(0);
@@ -225,15 +224,13 @@ export default function TrainingArenaGame() {
   }, []);
   
   // Helper: demander le plein écran natif (avec fallback webkit)
+  // Appelé à chaque touch/clic — réessaye tant que le plein écran n'est pas actif
   const requestNativeFullscreen = () => {
-    if (fullscreenRequestedRef.current) return;
-    fullscreenRequestedRef.current = true;
     try {
       const el = document.documentElement;
+      if (document.fullscreenElement || document.webkitFullscreenElement) return;
       const fsMethod = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-      if (fsMethod && !document.fullscreenElement && !document.webkitFullscreenElement) {
-        fsMethod.call(el).catch(() => {});
-      }
+      if (fsMethod) fsMethod.call(el).catch(() => {});
     } catch {}
   };
 
@@ -255,7 +252,6 @@ export default function TrainingArenaGame() {
         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
         if (fsEl) (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen)?.call(document);
       } catch {}
-      fullscreenRequestedRef.current = false;
     };
   }, []);
 

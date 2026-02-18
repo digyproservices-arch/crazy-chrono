@@ -144,6 +144,15 @@ export default function TrainingPlayerLobby() {
     console.log('[TrainingLobby] Marquer comme prêt');
     socketRef.current.emit('training:ready', { matchId, studentId: myStudentId });
     setIsReady(true);
+    
+    // Activer le plein écran natif (comme Solo/Jouer) — geste utilisateur direct ✅
+    try {
+      const el = document.documentElement;
+      const fs = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+      if (fs && !document.fullscreenElement && !document.webkitFullscreenElement) {
+        fs.call(el).catch(() => {});
+      }
+    } catch {}
   };
   
   if (loading) {
