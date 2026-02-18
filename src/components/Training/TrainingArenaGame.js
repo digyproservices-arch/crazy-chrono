@@ -223,14 +223,18 @@ export default function TrainingArenaGame() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Verrouiller le scroll body (évite scroll parasite sur tablette/mobile)
+  // Plein écran jeu: masquer navbar + verrouiller scroll (tablette/mobile)
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
+    document.body.classList.add('cc-game');
+    try { window.dispatchEvent(new CustomEvent('cc:gameMode', { detail: { on: true } })); } catch {}
     return () => {
       document.body.style.overflow = prev;
       document.documentElement.style.overflow = '';
+      document.body.classList.remove('cc-game');
+      try { window.dispatchEvent(new CustomEvent('cc:gameMode', { detail: { on: false } })); } catch {}
     };
   }, []);
 
@@ -1033,7 +1037,7 @@ export default function TrainingArenaGame() {
   };
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: 'calc(100vh - 62px)', overflow: 'hidden', background: CC.bgGradient, touchAction: 'none' }}>
+    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', background: CC.bgGradient, touchAction: 'none' }}>
       {/* Particules flottantes CSS-only */}
       <div className="cc-game-particles" />
       {/* Layout: carte à gauche, sidebar à droite (desktop) */}

@@ -152,7 +152,7 @@ html, body, #root {
   grid-template-columns: 1fr 340px;
   gap: 16px;
   padding: 12px 16px;
-  height: calc(100vh - 62px);
+  height: 100vh;
   max-width: 1400px;
   margin: 0 auto;
   background: linear-gradient(135deg, #0D6A7A 0%, #148A9C 30%, #1AACBE 60%, #148A9C 100%);

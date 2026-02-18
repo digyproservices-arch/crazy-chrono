@@ -164,14 +164,18 @@ function ArenaSpectatorInner() {
     setEvents(prev => [{ text, type, time: Date.now(), ...(extra || {}) }, ...prev].slice(0, 50));
   }, []);
 
-  // Verrouiller le scroll body (évite scroll parasite sur tablette/mobile)
+  // Plein écran jeu: masquer navbar + verrouiller scroll (tablette/mobile)
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
+    document.body.classList.add('cc-game');
+    try { window.dispatchEvent(new CustomEvent('cc:gameMode', { detail: { on: true } })); } catch {}
     return () => {
       document.body.style.overflow = prev;
       document.documentElement.style.overflow = '';
+      document.body.classList.remove('cc-game');
+      try { window.dispatchEvent(new CustomEvent('cc:gameMode', { detail: { on: false } })); } catch {}
     };
   }, []);
 

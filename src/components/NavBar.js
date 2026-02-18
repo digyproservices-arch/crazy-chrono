@@ -29,6 +29,7 @@ const NavBar = () => {
   });
   const [quota, setQuota] = useState(() => getDailyCounts());
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [gameHidden, setGameHidden] = useState(false);
 
   useEffect(() => {
     const onAuth = () => {
@@ -38,12 +39,21 @@ const NavBar = () => {
     const onQ = () => setQuota(getDailyCounts());
     window.addEventListener('cc:quotaChanged', onQ);
     window.addEventListener('cc:subscriptionChanged', onQ);
+    // Masquer la navbar pendant le jeu (plein écran)
+    const onGame = (e) => setGameHidden(!!e?.detail?.on);
+    window.addEventListener('cc:gameMode', onGame);
+    window.addEventListener('cc:gameFullscreen', onGame);
     return () => {
       window.removeEventListener('cc:authChanged', onAuth);
       window.removeEventListener('cc:quotaChanged', onQ);
       window.removeEventListener('cc:subscriptionChanged', onQ);
+      window.removeEventListener('cc:gameMode', onGame);
+      window.removeEventListener('cc:gameFullscreen', onGame);
     };
   }, []);
+
+  // Masquer complètement la navbar en mode jeu (plein écran tablette/mobile)
+  if (gameHidden) return null;
 
   const isLogin = location.pathname.startsWith('/login') || location.pathname.startsWith('/forgot') || location.pathname.startsWith('/reset');
   const role = useMemo(() => {
