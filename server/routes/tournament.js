@@ -505,11 +505,12 @@ router.post('/groups', requireSupabase, async (req, res) => {
 router.patch('/groups/:id', requireSupabase, async (req, res) => {
   try {
     const { id } = req.params;
-    const { winnerId, status } = req.body;
+    const { winnerId, status, matchId } = req.body;
     
     const updateData = {};
     if (winnerId) updateData.winner_id = winnerId;
     if (status) updateData.status = status;
+    if (matchId) updateData.match_id = matchId;
     
     const { data, error } = await supabase
       .from('tournament_groups')
@@ -1253,41 +1254,24 @@ router.get('/matches/:matchId/results', requireSupabase, async (req, res) => {
   try {
     const { matchId } = req.params;
     
-    // 1. Chercher dans match_results (Arena)
-    const { data: arenaResults, error: arenaError } = await supabase
-      .from('match_results')
-      .select('match_id, student_id, position, score, time_ms, pairs_validated, errors')
-      .eq('match_id', matchId)
-      .order('position', { ascending: true });
+    // ✅ FIX: Normaliser le matchId — training_sessions.match_id est UUID (sans préfixe "match_")
+    const isValidUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+    const rawUuid = matchId.replace(/^match_/, '');
+    const matchIdVariants = [matchId];
+    if (isValidUuid(rawUuid) && rawUuid !== matchId) matchIdVariants.push(rawUuid);
     
-    if (arenaError) console.warn('[Tournament API] match_results query error:', arenaError.message);
-    
-    if (arenaResults && arenaResults.length > 0) {
-      // Récupérer les noms des élèves
-      const studentIds = arenaResults.map(r => r.student_id);
-      const { data: students } = await supabase
-        .from('students')
-        .select('id, full_name, first_name, avatar_url')
-        .in('id', studentIds);
-      
-      const studentsMap = Object.fromEntries((students || []).map(s => [s.id, s]));
-      
-      const enrichedResults = arenaResults.map(r => ({
-        ...r,
-        studentName: studentsMap[r.student_id]?.full_name || studentsMap[r.student_id]?.first_name || r.student_id,
-        avatar: studentsMap[r.student_id]?.avatar_url || null
-      }));
-      
-      return res.json({ success: true, mode: 'arena', results: enrichedResults });
+    // 1. Chercher dans training_sessions / training_results (Training) EN PREMIER
+    //    Car c'est le cas le plus fréquent pour le mode Entraînement
+    let sessions = null;
+    for (const variant of matchIdVariants) {
+      const { data } = await supabase
+        .from('training_sessions')
+        .select('id, session_name, completed_at')
+        .eq('match_id', variant)
+        .order('completed_at', { ascending: false })
+        .limit(1);
+      if (data && data.length > 0) { sessions = data; break; }
     }
-    
-    // 2. Chercher dans training_sessions / training_results (Training)
-    const { data: sessions } = await supabase
-      .from('training_sessions')
-      .select('id, session_name, completed_at')
-      .eq('match_id', matchId)
-      .order('completed_at', { ascending: false })
-      .limit(1);
     
     if (sessions && sessions.length > 0) {
       const sessionId = sessions[0].id;
@@ -1319,6 +1303,33 @@ router.get('/matches/:matchId/results', requireSupabase, async (req, res) => {
         sessionName: sessions[0].session_name,
         results: enrichedResults 
       });
+    }
+    
+    // 2. Chercher dans match_results (Arena)
+    const { data: arenaResults, error: arenaError } = await supabase
+      .from('match_results')
+      .select('match_id, student_id, position, score, time_ms, pairs_validated, errors')
+      .eq('match_id', matchId)
+      .order('position', { ascending: true });
+    
+    if (arenaError) console.warn('[Tournament API] match_results query error:', arenaError.message);
+    
+    if (arenaResults && arenaResults.length > 0) {
+      const studentIds = arenaResults.map(r => r.student_id);
+      const { data: students } = await supabase
+        .from('students')
+        .select('id, full_name, first_name, avatar_url')
+        .in('id', studentIds);
+      
+      const studentsMap = Object.fromEntries((students || []).map(s => [s.id, s]));
+      
+      const enrichedResults = arenaResults.map(r => ({
+        ...r,
+        studentName: studentsMap[r.student_id]?.full_name || studentsMap[r.student_id]?.first_name || r.student_id,
+        avatar: studentsMap[r.student_id]?.avatar_url || null
+      }));
+      
+      return res.json({ success: true, mode: 'arena', results: enrichedResults });
     }
     
     // 3. Aucun résultat trouvé

@@ -247,6 +247,17 @@ export default function TrainingArenaSetup() {
       const data = await res.json();
       
       if (data.success) {
+        // ✅ FIX: Mettre à jour le match_id du groupe en DB pour que "Voir résultats" pointe vers le bon match
+        try {
+          await fetch(`${backendUrl}/api/tournament/groups/${group.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ matchId: data.matchId, status: 'playing' })
+          });
+        } catch (patchErr) {
+          console.warn('[TrainingArena] ⚠️ Erreur mise à jour group.match_id:', patchErr);
+        }
+        
         // Afficher le code de salle
         const playerCount = parseStudentIds(group.student_ids).length;
         alert(`✅ Match créé avec succès!\n\nCode de salle: ${data.roomCode}\n\n📋 Donnez ce code aux ${playerCount} élève(s) pour qu'ils rejoignent le match.\n\nURL pour les élèves:\nhttps://app.crazy-chrono.com/training-arena/lobby/${data.roomCode}`);
