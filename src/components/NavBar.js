@@ -111,12 +111,12 @@ const NavBar = () => {
             width: 100,
             height: 100,
             borderRadius: '50%',
-            background: `linear-gradient(135deg, ${CC.teal} 0%, ${CC.tealDark} 100%)`,
-            border: `3px solid ${CC.yellow}`,
+            background: `linear-gradient(135deg, ${CC.yellowLt} 0%, ${CC.yellow} 60%, #E89B1A 100%)`,
+            border: `3px solid ${CC.teal}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 20px rgba(13,106,122,0.4)',
+            boxShadow: `0 4px 20px rgba(245,166,35,0.4), inset 0 -2px 6px rgba(0,0,0,0.08)`,
             marginTop: 30,
             transition: 'transform 0.2s',
             cursor: 'pointer'
@@ -127,6 +127,7 @@ const NavBar = () => {
             <img
               src={logoSrc}
               alt="Crazy Chrono"
+              className="cc-logo-float"
               style={{ height: 72, width: 'auto', objectFit: 'contain' }}
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
@@ -237,6 +238,13 @@ const NavBar = () => {
       )}
 
       <style>{`
+        @keyframes cc-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+        .cc-logo-float {
+          animation: cc-float 2.5s ease-in-out infinite;
+        }
         @media (max-width: 860px) {
           .cc-nav-desktop { display: none !important; }
           .cc-nav-mobile-btn { display: block !important; }
