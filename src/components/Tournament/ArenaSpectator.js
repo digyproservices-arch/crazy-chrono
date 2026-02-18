@@ -164,6 +164,17 @@ function ArenaSpectatorInner() {
     setEvents(prev => [{ text, type, time: Date.now(), ...(extra || {}) }, ...prev].slice(0, 50));
   }, []);
 
+  // Verrouiller le scroll body (évite scroll parasite sur tablette/mobile)
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+      document.documentElement.style.overflow = '';
+    };
+  }, []);
+
   useEffect(() => {
     if (!matchId) {
       setStatus('not-found');
@@ -477,12 +488,14 @@ function ArenaSpectatorInner() {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      height: '100vh',
+      maxHeight: '100vh',
       background: CC.bgGradient,
       color: '#fff',
       fontFamily: "'Inter', -apple-system, sans-serif",
       padding: '16px 20px',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      touchAction: 'none'
     }}>
       {/* Header */}
       <div style={{

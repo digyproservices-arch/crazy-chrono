@@ -221,6 +221,17 @@ export default function TrainingArenaGame() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
+  // Verrouiller le scroll body (évite scroll parasite sur tablette/mobile)
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+      document.documentElement.style.overflow = '';
+    };
+  }, []);
+
   // ✅ COPIE EXACTE Arena (Carte.js ligne 2533): Référence taille moyenne zones chiffre
   const chiffreRefBase = React.useMemo(() => {
     try {
@@ -1017,7 +1028,7 @@ export default function TrainingArenaGame() {
   };
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: 'calc(100vh - 62px)', overflow: 'hidden', background: CC.bgGradient }}>
+    <div style={{ position: 'relative', width: '100vw', height: 'calc(100vh - 62px)', overflow: 'hidden', background: CC.bgGradient, touchAction: 'none' }}>
       {/* Particules flottantes CSS-only */}
       <div className="cc-game-particles" />
       {/* Layout: carte à gauche, sidebar à droite (desktop) */}

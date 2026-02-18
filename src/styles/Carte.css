@@ -158,6 +158,7 @@ html, body, #root {
   background: linear-gradient(135deg, #0D6A7A 0%, #148A9C 30%, #1AACBE 60%, #148A9C 100%);
   overflow: hidden;
   align-items: stretch;
+  touch-action: none;
 }
 
 /* Card fits in grid cell as a centered square */
@@ -442,11 +443,12 @@ h3 {
     display: flex;
     grid-template-columns: none;
     padding: 0;
-    height: auto;
+    height: 100dvh;
     min-height: 100dvh;
     max-width: none;
     background: none;
-    overflow-y: auto;
+    overflow: hidden;
+    touch-action: none;
   }
   .carte-container.game-with-sidebar .carte { max-width: 100vw; border-radius: 0; }
   /* Masque la colonne fixe pour laisser place à la carte (solution rapide) */
