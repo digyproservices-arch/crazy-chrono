@@ -246,6 +246,14 @@ const NavBar = () => {
         .cc-logo-float {
           animation: cc-float 2.5s ease-in-out infinite;
         }
+        @keyframes cc-nav-pop {
+          0% { transform: scale(0.92); opacity: 0.7; }
+          50% { transform: scale(1.04); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        .cc-nav-active {
+          animation: cc-nav-pop 0.35s ease-out;
+        }
         @media (max-width: 860px) {
           .cc-nav-desktop { display: none !important; }
           .cc-nav-mobile-btn { display: block !important; }
@@ -265,16 +273,18 @@ const NavBar = () => {
 const NavLink = ({ icon, label, to, active, navigate }) => (
   <button
     onClick={() => navigate(to)}
+    className={active ? 'cc-nav-active' : ''}
     style={{
       display: 'flex', alignItems: 'center', gap: 6,
-      padding: '8px 14px', borderRadius: 8, border: 'none',
-      background: active ? 'rgba(255,255,255,0.2)' : 'transparent',
-      color: active ? CC.yellow : 'rgba(255,255,255,0.85)',
+      padding: '8px 14px', borderRadius: 20, border: 'none',
+      background: active ? '#fff' : 'transparent',
+      color: active ? CC.teal : 'rgba(255,255,255,0.85)',
       fontSize: 13, fontWeight: active ? 700 : 600,
-      cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap',
-      textShadow: active ? 'none' : '0 1px 2px rgba(0,0,0,0.15)'
+      cursor: 'pointer', transition: 'all 0.25s ease', whiteSpace: 'nowrap',
+      textShadow: active ? 'none' : '0 1px 2px rgba(0,0,0,0.15)',
+      boxShadow: active ? '0 2px 8px rgba(0,0,0,0.12)' : 'none'
     }}
-    onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = '#fff'; } }}
+    onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.18)'; e.currentTarget.style.color = '#fff'; } }}
     onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; } }}
   >
     <span style={{ fontSize: 15 }}>{icon}</span>
@@ -297,17 +307,19 @@ const NavDropdown = ({ icon, label, active, children }) => {
     <div ref={ref} style={{ position: 'relative' }}>
       <button
         onClick={() => setOpen(v => !v)}
+        className={active ? 'cc-nav-active' : ''}
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
-          padding: '8px 14px', borderRadius: 8, border: 'none',
-          background: active || open ? 'rgba(255,255,255,0.2)' : 'transparent',
-          color: active ? CC.yellow : (open ? '#fff' : 'rgba(255,255,255,0.85)'),
+          padding: '8px 14px', borderRadius: 20, border: 'none',
+          background: active ? '#fff' : (open ? 'rgba(255,255,255,0.18)' : 'transparent'),
+          color: active ? CC.teal : (open ? '#fff' : 'rgba(255,255,255,0.85)'),
           fontSize: 13, fontWeight: active ? 700 : 600,
-          cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap',
-          textShadow: '0 1px 2px rgba(0,0,0,0.15)'
+          cursor: 'pointer', transition: 'all 0.25s ease', whiteSpace: 'nowrap',
+          textShadow: active ? 'none' : '0 1px 2px rgba(0,0,0,0.15)',
+          boxShadow: active ? '0 2px 8px rgba(0,0,0,0.12)' : 'none'
         }}
-        onMouseEnter={e => { if (!active && !open) { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.color = '#fff'; } }}
-        onMouseLeave={e => { if (!active && !open) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; } }}
+        onMouseEnter={e => { if (!active && !open) { e.currentTarget.style.background = 'rgba(255,255,255,0.18)'; e.currentTarget.style.color = '#fff'; } }}
+        onMouseLeave={e => { if (!active && !open) { e.currentTarget.style.background = active ? '#fff' : 'transparent'; e.currentTarget.style.color = active ? CC.teal : 'rgba(255,255,255,0.85)'; } }}
       >
         <span style={{ fontSize: 15 }}>{icon}</span>
         {label}
