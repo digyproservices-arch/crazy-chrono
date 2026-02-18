@@ -10,6 +10,9 @@ function AdminDashboard() {
     activeToday: 0,
     sessionsToday: 0,
     totalSessions: 0,
+    totalStudents: 0,
+    licensedStudents: 0,
+    usersWithLicense: 0,
     loading: true
   });
   const [recentUsers, setRecentUsers] = useState([]);
@@ -17,57 +20,20 @@ function AdminDashboard() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        // Total utilisateurs
-        const { count: totalUsers } = await supabase
-          .from('user_profiles')
-          .select('*', { count: 'exact', head: true });
-
-        // Utilisateurs actifs = ceux qui ont joué aujourd'hui
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
+        const backendUrl = getBackendUrl();
+        const res = await fetch(`${backendUrl}/api/admin/dashboard-stats`);
+        const data = await res.json();
         
-        const { data: activeUsersData } = await supabase
-          .from('image_usage_logs')
-          .select('user_id')
-          .gte('timestamp', yesterday.toISOString());
-        
-        const activeToday = new Set(activeUsersData?.map(u => u.user_id).filter(Boolean) || []).size;
-
-        // Sessions de jeu (depuis image_usage_logs)
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const { data: sessionsData } = await supabase
-          .from('image_usage_logs')
-          .select('session_id')
-          .gte('timestamp', today.toISOString());
-        
-        const uniqueSessionsToday = new Set(sessionsData?.map(s => s.session_id) || []).size;
-        
-        const { data: allSessions } = await supabase
-          .from('image_usage_logs')
-          .select('session_id');
-        
-        const totalSessions = new Set(allSessions?.map(s => s.session_id) || []).size;
-
-        // Derniers utilisateurs inscrits
-        const { data: users } = await supabase
-          .from('user_profiles')
-          .select('id, email, role, created_at')
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        setStats({ 
-          totalUsers: totalUsers || 0, 
-          activeToday: activeToday || 0,
-          sessionsToday: uniqueSessionsToday,
-          totalSessions: totalSessions,
-          loading: false 
-        });
-        setRecentUsers(users || []);
+        if (data.ok) {
+          setStats({ ...data.stats, loading: false });
+          setRecentUsers(data.users || []);
+        } else {
+          console.error('Dashboard stats error:', data.error);
+          setStats(prev => ({ ...prev, loading: false }));
+        }
       } catch (error) {
         console.error('Erreur stats:', error);
-        setStats({ totalUsers: 0, activeToday: 0, sessionsToday: 0, totalSessions: 0, loading: false });
+        setStats(prev => ({ ...prev, loading: false }));
       }
     }
     fetchStats();
@@ -125,8 +91,16 @@ function AdminDashboard() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '14px', color: '#64748b' }}>Total utilisateurs</span>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>Comptes inscrits</span>
                   <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#0D6A7A' }}>{stats.totalUsers}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>Avec licence active</span>
+                  <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#22c55e' }}>{stats.usersWithLicense}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>Élèves enregistrés</span>
+                  <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#0D6A7A' }}>{stats.totalStudents}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '14px', color: '#64748b' }}>Actifs aujourd'hui</span>
@@ -228,10 +202,10 @@ function AdminDashboard() {
 
         </div>
 
-        {/* Liste des utilisateurs récents */}
+        {/* Liste de TOUS les utilisateurs inscrits */}
         <div style={{ marginTop: '30px', background: '#fff', padding: '20px', borderRadius: '12px', border: '2px solid #F5A623', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
           <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#0D6A7A' }}>
-            👤 Utilisateurs récents
+            👤 Tous les utilisateurs inscrits ({recentUsers.length})
           </h2>
           {stats.loading ? (
             <div style={{ fontSize: '14px', color: '#64748b' }}>Chargement...</div>
@@ -242,29 +216,55 @@ function AdminDashboard() {
                   <tr style={{ borderBottom: '2px solid #f0f0f0' }}>
                     <th style={{ padding: '10px', textAlign: 'left', color: '#64748b' }}>Email</th>
                     <th style={{ padding: '10px', textAlign: 'left', color: '#64748b' }}>Rôle</th>
+                    <th style={{ padding: '10px', textAlign: 'left', color: '#64748b' }}>Licence</th>
                     <th style={{ padding: '10px', textAlign: 'left', color: '#64748b' }}>Inscrit le</th>
+                    <th style={{ padding: '10px', textAlign: 'left', color: '#64748b' }}>Dernière connexion</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {recentUsers.map(user => (
-                    <tr key={user.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      <td style={{ padding: '10px', color: '#334155' }}>{user.email}</td>
-                      <td style={{ padding: '10px' }}>
-                        <span style={{ 
-                          padding: '4px 8px', 
-                          borderRadius: '4px', 
-                          fontSize: '12px',
-                          background: user.role === 'admin' ? '#e53e3e' : user.role === 'editor' ? '#1AACBE' : 'rgba(255,255,255,0.15)',
-                          color: '#fff'
-                        }}>
-                          {user.role || 'user'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '10px', color: '#64748b' }}>
-                        {new Date(user.created_at).toLocaleDateString('fr-FR')}
-                      </td>
-                    </tr>
-                  ))}
+                  {recentUsers.map(user => {
+                    const licenseColors = {
+                      active: { bg: '#22c55e', label: '✓ Active' },
+                      admin: { bg: '#e53e3e', label: '★ Admin' },
+                      expired: { bg: '#f59e0b', label: '⚠ Expirée' },
+                      free: { bg: '#94a3b8', label: 'Gratuit' },
+                    };
+                    const lic = licenseColors[user.licenseStatus] || licenseColors.free;
+                    return (
+                      <tr key={user.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <td style={{ padding: '10px', color: '#334155' }}>{user.email}</td>
+                        <td style={{ padding: '10px' }}>
+                          <span style={{ 
+                            padding: '4px 8px', 
+                            borderRadius: '4px', 
+                            fontSize: '12px',
+                            background: user.role === 'admin' ? '#e53e3e' : user.role === 'editor' ? '#1AACBE' : '#94a3b8',
+                            color: '#fff'
+                          }}>
+                            {user.role || 'user'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px' }}>
+                          <span style={{ 
+                            padding: '4px 8px', 
+                            borderRadius: '4px', 
+                            fontSize: '12px',
+                            background: lic.bg,
+                            color: '#fff',
+                            fontWeight: 600
+                          }}>
+                            {lic.label}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px', color: '#64748b' }}>
+                          {user.createdAt ? new Date(user.createdAt).toLocaleDateString('fr-FR') : '—'}
+                        </td>
+                        <td style={{ padding: '10px', color: '#64748b' }}>
+                          {user.lastSignIn ? new Date(user.lastSignIn).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Jamais'}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

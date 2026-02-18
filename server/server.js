@@ -475,6 +475,147 @@ app.post('/rename-image', (req, res) => {
   });
 });
 
+// ==========================================
+// ADMIN DASHBOARD STATS — Données réelles
+// ==========================================
+app.get('/api/admin/dashboard-stats', async (req, res) => {
+  try {
+    if (!supabaseAdmin) {
+      return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
+    }
+
+    // 1. Tous les comptes auth (vrais inscrits)
+    let allAuthUsers = [];
+    try {
+      let page = 1;
+      let hasMore = true;
+      while (hasMore) {
+        const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+        if (error || !data?.users?.length) { hasMore = false; break; }
+        allAuthUsers = allAuthUsers.concat(data.users);
+        hasMore = data.users.length === 1000;
+        page++;
+      }
+    } catch (e) {
+      console.error('[Admin Stats] listUsers error:', e.message);
+    }
+    const totalUsers = allAuthUsers.length;
+
+    // 2. Rôles depuis user_profiles
+    let profilesMap = {};
+    try {
+      const { data: profiles } = await supabaseAdmin.from('user_profiles').select('id, role');
+      for (const p of (profiles || [])) { profilesMap[p.id] = p.role; }
+    } catch {}
+
+    // 3. Licences actives depuis subscriptions
+    let subsMap = {};
+    try {
+      const { data: subs } = await supabaseAdmin.from('subscriptions').select('user_id, status, current_period_end');
+      for (const s of (subs || [])) { subsMap[s.user_id] = s; }
+    } catch {}
+
+    // 4. Élèves avec licensed=true
+    let licensedStudents = 0;
+    let totalStudents = 0;
+    try {
+      const { count: total } = await supabaseAdmin.from('students').select('*', { count: 'exact', head: true });
+      totalStudents = total || 0;
+      const { count: licensed } = await supabaseAdmin.from('students').select('*', { count: 'exact', head: true }).eq('licensed', true);
+      licensedStudents = licensed || 0;
+    } catch {}
+
+    // 5. Activité aujourd'hui (training_results + match_results créés aujourd'hui)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayISO = todayStart.toISOString();
+
+    let activeStudentIds = new Set();
+    let sessionsToday = 0;
+    let totalSessions = 0;
+
+    try {
+      // Training results today
+      const { data: trToday } = await supabaseAdmin
+        .from('training_results')
+        .select('student_id, session_id')
+        .gte('created_at', todayISO);
+      for (const r of (trToday || [])) {
+        activeStudentIds.add(r.student_id);
+      }
+      const trainingSessionsToday = new Set((trToday || []).map(r => r.session_id).filter(Boolean)).size;
+      sessionsToday += trainingSessionsToday;
+    } catch {}
+
+    try {
+      // Match results today
+      const { data: mrToday } = await supabaseAdmin
+        .from('match_results')
+        .select('student_id, match_id')
+        .gte('created_at', todayISO);
+      for (const r of (mrToday || [])) {
+        activeStudentIds.add(r.student_id);
+      }
+      const arenaSessionsToday = new Set((mrToday || []).map(r => r.match_id).filter(Boolean)).size;
+      sessionsToday += arenaSessionsToday;
+    } catch {}
+
+    // Total sessions (all time)
+    try {
+      const { count: trTotal } = await supabaseAdmin.from('training_sessions').select('*', { count: 'exact', head: true });
+      totalSessions += (trTotal || 0);
+    } catch {}
+    try {
+      const { count: mrTotal } = await supabaseAdmin.from('match_results').select('*', { count: 'exact', head: true });
+      // Approximate arena matches by unique match_ids
+      totalSessions += Math.ceil((mrTotal || 0) / 2); // ~2 players per match avg
+    } catch {}
+
+    const activeToday = activeStudentIds.size;
+
+    // 6. Build users list with roles + license status
+    const usersList = allAuthUsers.map(u => {
+      const role = profilesMap[u.id] || 'user';
+      const sub = subsMap[u.id];
+      let licenseStatus = 'free';
+      if (sub && ['active', 'trialing'].includes(sub.status)) {
+        licenseStatus = 'active';
+      } else if (sub && sub.status === 'expired') {
+        licenseStatus = 'expired';
+      } else if (role === 'admin') {
+        licenseStatus = 'admin';
+      }
+      return {
+        id: u.id,
+        email: u.email,
+        role,
+        licenseStatus,
+        createdAt: u.created_at,
+        lastSignIn: u.last_sign_in_at || null,
+      };
+    }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    const usersWithLicense = usersList.filter(u => ['active', 'admin'].includes(u.licenseStatus)).length;
+
+    res.json({
+      ok: true,
+      stats: {
+        totalUsers,
+        activeToday,
+        sessionsToday,
+        totalSessions,
+        totalStudents,
+        licensedStudents,
+        usersWithLicense,
+      },
+      users: usersList,
+    });
+  } catch (error) {
+    console.error('[Admin Stats] Error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 // Route racine pour vérification rapide
 app.get('/', (req, res) => {
   res.json({ ok: true, service: 'crazy-chrono-backend' });
