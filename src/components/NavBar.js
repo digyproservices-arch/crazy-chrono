@@ -102,8 +102,8 @@ const NavBar = () => {
         {/* ===== LOGO IN CIRCLE — coin supérieur gauche, partiellement caché ===== */}
         <Link to="/modes" style={{
           position: 'absolute',
-          top: -18,
-          left: -18,
+          top: -30,
+          left: -30,
           zIndex: 1002,
           textDecoration: 'none'
         }}>
