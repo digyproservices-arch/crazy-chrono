@@ -552,11 +552,41 @@ router.get('/groups/:id/match-history', requireSupabase, async (req, res) => {
       return res.json({ success: true, groupName: group.name, matches: [], students: [] });
     }
     
-    // 2. Récupérer tous les training_results pour ces élèves
+    // 2. Résoudre les student_ids en auth UUIDs (training_results.student_id est UUID)
+    const isValidUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+    const uuidIds = studentIds.filter(isValidUuid);
+    const nonUuidIds = studentIds.filter(id => !isValidUuid(id));
+    
+    // Mapper les IDs non-UUID (ex: "s002") vers auth UUIDs via user_student_mapping
+    const idToAuthMap = {}; // s002 → auth-uuid
+    const authToIdMap = {}; // auth-uuid → s002
+    if (nonUuidIds.length > 0) {
+      const { data: mappings } = await supabase
+        .from('user_student_mapping')
+        .select('student_id, user_id')
+        .in('student_id', nonUuidIds)
+        .eq('active', true);
+      
+      for (const m of (mappings || [])) {
+        idToAuthMap[m.student_id] = m.user_id;
+        authToIdMap[m.user_id] = m.student_id;
+        uuidIds.push(m.user_id);
+      }
+    }
+    
+    // Tous les IDs auth UUID à chercher dans training_results
+    const allAuthIds = [...new Set(uuidIds)];
+    if (allAuthIds.length === 0) {
+      return res.json({ success: true, groupName: group.name, matches: [], students: [] });
+    }
+    
+    console.log('[Tournament API] match-history: studentIds=', studentIds, 'authIds=', allAuthIds);
+    
+    // 3. Récupérer tous les training_results pour ces élèves (auth UUIDs)
     const { data: allResults, error: resErr } = await supabase
       .from('training_results')
       .select('id, session_id, student_id, position, score, time_ms, pairs_validated, errors, created_at')
-      .in('student_id', studentIds)
+      .in('student_id', allAuthIds)
       .order('created_at', { ascending: false });
     
     if (resErr) throw resErr;
@@ -565,7 +595,7 @@ router.get('/groups/:id/match-history', requireSupabase, async (req, res) => {
       return res.json({ success: true, groupName: group.name, matches: [], students: [] });
     }
     
-    // 3. Regrouper par session_id — ne garder que les sessions où TOUS les élèves du groupe ont joué
+    // 4. Regrouper par session_id
     const sessionMap = {};
     for (const r of allResults) {
       if (!sessionMap[r.session_id]) sessionMap[r.session_id] = [];
@@ -573,9 +603,10 @@ router.get('/groups/:id/match-history', requireSupabase, async (req, res) => {
     }
     
     // Filtrer: garder les sessions avec au moins 2 joueurs du groupe (matchs de groupe, pas solo)
+    const authIdSet = new Set(allAuthIds);
     const groupSessionIds = Object.keys(sessionMap).filter(sid => {
       const players = sessionMap[sid];
-      const groupPlayers = players.filter(p => studentIds.includes(p.student_id));
+      const groupPlayers = players.filter(p => authIdSet.has(p.student_id));
       return groupPlayers.length >= 2;
     });
     
@@ -583,36 +614,50 @@ router.get('/groups/:id/match-history', requireSupabase, async (req, res) => {
       return res.json({ success: true, groupName: group.name, matches: [], students: [] });
     }
     
-    // 4. Récupérer les sessions correspondantes
+    // 5. Récupérer les sessions correspondantes
     const { data: sessions } = await supabase
       .from('training_sessions')
       .select('id, match_id, session_name, completed_at, created_at, config')
       .in('id', groupSessionIds)
       .order('created_at', { ascending: false });
     
-    // 5. Récupérer les noms des élèves
+    // 6. Récupérer les noms des élèves (chercher avec les deux formats d'ID)
+    const allLookupIds = [...new Set([...studentIds, ...allAuthIds])];
     const { data: students } = await supabase
       .from('students')
       .select('id, full_name, first_name, avatar_url')
-      .in('id', studentIds);
+      .in('id', allLookupIds);
     
     const studentsMap = Object.fromEntries((students || []).map(s => [s.id, s]));
     
-    // 6. Construire la réponse avec chaque match et ses résultats
+    // Helper: trouver le nom d'un étudiant par son auth UUID
+    const getStudentInfo = (authId) => {
+      // Chercher directement par auth UUID
+      if (studentsMap[authId]) return studentsMap[authId];
+      // Chercher par l'ID original (ex: s002) via le reverse mapping
+      const origId = authToIdMap[authId];
+      if (origId && studentsMap[origId]) return studentsMap[origId];
+      return null;
+    };
+    
+    // 7. Construire la réponse avec chaque match et ses résultats
     const matchHistory = (sessions || []).map(session => {
       const results = (sessionMap[session.id] || [])
-        .filter(r => studentIds.includes(r.student_id))
+        .filter(r => authIdSet.has(r.student_id))
         .sort((a, b) => (a.position || 999) - (b.position || 999))
-        .map(r => ({
-          studentId: r.student_id,
-          studentName: studentsMap[r.student_id]?.full_name || studentsMap[r.student_id]?.first_name || r.student_id,
-          avatar: studentsMap[r.student_id]?.avatar_url || null,
-          position: r.position,
-          score: r.score,
-          timeMs: r.time_ms,
-          pairs_validated: r.pairs_validated || 0,
-          errors: r.errors || 0
-        }));
+        .map(r => {
+          const info = getStudentInfo(r.student_id);
+          return {
+            studentId: r.student_id,
+            studentName: info?.full_name || info?.first_name || r.student_id,
+            avatar: info?.avatar_url || null,
+            position: r.position,
+            score: r.score,
+            timeMs: r.time_ms,
+            pairs_validated: r.pairs_validated || 0,
+            errors: r.errors || 0
+          };
+        });
       
       return {
         sessionId: session.id,
@@ -629,11 +674,14 @@ router.get('/groups/:id/match-history', requireSupabase, async (req, res) => {
       groupId: group.id,
       currentMatchId: group.match_id,
       matches: matchHistory,
-      students: studentIds.map(sid => ({
-        id: sid,
-        name: studentsMap[sid]?.full_name || studentsMap[sid]?.first_name || sid,
-        avatar: studentsMap[sid]?.avatar_url || null
-      }))
+      students: studentIds.map(sid => {
+        const info = studentsMap[sid] || getStudentInfo(idToAuthMap[sid]) || {};
+        return {
+          id: sid,
+          name: info.full_name || info.first_name || sid,
+          avatar: info.avatar_url || null
+        };
+      })
     });
   } catch (error) {
     console.error('[Tournament API] Error fetching match history:', error);
