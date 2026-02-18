@@ -22,6 +22,43 @@ export default function TrainingPlayerLobby() {
   const [isReady, setIsReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [matchInfo, setMatchInfo] = useState(null);
+  const countdownOverlayRef = useRef(null);
+  const fsRequestedRef = useRef(false);
+
+  // Listener natif DOM sur l'overlay de décompte pour déclencher requestFullscreen
+  useEffect(() => {
+    const el = countdownOverlayRef.current;
+    if (!el || countdown === null || countdown < 0) return;
+    const triggerFS = () => {
+      if (fsRequestedRef.current) return;
+      fsRequestedRef.current = true;
+      try {
+        const root = document.documentElement;
+        const alreadyFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        console.log('[FS-DIAG] Countdown overlay tapped, alreadyFS:', alreadyFS);
+        if (alreadyFS) return;
+        const fsMethod = root.requestFullscreen || root.webkitRequestFullscreen || root.mozRequestFullScreen || root.msRequestFullscreen;
+        console.log('[FS-DIAG] fsMethod:', !!fsMethod, fsMethod?.name || 'unnamed');
+        if (fsMethod) {
+          fsMethod.call(root).then(() => {
+            console.log('[FS-DIAG] ✅ Fullscreen ACTIVATED from countdown overlay');
+          }).catch((err) => {
+            console.warn('[FS-DIAG] ❌ Fullscreen REJECTED from countdown overlay:', err?.message || err);
+            fsRequestedRef.current = false; // allow retry
+          });
+        }
+      } catch (e) {
+        console.error('[FS-DIAG] Exception:', e);
+        fsRequestedRef.current = false;
+      }
+    };
+    el.addEventListener('touchstart', triggerFS, { passive: true });
+    el.addEventListener('click', triggerFS);
+    return () => {
+      el.removeEventListener('touchstart', triggerFS);
+      el.removeEventListener('click', triggerFS);
+    };
+  }, [countdown]);
   
   useEffect(() => {
     const fetchUserData = async () => {
@@ -207,9 +244,9 @@ export default function TrainingPlayerLobby() {
         </div>
       </div>
       
-      {/* Countdown géant */}
+      {/* Countdown géant — tappable pour déclencher le plein écran */}
       {countdown !== null && countdown >= 0 && (
-        <div style={{
+        <div ref={countdownOverlayRef} style={{
           position: 'fixed',
           top: 0,
           left: 0,
@@ -220,7 +257,10 @@ export default function TrainingPlayerLobby() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          cursor: 'pointer',
+          touchAction: 'manipulation',
+          WebkitTapHighlightColor: 'transparent'
         }}>
           <div style={{
             fontSize: 200,
@@ -236,6 +276,14 @@ export default function TrainingPlayerLobby() {
               Préparez-vous...
             </div>
           )}
+          <div style={{
+            fontSize: 15,
+            color: 'rgba(255,255,255,0.6)',
+            marginTop: countdown > 0 ? 12 : 20,
+            animation: 'pulse 1s infinite'
+          }}>
+            👆 Touchez l'écran pour le plein écran
+          </div>
         </div>
       )}
       

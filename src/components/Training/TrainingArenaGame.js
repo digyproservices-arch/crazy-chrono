@@ -223,15 +223,24 @@ export default function TrainingArenaGame() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Helper: demander le plein écran natif (avec fallback webkit)
-  // Appelé à chaque touch/clic — réessaye tant que le plein écran n'est pas actif
-  const requestNativeFullscreen = () => {
+  // Helper: demander le plein écran natif (avec fallback webkit) + logs diagnostiques
+  const requestNativeFullscreen = (source) => {
     try {
       const el = document.documentElement;
-      if (document.fullscreenElement || document.webkitFullscreenElement) return;
+      const alreadyFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      if (alreadyFS) return; // déjà en plein écran
+      console.log('[FS-DIAG] requestNativeFullscreen from:', source);
       const fsMethod = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-      if (fsMethod) fsMethod.call(el).catch(() => {});
-    } catch {}
+      if (fsMethod) {
+        fsMethod.call(el).then(() => {
+          console.log('[FS-DIAG] ✅ Fullscreen ACTIVATED from:', source);
+        }).catch((err) => {
+          console.warn('[FS-DIAG] ❌ Fullscreen REJECTED from:', source, err?.message || err);
+        });
+      }
+    } catch (e) {
+      console.error('[FS-DIAG] Exception:', e);
+    }
   };
 
   // Plein écran jeu: masquer navbar + verrouiller scroll (tablette/mobile)
@@ -1055,8 +1064,8 @@ export default function TrainingArenaGame() {
 
   return (
     <div
-      onTouchStart={requestNativeFullscreen}
-      onClick={requestNativeFullscreen}
+      onTouchStart={() => requestNativeFullscreen('game-container-touchstart')}
+      onClick={() => requestNativeFullscreen('game-container-click')}
       style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', overflow: 'hidden', background: CC.bgGradient, touchAction: 'none' }}>
       {/* Particules flottantes CSS-only */}
       <div className="cc-game-particles" />
