@@ -223,18 +223,44 @@ export default function TrainingArenaGame() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Plein écran jeu: masquer navbar + verrouiller scroll (tablette/mobile)
+  // Plein écran jeu: masquer navbar + verrouiller scroll + requestFullscreen (tablette/mobile)
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
     document.body.classList.add('cc-game');
     try { window.dispatchEvent(new CustomEvent('cc:gameMode', { detail: { on: true } })); } catch {}
+    try { window.dispatchEvent(new CustomEvent('cc:gameFullscreen', { detail: { on: true } })); } catch {}
+    // Tenter le plein écran natif (fonctionne sur Android, peut échouer sur iOS sans geste)
+    const tryFullscreen = async () => {
+      try {
+        if (!document.fullscreenElement) {
+          await document.documentElement.requestFullscreen?.();
+        }
+      } catch {}
+    };
+    tryFullscreen();
+    // Fallback: au premier touch/clic utilisateur, activer le plein écran (iOS nécessite un geste)
+    const onFirstInteraction = async () => {
+      try {
+        if (!document.fullscreenElement) {
+          await document.documentElement.requestFullscreen?.();
+        }
+      } catch {}
+      document.removeEventListener('touchstart', onFirstInteraction);
+      document.removeEventListener('click', onFirstInteraction);
+    };
+    document.addEventListener('touchstart', onFirstInteraction, { once: true });
+    document.addEventListener('click', onFirstInteraction, { once: true });
     return () => {
       document.body.style.overflow = prev;
       document.documentElement.style.overflow = '';
       document.body.classList.remove('cc-game');
       try { window.dispatchEvent(new CustomEvent('cc:gameMode', { detail: { on: false } })); } catch {}
+      try { window.dispatchEvent(new CustomEvent('cc:gameFullscreen', { detail: { on: false } })); } catch {}
+      try { if (document.fullscreenElement) document.exitFullscreen?.(); } catch {}
+      document.removeEventListener('touchstart', onFirstInteraction);
+      document.removeEventListener('click', onFirstInteraction);
     };
   }, []);
 
