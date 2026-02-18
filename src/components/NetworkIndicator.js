@@ -82,23 +82,23 @@ const NetworkIndicator = () => {
       {/* Signal bars */}
       <div style={{
         display: 'flex', alignItems: 'flex-end', gap: 2,
-        cursor: 'pointer', padding: '4px 6px', borderRadius: 8,
-        background: 'rgba(255,255,255,0.08)',
+        cursor: 'pointer', padding: '4px 8px', borderRadius: 8,
+        background: '#fff',
         transition: 'background 0.2s',
       }}>
         {[1, 2, 3, 4].map(bar => {
           const barHeight = 4 + bar * 4;
-          let barColor = 'rgba(255,255,255,0.2)';
+          let barColor = '#e2e8f0';
           if (latency !== null) {
             if (latency < 100 && bar <= 4) barColor = STATUS.excellent.color;
             else if (latency < 200 && bar <= 3) barColor = STATUS.good.color;
             else if (latency < 300 && bar <= 2) barColor = STATUS.good.color;
             else if (latency >= 300 && bar <= 1) barColor = STATUS.poor.color;
             else if (bar > (latency < 100 ? 4 : latency < 200 ? 3 : latency < 300 ? 2 : 1)) {
-              barColor = 'rgba(255,255,255,0.15)';
+              barColor = '#e2e8f0';
             }
           }
-          if (latency === null) barColor = bar === 1 ? STATUS.offline.color : 'rgba(255,255,255,0.1)';
+          if (latency === null) barColor = bar === 1 ? STATUS.offline.color : '#e2e8f0';
           return (
             <div
               key={bar}
