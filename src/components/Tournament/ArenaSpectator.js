@@ -269,11 +269,39 @@ function ArenaSpectatorInner() {
 
     socket.on('reconnect', () => {
       console.log('[Spectator] Reconnecté, re-rejoindre match');
-      socket.emit('arena:spectate-join', { matchId });
+      socket.emit('arena:spectate-join', { matchId }, (response) => {
+        try {
+          if (response?.ok && response.state) {
+            const s = response.state;
+            setMatchState(s);
+            setPlayers(s.players || []);
+            setStatus(s.status || 'waiting');
+            setMode(s.mode || 'arena');
+            if (Array.isArray(s.zones) && s.zones.length > 0) {
+              setZones(s.zones);
+              zonesRef.current = s.zones;
+              invalidateZoneCenterCache();
+            }
+          } else {
+            // Match nettoyé du serveur — garder l'état actuel (finished) au lieu de crasher
+            console.warn('[Spectator] Reconnexion: match introuvable (probablement nettoyé)');
+            if (status !== 'finished') {
+              setStatus('not-found');
+              setError('Match terminé ou introuvable après reconnexion');
+            }
+          }
+        } catch (err) {
+          console.error('[Spectator] Erreur reconnexion:', err);
+        }
+      });
       addEvent('Reconnecté au match', 'system');
     });
 
     socket.on('arena:spectate-state', (state) => {
+      if (!state || typeof state !== 'object') {
+        console.warn('[Spectator] Received null/invalid spectate-state');
+        return;
+      }
       setMatchState(state);
       setPlayers(state.players || []);
       setStatus(state.status);
@@ -685,7 +713,7 @@ function ArenaSpectatorInner() {
                     <path id={`sp-text-curve-${zone.id}`} key={`sp-tc-${zone.id}`} d={getArcPathFromZonePoints(zone.points, zone.id, zone.arcPoints, 0)} fill="none" />
                   ))}
                 </defs>
-                {zones.filter(z => z && typeof z === 'object').map((zone) => {
+                {zones.filter(z => z && typeof z === 'object' && Array.isArray(z.points) && z.points.length >= 2).map((zone) => {
                   const flashed = isFlashedZone(zone.id);
                   return (
                     <g key={zone.id} data-zone-id={zone.id}>

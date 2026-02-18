@@ -261,6 +261,8 @@ export default function TrainingArenaGame() {
         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
         if (fsEl) (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen)?.call(document);
       } catch {}
+      // ✅ FIX: Nettoyer le podium overlay (créé avec document.body.appendChild)
+      try { document.getElementById('training-arena-podium')?.remove(); } catch {}
     };
   }, []);
 
@@ -983,6 +985,13 @@ export default function TrainingArenaGame() {
     document.body.appendChild(overlay);
     
     document.getElementById('back-btn').addEventListener('click', () => {
+      // ✅ FIX: Supprimer l'overlay du DOM AVANT de naviguer
+      try { overlay.remove(); } catch {}
+      // Quitter le plein écran
+      try {
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        if (fsEl) (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen)?.call(document);
+      } catch {}
       navigate('/training-arena/setup');
     });
   };
