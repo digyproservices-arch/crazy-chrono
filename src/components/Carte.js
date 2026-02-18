@@ -5918,6 +5918,8 @@ setZones(dataWithRandomTexts);
 
  return (
     <div className={`carte-container ${hasSidebar ? 'game-with-sidebar' : ''}`} style={{ position: 'relative' }}>
+      {/* Particules flottantes CSS-only */}
+      {hasSidebar && <div className="cc-game-particles" />}
       {/* Boutons flottants (toujours visibles) */}
       <div style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 10000, display: 'flex', gap: 8 }}>
         <button
@@ -6137,41 +6139,54 @@ setZones(dataWithRandomTexts);
           ))}
         </div>
       )}
-      {/* Sidebar fixe en mode jeu plein écran */}
       {hasSidebar && (
         <aside className="game-sidebar-fixed">
           <div className="sidebar-content">
-            <div className="hud-row" style={{ fontWeight: 'bold' }}>
-              <div>Salle: {roomId || '—'}</div>
-              <div>Manche: {Number.isFinite(roundsPerSession) ? `${Math.max(0, roundsPlayed||0)} / ${roundsPerSession}` : Math.max(0, roundsPlayed||0)}</div>
+            {/* HUD: Timer + Score + Manche */}
+            <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              {!isTiebreaker && (
+                <div style={{
+                  background: timeLeft < 10 ? 'rgba(220,38,38,0.85)' : 'rgba(0,0,0,0.3)',
+                  borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)',
+                  fontSize: 18, fontWeight: 900,
+                  color: timeLeft < 10 ? '#fff' : timeLeft <= 30 ? '#F5A623' : '#10b981',
+                  fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums'
+                }}>
+                  ⏱ {Math.max(0, timeLeft)}s
+                </div>
+              )}
+              <div style={{ background: '#fff', borderRadius: 12, padding: '4px 12px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 13, color: '#666' }}>⭐</span>
+                <span style={{ fontSize: 22, fontWeight: 900, color: '#22c55e', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{score}</span>
+              </div>
+              <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)', fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                {Number.isFinite(roundsPerSession)
+                  ? `Manche ${Math.max(0, roundsPlayed||0)} / ${roundsPerSession}`
+                  : `Manche ${Math.max(0, roundsPlayed||0)}`}
+              </div>
             </div>
-            <div className="hud-row" style={{ fontSize: 12, color: '#374151' }}>
-              <div style={{ opacity: 0.8 }}>Paramètres: {Number.isFinite(roundsPerSession) ? `${roundsPerSession} manches` : 'manches ∞'} · {gameDuration}s</div>
-            </div>
-            <div className="hud-row">
-              <button onClick={handleEndSessionNow} style={{ background: '#d63031', color: '#fff', border: '1px solid #333', borderRadius: 6, padding: '6px 10px', fontWeight: 'bold' }}>Terminer</button>
-              {!isTiebreaker && <div style={{ fontSize: 16, fontWeight: 'bold' }}>Temps: {timeLeft}s</div>}
+            {/* Salle + Paramètres + Terminer */}
+            <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#fff' }}>{roomId ? `Salle: ${roomId}` : 'Mode Solo'}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{Number.isFinite(roundsPerSession) ? `${roundsPerSession} manches` : 'manches ∞'} · {gameDuration}s</div>
+              </div>
+              <button onClick={handleEndSessionNow} style={{ background: 'rgba(220,38,38,0.8)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '6px 12px', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Terminer</button>
             </div>
             {isAdminUI && (
-              <div style={{ marginTop: 8, padding: 8, border: '1px dashed #9ca3af', borderRadius: 8 }}>
+              <div style={{ padding: 8, border: '1px dashed rgba(255,255,255,0.2)', borderRadius: 8 }}>
                 <div className="hud-row" style={{ gap: 6 }}>
-                  <button onClick={() => setDiagOpen(v => !v)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db' }}>{diagOpen ? 'Masquer diagnostic' : 'Diagnostic'}</button>
-                  <button onClick={startDiagRecording} disabled={diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: diagRecording ? '#d1fae5' : '#ecfdf5', color: '#065f46' }}>Démarrer enregistrement</button>
-                  <button onClick={stopDiagRecording} disabled={!diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: !diagRecording ? '#fee2e2' : '#fef2f2', color: '#991b1b' }}>Arrêter</button>
-                  <button onClick={copyDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: logsCopied ? '1px solid #10b981' : '1px solid #d1d5db', background: logsCopied ? '#d1fae5' : 'white', color: logsCopied ? '#065f46' : '#374151', transition: 'all 0.2s', fontWeight: logsCopied ? 'bold' : 'normal' }}>{logsCopied ? '✓ Copié !' : 'Copier l\'enregistrement'}</button>
-                  <button onClick={() => { setDiagLines([]); setDiagRecLines([]); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db' }}>Vider</button>
+                  <button onClick={() => setDiagOpen(v => !v)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: 11 }}>{diagOpen ? 'Masquer diag' : 'Diagnostic'}</button>
+                  <button onClick={startDiagRecording} disabled={diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: 'rgba(16,185,129,0.2)', color: '#6ee7b7', fontSize: 11 }}>▶ Rec</button>
+                  <button onClick={stopDiagRecording} disabled={!diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: 'rgba(239,68,68,0.2)', color: '#fca5a5', fontSize: 11 }}>■ Stop</button>
+                  <button onClick={copyDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: logsCopied ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.1)', color: logsCopied ? '#6ee7b7' : '#fff', fontSize: 11 }}>{logsCopied ? '✓' : '📋'}</button>
+                  <button onClick={() => { setDiagLines([]); setDiagRecLines([]); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: 11 }}>🗑️</button>
                 </div>
                 {diagOpen && (
                   <div style={{ marginTop: 8 }}>
-                    <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>Derniers évènements (live)</div>
-                    <div style={{ maxHeight: 180, overflow: 'auto', background: '#111827', color: '#e5e7eb', padding: 8, borderRadius: 6, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace', fontSize: 12 }}>
-                      {(diagLines || []).slice(-120).map((l, i) => (
-                        <div key={i} style={{ whiteSpace: 'pre-wrap' }}>{l}</div>
-                      ))}
-                    </div>
-                    <div style={{ fontSize: 12, color: '#374151', margin: '6px 0 4px' }}>Enregistrement courant ({diagRecLines.length} lignes)</div>
-                    <div style={{ maxHeight: 140, overflow: 'auto', background: '#111827', color: '#e5e7eb', padding: 8, borderRadius: 6, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace', fontSize: 12 }}>
-                      {(diagRecLines || []).map((l, i) => (
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 4 }}>Derniers évènements</div>
+                    <div style={{ maxHeight: 140, overflow: 'auto', background: 'rgba(0,0,0,0.3)', color: '#e5e7eb', padding: 6, borderRadius: 6, fontFamily: 'monospace', fontSize: 10 }}>
+                      {(diagLines || []).slice(-80).map((l, i) => (
                         <div key={i} style={{ whiteSpace: 'pre-wrap' }}>{l}</div>
                       ))}
                     </div>
@@ -6179,34 +6194,44 @@ setZones(dataWithRandomTexts);
                 )}
               </div>
             )}
-            {lastWonPair && (
-              <div>
-                <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Dernière paire</div>
-                <div style={{ padding: 8, border: '1px solid #ddd', borderRadius: 6, background: '#fff' }} data-cc-vignette="last-pair" ref={mpLastPairRef}>
-                  <div style={{ fontSize: 14 }}>{lastWonPair.text}</div>
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>{lastWonPair.winnerName || 'Joueur'}</div>
-                </div>
-              </div>
-            )}
-            <div>
-              <div style={{ fontWeight: 'bold', marginTop: 8 }}>Joueurs</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 240, overflowY: 'auto' }}>
+            {/* Classement joueurs */}
+            <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700, color: '#fff' }}>🏆 Classement</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {((roomPlayers && roomPlayers.length) ? roomPlayers : (scoresMP || []).map(p => ({ id: p.id, nickname: p.name, score: p.score })))
-                  .map(p => (
-                    <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', border: '1px solid #eee', borderRadius: 6 }}>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>{p.nickname || p.name}</span>
-                      <span style={{ fontWeight: 'bold' }}>{(p.score ?? 0)}</span>
+                  .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+                  .map((p, idx) => (
+                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)', transition: 'all 0.3s' }}>
+                      <div style={{ fontSize: idx === 0 ? 18 : 13, fontWeight: 900, minWidth: 24, textAlign: 'center' }}>
+                        {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`}
+                      </div>
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, fontWeight: 600, color: '#fff' }}>{p.nickname || p.name}</span>
+                      <div style={{ background: '#fff', borderRadius: 10, padding: '2px 10px', boxShadow: '0 2px 6px rgba(0,0,0,0.12)' }}>
+                        <span style={{ fontSize: 18, fontWeight: 900, color: '#22c55e', fontVariantNumeric: 'tabular-nums' }}>{(p.score ?? 0)}</span>
+                      </div>
                     </div>
                   ))}
               </div>
             </div>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '6px 0', borderTop: '1px dashed #ccc', marginTop: 8 }} onClick={() => setHistoryExpanded(v => !v)}>
-                <div style={{ fontWeight: 'bold' }}>Historique</div>
-                <div style={{ opacity: 0.7 }}>{Array.isArray(wonPairsHistory) ? wonPairsHistory.length : 0}</div>
+            {/* Dernière paire validée */}
+            <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 8 }} data-cc-vignette="last-pair" ref={mpLastPairRef}>
+              <span style={{ width: 12, height: 12, borderRadius: 999, flexShrink: 0, background: lastWonPair?.color || 'rgba(255,255,255,0.3)', boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none', border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none' }} />
+              <span style={{ fontSize: 13, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {lastWonPair ? (
+                  <><b>{lastWonPair.winnerName}</b>: {lastWonPair.text}{lastWonPair.tie && (
+                    <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: 'rgba(251,191,36,0.25)', border: '1px solid rgba(251,191,36,0.5)', color: '#fbbf24' }}>Égalité</span>
+                  )}</>
+                ) : 'Dernière paire: —'}
+              </span>
+            </div>
+            {/* Historique */}
+            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '6px 0', marginBottom: 6 }} onClick={() => setHistoryExpanded(v => !v)}>
+                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#fff' }}>📚 Historique</h3>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.12)', borderRadius: 10, padding: '1px 7px', fontWeight: 600 }}>{Array.isArray(wonPairsHistory) ? wonPairsHistory.length : 0}</span>
               </div>
               {historyExpanded && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 200, overflowY: 'auto' }}>
+                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {(wonPairsHistory || []).map((h, i) => {
                     const label = (() => {
                       if (h.kind === 'calcnum' && h.calcExpr && h.calcResult) return `${h.calcExpr} = ${h.calcResult}`;
@@ -6214,21 +6239,29 @@ setZones(dataWithRandomTexts);
                       return h.text || '';
                     })();
                     return (
-                      <div key={i} style={{ fontSize: 13, padding: '6px 8px', border: '1px solid ' + (h.borderColor || '#eee'), borderRadius: 6, background: '#fff', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ width: 10, height: 10, borderRadius: 999, background: h.color || '#e5e7eb', border: h.borderColor ? `2px solid ${h.borderColor}` : 'none', flexShrink: 0 }} />
-                          <span style={{ fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.winnerName || 'Joueur'}</span>
+                      <div key={i} style={{ fontSize: 12, padding: '5px 8px', border: `1px solid ${h.color || 'rgba(255,255,255,0.1)'}44`, borderRadius: 8, background: 'rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: 999, background: h.color || '#e5e7eb', border: h.borderColor ? `2px solid ${h.borderColor}` : 'none', flexShrink: 0, boxShadow: `0 0 4px ${h.color || '#e5e7eb'}66` }} />
+                          <span style={{ fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11 }}>{h.winnerName || 'Joueur'}</span>
                         </div>
-                        <div style={{ marginLeft: 16, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                        <div style={{ marginLeft: 14, display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
                           {h.kind === 'imgtxt' && h.imageSrc && (
-                            <img src={h.imageSrc} alt={h.imageLabel || label || 'Image'} style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+                            <img src={h.imageSrc} alt={h.imageLabel || label || 'Image'} style={{ width: 24, height: 24, borderRadius: 5, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(255,255,255,0.2)' }} />
                           )}
-                          <span style={{ fontSize: 12, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {label}
-                            {h.tie && (
-                              <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: '#fef3c7', border: '1px solid #f59e0b', color: '#92400e' }}>Égalité</span>
-                            )}
-                          </span>
+                          {h.kind === 'calcnum' ? (
+                            <span style={{ fontSize: 11, color: '#fff' }}>
+                              <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{h.calcExpr}</span>
+                              <span style={{ fontWeight: 800, margin: '0 3px', color: '#fbbf24' }}>=</span>
+                              <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#fbbf24' }}>{h.calcResult}</span>
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 11, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {label}
+                              {h.tie && (
+                                <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: 'rgba(251,191,36,0.25)', border: '1px solid rgba(251,191,36,0.5)', color: '#fbbf24' }}>Égalité</span>
+                              )}
+                            </span>
+                          )}
                         </div>
                       </div>
                     );
@@ -6239,7 +6272,6 @@ setZones(dataWithRandomTexts);
           </div>
         </aside>
       )}
-
       {/* BLOC BOUTONS TOUJOURS AFFICHÉS (masqué en plein écran jeu) */}
       {!hasSidebar && (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '24px 0 24px 0', gap: 10 }}>
