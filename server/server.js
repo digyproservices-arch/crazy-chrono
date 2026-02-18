@@ -616,6 +616,149 @@ app.get('/api/admin/dashboard-stats', async (req, res) => {
   }
 });
 
+// ==========================================
+// BULK LICENSE MANAGEMENT
+// ==========================================
+
+// GET filters (schools + classes) for the bulk activation UI
+app.get('/api/admin/licenses/filters', async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
+
+    const [schoolsRes, classesRes] = await Promise.all([
+      supabaseAdmin.from('schools').select('id, name, city').order('name'),
+      supabaseAdmin.from('classes').select('id, school_id, name, level, student_count').order('name'),
+    ]);
+
+    // Count licensed / total per scope
+    const { data: studentCounts } = await supabaseAdmin
+      .from('students')
+      .select('id, school_id, class_id, licensed');
+
+    const students = studentCounts || [];
+    const totalStudents = students.length;
+    const licensedTotal = students.filter(s => s.licensed).length;
+    const unlicensedTotal = totalStudents - licensedTotal;
+
+    // Per school
+    const schoolStats = {};
+    for (const s of students) {
+      const sid = s.school_id || '_none';
+      if (!schoolStats[sid]) schoolStats[sid] = { total: 0, licensed: 0 };
+      schoolStats[sid].total++;
+      if (s.licensed) schoolStats[sid].licensed++;
+    }
+
+    // Per class
+    const classStats = {};
+    for (const s of students) {
+      const cid = s.class_id || '_none';
+      if (!classStats[cid]) classStats[cid] = { total: 0, licensed: 0 };
+      classStats[cid].total++;
+      if (s.licensed) classStats[cid].licensed++;
+    }
+
+    res.json({
+      ok: true,
+      schools: (schoolsRes.data || []).map(s => ({
+        ...s,
+        total: schoolStats[s.id]?.total || 0,
+        licensed: schoolStats[s.id]?.licensed || 0,
+      })),
+      classes: (classesRes.data || []).map(c => ({
+        ...c,
+        total: classStats[c.id]?.total || 0,
+        licensed: classStats[c.id]?.licensed || 0,
+      })),
+      summary: { totalStudents, licensedTotal, unlicensedTotal },
+    });
+  } catch (error) {
+    console.error('[Licenses] filters error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// POST bulk activate licenses
+app.post('/api/admin/licenses/bulk-activate', async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
+
+    const { scope, schoolId, classId, count } = req.body;
+    // scope: 'all' | 'school' | 'class' | 'count'
+
+    let query = supabaseAdmin.from('students').update({ licensed: true }).eq('licensed', false);
+
+    if (scope === 'school' && schoolId) {
+      query = query.eq('school_id', schoolId);
+    } else if (scope === 'class' && classId) {
+      query = query.eq('class_id', classId);
+    } else if (scope === 'count' && count > 0) {
+      // For count-based, get unlicensed IDs first then activate N
+      const { data: unlicensed } = await supabaseAdmin
+        .from('students')
+        .select('id')
+        .eq('licensed', false)
+        .order('created_at', { ascending: true })
+        .limit(count);
+      
+      if (!unlicensed?.length) {
+        return res.json({ ok: true, activated: 0, message: 'Aucun élève sans licence trouvé.' });
+      }
+      const ids = unlicensed.map(s => s.id);
+      const { error } = await supabaseAdmin
+        .from('students')
+        .update({ licensed: true })
+        .in('id', ids);
+      if (error) throw error;
+
+      console.log(`[Licenses] Bulk activated ${ids.length} licenses (count mode)`);
+      return res.json({ ok: true, activated: ids.length });
+    } else if (scope !== 'all') {
+      return res.status(400).json({ ok: false, error: 'invalid_scope' });
+    }
+
+    // Execute for all / school / class scopes
+    const { data, error } = await query.select('id');
+    if (error) throw error;
+    const activated = data?.length || 0;
+
+    console.log(`[Licenses] Bulk activated ${activated} licenses (scope=${scope}, school=${schoolId || '-'}, class=${classId || '-'})`);
+    res.json({ ok: true, activated });
+  } catch (error) {
+    console.error('[Licenses] bulk-activate error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// POST bulk deactivate licenses (for revocation)
+app.post('/api/admin/licenses/bulk-deactivate', async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
+
+    const { scope, schoolId, classId } = req.body;
+
+    let query = supabaseAdmin.from('students').update({ licensed: false }).eq('licensed', true);
+
+    if (scope === 'school' && schoolId) {
+      query = query.eq('school_id', schoolId);
+    } else if (scope === 'class' && classId) {
+      query = query.eq('class_id', classId);
+    } else if (scope !== 'all') {
+      return res.status(400).json({ ok: false, error: 'invalid_scope' });
+    }
+
+    const { data, error } = await query.select('id');
+    if (error) throw error;
+    const deactivated = data?.length || 0;
+
+    console.log(`[Licenses] Bulk deactivated ${deactivated} licenses (scope=${scope})`);
+    res.json({ ok: true, deactivated });
+  } catch (error) {
+    console.error('[Licenses] bulk-deactivate error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 // Route racine pour vérification rapide
 app.get('/', (req, res) => {
   res.json({ ok: true, service: 'crazy-chrono-backend' });

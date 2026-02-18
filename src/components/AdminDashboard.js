@@ -16,6 +16,8 @@ function AdminDashboard() {
     loading: true
   });
   const [recentUsers, setRecentUsers] = useState([]);
+  const [licenseUI, setLicenseUI] = useState({ open: false, scope: 'all', schoolId: '', classId: '', count: 100, loading: false, result: null });
+  const [filters, setFilters] = useState({ schools: [], classes: [], summary: null });
 
   useEffect(() => {
     async function fetchStats() {
@@ -200,6 +202,226 @@ function AdminDashboard() {
             </button>
           </div>
 
+        </div>
+
+        {/* ===== GESTION LICENCES EN MASSE ===== */}
+        <div style={{ marginTop: '30px', background: '#fff', padding: '20px', borderRadius: '12px', border: '2px solid #F5A623', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 'bold', color: '#0D6A7A', margin: 0 }}>
+              🎫 Gestion des licences élèves
+            </h2>
+            {!licenseUI.open ? (
+              <button
+                onClick={async () => {
+                  setLicenseUI(prev => ({ ...prev, open: true, result: null }));
+                  try {
+                    const backendUrl = getBackendUrl();
+                    const res = await fetch(`${backendUrl}/api/admin/licenses/filters`);
+                    const data = await res.json();
+                    if (data.ok) setFilters({ schools: data.schools, classes: data.classes, summary: data.summary });
+                  } catch (e) { console.error('Filters error:', e); }
+                }}
+                style={{ padding: '8px 16px', background: 'linear-gradient(135deg, #F5A623 0%, #d4900e 100%)', color: '#4A3728', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
+              >
+                ⚡ Activer des licences
+              </button>
+            ) : (
+              <button
+                onClick={() => setLicenseUI(prev => ({ ...prev, open: false, result: null }))}
+                style={{ padding: '6px 14px', background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}
+              >
+                ✕ Fermer
+              </button>
+            )}
+          </div>
+
+          {/* Summary bar */}
+          {filters.summary && (
+            <div style={{ display: 'flex', gap: 20, marginBottom: licenseUI.open ? 16 : 0, flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 14, color: '#64748b' }}>
+                Total élèves : <strong style={{ color: '#0D6A7A' }}>{filters.summary.totalStudents}</strong>
+              </div>
+              <div style={{ fontSize: 14, color: '#64748b' }}>
+                Licenciés : <strong style={{ color: '#22c55e' }}>{filters.summary.licensedTotal}</strong>
+              </div>
+              <div style={{ fontSize: 14, color: '#64748b' }}>
+                Sans licence : <strong style={{ color: '#ef4444' }}>{filters.summary.unlicensedTotal}</strong>
+              </div>
+            </div>
+          )}
+
+          {licenseUI.open && (
+            <div style={{ background: '#f8fafc', borderRadius: 10, padding: 16, border: '1px solid #e2e8f0' }}>
+              {/* Scope selector */}
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 6 }}>Périmètre d'activation :</label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {[
+                    { value: 'all', label: '🌍 Tous les élèves' },
+                    { value: 'school', label: '🏫 Par école' },
+                    { value: 'class', label: '📚 Par classe' },
+                    { value: 'count', label: '🔢 Par nombre' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setLicenseUI(prev => ({ ...prev, scope: opt.value, result: null }))}
+                      style={{
+                        padding: '6px 14px', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                        background: licenseUI.scope === opt.value ? '#0D6A7A' : '#fff',
+                        color: licenseUI.scope === opt.value ? '#fff' : '#334155',
+                        border: licenseUI.scope === opt.value ? '2px solid #0D6A7A' : '1px solid #e2e8f0',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* School selector */}
+              {licenseUI.scope === 'school' && (
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 6 }}>École :</label>
+                  <select
+                    value={licenseUI.schoolId}
+                    onChange={e => setLicenseUI(prev => ({ ...prev, schoolId: e.target.value, result: null }))}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14 }}
+                  >
+                    <option value="">-- Sélectionner une école --</option>
+                    {filters.schools.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} {s.city ? `(${s.city})` : ''} — {s.total} élèves, {s.licensed} licenciés
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Class selector */}
+              {licenseUI.scope === 'class' && (
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 6 }}>Classe :</label>
+                  <select
+                    value={licenseUI.classId}
+                    onChange={e => setLicenseUI(prev => ({ ...prev, classId: e.target.value, result: null }))}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14 }}
+                  >
+                    <option value="">-- Sélectionner une classe --</option>
+                    {filters.classes.map(c => {
+                      const school = filters.schools.find(s => s.id === c.school_id);
+                      return (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({c.level}) {school ? `— ${school.name}` : ''} — {c.total} élèves, {c.licensed} licenciés
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              )}
+
+              {/* Count input */}
+              {licenseUI.scope === 'count' && (
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 6 }}>
+                    Nombre de licences à activer :
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10000"
+                    value={licenseUI.count}
+                    onChange={e => setLicenseUI(prev => ({ ...prev, count: parseInt(e.target.value) || 0, result: null }))}
+                    style={{ width: 200, padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 16, fontWeight: 700 }}
+                  />
+                  <span style={{ marginLeft: 10, fontSize: 13, color: '#64748b' }}>
+                    (les {licenseUI.count} premiers élèves sans licence)
+                  </span>
+                </div>
+              )}
+
+              {/* Action buttons */}
+              <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                <button
+                  disabled={licenseUI.loading || (licenseUI.scope === 'school' && !licenseUI.schoolId) || (licenseUI.scope === 'class' && !licenseUI.classId)}
+                  onClick={async () => {
+                    const msg = licenseUI.scope === 'all' ? 'Activer les licences pour TOUS les élèves ?' :
+                      licenseUI.scope === 'count' ? `Activer ${licenseUI.count} licences ?` : 'Activer les licences pour la sélection ?';
+                    if (!window.confirm(msg)) return;
+                    setLicenseUI(prev => ({ ...prev, loading: true, result: null }));
+                    try {
+                      const backendUrl = getBackendUrl();
+                      const res = await fetch(`${backendUrl}/api/admin/licenses/bulk-activate`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ scope: licenseUI.scope, schoolId: licenseUI.schoolId, classId: licenseUI.classId, count: licenseUI.count }),
+                      });
+                      const data = await res.json();
+                      setLicenseUI(prev => ({ ...prev, loading: false, result: { type: 'success', message: `✅ ${data.activated} licence(s) activée(s) !` } }));
+                      // Refresh filters
+                      const fRes = await fetch(`${backendUrl}/api/admin/licenses/filters`);
+                      const fData = await fRes.json();
+                      if (fData.ok) setFilters({ schools: fData.schools, classes: fData.classes, summary: fData.summary });
+                      // Refresh stats
+                      const sRes = await fetch(`${backendUrl}/api/admin/dashboard-stats`);
+                      const sData = await sRes.json();
+                      if (sData.ok) { setStats({ ...sData.stats, loading: false }); setRecentUsers(sData.users || []); }
+                    } catch (e) {
+                      setLicenseUI(prev => ({ ...prev, loading: false, result: { type: 'error', message: `❌ Erreur: ${e.message}` } }));
+                    }
+                  }}
+                  style={{
+                    padding: '10px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700,
+                    background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: '#fff',
+                    opacity: licenseUI.loading ? 0.6 : 1,
+                    boxShadow: '0 2px 8px rgba(34,197,94,0.3)',
+                  }}
+                >
+                  {licenseUI.loading ? '⏳ Activation...' : '✅ Activer les licences'}
+                </button>
+
+                <button
+                  disabled={licenseUI.loading || licenseUI.scope === 'count' || (licenseUI.scope === 'school' && !licenseUI.schoolId) || (licenseUI.scope === 'class' && !licenseUI.classId)}
+                  onClick={async () => {
+                    if (!window.confirm('⚠️ Désactiver les licences pour la sélection ?')) return;
+                    setLicenseUI(prev => ({ ...prev, loading: true, result: null }));
+                    try {
+                      const backendUrl = getBackendUrl();
+                      const res = await fetch(`${backendUrl}/api/admin/licenses/bulk-deactivate`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ scope: licenseUI.scope, schoolId: licenseUI.schoolId, classId: licenseUI.classId }),
+                      });
+                      const data = await res.json();
+                      setLicenseUI(prev => ({ ...prev, loading: false, result: { type: 'warning', message: `🔒 ${data.deactivated} licence(s) désactivée(s).` } }));
+                      const fRes = await fetch(`${backendUrl}/api/admin/licenses/filters`);
+                      const fData = await fRes.json();
+                      if (fData.ok) setFilters({ schools: fData.schools, classes: fData.classes, summary: fData.summary });
+                    } catch (e) {
+                      setLicenseUI(prev => ({ ...prev, loading: false, result: { type: 'error', message: `❌ Erreur: ${e.message}` } }));
+                    }
+                  }}
+                  style={{
+                    padding: '10px 24px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', fontSize: 14, fontWeight: 600,
+                    background: '#fff', color: '#ef4444',
+                    opacity: licenseUI.loading || licenseUI.scope === 'count' ? 0.4 : 1,
+                  }}
+                >
+                  🔒 Désactiver
+                </button>
+              </div>
+
+              {/* Result message */}
+              {licenseUI.result && (
+                <div style={{
+                  marginTop: 12, padding: '10px 14px', borderRadius: 8, fontSize: 14, fontWeight: 600,
+                  background: licenseUI.result.type === 'success' ? '#f0fdf4' : licenseUI.result.type === 'warning' ? '#fffbeb' : '#fef2f2',
+                  color: licenseUI.result.type === 'success' ? '#16a34a' : licenseUI.result.type === 'warning' ? '#d97706' : '#dc2626',
+                  border: `1px solid ${licenseUI.result.type === 'success' ? '#bbf7d0' : licenseUI.result.type === 'warning' ? '#fde68a' : '#fecaca'}`,
+                }}>
+                  {licenseUI.result.message}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Liste de TOUS les utilisateurs inscrits */}
