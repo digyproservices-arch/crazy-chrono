@@ -127,7 +127,7 @@ const NavBar = () => {
               src={logoSrc}
               alt="Crazy Chrono"
               className="cc-logo-float"
-              style={{ height: 95, width: 'auto', objectFit: 'contain' }}
+              style={{ height: 95, width: 'auto', objectFit: 'contain', marginLeft: 8, marginTop: 6 }}
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
           </div>
