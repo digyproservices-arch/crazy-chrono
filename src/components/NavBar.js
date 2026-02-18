@@ -87,7 +87,7 @@ const NavBar = () => {
     <>
       <nav style={{
         background: `linear-gradient(135deg, ${CC.tealDeep} 0%, ${CC.teal} 50%, ${CC.tealDark} 100%)`,
-        padding: '0 20px',
+        padding: '0 20px 0 0',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -96,26 +96,40 @@ const NavBar = () => {
         top: 0,
         zIndex: 1000,
         boxShadow: '0 3px 16px rgba(13,106,122,0.35)',
-        fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif"
+        fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif",
+        overflow: 'visible'
       }}>
-        {/* ===== LOGO ===== */}
+        {/* ===== LOGO IN CIRCLE ===== */}
         <Link to="/modes" style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          textDecoration: 'none', flexShrink: 0
+          display: 'flex', alignItems: 'center',
+          textDecoration: 'none', flexShrink: 0,
+          position: 'relative',
+          zIndex: 1002,
+          marginLeft: 8
         }}>
-          <img
-            src={logoSrc}
-            alt="Crazy Chrono"
-            style={{ height: 42, width: 'auto', objectFit: 'contain' }}
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-          />
-          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-            <span style={{ fontSize: 18, fontWeight: 900, color: CC.yellow, letterSpacing: 1.5, textShadow: `1px 1px 0 ${CC.brown}` }}>
-              CRAZY
-            </span>
-            <span style={{ fontSize: 14, fontWeight: 800, color: CC.white, letterSpacing: 2, textShadow: `1px 1px 0 ${CC.brown}` }}>
-              CHRONO
-            </span>
+          <div style={{
+            width: 100,
+            height: 100,
+            borderRadius: '50%',
+            background: `linear-gradient(135deg, ${CC.teal} 0%, ${CC.tealDark} 100%)`,
+            border: `3px solid ${CC.yellow}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 20px rgba(13,106,122,0.4)',
+            marginTop: 30,
+            transition: 'transform 0.2s',
+            cursor: 'pointer'
+          }}
+          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            <img
+              src={logoSrc}
+              alt="Crazy Chrono"
+              style={{ height: 72, width: 'auto', objectFit: 'contain' }}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
           </div>
         </Link>
 
