@@ -1895,13 +1895,54 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
     const { studentId } = req.params;
     console.log('[Performance API] Fetching performance for studentId:', studentId);
 
-    // 1. Récupérer les résultats Arena/Tournoi (match_results)
+    // 0. Résoudre TOUS les IDs possibles pour cet élève (non-UUID → auth UUID et vice-versa)
+    const isValidUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+    const allIds = [studentId]; // Commencer avec l'ID fourni
+    
+    if (!isValidUuid(studentId)) {
+      // studentId est non-UUID (ex: 's002') → chercher l'auth UUID via user_student_mapping
+      try {
+        const { data: mapping } = await supabase
+          .from('user_student_mapping')
+          .select('user_id')
+          .eq('student_id', studentId)
+          .eq('active', true)
+          .single();
+        if (mapping?.user_id) {
+          allIds.push(mapping.user_id);
+          console.log('[Performance API] Mapped', studentId, '→ auth UUID:', mapping.user_id);
+        }
+      } catch (e) {
+        console.warn('[Performance API] user_student_mapping lookup failed:', e.message);
+      }
+    } else {
+      // studentId est déjà un UUID → chercher le student_id associé (pour match_results qui pourrait stocker 's002')
+      try {
+        const { data: mapping } = await supabase
+          .from('user_student_mapping')
+          .select('student_id')
+          .eq('user_id', studentId)
+          .eq('active', true)
+          .single();
+        if (mapping?.student_id && !allIds.includes(mapping.student_id)) {
+          allIds.push(mapping.student_id);
+          console.log('[Performance API] Reverse mapped', studentId, '→ student_id:', mapping.student_id);
+        }
+      } catch (e) { /* best-effort */ }
+    }
+    
+    // Séparer IDs UUID et non-UUID pour les requêtes
+    const uuidIds = allIds.filter(isValidUuid);
+    const allIdsForText = allIds; // Pour les tables avec colonnes TEXT
+    console.log('[Performance API] Query IDs - UUID:', uuidIds, 'All:', allIdsForText);
+
+    // 1. Récupérer les résultats Arena/Tournoi (match_results) — student_id peut être TEXT
     let arenaResults = [];
     try {
       const { data: aResults, error: arenaError } = await supabase
         .from('match_results')
         .select('id, match_id, position, score, time_ms, pairs_validated, errors, created_at')
-        .eq('student_id', studentId)
+        .in('student_id', allIdsForText)
         .order('created_at', { ascending: true });
 
       if (!arenaError && aResults) {
@@ -1914,13 +1955,17 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
       console.warn('[Performance API] match_results query exception:', e.message);
     }
 
-    // 1b. Récupérer les résultats Training (training_results)
+    // 1b. Récupérer les résultats Training (training_results) — student_id est UUID
     let trainingResults = [];
+    if (uuidIds.length === 0) {
+      console.warn('[Performance API] No UUID IDs available for training_results query, skipping');
+    }
     try {
+      const queryIds = uuidIds.length > 0 ? uuidIds : allIds;
       const { data: tResults, error: tError } = await supabase
         .from('training_results')
         .select('id, session_id, position, score, time_ms, pairs_validated, errors, created_at')
-        .eq('student_id', studentId)
+        .in('student_id', queryIds)
         .order('created_at', { ascending: true });
       
       if (!tError && tResults && tResults.length > 0) {

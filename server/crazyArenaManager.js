@@ -548,7 +548,8 @@ class CrazyArenaManager {
     this.io.to(matchId).emit('training:game-start', gameStartPayload);
 
     // 💾 PERSISTENCE: Créer session + résultats initiaux en DB
-    this.persistMatchStart(matchId).catch(err => {
+    // Stocker la promesse pour que persistMatchEnd puisse attendre la fin
+    match._persistStartPromise = this.persistMatchStart(matchId).catch(err => {
       logger.error('[CrazyArena][Training] Erreur persistMatchStart (non-bloquante)', { matchId, error: err.message });
     });
 
@@ -2601,6 +2602,12 @@ class CrazyArenaManager {
     if (!match || !match._sessionId) return;
 
     try {
+      // Attendre que persistMatchStart soit terminé (éviter race condition)
+      if (match._persistStartPromise) {
+        await match._persistStartPromise;
+        logger.info('[CrazyArena][Training] ✅ persistMatchStart terminé, mise à jour des scores...');
+      }
+      
       // Marquer la session comme terminée
       await this.supabase
         .from('training_sessions')
@@ -2609,10 +2616,41 @@ class CrazyArenaManager {
 
       // Mettre à jour chaque résultat avec position finale
       for (const player of ranking) {
-        const resultId = match._resultIds?.[player.studentId];
-        if (!resultId) continue;
+        let resultId = match._resultIds?.[player.studentId];
+        
+        // Fallback: essayer avec authId si studentId n'a pas de mapping
+        if (!resultId && player.authId) {
+          resultId = match._resultIds?.[player.authId];
+        }
+        
+        // Fallback DB: chercher le résultat directement par session_id + student_id
+        if (!resultId) {
+          const dbStudentId = player.authId || player.studentId;
+          logger.warn('[CrazyArena][Training] ⚠️ No resultId in _resultIds for', { studentId: player.studentId, authId: player.authId, keys: Object.keys(match._resultIds || {}) });
+          try {
+            const { data: found } = await this.supabase
+              .from('training_results')
+              .select('id')
+              .eq('session_id', match._sessionId)
+              .eq('student_id', dbStudentId)
+              .single();
+            if (found) {
+              resultId = found.id;
+              logger.info('[CrazyArena][Training] 🔍 Fallback DB lookup found resultId:', resultId);
+            }
+          } catch (lookupErr) {
+            logger.warn('[CrazyArena][Training] ⚠️ Fallback lookup failed:', lookupErr.message);
+          }
+        }
+        
+        if (!resultId) {
+          logger.error('[CrazyArena][Training] ❌ Cannot find resultId for player, skipping update', { studentId: player.studentId, authId: player.authId });
+          continue;
+        }
 
-        await this.supabase
+        logger.info('[CrazyArena][Training] 📝 Updating result', { resultId, studentId: player.studentId, score: player.score, pairs: player.pairsValidated, errors: player.errors, timeMs: player.timeMs });
+        
+        const { error: updateErr } = await this.supabase
           .from('training_results')
           .update({
             position: player.position,
@@ -2622,6 +2660,10 @@ class CrazyArenaManager {
             errors: player.errors || 0
           })
           .eq('id', resultId);
+        
+        if (updateErr) {
+          logger.error('[CrazyArena][Training] ❌ Update training_results failed', { resultId, error: updateErr.message });
+        }
       }
 
       // Mettre à jour les stats cumulées (best-effort)
