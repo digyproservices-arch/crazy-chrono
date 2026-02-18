@@ -159,12 +159,26 @@ function ArenaSpectatorInner() {
   const zonesRef = useRef([]);
   const [pauseInfo, setPauseInfo] = useState(null);
   const [flashPair, setFlashPair] = useState(null); // { zoneAId, zoneBId, color, playerName }
+  const fullscreenRequestedRef = useRef(false);
+
+  // Helper: demander le plein écran natif (avec fallback webkit)
+  const requestNativeFullscreen = () => {
+    if (fullscreenRequestedRef.current) return;
+    fullscreenRequestedRef.current = true;
+    try {
+      const el = document.documentElement;
+      const fsMethod = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+      if (fsMethod && !document.fullscreenElement && !document.webkitFullscreenElement) {
+        fsMethod.call(el).catch(() => {});
+      }
+    } catch {}
+  };
 
   const addEvent = useCallback((text, type = 'info', extra = null) => {
     setEvents(prev => [{ text, type, time: Date.now(), ...(extra || {}) }, ...prev].slice(0, 50));
   }, []);
 
-  // Plein écran jeu: masquer navbar + verrouiller scroll + requestFullscreen (tablette/mobile)
+  // Plein écran jeu: masquer navbar + verrouiller scroll (tablette/mobile)
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -172,26 +186,17 @@ function ArenaSpectatorInner() {
     document.body.classList.add('cc-game');
     try { window.dispatchEvent(new CustomEvent('cc:gameMode', { detail: { on: true } })); } catch {}
     try { window.dispatchEvent(new CustomEvent('cc:gameFullscreen', { detail: { on: true } })); } catch {}
-    const tryFullscreen = async () => {
-      try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen?.(); } catch {}
-    };
-    tryFullscreen();
-    const onFirstInteraction = async () => {
-      try { if (!document.fullscreenElement) await document.documentElement.requestFullscreen?.(); } catch {}
-      document.removeEventListener('touchstart', onFirstInteraction);
-      document.removeEventListener('click', onFirstInteraction);
-    };
-    document.addEventListener('touchstart', onFirstInteraction, { once: true });
-    document.addEventListener('click', onFirstInteraction, { once: true });
     return () => {
       document.body.style.overflow = prev;
       document.documentElement.style.overflow = '';
       document.body.classList.remove('cc-game');
       try { window.dispatchEvent(new CustomEvent('cc:gameMode', { detail: { on: false } })); } catch {}
       try { window.dispatchEvent(new CustomEvent('cc:gameFullscreen', { detail: { on: false } })); } catch {}
-      try { if (document.fullscreenElement) document.exitFullscreen?.(); } catch {}
-      document.removeEventListener('touchstart', onFirstInteraction);
-      document.removeEventListener('click', onFirstInteraction);
+      try {
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        if (fsEl) (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen)?.call(document);
+      } catch {}
+      fullscreenRequestedRef.current = false;
     };
   }, []);
 
@@ -507,7 +512,11 @@ function ArenaSpectatorInner() {
   const isFlashedZone = (zoneId) => flashPair && (flashPair.zoneAId === zoneId || flashPair.zoneBId === zoneId);
 
   return (
-    <div style={{
+    <div
+      onTouchStart={requestNativeFullscreen}
+      onClick={requestNativeFullscreen}
+      style={{
+      position: 'fixed', inset: 0,
       height: '100vh',
       maxHeight: '100vh',
       background: CC.bgGradient,

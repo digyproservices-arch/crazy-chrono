@@ -1075,9 +1075,10 @@ const Carte = () => {
   // Helpers pour le mode plein écran
   const enterGameFullscreen = useMemo(() => (async () => {
     try {
-      if (!document.fullscreenElement) {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
         const root = document.documentElement;
-        await root.requestFullscreen?.();
+        const fsMethod = root.requestFullscreen || root.webkitRequestFullscreen || root.mozRequestFullScreen || root.msRequestFullscreen;
+        if (fsMethod) await fsMethod.call(root);
       }
     } catch {}
     try { document.body.style.overflow = 'hidden'; } catch {}
@@ -1122,8 +1123,10 @@ const Carte = () => {
 
   const exitGameFullscreen = useMemo(() => (async () => {
     try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen?.();
+      const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+      if (fsEl) {
+        const exitMethod = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+        if (exitMethod) await exitMethod.call(document);
       }
     } catch {}
     try { document.body.style.overflow = ''; } catch {}

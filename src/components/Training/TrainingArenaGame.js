@@ -188,6 +188,7 @@ export default function TrainingArenaGame() {
   const [trainingPauseInfo, setTrainingPauseInfo] = useState(null); // { paused, disconnectedPlayer, gracePeriodMs }
   const [hoveredZoneId, setHoveredZoneId] = useState(null);
   const [validatedFlashZones, setValidatedFlashZones] = useState(new Set());
+  const fullscreenRequestedRef = useRef(false);
   const mpLastPairRef = useRef(null);
   const gameActiveTimeoutRef = useRef(null);
   const lastTimerTickRef = useRef(0);
@@ -223,7 +224,20 @@ export default function TrainingArenaGame() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Plein écran jeu: masquer navbar + verrouiller scroll + requestFullscreen (tablette/mobile)
+  // Helper: demander le plein écran natif (avec fallback webkit)
+  const requestNativeFullscreen = () => {
+    if (fullscreenRequestedRef.current) return;
+    fullscreenRequestedRef.current = true;
+    try {
+      const el = document.documentElement;
+      const fsMethod = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+      if (fsMethod && !document.fullscreenElement && !document.webkitFullscreenElement) {
+        fsMethod.call(el).catch(() => {});
+      }
+    } catch {}
+  };
+
+  // Plein écran jeu: masquer navbar + verrouiller scroll (tablette/mobile)
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -231,36 +245,17 @@ export default function TrainingArenaGame() {
     document.body.classList.add('cc-game');
     try { window.dispatchEvent(new CustomEvent('cc:gameMode', { detail: { on: true } })); } catch {}
     try { window.dispatchEvent(new CustomEvent('cc:gameFullscreen', { detail: { on: true } })); } catch {}
-    // Tenter le plein écran natif (fonctionne sur Android, peut échouer sur iOS sans geste)
-    const tryFullscreen = async () => {
-      try {
-        if (!document.fullscreenElement) {
-          await document.documentElement.requestFullscreen?.();
-        }
-      } catch {}
-    };
-    tryFullscreen();
-    // Fallback: au premier touch/clic utilisateur, activer le plein écran (iOS nécessite un geste)
-    const onFirstInteraction = async () => {
-      try {
-        if (!document.fullscreenElement) {
-          await document.documentElement.requestFullscreen?.();
-        }
-      } catch {}
-      document.removeEventListener('touchstart', onFirstInteraction);
-      document.removeEventListener('click', onFirstInteraction);
-    };
-    document.addEventListener('touchstart', onFirstInteraction, { once: true });
-    document.addEventListener('click', onFirstInteraction, { once: true });
     return () => {
       document.body.style.overflow = prev;
       document.documentElement.style.overflow = '';
       document.body.classList.remove('cc-game');
       try { window.dispatchEvent(new CustomEvent('cc:gameMode', { detail: { on: false } })); } catch {}
       try { window.dispatchEvent(new CustomEvent('cc:gameFullscreen', { detail: { on: false } })); } catch {}
-      try { if (document.fullscreenElement) document.exitFullscreen?.(); } catch {}
-      document.removeEventListener('touchstart', onFirstInteraction);
-      document.removeEventListener('click', onFirstInteraction);
+      try {
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        if (fsEl) (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen)?.call(document);
+      } catch {}
+      fullscreenRequestedRef.current = false;
     };
   }, []);
 
@@ -1063,7 +1058,10 @@ export default function TrainingArenaGame() {
   };
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', background: CC.bgGradient, touchAction: 'none' }}>
+    <div
+      onTouchStart={requestNativeFullscreen}
+      onClick={requestNativeFullscreen}
+      style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', overflow: 'hidden', background: CC.bgGradient, touchAction: 'none' }}>
       {/* Particules flottantes CSS-only */}
       <div className="cc-game-particles" />
       {/* Layout: carte à gauche, sidebar à droite (desktop) */}
