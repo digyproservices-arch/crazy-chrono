@@ -99,25 +99,24 @@ const NavBar = () => {
         fontFamily: "'Nunito', 'Segoe UI', system-ui, sans-serif",
         overflow: 'visible'
       }}>
-        {/* ===== LOGO IN CIRCLE ===== */}
+        {/* ===== LOGO IN CIRCLE — coin supérieur gauche, partiellement caché ===== */}
         <Link to="/modes" style={{
-          display: 'flex', alignItems: 'center',
-          textDecoration: 'none', flexShrink: 0,
-          position: 'relative',
+          position: 'absolute',
+          top: -18,
+          left: -18,
           zIndex: 1002,
-          marginLeft: 8
+          textDecoration: 'none'
         }}>
           <div style={{
-            width: 100,
-            height: 100,
+            width: 140,
+            height: 140,
             borderRadius: '50%',
             background: `linear-gradient(135deg, ${CC.yellowLt} 0%, ${CC.yellow} 60%, #E89B1A 100%)`,
-            border: `3px solid ${CC.teal}`,
+            border: `3.5px solid ${CC.teal}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: `0 4px 20px rgba(245,166,35,0.4), inset 0 -2px 6px rgba(0,0,0,0.08)`,
-            marginTop: 30,
+            boxShadow: `0 4px 24px rgba(245,166,35,0.45), inset 0 -2px 8px rgba(0,0,0,0.08)`,
             transition: 'transform 0.2s',
             cursor: 'pointer'
           }}
@@ -128,11 +127,13 @@ const NavBar = () => {
               src={logoSrc}
               alt="Crazy Chrono"
               className="cc-logo-float"
-              style={{ height: 72, width: 'auto', objectFit: 'contain' }}
+              style={{ height: 95, width: 'auto', objectFit: 'contain' }}
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
           </div>
         </Link>
+        {/* Spacer pour le contenu de la nav après le cercle */}
+        <div style={{ width: 110, flexShrink: 0 }} />
 
         {/* ===== DESKTOP NAV ===== */}
         <div style={{
