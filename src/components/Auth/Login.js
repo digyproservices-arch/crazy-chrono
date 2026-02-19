@@ -367,15 +367,18 @@ export default function Login({ onLogin }) {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, background: 'linear-gradient(135deg, #0D6A7A 0%, #1AACBE 50%, #148A9C 100%)' }}>
       <form onSubmit={handleLogin} style={{ width: 400, maxWidth: '92vw', background: '#fff', border: 'none', borderRadius: 16, padding: '32px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <img src={`${process.env.PUBLIC_URL}/images/logo_crazy_chrono.png`} alt="Crazy Chrono" style={{ height: 80, width: 'auto', objectFit: 'contain', marginBottom: 8 }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-          <h1 style={{ margin: '0 0 2px 0', fontSize: 28, fontWeight: 900, color: '#F5A623', textShadow: '1px 1px 0 #4A3728', letterSpacing: 2 }}>CRAZY</h1>
-          <h1 style={{ margin: '0 0 6px 0', fontSize: 22, fontWeight: 800, color: '#1AACBE', letterSpacing: 3 }}>CHRONO</h1>
-          <p style={{ margin: 0, fontSize: 13, color: '#6B5443' }}>Connectez-vous pour jouer ou administrer</p>
+          <div style={{ display: 'inline-block', position: 'relative', width: 120, height: 120, marginBottom: 10 }}>
+            <div style={{ width: 120, height: 120, borderRadius: '50%', background: 'linear-gradient(135deg, #F5A623 0%, #FFD700 100%)', border: '4px solid #0D6A7A', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 24px rgba(245,166,35,0.35)', animation: 'loginLogoFloat 3s ease-in-out infinite' }}>
+              <img src={`${process.env.PUBLIC_URL}/images/logo_crazy_chrono.png`} alt="Crazy Chrono" style={{ height: 80, width: 'auto', objectFit: 'contain' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            </div>
+          </div>
+          <style>{`@keyframes loginLogoFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }`}</style>
+          <p style={{ margin: 0, fontSize: 13, color: '#6B5443' }}>Connectez-vous pour jouer</p>
         </div>
         {/* Toggle Enseignant/Parent vs Élève */}
         <div style={{ display: 'flex', borderRadius: 10, overflow: 'hidden', border: '2px solid #e2e8f0', marginBottom: 16 }}>
           <button type="button" onClick={() => { setStudentMode(false); setError(''); setInfo(''); }} style={{ flex: 1, padding: '10px 0', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14, background: !studentMode ? '#0D6A7A' : '#f8fafc', color: !studentMode ? '#fff' : '#64748b', transition: 'all 0.2s' }}>
-            Enseignant / Parent
+            Connexion
           </button>
           <button type="button" onClick={() => { setStudentMode(true); setSignupMode(false); setError(''); setInfo(''); }} style={{ flex: 1, padding: '10px 0', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14, background: studentMode ? '#F5A623' : '#f8fafc', color: studentMode ? '#4A3728' : '#64748b', transition: 'all 0.2s' }}>
             Je suis élève
