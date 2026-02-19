@@ -176,6 +176,18 @@ app.post('/usage/can-start', async (req, res) => {
       return res.json({ ok: true, allow: true, limit: FREE_LIMIT, sessionsToday: 0, reason: 'no_admin_config' });
     }
 
+    // If user is admin or teacher, always allow (unlimited access)
+    try {
+      const { data: profile } = await supabaseAdmin
+        .from('user_profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+      if (profile && ['admin', 'teacher'].includes(profile.role)) {
+        return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason: 'role_unlimited' });
+      }
+    } catch {}
+
     // If user has active subscription, allow
     try {
       const { data: subs, error: subErr } = await supabaseAdmin
