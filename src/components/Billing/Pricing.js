@@ -207,10 +207,10 @@ export default function Pricing() {
       <section id="particuliers" style={sectionStyle}>
         <SectionTitle icon="👨‍👩‍👧‍👦" title="Particuliers" subtitle="Choisissez la formule adaptée à votre famille" />
 
-        <div style={{
+        <div className="cc-pricing-grid" style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: 20,
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: 16,
           marginTop: 24,
         }}>
           {PLANS_PARTICULIERS.map((plan) => (
@@ -429,6 +429,14 @@ export default function Pricing() {
           </button>
         </div>
       </div>
+      <style>{`
+        @media (max-width: 900px) {
+          .cc-pricing-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (max-width: 540px) {
+          .cc-pricing-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   );
 }
