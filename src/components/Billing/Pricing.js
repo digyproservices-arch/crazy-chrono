@@ -26,25 +26,37 @@ const PLANS_PARTICULIERS = [
     id: 'solidaire',
     name: 'Solidaire',
     subtitle: 'Accès complet à petit prix',
-    price: '5,90',
+    price: '4,90',
     period: '/mois',
     badge: null,
-    description: 'Pour les familles à revenus modestes. Même accès complet que le plan Standard.',
+    description: 'Pour les familles à revenus modestes. Même accès complet que le plan Individuel. Aucun justificatif demandé.',
     priceId: 'price_solidaire_monthly',
     highlight: false,
     icon: '💛',
   },
   {
-    id: 'standard',
-    name: 'Standard',
+    id: 'individuel',
+    name: 'Individuel',
     subtitle: 'Le plus populaire',
     price: '9,90',
     period: '/mois',
     badge: 'Populaire',
-    description: 'Accès illimité à tous les modes de jeu, thématiques et niveaux.',
-    priceId: 'price_standard_monthly',
+    description: 'Accès illimité à tous les modes de jeu, thématiques et niveaux pour 1 enfant.',
+    priceId: 'price_individuel_monthly',
     highlight: true,
     icon: '⭐',
+  },
+  {
+    id: 'famille',
+    name: 'Famille',
+    subtitle: 'Jusqu\'à 4 enfants',
+    price: '14,90',
+    period: '/mois',
+    badge: 'Multi-enfants',
+    description: 'Idéal pour les familles : 2 à 4 comptes enfants, chacun avec son propre suivi et historique.',
+    priceId: 'price_famille_monthly',
+    highlight: false,
+    icon: '👨‍👩‍👧‍👦',
   },
   {
     id: 'annuel',
@@ -53,7 +65,7 @@ const PLANS_PARTICULIERS = [
     price: '89,90',
     period: '/an',
     badge: '2 mois offerts',
-    description: 'Le meilleur rapport qualité-prix. Équivalent à 7,49€/mois.',
+    description: 'Le meilleur rapport qualité-prix. Équivalent à 7,49€/mois. Pour 1 enfant.',
     priceId: 'price_annual',
     highlight: false,
     icon: '🏆',
@@ -61,12 +73,11 @@ const PLANS_PARTICULIERS = [
 ];
 
 const TIERS_INSTITUTIONS = [
-  { min: 1, max: 10, price: '9,90', annual: '99,00', example: '1 professeur qui teste' },
-  { min: 11, max: 50, price: '6,90', annual: '69,00', example: '2 classes' },
-  { min: 51, max: 200, price: '4,90', annual: '49,00', example: '1 école' },
-  { min: 201, max: 1000, price: '3,90', annual: '39,00', example: '1 circonscription' },
-  { min: 1001, max: 2000, price: '2,90', annual: '29,00', example: 'Grande circonscription' },
-  { min: 2001, max: null, price: '1,90', annual: '19,00', example: 'Rectorat / Académie' },
+  { min: 1, max: 30, price: '9,90', annual: '99,00', example: '1 professeur qui teste' },
+  { min: 31, max: 100, price: '7,90', annual: '79,00', example: '2-3 classes' },
+  { min: 101, max: 300, price: '5,90', annual: '59,00', example: '1 école' },
+  { min: 301, max: 1000, price: '4,90', annual: '49,00', example: '1 groupe scolaire' },
+  { min: 1001, max: null, price: null, annual: null, example: 'Académie / Rectorat' },
 ];
 
 const FEATURES_ALL = [
@@ -110,7 +121,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Qu\'est-ce que le tarif Solidaire ?',
-    a: 'Le tarif Solidaire (5,90€/mois) est destiné aux familles à revenus modestes. Il donne exactement le même accès que le tarif Standard. Aucun justificatif n\'est demandé, nous faisons confiance.',
+    a: 'Le tarif Solidaire (4,90€/mois) est destiné aux familles à revenus modestes. Il donne exactement le même accès que le tarif Individuel. Aucun justificatif n\'est demandé, nous faisons confiance.',
   },
 ];
 
@@ -273,11 +284,11 @@ export default function Pricing() {
               <div style={{ padding: '14px 16px', fontWeight: 700, color: CC.brown }}>
                 {tier.max ? `${tier.min} — ${tier.max}` : `${tier.min}+`} élèves
               </div>
-              <div style={{ padding: '14px 16px', textAlign: 'center', fontWeight: 800, fontSize: 18, color: CC.tealDeep }}>
-                {tier.price}€
+              <div style={{ padding: '14px 16px', textAlign: 'center', fontWeight: 800, fontSize: tier.price ? 18 : 15, color: tier.price ? CC.tealDeep : CC.yellow }}>
+                {tier.price ? `${tier.price}€` : 'Sur devis'}
               </div>
               <div style={{ padding: '14px 16px', textAlign: 'center', color: '#64748b' }}>
-                {tier.annual}€
+                {tier.annual ? `${tier.annual}€` : '—'}
               </div>
               <div style={{ padding: '14px 16px', color: '#64748b', fontSize: 13 }}>
                 {tier.example}
