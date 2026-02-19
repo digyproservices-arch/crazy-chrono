@@ -31,6 +31,13 @@ export default function TeacherDashboard() {
       const res = await fetch(`${backendUrl}/api/auth/teacher-dashboard`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
+
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        setError('Le serveur est en cours de mise à jour. Réessayez dans 2-3 minutes.');
+        return;
+      }
+
       const json = await res.json();
 
       if (!json.ok) {
@@ -152,13 +159,23 @@ export default function TeacherDashboard() {
   }
 
   if (error) {
+    const isAuthError = error.includes('reconnecter') || error.includes('expirée');
     return (
       <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ ...card, maxWidth: 400, textAlign: 'center' }}>
+        <div style={{ ...card, maxWidth: 450, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>😕</div>
           <h2 style={{ color: '#b91c1c', marginBottom: 8 }}>Erreur</h2>
           <p style={{ color: '#64748b', marginBottom: 16 }}>{error}</p>
-          <button onClick={() => navigate('/login')} style={btn('#0D6A7A', '#fff')}>Se reconnecter</button>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            {!isAuthError && (
+              <button onClick={loadDashboard} style={btn('#0D6A7A', '#fff')}>🔄 Réessayer</button>
+            )}
+            {isAuthError ? (
+              <button onClick={() => navigate('/login')} style={btn('#0D6A7A', '#fff')}>Se reconnecter</button>
+            ) : (
+              <button onClick={() => navigate('/modes')} style={btn('#f1f5f9', '#334155')}>← Retour</button>
+            )}
+          </div>
         </div>
       </div>
     );

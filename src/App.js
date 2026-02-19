@@ -391,7 +391,7 @@ function App() {
               <Route path="/login" element={<Login onLogin={(a) => { setAuth(a); try { localStorage.setItem('cc_auth', JSON.stringify(a)); } catch {}; }} />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/modes" element={<RequireAuth auth={auth}><ModeSelect /></RequireAuth>} />
+              <Route path="/modes" element={<RequireAuth auth={auth}><ModeSelect auth={auth} /></RequireAuth>} />
               <Route path="/config/:mode" element={<RequireAuth auth={auth}><SessionConfig /></RequireAuth>} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/admin/dashboard" element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />

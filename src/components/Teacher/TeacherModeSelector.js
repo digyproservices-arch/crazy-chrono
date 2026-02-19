@@ -77,6 +77,63 @@ const TeacherModeSelector = () => {
         </div>
       </div>
 
+      {/* Séparateur */}
+      <div style={{ margin: '32px 0 16px', textAlign: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1, height: 1, background: '#d1d5db' }} />
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1 }}>Jouer moi-même</span>
+          <div style={{ flex: 1, height: 1, background: '#d1d5db' }} />
+        </div>
+      </div>
+
+      {/* Modes de jeu personnels */}
+      <div className="mode-cards" style={{ marginBottom: 24 }}>
+        <div className="mode-card" style={{ background: 'linear-gradient(135deg, #1AACBE 0%, #148A9C 100%)', color: '#fff', borderColor: '#148A9C' }}>
+          <div className="mode-icon">🎯</div>
+          <h2 style={{ color: '#fff' }}>MODE SOLO</h2>
+          <p className="mode-description" style={{ color: 'rgba(255,255,255,0.9)' }}>
+            Jouez seul et améliorez vos compétences
+          </p>
+          <button 
+            className="mode-button"
+            style={{ background: '#fff', color: '#148A9C', fontWeight: 700 }}
+            onClick={() => navigate('/config/solo')}
+          >
+            JOUER SOLO
+          </button>
+        </div>
+
+        <div className="mode-card" style={{ background: 'linear-gradient(135deg, #F5A623 0%, #d4900e 100%)', color: '#fff', borderColor: '#d4900e' }}>
+          <div className="mode-icon">👥</div>
+          <h2 style={{ color: '#fff' }}>MULTIJOUEUR</h2>
+          <p className="mode-description" style={{ color: 'rgba(255,255,255,0.9)' }}>
+            Défiez vos amis en ligne
+          </p>
+          <button 
+            className="mode-button"
+            style={{ background: '#fff', color: '#d4900e', fontWeight: 700 }}
+            onClick={() => navigate('/config/online')}
+          >
+            JOUER EN LIGNE
+          </button>
+        </div>
+
+        <div className="mode-card" style={{ background: 'linear-gradient(135deg, #0D6A7A 0%, #148A9C 100%)', color: '#fff', borderColor: '#0D6A7A' }}>
+          <div className="mode-icon">📊</div>
+          <h2 style={{ color: '#fff' }}>MES PERFORMANCES</h2>
+          <p className="mode-description" style={{ color: 'rgba(255,255,255,0.9)' }}>
+            Analysez votre progression
+          </p>
+          <button 
+            className="mode-button"
+            style={{ background: '#fff', color: '#0D6A7A', fontWeight: 700 }}
+            onClick={() => navigate('/my-performance')}
+          >
+            VOIR STATS
+          </button>
+        </div>
+      </div>
+
       <div className="mode-info">
         <p>
           💡 <strong>Mode Entraînement:</strong> Créez des sessions d'entraînement 

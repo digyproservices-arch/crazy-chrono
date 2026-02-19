@@ -2,20 +2,21 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import TeacherModeSelector from '../Teacher/TeacherModeSelector';
 
-export default function ModeSelect() {
+export default function ModeSelect({ auth: authProp }) {
   const navigate = useNavigate();
   const go = (mode) => navigate(`/config/${mode}`);
   const [history, setHistory] = React.useState([]);
   const [showAll, setShowAll] = React.useState(false);
   
-  // Détecter si l'utilisateur est professeur ou admin
+  // Utiliser le prop auth (de App.js) avec fallback localStorage
   const auth = React.useMemo(() => {
+    if (authProp && authProp.role) return authProp;
     try {
       return JSON.parse(localStorage.getItem('cc_auth') || '{}');
     } catch {
       return {};
     }
-  }, []);
+  }, [authProp]);
   
   // ✅ FIX: Hook MUST be called before any conditional return (Rules of Hooks)
   React.useEffect(() => {
