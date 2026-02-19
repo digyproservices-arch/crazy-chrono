@@ -1117,9 +1117,10 @@ const Carte = () => {
   const serverAllowsStart = async (userId) => {
     try {
       if (!userId) return { ok: true, allow: true };
-      const resp = await fetchWithTimeout(`${window.location.protocol}//${window.location.hostname}:4000/usage/can-start`, {
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com';
+      const resp = await fetchWithTimeout(`${backendUrl}/usage/can-start`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId })
-      }, 1500);
+      }, 2500);
       const json = await resp.json().catch(() => ({}));
       if (!resp.ok) return { ok: false, allow: true }; // ne pas bloquer si erreur serveur
       return json;

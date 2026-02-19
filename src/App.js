@@ -332,7 +332,7 @@ function App() {
               const json = await res.json().catch(() => ({}));
               if (json && json.ok && json.user) {
                 const role = json.role || 'user';
-                const isPro = (json.subscription === 'active' || json.subscription === 'trialing' || role === 'admin');
+                const isPro = (json.subscription === 'active' || json.subscription === 'trialing');
                 try { localStorage.setItem('cc_subscription_status', isPro ? 'pro' : 'free'); } catch {}
                 // Stocker l'ID utilisateur pour filtrage matchs
                 try { localStorage.setItem('cc_user_id', json.user.id); } catch {}
