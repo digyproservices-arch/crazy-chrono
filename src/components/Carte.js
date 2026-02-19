@@ -3383,6 +3383,14 @@ const handleEditGreenZone = (zone) => {
   // --- Multiplayer state ---
   const [roomId, setRoomId] = useState('default');
   const [playerName, setPlayerName] = useState(() => {
+    try {
+      const storedName = localStorage.getItem('cc_student_name');
+      if (storedName && storedName !== 'Joueur') return storedName;
+      const a = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+      if (a.name && a.name !== 'Utilisateur') return a.name;
+      if (a.firstName) return [a.firstName, a.lastName].filter(Boolean).join(' ').trim();
+      if (a.email) return a.email.split('@')[0];
+    } catch {}
     const rnd = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     return `Joueur-${rnd}`;
   });

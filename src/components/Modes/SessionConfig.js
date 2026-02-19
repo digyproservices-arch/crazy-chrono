@@ -40,7 +40,15 @@ export default function SessionConfig() {
 
   // ===== Mode-spécifique =====
   // Online (multijoueur)
-  const [playerName, setPlayerName] = useState('');
+  const [playerName, setPlayerName] = useState(() => {
+    try {
+      const a = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+      if (a.name && a.name !== 'Utilisateur') return a.name;
+      if (a.firstName) return [a.firstName, a.lastName].filter(Boolean).join(' ').trim();
+      if (a.email) return a.email.split('@')[0];
+    } catch {}
+    return '';
+  });
   const [roomMode, setRoomMode] = useState('create'); // 'create' | 'join'
   const [roomCode, setRoomCode] = useState('');
   const [inLobby, setInLobby] = useState(false); // Salle d'attente

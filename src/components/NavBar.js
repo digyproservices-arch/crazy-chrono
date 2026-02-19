@@ -398,10 +398,13 @@ const ProfileMenu = ({ auth, role, onLogout, navigate }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  let name = auth?.name || auth?.username || auth?.user || 'Utilisateur';
-  if (name === 'Utilisateur' && auth?.email) {
-    name = auth.email.split('@')[0];
+  let name = auth?.name || '';
+  if (!name && auth?.firstName) {
+    name = [auth.firstName, auth.lastName].filter(Boolean).join(' ').trim();
   }
+  if (!name) name = auth?.username || auth?.user || '';
+  if (!name && auth?.email) name = auth.email.split('@')[0];
+  if (!name) name = 'Utilisateur';
   const initials = String(name).trim().split(/\s+/).map(s => s[0]).join('').slice(0, 2).toUpperCase() || 'U';
 
   const ROLE_LABELS = { admin: 'Administrateur', teacher: 'Enseignant', student: 'Élève', guest: 'Invité' };

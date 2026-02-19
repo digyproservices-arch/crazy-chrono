@@ -158,12 +158,19 @@ export default function Login({ onLogin }) {
           .eq('id', user.id)
           .single();
         
+        // Construire un nom d'affichage complet
+        const firstName = userProfile?.first_name || user.user_metadata?.first_name || '';
+        const lastName = userProfile?.last_name || user.user_metadata?.last_name || '';
+        const fullDisplayName = [firstName, lastName].filter(Boolean).join(' ').trim();
+        
         const profile = {
           id: user.id,
           email: user.email,
-          name: userProfile?.first_name || user.user_metadata?.name || user.email?.split('@')[0],
+          name: fullDisplayName || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur',
+          firstName: firstName,
+          lastName: lastName,
           role: userProfile?.role || 'user',
-          token: data?.session?.access_token // Ajouter le token pour les API calls
+          token: data?.session?.access_token
         };
         
         // DEBUG: Vérifier le profil avant sauvegarde
