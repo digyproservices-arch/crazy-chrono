@@ -32,6 +32,7 @@ import MonitoringDashboard from './components/MonitoringDashboard';
 import AdminInvite from './components/Admin/AdminInvite';
 import RectoratDashboard from './components/Rectorat/RectoratDashboard';
 import TeacherModeSelector from './components/Teacher/TeacherModeSelector';
+import TeacherDashboard from './components/Teacher/TeacherDashboard';
 import TrainingSessionCreate from './components/Teacher/TrainingSessionCreate';
 import TrainingManagerDashboard from './components/Teacher/TrainingManagerDashboard';
 import TrainingPlayerLobby from './components/Teacher/TrainingPlayerLobby';
@@ -400,7 +401,8 @@ function App() {
               <Route path="/account" element={<RequireAuth auth={auth}><Account /></RequireAuth>} />
               <Route path="/pricing" element={<RequireAuth auth={auth}><Pricing /></RequireAuth>} />
               <Route path="/debug/progress" element={<RequireAuth auth={auth}><ProgressDebug /></RequireAuth>} />
-              {/* Teacher - Mode Selector (Entraînement vs Tournoi) */}
+              {/* Teacher - Dashboard + Mode Selector */}
+              <Route path="/teacher/dashboard" element={<RequireAuth auth={auth}><TeacherDashboard /></RequireAuth>} />
               <Route path="/teacher" element={<RequireAuth auth={auth}><TeacherModeSelector /></RequireAuth>} />
               <Route path="/teacher/training/create" element={<RequireAuth auth={auth}><TrainingSessionCreate /></RequireAuth>} />
               <Route path="/teacher/training/manager" element={<RequireAuth auth={auth}><TrainingManagerDashboard /></RequireAuth>} />

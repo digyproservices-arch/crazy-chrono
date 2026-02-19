@@ -13,6 +13,27 @@ const TeacherModeSelector = () => {
       </div>
 
       <div className="mode-cards">
+        <div className="mode-card" style={{ borderColor: '#0D6A7A', background: 'linear-gradient(135deg, #f0fdfa 0%, #ecfeff 100%)' }}>
+          <div className="mode-icon">📋</div>
+          <h2>MA CLASSE</h2>
+          <p className="mode-description">
+            Voir mes élèves, codes d'accès et résultats
+          </p>
+          
+          <div className="mode-features">
+            <div className="feature">👥 Liste des élèves</div>
+            <div className="feature">🔑 Codes d'accès</div>
+            <div className="feature">📊 Performances</div>
+          </div>
+
+          <button 
+            className="mode-button training-button"
+            onClick={() => navigate('/teacher/dashboard')}
+          >
+            VOIR MA CLASSE
+          </button>
+        </div>
+
         <div className="mode-card training-mode">
           <div className="mode-icon">📚</div>
           <h2>ENTRAÎNEMENT CLASSE</h2>

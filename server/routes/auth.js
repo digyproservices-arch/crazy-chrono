@@ -280,4 +280,120 @@ router.get('/teacher-class', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/auth/teacher-dashboard
+ * Récupère toutes les classes du professeur + élèves + codes d'accès + stats
+ */
+router.get('/teacher-dashboard', async (req, res) => {
+  try {
+    const supabase = req.app.locals.supabaseAdmin;
+    if (!supabase) {
+      return res.status(500).json({ ok: false, error: 'supabase_not_configured' });
+    }
+
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ ok: false, error: 'missing_token' });
+    }
+
+    const token = authHeader.slice(7).trim();
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) {
+      return res.status(401).json({ ok: false, error: 'invalid_token' });
+    }
+
+    // 1) Find all classes for this teacher
+    const { data: classes, error: classError } = await supabase
+      .from('classes')
+      .select('id, name, level, school_id, teacher_name, teacher_email, student_count, schools(id, name, city)')
+      .eq('teacher_email', user.email);
+
+    if (classError) {
+      console.error('[Auth] teacher-dashboard classError:', classError);
+      return res.status(500).json({ ok: false, error: 'fetch_failed' });
+    }
+
+    if (!classes || classes.length === 0) {
+      return res.json({ ok: true, classes: [], students: [], school: null });
+    }
+
+    const classIds = classes.map(c => c.id);
+    const school = classes[0].schools || null;
+
+    // 2) Get all students in those classes
+    const { data: students, error: studErr } = await supabase
+      .from('students')
+      .select('id, first_name, last_name, full_name, level, class_id, licensed, access_code, avatar_url')
+      .in('class_id', classIds)
+      .order('class_id')
+      .order('last_name');
+
+    if (studErr) {
+      console.error('[Auth] teacher-dashboard studErr:', studErr);
+      return res.status(500).json({ ok: false, error: 'fetch_students_failed' });
+    }
+
+    // 3) Get basic performance stats (total matches per student)
+    let perfMap = {};
+    try {
+      const studentIds = (students || []).map(s => s.id);
+      if (studentIds.length > 0) {
+        // Get training results count
+        const { data: tResults } = await supabase
+          .from('training_results')
+          .select('student_id')
+          .in('student_id', studentIds);
+
+        if (tResults) {
+          tResults.forEach(r => {
+            perfMap[r.student_id] = (perfMap[r.student_id] || 0) + 1;
+          });
+        }
+      }
+    } catch (perfErr) {
+      console.warn('[Auth] teacher-dashboard perfErr:', perfErr.message);
+    }
+
+    // 4) Format response
+    const formattedClasses = classes.map(c => ({
+      id: c.id,
+      name: c.name,
+      level: c.level,
+      studentCount: c.student_count || 0,
+    }));
+
+    const formattedStudents = (students || []).map(s => ({
+      id: s.id,
+      firstName: s.first_name,
+      lastName: s.last_name,
+      fullName: s.full_name,
+      level: s.level,
+      classId: s.class_id,
+      className: classes.find(c => c.id === s.class_id)?.name || '',
+      licensed: s.licensed,
+      accessCode: s.access_code,
+      avatarUrl: s.avatar_url,
+      matchCount: perfMap[s.id] || 0,
+    }));
+
+    return res.json({
+      ok: true,
+      teacher: { email: user.email, name: user.user_metadata?.first_name || user.email },
+      school,
+      classes: formattedClasses,
+      students: formattedStudents,
+      stats: {
+        totalStudents: formattedStudents.length,
+        licensedStudents: formattedStudents.filter(s => s.licensed).length,
+        studentsWithCode: formattedStudents.filter(s => s.accessCode).length,
+        totalMatches: Object.values(perfMap).reduce((a, b) => a + b, 0),
+      }
+    });
+
+  } catch (error) {
+    console.error('[Auth] Error in /teacher-dashboard:', error);
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
 module.exports = router;
