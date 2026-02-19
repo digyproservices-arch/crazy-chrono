@@ -158,6 +158,7 @@ const NavBar = () => {
           )}
 
           <NavLink icon="📊" label="Performances" to="/my-performance" active={isActive('/my-performance')} navigate={navigate} />
+          <NavLink icon="💰" label="Tarifs" to="/pricing" active={isActive('/pricing')} navigate={navigate} />
 
           {isAdmin && (
             <NavDropdown icon="⚙️" label="Administration" active={isActive('/admin') || isActive('/debug')}>
@@ -188,7 +189,7 @@ const NavBar = () => {
             </Link>
           )}
 
-          <a href="https://crazy-chrono.com" style={{
+          <Link to="/pricing" style={{
             fontSize: 12, color: 'rgba(255,255,255,0.7)', textDecoration: 'none',
             padding: '6px 10px', borderRadius: 6, transition: 'color 0.2s'
           }}
@@ -196,7 +197,7 @@ const NavBar = () => {
           onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.7)'}
           >
             🏪 Boutique
-          </a>
+          </Link>
 
           {isLogged && (
             <ProfileMenu auth={auth} role={role} onLogout={onLogout} navigate={navigate} />
@@ -232,6 +233,7 @@ const NavBar = () => {
           {isTeacher && <MobileLink icon="📋" label="Tournoi — Matchs" to="/crazy-arena/manager" navigate={navigate} active={isActive('/crazy-arena/manager')} />}
           {isTeacher && <MobileLink icon="🏅" label="Compétition" to="/crazy-arena/competition" navigate={navigate} active={isActive('/crazy-arena/competition')} />}
           <MobileLink icon="📊" label="Performances" to="/my-performance" navigate={navigate} active={isActive('/my-performance')} />
+          <MobileLink icon="💰" label="Tarifs" to="/pricing" navigate={navigate} active={isActive('/pricing')} />
           {isAdmin && <div style={{ height: 1, background: 'rgba(255,255,255,0.15)', margin: '6px 0' }} />}
           {isAdmin && <MobileLink icon="📊" label="Admin Dashboard" to="/admin/dashboard" navigate={navigate} active={isActive('/admin/dashboard')} />}
           {isAdmin && <MobileLink icon="👥" label="Rôles" to="/admin/roles" navigate={navigate} active={isActive('/admin/roles')} />}
