@@ -18,6 +18,15 @@ function AdminDashboard() {
   const [recentUsers, setRecentUsers] = useState([]);
   const [licenseUI, setLicenseUI] = useState({ open: false, scope: 'all', schoolId: '', classId: '', count: 100, loading: false, result: null });
   const [filters, setFilters] = useState({ schools: [], classes: [], summary: null });
+  // Onboarding école
+  const [onboarding, setOnboarding] = useState({
+    step: 0, // 0=fermé, 1=infos école, 2=upload CSV, 3=aperçu, 4=confirmation, 5=résultat
+    schoolName: '', schoolCity: '', schoolType: 'primaire', circonscriptionId: '',
+    bonCommande: '', bonCommandeValide: false,
+    csvFile: null, csvPreview: null, csvError: null,
+    activateLicenses: true, loading: false, result: null,
+  });
+  const [schoolsList, setSchoolsList] = useState([]);
 
   useEffect(() => {
     async function fetchStats() {
@@ -420,6 +429,368 @@ function AdminDashboard() {
                   {licenseUI.result.message}
                 </div>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* ===== ONBOARDING ÉCOLE — WORKFLOW CSV ===== */}
+        <div style={{ marginTop: '30px', background: '#fff', padding: '20px', borderRadius: '12px', border: '2px solid #F5A623', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 'bold', color: '#0D6A7A', margin: 0 }}>
+              🏫 Inscription école
+            </h2>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <a
+                href={`${getBackendUrl()}/api/admin/onboarding/csv-template`}
+                download
+                style={{ padding: '8px 14px', background: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}
+              >
+                📥 Modèle CSV
+              </a>
+              {onboarding.step === 0 ? (
+                <button
+                  onClick={async () => {
+                    setOnboarding(prev => ({ ...prev, step: 1, result: null, csvPreview: null, csvError: null }));
+                    try {
+                      const res = await fetch(`${getBackendUrl()}/api/admin/onboarding/schools`);
+                      const data = await res.json();
+                      if (data.ok) setSchoolsList(data.schools || []);
+                    } catch (e) { console.error(e); }
+                  }}
+                  style={{ padding: '8px 16px', background: 'linear-gradient(135deg, #0D6A7A, #148A9C)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}
+                >
+                  + Nouvelle école
+                </button>
+              ) : (
+                <button
+                  onClick={() => setOnboarding(prev => ({ ...prev, step: 0, csvPreview: null, csvError: null, result: null }))}
+                  style={{ padding: '6px 14px', background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}
+                >
+                  ✕ Fermer
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Schools list (when closed) */}
+          {onboarding.step === 0 && schoolsList.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #f0f0f0' }}>
+                    <th style={{ padding: 8, textAlign: 'left', color: '#64748b' }}>École</th>
+                    <th style={{ padding: 8, textAlign: 'left', color: '#64748b' }}>Ville</th>
+                    <th style={{ padding: 8, textAlign: 'center', color: '#64748b' }}>Classes</th>
+                    <th style={{ padding: 8, textAlign: 'center', color: '#64748b' }}>Élèves</th>
+                    <th style={{ padding: 8, textAlign: 'center', color: '#64748b' }}>Licenciés</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {schoolsList.map(s => (
+                    <tr key={s.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      <td style={{ padding: 8, color: '#334155', fontWeight: 600 }}>{s.name}</td>
+                      <td style={{ padding: 8, color: '#64748b' }}>{s.city || '—'}</td>
+                      <td style={{ padding: 8, textAlign: 'center', color: '#334155' }}>{s.classCount}</td>
+                      <td style={{ padding: 8, textAlign: 'center', color: '#334155' }}>{s.studentCount}</td>
+                      <td style={{ padding: 8, textAlign: 'center' }}>
+                        <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 700, background: s.licensedCount === s.studentCount && s.studentCount > 0 ? '#dcfce7' : '#fef3c7', color: s.licensedCount === s.studentCount && s.studentCount > 0 ? '#16a34a' : '#d97706' }}>
+                          {s.licensedCount}/{s.studentCount}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {onboarding.step === 0 && schoolsList.length === 0 && (
+            <div style={{ fontSize: 14, color: '#94a3b8', textAlign: 'center', padding: 20 }}>
+              Aucune école enregistrée. Cliquez sur "+ Nouvelle école" ou téléchargez le modèle CSV.
+            </div>
+          )}
+
+          {/* STEP 1: School info + Bon de commande */}
+          {onboarding.step === 1 && (
+            <div style={{ background: '#f8fafc', borderRadius: 10, padding: 16, border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+                {['1. École', '2. CSV', '3. Aperçu', '4. Import'].map((label, idx) => (
+                  <div key={idx} style={{ flex: 1, padding: '6px 0', textAlign: 'center', fontSize: 12, fontWeight: 700, borderRadius: 6, background: onboarding.step === idx + 1 ? '#0D6A7A' : '#e2e8f0', color: onboarding.step === idx + 1 ? '#fff' : '#94a3b8' }}>
+                    {label}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 4 }}>Nom de l'école *</label>
+                  <input value={onboarding.schoolName} onChange={e => setOnboarding(p => ({ ...p, schoolName: e.target.value }))} placeholder="École Primaire Lamentin" style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 4 }}>Ville</label>
+                  <input value={onboarding.schoolCity} onChange={e => setOnboarding(p => ({ ...p, schoolCity: e.target.value }))} placeholder="Lamentin" style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 4 }}>Type</label>
+                  <select value={onboarding.schoolType} onChange={e => setOnboarding(p => ({ ...p, schoolType: e.target.value }))} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }}>
+                    <option value="primaire">Primaire</option>
+                    <option value="college">Collège</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 4 }}>Circonscription</label>
+                  <input value={onboarding.circonscriptionId} onChange={e => setOnboarding(p => ({ ...p, circonscriptionId: e.target.value }))} placeholder="CIRC_GP_1" style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }} />
+                </div>
+              </div>
+              <div style={{ marginBottom: 12, padding: 12, background: '#fffbeb', borderRadius: 8, border: '1px solid #fde68a' }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#92400e', display: 'block', marginBottom: 4 }}>📋 Bon de commande</label>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <input value={onboarding.bonCommande} onChange={e => setOnboarding(p => ({ ...p, bonCommande: e.target.value }))} placeholder="N° bon de commande (optionnel)" style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #fde68a', fontSize: 14 }} />
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#334155', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={onboarding.bonCommandeValide} onChange={e => setOnboarding(p => ({ ...p, bonCommandeValide: e.target.checked }))} />
+                    Validé / Payé
+                  </label>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  disabled={!onboarding.schoolName.trim()}
+                  onClick={() => setOnboarding(p => ({ ...p, step: 2 }))}
+                  style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, background: onboarding.schoolName.trim() ? '#0D6A7A' : '#e2e8f0', color: onboarding.schoolName.trim() ? '#fff' : '#94a3b8' }}
+                >
+                  Suivant →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: Upload CSV */}
+          {onboarding.step === 2 && (
+            <div style={{ background: '#f8fafc', borderRadius: 10, padding: 16, border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+                {['1. École', '2. CSV', '3. Aperçu', '4. Import'].map((label, idx) => (
+                  <div key={idx} style={{ flex: 1, padding: '6px 0', textAlign: 'center', fontSize: 12, fontWeight: 700, borderRadius: 6, background: onboarding.step === idx + 1 ? '#0D6A7A' : idx + 1 < onboarding.step ? '#22c55e' : '#e2e8f0', color: onboarding.step === idx + 1 || idx + 1 < onboarding.step ? '#fff' : '#94a3b8' }}>
+                    {idx + 1 < onboarding.step ? '✓' : ''} {label}
+                  </div>
+                ))}
+              </div>
+              <div style={{ textAlign: 'center', padding: '30px 20px', border: '2px dashed #cbd5e1', borderRadius: 12, background: '#fff', marginBottom: 12 }}>
+                <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
+                <div style={{ fontSize: 14, color: '#64748b', marginBottom: 12 }}>
+                  Déposez ici le fichier CSV rempli par l'école
+                </div>
+                <input
+                  type="file"
+                  accept=".csv,.txt"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setOnboarding(p => ({ ...p, csvFile: file, loading: true, csvError: null, csvPreview: null }));
+                    try {
+                      const text = await file.text();
+                      const backendUrl = getBackendUrl();
+                      const res = await fetch(`${backendUrl}/api/admin/onboarding/preview-csv`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: text,
+                      });
+                      const data = await res.json();
+                      if (data.ok) {
+                        setOnboarding(p => ({ ...p, csvPreview: data.preview, loading: false, step: 3 }));
+                      } else {
+                        setOnboarding(p => ({ ...p, csvError: data.error, loading: false }));
+                      }
+                    } catch (err) {
+                      setOnboarding(p => ({ ...p, csvError: err.message, loading: false }));
+                    }
+                  }}
+                  style={{ display: 'block', margin: '0 auto' }}
+                />
+                {onboarding.loading && <div style={{ marginTop: 10, fontSize: 14, color: '#0D6A7A', fontWeight: 600 }}>⏳ Analyse du fichier...</div>}
+                {onboarding.csvError && <div style={{ marginTop: 10, fontSize: 14, color: '#dc2626', fontWeight: 600 }}>❌ {onboarding.csvError}</div>}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <button onClick={() => setOnboarding(p => ({ ...p, step: 1 }))} style={{ padding: '10px 24px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', fontSize: 14, fontWeight: 600, background: '#fff', color: '#64748b' }}>
+                  ← Retour
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: Preview parsed data */}
+          {onboarding.step === 3 && onboarding.csvPreview && (
+            <div style={{ background: '#f8fafc', borderRadius: 10, padding: 16, border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 16 }}>
+                {['1. École', '2. CSV', '3. Aperçu', '4. Import'].map((label, idx) => (
+                  <div key={idx} style={{ flex: 1, padding: '6px 0', textAlign: 'center', fontSize: 12, fontWeight: 700, borderRadius: 6, background: onboarding.step === idx + 1 ? '#0D6A7A' : idx + 1 < onboarding.step ? '#22c55e' : '#e2e8f0', color: onboarding.step === idx + 1 || idx + 1 < onboarding.step ? '#fff' : '#94a3b8' }}>
+                    {idx + 1 < onboarding.step ? '✓' : ''} {label}
+                  </div>
+                ))}
+              </div>
+
+              {/* Summary cards */}
+              <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 120, padding: 12, background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: '#0D6A7A' }}>{onboarding.csvPreview.totalStudents}</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>Élèves</div>
+                </div>
+                <div style={{ flex: 1, minWidth: 120, padding: 12, background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: '#0D6A7A' }}>{onboarding.csvPreview.totalClasses}</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>Classes</div>
+                </div>
+                <div style={{ flex: 1, minWidth: 120, padding: 12, background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: '#0D6A7A' }}>{onboarding.schoolName}</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>École</div>
+                </div>
+              </div>
+
+              {/* Errors */}
+              {onboarding.csvPreview.errors?.length > 0 && (
+                <div style={{ marginBottom: 12, padding: 10, background: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca', fontSize: 13, color: '#dc2626' }}>
+                  <strong>⚠️ {onboarding.csvPreview.errors.length} avertissement(s) :</strong>
+                  <ul style={{ margin: '6px 0 0 16px', padding: 0 }}>
+                    {onboarding.csvPreview.errors.slice(0, 5).map((e, i) => <li key={i}>{e}</li>)}
+                    {onboarding.csvPreview.errors.length > 5 && <li>...et {onboarding.csvPreview.errors.length - 5} autres</li>}
+                  </ul>
+                </div>
+              )}
+
+              {/* Classes detail */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Classes détectées :</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {onboarding.csvPreview.classes.map((c, i) => (
+                    <div key={i} style={{ padding: '6px 12px', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}>
+                      <strong>{c.name}</strong> ({c.level}) — {c.studentCount} élèves
+                      {c.teacherName && <span style={{ color: '#64748b' }}> — {c.teacherName}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Students preview */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Aperçu élèves (50 premiers) :</div>
+                <div style={{ maxHeight: 200, overflowY: 'auto', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                  <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #f0f0f0', position: 'sticky', top: 0, background: '#f8fafc' }}>
+                        <th style={{ padding: '6px 8px', textAlign: 'left', color: '#64748b' }}>Prénom</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'left', color: '#64748b' }}>Nom</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'left', color: '#64748b' }}>Classe</th>
+                        <th style={{ padding: '6px 8px', textAlign: 'left', color: '#64748b' }}>Niveau</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {onboarding.csvPreview.students.map((s, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid #f8fafc' }}>
+                          <td style={{ padding: '4px 8px', color: '#334155' }}>{s.firstName}</td>
+                          <td style={{ padding: '4px 8px', color: '#334155' }}>{s.lastName}</td>
+                          <td style={{ padding: '4px 8px', color: '#64748b' }}>{s.className}</td>
+                          <td style={{ padding: '4px 8px', color: '#64748b' }}>{s.level}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Activate licenses checkbox */}
+              <div style={{ marginBottom: 14, padding: 10, background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#16a34a' }}>
+                  <input type="checkbox" checked={onboarding.activateLicenses} onChange={e => setOnboarding(p => ({ ...p, activateLicenses: e.target.checked }))} />
+                  ✅ Activer les licences immédiatement pour tous les élèves
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <button onClick={() => setOnboarding(p => ({ ...p, step: 2, csvPreview: null }))} style={{ padding: '10px 24px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', fontSize: 14, fontWeight: 600, background: '#fff', color: '#64748b' }}>
+                  ← Retour
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!window.confirm(`Importer ${onboarding.csvPreview.totalStudents} élèves dans ${onboarding.csvPreview.totalClasses} classes pour "${onboarding.schoolName}" ?`)) return;
+                    setOnboarding(p => ({ ...p, loading: true, step: 4 }));
+                    try {
+                      const backendUrl = getBackendUrl();
+                      const res = await fetch(`${backendUrl}/api/admin/onboarding/import`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          schoolName: onboarding.schoolName,
+                          schoolCity: onboarding.schoolCity,
+                          schoolType: onboarding.schoolType,
+                          circonscriptionId: onboarding.circonscriptionId,
+                          classes: onboarding.csvPreview.classes,
+                          students: onboarding.csvPreview.allStudents,
+                          activateLicenses: onboarding.activateLicenses,
+                          bonCommande: onboarding.bonCommande,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (data.ok) {
+                        setOnboarding(p => ({ ...p, loading: false, result: data.result, step: 5 }));
+                        // Refresh dashboard
+                        const sRes = await fetch(`${backendUrl}/api/admin/dashboard-stats`);
+                        const sData = await sRes.json();
+                        if (sData.ok) { setStats({ ...sData.stats, loading: false }); setRecentUsers(sData.users || []); }
+                        const fRes = await fetch(`${backendUrl}/api/admin/licenses/filters`);
+                        const fData = await fRes.json();
+                        if (fData.ok) setFilters({ schools: fData.schools, classes: fData.classes, summary: fData.summary });
+                        const scRes = await fetch(`${backendUrl}/api/admin/onboarding/schools`);
+                        const scData = await scRes.json();
+                        if (scData.ok) setSchoolsList(scData.schools || []);
+                      } else {
+                        setOnboarding(p => ({ ...p, loading: false, result: null, csvError: data.error, step: 3 }));
+                      }
+                    } catch (err) {
+                      setOnboarding(p => ({ ...p, loading: false, csvError: err.message, step: 3 }));
+                    }
+                  }}
+                  style={{ padding: '10px 28px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: '#fff', boxShadow: '0 2px 8px rgba(34,197,94,0.3)' }}
+                >
+                  🚀 Importer {onboarding.csvPreview.totalStudents} élèves
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4: Loading */}
+          {onboarding.step === 4 && onboarding.loading && (
+            <div style={{ textAlign: 'center', padding: 40 }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#0D6A7A' }}>Import en cours...</div>
+              <div style={{ fontSize: 14, color: '#64748b', marginTop: 6 }}>Création de l'école, des classes et des élèves dans la base de données</div>
+            </div>
+          )}
+
+          {/* STEP 5: Result */}
+          {onboarding.step === 5 && onboarding.result && (
+            <div style={{ background: '#f0fdf4', borderRadius: 10, padding: 20, border: '1px solid #bbf7d0', textAlign: 'center' }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#16a34a', marginBottom: 16 }}>Import réussi !</div>
+              <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+                <div style={{ padding: '10px 20px', background: '#fff', borderRadius: 8, border: '1px solid #bbf7d0' }}>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#0D6A7A' }}>{onboarding.result.classesCreated}</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>Classes créées</div>
+                </div>
+                <div style={{ padding: '10px 20px', background: '#fff', borderRadius: 8, border: '1px solid #bbf7d0' }}>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#0D6A7A' }}>{onboarding.result.studentsImported}</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>Élèves importés</div>
+                </div>
+                <div style={{ padding: '10px 20px', background: '#fff', borderRadius: 8, border: '1px solid #bbf7d0' }}>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: onboarding.result.licensesActivated > 0 ? '#22c55e' : '#d97706' }}>{onboarding.result.licensesActivated}</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>Licences activées</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 14, color: '#64748b', marginBottom: 16 }}>
+                École <strong>{onboarding.result.schoolName}</strong> — ID : <code style={{ fontSize: 11, background: '#e2e8f0', padding: '2px 6px', borderRadius: 4 }}>{onboarding.result.schoolId}</code>
+                {onboarding.result.bonCommande && <> — BC : <strong>{onboarding.result.bonCommande}</strong></>}
+              </div>
+              <button
+                onClick={() => setOnboarding({ step: 0, schoolName: '', schoolCity: '', schoolType: 'primaire', circonscriptionId: '', bonCommande: '', bonCommandeValide: false, csvFile: null, csvPreview: null, csvError: null, activateLicenses: true, loading: false, result: null })}
+                style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, background: '#0D6A7A', color: '#fff' }}
+              >
+                ✓ Terminé
+              </button>
             </div>
           )}
         </div>

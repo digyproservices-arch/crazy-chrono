@@ -759,6 +759,214 @@ app.post('/api/admin/licenses/bulk-deactivate', async (req, res) => {
   }
 });
 
+// ==========================================
+// SCHOOL ONBOARDING — CSV WORKFLOW
+// ==========================================
+
+// GET CSV template download
+app.get('/api/admin/onboarding/csv-template', (req, res) => {
+  const BOM = '\uFEFF';
+  const header = 'classe,niveau,professeur,email_professeur,prenom_eleve,nom_eleve';
+  const examples = [
+    'CE1-A,CE1,Marie Dupont,marie.dupont@ac-guadeloupe.fr,Alice,Bertrand',
+    'CE1-A,CE1,Marie Dupont,marie.dupont@ac-guadeloupe.fr,Bob,Cadet',
+    'CE1-A,CE1,Marie Dupont,marie.dupont@ac-guadeloupe.fr,Chloé,Dupuis',
+    'CE2-B,CE2,Jean Martin,jean.martin@ac-guadeloupe.fr,David,Émile',
+    'CE2-B,CE2,Jean Martin,jean.martin@ac-guadeloupe.fr,Emma,François',
+    'CM1-A,CM1,Sophie Bernard,sophie.bernard@ac-guadeloupe.fr,Lucas,Garcia',
+  ];
+  const csv = BOM + header + '\n' + examples.join('\n') + '\n';
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="modele_inscription_eleves.csv"');
+  res.send(csv);
+});
+
+// POST parse CSV and return preview (no DB write)
+app.post('/api/admin/onboarding/preview-csv', express.text({ type: '*/*', limit: '5mb' }), (req, res) => {
+  try {
+    const raw = typeof req.body === 'string' ? req.body : '';
+    const lines = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim());
+    if (lines.length < 2) return res.status(400).json({ ok: false, error: 'Le fichier est vide ou ne contient que l\'en-tête.' });
+
+    const headerLine = lines[0].replace(/^\uFEFF/, '');
+    const expectedCols = ['classe', 'niveau', 'professeur', 'email_professeur', 'prenom_eleve', 'nom_eleve'];
+    const cols = headerLine.split(',').map(c => c.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+    
+    // Flexible column matching
+    const colMap = {};
+    for (const ec of expectedCols) {
+      const ecNorm = ec.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const idx = cols.findIndex(c => c === ecNorm || c.includes(ecNorm.replace('_', '')));
+      if (idx >= 0) colMap[ec] = idx;
+    }
+    
+    const missingCols = expectedCols.filter(c => colMap[c] === undefined);
+    if (missingCols.length > 0) {
+      return res.status(400).json({ ok: false, error: `Colonnes manquantes : ${missingCols.join(', ')}. Colonnes détectées : ${cols.join(', ')}` });
+    }
+
+    const errors = [];
+    const classesMap = {};
+    const students = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const vals = lines[i].split(',').map(v => v.trim());
+      const classe = vals[colMap['classe']] || '';
+      const niveau = vals[colMap['niveau']] || '';
+      const prof = vals[colMap['professeur']] || '';
+      const emailProf = vals[colMap['email_professeur']] || '';
+      const prenom = vals[colMap['prenom_eleve']] || '';
+      const nom = vals[colMap['nom_eleve']] || '';
+
+      if (!prenom || !nom) { errors.push(`Ligne ${i + 1}: prénom ou nom manquant`); continue; }
+      if (!classe) { errors.push(`Ligne ${i + 1}: classe manquante pour ${prenom} ${nom}`); continue; }
+      if (!niveau) { errors.push(`Ligne ${i + 1}: niveau manquant pour ${prenom} ${nom}`); continue; }
+
+      const classKey = `${classe}__${niveau}`;
+      if (!classesMap[classKey]) {
+        classesMap[classKey] = { name: classe, level: niveau, teacherName: prof, teacherEmail: emailProf, studentCount: 0 };
+      }
+      classesMap[classKey].studentCount++;
+
+      students.push({ firstName: prenom, lastName: nom, level: niveau, className: classe, classKey });
+    }
+
+    const classes = Object.entries(classesMap).map(([key, val]) => ({ key, ...val }));
+
+    res.json({
+      ok: true,
+      preview: {
+        totalStudents: students.length,
+        totalClasses: classes.length,
+        classes,
+        students: students.slice(0, 50), // Aperçu 50 premiers
+        allStudents: students,
+        errors,
+      }
+    });
+  } catch (error) {
+    console.error('[Onboarding] preview-csv error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// POST import confirmed data into DB
+app.post('/api/admin/onboarding/import', async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
+
+    const { schoolName, schoolCity, schoolType, circonscriptionId, classes, students, activateLicenses, bonCommande } = req.body;
+
+    if (!schoolName || !classes?.length || !students?.length) {
+      return res.status(400).json({ ok: false, error: 'Données incomplètes. schoolName, classes et students requis.' });
+    }
+
+    // 1) Create or find school
+    const schoolId = 'sch_' + schoolName.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 30) + '_' + Date.now().toString(36);
+    const schoolRow = {
+      id: schoolId,
+      name: schoolName,
+      type: schoolType || 'primaire',
+      city: schoolCity || null,
+      circonscription_id: circonscriptionId || null,
+    };
+    const { error: schoolErr } = await supabaseAdmin.from('schools').upsert(schoolRow, { onConflict: 'id' });
+    if (schoolErr) throw new Error('Erreur création école: ' + schoolErr.message);
+
+    // 2) Create classes
+    const classIdMap = {};
+    const classRows = classes.map(c => {
+      const classId = 'cls_' + schoolId.slice(4, 20) + '_' + c.name.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now().toString(36);
+      classIdMap[c.key] = classId;
+      return {
+        id: classId,
+        school_id: schoolId,
+        name: c.name,
+        level: c.level,
+        teacher_name: c.teacherName || null,
+        teacher_email: c.teacherEmail || null,
+        student_count: c.studentCount || 0,
+      };
+    });
+    const { error: classErr } = await supabaseAdmin.from('classes').upsert(classRows, { onConflict: 'id' });
+    if (classErr) throw new Error('Erreur création classes: ' + classErr.message);
+
+    // 3) Create students in batches
+    const studentRows = students.map((s, idx) => {
+      const classId = classIdMap[s.classKey] || null;
+      const studentId = 'std_' + schoolId.slice(4, 20) + '_' + String(idx + 1).padStart(4, '0');
+      return {
+        id: studentId,
+        first_name: s.firstName,
+        last_name: s.lastName,
+        full_name: `${s.firstName} ${s.lastName.charAt(0)}.`,
+        level: s.level,
+        class_id: classId,
+        school_id: schoolId,
+        licensed: activateLicenses ? true : false,
+        avatar_url: '/avatars/default.png',
+      };
+    });
+
+    const batchSize = 500;
+    let imported = 0;
+    for (let i = 0; i < studentRows.length; i += batchSize) {
+      const batch = studentRows.slice(i, i + batchSize);
+      const { error: batchErr } = await supabaseAdmin.from('students').upsert(batch, { onConflict: 'id' });
+      if (batchErr) {
+        console.error(`[Onboarding] batch ${i}-${i + batchSize} error:`, batchErr);
+      } else {
+        imported += batch.length;
+      }
+    }
+
+    console.log(`[Onboarding] ✅ Import terminé: école=${schoolName}, classes=${classRows.length}, élèves=${imported}/${studentRows.length}, licences=${activateLicenses ? 'OUI' : 'NON'}`);
+
+    res.json({
+      ok: true,
+      result: {
+        schoolId,
+        schoolName,
+        classesCreated: classRows.length,
+        studentsImported: imported,
+        studentsTotal: studentRows.length,
+        licensesActivated: activateLicenses ? imported : 0,
+        bonCommande: bonCommande || null,
+      }
+    });
+  } catch (error) {
+    console.error('[Onboarding] import error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// GET list all schools with onboarding summary
+app.get('/api/admin/onboarding/schools', async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
+
+    const { data: schools } = await supabaseAdmin.from('schools').select('*').order('name');
+    const { data: classes } = await supabaseAdmin.from('classes').select('id, school_id, name, level, teacher_name, student_count');
+    const { data: students } = await supabaseAdmin.from('students').select('id, school_id, licensed');
+
+    const result = (schools || []).map(s => {
+      const sClasses = (classes || []).filter(c => c.school_id === s.id);
+      const sStudents = (students || []).filter(st => st.school_id === s.id);
+      return {
+        ...s,
+        classCount: sClasses.length,
+        studentCount: sStudents.length,
+        licensedCount: sStudents.filter(st => st.licensed).length,
+      };
+    });
+
+    res.json({ ok: true, schools: result });
+  } catch (error) {
+    console.error('[Onboarding] schools list error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 // Route racine pour vérification rapide
 app.get('/', (req, res) => {
   res.json({ ok: true, service: 'crazy-chrono-backend' });
