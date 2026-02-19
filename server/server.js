@@ -766,16 +766,17 @@ app.post('/api/admin/licenses/bulk-deactivate', async (req, res) => {
 // GET CSV template download
 app.get('/api/admin/onboarding/csv-template', (req, res) => {
   const BOM = '\uFEFF';
-  const header = 'classe,niveau,professeur,email_professeur,prenom_eleve,nom_eleve';
+  const sep = ';'; // Point-virgule = standard Excel français
+  const header = ['Classe', 'Niveau', 'Professeur', 'Email Professeur', 'Prénom Élève', 'Nom Élève'].join(sep);
   const examples = [
-    'CE1-A,CE1,Marie Dupont,marie.dupont@ac-guadeloupe.fr,Alice,Bertrand',
-    'CE1-A,CE1,Marie Dupont,marie.dupont@ac-guadeloupe.fr,Bob,Cadet',
-    'CE1-A,CE1,Marie Dupont,marie.dupont@ac-guadeloupe.fr,Chloé,Dupuis',
-    'CE2-B,CE2,Jean Martin,jean.martin@ac-guadeloupe.fr,David,Émile',
-    'CE2-B,CE2,Jean Martin,jean.martin@ac-guadeloupe.fr,Emma,François',
-    'CM1-A,CM1,Sophie Bernard,sophie.bernard@ac-guadeloupe.fr,Lucas,Garcia',
+    ['CE1-A', 'CE1', 'Marie Dupont', 'marie.dupont@ac-guadeloupe.fr', 'Alice', 'Bertrand'],
+    ['CE1-A', 'CE1', 'Marie Dupont', 'marie.dupont@ac-guadeloupe.fr', 'Bob', 'Cadet'],
+    ['CE1-A', 'CE1', 'Marie Dupont', 'marie.dupont@ac-guadeloupe.fr', 'Chloé', 'Dupuis'],
+    ['CE2-B', 'CE2', 'Jean Martin', 'jean.martin@ac-guadeloupe.fr', 'David', 'Émile'],
+    ['CE2-B', 'CE2', 'Jean Martin', 'jean.martin@ac-guadeloupe.fr', 'Emma', 'François'],
+    ['CM1-A', 'CM1', 'Sophie Bernard', 'sophie.bernard@ac-guadeloupe.fr', 'Lucas', 'Garcia'],
   ];
-  const csv = BOM + header + '\n' + examples.join('\n') + '\n';
+  const csv = BOM + header + '\n' + examples.map(r => r.join(sep)).join('\n') + '\n';
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="modele_inscription_eleves.csv"');
   res.send(csv);
@@ -789,8 +790,11 @@ app.post('/api/admin/onboarding/preview-csv', express.text({ type: '*/*', limit:
     if (lines.length < 2) return res.status(400).json({ ok: false, error: 'Le fichier est vide ou ne contient que l\'en-tête.' });
 
     const headerLine = lines[0].replace(/^\uFEFF/, '');
+    // Auto-detect separator: semicolon (French Excel) or comma
+    const sep = headerLine.includes(';') ? ';' : ',';
     const expectedCols = ['classe', 'niveau', 'professeur', 'email_professeur', 'prenom_eleve', 'nom_eleve'];
-    const cols = headerLine.split(',').map(c => c.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+    // Normalize column names: remove accents, spaces→underscores, lowercase
+    const cols = headerLine.split(sep).map(c => c.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_'));
     
     // Flexible column matching
     const colMap = {};
@@ -810,7 +814,7 @@ app.post('/api/admin/onboarding/preview-csv', express.text({ type: '*/*', limit:
     const students = [];
 
     for (let i = 1; i < lines.length; i++) {
-      const vals = lines[i].split(',').map(v => v.trim());
+      const vals = lines[i].split(sep).map(v => v.trim());
       const classe = vals[colMap['classe']] || '';
       const niveau = vals[colMap['niveau']] || '';
       const prof = vals[colMap['professeur']] || '';
