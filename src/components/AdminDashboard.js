@@ -785,12 +785,56 @@ function AdminDashboard() {
                 École <strong>{onboarding.result.schoolName}</strong> — ID : <code style={{ fontSize: 11, background: '#e2e8f0', padding: '2px 6px', borderRadius: 4 }}>{onboarding.result.schoolId}</code>
                 {onboarding.result.bonCommande && <> — BC : <strong>{onboarding.result.bonCommande}</strong></>}
               </div>
-              <button
-                onClick={() => setOnboarding({ step: 0, schoolName: '', schoolCity: '', schoolType: 'primaire', circonscriptionId: '', bonCommande: '', bonCommandeValide: false, csvFile: null, csvPreview: null, csvError: null, activateLicenses: true, loading: false, result: null })}
-                style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, background: '#0D6A7A', color: '#fff' }}
-              >
-                ✓ Terminé
-              </button>
+
+              {/* Access codes preview */}
+              {onboarding.result.accessCodes?.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 8 }}>🔑 Codes d'accès générés :</div>
+                  <div style={{ maxHeight: 180, overflowY: 'auto', background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                    <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #f0f0f0', position: 'sticky', top: 0, background: '#f8fafc' }}>
+                          <th style={{ padding: '6px 8px', textAlign: 'left', color: '#64748b' }}>Élève</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'left', color: '#64748b' }}>Classe</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'left', color: '#64748b' }}>Code d'accès</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {onboarding.result.accessCodes.slice(0, 30).map((ac, i) => (
+                          <tr key={i} style={{ borderBottom: '1px solid #f8fafc' }}>
+                            <td style={{ padding: '4px 8px', color: '#334155' }}>{ac.name}</td>
+                            <td style={{ padding: '4px 8px', color: '#64748b' }}>{ac.className}</td>
+                            <td style={{ padding: '4px 8px' }}>
+                              <code style={{ fontSize: 13, fontWeight: 700, color: '#0D6A7A', background: '#f0f9ff', padding: '2px 8px', borderRadius: 4, letterSpacing: 1 }}>{ac.code}</code>
+                            </td>
+                          </tr>
+                        ))}
+                        {onboarding.result.accessCodes.length > 30 && (
+                          <tr><td colSpan={3} style={{ padding: 6, textAlign: 'center', color: '#94a3b8', fontSize: 12 }}>...et {onboarding.result.accessCodes.length - 30} autres (téléchargez le CSV)</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                {onboarding.result.schoolId && (
+                  <a
+                    href={`${getBackendUrl()}/api/admin/onboarding/export-codes/${onboarding.result.schoolId}`}
+                    download
+                    style={{ padding: '10px 20px', borderRadius: 8, border: '2px solid #F5A623', cursor: 'pointer', fontSize: 14, fontWeight: 700, background: '#fffbeb', color: '#92400e', textDecoration: 'none', display: 'inline-block' }}
+                  >
+                    📥 Télécharger les codes (CSV)
+                  </a>
+                )}
+                <button
+                  onClick={() => setOnboarding({ step: 0, schoolName: '', schoolCity: '', schoolType: 'primaire', circonscriptionId: '', bonCommande: '', bonCommandeValide: false, csvFile: null, csvPreview: null, csvError: null, activateLicenses: true, loading: false, result: null })}
+                  style={{ padding: '10px 24px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, background: '#0D6A7A', color: '#fff' }}
+                >
+                  ✓ Terminé
+                </button>
+              </div>
             </div>
           )}
         </div>

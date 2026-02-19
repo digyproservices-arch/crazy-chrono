@@ -763,6 +763,17 @@ app.post('/api/admin/licenses/bulk-deactivate', async (req, res) => {
 // SCHOOL ONBOARDING — CSV WORKFLOW
 // ==========================================
 
+// Generate a memorable access code like ALICE-CE1A-4823
+function generateAccessCode(firstName, className) {
+  const name = firstName.toUpperCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Z]/g, '').slice(0, 6);
+  const cls = className.toUpperCase()
+    .replace(/[^A-Z0-9]/g, '').slice(0, 4);
+  const num = String(Math.floor(1000 + Math.random() * 9000));
+  return `${name}-${cls}-${num}`;
+}
+
 // GET CSV template download
 app.get('/api/admin/onboarding/csv-template', (req, res) => {
   const BOM = '\uFEFF';
@@ -895,10 +906,18 @@ app.post('/api/admin/onboarding/import', async (req, res) => {
     const { error: classErr } = await supabaseAdmin.from('classes').upsert(classRows, { onConflict: 'id' });
     if (classErr) throw new Error('Erreur création classes: ' + classErr.message);
 
-    // 3) Create students in batches
+    // 3) Create students in batches (with unique access codes)
+    const usedCodes = new Set();
     const studentRows = students.map((s, idx) => {
       const classId = classIdMap[s.classKey] || null;
       const studentId = 'std_' + schoolId.slice(4, 20) + '_' + String(idx + 1).padStart(4, '0');
+      let accessCode;
+      let attempts = 0;
+      do {
+        accessCode = generateAccessCode(s.firstName, s.className);
+        attempts++;
+      } while (usedCodes.has(accessCode) && attempts < 20);
+      usedCodes.add(accessCode);
       return {
         id: studentId,
         first_name: s.firstName,
@@ -909,6 +928,7 @@ app.post('/api/admin/onboarding/import', async (req, res) => {
         school_id: schoolId,
         licensed: activateLicenses ? true : false,
         avatar_url: '/avatars/default.png',
+        access_code: accessCode,
       };
     });
 
@@ -936,6 +956,7 @@ app.post('/api/admin/onboarding/import', async (req, res) => {
         studentsTotal: studentRows.length,
         licensesActivated: activateLicenses ? imported : 0,
         bonCommande: bonCommande || null,
+        accessCodes: studentRows.map(s => ({ name: `${s.first_name} ${s.last_name}`, code: s.access_code, className: students.find(st => st.firstName === s.first_name && st.lastName === s.last_name)?.className || '', level: s.level })),
       }
     });
   } catch (error) {
@@ -967,6 +988,199 @@ app.get('/api/admin/onboarding/schools', async (req, res) => {
     res.json({ ok: true, schools: result });
   } catch (error) {
     console.error('[Onboarding] schools list error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// ==========================================
+// STUDENT ACCESS CODE LOGIN
+// ==========================================
+
+// POST login by student access code
+app.post('/api/auth/student-login', async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'Service non disponible' });
+
+    const { code } = req.body;
+    if (!code || code.trim().length < 5) {
+      return res.status(400).json({ ok: false, error: 'Code d\'accès requis (minimum 5 caractères)' });
+    }
+
+    const cleanCode = code.toUpperCase().trim();
+
+    // 1) Find student by access code
+    const { data: student, error: findErr } = await supabaseAdmin
+      .from('students')
+      .select('id, first_name, last_name, full_name, level, class_id, school_id, licensed, access_code')
+      .eq('access_code', cleanCode)
+      .single();
+
+    if (findErr || !student) {
+      return res.status(404).json({ ok: false, error: 'Code d\'accès invalide. Vérifie ton code et réessaie.' });
+    }
+
+    if (!student.licensed) {
+      return res.status(403).json({ ok: false, error: 'Ta licence n\'est pas encore activée. Contacte ton professeur.' });
+    }
+
+    // 2) Generate pseudo-email from code (unique per student)
+    const pseudoEmail = `${cleanCode.toLowerCase().replace(/[^a-z0-9]/g, '')}@eleve.crazychrono.app`;
+
+    // 3) Check if student already has an auth account
+    const { data: existingMapping } = await supabaseAdmin
+      .from('user_student_mapping')
+      .select('user_id')
+      .eq('student_id', student.id)
+      .eq('active', true)
+      .maybeSingle();
+
+    let authUserId = null;
+
+    if (existingMapping?.user_id) {
+      // Student already has an auth account — update password to match current code
+      try {
+        const { data: existingUser } = await supabaseAdmin.auth.admin.getUserById(existingMapping.user_id);
+        if (existingUser?.user?.email?.endsWith('@eleve.crazychrono.app')) {
+          await supabaseAdmin.auth.admin.updateUserById(existingMapping.user_id, { password: cleanCode });
+          authUserId = existingMapping.user_id;
+          console.log(`[StudentLogin] Existing user updated: ${student.full_name} → ${authUserId}`);
+        }
+      } catch (e) {
+        console.warn('[StudentLogin] Could not update existing user:', e.message);
+      }
+    }
+
+    if (!authUserId) {
+      // Create new Supabase auth user
+      const { data: createData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+        email: pseudoEmail,
+        password: cleanCode,
+        email_confirm: true,
+        user_metadata: { student_id: student.id, name: student.full_name, role: 'student' }
+      });
+
+      if (createErr) {
+        // User with this email might already exist (e.g. from a previous import)
+        if (createErr.message?.includes('already') || createErr.message?.includes('exist') || createErr.status === 422) {
+          // Find existing user via user_profiles
+          const { data: existingProfile } = await supabaseAdmin
+            .from('user_profiles')
+            .select('id')
+            .eq('email', pseudoEmail)
+            .maybeSingle();
+
+          if (existingProfile) {
+            await supabaseAdmin.auth.admin.updateUserById(existingProfile.id, { password: cleanCode });
+            authUserId = existingProfile.id;
+          } else {
+            console.error('[StudentLogin] User exists but not in profiles:', createErr.message);
+            return res.status(500).json({ ok: false, error: 'Erreur compte existant. Contacte l\'administrateur.' });
+          }
+        } else {
+          throw createErr;
+        }
+      } else {
+        authUserId = createData.user.id;
+      }
+
+      // Create user profile
+      if (authUserId) {
+        await supabaseAdmin.from('user_profiles').upsert({
+          id: authUserId,
+          email: pseudoEmail,
+          first_name: student.first_name,
+          last_name: student.last_name,
+          role: 'student'
+        }, { onConflict: 'id' });
+
+        // Link student to auth account
+        const { data: existMap } = await supabaseAdmin
+          .from('user_student_mapping')
+          .select('user_id')
+          .eq('student_id', student.id)
+          .eq('active', true)
+          .maybeSingle();
+
+        if (!existMap) {
+          await supabaseAdmin.from('user_student_mapping').insert({
+            user_id: authUserId,
+            student_id: student.id,
+            active: true,
+            linked_at: new Date().toISOString()
+          });
+        }
+      }
+
+      console.log(`[StudentLogin] ✅ New user created: ${student.full_name} (${cleanCode}) → ${authUserId}`);
+    }
+
+    return res.json({
+      ok: true,
+      student: {
+        id: student.id,
+        firstName: student.first_name,
+        lastName: student.last_name,
+        fullName: student.full_name,
+        level: student.level,
+        classId: student.class_id,
+        schoolId: student.school_id,
+      },
+      credentials: {
+        email: pseudoEmail,
+        password: cleanCode,
+      }
+    });
+
+  } catch (error) {
+    console.error('[StudentLogin] Error:', error);
+    return res.status(500).json({ ok: false, error: 'Erreur serveur. Réessaie dans quelques instants.' });
+  }
+});
+
+// GET export access codes for a school as CSV
+app.get('/api/admin/onboarding/export-codes/:schoolId', async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
+
+    const { schoolId } = req.params;
+
+    const { data: school } = await supabaseAdmin.from('schools').select('name').eq('id', schoolId).single();
+    const { data: students } = await supabaseAdmin
+      .from('students')
+      .select('first_name, last_name, level, access_code, class_id')
+      .eq('school_id', schoolId)
+      .not('access_code', 'is', null)
+      .order('class_id')
+      .order('last_name');
+
+    if (!students?.length) {
+      return res.status(404).json({ ok: false, error: 'Aucun élève avec code d\'accès trouvé pour cette école.' });
+    }
+
+    // Get class names
+    const classIds = [...new Set(students.map(s => s.class_id).filter(Boolean))];
+    const { data: classes } = await supabaseAdmin.from('classes').select('id, name').in('id', classIds);
+    const classMap = {};
+    (classes || []).forEach(c => { classMap[c.id] = c.name; });
+
+    const BOM = '\uFEFF';
+    const sep = ';';
+    const header = ['Prénom', 'Nom', 'Classe', 'Niveau', 'Code d\'accès'].join(sep);
+    const rows = students.map(s => [
+      s.first_name,
+      s.last_name,
+      classMap[s.class_id] || '',
+      s.level,
+      s.access_code
+    ].join(sep));
+
+    const schoolName = (school?.name || schoolId).replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\s-]/gi, '').replace(/\s+/g, '_');
+    const csv = BOM + header + '\n' + rows.join('\n') + '\n';
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="codes_acces_${schoolName}.csv"`);
+    res.send(csv);
+  } catch (error) {
+    console.error('[Onboarding] export-codes error:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });

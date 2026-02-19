@@ -18,6 +18,8 @@ export default function Login({ onLogin }) {
   const [signupMode, setSignupMode] = useState(false);
   const [inviteToken, setInviteToken] = useState('');
   const [inviteRole, setInviteRole] = useState('');
+  const [studentMode, setStudentMode] = useState(false);
+  const [studentCode, setStudentCode] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -291,14 +293,49 @@ export default function Login({ onLogin }) {
     } finally { setLoading(false); }
   };
 
-  // Mode invité désactivé - inscription obligatoire
-  // const handleGuest = () => {
-  //   const pseudo = 'Invité-' + Math.floor(Math.random()*1000);
-  //   const auth = { id: 'guest:' + Date.now(), name: pseudo, role: 'guest' };
-  //   saveAuth(auth);
-  //   onLogin && onLogin(auth);
-  //   navigate('/modes', { replace: true });
-  // };
+  const handleStudentLogin = async (e) => {
+    e.preventDefault();
+    setError(''); setInfo('');
+    const code = studentCode.trim();
+    if (!code || code.length < 5) { setError('Entre ton code d\'accès (ex: ALICE-CE1A-4823)'); return; }
+    try {
+      setLoading(true);
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com';
+      const res = await fetch(`${backendUrl}/api/auth/student-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (!data.ok) { setError(data.error || 'Code invalide'); return; }
+
+      if (supabase && data.credentials) {
+        const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+          email: data.credentials.email,
+          password: data.credentials.password,
+        });
+        if (authErr) throw authErr;
+
+        const user = authData?.user || authData?.session?.user;
+        if (user) {
+          const profile = {
+            id: user.id,
+            email: user.email,
+            name: data.student.fullName || data.student.firstName,
+            role: 'student',
+            token: authData?.session?.access_token,
+            studentId: data.student.id,
+          };
+          saveAuth(profile);
+          try { localStorage.setItem('cc_user_id', user.id); } catch {}
+          onLogin && onLogin(profile);
+          navigate('/modes', { replace: true });
+        }
+      }
+    } catch (e1) {
+      setError(e1.message || 'Erreur de connexion');
+    } finally { setLoading(false); }
+  };
 
   // Stable component for password strength to help React reconciliation
   const PasswordStrength = ({ pwd }) => {
@@ -335,6 +372,43 @@ export default function Login({ onLogin }) {
           <h1 style={{ margin: '0 0 6px 0', fontSize: 22, fontWeight: 800, color: '#1AACBE', letterSpacing: 3 }}>CHRONO</h1>
           <p style={{ margin: 0, fontSize: 13, color: '#6B5443' }}>Connectez-vous pour jouer ou administrer</p>
         </div>
+        {/* Toggle Enseignant/Parent vs Élève */}
+        <div style={{ display: 'flex', borderRadius: 10, overflow: 'hidden', border: '2px solid #e2e8f0', marginBottom: 16 }}>
+          <button type="button" onClick={() => { setStudentMode(false); setError(''); setInfo(''); }} style={{ flex: 1, padding: '10px 0', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14, background: !studentMode ? '#0D6A7A' : '#f8fafc', color: !studentMode ? '#fff' : '#64748b', transition: 'all 0.2s' }}>
+            Enseignant / Parent
+          </button>
+          <button type="button" onClick={() => { setStudentMode(true); setSignupMode(false); setError(''); setInfo(''); }} style={{ flex: 1, padding: '10px 0', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14, background: studentMode ? '#F5A623' : '#f8fafc', color: studentMode ? '#4A3728' : '#64748b', transition: 'all 0.2s' }}>
+            Je suis élève
+          </button>
+        </div>
+        {/* STUDENT MODE */}
+        {studentMode ? (
+          <>
+            <h2 style={{ marginTop: 0, marginBottom: 8, fontSize: 18, color: '#4A3728' }}>Connexion élève</h2>
+            <p style={{ margin: '0 0 14px 0', fontSize: 13, color: '#6b7280' }}>Entre le code que ton professeur t'a donné</p>
+            <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, color: '#334155' }}>Code d'accès</label>
+            <input
+              type="text"
+              value={studentCode}
+              onChange={(e) => setStudentCode(e.target.value.toUpperCase())}
+              placeholder="ALICE-CE1A-4823"
+              autoComplete="off"
+              autoFocus
+              style={{ width: '100%', padding: '14px 16px', borderRadius: 10, border: '2px solid #F5A623', fontSize: 18, fontWeight: 700, letterSpacing: 2, textAlign: 'center', fontFamily: 'monospace', boxSizing: 'border-box' }}
+            />
+            {error && <div style={{ marginTop: 10, color: '#b91c1c', fontSize: 14 }}>{error}</div>}
+            {info && <div style={{ marginTop: 10, color: '#065f46', fontSize: 14 }}>{info}</div>}
+            <button
+              type="button"
+              onClick={handleStudentLogin}
+              disabled={loading || !studentCode.trim()}
+              style={{ marginTop: 16, width: '100%', padding: '14px 12px', borderRadius: 10, border: 'none', background: studentCode.trim() ? '#F5A623' : '#e2e8f0', color: studentCode.trim() ? '#4A3728' : '#94a3b8', fontWeight: 800, fontSize: 16, cursor: 'pointer', boxShadow: studentCode.trim() ? '0 3px 10px rgba(245,166,35,0.3)' : 'none', transition: 'all 0.2s' }}
+            >
+              {loading ? 'Connexion...' : 'Jouer !'}
+            </button>
+          </>
+        ) : (
+          <>
         <h2 style={{ marginTop: 0, marginBottom: 12, fontSize: 18, color: '#4A3728' }}>{signupMode ? 'Créer un compte' : 'Connexion'}</h2>
         {signupMode && (
           <>
@@ -399,6 +473,8 @@ export default function Login({ onLogin }) {
               Renvoyer e‑mail de confirmation
             </button>
           </div>
+        )}
+          </>
         )}
       </form>
     </div>
