@@ -690,6 +690,32 @@ app.get('/api/admin/licenses/filters', async (req, res) => {
   }
 });
 
+// GET list all students with class details (admin diagnostic)
+app.get('/api/admin/students', async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
+    const { data: students } = await supabaseAdmin
+      .from('students')
+      .select('id, first_name, last_name, full_name, level, class_id, school_id, licensed, access_code')
+      .order('school_id')
+      .order('class_id')
+      .order('last_name');
+    const { data: classes } = await supabaseAdmin.from('classes').select('id, name, level, teacher_name, teacher_email, school_id');
+    const classMap = {};
+    (classes || []).forEach(c => { classMap[c.id] = c; });
+    const result = (students || []).map(s => ({
+      ...s,
+      className: classMap[s.class_id]?.name || null,
+      classLevel: classMap[s.class_id]?.level || null,
+      teacherEmail: classMap[s.class_id]?.teacher_email || null,
+    }));
+    res.json({ ok: true, count: result.length, students: result });
+  } catch (e) {
+    console.error('[Admin] students list error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // POST bulk activate licenses
 app.post('/api/admin/licenses/bulk-activate', async (req, res) => {
   try {
