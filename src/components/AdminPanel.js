@@ -1,6 +1,8 @@
 import React, { useContext, useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import AdminAssocMeta from "./AdminAssocMeta";
 import { DataContext } from "../context/DataContext";
+import RectoratUpload from "./Rectorat/RectoratUpload";
+import RectoratLibrary from "./Rectorat/RectoratLibrary";
 
 function AdminPanel() {
   const { data, setData, importJson, downloadJson } = useContext(DataContext);
@@ -20,6 +22,7 @@ function AdminPanel() {
   const [editCalculValue, setEditCalculValue] = useState("");
   const [editChiffreId, setEditChiffreId] = useState(null);
   const [editChiffreValue, setEditChiffreValue] = useState("");
+  const [activeTab, setActiveTab] = useState('library'); // 'upload' | 'library' | 'categorize' | 'tools'
 
   // Niveaux scolaires disponibles (aligné avec SessionConfig)
   const CLASS_LEVELS = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"];
@@ -957,414 +960,335 @@ function AdminPanel() {
     reader.readAsText(file);
   };
 
+  const TAB_STYLE = (isActive) => ({
+    padding: '10px 20px',
+    fontSize: 14,
+    fontWeight: 700,
+    border: 'none',
+    borderBottom: isActive ? '3px solid #0D6A7A' : '3px solid transparent',
+    background: 'none',
+    color: isActive ? '#0D6A7A' : '#64748b',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  });
+
   return (
-    <div style={{ padding: 24, maxWidth: 800, margin: "auto" }}>
+    <div style={{ minHeight: '100vh', background: '#f1f5f9' }}>
+      {/* Header */}
+      <div style={{ background: 'linear-gradient(135deg, #0D6A7A 0%, #148A9C 100%)', padding: '20px 24px', color: '#fff' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Plateforme de Contenu Pédagogique</h1>
+              <p style={{ margin: '4px 0 0', fontSize: 13, opacity: 0.85 }}>Enrichissez le jeu avec du contenu éducatif</p>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <a href="/admin/dashboard" style={{ padding: '6px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.2)', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}>📊 Dashboard</a>
+              <a href="/admin/roles" style={{ padding: '6px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.2)', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}>👥 Rôles</a>
+              <a href="/admin/invite" style={{ padding: '6px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.2)', color: '#fff', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}>✉️ Invitations</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {!data ? (
-        <div>Chargement…</div>
+        <div style={{ textAlign: 'center', padding: 48, color: '#64748b', fontSize: 16 }}>Chargement…</div>
       ) : (
-        <>
-      <h2>Admin - Gestion des éléments et associations</h2>
-      
-      {/* Navigation admin */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16, padding: '12px', background: '#f3f4f6', borderRadius: 8, border: '1px solid #d1d5db' }}>
-        <strong style={{ marginRight: 8 }}>Navigation :</strong>
-        <a href="/admin/dashboard" style={{ padding: '6px 12px', borderRadius: 6, background: '#1AACBE', color: '#fff', textDecoration: 'none', fontWeight: 600 }}>📊 Dashboard</a>
-        <a href="/admin/roles" style={{ padding: '6px 12px', borderRadius: 6, background: '#8b5cf6', color: '#fff', textDecoration: 'none', fontWeight: 600 }}>👥 Rôles</a>
-        <a href="/admin/invite" style={{ padding: '6px 12px', borderRadius: 6, background: '#148A9C', color: '#fff', textDecoration: 'none', fontWeight: 600 }}>✉️ Invitations</a>
-        <a href="/debug/progress" style={{ padding: '6px 12px', borderRadius: 6, background: '#f59e0b', color: '#fff', textDecoration: 'none', fontWeight: 600 }}>🔍 Debug</a>
-      </div>
-      
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
-        <button onClick={downloadJson}>Télécharger le JSON</button>
-        <button type="button" onClick={dedupeImages} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #d1d5db' }}>Supprimer doublons d'images</button>
-        <button type="button" onClick={dedupeAssociations} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #d1d5db' }}>Supprimer doublons d'associations</button>
-      </div>
-      <input type="file" accept="application/json" onChange={handleJsonUpload} style={{ marginLeft: 10 }} />
-      <hr />
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 40px' }}>
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e2e8f0', marginBottom: 24, background: '#fff', borderRadius: '12px 12px 0 0', padding: '0 8px', marginTop: -1, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+            <button style={TAB_STYLE(activeTab === 'upload')} onClick={() => setActiveTab('upload')}>📤 Dépôt</button>
+            <button style={TAB_STYLE(activeTab === 'library')} onClick={() => setActiveTab('library')}>📚 Bibliothèque</button>
+            <button style={TAB_STYLE(activeTab === 'categorize')} onClick={() => setActiveTab('categorize')}>🏷️ Catégoriser</button>
+            <button style={TAB_STYLE(activeTab === 'tools')} onClick={() => setActiveTab('tools')}>⚙️ Outils</button>
+          </div>
 
-      {/* Nouvelle section: Catégoriser les associations (classe & thèmes) */}
-      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, flexWrap:'wrap' }}>
-        <button type="button" onClick={autoTagElements} title="Déduire niveaux & catégories des éléments à partir des associations et heuristiques">
-          Auto-tag niveaux & catégories
-        </button>
-        <small style={{ color:'#6b7280' }}>Déduit les thèmes depuis les associations et estime le niveau pour les calculs si absent.</small>
-      </div>
-      <AdminAssocMeta data={data} setData={setData} save={saveToBackend} />
-      <hr />
+          {/* TAB: Upload */}
+          {activeTab === 'upload' && (
+            <div style={{ background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0D6A7A', marginTop: 0, marginBottom: 4 }}>📤 Dépôt de ressources</h2>
+              <p style={{ color: '#64748b', fontSize: 13, marginBottom: 20 }}>Importez un fichier Excel ou Word pour extraire automatiquement des paires de contenu.</p>
+              <RectoratUpload data={data} setData={setData} saveToBackend={saveToBackend} />
+            </div>
+          )}
 
-      <details>
-        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Textes</summary>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Texte</th>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Niveau</th>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Catégories</th>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.textes.map(t => (
-                <tr key={t.id} ref={el => itemRefs.current.textes.set(t.id, el)}>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px', maxWidth: 320 }}>
-                    {editTexteId === t.id ? (
-                      <>
-                        <input
-                          value={editTexteValue}
-                          onChange={e => setEditTexteValue(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') handleEditTexteSave(t.id);
-                            if (e.key === 'Escape') setEditTexteId(null);
-                          }}
-                          style={{ width: '100%' }}
-                          autoFocus
-                        />
-                      </>
-                    ) : (
-                      <span>{t.content}</span>
-                    )}
-                  </td>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px', width: 160 }}>
-                    <select
-                      value={t.levelClass || ''}
-                      onChange={e => handleUpdateTexteLevel(t.id, e.target.value)}
-                      style={{ width: '100%', padding: '6px 8px' }}
-                    >
-                      <option value="">—</option>
-                      {CLASS_LEVELS.map(lv => (
-                        <option key={lv} value={lv}>{lv}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px' }}>
-                    <input
-                      value={(t.themes || []).join(', ')}
-                      placeholder="Ex: botanique, saveurs"
-                      onChange={e => handleUpdateTexteThemes(t.id, e.target.value)}
-                      style={{ width: '100%', padding: '6px 8px' }}
-                    />
-                  </td>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px', whiteSpace: 'nowrap' }}>
-                    {editTexteId === t.id ? (
-                      <>
-                        <button type="button" onClick={() => handleEditTexteSave(t.id)}>Valider</button>
-                        <button type="button" onClick={() => setEditTexteId(null)} style={{ marginLeft: 6 }}>Annuler</button>
-                      </>
-                    ) : (
-                      <>
-                        <button type="button" onClick={() => { setEditTexteId(t.id); setEditTexteValue(t.content); }}>Modifier</button>
-                        <button type="button" style={{ marginLeft: 8, color: '#b00020' }} onClick={() => handleDeleteTexte(t.id)}>Supprimer</button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-          <input value={newTexte} onChange={e => setNewTexte(e.target.value)} placeholder="Nouveau texte" style={{ flex: 1 }} />
-          <button type="button" onClick={addTexte}>Ajouter</button>
-        </div>
-      </details>
+          {/* TAB: Library */}
+          {activeTab === 'library' && (
+            <div style={{ background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0D6A7A', marginTop: 0, marginBottom: 16 }}>📚 Bibliothèque de contenu</h2>
+              <RectoratLibrary data={data} setData={setData} saveToBackend={saveToBackend} />
+            </div>
+          )}
 
-      <details>
-        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Images</summary>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-          <button type="button" onClick={handleVerifyAllImages}>Vérifier toutes les images</button>
-          <small style={{ color: '#666' }}>Affiche un rapport dans la console + alerte de synthèse</small>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-          <button type="button" onClick={scanAndCleanOrphanZones}>Scanner / nettoyer zones orphelines</button>
-          <small style={{ color: '#666' }}>Détecte et nettoie les zones qui référencent des images supprimées ou manquantes</small>
-        </div>
-        <button type="button" style={{marginBottom:12}} onClick={async () => {
-          try {
-            const response = await fetch('http://localhost:4000/list-images');
-            const result = await response.json();
-            if (!result.success) {
-              alert(result.message || 'Erreur lors du listage des images.');
-              return;
-            }
-            // Images déjà dans le JSON
-            const existing = new Set(data.images.map(img => img.url));
-            // Images du dossier absentes du JSON
-            const toAdd = result.images.filter(url => !existing.has(url));
-            if (toAdd.length === 0) {
-              alert('Aucune nouvelle image à ajouter.');
-              return;
-            }
-            setData(d => {
-              const newImages = [
-                ...d.images,
-                ...toAdd.map(url => ({ id: 'i' + Date.now() + Math.random().toString(36).slice(2, 6), url }))
-              ];
-              const newData = { ...d, images: newImages };
-              saveToBackend(newData);
-              return newData;
-            });
-            alert(toAdd.length + ' images ajoutées à la liste !');
-          } catch (err) {
-            alert('Erreur lors de la synchronisation : ' + (err.message || err));
-          }
-      }}>
-          Synchroniser images dossier
-        </button>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780 }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Aperçu</th>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Chemin</th>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Niveau</th>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Catégories</th>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.images.map(i => (
-                <tr key={i.id} ref={el => itemRefs.current.images.set(i.id, el)}>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px' }}>
-                    <img src={process.env.PUBLIC_URL + '/' + i.url} alt={i.url} style={{ width: 60, height: 'auto', borderRadius: 4, border: '1px solid #ccc', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }} />
-                  </td>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px' }}>
-                    {editImageId === i.id ? (
-                      <>
-                        <input
-                          value={editImageValue}
-                          onChange={e => setEditImageValue(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') { e.preventDefault(); handleEditImageSave(i.id); }
-                            if (e.key === 'Escape') { e.preventDefault(); setEditImageId(null); }
-                          }}
-                          style={{ width: '100%' }}
-                          autoFocus
-                        />
-                      </>
-                    ) : (
-                      <span>{i.url}</span>
-                    )}
-                  </td>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px', width: 160 }}>
-                    <select value={i.levelClass || ''} onChange={e => handleUpdateImageLevel(i.id, e.target.value)} style={{ width: '100%', padding: '6px 8px' }}>
-                      <option value="">—</option>
-                      {CLASS_LEVELS.map(lv => <option key={lv} value={lv}>{lv}</option>)}
-                    </select>
-                  </td>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px' }}>
-                    <input value={(i.themes || []).join(', ')} placeholder="Ex: botanique, fruits" onChange={e => handleUpdateImageThemes(i.id, e.target.value)} style={{ width: '100%', padding: '6px 8px' }} />
-                  </td>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px', whiteSpace: 'nowrap' }}>
-                    {editImageId === i.id ? (
-                      <>
-                        <button type="button" onClick={() => handleEditImageSave(i.id)}>Valider</button>
-                        <button type="button" onClick={() => setEditImageId(null)} style={{ marginLeft: 6 }}>Annuler</button>
-                      </>
-                    ) : (
-                      <>
-                        <button type="button" onClick={() => { setEditImageId(i.id); setEditImageValue(i.url); }}>Modifier</button>
-                        <button type="button" style={{ marginLeft: 8, color: '#b00020' }} onClick={() => handleDeleteImage(i.id)}>Supprimer</button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-          <input value={newImage} onChange={e => setNewImage(e.target.value)} placeholder="URL image" style={{ flex: 1 }} />
-          <button type="button" onClick={addImage}>Ajouter</button>
-        </div>
+          {/* TAB: Categorize */}
+          {activeTab === 'categorize' && (
+            <div style={{ background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0D6A7A', marginTop: 0, marginBottom: 4 }}>🏷️ Catégoriser les associations</h2>
+              <p style={{ color: '#64748b', fontSize: 13, marginBottom: 16 }}>Définissez la difficulté (classe) et les thèmes sur chaque paire.</p>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+                <button type="button" onClick={autoTagElements} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#0D6A7A', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                  Auto-tag niveaux & catégories
+                </button>
+                <span style={{ color: '#94a3b8', fontSize: 12 }}>Déduit les thèmes et niveaux automatiquement</span>
+              </div>
+              <AdminAssocMeta data={data} setData={setData} save={saveToBackend} />
+            </div>
+          )}
 
+          {/* TAB: Tools */}
+          {activeTab === 'tools' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* JSON & Dedup */}
+              <div style={{ background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: '#334155', marginTop: 0, marginBottom: 12 }}>📦 Import / Export JSON</h3>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+                  <button onClick={downloadJson} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #0D6A7A', background: '#f0fdfa', color: '#0D6A7A', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>📥 Télécharger le JSON</button>
+                  <label style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', color: '#334155', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                    📤 Importer JSON
+                    <input type="file" accept="application/json" onChange={handleJsonUpload} style={{ display: 'none' }} />
+                  </label>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button type="button" onClick={dedupeImages} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #fde68a', background: '#fffbeb', color: '#92400e', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>🧹 Dédupliquer images</button>
+                  <button type="button" onClick={dedupeAssociations} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #fde68a', background: '#fffbeb', color: '#92400e', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>🧹 Dédupliquer associations</button>
+                </div>
+              </div>
 
-        <div style={{ marginTop: 10 }}>
-          <input type="file" accept="image/*" multiple id="multi-upload" style={{ display: 'none' }} onChange={async e => {
-     const files = Array.from(e.target.files);
-     if (files.length === 0) return;
-     const formData = new FormData();
-     files.forEach(f => formData.append('images', f));
-     try {
-       const response = await fetch('http://localhost:4000/upload-images', {
-         method: 'POST',
-         body: formData
-       });
-       const result = await response.json();
-       if (!result.success) {
-         alert(result.message || 'Erreur lors de l\'upload.');
-         return;
-       }
-       // Ajoute chaque image uploadée au JSON
-       setData(d => {
-         const newImages = [
-           ...d.images,
-           ...result.files.map(f => ({ id: 'i' + Date.now() + Math.random().toString(36).slice(2, 6), url: f.path }))
-         ];
-         const newData = { ...d, images: newImages };
-         saveToBackend(newData);
-         return newData;
-       });
-       e.target.value = '';
-     } catch (err) {
-       alert('Erreur lors de l\'upload : ' + (err.message || err));
-     }
-   }} />
-          <button type="button" onClick={() => document.getElementById('multi-upload').click()} style={{ marginTop: 8 }}>
-            Ajouter plusieurs images
-          </button>
-        </div>
-      </details>
+              {/* Textes management */}
+              <div style={{ background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <details>
+                  <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 15, color: '#334155' }}>📝 Textes ({(data.textes || []).length})</summary>
+                  <div style={{ overflowX: 'auto', marginTop: 12 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead><tr>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569' }}>Texte</th>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569', width: 100 }}>Niveau</th>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569' }}>Catégories</th>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569', width: 140 }}>Actions</th>
+                      </tr></thead>
+                      <tbody>
+                        {data.textes.map(t => (
+                          <tr key={t.id} ref={el => itemRefs.current.textes.set(t.id, el)}>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '6px 8px', maxWidth: 320 }}>
+                              {editTexteId === t.id ? <input value={editTexteValue} onChange={e => setEditTexteValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleEditTexteSave(t.id); if (e.key === 'Escape') setEditTexteId(null); }} style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1' }} autoFocus /> : <span style={{ fontSize: 13 }}>{t.content}</span>}
+                            </td>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '6px 8px' }}>
+                              <select value={t.levelClass || ''} onChange={e => handleUpdateTexteLevel(t.id, e.target.value)} style={{ width: '100%', padding: '4px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12 }}><option value="">—</option>{CLASS_LEVELS.map(lv => <option key={lv} value={lv}>{lv}</option>)}</select>
+                            </td>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '6px 8px' }}>
+                              <input value={(t.themes || []).join(', ')} placeholder="Ex: botanique" onChange={e => handleUpdateTexteThemes(t.id, e.target.value)} style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                            </td>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                              {editTexteId === t.id ? (<><button type="button" onClick={() => handleEditTexteSave(t.id)} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #16a34a', background: '#f0fdf4', color: '#16a34a', fontSize: 12, cursor: 'pointer' }}>✓</button> <button type="button" onClick={() => setEditTexteId(null)} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, cursor: 'pointer' }}>✕</button></>) : (<><button type="button" onClick={() => { setEditTexteId(t.id); setEditTexteValue(t.content); }} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, cursor: 'pointer' }}>✏️</button> <button type="button" onClick={() => handleDeleteTexte(t.id)} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #fecaca', color: '#dc2626', fontSize: 12, cursor: 'pointer' }}>🗑️</button></>)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                    <input value={newTexte} onChange={e => setNewTexte(e.target.value)} placeholder="Nouveau texte" style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }} />
+                    <button type="button" onClick={addTexte} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#0D6A7A', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>+ Ajouter</button>
+                  </div>
+                </details>
+              </div>
 
-      <details>
-        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Calculs</summary>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 680 }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Calcul</th>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Niveau</th>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Catégories</th>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.calculs.map(c => (
-                <tr key={c.id} ref={el => itemRefs.current.calculs.set(c.id, el)}>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px' }}>
-                    {editCalculId === c.id ? (
-                      <input value={editCalculValue} onChange={e => setEditCalculValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleEditCalculSave(c.id); } if (e.key === 'Escape') { e.preventDefault(); setEditCalculId(null); } }} style={{ width: '100%' }} autoFocus />
-                    ) : (
-                      <span>{c.content}</span>
-                    )}
-                  </td>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px', width: 160 }}>
-                    <select value={c.levelClass || ''} onChange={e => handleUpdateCalculLevel(c.id, e.target.value)} style={{ width: '100%', padding: '6px 8px' }}>
-                      <option value="">—</option>
-                      {CLASS_LEVELS.map(lv => <option key={lv} value={lv}>{lv}</option>)}
-                    </select>
-                  </td>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px' }}>
-                    <input value={(c.themes || []).join(', ')} placeholder="Ex: addition, tables" onChange={e => handleUpdateCalculThemes(c.id, e.target.value)} style={{ width: '100%', padding: '6px 8px' }} />
-                  </td>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px', whiteSpace: 'nowrap' }}>
-                    {editCalculId === c.id ? (
-                      <>
-                        <button type="button" onClick={() => handleEditCalculSave(c.id)}>Valider</button>
-                        <button type="button" onClick={() => setEditCalculId(null)} style={{ marginLeft: 6 }}>Annuler</button>
-                      </>
-                    ) : (
-                      <>
-                        <button type="button" onClick={() => { setEditCalculId(c.id); setEditCalculValue(c.content); }}>Modifier</button>
-                        <button type="button" style={{ marginLeft: 8, color: '#b00020' }} onClick={() => handleDeleteCalcul(c.id)}>Supprimer</button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-          <input value={newCalcul} onChange={e => setNewCalcul(e.target.value)} placeholder="Nouveau calcul" style={{ flex: 1 }} />
-          <button type="button" onClick={addCalcul}>Ajouter</button>
-        </div>
-      </details>
+              {/* Images management */}
+              <div style={{ background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <details>
+                  <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 15, color: '#334155' }}>🖼️ Images ({(data.images || []).length})</summary>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+                    <button type="button" onClick={handleVerifyAllImages} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, cursor: 'pointer' }}>Vérifier images</button>
+                    <button type="button" onClick={scanAndCleanOrphanZones} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, cursor: 'pointer' }}>Scanner orphelines</button>
+                    <button type="button" style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, cursor: 'pointer' }} onClick={async () => {
+                      try {
+                        const response = await fetch('http://localhost:4000/list-images');
+                        const result = await response.json();
+                        if (!result.success) { alert(result.message || 'Erreur'); return; }
+                        const existing = new Set(data.images.map(img => img.url));
+                        const toAdd = result.images.filter(url => !existing.has(url));
+                        if (toAdd.length === 0) { alert('Aucune nouvelle image.'); return; }
+                        setData(d => { const nd = { ...d, images: [...d.images, ...toAdd.map(url => ({ id: 'i' + Date.now() + Math.random().toString(36).slice(2, 6), url }))] }; saveToBackend(nd); return nd; });
+                        alert(toAdd.length + ' images ajoutées !');
+                      } catch (err) { alert('Erreur: ' + (err.message || err)); }
+                    }}>Sync dossier</button>
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead><tr>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569', width: 70 }}>Aperçu</th>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569' }}>Chemin</th>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569', width: 100 }}>Niveau</th>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569' }}>Catégories</th>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569', width: 100 }}>Actions</th>
+                      </tr></thead>
+                      <tbody>
+                        {data.images.map(i => (
+                          <tr key={i.id} ref={el => itemRefs.current.images.set(i.id, el)}>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 8px' }}>
+                              <img src={process.env.PUBLIC_URL + '/' + i.url} alt={i.url} style={{ width: 50, height: 50, borderRadius: 6, border: '1px solid #e2e8f0', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }} />
+                            </td>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '6px 8px' }}>
+                              {editImageId === i.id ? <input value={editImageValue} onChange={e => setEditImageValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleEditImageSave(i.id); } if (e.key === 'Escape') { e.preventDefault(); setEditImageId(null); } }} style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} autoFocus /> : <span style={{ fontSize: 12 }}>{i.url}</span>}
+                            </td>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '6px 8px' }}>
+                              <select value={i.levelClass || ''} onChange={e => handleUpdateImageLevel(i.id, e.target.value)} style={{ width: '100%', padding: '4px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12 }}><option value="">—</option>{CLASS_LEVELS.map(lv => <option key={lv} value={lv}>{lv}</option>)}</select>
+                            </td>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '6px 8px' }}>
+                              <input value={(i.themes || []).join(', ')} placeholder="Ex: fruits" onChange={e => handleUpdateImageThemes(i.id, e.target.value)} style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                            </td>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                              {editImageId === i.id ? (<><button type="button" onClick={() => handleEditImageSave(i.id)} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #16a34a', background: '#f0fdf4', color: '#16a34a', fontSize: 12, cursor: 'pointer' }}>✓</button> <button type="button" onClick={() => setEditImageId(null)} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, cursor: 'pointer' }}>✕</button></>) : (<><button type="button" onClick={() => { setEditImageId(i.id); setEditImageValue(i.url); }} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, cursor: 'pointer' }}>✏️</button> <button type="button" onClick={() => handleDeleteImage(i.id)} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #fecaca', color: '#dc2626', fontSize: 12, cursor: 'pointer' }}>🗑️</button></>)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                    <input value={newImage} onChange={e => setNewImage(e.target.value)} placeholder="URL image" style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }} />
+                    <button type="button" onClick={addImage} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#0D6A7A', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>+ Ajouter</button>
+                  </div>
+                  <div style={{ marginTop: 8 }}>
+                    <input type="file" accept="image/*" multiple id="multi-upload" style={{ display: 'none' }} onChange={async e => {
+                      const files = Array.from(e.target.files); if (files.length === 0) return;
+                      const formData = new FormData(); files.forEach(f => formData.append('images', f));
+                      try {
+                        const response = await fetch('http://localhost:4000/upload-images', { method: 'POST', body: formData });
+                        const result = await response.json();
+                        if (!result.success) { alert(result.message || 'Erreur'); return; }
+                        setData(d => { const nd = { ...d, images: [...d.images, ...result.files.map(f => ({ id: 'i' + Date.now() + Math.random().toString(36).slice(2, 6), url: f.path }))] }; saveToBackend(nd); return nd; });
+                        e.target.value = '';
+                      } catch (err) { alert('Erreur: ' + (err.message || err)); }
+                    }} />
+                    <button type="button" onClick={() => document.getElementById('multi-upload').click()} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, cursor: 'pointer' }}>📷 Upload images</button>
+                  </div>
+                </details>
+              </div>
 
-      <details>
-        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Chiffres</summary>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Chiffre</th>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Niveau</th>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Catégories</th>
-                <th style={{ textAlign: 'left', borderBottom: '1px solid #e5e7eb', padding: '6px 8px' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.chiffres.map(n => (
-                <tr key={n.id} ref={el => itemRefs.current.chiffres.set(n.id, el)}>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px' }}>
-                    {editChiffreId === n.id ? (
-                      <input value={editChiffreValue} onChange={e => setEditChiffreValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleEditChiffreSave(n.id); } if (e.key === 'Escape') { e.preventDefault(); setEditChiffreId(null); } }} style={{ width: '100%' }} autoFocus />
-                    ) : (
-                      <span>{n.content}</span>
-                    )}
-                  </td>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px', width: 160 }}>
-                    <select value={n.levelClass || ''} onChange={e => handleUpdateChiffreLevel(n.id, e.target.value)} style={{ width: '100%', padding: '6px 8px' }}>
-                      <option value="">—</option>
-                      {CLASS_LEVELS.map(lv => <option key={lv} value={lv}>{lv}</option>)}
-                    </select>
-                  </td>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px' }}>
-                    <input value={(n.themes || []).join(', ')} placeholder="Ex: résultats pairs" onChange={e => handleUpdateChiffreThemes(n.id, e.target.value)} style={{ width: '100%', padding: '6px 8px' }} />
-                  </td>
-                  <td style={{ borderBottom: '1px solid #f3f4f6', padding: '6px 8px', whiteSpace: 'nowrap' }}>
-                    {editChiffreId === n.id ? (
-                      <>
-                        <button type="button" onClick={() => handleEditChiffreSave(n.id)}>Valider</button>
-                        <button type="button" onClick={() => setEditChiffreId(null)} style={{ marginLeft: 6 }}>Annuler</button>
-                      </>
-                    ) : (
-                      <>
-                        <button type="button" onClick={() => { setEditChiffreId(n.id); setEditChiffreValue(n.content); }}>Modifier</button>
-                        <button type="button" style={{ marginLeft: 8, color: '#b00020' }} onClick={() => handleDeleteChiffre(n.id)}>Supprimer</button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-          <input value={newChiffre} onChange={e => setNewChiffre(e.target.value)} placeholder="Nouveau chiffre" style={{ flex: 1 }} />
-          <button type="button" onClick={addChiffre}>Ajouter</button>
-        </div>
-      </details>
+              {/* Calculs management */}
+              <div style={{ background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <details>
+                  <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 15, color: '#334155' }}>🔢 Calculs ({(data.calculs || []).length})</summary>
+                  <div style={{ overflowX: 'auto', marginTop: 12 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead><tr>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569' }}>Calcul</th>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569', width: 100 }}>Niveau</th>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569' }}>Catégories</th>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569', width: 140 }}>Actions</th>
+                      </tr></thead>
+                      <tbody>
+                        {data.calculs.map(c => (
+                          <tr key={c.id} ref={el => itemRefs.current.calculs.set(c.id, el)}>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '6px 8px' }}>
+                              {editCalculId === c.id ? <input value={editCalculValue} onChange={e => setEditCalculValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleEditCalculSave(c.id); } if (e.key === 'Escape') { e.preventDefault(); setEditCalculId(null); } }} style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1' }} autoFocus /> : <span style={{ fontSize: 13 }}>{c.content}</span>}
+                            </td>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '6px 8px' }}>
+                              <select value={c.levelClass || ''} onChange={e => handleUpdateCalculLevel(c.id, e.target.value)} style={{ width: '100%', padding: '4px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12 }}><option value="">—</option>{CLASS_LEVELS.map(lv => <option key={lv} value={lv}>{lv}</option>)}</select>
+                            </td>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '6px 8px' }}>
+                              <input value={(c.themes || []).join(', ')} placeholder="Ex: multiplication" onChange={e => handleUpdateCalculThemes(c.id, e.target.value)} style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                            </td>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                              {editCalculId === c.id ? (<><button type="button" onClick={() => handleEditCalculSave(c.id)} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #16a34a', background: '#f0fdf4', color: '#16a34a', fontSize: 12, cursor: 'pointer' }}>✓</button> <button type="button" onClick={() => setEditCalculId(null)} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, cursor: 'pointer' }}>✕</button></>) : (<><button type="button" onClick={() => { setEditCalculId(c.id); setEditCalculValue(c.content); }} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, cursor: 'pointer' }}>✏️</button> <button type="button" onClick={() => handleDeleteCalcul(c.id)} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #fecaca', color: '#dc2626', fontSize: 12, cursor: 'pointer' }}>🗑️</button></>)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                    <input value={newCalcul} onChange={e => setNewCalcul(e.target.value)} placeholder="Nouveau calcul" style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }} />
+                    <button type="button" onClick={addCalcul} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#0D6A7A', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>+ Ajouter</button>
+                  </div>
+                  <button type="button" onClick={seedMultiplications} style={{ marginTop: 8, padding: '8px 14px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, cursor: 'pointer' }}>Pré-remplir 30 multiplications</button>
+                </details>
+              </div>
 
-      <hr />
+              {/* Chiffres management */}
+              <div style={{ background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <details>
+                  <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 15, color: '#334155' }}>🔢 Chiffres / Résultats ({(data.chiffres || []).length})</summary>
+                  <div style={{ overflowX: 'auto', marginTop: 12 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead><tr>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569' }}>Chiffre</th>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569', width: 100 }}>Niveau</th>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569' }}>Catégories</th>
+                        <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '8px', fontSize: 12, color: '#475569', width: 140 }}>Actions</th>
+                      </tr></thead>
+                      <tbody>
+                        {data.chiffres.map(n => (
+                          <tr key={n.id} ref={el => itemRefs.current.chiffres.set(n.id, el)}>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '6px 8px' }}>
+                              {editChiffreId === n.id ? <input value={editChiffreValue} onChange={e => setEditChiffreValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleEditChiffreSave(n.id); } if (e.key === 'Escape') { e.preventDefault(); setEditChiffreId(null); } }} style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1' }} autoFocus /> : <span style={{ fontSize: 13 }}>{n.content}</span>}
+                            </td>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '6px 8px' }}>
+                              <select value={n.levelClass || ''} onChange={e => handleUpdateChiffreLevel(n.id, e.target.value)} style={{ width: '100%', padding: '4px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12 }}><option value="">—</option>{CLASS_LEVELS.map(lv => <option key={lv} value={lv}>{lv}</option>)}</select>
+                            </td>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '6px 8px' }}>
+                              <input value={(n.themes || []).join(', ')} placeholder="Ex: résultats" onChange={e => handleUpdateChiffreThemes(n.id, e.target.value)} style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                            </td>
+                            <td style={{ borderBottom: '1px solid #f1f5f9', padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                              {editChiffreId === n.id ? (<><button type="button" onClick={() => handleEditChiffreSave(n.id)} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #16a34a', background: '#f0fdf4', color: '#16a34a', fontSize: 12, cursor: 'pointer' }}>✓</button> <button type="button" onClick={() => setEditChiffreId(null)} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, cursor: 'pointer' }}>✕</button></>) : (<><button type="button" onClick={() => { setEditChiffreId(n.id); setEditChiffreValue(n.content); }} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 12, cursor: 'pointer' }}>✏️</button> <button type="button" onClick={() => handleDeleteChiffre(n.id)} style={{ padding: '3px 8px', borderRadius: 6, border: '1px solid #fecaca', color: '#dc2626', fontSize: 12, cursor: 'pointer' }}>🗑️</button></>)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                    <input value={newChiffre} onChange={e => setNewChiffre(e.target.value)} placeholder="Nouveau chiffre" style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }} />
+                    <button type="button" onClick={addChiffre} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#0D6A7A', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>+ Ajouter</button>
+                  </div>
+                </details>
+              </div>
 
-      <details>
-        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Associer Texte ↔ Image</summary>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-          <input placeholder="Rechercher texte" value={texteFilter} onChange={e => setTexteFilter(e.target.value)} />
-          <input placeholder="Rechercher image" value={imageFilter} onChange={e => setImageFilter(e.target.value)} />
+              {/* Associations manuelles */}
+              <div style={{ background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                <details>
+                  <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 15, color: '#334155' }}>🔗 Associer manuellement</summary>
+                  <div style={{ marginTop: 12 }}>
+                    <h4 style={{ fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 8 }}>Texte ↔ Image</h4>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                      <input placeholder="Rechercher texte" value={texteFilter} onChange={e => setTexteFilter(e.target.value)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }} />
+                      <input placeholder="Rechercher image" value={imageFilter} onChange={e => setImageFilter(e.target.value)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <select value={selectedTexte} onChange={e => setSelectedTexte(e.target.value)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}>
+                        <option value="">-- Texte --</option>
+                        {textesFiltered.map(t => <option value={t.id} key={t.id}>{t.content}</option>)}
+                      </select>
+                      <select value={selectedImage} onChange={e => setSelectedImage(e.target.value)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}>
+                        <option value="">-- Image --</option>
+                        {imagesFiltered.map(i => <option value={i.id} key={i.id}>{i.url}</option>)}
+                      </select>
+                      <button onClick={associerTexteImage} disabled={!selectedTexte || !selectedImage} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: (!selectedTexte || !selectedImage) ? '#94a3b8' : '#0D6A7A', color: '#fff', fontWeight: 600, fontSize: 13, cursor: (!selectedTexte || !selectedImage) ? 'not-allowed' : 'pointer' }}>Associer</button>
+                    </div>
+                    <hr style={{ margin: '16px 0', borderColor: '#f1f5f9' }} />
+                    <h4 style={{ fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 8 }}>Calcul ↔ Chiffre</h4>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                      <input placeholder="Rechercher calcul" value={calculFilter} onChange={e => setCalculFilter(e.target.value)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }} />
+                      <input placeholder="Rechercher chiffre" value={chiffreFilter} onChange={e => setChiffreFilter(e.target.value)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <select value={selectedCalcul} onChange={e => setSelectedCalcul(e.target.value)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}>
+                        <option value="">-- Calcul --</option>
+                        {calculsFiltered.map(c => <option value={c.id} key={c.id}>{c.content}</option>)}
+                      </select>
+                      <select value={selectedChiffre} onChange={e => setSelectedChiffre(e.target.value)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}>
+                        <option value="">-- Chiffre --</option>
+                        {chiffresFiltered.map(n => <option value={n.id} key={n.id}>{n.content}</option>)}
+                      </select>
+                      <button onClick={associerCalculChiffre} disabled={!selectedCalcul || !selectedChiffre} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: (!selectedCalcul || !selectedChiffre) ? '#94a3b8' : '#0D6A7A', color: '#fff', fontWeight: 600, fontSize: 13, cursor: (!selectedCalcul || !selectedChiffre) ? 'not-allowed' : 'pointer' }}>Associer</button>
+                    </div>
+                  </div>
+                </details>
+              </div>
+            </div>
+          )}
         </div>
-        <select value={selectedTexte} onChange={e => setSelectedTexte(e.target.value)}>
-          <option value="">-- Texte --</option>
-          {textesFiltered.map(t => <option value={t.id} key={t.id}>{t.content}</option>)}
-        </select>
-        <select value={selectedImage} onChange={e => setSelectedImage(e.target.value)}>
-          <option value="">-- Image --</option>
-          {imagesFiltered.map(i => <option value={i.id} key={i.id}>{i.url}</option>)}
-        </select>
-        <button onClick={associerTexteImage} disabled={!selectedTexte || !selectedImage}>Associer</button>
-      </details>
-
-      <details>
-        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Associer Calcul ↔ Chiffre</summary>
-        <button type="button" onClick={seedMultiplications} style={{ marginBottom: 8 }}>Pré-remplir 30 multiplications</button>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-          <input placeholder="Rechercher calcul" value={calculFilter} onChange={e => setCalculFilter(e.target.value)} />
-          <input placeholder="Rechercher chiffre" value={chiffreFilter} onChange={e => setChiffreFilter(e.target.value)} />
-        </div>
-        <select value={selectedCalcul} onChange={e => setSelectedCalcul(e.target.value)}>
-          <option value="">-- Calcul --</option>
-          {calculsFiltered.map(c => <option value={c.id} key={c.id}>{c.content}</option>)}
-        </select>
-        <select value={selectedChiffre} onChange={e => setSelectedChiffre(e.target.value)}>
-          <option value="">-- Chiffre --</option>
-          {chiffresFiltered.map(n => <option value={n.id} key={n.id}>{n.content}</option>)}
-        </select>
-        <button onClick={associerCalculChiffre} disabled={!selectedCalcul || !selectedChiffre}>Associer</button>
-      </details>
-
-      
-        </>
       )}
     </div>
   );

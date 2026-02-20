@@ -395,7 +395,7 @@ export default function NotificationBadge() {
                       return;
                     }
 
-                    if (!confirm('Nettoyer toutes les anciennes notifications ? Cette action marquera tous vos anciens matchs comme terminés.')) {
+                    if (!window.confirm('Nettoyer toutes les anciennes notifications ? Cette action marquera tous vos anciens matchs comme terminés.')) {
                       return;
                     }
 
