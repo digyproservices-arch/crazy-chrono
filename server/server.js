@@ -188,28 +188,34 @@ app.post('/usage/can-start', async (req, res) => {
       }
     } catch {}
 
-    // If user is a licensed student (via user_student_mapping), allow unlimited
-    let _debug_mapping = null;
-    let _debug_student = null;
+    // If user is a licensed student, allow unlimited
+    // Strategy: check user's email — if it matches @eleve.crazychrono.app, look up student by access code
     try {
-      const { data: mapping, error: mapErr } = await supabaseAdmin
-        .from('user_student_mapping')
-        .select('student_id, active')
-        .eq('user_id', userId)
-        .maybeSingle();
-      _debug_mapping = mapping || (mapErr ? { error: mapErr.message } : 'no_mapping');
-      if (mapping?.student_id && mapping?.active) {
-        const { data: student, error: stuErr } = await supabaseAdmin
+      const { data: profile2 } = await supabaseAdmin
+        .from('user_profiles')
+        .select('email')
+        .eq('id', userId)
+        .single();
+      const email = profile2?.email || '';
+      if (email.endsWith('@eleve.crazychrono.app')) {
+        // Email format: {code_lowercase_alphanumeric}@eleve.crazychrono.app
+        // Access code format: ALICE-CE1A-1234 → email: alicece1a1234@eleve.crazychrono.app
+        // We need to find the student by matching — query all students in one go and match
+        const emailPrefix = email.replace('@eleve.crazychrono.app', '');
+        const { data: allStudents } = await supabaseAdmin
           .from('students')
-          .select('licensed')
-          .eq('id', mapping.student_id)
-          .single();
-        _debug_student = student || (stuErr ? { error: stuErr.message } : 'no_student');
-        if (student?.licensed) {
+          .select('id, access_code, licensed')
+          .eq('licensed', true);
+        const matched = (allStudents || []).find(s => {
+          if (!s.access_code) return false;
+          const normalized = s.access_code.toLowerCase().replace(/[^a-z0-9]/g, '');
+          return normalized === emailPrefix;
+        });
+        if (matched) {
           return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason: 'student_licensed' });
         }
       }
-    } catch (e) { _debug_mapping = { catch_error: e.message }; }
+    } catch {}
 
     // If user has active subscription, allow
     try {
@@ -239,7 +245,7 @@ app.post('/usage/can-start', async (req, res) => {
     } catch {}
 
     const allow = sessionsToday < FREE_LIMIT;
-    return res.json({ ok: true, allow, limit: FREE_LIMIT, sessionsToday, reason: allow ? 'under_limit' : 'limit_reached', _debug: { mapping: _debug_mapping, student: _debug_student } });
+    return res.json({ ok: true, allow, limit: FREE_LIMIT, sessionsToday, reason: allow ? 'under_limit' : 'limit_reached' });
   } catch (e) {
     console.error('[Usage] can-start error', e);
     return res.status(500).json({ ok: false, error: 'server_error' });
@@ -308,22 +314,18 @@ app.get('/me', async (req, res) => {
       if (['admin', 'teacher'].includes(role) && !['active','trialing'].includes(String(subscription || '').toLowerCase())) {
         subscription = 'active';
       }
-      // Licensed students get active subscription status (check mapping regardless of role)
-      if (!['active','trialing'].includes(String(subscription || '').toLowerCase())) {
-        const { data: mapping } = await supabaseAdmin
-          .from('user_student_mapping')
-          .select('student_id')
-          .eq('user_id', user.id)
-          .eq('active', true)
-          .maybeSingle();
-        if (mapping?.student_id) {
-          const { data: stu } = await supabaseAdmin
-            .from('students')
-            .select('licensed')
-            .eq('id', mapping.student_id)
-            .single();
-          if (stu?.licensed) subscription = 'active';
-        }
+      // Licensed students get active subscription status (via email pattern match)
+      if (!['active','trialing'].includes(String(subscription || '').toLowerCase()) && user.email?.endsWith('@eleve.crazychrono.app')) {
+        const emailPrefix = user.email.replace('@eleve.crazychrono.app', '');
+        const { data: allStu } = await supabaseAdmin
+          .from('students')
+          .select('id, access_code, licensed')
+          .eq('licensed', true);
+        const matched = (allStu || []).find(s => {
+          if (!s.access_code) return false;
+          return s.access_code.toLowerCase().replace(/[^a-z0-9]/g, '') === emailPrefix;
+        });
+        if (matched) subscription = 'active';
       }
     } catch {}
 
