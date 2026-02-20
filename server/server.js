@@ -1090,10 +1090,16 @@ app.post('/api/admin/onboarding/import', async (req, res) => {
         .select('id, name, level, student_count')
         .eq('school_id', schoolId);
 
-      // Match CSV classes to existing classes by name, or create new ones
+      // Match CSV classes to existing classes by name (fuzzy), or create new ones
+      const normName = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
       for (const c of classes) {
+        const csvNorm = normName(c.name);
         const existing = (existingClasses || []).find(
-          ec => ec.name.toLowerCase().trim() === c.name.toLowerCase().trim()
+          ec => !Object.values(classIdMap).includes(ec.id) && (
+            ec.name.toLowerCase().trim() === c.name.toLowerCase().trim() ||
+            normName(ec.name) === csvNorm ||
+            (ec.level === c.level && (normName(ec.name).includes(csvNorm) || csvNorm.includes(normName(ec.name))))
+          )
         );
         if (existing) {
           classIdMap[c.key] = existing.id;
@@ -1293,6 +1299,41 @@ app.put('/api/admin/onboarding/classes/:id', express.json(), async (req, res) =>
     res.json({ ok: true, class: data });
   } catch (error) {
     console.error('[Onboarding] update class error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// POST merge two classes (move students from sourceId to targetId, delete source)
+app.post('/api/admin/onboarding/classes/merge', express.json(), async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
+    const { sourceId, targetId } = req.body;
+    if (!sourceId || !targetId) return res.status(400).json({ ok: false, error: 'sourceId et targetId requis.' });
+    if (sourceId === targetId) return res.status(400).json({ ok: false, error: 'Impossible de fusionner une classe avec elle-même.' });
+
+    // Move all students from source to target
+    const { data: moved, error: moveErr } = await supabaseAdmin
+      .from('students')
+      .update({ class_id: targetId })
+      .eq('class_id', sourceId)
+      .select('id');
+    if (moveErr) return res.status(400).json({ ok: false, error: 'Erreur déplacement élèves: ' + moveErr.message });
+
+    // Update target class student_count
+    const { count: newCount } = await supabaseAdmin
+      .from('students')
+      .select('id', { count: 'exact', head: true })
+      .eq('class_id', targetId);
+    await supabaseAdmin.from('classes').update({ student_count: newCount || 0 }).eq('id', targetId);
+
+    // Delete source class
+    const { error: delErr } = await supabaseAdmin.from('classes').delete().eq('id', sourceId);
+    if (delErr) console.warn('[Onboarding] delete source class error:', delErr.message);
+
+    console.log(`[Onboarding] Merged class ${sourceId} → ${targetId}, moved ${(moved || []).length} students`);
+    res.json({ ok: true, movedStudents: (moved || []).length });
+  } catch (error) {
+    console.error('[Onboarding] merge classes error:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });

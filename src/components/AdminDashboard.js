@@ -1073,7 +1073,61 @@ function AdminDashboard() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {editSchool.classes.map((cls, idx) => (
                     <div key={cls.id} style={{ padding: 10, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>{cls.name} ({cls.level})</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>{cls.name} ({cls.level})</div>
+                        {editSchool.classes.length > 1 && (
+                          <button
+                            onClick={async () => {
+                              const others = editSchool.classes.filter((_, i) => i !== idx);
+                              const targetName = others.length === 1 ? others[0].name : null;
+                              const target = others.length === 1 ? others[0] : null;
+                              let targetId;
+                              if (target) {
+                                if (!window.confirm(`Fusionner "${cls.name}" dans "${target.name}" ?\nTous les élèves seront déplacés et "${cls.name}" sera supprimée.`)) return;
+                                targetId = target.id;
+                              } else {
+                                const choice = window.prompt(`Fusionner "${cls.name}" dans quelle classe ?\n${others.map((o, i) => `${i + 1}. ${o.name}`).join('\n')}\n\nEntrez le numéro :`);
+                                if (!choice) return;
+                                const choiceIdx = parseInt(choice) - 1;
+                                if (isNaN(choiceIdx) || !others[choiceIdx]) { alert('Choix invalide'); return; }
+                                targetId = others[choiceIdx].id;
+                              }
+                              setEditSchool(prev => ({ ...prev, saving: true, error: null }));
+                              try {
+                                const backendUrl = getBackendUrl();
+                                const res = await fetch(`${backendUrl}/api/admin/onboarding/classes/merge`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ sourceId: cls.id, targetId }),
+                                });
+                                const data = await res.json();
+                                if (data.ok) {
+                                  // Refresh schools list and update modal
+                                  const scRes = await fetch(`${backendUrl}/api/admin/onboarding/schools`);
+                                  const scData = await scRes.json();
+                                  if (scData.ok) {
+                                    setSchoolsList(scData.schools || []);
+                                    const updated = (scData.schools || []).find(s => s.id === editSchool.id);
+                                    if (updated) {
+                                      setEditSchool(prev => ({ ...prev, saving: false, classes: (updated.classes || []).map(c => ({ id: c.id, name: c.name, level: c.level, teacher_name: c.teacher_name || '', teacher_email: c.teacher_email || '' })) }));
+                                    } else {
+                                      setEditSchool(prev => ({ ...prev, saving: false }));
+                                    }
+                                  }
+                                } else {
+                                  setEditSchool(prev => ({ ...prev, saving: false, error: data.error }));
+                                }
+                              } catch (e) {
+                                setEditSchool(prev => ({ ...prev, saving: false, error: e.message }));
+                              }
+                            }}
+                            style={{ padding: '2px 8px', fontSize: 11, fontWeight: 600, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 4, cursor: 'pointer' }}
+                            title={`Fusionner "${cls.name}" dans une autre classe`}
+                          >
+                            🔀 Fusionner
+                          </button>
+                        )}
+                      </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                         <div>
                           <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 2 }}>Nom du professeur</label>
