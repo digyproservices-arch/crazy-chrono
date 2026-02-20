@@ -1037,47 +1037,87 @@ app.post('/api/admin/onboarding/import', async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
 
-    const { schoolName, schoolCity, schoolType, circonscriptionId, classes, students, activateLicenses, bonCommande } = req.body;
+    const { schoolName, schoolCity, schoolType, circonscriptionId, classes, students, activateLicenses, bonCommande, existingSchoolId } = req.body;
 
     if (!schoolName || !classes?.length || !students?.length) {
       return res.status(400).json({ ok: false, error: 'Données incomplètes. schoolName, classes et students requis.' });
     }
 
-    // 1) Create or find school
-    const schoolId = 'sch_' + schoolName.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 30) + '_' + Date.now().toString(36);
-    const schoolRow = {
-      id: schoolId,
-      name: schoolName,
-      type: schoolType || 'primaire',
-      city: schoolCity || null,
-      circonscription_id: circonscriptionId || null,
-    };
-    const { error: schoolErr } = await supabaseAdmin.from('schools').upsert(schoolRow, { onConflict: 'id' });
-    if (schoolErr) throw new Error('Erreur création école: ' + schoolErr.message);
-
-    // 2) Create classes
+    let schoolId;
     const classIdMap = {};
-    const classRows = classes.map(c => {
-      const classId = 'cls_' + schoolId.slice(4, 20) + '_' + c.name.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now().toString(36);
-      classIdMap[c.key] = classId;
-      return {
-        id: classId,
-        school_id: schoolId,
-        name: c.name,
-        level: c.level,
-        teacher_name: c.teacherName || null,
-        teacher_email: c.teacherEmail || null,
-        student_count: c.studentCount || 0,
-      };
-    });
-    const { error: classErr } = await supabaseAdmin.from('classes').upsert(classRows, { onConflict: 'id' });
-    if (classErr) throw new Error('Erreur création classes: ' + classErr.message);
 
-    // 3) Create students in batches (with unique access codes)
+    if (existingSchoolId) {
+      // === ADD TO EXISTING SCHOOL MODE ===
+      schoolId = existingSchoolId;
+
+      // Fetch existing classes for this school
+      const { data: existingClasses } = await supabaseAdmin
+        .from('classes')
+        .select('id, name, level, student_count')
+        .eq('school_id', schoolId);
+
+      // Match CSV classes to existing classes by name, or create new ones
+      for (const c of classes) {
+        const existing = (existingClasses || []).find(
+          ec => ec.name.toLowerCase().trim() === c.name.toLowerCase().trim()
+        );
+        if (existing) {
+          classIdMap[c.key] = existing.id;
+        } else {
+          // Create new class within existing school
+          const classId = 'cls_' + schoolId.slice(4, 20) + '_' + c.name.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now().toString(36);
+          classIdMap[c.key] = classId;
+          const { error: newClsErr } = await supabaseAdmin.from('classes').insert({
+            id: classId, school_id: schoolId, name: c.name, level: c.level,
+            teacher_name: c.teacherName || null, teacher_email: c.teacherEmail || null,
+            student_count: c.studentCount || 0,
+          });
+          if (newClsErr) console.warn(`[Onboarding] New class create error: ${newClsErr.message}`);
+        }
+      }
+
+      // Count existing students for ID offset
+      const { count: existingStudentCount } = await supabaseAdmin
+        .from('students')
+        .select('id', { count: 'exact', head: true })
+        .eq('school_id', schoolId);
+      var studentIdOffset = (existingStudentCount || 0);
+
+      console.log(`[Onboarding] Adding ${students.length} students to existing school ${schoolId} (${existingClasses?.length || 0} existing classes, offset=${studentIdOffset})`);
+    } else {
+      // === NEW SCHOOL MODE ===
+      schoolId = 'sch_' + schoolName.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 30) + '_' + Date.now().toString(36);
+      const schoolRow = {
+        id: schoolId,
+        name: schoolName,
+        type: schoolType || 'primaire',
+        city: schoolCity || null,
+        circonscription_id: circonscriptionId || null,
+      };
+      const { error: schoolErr } = await supabaseAdmin.from('schools').upsert(schoolRow, { onConflict: 'id' });
+      if (schoolErr) throw new Error('Erreur création école: ' + schoolErr.message);
+
+      // Create classes
+      const classRows = classes.map(c => {
+        const classId = 'cls_' + schoolId.slice(4, 20) + '_' + c.name.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now().toString(36);
+        classIdMap[c.key] = classId;
+        return {
+          id: classId, school_id: schoolId, name: c.name, level: c.level,
+          teacher_name: c.teacherName || null, teacher_email: c.teacherEmail || null,
+          student_count: c.studentCount || 0,
+        };
+      });
+      const { error: classErr } = await supabaseAdmin.from('classes').upsert(classRows, { onConflict: 'id' });
+      if (classErr) throw new Error('Erreur création classes: ' + classErr.message);
+
+      var studentIdOffset = 0;
+    }
+
+    // Create students in batches (with unique access codes)
     const usedCodes = new Set();
     const studentRows = students.map((s, idx) => {
       const classId = classIdMap[s.classKey] || null;
-      const studentId = 'std_' + schoolId.slice(4, 20) + '_' + String(idx + 1).padStart(4, '0');
+      const studentId = 'std_' + schoolId.slice(4, 20) + '_' + String(studentIdOffset + idx + 1).padStart(4, '0');
       let accessCode;
       let attempts = 0;
       do {
@@ -1111,14 +1151,25 @@ app.post('/api/admin/onboarding/import', async (req, res) => {
       }
     }
 
-    console.log(`[Onboarding] ✅ Import terminé: école=${schoolName}, classes=${classRows.length}, élèves=${imported}/${studentRows.length}, licences=${activateLicenses ? 'OUI' : 'NON'}`);
+    // Update class student_count for affected classes
+    const affectedClassIds = [...new Set(studentRows.map(s => s.class_id).filter(Boolean))];
+    for (const cid of affectedClassIds) {
+      const { count: clsCount } = await supabaseAdmin
+        .from('students').select('id', { count: 'exact', head: true }).eq('class_id', cid);
+      if (typeof clsCount === 'number') {
+        await supabaseAdmin.from('classes').update({ student_count: clsCount }).eq('id', cid);
+      }
+    }
+
+    const classCount = Object.keys(classIdMap).length;
+    console.log(`[Onboarding] ✅ Import terminé: école=${schoolName}, classes=${classCount}, élèves=${imported}/${studentRows.length}, licences=${activateLicenses ? 'OUI' : 'NON'}${existingSchoolId ? ' (ajout)' : ''}`);
 
     res.json({
       ok: true,
       result: {
         schoolId,
         schoolName,
-        classesCreated: classRows.length,
+        classesCreated: classCount,
         studentsImported: imported,
         studentsTotal: studentRows.length,
         licensesActivated: activateLicenses ? imported : 0,

@@ -25,6 +25,7 @@ function AdminDashboard() {
     bonCommande: '', bonCommandeValide: false,
     csvFile: null, csvPreview: null, csvError: null,
     activateLicenses: true, loading: false, result: null,
+    existingSchoolId: null, // Set when adding students to existing school
   });
   const [schoolsList, setSchoolsList] = useState([]);
 
@@ -483,6 +484,7 @@ function AdminDashboard() {
                     <th style={{ padding: 8, textAlign: 'center', color: '#64748b' }}>Classes</th>
                     <th style={{ padding: 8, textAlign: 'center', color: '#64748b' }}>Élèves</th>
                     <th style={{ padding: 8, textAlign: 'center', color: '#64748b' }}>Licenciés</th>
+                    <th style={{ padding: 8, textAlign: 'center', color: '#64748b' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -496,6 +498,22 @@ function AdminDashboard() {
                         <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 700, background: s.licensedCount === s.studentCount && s.studentCount > 0 ? '#dcfce7' : '#fef3c7', color: s.licensedCount === s.studentCount && s.studentCount > 0 ? '#16a34a' : '#d97706' }}>
                           {s.licensedCount}/{s.studentCount}
                         </span>
+                      </td>
+                      <td style={{ padding: 8, textAlign: 'center' }}>
+                        <button
+                          onClick={() => setOnboarding(prev => ({
+                            ...prev,
+                            step: 2,
+                            existingSchoolId: s.id,
+                            schoolName: s.name,
+                            schoolCity: s.city || '',
+                            schoolType: s.type || 'primaire',
+                            result: null, csvPreview: null, csvError: null,
+                          }))}
+                          style={{ padding: '4px 10px', fontSize: 12, fontWeight: 600, background: '#f0f9ff', color: '#0D6A7A', border: '1px solid #bae6fd', borderRadius: 6, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >
+                          + Élèves
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -572,10 +590,18 @@ function AdminDashboard() {
                   </div>
                 ))}
               </div>
+              {onboarding.existingSchoolId && (
+                <div style={{ marginBottom: 12, padding: '10px 14px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd', fontSize: 13, color: '#0D6A7A', fontWeight: 600 }}>
+                  ➕ Ajout d'élèves à l'école existante : <strong>{onboarding.schoolName}</strong>
+                  <div style={{ fontSize: 12, color: '#64748b', fontWeight: 400, marginTop: 4 }}>
+                    Utilisez le même nom de classe dans le CSV pour ajouter les élèves à une classe existante, ou un nouveau nom pour créer une nouvelle classe.
+                  </div>
+                </div>
+              )}
               <div style={{ textAlign: 'center', padding: '30px 20px', border: '2px dashed #cbd5e1', borderRadius: 12, background: '#fff', marginBottom: 12 }}>
                 <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
                 <div style={{ fontSize: 14, color: '#64748b', marginBottom: 12 }}>
-                  Déposez ici le fichier CSV rempli par l'école
+                  Déposez ici le fichier CSV {onboarding.existingSchoolId ? 'avec les nouveaux élèves' : "rempli par l'école"}
                 </div>
                 <input
                   type="file"
@@ -608,7 +634,7 @@ function AdminDashboard() {
                 {onboarding.csvError && <div style={{ marginTop: 10, fontSize: 14, color: '#dc2626', fontWeight: 600 }}>❌ {onboarding.csvError}</div>}
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <button onClick={() => setOnboarding(p => ({ ...p, step: 1 }))} style={{ padding: '10px 24px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', fontSize: 14, fontWeight: 600, background: '#fff', color: '#64748b' }}>
+                <button onClick={() => setOnboarding(p => ({ ...p, step: p.existingSchoolId ? 0 : 1, existingSchoolId: p.existingSchoolId ? null : p.existingSchoolId }))} style={{ padding: '10px 24px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer', fontSize: 14, fontWeight: 600, background: '#fff', color: '#64748b' }}>
                   ← Retour
                 </button>
               </div>
@@ -723,6 +749,7 @@ function AdminDashboard() {
                           students: onboarding.csvPreview.allStudents,
                           activateLicenses: onboarding.activateLicenses,
                           bonCommande: onboarding.bonCommande,
+                          existingSchoolId: onboarding.existingSchoolId || undefined,
                         }),
                       });
                       const data = await res.json();
