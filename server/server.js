@@ -188,6 +188,26 @@ app.post('/usage/can-start', async (req, res) => {
       }
     } catch {}
 
+    // If user is a licensed student (via user_student_mapping), allow unlimited
+    try {
+      const { data: mapping } = await supabaseAdmin
+        .from('user_student_mapping')
+        .select('student_id')
+        .eq('user_id', userId)
+        .eq('active', true)
+        .maybeSingle();
+      if (mapping?.student_id) {
+        const { data: student } = await supabaseAdmin
+          .from('students')
+          .select('licensed')
+          .eq('id', mapping.student_id)
+          .single();
+        if (student?.licensed) {
+          return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason: 'student_licensed' });
+        }
+      }
+    } catch {}
+
     // If user has active subscription, allow
     try {
       const { data: subs, error: subErr } = await supabaseAdmin
@@ -280,10 +300,27 @@ app.get('/me', async (req, res) => {
       }
     } catch {}
 
-    // 5) Business rule: Admins are PRO by default
+    // 5) Business rules: Admins, teachers, and licensed students are PRO
     try {
-      if (role === 'admin' && !['active','trialing'].includes(String(subscription || '').toLowerCase())) {
+      if (['admin', 'teacher'].includes(role) && !['active','trialing'].includes(String(subscription || '').toLowerCase())) {
         subscription = 'active';
+      }
+      // Licensed students get active subscription status
+      if (role === 'student' && !['active','trialing'].includes(String(subscription || '').toLowerCase())) {
+        const { data: mapping } = await supabaseAdmin
+          .from('user_student_mapping')
+          .select('student_id')
+          .eq('user_id', user.id)
+          .eq('active', true)
+          .maybeSingle();
+        if (mapping?.student_id) {
+          const { data: stu } = await supabaseAdmin
+            .from('students')
+            .select('licensed')
+            .eq('id', mapping.student_id)
+            .single();
+          if (stu?.licensed) subscription = 'active';
+        }
       }
     } catch {}
 
