@@ -49,6 +49,16 @@ function AdminDashboard() {
       }
     }
     fetchStats();
+    // Load schools list on init
+    async function fetchSchools() {
+      try {
+        const backendUrl = getBackendUrl();
+        const res = await fetch(`${backendUrl}/api/admin/onboarding/schools`);
+        const data = await res.json();
+        if (data.ok) setSchoolsList(data.schools || []);
+      } catch (e) { console.error('Erreur schools:', e); }
+    }
+    fetchSchools();
   }, []);
 
   return (
@@ -107,12 +117,16 @@ function AdminDashboard() {
                   <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#0D6A7A' }}>{stats.totalUsers}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '14px', color: '#64748b' }}>Avec licence active</span>
-                  <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#22c55e' }}>{stats.usersWithLicense}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '14px', color: '#64748b' }}>Élèves enregistrés</span>
                   <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#0D6A7A' }}>{stats.totalStudents}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>Élèves licenciés</span>
+                  <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#22c55e' }}>{stats.licensedStudents}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>Abonnés Stripe</span>
+                  <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#6366f1' }}>{stats.usersWithLicense}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '14px', color: '#64748b' }}>Actifs aujourd'hui</span>
