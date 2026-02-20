@@ -305,8 +305,8 @@ app.get('/me', async (req, res) => {
       if (['admin', 'teacher'].includes(role) && !['active','trialing'].includes(String(subscription || '').toLowerCase())) {
         subscription = 'active';
       }
-      // Licensed students get active subscription status
-      if (role === 'student' && !['active','trialing'].includes(String(subscription || '').toLowerCase())) {
+      // Licensed students get active subscription status (check mapping regardless of role)
+      if (!['active','trialing'].includes(String(subscription || '').toLowerCase())) {
         const { data: mapping } = await supabaseAdmin
           .from('user_student_mapping')
           .select('student_id')
@@ -1205,6 +1205,11 @@ app.post('/api/auth/student-login', async (req, res) => {
         if (existingUser?.user?.email?.endsWith('@eleve.crazychrono.app')) {
           await supabaseAdmin.auth.admin.updateUserById(existingMapping.user_id, { password: cleanCode });
           authUserId = existingMapping.user_id;
+          // Ensure user_profiles role is 'student'
+          await supabaseAdmin.from('user_profiles').upsert({
+            id: authUserId, email: existingUser.user.email,
+            first_name: student.first_name, last_name: student.last_name, role: 'student'
+          }, { onConflict: 'id' });
           console.log(`[StudentLogin] Existing user updated: ${student.full_name} → ${authUserId}`);
         }
       } catch (e) {
