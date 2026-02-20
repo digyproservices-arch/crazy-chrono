@@ -189,24 +189,27 @@ app.post('/usage/can-start', async (req, res) => {
     } catch {}
 
     // If user is a licensed student (via user_student_mapping), allow unlimited
+    let _debug_mapping = null;
+    let _debug_student = null;
     try {
-      const { data: mapping } = await supabaseAdmin
+      const { data: mapping, error: mapErr } = await supabaseAdmin
         .from('user_student_mapping')
-        .select('student_id')
+        .select('student_id, active')
         .eq('user_id', userId)
-        .eq('active', true)
         .maybeSingle();
-      if (mapping?.student_id) {
-        const { data: student } = await supabaseAdmin
+      _debug_mapping = mapping || (mapErr ? { error: mapErr.message } : 'no_mapping');
+      if (mapping?.student_id && mapping?.active) {
+        const { data: student, error: stuErr } = await supabaseAdmin
           .from('students')
           .select('licensed')
           .eq('id', mapping.student_id)
           .single();
+        _debug_student = student || (stuErr ? { error: stuErr.message } : 'no_student');
         if (student?.licensed) {
           return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason: 'student_licensed' });
         }
       }
-    } catch {}
+    } catch (e) { _debug_mapping = { catch_error: e.message }; }
 
     // If user has active subscription, allow
     try {
@@ -236,7 +239,7 @@ app.post('/usage/can-start', async (req, res) => {
     } catch {}
 
     const allow = sessionsToday < FREE_LIMIT;
-    return res.json({ ok: true, allow, limit: FREE_LIMIT, sessionsToday, reason: allow ? 'under_limit' : 'limit_reached' });
+    return res.json({ ok: true, allow, limit: FREE_LIMIT, sessionsToday, reason: allow ? 'under_limit' : 'limit_reached', _debug: { mapping: _debug_mapping, student: _debug_student } });
   } catch (e) {
     console.error('[Usage] can-start error', e);
     return res.status(500).json({ ok: false, error: 'server_error' });
