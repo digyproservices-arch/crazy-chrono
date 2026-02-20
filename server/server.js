@@ -1231,6 +1231,28 @@ app.get('/api/admin/onboarding/schools', async (req, res) => {
   }
 });
 
+// PUT update a school
+app.put('/api/admin/onboarding/schools/:id', express.json(), async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
+    const { id } = req.params;
+    const allowed = ['name', 'city', 'type', 'circonscription_id', 'postal_code', 'email', 'phone'];
+    const updates = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key] || null;
+    }
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ ok: false, error: 'Aucun champ à modifier.' });
+    }
+    const { data, error } = await supabaseAdmin.from('schools').update(updates).eq('id', id).select().single();
+    if (error) return res.status(400).json({ ok: false, error: error.message });
+    res.json({ ok: true, school: data });
+  } catch (error) {
+    console.error('[Onboarding] update school error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 // ==========================================
 // STUDENT ACCESS CODE LOGIN
 // ==========================================

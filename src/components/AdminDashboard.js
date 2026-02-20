@@ -28,6 +28,7 @@ function AdminDashboard() {
     existingSchoolId: null, // Set when adding students to existing school
   });
   const [schoolsList, setSchoolsList] = useState([]);
+  const [editSchool, setEditSchool] = useState(null); // { id, name, city, type, circonscription_id, postal_code, email, phone, saving, error }
 
   useEffect(() => {
     async function fetchStats() {
@@ -519,7 +520,14 @@ function AdminDashboard() {
                           {s.licensedCount}/{s.studentCount}
                         </span>
                       </td>
-                      <td style={{ padding: 8, textAlign: 'center' }}>
+                      <td style={{ padding: 8, textAlign: 'center', display: 'flex', gap: 4, justifyContent: 'center' }}>
+                        <button
+                          onClick={() => setEditSchool({ id: s.id, name: s.name || '', city: s.city || '', type: s.type || 'primaire', circonscription_id: s.circonscription_id || '', postal_code: s.postal_code || '', email: s.email || '', phone: s.phone || '', saving: false, error: null })}
+                          style={{ padding: '4px 8px', fontSize: 12, fontWeight: 600, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: 6, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          title="Modifier l'école"
+                        >
+                          ✏️
+                        </button>
                         <button
                           onClick={() => setOnboarding(prev => ({
                             ...prev,
@@ -968,6 +976,86 @@ function AdminDashboard() {
           )}
         </div>
       </div>
+
+      {/* Modal édition école */}
+      {editSchool && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: 24, width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#0D6A7A', marginBottom: 16 }}>✏️ Modifier l'école</h3>
+            {editSchool.error && (
+              <div style={{ background: '#fef2f2', color: '#dc2626', padding: 8, borderRadius: 6, fontSize: 13, marginBottom: 12 }}>{editSchool.error}</div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[
+                { key: 'name', label: 'Nom de l\'école', placeholder: 'École Primaire...' },
+                { key: 'city', label: 'Ville', placeholder: 'Pointe-à-Pitre' },
+                { key: 'circonscription_id', label: 'Circonscription', placeholder: 'Ex: circ_pointe_a_pitre' },
+                { key: 'postal_code', label: 'Code postal', placeholder: '97100' },
+                { key: 'email', label: 'Email de l\'école', placeholder: 'contact@ecole.fr' },
+                { key: 'phone', label: 'Téléphone', placeholder: '0590 ...' },
+              ].map(f => (
+                <div key={f.key}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4, display: 'block' }}>{f.label}</label>
+                  <input
+                    type="text"
+                    value={editSchool[f.key]}
+                    onChange={e => setEditSchool(prev => ({ ...prev, [f.key]: e.target.value }))}
+                    placeholder={f.placeholder}
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 14, color: '#334155', boxSizing: 'border-box' }}
+                  />
+                </div>
+              ))}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4, display: 'block' }}>Type d'établissement</label>
+                <select
+                  value={editSchool.type}
+                  onChange={e => setEditSchool(prev => ({ ...prev, type: e.target.value }))}
+                  style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 14, color: '#334155' }}
+                >
+                  <option value="primaire">Primaire</option>
+                  <option value="college">Collège</option>
+                  <option value="lycee">Lycée</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setEditSchool(null)}
+                style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 6, cursor: 'pointer' }}
+              >
+                Annuler
+              </button>
+              <button
+                disabled={editSchool.saving}
+                onClick={async () => {
+                  setEditSchool(prev => ({ ...prev, saving: true, error: null }));
+                  try {
+                    const backendUrl = getBackendUrl();
+                    const { id, saving, error, ...fields } = editSchool;
+                    const res = await fetch(`${backendUrl}/api/admin/onboarding/schools/${id}`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(fields),
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                      setSchoolsList(prev => prev.map(s => s.id === id ? { ...s, ...data.school } : s));
+                      setEditSchool(null);
+                    } else {
+                      setEditSchool(prev => ({ ...prev, saving: false, error: data.error || 'Erreur inconnue' }));
+                    }
+                  } catch (e) {
+                    setEditSchool(prev => ({ ...prev, saving: false, error: e.message }));
+                  }
+                }}
+                style={{ padding: '8px 20px', fontSize: 13, fontWeight: 700, background: editSchool.saving ? '#94a3b8' : '#0D6A7A', color: '#fff', border: 'none', borderRadius: 6, cursor: editSchool.saving ? 'not-allowed' : 'pointer' }}
+              >
+                {editSchool.saving ? 'Enregistrement...' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
