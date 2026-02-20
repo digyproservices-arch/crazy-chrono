@@ -945,14 +945,14 @@ function generateAccessCode(firstName, className) {
 app.get('/api/admin/onboarding/csv-template', (req, res) => {
   const BOM = '\uFEFF';
   const sep = ';'; // Point-virgule = standard Excel français
-  const header = ['Classe', 'Niveau', 'Professeur', 'Email Professeur', 'Prénom Élève', 'Nom Élève'].join(sep);
+  const header = ['Nom École', 'Ville', 'Circonscription', 'Code Postal', 'Type Établissement', 'Email École', 'Téléphone École', 'Classe', 'Niveau', 'Professeur', 'Email Professeur', 'Prénom Élève', 'Nom Élève'].join(sep);
   const examples = [
-    ['CE1-A', 'CE1', 'Marie Dupont', 'marie.dupont@ac-guadeloupe.fr', 'Alice', 'Bertrand'],
-    ['CE1-A', 'CE1', 'Marie Dupont', 'marie.dupont@ac-guadeloupe.fr', 'Bob', 'Cadet'],
-    ['CE1-A', 'CE1', 'Marie Dupont', 'marie.dupont@ac-guadeloupe.fr', 'Chloé', 'Dupuis'],
-    ['CE2-B', 'CE2', 'Jean Martin', 'jean.martin@ac-guadeloupe.fr', 'David', 'Émile'],
-    ['CE2-B', 'CE2', 'Jean Martin', 'jean.martin@ac-guadeloupe.fr', 'Emma', 'François'],
-    ['CM1-A', 'CM1', 'Sophie Bernard', 'sophie.bernard@ac-guadeloupe.fr', 'Lucas', 'Garcia'],
+    ['École Primaire Les Abymes', 'Les Abymes', 'Abymes 1', '97139', 'primaire', 'contact@ecole-abymes.fr', '0590 123456', 'CE1-A', 'CE1', 'Marie Dupont', 'marie.dupont@ac-guadeloupe.fr', 'Alice', 'Bertrand'],
+    ['', '', '', '', '', '', '', 'CE1-A', 'CE1', 'Marie Dupont', 'marie.dupont@ac-guadeloupe.fr', 'Bob', 'Cadet'],
+    ['', '', '', '', '', '', '', 'CE1-A', 'CE1', 'Marie Dupont', 'marie.dupont@ac-guadeloupe.fr', 'Chloé', 'Dupuis'],
+    ['', '', '', '', '', '', '', 'CE2-B', 'CE2', 'Jean Martin', 'jean.martin@ac-guadeloupe.fr', 'David', 'Émile'],
+    ['', '', '', '', '', '', '', 'CE2-B', 'CE2', 'Jean Martin', 'jean.martin@ac-guadeloupe.fr', 'Emma', 'François'],
+    ['', '', '', '', '', '', '', 'CM1-A', 'CM1', 'Sophie Bernard', 'sophie.bernard@ac-guadeloupe.fr', 'Lucas', 'Garcia'],
   ];
   const csv = BOM + header + '\n' + examples.map(r => r.join(sep)).join('\n') + '\n';
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -970,35 +970,38 @@ app.post('/api/admin/onboarding/preview-csv', express.text({ type: '*/*', limit:
     const headerLine = lines[0].replace(/^\uFEFF/, '');
     // Auto-detect separator: semicolon (French Excel) or comma
     const sep = headerLine.includes(';') ? ';' : ',';
-    const expectedCols = ['classe', 'niveau', 'professeur', 'email_professeur', 'prenom_eleve', 'nom_eleve'];
+    const requiredCols = ['classe', 'niveau', 'professeur', 'email_professeur', 'prenom_eleve', 'nom_eleve'];
+    // Optional school info columns
+    const optionalCols = ['nom_ecole', 'ville', 'circonscription', 'code_postal', 'type_etablissement', 'email_ecole', 'telephone_ecole'];
+    const allExpected = [...requiredCols, ...optionalCols];
     // Normalize column names: remove accents + non-ASCII chars, spaces→underscores, lowercase
     const toAscii = s => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9_ ]/g, '').replace(/\s+/g, '_');
     const cols = headerLine.split(sep).map(toAscii);
     
-    // Flexible column matching: exact match, then substring match, then keyword fallback
+    // Flexible column matching: exact match, then substring match
     const colMap = {};
-    for (const ec of expectedCols) {
+    for (const ec of allExpected) {
       const ecNorm = toAscii(ec);
-      let idx = cols.findIndex(c => c === ecNorm);
-      if (idx < 0) idx = cols.findIndex(c => c.includes(ecNorm.replace(/_/g, '')));
+      let idx = cols.findIndex(c => c === ecNorm && !Object.values(colMap).includes(cols.indexOf(c)));
+      if (idx < 0) idx = cols.findIndex((c, i) => !Object.values(colMap).includes(i) && c.includes(ecNorm.replace(/_/g, '')));
       if (idx >= 0 && !Object.values(colMap).includes(idx)) colMap[ec] = idx;
     }
-    // Keyword fallback for prenom_eleve / nom_eleve (handles garbled accents)
+    // Keyword fallback for prenom_eleve / nom_eleve (handles garbled accents from encoding)
     if (colMap['prenom_eleve'] === undefined) {
-      const idx = cols.findIndex((c, i) => !Object.values(colMap).includes(i) && c.includes('prnom') || c.includes('prenom') || (c.includes('pr') && c.includes('nom') && c.includes('lve')));
+      const idx = cols.findIndex((c, i) => !Object.values(colMap).includes(i) && (c.includes('prnom') || c.includes('prenom') || (c.includes('pr') && c.includes('nom') && c.includes('lve'))));
       if (idx >= 0) colMap['prenom_eleve'] = idx;
     }
     if (colMap['nom_eleve'] === undefined) {
       const idx = cols.findIndex((c, i) => !Object.values(colMap).includes(i) && (c === 'nom_eleve' || c === 'nomeleve' || (c.startsWith('nom') && c.includes('lve'))));
       if (idx >= 0) colMap['nom_eleve'] = idx;
     }
-    // Last resort: if still missing, assume last two columns are prenom/nom
+    // Last resort for prenom/nom: assume last two columns
     if (colMap['prenom_eleve'] === undefined && colMap['nom_eleve'] === undefined && cols.length >= 6) {
       colMap['prenom_eleve'] = cols.length - 2;
       colMap['nom_eleve'] = cols.length - 1;
     }
     
-    const missingCols = expectedCols.filter(c => colMap[c] === undefined);
+    const missingCols = requiredCols.filter(c => colMap[c] === undefined);
     if (missingCols.length > 0) {
       return res.status(400).json({ ok: false, error: `Colonnes manquantes : ${missingCols.join(', ')}. Colonnes détectées : ${cols.join(', ')}` });
     }
@@ -1006,9 +1009,23 @@ app.post('/api/admin/onboarding/preview-csv', express.text({ type: '*/*', limit:
     const errors = [];
     const classesMap = {};
     const students = [];
+    // Extract school info from optional columns (take first non-empty value)
+    const schoolInfo = { name: '', city: '', circonscription: '', postalCode: '', type: '', email: '', phone: '' };
+    const schoolColMapping = {
+      'nom_ecole': 'name', 'ville': 'city', 'circonscription': 'circonscription',
+      'code_postal': 'postalCode', 'type_etablissement': 'type', 'email_ecole': 'email', 'telephone_ecole': 'phone'
+    };
 
     for (let i = 1; i < lines.length; i++) {
       const vals = lines[i].split(sep).map(v => v.trim());
+      
+      // Extract school info from first row that has values
+      for (const [csvCol, infoKey] of Object.entries(schoolColMapping)) {
+        if (!schoolInfo[infoKey] && colMap[csvCol] !== undefined && vals[colMap[csvCol]]) {
+          schoolInfo[infoKey] = vals[colMap[csvCol]];
+        }
+      }
+
       const classe = vals[colMap['classe']] || '';
       const niveau = vals[colMap['niveau']] || '';
       const prof = vals[colMap['professeur']] || '';
@@ -1037,9 +1054,10 @@ app.post('/api/admin/onboarding/preview-csv', express.text({ type: '*/*', limit:
         totalStudents: students.length,
         totalClasses: classes.length,
         classes,
-        students: students.slice(0, 50), // Aperçu 50 premiers
+        students: students.slice(0, 50),
         allStudents: students,
         errors,
+        schoolInfo, // School info extracted from CSV
       }
     });
   } catch (error) {
@@ -1053,7 +1071,7 @@ app.post('/api/admin/onboarding/import', async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
 
-    const { schoolName, schoolCity, schoolType, circonscriptionId, classes, students, activateLicenses, bonCommande, existingSchoolId } = req.body;
+    const { schoolName, schoolCity, schoolType, circonscriptionId, postalCode, emailEcole, phoneEcole, classes, students, activateLicenses, bonCommande, existingSchoolId } = req.body;
 
     if (!schoolName || !classes?.length || !students?.length) {
       return res.status(400).json({ ok: false, error: 'Données incomplètes. schoolName, classes et students requis.' });
@@ -1109,6 +1127,9 @@ app.post('/api/admin/onboarding/import', async (req, res) => {
         type: schoolType || 'primaire',
         city: schoolCity || null,
         circonscription_id: circonscriptionId || null,
+        postal_code: postalCode || null,
+        email: emailEcole || null,
+        phone: phoneEcole || null,
       };
       const { error: schoolErr } = await supabaseAdmin.from('schools').upsert(schoolRow, { onConflict: 'id' });
       if (schoolErr) throw new Error('Erreur création école: ' + schoolErr.message);

@@ -22,6 +22,7 @@ function AdminDashboard() {
   const [onboarding, setOnboarding] = useState({
     step: 0, // 0=fermé, 1=infos école, 2=upload CSV, 3=aperçu, 4=confirmation, 5=résultat
     schoolName: '', schoolCity: '', schoolType: 'primaire', circonscriptionId: '',
+    postalCode: '', emailEcole: '', phoneEcole: '',
     bonCommande: '', bonCommandeValide: false,
     csvFile: null, csvPreview: null, csvError: null,
     activateLicenses: true, loading: false, result: null,
@@ -575,16 +576,32 @@ function AdminDashboard() {
                   <input value={onboarding.schoolCity} onChange={e => setOnboarding(p => ({ ...p, schoolCity: e.target.value }))} placeholder="Lamentin" style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }} />
                 </div>
                 <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 4 }}>Circonscription</label>
+                  <input value={onboarding.circonscriptionId} onChange={e => setOnboarding(p => ({ ...p, circonscriptionId: e.target.value }))} placeholder="Abymes 1" style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 4 }}>Code postal</label>
+                  <input value={onboarding.postalCode} onChange={e => setOnboarding(p => ({ ...p, postalCode: e.target.value }))} placeholder="97139" style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }} />
+                </div>
+                <div>
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 4 }}>Type</label>
                   <select value={onboarding.schoolType} onChange={e => setOnboarding(p => ({ ...p, schoolType: e.target.value }))} style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }}>
                     <option value="primaire">Primaire</option>
                     <option value="college">Collège</option>
+                    <option value="lycee">Lycée</option>
                   </select>
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 4 }}>Circonscription</label>
-                  <input value={onboarding.circonscriptionId} onChange={e => setOnboarding(p => ({ ...p, circonscriptionId: e.target.value }))} placeholder="CIRC_GP_1" style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }} />
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 4 }}>Email école</label>
+                  <input value={onboarding.emailEcole} onChange={e => setOnboarding(p => ({ ...p, emailEcole: e.target.value }))} placeholder="contact@ecole.fr" style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }} />
                 </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: '#334155', display: 'block', marginBottom: 4 }}>Téléphone école</label>
+                  <input value={onboarding.phoneEcole} onChange={e => setOnboarding(p => ({ ...p, phoneEcole: e.target.value }))} placeholder="0590 123456" style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box' }} />
+                </div>
+              </div>
+              <div style={{ marginBottom: 12, padding: 10, background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd', fontSize: 12, color: '#0D6A7A' }}>
+                💡 <strong>Astuce :</strong> Ces informations peuvent aussi être renseignées directement dans le fichier CSV. Téléchargez le modèle pour voir toutes les colonnes disponibles.
               </div>
               <div style={{ marginBottom: 12, padding: 12, background: '#fffbeb', borderRadius: 8, border: '1px solid #fde68a' }}>
                 <label style={{ fontSize: 12, fontWeight: 700, color: '#92400e', display: 'block', marginBottom: 4 }}>📋 Bon de commande</label>
@@ -661,7 +678,23 @@ function AdminDashboard() {
                       });
                       const data = await res.json();
                       if (data.ok) {
-                        setOnboarding(p => ({ ...p, csvPreview: data.preview, loading: false, step: 3 }));
+                        const si = data.preview?.schoolInfo || {};
+                        setOnboarding(p => ({
+                          ...p,
+                          csvPreview: data.preview,
+                          loading: false,
+                          step: 3,
+                          // Auto-fill school info from CSV if not already set (new school mode)
+                          ...((!p.existingSchoolId && si.name) ? {
+                            schoolName: si.name || p.schoolName,
+                            schoolCity: si.city || p.schoolCity,
+                            schoolType: si.type || p.schoolType,
+                            circonscriptionId: si.circonscription || p.circonscriptionId,
+                            postalCode: si.postalCode || p.postalCode || '',
+                            emailEcole: si.email || p.emailEcole || '',
+                            phoneEcole: si.phone || p.phoneEcole || '',
+                          } : {}),
+                        }));
                       } else {
                         setOnboarding(p => ({ ...p, csvError: data.error, loading: false }));
                       }
@@ -703,11 +736,23 @@ function AdminDashboard() {
                   <div style={{ fontSize: 28, fontWeight: 800, color: '#0D6A7A' }}>{onboarding.csvPreview.totalClasses}</div>
                   <div style={{ fontSize: 12, color: '#64748b' }}>Classes</div>
                 </div>
-                <div style={{ flex: 1, minWidth: 120, padding: 12, background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', textAlign: 'center' }}>
-                  <div style={{ fontSize: 28, fontWeight: 800, color: '#0D6A7A' }}>{onboarding.schoolName}</div>
-                  <div style={{ fontSize: 12, color: '#64748b' }}>École</div>
-                </div>
               </div>
+
+              {/* School info from CSV */}
+              {!onboarding.existingSchoolId && onboarding.schoolName && (
+                <div style={{ marginBottom: 12, padding: 12, background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#0D6A7A', marginBottom: 6 }}>🏫 Informations école (depuis le CSV) :</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', fontSize: 13 }}>
+                    <div><span style={{ color: '#64748b' }}>Nom :</span> <strong style={{ color: '#334155' }}>{onboarding.schoolName}</strong></div>
+                    <div><span style={{ color: '#64748b' }}>Ville :</span> <strong style={{ color: '#334155' }}>{onboarding.schoolCity || '—'}</strong></div>
+                    <div><span style={{ color: '#64748b' }}>Circonscription :</span> <strong style={{ color: '#334155' }}>{onboarding.circonscriptionId || '—'}</strong></div>
+                    <div><span style={{ color: '#64748b' }}>Code postal :</span> <strong style={{ color: '#334155' }}>{onboarding.postalCode || '—'}</strong></div>
+                    <div><span style={{ color: '#64748b' }}>Type :</span> <strong style={{ color: '#334155' }}>{onboarding.schoolType || '—'}</strong></div>
+                    <div><span style={{ color: '#64748b' }}>Email :</span> <strong style={{ color: '#334155' }}>{onboarding.emailEcole || '—'}</strong></div>
+                    <div><span style={{ color: '#64748b' }}>Téléphone :</span> <strong style={{ color: '#334155' }}>{onboarding.phoneEcole || '—'}</strong></div>
+                  </div>
+                </div>
+              )}
 
               {/* Errors */}
               {onboarding.csvPreview.errors?.length > 0 && (
@@ -786,6 +831,9 @@ function AdminDashboard() {
                           schoolCity: onboarding.schoolCity,
                           schoolType: onboarding.schoolType,
                           circonscriptionId: onboarding.circonscriptionId,
+                          postalCode: onboarding.postalCode || undefined,
+                          emailEcole: onboarding.emailEcole || undefined,
+                          phoneEcole: onboarding.phoneEcole || undefined,
                           classes: onboarding.csvPreview.classes,
                           students: onboarding.csvPreview.allStudents,
                           activateLicenses: onboarding.activateLicenses,
