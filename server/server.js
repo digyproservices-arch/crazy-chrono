@@ -716,6 +716,93 @@ app.get('/api/admin/students', async (req, res) => {
   }
 });
 
+// POST generate test class: fix codes for existing students + add new students
+app.post('/api/admin/generate-test-class', async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
+
+    const { classId, schoolId, className, totalStudents } = req.body;
+    if (!classId || !schoolId) return res.status(400).json({ ok: false, error: 'classId and schoolId required' });
+
+    const targetTotal = totalStudents || 14;
+    const clsName = className || 'CE1A';
+    const usedCodes = new Set();
+    const results = { codesGenerated: 0, studentsAdded: 0, students: [] };
+
+    // 1) Fix access codes for existing students without one
+    const { data: existing } = await supabaseAdmin
+      .from('students')
+      .select('id, first_name, last_name, full_name, access_code, licensed')
+      .eq('class_id', classId);
+
+    for (const s of (existing || [])) {
+      if (!s.access_code) {
+        let code; let attempts = 0;
+        do { code = generateAccessCode(s.first_name, clsName); attempts++; } while (usedCodes.has(code) && attempts < 20);
+        usedCodes.add(code);
+        await supabaseAdmin.from('students').update({ access_code: code, licensed: true }).eq('id', s.id);
+        results.codesGenerated++;
+        results.students.push({ id: s.id, name: s.full_name || `${s.first_name} ${s.last_name}`, code, status: 'code_generated' });
+      } else {
+        usedCodes.add(s.access_code);
+        results.students.push({ id: s.id, name: s.full_name || `${s.first_name} ${s.last_name}`, code: s.access_code, status: 'existing' });
+      }
+    }
+
+    // 2) Add new students to reach targetTotal
+    const newNames = [
+      { first: 'Élodie', last: 'Faustin' }, { first: 'Fabien', last: 'Granville' },
+      { first: 'Gaëlle', last: 'Hébert' }, { first: 'Henri', last: 'Isidore' },
+      { first: 'Isis', last: 'Jean-Louis' }, { first: 'Joël', last: 'Kara' },
+      { first: 'Kévin', last: 'Lacroix' }, { first: 'Lina', last: 'Marius' },
+      { first: 'Mathis', last: 'Narcisse' }, { first: 'Noémie', last: 'Olivet' },
+      { first: 'Omar', last: 'Picard' }, { first: 'Pauline', last: 'Quentin' },
+      { first: 'Raphaël', last: 'Saint-Ange' }, { first: 'Sarah', last: 'Thomas' },
+      { first: 'Théo', last: 'Urbain' }, { first: 'Valentine', last: 'Wagram' },
+    ];
+
+    const existingCount = (existing || []).length;
+    const toAdd = Math.max(0, targetTotal - existingCount);
+
+    for (let i = 0; i < toAdd && i < newNames.length; i++) {
+      const n = newNames[i];
+      const studentId = `std_test_${String(existingCount + i + 1).padStart(3, '0')}`;
+      let code; let attempts = 0;
+      do { code = generateAccessCode(n.first, clsName); attempts++; } while (usedCodes.has(code) && attempts < 20);
+      usedCodes.add(code);
+
+      const row = {
+        id: studentId,
+        first_name: n.first,
+        last_name: n.last,
+        full_name: `${n.first} ${n.last.charAt(0)}.`,
+        level: 'CE1',
+        class_id: classId,
+        school_id: schoolId,
+        licensed: true,
+        avatar_url: '/avatars/default.png',
+        access_code: code,
+      };
+      const { error: insErr } = await supabaseAdmin.from('students').upsert(row, { onConflict: 'id' });
+      if (!insErr) {
+        results.studentsAdded++;
+        results.students.push({ id: studentId, name: `${n.first} ${n.last}`, code, status: 'new' });
+      } else {
+        console.warn(`[TestClass] Failed to add ${n.first}:`, insErr.message);
+      }
+    }
+
+    // 3) Update class student_count
+    await supabaseAdmin.from('classes').update({ student_count: results.students.length }).eq('id', classId);
+
+    console.log(`[TestClass] Generated ${results.codesGenerated} codes, added ${results.studentsAdded} students for class ${classId}`);
+    res.json({ ok: true, ...results });
+  } catch (e) {
+    console.error('[TestClass] error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // POST bulk activate licenses
 app.post('/api/admin/licenses/bulk-activate', async (req, res) => {
   try {
