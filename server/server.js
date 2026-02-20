@@ -1205,17 +1205,22 @@ app.get('/api/admin/onboarding/schools', async (req, res) => {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
 
     const { data: schools } = await supabaseAdmin.from('schools').select('*').order('name');
-    const { data: classes } = await supabaseAdmin.from('classes').select('id, school_id, name, level, teacher_name, student_count');
+    const { data: classes } = await supabaseAdmin.from('classes').select('id, school_id, name, level, teacher_name, teacher_email, student_count');
     const { data: students } = await supabaseAdmin.from('students').select('id, school_id, licensed');
 
     const result = (schools || []).map(s => {
       const sClasses = (classes || []).filter(c => c.school_id === s.id);
       const sStudents = (students || []).filter(st => st.school_id === s.id);
+      // Aggregate unique teachers from classes
+      const teachers = [...new Set(sClasses.map(c => c.teacher_name).filter(Boolean))];
+      const teacherEmails = [...new Set(sClasses.map(c => c.teacher_email).filter(Boolean))];
       return {
         ...s,
         classCount: sClasses.length,
         studentCount: sStudents.length,
         licensedCount: sStudents.filter(st => st.licensed).length,
+        teachers,
+        teacherEmails,
       };
     });
 

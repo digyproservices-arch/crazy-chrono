@@ -495,6 +495,8 @@ function AdminDashboard() {
                   <tr style={{ borderBottom: '2px solid #f0f0f0' }}>
                     <th style={{ padding: 8, textAlign: 'left', color: '#64748b' }}>École</th>
                     <th style={{ padding: 8, textAlign: 'left', color: '#64748b' }}>Ville</th>
+                    <th style={{ padding: 8, textAlign: 'left', color: '#64748b' }}>Professeur(s)</th>
+                    <th style={{ padding: 8, textAlign: 'left', color: '#64748b' }}>Circonscription</th>
                     <th style={{ padding: 8, textAlign: 'center', color: '#64748b' }}>Classes</th>
                     <th style={{ padding: 8, textAlign: 'center', color: '#64748b' }}>Élèves</th>
                     <th style={{ padding: 8, textAlign: 'center', color: '#64748b' }}>Licenciés</th>
@@ -506,6 +508,10 @@ function AdminDashboard() {
                     <tr key={s.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
                       <td style={{ padding: 8, color: '#334155', fontWeight: 600 }}>{s.name}</td>
                       <td style={{ padding: 8, color: '#64748b' }}>{s.city || '—'}</td>
+                      <td style={{ padding: 8, color: '#334155', fontSize: 12 }}>
+                        {(s.teachers && s.teachers.length > 0) ? s.teachers.join(', ') : <span style={{ color: '#94a3b8' }}>—</span>}
+                      </td>
+                      <td style={{ padding: 8, color: '#64748b', fontSize: 12 }}>{s.circonscription_id || '—'}</td>
                       <td style={{ padding: 8, textAlign: 'center', color: '#334155' }}>{s.classCount}</td>
                       <td style={{ padding: 8, textAlign: 'center', color: '#334155' }}>{s.studentCount}</td>
                       <td style={{ padding: 8, textAlign: 'center' }}>
