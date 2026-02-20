@@ -1242,6 +1242,7 @@ app.get('/api/admin/onboarding/schools', async (req, res) => {
         licensedCount: sStudents.filter(st => st.licensed).length,
         teachers,
         teacherEmails,
+        classes: sClasses,
       };
     });
 
@@ -1270,6 +1271,28 @@ app.put('/api/admin/onboarding/schools/:id', express.json(), async (req, res) =>
     res.json({ ok: true, school: data });
   } catch (error) {
     console.error('[Onboarding] update school error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// PUT update a class (teacher info)
+app.put('/api/admin/onboarding/classes/:id', express.json(), async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
+    const { id } = req.params;
+    const allowed = ['teacher_name', 'teacher_email', 'name', 'level'];
+    const updates = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key] || null;
+    }
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ ok: false, error: 'Aucun champ à modifier.' });
+    }
+    const { data, error } = await supabaseAdmin.from('classes').update(updates).eq('id', id).select().single();
+    if (error) return res.status(400).json({ ok: false, error: error.message });
+    res.json({ ok: true, class: data });
+  } catch (error) {
+    console.error('[Onboarding] update class error:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });

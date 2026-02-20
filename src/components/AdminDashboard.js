@@ -523,7 +523,7 @@ function AdminDashboard() {
                       </td>
                       <td style={{ padding: 8, textAlign: 'center', display: 'flex', gap: 4, justifyContent: 'center' }}>
                         <button
-                          onClick={() => setEditSchool({ id: s.id, name: s.name || '', city: s.city || '', type: s.type || 'primaire', circonscription_id: s.circonscription_id || '', postal_code: s.postal_code || '', email: s.email || '', phone: s.phone || '', saving: false, error: null })}
+                          onClick={() => setEditSchool({ id: s.id, name: s.name || '', city: s.city || '', type: s.type || 'primaire', circonscription_id: s.circonscription_id || '', postal_code: s.postal_code || '', email: s.email || '', phone: s.phone || '', classes: (s.classes || []).map(c => ({ id: c.id, name: c.name, level: c.level, teacher_name: c.teacher_name || '', teacher_email: c.teacher_email || '' })), saving: false, error: null })}
                           style={{ padding: '4px 8px', fontSize: 12, fontWeight: 600, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', borderRadius: 6, cursor: 'pointer', whiteSpace: 'nowrap' }}
                           title="Modifier l'école"
                         >
@@ -1066,6 +1066,41 @@ function AdminDashboard() {
                 </select>
               </div>
             </div>
+            {/* Professeurs par classe */}
+            {editSchool.classes && editSchool.classes.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#0D6A7A', marginBottom: 8, borderTop: '1px solid #e2e8f0', paddingTop: 12 }}>👩‍🏫 Professeur(s) par classe</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {editSchool.classes.map((cls, idx) => (
+                    <div key={cls.id} style={{ padding: 10, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>{cls.name} ({cls.level})</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        <div>
+                          <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 2 }}>Nom du professeur</label>
+                          <input
+                            type="text"
+                            value={cls.teacher_name}
+                            onChange={e => setEditSchool(prev => ({ ...prev, classes: prev.classes.map((c, i) => i === idx ? { ...c, teacher_name: e.target.value } : c) }))}
+                            placeholder="Marie Dupont"
+                            style={{ width: '100%', padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 13, color: '#334155', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 2 }}>Email du professeur</label>
+                          <input
+                            type="email"
+                            value={cls.teacher_email}
+                            onChange={e => setEditSchool(prev => ({ ...prev, classes: prev.classes.map((c, i) => i === idx ? { ...c, teacher_email: e.target.value } : c) }))}
+                            placeholder="prof@ac-guadeloupe.fr"
+                            style={{ width: '100%', padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 13, color: '#334155', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setEditSchool(null)}
@@ -1079,19 +1114,33 @@ function AdminDashboard() {
                   setEditSchool(prev => ({ ...prev, saving: true, error: null }));
                   try {
                     const backendUrl = getBackendUrl();
-                    const { id, saving, error, ...fields } = editSchool;
+                    const { id, saving, error, classes: editClasses, ...fields } = editSchool;
+                    // 1. Update school fields
                     const res = await fetch(`${backendUrl}/api/admin/onboarding/schools/${id}`, {
                       method: 'PUT',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify(fields),
                     });
                     const data = await res.json();
-                    if (data.ok) {
-                      setSchoolsList(prev => prev.map(s => s.id === id ? { ...s, ...data.school } : s));
-                      setEditSchool(null);
-                    } else {
+                    if (!data.ok) {
                       setEditSchool(prev => ({ ...prev, saving: false, error: data.error || 'Erreur inconnue' }));
+                      return;
                     }
+                    // 2. Update class teacher info
+                    if (editClasses?.length) {
+                      for (const cls of editClasses) {
+                        await fetch(`${backendUrl}/api/admin/onboarding/classes/${cls.id}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ teacher_name: cls.teacher_name, teacher_email: cls.teacher_email }),
+                        });
+                      }
+                    }
+                    // 3. Refresh schools list to get updated data
+                    const scRes = await fetch(`${backendUrl}/api/admin/onboarding/schools`);
+                    const scData = await scRes.json();
+                    if (scData.ok) setSchoolsList(scData.schools || []);
+                    setEditSchool(null);
                   } catch (e) {
                     setEditSchool(prev => ({ ...prev, saving: false, error: e.message }));
                   }
