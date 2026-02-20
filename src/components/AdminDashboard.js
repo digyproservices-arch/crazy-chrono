@@ -625,7 +625,20 @@ function AdminDashboard() {
                     if (!file) return;
                     setOnboarding(p => ({ ...p, csvFile: file, loading: true, csvError: null, csvPreview: null }));
                     try {
-                      const text = await file.text();
+                      // Read with encoding detection (Excel saves as Windows-1252, not UTF-8)
+                      const buffer = await file.arrayBuffer();
+                      const bytes = new Uint8Array(buffer);
+                      let text;
+                      // Check for UTF-8 BOM
+                      if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+                        text = new TextDecoder('utf-8').decode(buffer);
+                      } else {
+                        // Try UTF-8; if it produces replacement chars, fall back to Windows-1252
+                        const utf8Text = new TextDecoder('utf-8').decode(buffer);
+                        text = utf8Text.includes('\uFFFD')
+                          ? new TextDecoder('windows-1252').decode(buffer)
+                          : utf8Text;
+                      }
                       const backendUrl = getBackendUrl();
                       const res = await fetch(`${backendUrl}/api/admin/onboarding/preview-csv`, {
                         method: 'POST',

@@ -971,15 +971,31 @@ app.post('/api/admin/onboarding/preview-csv', express.text({ type: '*/*', limit:
     // Auto-detect separator: semicolon (French Excel) or comma
     const sep = headerLine.includes(';') ? ';' : ',';
     const expectedCols = ['classe', 'niveau', 'professeur', 'email_professeur', 'prenom_eleve', 'nom_eleve'];
-    // Normalize column names: remove accents, spaces→underscores, lowercase
-    const cols = headerLine.split(sep).map(c => c.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_'));
+    // Normalize column names: remove accents + non-ASCII chars, spaces→underscores, lowercase
+    const toAscii = s => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9_ ]/g, '').replace(/\s+/g, '_');
+    const cols = headerLine.split(sep).map(toAscii);
     
-    // Flexible column matching
+    // Flexible column matching: exact match, then substring match, then keyword fallback
     const colMap = {};
     for (const ec of expectedCols) {
-      const ecNorm = ec.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const idx = cols.findIndex(c => c === ecNorm || c.includes(ecNorm.replace('_', '')));
-      if (idx >= 0) colMap[ec] = idx;
+      const ecNorm = toAscii(ec);
+      let idx = cols.findIndex(c => c === ecNorm);
+      if (idx < 0) idx = cols.findIndex(c => c.includes(ecNorm.replace(/_/g, '')));
+      if (idx >= 0 && !Object.values(colMap).includes(idx)) colMap[ec] = idx;
+    }
+    // Keyword fallback for prenom_eleve / nom_eleve (handles garbled accents)
+    if (colMap['prenom_eleve'] === undefined) {
+      const idx = cols.findIndex((c, i) => !Object.values(colMap).includes(i) && c.includes('prnom') || c.includes('prenom') || (c.includes('pr') && c.includes('nom') && c.includes('lve')));
+      if (idx >= 0) colMap['prenom_eleve'] = idx;
+    }
+    if (colMap['nom_eleve'] === undefined) {
+      const idx = cols.findIndex((c, i) => !Object.values(colMap).includes(i) && (c === 'nom_eleve' || c === 'nomeleve' || (c.startsWith('nom') && c.includes('lve'))));
+      if (idx >= 0) colMap['nom_eleve'] = idx;
+    }
+    // Last resort: if still missing, assume last two columns are prenom/nom
+    if (colMap['prenom_eleve'] === undefined && colMap['nom_eleve'] === undefined && cols.length >= 6) {
+      colMap['prenom_eleve'] = cols.length - 2;
+      colMap['nom_eleve'] = cols.length - 1;
     }
     
     const missingCols = expectedCols.filter(c => colMap[c] === undefined);
