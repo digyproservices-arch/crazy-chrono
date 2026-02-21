@@ -4,6 +4,24 @@ import { DataContext } from '../../context/DataContext';
 
 const CLASS_LEVELS = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"];
 
+const PLAYER_ZONES = [
+  { key: 'guadeloupe', label: 'Guadeloupe', icon: '🏝️' },
+  { key: 'martinique', label: 'Martinique', icon: '🏝️' },
+  { key: 'guyane', label: 'Guyane', icon: '🌴' },
+  { key: 'reunion', label: 'Réunion', icon: '🌋' },
+  { key: 'mayotte', label: 'Mayotte', icon: '🏝️' },
+  { key: 'haiti', label: 'Haïti', icon: '🇭🇹' },
+  { key: 'cuba', label: 'Cuba', icon: '🇨🇺' },
+  { key: 'trinidad', label: 'Trinidad', icon: '🇹🇹' },
+  { key: 'france', label: 'France métro.', icon: '🇫🇷' },
+  { key: 'senegal', label: 'Sénégal', icon: '🇸🇳' },
+  { key: 'cote_ivoire', label: "Côte d'Ivoire", icon: '🇨🇮' },
+  { key: 'cameroun', label: 'Cameroun', icon: '🇨🇲' },
+  { key: 'madagascar', label: 'Madagascar', icon: '🇲🇬' },
+  { key: 'polynesie', label: 'Polynésie', icon: '🌺' },
+  { key: 'nouvelle_caledonie', label: 'Nlle-Calédonie', icon: '🏝️' },
+];
+
 export default function SessionConfig() {
   const { mode } = useParams();
   const navigate = useNavigate();
@@ -16,6 +34,9 @@ export default function SessionConfig() {
   const [rounds, setRounds] = useState('3');
   const [duration, setDuration] = useState('60');
   const [allowEmptyMath, setAllowEmptyMath] = useState(true);
+  const [playerZone, setPlayerZone] = useState(() => {
+    try { return localStorage.getItem('cc_player_zone') || ''; } catch { return ''; }
+  });
 
   // Helper dans le scope du composant: déterminer si un thème a des données pour les classes sélectionnées
   function themeHasData(theme) {
@@ -191,6 +212,7 @@ export default function SessionConfig() {
         if (prev.rounds != null) setRounds(String(prev.rounds));
         if (prev.duration != null) setDuration(String(prev.duration));
         if (typeof prev.allowEmptyMathWhenNoData === 'boolean') setAllowEmptyMath(prev.allowEmptyMathWhenNoData);
+        if (prev.playerZone) setPlayerZone(prev.playerZone);
       }
     } catch {}
   }, []);
@@ -206,12 +228,14 @@ export default function SessionConfig() {
           rounds,
           duration,
           allowEmptyMathWhenNoData: !!allowEmptyMath,
+          playerZone: playerZone || '',
         };
         localStorage.setItem('cc_session_cfg', JSON.stringify(payload));
+        if (playerZone) localStorage.setItem('cc_player_zone', playerZone);
       } catch {}
     }, 200);
     return () => clearTimeout(t);
-  }, [mode, selectedClasses, selectedThemes, rounds, duration, allowEmptyMath]);
+  }, [mode, selectedClasses, selectedThemes, rounds, duration, allowEmptyMath, playerZone]);
 
   const clampInt = (val, lo, hi, fallback) => {
     const n = parseInt(String(val), 10);
@@ -231,7 +255,7 @@ export default function SessionConfig() {
     // Règle simple: si des thèmes sont sélectionnés, on ne garde QUE ceux-ci; sinon, tout est autorisé
     const r = clampInt(rounds, 1, 20, 3);
     const d = clampInt(duration, 15, 600, 60);
-    const payload = { mode, classes: selectedClasses, themes: selectedThemes, rounds: r, duration: d, allowEmptyMathWhenNoData: !!allowEmptyMath };
+    const payload = { mode, classes: selectedClasses, themes: selectedThemes, rounds: r, duration: d, allowEmptyMathWhenNoData: !!allowEmptyMath, playerZone: playerZone || '' };
     if (mode === 'online') {
       payload.playerName = playerName || 'Joueur';
       payload.room = { type: roomMode, code: (roomCode||'').toUpperCase() };
@@ -289,6 +313,25 @@ export default function SessionConfig() {
             </label>
           </div>
         )}
+      </section>
+
+      <section style={{ marginTop: 16 }}>
+        <h3>🌍 Ma zone géographique</h3>
+        <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 10px' }}>
+          Sélectionnez votre zone pour adapter les noms locaux des plantes et le contenu affiché.
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <button onClick={() => setPlayerZone('')}
+            style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: !playerZone ? '#1AACBE' : '#fff', color: !playerZone ? '#fff' : '#4A3728', fontWeight: 600, fontSize: 13 }}>
+            🌐 Toutes zones
+          </button>
+          {PLAYER_ZONES.map(z => (
+            <button key={z.key} onClick={() => setPlayerZone(z.key)}
+              style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: playerZone === z.key ? '#1AACBE' : '#fff', color: playerZone === z.key ? '#fff' : '#4A3728', fontWeight: 600, fontSize: 13 }}>
+              {z.icon} {z.label}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section style={{ marginTop: 16 }}>

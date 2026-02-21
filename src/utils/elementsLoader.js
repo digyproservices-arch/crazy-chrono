@@ -2,6 +2,48 @@ console.log('ELEMENTS LOADER CHARGE');
 // Charge, mélange et attribue les éléments à des zones de la carte
 // Utilisation : import { assignElementsToZones, fetchElements } from '../utils/elementsLoader';
 
+// ===== Cache du référentiel botanique pour localisation =====
+let _botanicalRefCache = null;
+let _botanicalRefLoading = null;
+async function loadBotanicalRef() {
+  if (_botanicalRefCache) return _botanicalRefCache;
+  if (_botanicalRefLoading) return _botanicalRefLoading;
+  _botanicalRefLoading = (async () => {
+    try {
+      const res = await fetch((process.env.PUBLIC_URL || '') + '/data/references/botanical_reference.json');
+      if (!res.ok) return null;
+      const ref = await res.json();
+      _botanicalRefCache = ref;
+      return ref;
+    } catch { return null; }
+  })();
+  const result = await _botanicalRefLoading;
+  _botanicalRefLoading = null;
+  return result;
+}
+
+function buildLocalizationMap(botanicalRef, playerZone) {
+  if (!botanicalRef || !playerZone) return null;
+  const plants = botanicalRef.plants || [];
+  const map = new Map(); // originalName (lowercase) → localName
+  for (const p of plants) {
+    const regionEntry = (p.regions || []).find(r => r.key === playerZone);
+    if (!regionEntry || !regionEntry.localName) continue;
+    // Map each matchName to the localized name
+    for (const mn of (p.matchNames || [])) {
+      map.set(mn.toLowerCase(), regionEntry.localName);
+    }
+  }
+  return map.size > 0 ? map : null;
+}
+
+function localizeText(text, locMap) {
+  if (!locMap || !text) return text;
+  const lower = text.toLowerCase().trim();
+  const local = locMap.get(lower);
+  return local || text;
+}
+
 // Chargement dynamique des éléments depuis le dossier public/data/elements.json
 export async function fetchElements() {
   try {
@@ -16,6 +58,21 @@ export async function fetchElements() {
 export async function assignElementsToZones(zones, _elements, assocData, rng = Math.random, excludedPairIds = new Set()) {
   // Utiliser uniquement les éléments présents dans associations.json
   const data = assocData || {};
+
+  // ===== Localisation botanique selon zone joueur =====
+  let locMap = null;
+  let playerZone = '';
+  try {
+    const zoneCfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+    playerZone = zoneCfg?.playerZone || localStorage.getItem('cc_player_zone') || '';
+  } catch {}
+  if (playerZone) {
+    try {
+      const ref = await loadBotanicalRef();
+      locMap = buildLocalizationMap(ref, playerZone);
+      if (locMap) console.log('[elementsLoader] Localisation botanique active pour zone:', playerZone, '(' + locMap.size + ' entrées)');
+    } catch {}
+  }
   let textes = Array.isArray(data.textes) ? data.textes : [];
   let images = Array.isArray(data.images) ? data.images : [];
   let calculs = Array.isArray(data.calculs) ? data.calculs : [];
@@ -176,7 +233,8 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     shuffle(links);
     const chosen = links.find(l => imageIds.includes(l.imgId) && texteIds.includes(l.tId));
     if (chosen) {
-      const tzId = placeIntoZone(texteZones, () => ({ type: 'texte', content: textesById[chosen.tId]?.content || '' }));
+      const rawText = textesById[chosen.tId]?.content || '';
+      const tzId = placeIntoZone(texteZones, () => ({ type: 'texte', content: localizeText(rawText, locMap) }));
       const izId = placeIntoZone(imageZones, () => ({ type: 'image', content: encodedImageUrl(imagesById[chosen.imgId]?.url || ''), label: '', pairId: '' }));
       if (tzId && izId) {
         used.texte.add(chosen.tId); used.image.add(chosen.imgId);
@@ -231,7 +289,7 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       if (imgId) { z.content = encodedImageUrl(imagesById[imgId]?.url || ''); used.image.add(imgId); }
     } else if (type === 'texte' && !z.content) {
       const tId = pickTexteDistractor(forbiddenImageIds);
-      if (tId) { z.content = textesById[tId]?.content || ''; used.texte.add(tId); }
+      if (tId) { z.content = localizeText(textesById[tId]?.content || '', locMap); used.texte.add(tId); }
     } else if (type === 'calcul' && !z.content) {
       const cId = pickCalculDistractor(forbiddenChiffreIds);
       if (cId) { z.content = calculsById[cId]?.content || ''; used.calcul.add(cId); }
