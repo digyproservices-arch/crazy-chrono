@@ -17,13 +17,44 @@ const DOMAINS = [
   { value: 'sports', label: 'Sports', icon: '⚽' },
 ];
 const REGIONS = [
-  { value: 'caribbean', label: 'Caraïbes' },
-  { value: 'amazonia', label: 'Amazonie' },
-  { value: 'europe', label: 'Europe' },
-  { value: 'indian_ocean', label: 'Océan Indien' },
-  { value: 'pacific', label: 'Pacifique' },
-  { value: 'africa', label: 'Afrique' },
-  { value: 'worldwide', label: 'Monde' },
+  { value: 'guadeloupe', label: 'Guadeloupe' },
+  { value: 'martinique', label: 'Martinique' },
+  { value: 'guyane', label: 'Guyane' },
+  { value: 'reunion', label: 'Réunion' },
+  { value: 'mayotte', label: 'Mayotte' },
+  { value: 'haiti', label: 'Haïti' },
+  { value: 'cuba', label: 'Cuba' },
+  { value: 'trinidad', label: 'Trinidad' },
+  { value: 'france', label: 'France métro.' },
+  { value: 'senegal', label: 'Sénégal' },
+  { value: 'cote_ivoire', label: "Côte d'Ivoire" },
+  { value: 'cameroun', label: 'Cameroun' },
+  { value: 'madagascar', label: 'Madagascar' },
+  { value: 'afrique', label: 'Afrique' },
+  { value: 'asie', label: 'Asie' },
+  { value: 'polynesie', label: 'Polynésie' },
+  { value: 'nouvelle_caledonie', label: 'Nlle-Calédonie' },
+  { value: 'international', label: 'International' },
+];
+const CATEGORIES = [
+  { value: 'fruit', label: 'Fruits', icon: '🍎' },
+  { value: 'epice', label: 'Épices', icon: '🌶️' },
+  { value: 'plante_medicinale', label: 'Plantes médicinales', icon: '🌿' },
+  { value: 'plante_aromatique', label: 'Plantes aromatiques', icon: '🌱' },
+  { value: 'tubercule', label: 'Tubercules', icon: '🥔' },
+  { value: 'legume', label: 'Légumes', icon: '🥦' },
+  { value: 'legumineuse', label: 'Légumineuses', icon: '🌾' },
+  { value: 'fleur', label: 'Fleurs', icon: '🌺' },
+  { value: 'arbre', label: 'Arbres', icon: '🌳' },
+  { value: 'plante_industrielle', label: 'Plantes industrielles', icon: '🏭' },
+  { value: 'plante_tinctoriale', label: 'Plantes tinctoriales', icon: '🎨' },
+  { value: 'table_2', label: 'Table de 2' }, { value: 'table_3', label: 'Table de 3' },
+  { value: 'table_4', label: 'Table de 4' }, { value: 'table_5', label: 'Table de 5' },
+  { value: 'table_6', label: 'Table de 6' }, { value: 'table_7', label: 'Table de 7' },
+  { value: 'table_8', label: 'Table de 8' }, { value: 'table_9', label: 'Table de 9' },
+  { value: 'table_10', label: 'Table de 10' },
+  { value: 'addition', label: 'Addition', icon: '➕' },
+  { value: 'soustraction', label: 'Soustraction', icon: '➖' },
 ];
 
 function detectPairType(headers) {
@@ -53,28 +84,34 @@ function parseExcel(buffer) {
   const type = detectPairType(headers);
   const pairs = [];
 
+  // Colonnes communes
+  const levelIdx = findColumnIndex(headers, [/niveau/, /classe/, /level/]);
+  const domainIdx = findColumnIndex(headers, [/domaine/, /domain/]);
+  const categoryIdx = findColumnIndex(headers, [/catégorie/, /categorie/, /category/]);
+  const regionsIdx = findColumnIndex(headers, [/région/, /region/]);
+
+  const readCommon = (row) => ({
+    level: levelIdx >= 0 ? String(row[levelIdx] || '').trim() : '',
+    domain: domainIdx >= 0 ? String(row[domainIdx] || '').trim() : '',
+    category: categoryIdx >= 0 ? String(row[categoryIdx] || '').trim() : '',
+    regions: regionsIdx >= 0 ? String(row[regionsIdx] || '').trim() : '',
+    selected: true,
+  });
+
   if (type === 'math') {
     const calcIdx = findColumnIndex(headers, [/calcul/, /opéra/, /express/, /formule/]);
     const resultIdx = findColumnIndex(headers, [/résultat/, /chiffre/, /réponse/, /result/]);
-    const levelIdx = findColumnIndex(headers, [/niveau/, /classe/, /level/]);
     if (calcIdx < 0 || resultIdx < 0) return { error: 'Colonnes "Calcul" et "Résultat" non trouvées.' };
 
     for (let i = 1; i < raw.length; i++) {
       const calc = String(raw[i][calcIdx] || '').trim();
       const result = String(raw[i][resultIdx] || '').trim();
       if (!calc || !result) continue;
-      pairs.push({
-        type: 'math',
-        left: calc,
-        right: result,
-        level: levelIdx >= 0 ? String(raw[i][levelIdx] || '').trim() : '',
-        selected: true,
-      });
+      pairs.push({ type: 'math', left: calc, right: result, ...readCommon(raw[i]) });
     }
   } else {
     const textIdx = findColumnIndex(headers, [/texte/, /mot/, /nom/, /word/, /terme/, /label/]);
     const imgIdx = findColumnIndex(headers, [/image/, /photo/, /url/, /fichier/, /img/]);
-    const levelIdx = findColumnIndex(headers, [/niveau/, /classe/, /level/]);
     const leftIdx = textIdx >= 0 ? textIdx : 0;
     const rightIdx = imgIdx >= 0 ? imgIdx : (headers.length > 1 ? 1 : -1);
     if (rightIdx < 0) return { error: 'Au moins 2 colonnes requises.' };
@@ -83,13 +120,7 @@ function parseExcel(buffer) {
       const left = String(raw[i][leftIdx] || '').trim();
       const right = String(raw[i][rightIdx] || '').trim();
       if (!left) continue;
-      pairs.push({
-        type: 'text_image',
-        left,
-        right: right || '',
-        level: levelIdx >= 0 ? String(raw[i][levelIdx] || '').trim() : '',
-        selected: true,
-      });
+      pairs.push({ type: 'text_image', left, right: right || '', ...readCommon(raw[i]) });
     }
   }
 
@@ -141,40 +172,83 @@ async function parseWord(buffer) {
 function downloadTemplate() {
   const wb = XLSX.utils.book_new();
 
-  // Sheet 1: Texte ↔ Image
+  // Sheet 1: Texte ↔ Image (botanique, zoologie, culture, etc.)
   const textData = [
-    ['Texte', 'Image', 'Niveau', 'Domaine'],
-    ['Banane', 'images/banane.png', 'CE1', 'botanique'],
-    ['Colibri', 'images/colibri.png', 'CE2', 'zoologie'],
-    ['Volcan', 'images/volcan.png', 'CM1', 'géographie'],
-    ['Madras', 'images/madras.png', 'CP', 'culture'],
-    ['', '', '', ''],
-    ['--- Instructions ---', '', '', ''],
-    ['Texte = le mot ou terme affiché', '', '', ''],
-    ['Image = chemin ou URL de l\'image', '', '', ''],
-    ['Niveau = CP, CE1, CE2, CM1, CM2, 6e, 5e, 4e, 3e', '', '', ''],
-    ['Domaine = botanique, zoologie, math, langue, sciences, géographie, histoire, arts, culture, environnement, sports', '', '', ''],
+    ['Texte', 'Image', 'Niveau', 'Domaine', 'Catégorie', 'Régions'],
+    ['Banane', 'images/banane.png', 'CP', 'botany', 'fruit', 'guadeloupe, martinique, guyane, reunion, afrique'],
+    ['Cannelle', 'images/cannelle.png', 'CP', 'botany', 'epice', 'guadeloupe, martinique, reunion, asie, france, international'],
+    ['Aloe Vera', 'images/aloe_vera.png', 'CE1', 'botany', 'plante_medicinale', 'guadeloupe, martinique, reunion, afrique, international'],
+    ['Igname', 'images/igname.png', 'CE1', 'botany', 'tubercule', 'guadeloupe, martinique, guyane, haiti, afrique, asie'],
+    ['Gombo', 'images/gombo.png', 'CE2', 'botany', 'legume', 'guadeloupe, martinique, guyane, haiti, afrique, france'],
+    ['Colibri', 'images/colibri.png', 'CE2', 'zoology', '', 'guadeloupe, martinique'],
+    ['Volcan', 'images/volcan.png', 'CM1', 'geography', '', ''],
+    ['Madras', 'images/madras.png', 'CP', 'culture', '', 'guadeloupe, martinique'],
+    ['', '', '', '', '', ''],
+    ['=== INSTRUCTIONS ===', '', '', '', '', ''],
+    ['Texte', 'Le mot ou terme affiché au joueur', '', '', '', ''],
+    ['Image', 'Chemin du fichier image (ex: images/banane.png) ou URL', '', '', '', ''],
+    ['Niveau', 'CP, CE1, CE2, CM1, CM2, 6e, 5e, 4e, 3e', '', '', '', ''],
+    ['Domaine', 'botany, zoology, math, language, science, geography, history_civics, arts, culture, environment, sports', '', '', '', ''],
+    ['Catégorie', 'fruit, epice, plante_medicinale, plante_aromatique, tubercule, legume, legumineuse, fleur, arbre, plante_industrielle, plante_tinctoriale', '', '', '', ''],
+    ['Régions', 'Liste séparée par virgules: guadeloupe, martinique, guyane, reunion, haiti, france, afrique, asie, international...', '', '', '', ''],
+    ['', '', '', '', '', ''],
+    ['CONSEIL', 'Seules les colonnes Texte et Image sont obligatoires. Niveau, Domaine, Catégorie et Régions sont optionnels — vous pouvez les définir après import dans la Bibliothèque.', '', '', '', ''],
   ];
   const ws1 = XLSX.utils.aoa_to_sheet(textData);
-  ws1['!cols'] = [{ wch: 25 }, { wch: 30 }, { wch: 12 }, { wch: 18 }];
+  ws1['!cols'] = [{ wch: 20 }, { wch: 35 }, { wch: 10 }, { wch: 16 }, { wch: 22 }, { wch: 55 }];
   XLSX.utils.book_append_sheet(wb, ws1, 'Texte - Image');
 
   // Sheet 2: Calcul ↔ Résultat
   const mathData = [
-    ['Calcul', 'Résultat', 'Niveau', 'Domaine'],
-    ['3 + 5', '8', 'CP', 'math'],
-    ['7 × 6', '42', 'CE2', 'math'],
-    ['45 ÷ 9', '5', 'CM1', 'math'],
-    ['12 × 12', '144', 'CM2', 'math'],
-    ['', '', '', ''],
-    ['--- Instructions ---', '', '', ''],
-    ['Calcul = l\'opération affichée au joueur', '', '', ''],
-    ['Résultat = la bonne réponse', '', '', ''],
-    ['Niveau = CP, CE1, CE2, CM1, CM2, 6e, 5e, 4e, 3e', '', '', ''],
+    ['Calcul', 'Résultat', 'Niveau', 'Domaine', 'Catégorie'],
+    ['3 + 5', '8', 'CP', 'math', 'addition'],
+    ['12 - 7', '5', 'CP', 'math', 'soustraction'],
+    ['2 × 3', '6', 'CE1', 'math', 'table_2'],
+    ['7 × 6', '42', 'CE2', 'math', 'table_7'],
+    ['9 × 8', '72', 'CM1', 'math', 'table_9'],
+    ['12 × 12', '144', 'CM2', 'math', 'table_12'],
+    ['', '', '', '', ''],
+    ['=== INSTRUCTIONS ===', '', '', '', ''],
+    ['Calcul', 'L\'opération affichée au joueur (utiliser × pour multiplier, + pour additionner, - pour soustraire)', '', '', ''],
+    ['Résultat', 'La bonne réponse numérique', '', '', ''],
+    ['Niveau', 'CP, CE1, CE2, CM1, CM2, 6e, 5e, 4e, 3e', '', '', ''],
+    ['Catégorie', 'table_2 à table_12, addition, soustraction', '', '', ''],
   ];
   const ws2 = XLSX.utils.aoa_to_sheet(mathData);
-  ws2['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 18 }];
+  ws2['!cols'] = [{ wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 18 }];
   XLSX.utils.book_append_sheet(wb, ws2, 'Calcul - Résultat');
+
+  // Sheet 3: Référence — listes des valeurs possibles
+  const refData = [
+    ['=== RÉFÉRENCE DES VALEURS ===', '', ''],
+    ['', '', ''],
+    ['NIVEAUX', 'DOMAINES', 'CATÉGORIES BOTANIQUE'],
+    ['CP', 'botany', 'fruit'],
+    ['CE1', 'zoology', 'epice'],
+    ['CE2', 'math', 'plante_medicinale'],
+    ['CM1', 'language', 'plante_aromatique'],
+    ['CM2', 'science', 'tubercule'],
+    ['6e', 'geography', 'legume'],
+    ['5e', 'history_civics', 'legumineuse'],
+    ['4e', 'arts', 'fleur'],
+    ['3e', 'culture', 'arbre'],
+    ['', 'environment', 'plante_industrielle'],
+    ['', 'sports', 'plante_tinctoriale'],
+    ['', '', ''],
+    ['RÉGIONS DISPONIBLES', '', 'CATÉGORIES MATH'],
+    ['guadeloupe', 'haiti', 'addition'],
+    ['martinique', 'cuba', 'soustraction'],
+    ['guyane', 'trinidad', 'table_2 à table_12'],
+    ['reunion', 'senegal', ''],
+    ['mayotte', 'cote_ivoire', ''],
+    ['france', 'cameroun', ''],
+    ['afrique', 'madagascar', ''],
+    ['asie', 'polynesie', ''],
+    ['international', 'nouvelle_caledonie', ''],
+  ];
+  const ws3 = XLSX.utils.aoa_to_sheet(refData);
+  ws3['!cols'] = [{ wch: 25 }, { wch: 22 }, { wch: 25 }];
+  XLSX.utils.book_append_sheet(wb, ws3, 'Référence');
 
   XLSX.writeFile(wb, 'Modele_CrazyChrono.xlsx');
 }
@@ -262,9 +336,18 @@ export default function RectoratUpload({ data, setData, saveToBackend }) {
       selected.forEach((p, idx) => {
         const ts = now + idx;
         const level = p.level || defaultLevel;
-        const themes = [`domain:${defaultDomain}`];
-        if (defaultRegion) themes.push(`region:${defaultRegion}`);
-        themes.push(`curriculum_grade:${level}`);
+
+        // Build themes from per-row data or defaults
+        const themes = [];
+        const rowDomain = p.domain || defaultDomain;
+        if (rowDomain) themes.push(`domain:${rowDomain}`);
+        const rowCategory = p.category || '';
+        if (rowCategory) themes.push(`category:${rowCategory}`);
+        // Regions: from row (comma-separated) or default
+        const rowRegions = p.regions
+          ? p.regions.split(',').map(r => r.trim()).filter(Boolean)
+          : (defaultRegion ? [defaultRegion] : []);
+        for (const rk of rowRegions) themes.push(`region:${rk}`);
 
         if (p.type === 'math') {
           const cId = `c${ts}`;
@@ -487,13 +570,14 @@ export default function RectoratUpload({ data, setData, saveToBackend }) {
           </div>
           <div style={{ fontSize: 13, color: '#78350f', lineHeight: 1.6 }}>
             <strong>Excel (.xlsx) — Texte/Image :</strong><br />
-            Colonnes : <code>Texte | Image | Niveau</code> (ou <code>Mot | URL | Classe</code>)<br /><br />
+            Colonnes : <code>Texte | Image | Niveau | Domaine | Catégorie | Régions</code><br />
+            <em style={{ fontSize: 11, color: '#92400e' }}>Seules Texte et Image sont obligatoires. Domaine, Catégorie et Régions sont optionnels.</em><br /><br />
             <strong>Excel (.xlsx) — Maths :</strong><br />
-            Colonnes : <code>Calcul | Résultat | Niveau</code><br /><br />
+            Colonnes : <code>Calcul | Résultat | Niveau | Domaine | Catégorie</code><br /><br />
             <strong>Word (.docx) :</strong><br />
             Une paire par ligne, séparée par <code>tab</code>, <code>;</code>, <code>|</code> ou <code> - </code><br />
-            Ex: <code>Banane ; images/banane.jpeg</code><br />
-            Ou simplement une liste de mots (un par ligne)
+            Ex: <code>Banane ; images/banane.jpeg</code><br /><br />
+            <strong>3 onglets dans le modèle :</strong> Texte-Image, Calcul-Résultat, Référence (listes des valeurs)
           </div>
         </div>
       )}
