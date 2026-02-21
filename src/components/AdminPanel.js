@@ -191,8 +191,11 @@ function AdminPanel() {
         const existingRegions = new Set(themes.filter(t => t.startsWith('region:')).map(t => t.slice(7)));
         const plantRegions = (matchedPlant.regions || []).map(r => r.key);
         const newRegions = plantRegions.filter(rk => !existingRegions.has(rk));
+        const existingCategory = themes.find(t => t.startsWith('category:'));
+        const plantCategory = matchedPlant.category || '';
+        const needsCategory = plantCategory && (!existingCategory || existingCategory !== 'category:' + plantCategory);
 
-        if (hasDomainBotany && newRegions.length === 0) {
+        if (hasDomainBotany && newRegions.length === 0 && !needsCategory) {
           alreadyTagged++;
           return a;
         }
@@ -203,6 +206,12 @@ function AdminPanel() {
         const updatedThemes = themes.filter(t => t !== 'botanique');
         if (!hasDomainBotany) updatedThemes.push('domain:botany');
         for (const rk of newRegions) updatedThemes.push('region:' + rk);
+        // Add category tag (remove old one if different)
+        if (needsCategory) {
+          const idx = updatedThemes.findIndex(t => t.startsWith('category:'));
+          if (idx >= 0) updatedThemes.splice(idx, 1);
+          updatedThemes.push('category:' + plantCategory);
+        }
 
         const updated = { ...a, themes: updatedThemes };
 

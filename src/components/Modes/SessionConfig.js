@@ -4,6 +4,20 @@ import { DataContext } from '../../context/DataContext';
 
 const CLASS_LEVELS = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"];
 
+const CATEGORY_LABELS = {
+  'category:fruit': '🍎 Fruits',
+  'category:epice': '🌶️ Épices',
+  'category:plante_medicinale': '🌿 Plantes médicinales',
+  'category:plante_aromatique': '🌱 Plantes aromatiques',
+  'category:fleur': '🌺 Fleurs',
+  'category:tubercule': '🥔 Tubercules',
+  'category:arbre': '🌳 Arbres',
+  'category:legumineuse': '🫘 Légumineuses',
+  'category:legume': '🥬 Légumes',
+  'category:cereale': '🌾 Céréales',
+  'category:palmier': '🌴 Palmiers',
+};
+
 const PLAYER_ZONES = [
   { key: 'guadeloupe', label: 'Guadeloupe', icon: '🏝️' },
   { key: 'martinique', label: 'Martinique', icon: '🏝️' },
@@ -156,16 +170,18 @@ export default function SessionConfig() {
   }, [data, selectedClasses]);
 
   // Découper les facettes (domain:/region:/group:) et autres thèmes
-  const { domains, regions, groups, others } = useMemo(() => {
-    const d = new Set(); const r = new Set(); const g = new Set(); const o = new Set();
+  const { domains, categories, regions, groups, others } = useMemo(() => {
+    const d = new Set(); const c = new Set(); const r = new Set(); const g = new Set(); const o = new Set();
     for (const t of allThemes) {
       if (/^domain:/.test(t)) d.add(t);
+      else if (/^category:/.test(t)) c.add(t);
       else if (/^region:/.test(t)) r.add(t);
       else if (/^group:/.test(t)) g.add(t);
       else o.add(t);
     }
     return {
       domains: Array.from(d).sort(),
+      categories: Array.from(c).sort(),
       regions: Array.from(r).sort(),
       groups: Array.from(g).sort(),
       others: Array.from(o).sort(),
@@ -346,6 +362,20 @@ export default function SessionConfig() {
                   <button key={t} onClick={() => toggleTheme(t)} disabled={!hasData} title={hasData ? '' : 'Aucune donnée pour les classes sélectionnées'}
                     style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedThemes.includes(t) ? '#1AACBE' : '#fff', color: selectedThemes.includes(t) ? '#fff' : '#4A3728', opacity: hasData ? 1 : 0.5, cursor: hasData ? 'pointer' : 'not-allowed' }}>
                     {t}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <h4>Catégorie</h4>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {categories.map(t => {
+                const hasData = themeHasData(t);
+                return (
+                  <button key={t} onClick={() => toggleTheme(t)} disabled={!hasData} title={hasData ? '' : 'Aucune donnée pour les classes sélectionnées'}
+                    style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedThemes.includes(t) ? '#1AACBE' : '#fff', color: selectedThemes.includes(t) ? '#fff' : '#4A3728', opacity: hasData ? 1 : 0.5, cursor: hasData ? 'pointer' : 'not-allowed' }}>
+                    {CATEGORY_LABELS[t] || t.replace('category:', '')}
                   </button>
                 );
               })}

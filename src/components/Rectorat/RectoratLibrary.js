@@ -42,6 +42,20 @@ const REGIONS = [
   { key: 'international', label: 'International', icon: '🌐' },
 ];
 
+const CATEGORY_META = {
+  fruit: { label: 'Fruits', icon: '🍎', color: '#dc2626', bg: '#fef2f2' },
+  epice: { label: 'Épices', icon: '🌶️', color: '#ea580c', bg: '#fff7ed' },
+  plante_medicinale: { label: 'Plantes médicinales', icon: '🌿', color: '#16a34a', bg: '#f0fdf4' },
+  plante_aromatique: { label: 'Plantes aromatiques', icon: '🌱', color: '#059669', bg: '#ecfdf5' },
+  fleur: { label: 'Fleurs', icon: '🌺', color: '#db2777', bg: '#fdf2f8' },
+  tubercule: { label: 'Tubercules', icon: '🥔', color: '#ca8a04', bg: '#fefce8' },
+  arbre: { label: 'Arbres', icon: '🌳', color: '#166534', bg: '#f0fdf4' },
+  legumineuse: { label: 'Légumineuses', icon: '🫘', color: '#854d0e', bg: '#fefce8' },
+  legume: { label: 'Légumes', icon: '🥬', color: '#15803d', bg: '#f0fdf4' },
+  cereale: { label: 'Céréales', icon: '🌾', color: '#a16207', bg: '#fefce8' },
+  palmier: { label: 'Palmiers', icon: '🌴', color: '#065f46', bg: '#ecfdf5' },
+};
+
 const DOMAIN_KEYS = Object.keys(DOMAIN_META);
 
 function getDomain(themes) {
@@ -62,8 +76,16 @@ function getRegions(themes) {
   return regions;
 }
 
+function getCategory(themes) {
+  for (const th of (themes || [])) {
+    if (th.startsWith('category:')) return th.slice(9);
+  }
+  return null;
+}
+
 export default function RectoratLibrary({ data, setData, saveToBackend }) {
   const [filterDomain, setFilterDomain] = useState('all');
+  const [filterCategory, setFilterCategory] = useState('all');
   const [filterRegion, setFilterRegion] = useState('all');
   const [filterLevel, setFilterLevel] = useState('all');
   const [search, setSearch] = useState('');
@@ -82,8 +104,9 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
       const left = isMath ? (cMap.get(a.calculId)?.content || '') : (tMap.get(a.texteId)?.content || '');
       const right = isMath ? (nMap.get(a.chiffreId)?.content || '') : (iMap.get(a.imageId)?.url || '');
       const domain = getDomain(a.themes);
+      const category = getCategory(a.themes);
       const regions = getRegions(a.themes);
-      return { ...a, idx, isMath, left, right, domain, regions };
+      return { ...a, idx, isMath, left, right, domain, category, regions };
     });
   }, [data]);
 
@@ -105,10 +128,19 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
     return stats;
   }, [enriched, filterDomain]);
 
-  // Filter chain: Domain → Region → Level → Search
+  const categoryStats = useMemo(() => {
+    const stats = {};
+    let list = enriched;
+    if (filterDomain !== 'all') list = list.filter(a => (a.domain || 'unknown') === filterDomain);
+    for (const a of list) { stats[a.category || 'unknown'] = (stats[a.category || 'unknown'] || 0) + 1; }
+    return stats;
+  }, [enriched, filterDomain]);
+
+  // Filter chain: Domain → Category → Region → Level → Search
   const filtered = useMemo(() => {
     let list = enriched;
     if (filterDomain !== 'all') list = list.filter(a => (a.domain || 'unknown') === filterDomain);
+    if (filterCategory !== 'all') list = list.filter(a => (a.category || 'unknown') === filterCategory);
     if (filterRegion !== 'all') list = list.filter(a => filterRegion === 'unknown' ? a.regions.length === 0 : a.regions.includes(filterRegion));
     if (filterLevel !== 'all') list = list.filter(a => a.levelClass === filterLevel);
     if (search.trim()) {
@@ -116,7 +148,7 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
       list = list.filter(a => a.left.toLowerCase().includes(q) || a.right.toLowerCase().includes(q));
     }
     return list;
-  }, [enriched, filterDomain, filterRegion, filterLevel, search]);
+  }, [enriched, filterDomain, filterCategory, filterRegion, filterLevel, search]);
 
   // Mutators
   const deleteAssoc = (assocIdx) => {
@@ -168,6 +200,10 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
     const dm = DOMAIN_META[filterDomain] || { icon: '❓', label: filterDomain };
     breadcrumb.push(dm.icon + ' ' + dm.label);
   }
+  if (filterCategory !== 'all') {
+    const cm = CATEGORY_META[filterCategory];
+    breadcrumb.push(cm ? cm.icon + ' ' + cm.label : (filterCategory === 'unknown' ? 'Sans catégorie' : filterCategory));
+  }
   if (filterRegion !== 'all') {
     const rm = REGIONS.find(r => r.key === filterRegion);
     breadcrumb.push(rm ? rm.icon + ' ' + rm.label : (filterRegion === 'unknown' ? 'Sans région' : filterRegion));
@@ -192,7 +228,7 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
 
       {/* === STEP 1: Domain pills === */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-        <button onClick={() => { setFilterDomain('all'); setFilterRegion('all'); }} style={{ padding: '6px 14px', borderRadius: 20, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: filterDomain === 'all' ? '#0D6A7A' : '#f1f5f9', color: filterDomain === 'all' ? '#fff' : '#64748b' }}>
+        <button onClick={() => { setFilterDomain('all'); setFilterCategory('all'); setFilterRegion('all'); }} style={{ padding: '6px 14px', borderRadius: 20, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: filterDomain === 'all' ? '#0D6A7A' : '#f1f5f9', color: filterDomain === 'all' ? '#fff' : '#64748b' }}>
           Tous ({totalAssocs})
         </button>
         {Object.entries(DOMAIN_META).map(([key, meta]) => {
@@ -200,21 +236,47 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
           if (count === 0) return null;
           const active = filterDomain === key;
           return (
-            <button key={key} onClick={() => { setFilterDomain(active ? 'all' : key); setFilterRegion('all'); }}
+            <button key={key} onClick={() => { setFilterDomain(active ? 'all' : key); setFilterCategory('all'); setFilterRegion('all'); }}
               style={{ padding: '6px 14px', borderRadius: 20, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: active ? meta.color : meta.bg, color: active ? '#fff' : meta.color }}>
               {meta.icon} {meta.label} ({count})
             </button>
           );
         })}
         {(domainStats['unknown'] || 0) > 0 && (
-          <button onClick={() => { setFilterDomain(filterDomain === 'unknown' ? 'all' : 'unknown'); setFilterRegion('all'); }}
+          <button onClick={() => { setFilterDomain(filterDomain === 'unknown' ? 'all' : 'unknown'); setFilterCategory('all'); setFilterRegion('all'); }}
             style={{ padding: '6px 14px', borderRadius: 20, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: filterDomain === 'unknown' ? '#64748b' : '#f1f5f9', color: filterDomain === 'unknown' ? '#fff' : '#94a3b8' }}>
             Non classé ({domainStats['unknown']})
           </button>
         )}
       </div>
 
-      {/* === STEP 2: Region pills (shown when a domain is selected) === */}
+      {/* === STEP 2: Category pills (shown when a domain is selected) === */}
+      {filterDomain !== 'all' && Object.keys(categoryStats).length > 1 && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12, paddingLeft: 12, borderLeft: '3px solid ' + (DOMAIN_META[filterDomain]?.color || '#94a3b8') }}>
+          <button onClick={() => setFilterCategory('all')} style={{ padding: '5px 12px', borderRadius: 16, border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600, cursor: 'pointer', background: filterCategory === 'all' ? '#334155' : '#fff', color: filterCategory === 'all' ? '#fff' : '#64748b' }}>
+            Toutes catégories
+          </button>
+          {Object.entries(CATEGORY_META).map(([key, meta]) => {
+            const count = categoryStats[key] || 0;
+            if (count === 0) return null;
+            const active = filterCategory === key;
+            return (
+              <button key={key} onClick={() => setFilterCategory(active ? 'all' : key)}
+                style={{ padding: '5px 12px', borderRadius: 16, border: '1px solid ' + (active ? meta.color : '#e2e8f0'), fontSize: 12, fontWeight: 600, cursor: 'pointer', background: active ? meta.color : meta.bg, color: active ? '#fff' : meta.color }}>
+                {meta.icon} {meta.label} ({count})
+              </button>
+            );
+          })}
+          {(categoryStats['unknown'] || 0) > 0 && (
+            <button onClick={() => setFilterCategory(filterCategory === 'unknown' ? 'all' : 'unknown')}
+              style={{ padding: '5px 12px', borderRadius: 16, border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600, cursor: 'pointer', background: filterCategory === 'unknown' ? '#334155' : '#fff', color: filterCategory === 'unknown' ? '#fff' : '#94a3b8' }}>
+              Sans catégorie ({categoryStats['unknown']})
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* === STEP 3: Region pills (shown when a domain is selected) === */}
       {filterDomain !== 'all' && Object.keys(regionStats).length > 1 && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12, paddingLeft: 12, borderLeft: '3px solid ' + (DOMAIN_META[filterDomain]?.color || '#94a3b8') }}>
           <button onClick={() => setFilterRegion('all')} style={{ padding: '5px 12px', borderRadius: 16, border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600, cursor: 'pointer', background: filterRegion === 'all' ? '#334155' : '#fff', color: filterRegion === 'all' ? '#fff' : '#64748b' }}>
