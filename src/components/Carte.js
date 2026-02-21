@@ -4225,21 +4225,36 @@ setZones(dataWithRandomTexts);
                 };
               }
             }
-            // Filtrage par niveau/classe (associations seulement pour ne pas assécher les pools)
+            // Filtrage par niveau/classe CUMULATIF (CM2 inclut CP→CM2, cohérent avec elementsLoader/SessionConfig)
             if (selClasses.length > 0) {
-              const pickLevels = (a) => {
-                // Supporte différents schémas: levelClass (string), levels/classes/classLevels (array)
+              const LEVEL_ORDER = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"];
+              const lvlIdx = Object.fromEntries(LEVEL_ORDER.map((l, i) => [l, i]));
+              const normLvl = (s) => {
+                const x = String(s || '').toLowerCase();
+                if (/\bcp\b/.test(x)) return 'CP';
+                if (/\bce1\b/.test(x)) return 'CE1';
+                if (/\bce2\b/.test(x)) return 'CE2';
+                if (/\bcm1\b/.test(x)) return 'CM1';
+                if (/\bcm2\b/.test(x)) return 'CM2';
+                if (/\b6e\b/.test(x)) return '6e';
+                if (/\b5e\b/.test(x)) return '5e';
+                if (/\b4e\b/.test(x)) return '4e';
+                if (/\b3e\b/.test(x)) return '3e';
+                return '';
+              };
+              const maxLvlIdx = Math.max(...selClasses.map(c => lvlIdx[normLvl(c)] ?? -1));
+              const byClassCumul = (a) => {
                 const lc = a?.levelClass ? [String(a.levelClass)] : [];
                 const arr = a?.levels || a?.classes || a?.classLevels || [];
-                return [...lc, ...arr];
+                const vals = [...lc, ...arr].map(normLvl).filter(Boolean);
+                return vals.length === 0 || vals.some(v => (lvlIdx[v] ?? 99) <= maxLvlIdx);
               };
-              const byClass = (a) => hasAny(pickLevels(a), selClasses);
               if (Array.isArray(assocRoot)) {
-                assocRoot = assocRoot.filter(byClass);
+                assocRoot = assocRoot.filter(byClassCumul);
               } else if (assocRoot && typeof assocRoot === 'object') {
                 assocRoot = {
-                  textImage: (assocRoot.textImage || []).filter(byClass),
-                  calcNum: (assocRoot.calcNum || []).filter(byClass),
+                  textImage: (assocRoot.textImage || []).filter(byClassCumul),
+                  calcNum: (assocRoot.calcNum || []).filter(byClassCumul),
                 };
               }
             }
@@ -4376,12 +4391,14 @@ setZones(dataWithRandomTexts);
                 const arr = o?.levels || o?.classes || o?.classLevels || [];
                 return [...lc, ...arr].map(normLevel).filter(Boolean);
               };
+              const LEVEL_ORD = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"];
+              const lvlOrdIdx = Object.fromEntries(LEVEL_ORD.map((l, i) => [l, i]));
+              const maxSelIdx = Math.max(...selClasses.map(c => lvlOrdIdx[normLevel(c)] ?? -1));
               const strictLevelOk = (o) => {
                 if (selClasses.length === 0) return true;
                 const lv = pickLevels(o);
-                // Si aucun niveau déclaré ou '-' alors exclu en présence de classes sélectionnées
                 if (!lv.length) return false;
-                return lv.some(v => selClasses.includes(v));
+                return lv.some(v => (lvlOrdIdx[v] ?? 99) <= maxSelIdx);
               };
               const strictThemeOk = (o) => hasAny(o?.themes || [], selThemes);
               if (selThemes.length > 0 || selClasses.length > 0) {
