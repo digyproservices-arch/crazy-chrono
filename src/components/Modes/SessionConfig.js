@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { DataContext } from '../../context/DataContext';
 
 const CLASS_LEVELS = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"];
+const LEVEL_INDEX = Object.fromEntries(CLASS_LEVELS.map((l, i) => [l, i]));
 
 const CATEGORY_LABELS = {
   'category:fruit': '🍎 Fruits',
@@ -68,12 +69,13 @@ export default function SessionConfig() {
   // Helper dans le scope du composant: déterminer si un thème a des données pour les classes sélectionnées
   function themeHasData(theme) {
     try {
-      const classSet = new Set(selectedClasses.map(NORM_LEVEL).filter(Boolean));
+      const maxIdx = Math.max(...selectedClasses.map(c => LEVEL_INDEX[NORM_LEVEL(c)] ?? -1));
       const matchLevel = (obj) => {
+        if (selectedClasses.length === 0) return true;
         const lc = obj?.levelClass ? [String(obj.levelClass)] : [];
         const arr = obj?.levels || obj?.classes || obj?.classLevels || [];
         const vals = [...lc, ...arr].map(NORM_LEVEL).filter(Boolean);
-        return selectedClasses.length === 0 || vals.length === 0 || vals.some(v => classSet.has(v));
+        return vals.length === 0 || vals.some(v => (LEVEL_INDEX[v] ?? 99) <= maxIdx);
       };
       const matchTheme = (obj) => (obj?.themes || []).map(String).includes(String(theme));
       // 1) Associations
@@ -159,14 +161,15 @@ export default function SessionConfig() {
     return '';
   };
 
-  // Thèmes filtrés par niveaux sélectionnés (priorité associations)
+  // Thèmes filtrés par niveaux sélectionnés (logique cumulative: CM2 inclut CP→CM2)
   const allThemes = useMemo(() => {
-    const classSet = new Set(selectedClasses.map(NORM_LEVEL).filter(Boolean));
+    const maxIdx = Math.max(...selectedClasses.map(c => LEVEL_INDEX[NORM_LEVEL(c)] ?? -1));
     const matchesLevel = (obj) => {
+      if (selectedClasses.length === 0) return true;
       const lc = obj?.levelClass ? [String(obj.levelClass)] : [];
       const arr = obj?.levels || obj?.classes || obj?.classLevels || [];
       const vals = [...lc, ...arr].map(NORM_LEVEL).filter(Boolean);
-      return vals.length === 0 || vals.some(v => classSet.has(v));
+      return vals.length === 0 || vals.some(v => (LEVEL_INDEX[v] ?? 99) <= maxIdx);
     };
     const bag = new Set();
     // 1) Thèmes issus des associations correspondant aux niveaux sélectionnés
@@ -213,13 +216,14 @@ export default function SessionConfig() {
 
   // Estimation de suffisance des données pour la config courante
   const dataStats = useMemo(() => {
-    const classSet = new Set(selectedClasses.map(NORM_LEVEL).filter(Boolean));
+    const maxIdx = Math.max(...selectedClasses.map(c => LEVEL_INDEX[NORM_LEVEL(c)] ?? -1));
     const themeSet = new Set(selectedThemes);
     const matchLevel = (obj) => {
+      if (selectedClasses.length === 0) return true;
       const lc = obj?.levelClass ? [String(obj.levelClass)] : [];
       const arr = obj?.levels || obj?.classes || obj?.classLevels || [];
       const vals = [...lc, ...arr].map(NORM_LEVEL).filter(Boolean);
-      return selectedClasses.length === 0 || vals.length === 0 || vals.some(v => classSet.has(v));
+      return vals.length === 0 || vals.some(v => (LEVEL_INDEX[v] ?? 99) <= maxIdx);
     };
     const matchTheme = (obj) => {
       const ts = (obj?.themes || []).map(String);
