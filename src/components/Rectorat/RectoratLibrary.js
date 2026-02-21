@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 const CLASS_LEVELS = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"];
 
@@ -106,6 +106,16 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('cards');
 
+  // Charger le référentiel botanique pour les noms locaux
+  const botRefRef = useRef(null);
+  const [botRef, setBotRef] = useState(null);
+  useEffect(() => {
+    if (botRefRef.current) return;
+    botRefRef.current = true;
+    fetch((process.env.PUBLIC_URL || '') + '/data/references/botanical_reference.json')
+      .then(r => r.json()).then(setBotRef).catch(() => {});
+  }, []);
+
   // Build enriched associations list
   const enriched = useMemo(() => {
     if (!data?.associations) return [];
@@ -114,6 +124,14 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
     const cMap = new Map((data.calculs || []).map(x => [x.id, x]));
     const nMap = new Map((data.chiffres || []).map(x => [x.id, x]));
 
+    // Lookup botanique: textContent (lowercase) → plant entry
+    const botLookup = new Map();
+    if (botRef?.plants) {
+      for (const p of botRef.plants) {
+        for (const mn of (p.matchNames || [])) botLookup.set(mn.toLowerCase(), p);
+      }
+    }
+
     return data.associations.map((a, idx) => {
       const isMath = !!(a.calculId && a.chiffreId);
       const left = isMath ? (cMap.get(a.calculId)?.content || '') : (tMap.get(a.texteId)?.content || '');
@@ -121,9 +139,22 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
       const domain = getDomain(a.themes);
       const category = getCategory(a.themes);
       const regions = getRegions(a.themes);
-      return { ...a, idx, isMath, left, right, domain, category, regions };
+
+      // Noms locaux par région (botanique uniquement)
+      let localNames = null;
+      if (domain === 'botany' && left) {
+        const plant = botLookup.get(left.toLowerCase().trim());
+        if (plant) {
+          localNames = (plant.regions || []).reduce((acc, r) => {
+            acc[r.key] = r.localName;
+            return acc;
+          }, {});
+        }
+      }
+
+      return { ...a, idx, isMath, left, right, domain, category, regions, localNames };
     });
-  }, [data]);
+  }, [data, botRef]);
 
   // Stats
   const domainStats = useMemo(() => {
@@ -397,6 +428,26 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
                     {REGIONS.filter(r => !a.regions.includes(r.key)).map(r => <option key={r.key} value={r.key}>{r.icon} {r.label}</option>)}
                   </select>
                 </div>
+                {a.localNames && Object.keys(a.localNames).length > 0 && (() => {
+                  const uniqueNames = {};
+                  for (const rk of a.regions) {
+                    const ln = a.localNames[rk];
+                    if (ln && ln.toLowerCase() !== a.left.toLowerCase()) uniqueNames[rk] = ln;
+                  }
+                  const entries = Object.entries(uniqueNames);
+                  if (entries.length === 0) return null;
+                  return (
+                    <div style={{ marginBottom: 4, padding: '3px 6px', background: '#f0fdf4', borderRadius: 6, border: '1px dashed #bbf7d0' }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: '#16a34a', marginBottom: 2 }}>Noms locaux</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1px 6px' }}>
+                        {entries.map(([rk, ln]) => {
+                          const rm = REGIONS.find(r => r.key === rk);
+                          return <span key={rk} style={{ fontSize: 9, color: '#475569' }}>{rm?.icon || ''} <b>{ln}</b></span>;
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                   <select value={a.levelClass || ''} onChange={e => updateLevel(a.idx, e.target.value)}
                     style={{ padding: '2px 4px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 11, fontWeight: 600, color: '#0D6A7A', background: '#f0fdfa', cursor: 'pointer' }}>
