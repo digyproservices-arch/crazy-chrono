@@ -142,6 +142,94 @@ function AdminPanel() {
     } catch {}
   };
 
+  // ===== Auto-classification botanique (référentiel → domain + régions) =====
+  const autoClassifyBotany = async () => {
+    try {
+      const res = await fetch(process.env.PUBLIC_URL + '/data/references/botanical_reference.json');
+      if (!res.ok) { alert('Impossible de charger le référentiel botanique.'); return; }
+      const ref = await res.json();
+      const plants = ref.plants || [];
+      if (plants.length === 0) { alert('Référentiel vide.'); return; }
+
+      // Build lookup: lowercase matchName → plant entry
+      const lookup = new Map();
+      for (const p of plants) {
+        for (const mn of (p.matchNames || [])) {
+          lookup.set(mn.toLowerCase(), p);
+        }
+      }
+
+      const assocs = data?.associations || [];
+      const textes = data?.textes || [];
+      const images = data?.images || [];
+      const tMap = new Map(textes.map(t => [t.id, t]));
+      const iMap = new Map(images.map(i => [i.id, i]));
+
+      let matched = 0;
+      let alreadyTagged = 0;
+
+      const nextAssocs = assocs.map(a => {
+        if (a.calculId && a.chiffreId) return a; // skip math pairs
+
+        const textContent = (tMap.get(a.texteId)?.content || '').toLowerCase();
+        const imgUrl = (iMap.get(a.imageId)?.url || '').toLowerCase();
+
+        // Try to match text or image filename against any plant matchName
+        let matchedPlant = null;
+        for (const [name, plant] of lookup) {
+          if (textContent.includes(name) || imgUrl.includes(name.replace(/\s+/g, '_')) || imgUrl.includes(name.replace(/\s+/g, '-'))) {
+            matchedPlant = plant;
+            break;
+          }
+        }
+
+        if (!matchedPlant) return a;
+
+        // Check if already classified
+        const themes = (a.themes || []).slice();
+        const hasDomainBotany = themes.includes('domain:botany');
+        const existingRegions = new Set(themes.filter(t => t.startsWith('region:')).map(t => t.slice(7)));
+        const plantRegions = (matchedPlant.regions || []).map(r => r.key);
+        const newRegions = plantRegions.filter(rk => !existingRegions.has(rk));
+
+        if (hasDomainBotany && newRegions.length === 0) {
+          alreadyTagged++;
+          return a;
+        }
+
+        matched++;
+
+        // Remove old 'botanique' theme if present, add domain:botany
+        const updatedThemes = themes.filter(t => t !== 'botanique');
+        if (!hasDomainBotany) updatedThemes.push('domain:botany');
+        for (const rk of newRegions) updatedThemes.push('region:' + rk);
+
+        const updated = { ...a, themes: updatedThemes };
+
+        // Apply suggested level if none set
+        if (!a.levelClass && matchedPlant.suggestedLevel) {
+          updated.levelClass = matchedPlant.suggestedLevel;
+        }
+
+        return updated;
+      });
+
+      const newData = { ...data, associations: nextAssocs };
+      setData(newData);
+      saveToBackend(newData);
+
+      alert(
+        `Classification botanique terminée.\n` +
+        `${matched} association(s) mise(s) à jour.\n` +
+        `${alreadyTagged} déjà classée(s).\n` +
+        `${plants.length} plantes dans le référentiel.`
+      );
+    } catch (err) {
+      console.error('autoClassifyBotany error:', err);
+      alert('Erreur lors de la classification botanique: ' + (err.message || err));
+    }
+  };
+
   // Filtres pour faciliter la recherche dans les listes d'association
   const [texteFilter, setTexteFilter] = useState("");
   const [imageFilter, setImageFilter] = useState("");
@@ -1039,6 +1127,7 @@ function AdminPanel() {
                     <button type="button" onClick={dedupeImages} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #fde68a', background: '#fffbeb', color: '#92400e', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>🧹 Dédup images</button>
                     <button type="button" onClick={dedupeAssociations} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #fde68a', background: '#fffbeb', color: '#92400e', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>🧹 Dédup assoc.</button>
                     <button type="button" onClick={autoTagElements} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #a7f3d0', background: '#ecfdf5', color: '#065f46', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>🏷️ Auto-tag</button>
+                    <button type="button" onClick={autoClassifyBotany} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #86efac', background: '#f0fdf4', color: '#166534', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>🌿 Classif. botanique</button>
                   </div>
                   <div style={{ fontSize: 11, color: '#94a3b8' }}>
                     Textes: {(data.textes||[]).length} · Images: {(data.images||[]).length} · Calculs: {(data.calculs||[]).length} · Chiffres: {(data.chiffres||[]).length} · Associations: {(data.associations||[]).length}

@@ -1,0 +1,1283 @@
+{
+  "version": "1.0.0",
+  "domain": "botany",
+  "description": "Référentiel botanique pour Crazy Chrono — plantes tropicales, caribéennes et médicinales",
+  "regionHierarchy": {
+    "international": {
+      "label": "International",
+      "children": ["caraibe", "afrique", "asie", "oceanie", "ameriques", "europe"]
+    },
+    "caraibe": {
+      "label": "Caraïbe",
+      "children": ["guadeloupe", "martinique", "guyane", "haiti", "cuba", "trinidad"]
+    },
+    "europe": {
+      "label": "Europe",
+      "children": ["france"]
+    },
+    "afrique": {
+      "label": "Afrique",
+      "children": ["senegal", "cote_ivoire", "cameroun", "madagascar"]
+    },
+    "oceanie": {
+      "label": "Océanie / Pacifique",
+      "children": ["reunion", "mayotte", "polynesie", "nouvelle_caledonie"]
+    }
+  },
+  "plants": [
+    {
+      "id": "fruit-a-pain",
+      "taxon": "Artocarpus altilis",
+      "family": "Moraceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Fruit à pain" },
+        { "key": "martinique", "relevance": "high", "localName": "Fruit à pain" },
+        { "key": "guyane", "relevance": "high", "localName": "Fruit à pain" },
+        { "key": "haiti", "relevance": "high", "localName": "Lam veritab" },
+        { "key": "reunion", "relevance": "medium", "localName": "Fruit à pain" },
+        { "key": "polynesie", "relevance": "high", "localName": "Uru" },
+        { "key": "asie", "relevance": "medium", "localName": "Breadfruit" },
+        { "key": "france", "relevance": "low", "localName": "Arbre à pain" }
+      ],
+      "matchNames": ["fruit à pain", "fruit a pain", "fwitapen", "lam veritab", "uru", "breadfruit", "arbre à pain"]
+    },
+    {
+      "id": "cannelle",
+      "taxon": "Cinnamomum verum",
+      "family": "Lauraceae",
+      "category": "epice",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Cannelle" },
+        { "key": "martinique", "relevance": "high", "localName": "Cannelle" },
+        { "key": "reunion", "relevance": "high", "localName": "Cannelle" },
+        { "key": "asie", "relevance": "high", "localName": "Cinnamon" },
+        { "key": "france", "relevance": "medium", "localName": "Cannelle" },
+        { "key": "international", "relevance": "high", "localName": "Cannelle" }
+      ],
+      "matchNames": ["cannelle", "cinnamon", "kanèl", "canela"]
+    },
+    {
+      "id": "gingembre",
+      "taxon": "Zingiber officinale",
+      "family": "Zingiberaceae",
+      "category": "epice",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Gingembre" },
+        { "key": "martinique", "relevance": "high", "localName": "Gingembre" },
+        { "key": "guyane", "relevance": "high", "localName": "Gingembre" },
+        { "key": "reunion", "relevance": "high", "localName": "Gingembre" },
+        { "key": "asie", "relevance": "high", "localName": "Ginger" },
+        { "key": "afrique", "relevance": "high", "localName": "Gingembre" },
+        { "key": "france", "relevance": "medium", "localName": "Gingembre" },
+        { "key": "international", "relevance": "high", "localName": "Gingembre" }
+      ],
+      "matchNames": ["gingembre", "ginger", "jenjanm", "gengibre"]
+    },
+    {
+      "id": "curcuma",
+      "taxon": "Curcuma longa",
+      "family": "Zingiberaceae",
+      "category": "epice",
+      "suggestedLevel": "CE2",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Curcuma" },
+        { "key": "martinique", "relevance": "high", "localName": "Curcuma" },
+        { "key": "reunion", "relevance": "high", "localName": "Safran péyi" },
+        { "key": "asie", "relevance": "high", "localName": "Turmeric" },
+        { "key": "france", "relevance": "medium", "localName": "Curcuma" },
+        { "key": "international", "relevance": "high", "localName": "Curcuma" }
+      ],
+      "matchNames": ["curcuma", "turmeric", "safran péyi", "safran peyi"]
+    },
+    {
+      "id": "aloe-vera",
+      "taxon": "Aloe vera",
+      "family": "Asphodelaceae",
+      "category": "plante_medicinale",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Aloé Vera" },
+        { "key": "martinique", "relevance": "high", "localName": "Aloé Vera" },
+        { "key": "reunion", "relevance": "high", "localName": "Aloé Vera" },
+        { "key": "afrique", "relevance": "high", "localName": "Aloé Vera" },
+        { "key": "france", "relevance": "medium", "localName": "Aloé Vera" },
+        { "key": "international", "relevance": "high", "localName": "Aloe vera" }
+      ],
+      "matchNames": ["aloé vera", "aloe vera", "lalwa", "aloes"]
+    },
+    {
+      "id": "paroka",
+      "taxon": "Momordica charantia",
+      "family": "Cucurbitaceae",
+      "category": "plante_medicinale",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Paroka" },
+        { "key": "martinique", "relevance": "high", "localName": "Paroka" },
+        { "key": "guyane", "relevance": "high", "localName": "Paroka" },
+        { "key": "haiti", "relevance": "high", "localName": "Asosi" },
+        { "key": "reunion", "relevance": "medium", "localName": "Margose" },
+        { "key": "asie", "relevance": "high", "localName": "Bitter melon" },
+        { "key": "afrique", "relevance": "medium", "localName": "Margose" }
+      ],
+      "matchNames": ["paroka", "asosi", "margose", "bitter melon", "momordique", "pomme coolie"]
+    },
+    {
+      "id": "atoumo",
+      "taxon": "Alpinia zerumbet",
+      "family": "Zingiberaceae",
+      "category": "plante_medicinale",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Atoumo" },
+        { "key": "martinique", "relevance": "high", "localName": "Atoumo" },
+        { "key": "guyane", "relevance": "high", "localName": "Atoumo" },
+        { "key": "reunion", "relevance": "medium", "localName": "Longose" },
+        { "key": "asie", "relevance": "high", "localName": "Shell ginger" }
+      ],
+      "matchNames": ["atoumo", "atoumou", "longose", "shell ginger", "lavande tropicale"]
+    },
+    {
+      "id": "romarin",
+      "taxon": "Rosmarinus officinalis",
+      "family": "Lamiaceae",
+      "category": "plante_aromatique",
+      "suggestedLevel": "CE2",
+      "regions": [
+        { "key": "france", "relevance": "high", "localName": "Romarin" },
+        { "key": "guadeloupe", "relevance": "medium", "localName": "Romarin" },
+        { "key": "martinique", "relevance": "medium", "localName": "Romarin" },
+        { "key": "europe", "relevance": "high", "localName": "Rosemary" },
+        { "key": "international", "relevance": "high", "localName": "Romarin" }
+      ],
+      "matchNames": ["romarin", "rosemary", "romero"]
+    },
+    {
+      "id": "melisse",
+      "taxon": "Melissa officinalis",
+      "family": "Lamiaceae",
+      "category": "plante_medicinale",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "france", "relevance": "high", "localName": "Mélisse" },
+        { "key": "guadeloupe", "relevance": "medium", "localName": "Mélisse" },
+        { "key": "martinique", "relevance": "medium", "localName": "Mélisse" },
+        { "key": "europe", "relevance": "high", "localName": "Lemon balm" },
+        { "key": "international", "relevance": "medium", "localName": "Mélisse" }
+      ],
+      "matchNames": ["mélisse", "melisse", "lemon balm", "toronjil"]
+    },
+    {
+      "id": "consoude",
+      "taxon": "Symphytum officinale",
+      "family": "Boraginaceae",
+      "category": "plante_medicinale",
+      "suggestedLevel": "CM2",
+      "regions": [
+        { "key": "france", "relevance": "high", "localName": "Consoude" },
+        { "key": "europe", "relevance": "high", "localName": "Comfrey" },
+        { "key": "guadeloupe", "relevance": "low", "localName": "Consoude" },
+        { "key": "martinique", "relevance": "low", "localName": "Consoude" }
+      ],
+      "matchNames": ["consoude", "comfrey", "consuelda"]
+    },
+    {
+      "id": "bleuets",
+      "taxon": "Centaurea cyanus",
+      "family": "Asteraceae",
+      "category": "fleur",
+      "suggestedLevel": "CE2",
+      "regions": [
+        { "key": "france", "relevance": "high", "localName": "Bleuet" },
+        { "key": "europe", "relevance": "high", "localName": "Cornflower" }
+      ],
+      "matchNames": ["bleuets", "bleuet", "cornflower", "aciano"]
+    },
+    {
+      "id": "orthosiphon",
+      "taxon": "Orthosiphon stamineus",
+      "family": "Lamiaceae",
+      "category": "plante_medicinale",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Orthosiphon" },
+        { "key": "martinique", "relevance": "high", "localName": "Orthosiphon" },
+        { "key": "asie", "relevance": "high", "localName": "Cat's whiskers" },
+        { "key": "reunion", "relevance": "medium", "localName": "Moustache de chat" }
+      ],
+      "matchNames": ["orthosiphon", "cat's whiskers", "moustache de chat", "java tea"]
+    },
+    {
+      "id": "farine-chaud",
+      "taxon": "Maranta arundinacea",
+      "family": "Marantaceae",
+      "category": "tubercule",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Farine chaud" },
+        { "key": "martinique", "relevance": "high", "localName": "Farine chaud" },
+        { "key": "guyane", "relevance": "medium", "localName": "Arrow-root" },
+        { "key": "caraibe", "relevance": "high", "localName": "Arrowroot" }
+      ],
+      "matchNames": ["farine chaud", "farine chaude", "arrow-root", "arrowroot", "toloman"]
+    },
+    {
+      "id": "patate-chandelier",
+      "taxon": "Dioscorea bulbifera",
+      "family": "Dioscoreaceae",
+      "category": "tubercule",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Patate chandelier" },
+        { "key": "martinique", "relevance": "high", "localName": "Patate chandelier" },
+        { "key": "afrique", "relevance": "high", "localName": "Igname aérienne" },
+        { "key": "asie", "relevance": "high", "localName": "Air potato" }
+      ],
+      "matchNames": ["patate chandelier", "igname aérienne", "air potato", "masalé"]
+    },
+    {
+      "id": "soulier-zombie",
+      "taxon": "Hibiscus rosa-sinensis",
+      "family": "Malvaceae",
+      "category": "fleur",
+      "suggestedLevel": "CE2",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Soulier zombie" },
+        { "key": "martinique", "relevance": "high", "localName": "Rose de Chine" },
+        { "key": "reunion", "relevance": "high", "localName": "Hibiscus" },
+        { "key": "asie", "relevance": "high", "localName": "Hibiscus" },
+        { "key": "france", "relevance": "medium", "localName": "Hibiscus" },
+        { "key": "international", "relevance": "high", "localName": "Hibiscus" }
+      ],
+      "matchNames": ["soulier zombie", "soulyé zonbi", "hibiscus", "rose de chine", "chinese hibiscus"]
+    },
+    {
+      "id": "raifort",
+      "taxon": "Moringa oleifera",
+      "family": "Moringaceae",
+      "category": "arbre",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Raifort" },
+        { "key": "martinique", "relevance": "high", "localName": "Raifort" },
+        { "key": "haiti", "relevance": "high", "localName": "Benzoliv" },
+        { "key": "afrique", "relevance": "high", "localName": "Moringa" },
+        { "key": "asie", "relevance": "high", "localName": "Moringa" },
+        { "key": "france", "relevance": "low", "localName": "Moringa" },
+        { "key": "international", "relevance": "high", "localName": "Moringa" }
+      ],
+      "matchNames": ["raifort", "moringa", "benzoliv", "ben ailé", "molokoi"]
+    },
+    {
+      "id": "ti-poul-bwa",
+      "taxon": "Phyllanthus amarus",
+      "family": "Phyllanthaceae",
+      "category": "plante_medicinale",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Ti poul bwa" },
+        { "key": "martinique", "relevance": "high", "localName": "Ti poul bwa" },
+        { "key": "guyane", "relevance": "high", "localName": "Ti poul bwa" },
+        { "key": "afrique", "relevance": "medium", "localName": "Phyllanthus" },
+        { "key": "asie", "relevance": "medium", "localName": "Phyllanthus" }
+      ],
+      "matchNames": ["ti poul bwa", "ti poule bois", "phyllanthus"]
+    },
+    {
+      "id": "douvan-neg",
+      "taxon": "Ruellia tuberosa",
+      "family": "Acanthaceae",
+      "category": "plante_medicinale",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Douvan nèg" },
+        { "key": "martinique", "relevance": "high", "localName": "Douvan nèg" },
+        { "key": "caraibe", "relevance": "high", "localName": "Minnie root" }
+      ],
+      "matchNames": ["douvan nèg", "douvan neg", "douvan nég", "minnie root", "ruellia"]
+    },
+    {
+      "id": "tagetes",
+      "taxon": "Tagetes erecta",
+      "family": "Asteraceae",
+      "category": "fleur",
+      "suggestedLevel": "CE2",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Tajétes" },
+        { "key": "martinique", "relevance": "high", "localName": "Tajétes" },
+        { "key": "ameriques", "relevance": "high", "localName": "Marigold" },
+        { "key": "france", "relevance": "medium", "localName": "Rose d'Inde" },
+        { "key": "international", "relevance": "high", "localName": "Tagetes" }
+      ],
+      "matchNames": ["tajétes", "tajetes", "tagetes", "marigold", "rose d'inde", "fleur de mort"]
+    },
+    {
+      "id": "plantain",
+      "taxon": "Musa × paradisiaca",
+      "family": "Musaceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Plantain" },
+        { "key": "martinique", "relevance": "high", "localName": "Plantain" },
+        { "key": "guyane", "relevance": "high", "localName": "Plantain" },
+        { "key": "haiti", "relevance": "high", "localName": "Bannann" },
+        { "key": "afrique", "relevance": "high", "localName": "Plantain" },
+        { "key": "caraibe", "relevance": "high", "localName": "Plantain" },
+        { "key": "international", "relevance": "high", "localName": "Plantain" }
+      ],
+      "matchNames": ["plantain", "banane plantain", "bannann", "plátano"]
+    },
+    {
+      "id": "koklaya",
+      "taxon": "Leonotis nepetifolia",
+      "family": "Lamiaceae",
+      "category": "plante_medicinale",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Koklaya" },
+        { "key": "martinique", "relevance": "high", "localName": "Gros pompon" },
+        { "key": "afrique", "relevance": "medium", "localName": "Lion's ear" },
+        { "key": "caraibe", "relevance": "high", "localName": "Christmas candlestick" }
+      ],
+      "matchNames": ["koklaya", "gros pompon", "lion's ear", "christmas candlestick"]
+    },
+    {
+      "id": "herbe-charpentier",
+      "taxon": "Justicia secunda",
+      "family": "Acanthaceae",
+      "category": "plante_medicinale",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Herbe charpentier" },
+        { "key": "martinique", "relevance": "high", "localName": "Herbe charpentier" },
+        { "key": "guyane", "relevance": "high", "localName": "Herbe charpentier" },
+        { "key": "caraibe", "relevance": "high", "localName": "Blood root" }
+      ],
+      "matchNames": ["herbe charpentier", "zèb chapantyé", "blood root"]
+    },
+    {
+      "id": "simen-kontra",
+      "taxon": "Dysphania ambrosioides",
+      "family": "Amaranthaceae",
+      "category": "plante_medicinale",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Simen kontra" },
+        { "key": "martinique", "relevance": "high", "localName": "Simen kontra" },
+        { "key": "guyane", "relevance": "high", "localName": "Simen kontra" },
+        { "key": "haiti", "relevance": "high", "localName": "Simen kontra" },
+        { "key": "ameriques", "relevance": "high", "localName": "Epazote" },
+        { "key": "france", "relevance": "low", "localName": "Chénopode" }
+      ],
+      "matchNames": ["simen kontra", "simen contra", "épazote", "epazote", "chénopode", "chenopode"]
+    },
+    {
+      "id": "grenn-anba-fey",
+      "taxon": "Phyllanthus niruri",
+      "family": "Phyllanthaceae",
+      "category": "plante_medicinale",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Grenn anba fey" },
+        { "key": "martinique", "relevance": "high", "localName": "Grenn anba fey" },
+        { "key": "guyane", "relevance": "high", "localName": "Grenn anba fey" },
+        { "key": "asie", "relevance": "medium", "localName": "Stonebreaker" },
+        { "key": "afrique", "relevance": "medium", "localName": "Phyllanthus" }
+      ],
+      "matchNames": ["grenn anba fey", "graine en bas feuille", "stonebreaker", "phyllanthus niruri"]
+    },
+    {
+      "id": "gwo-ten",
+      "taxon": "Cheilocostus speciosus",
+      "family": "Costaceae",
+      "category": "plante_medicinale",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Gwo ten" },
+        { "key": "martinique", "relevance": "high", "localName": "Gwo ten" },
+        { "key": "asie", "relevance": "high", "localName": "Crepe ginger" },
+        { "key": "reunion", "relevance": "medium", "localName": "Canne d'eau" }
+      ],
+      "matchNames": ["gwo ten", "gros thym", "crepe ginger", "canne d'eau", "costus"]
+    },
+    {
+      "id": "malnommee",
+      "taxon": "Euphorbia hirta",
+      "family": "Euphorbiaceae",
+      "category": "plante_medicinale",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Malnommée" },
+        { "key": "martinique", "relevance": "high", "localName": "Malnommée" },
+        { "key": "guyane", "relevance": "high", "localName": "Malnommée" },
+        { "key": "afrique", "relevance": "medium", "localName": "Asthma weed" },
+        { "key": "asie", "relevance": "medium", "localName": "Asthma plant" }
+      ],
+      "matchNames": ["malnommée", "malnommee", "mal nommée", "asthma weed", "euphorbia hirta"]
+    },
+    {
+      "id": "pomme-surette",
+      "taxon": "Ziziphus mauritiana",
+      "family": "Rhamnaceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Pomme surette" },
+        { "key": "martinique", "relevance": "high", "localName": "Pomme surette" },
+        { "key": "haiti", "relevance": "high", "localName": "Jujube" },
+        { "key": "afrique", "relevance": "high", "localName": "Jujube" },
+        { "key": "asie", "relevance": "high", "localName": "Indian jujube" }
+      ],
+      "matchNames": ["pomme surette", "jujube", "indian jujube", "prune surette"]
+    },
+    {
+      "id": "pois-angole",
+      "taxon": "Cajanus cajan",
+      "family": "Fabaceae",
+      "category": "legumineuse",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Pois d'Angole" },
+        { "key": "martinique", "relevance": "high", "localName": "Pois d'Angole" },
+        { "key": "guyane", "relevance": "high", "localName": "Pois d'Angole" },
+        { "key": "haiti", "relevance": "high", "localName": "Pwa kongo" },
+        { "key": "afrique", "relevance": "high", "localName": "Pigeon pea" },
+        { "key": "asie", "relevance": "high", "localName": "Pigeon pea" }
+      ],
+      "matchNames": ["pois d'angole", "pois d angole", "pwa kongo", "pigeon pea", "pois congo"]
+    },
+    {
+      "id": "patate-douce",
+      "taxon": "Ipomoea batatas",
+      "family": "Convolvulaceae",
+      "category": "tubercule",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Patate douce" },
+        { "key": "martinique", "relevance": "high", "localName": "Patate douce" },
+        { "key": "guyane", "relevance": "high", "localName": "Patate douce" },
+        { "key": "reunion", "relevance": "high", "localName": "Patate douce" },
+        { "key": "afrique", "relevance": "high", "localName": "Patate douce" },
+        { "key": "france", "relevance": "medium", "localName": "Patate douce" },
+        { "key": "international", "relevance": "high", "localName": "Sweet potato" }
+      ],
+      "matchNames": ["patate douce", "sweet potato", "batata", "patat dous"]
+    },
+    {
+      "id": "pomme-malaka",
+      "taxon": "Syzygium malaccense",
+      "family": "Myrtaceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Pomme Malaka" },
+        { "key": "martinique", "relevance": "high", "localName": "Pomme Malaka" },
+        { "key": "guyane", "relevance": "high", "localName": "Pomme Malaka" },
+        { "key": "reunion", "relevance": "medium", "localName": "Jamalac" },
+        { "key": "asie", "relevance": "high", "localName": "Malay apple" },
+        { "key": "polynesie", "relevance": "high", "localName": "Ahia" }
+      ],
+      "matchNames": ["pomme malaka", "pomme malacca", "jamalac", "malay apple", "ahia"]
+    },
+    {
+      "id": "cerise-peyi",
+      "taxon": "Malpighia emarginata",
+      "family": "Malpighiaceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Cerise péyi" },
+        { "key": "martinique", "relevance": "high", "localName": "Cerise péyi" },
+        { "key": "guyane", "relevance": "high", "localName": "Cerise péyi" },
+        { "key": "haiti", "relevance": "high", "localName": "Seriz" },
+        { "key": "ameriques", "relevance": "high", "localName": "Acerola" }
+      ],
+      "matchNames": ["cerise péyi", "cerise peyi", "cerise pays", "acérola", "acerola", "seriz"]
+    },
+    {
+      "id": "carambole",
+      "taxon": "Averrhoa carambola",
+      "family": "Oxalidaceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Carambole" },
+        { "key": "martinique", "relevance": "high", "localName": "Carambole" },
+        { "key": "guyane", "relevance": "high", "localName": "Carambole" },
+        { "key": "reunion", "relevance": "high", "localName": "Carambole" },
+        { "key": "asie", "relevance": "high", "localName": "Star fruit" },
+        { "key": "france", "relevance": "low", "localName": "Carambole" }
+      ],
+      "matchNames": ["carambole", "star fruit", "starfruit"]
+    },
+    {
+      "id": "sapotille",
+      "taxon": "Manilkara zapota",
+      "family": "Sapotaceae",
+      "category": "fruit",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Sapotille" },
+        { "key": "martinique", "relevance": "high", "localName": "Sapotille" },
+        { "key": "guyane", "relevance": "high", "localName": "Sapotille" },
+        { "key": "haiti", "relevance": "high", "localName": "Sapoti" },
+        { "key": "ameriques", "relevance": "high", "localName": "Sapodilla" },
+        { "key": "asie", "relevance": "medium", "localName": "Chikoo" }
+      ],
+      "matchNames": ["sapotille", "sapoti", "sapodilla", "chikoo", "nèfle d'amérique"]
+    },
+    {
+      "id": "tamarin",
+      "taxon": "Tamarindus indica",
+      "family": "Fabaceae",
+      "category": "fruit",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Tamarin" },
+        { "key": "martinique", "relevance": "high", "localName": "Tamarin" },
+        { "key": "reunion", "relevance": "high", "localName": "Tamarin" },
+        { "key": "afrique", "relevance": "high", "localName": "Tamarin" },
+        { "key": "asie", "relevance": "high", "localName": "Tamarind" },
+        { "key": "international", "relevance": "high", "localName": "Tamarind" }
+      ],
+      "matchNames": ["tamarin", "tamarind", "tamaren", "tamarindo"]
+    },
+    {
+      "id": "quenette",
+      "taxon": "Melicoccus bijugatus",
+      "family": "Sapindaceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Quenette" },
+        { "key": "martinique", "relevance": "high", "localName": "Quenette" },
+        { "key": "guyane", "relevance": "high", "localName": "Quenette" },
+        { "key": "haiti", "relevance": "high", "localName": "Kenèp" },
+        { "key": "caraibe", "relevance": "high", "localName": "Guinep" }
+      ],
+      "matchNames": ["quenette", "kenèp", "kenep", "guinep", "mamoncillo", "limoncillo"]
+    },
+    {
+      "id": "corossol",
+      "taxon": "Annona muricata",
+      "family": "Annonaceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Corossol" },
+        { "key": "martinique", "relevance": "high", "localName": "Corossol" },
+        { "key": "guyane", "relevance": "high", "localName": "Corossol" },
+        { "key": "haiti", "relevance": "high", "localName": "Kowosòl" },
+        { "key": "reunion", "relevance": "medium", "localName": "Corossol" },
+        { "key": "afrique", "relevance": "medium", "localName": "Graviola" },
+        { "key": "ameriques", "relevance": "high", "localName": "Soursop" }
+      ],
+      "matchNames": ["corossol", "kowosòl", "soursop", "graviola", "guanábana"]
+    },
+    {
+      "id": "christophine",
+      "taxon": "Sechium edule",
+      "family": "Cucurbitaceae",
+      "category": "legume",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Christophine" },
+        { "key": "martinique", "relevance": "high", "localName": "Christophine" },
+        { "key": "guyane", "relevance": "high", "localName": "Christophine" },
+        { "key": "reunion", "relevance": "high", "localName": "Chouchou" },
+        { "key": "haiti", "relevance": "high", "localName": "Militon" },
+        { "key": "ameriques", "relevance": "high", "localName": "Chayote" },
+        { "key": "france", "relevance": "low", "localName": "Chayotte" }
+      ],
+      "matchNames": ["christophine", "chouchou", "chayote", "chayotte", "militon"]
+    },
+    {
+      "id": "giraumon",
+      "taxon": "Cucurbita moschata",
+      "family": "Cucurbitaceae",
+      "category": "legume",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Giraumon" },
+        { "key": "martinique", "relevance": "high", "localName": "Giraumon" },
+        { "key": "guyane", "relevance": "high", "localName": "Giraumon" },
+        { "key": "haiti", "relevance": "high", "localName": "Joumou" },
+        { "key": "france", "relevance": "medium", "localName": "Potiron / Courge musquée" },
+        { "key": "international", "relevance": "high", "localName": "Butternut squash" }
+      ],
+      "matchNames": ["giraumon", "joumou", "potiron", "courge musquée", "butternut"]
+    },
+    {
+      "id": "manioc",
+      "taxon": "Manihot esculenta",
+      "family": "Euphorbiaceae",
+      "category": "tubercule",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Manioc" },
+        { "key": "martinique", "relevance": "high", "localName": "Manioc" },
+        { "key": "guyane", "relevance": "high", "localName": "Manioc" },
+        { "key": "haiti", "relevance": "high", "localName": "Manyòk" },
+        { "key": "afrique", "relevance": "high", "localName": "Manioc" },
+        { "key": "ameriques", "relevance": "high", "localName": "Cassava" },
+        { "key": "asie", "relevance": "high", "localName": "Tapioca" },
+        { "key": "international", "relevance": "high", "localName": "Cassava" }
+      ],
+      "matchNames": ["manioc", "manyòk", "cassava", "tapioca", "yuca"]
+    },
+    {
+      "id": "gombo",
+      "taxon": "Abelmoschus esculentus",
+      "family": "Malvaceae",
+      "category": "legume",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Gombo" },
+        { "key": "martinique", "relevance": "high", "localName": "Gombo" },
+        { "key": "guyane", "relevance": "high", "localName": "Gombo" },
+        { "key": "haiti", "relevance": "high", "localName": "Gonbo" },
+        { "key": "afrique", "relevance": "high", "localName": "Gombo" },
+        { "key": "france", "relevance": "low", "localName": "Gombo" },
+        { "key": "international", "relevance": "high", "localName": "Okra" }
+      ],
+      "matchNames": ["gombo", "gonbo", "okra", "bamia"]
+    },
+    {
+      "id": "cythere",
+      "taxon": "Spondias dulcis",
+      "family": "Anacardiaceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Cythère" },
+        { "key": "martinique", "relevance": "high", "localName": "Cythère" },
+        { "key": "guyane", "relevance": "high", "localName": "Cythère" },
+        { "key": "reunion", "relevance": "high", "localName": "Zévi" },
+        { "key": "polynesie", "relevance": "high", "localName": "Vi" },
+        { "key": "asie", "relevance": "medium", "localName": "Ambarella" }
+      ],
+      "matchNames": ["cythère", "cythere", "prune de cythère", "zévi", "zevi", "vi", "ambarella"]
+    },
+    {
+      "id": "maracuja",
+      "taxon": "Passiflora edulis",
+      "family": "Passifloraceae",
+      "category": "fruit",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Maracuja" },
+        { "key": "martinique", "relevance": "high", "localName": "Maracuja" },
+        { "key": "guyane", "relevance": "high", "localName": "Maracuja" },
+        { "key": "reunion", "relevance": "high", "localName": "Grenadille" },
+        { "key": "france", "relevance": "medium", "localName": "Fruit de la passion" },
+        { "key": "ameriques", "relevance": "high", "localName": "Passion fruit" },
+        { "key": "international", "relevance": "high", "localName": "Passion fruit" }
+      ],
+      "matchNames": ["maracuja", "maracudja", "fruit de la passion", "passion fruit", "grenadille"]
+    },
+    {
+      "id": "madere",
+      "taxon": "Colocasia esculenta",
+      "family": "Araceae",
+      "category": "tubercule",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Madère" },
+        { "key": "martinique", "relevance": "high", "localName": "Dachine" },
+        { "key": "guyane", "relevance": "high", "localName": "Dachine" },
+        { "key": "reunion", "relevance": "high", "localName": "Songe" },
+        { "key": "asie", "relevance": "high", "localName": "Taro" },
+        { "key": "polynesie", "relevance": "high", "localName": "Taro" },
+        { "key": "afrique", "relevance": "high", "localName": "Taro" }
+      ],
+      "matchNames": ["madère", "madere", "dachine", "songe", "taro"]
+    },
+    {
+      "id": "igname",
+      "taxon": "Dioscorea spp.",
+      "family": "Dioscoreaceae",
+      "category": "tubercule",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Igname" },
+        { "key": "martinique", "relevance": "high", "localName": "Igname" },
+        { "key": "guyane", "relevance": "high", "localName": "Igname" },
+        { "key": "haiti", "relevance": "high", "localName": "Yanm" },
+        { "key": "afrique", "relevance": "high", "localName": "Igname" },
+        { "key": "asie", "relevance": "high", "localName": "Yam" },
+        { "key": "international", "relevance": "high", "localName": "Yam" }
+      ],
+      "matchNames": ["igname", "yanm", "yam", "ñame"]
+    },
+    {
+      "id": "papaye",
+      "taxon": "Carica papaya",
+      "family": "Caricaceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Papaye" },
+        { "key": "martinique", "relevance": "high", "localName": "Papaye" },
+        { "key": "guyane", "relevance": "high", "localName": "Papaye" },
+        { "key": "reunion", "relevance": "high", "localName": "Papaye" },
+        { "key": "afrique", "relevance": "high", "localName": "Papaye" },
+        { "key": "asie", "relevance": "high", "localName": "Papaya" },
+        { "key": "france", "relevance": "medium", "localName": "Papaye" },
+        { "key": "international", "relevance": "high", "localName": "Papaya" }
+      ],
+      "matchNames": ["papaye", "papaya", "pawpaw", "papay"]
+    },
+    {
+      "id": "goyave",
+      "taxon": "Psidium guajava",
+      "family": "Myrtaceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Goyave" },
+        { "key": "martinique", "relevance": "high", "localName": "Goyave" },
+        { "key": "guyane", "relevance": "high", "localName": "Goyave" },
+        { "key": "reunion", "relevance": "high", "localName": "Goyave" },
+        { "key": "afrique", "relevance": "high", "localName": "Goyave" },
+        { "key": "asie", "relevance": "high", "localName": "Guava" },
+        { "key": "ameriques", "relevance": "high", "localName": "Guayaba" },
+        { "key": "international", "relevance": "high", "localName": "Guava" }
+      ],
+      "matchNames": ["goyave", "guava", "guayaba", "gwaayav"]
+    },
+    {
+      "id": "mangue",
+      "taxon": "Mangifera indica",
+      "family": "Anacardiaceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Mangue" },
+        { "key": "martinique", "relevance": "high", "localName": "Mangue" },
+        { "key": "guyane", "relevance": "high", "localName": "Mangue" },
+        { "key": "reunion", "relevance": "high", "localName": "Mangue" },
+        { "key": "haiti", "relevance": "high", "localName": "Mango" },
+        { "key": "afrique", "relevance": "high", "localName": "Mangue" },
+        { "key": "asie", "relevance": "high", "localName": "Mango" },
+        { "key": "france", "relevance": "medium", "localName": "Mangue" },
+        { "key": "international", "relevance": "high", "localName": "Mango" }
+      ],
+      "matchNames": ["mangue", "mango", "mang"]
+    },
+    {
+      "id": "cocotier",
+      "taxon": "Cocos nucifera",
+      "family": "Arecaceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Coco" },
+        { "key": "martinique", "relevance": "high", "localName": "Coco" },
+        { "key": "guyane", "relevance": "high", "localName": "Coco" },
+        { "key": "reunion", "relevance": "high", "localName": "Coco" },
+        { "key": "polynesie", "relevance": "high", "localName": "Coco" },
+        { "key": "afrique", "relevance": "high", "localName": "Coco" },
+        { "key": "asie", "relevance": "high", "localName": "Coconut" },
+        { "key": "international", "relevance": "high", "localName": "Coconut" }
+      ],
+      "matchNames": ["coco", "cocotier", "noix de coco", "coconut"]
+    },
+    {
+      "id": "banane",
+      "taxon": "Musa spp.",
+      "family": "Musaceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Banane" },
+        { "key": "martinique", "relevance": "high", "localName": "Banane" },
+        { "key": "guyane", "relevance": "high", "localName": "Banane" },
+        { "key": "reunion", "relevance": "high", "localName": "Banane" },
+        { "key": "afrique", "relevance": "high", "localName": "Banane" },
+        { "key": "france", "relevance": "high", "localName": "Banane" },
+        { "key": "international", "relevance": "high", "localName": "Banana" }
+      ],
+      "matchNames": ["banane", "banana", "fig", "bannann"]
+    },
+    {
+      "id": "avocat",
+      "taxon": "Persea americana",
+      "family": "Lauraceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Avocat" },
+        { "key": "martinique", "relevance": "high", "localName": "Avocat" },
+        { "key": "guyane", "relevance": "high", "localName": "Avocat" },
+        { "key": "haiti", "relevance": "high", "localName": "Zaboka" },
+        { "key": "reunion", "relevance": "high", "localName": "Avocat" },
+        { "key": "afrique", "relevance": "high", "localName": "Avocat" },
+        { "key": "france", "relevance": "high", "localName": "Avocat" },
+        { "key": "international", "relevance": "high", "localName": "Avocado" }
+      ],
+      "matchNames": ["avocat", "zaboka", "avocado", "aguacate"]
+    },
+    {
+      "id": "canne-a-sucre",
+      "taxon": "Saccharum officinarum",
+      "family": "Poaceae",
+      "category": "plante_industrielle",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Canne à sucre" },
+        { "key": "martinique", "relevance": "high", "localName": "Canne à sucre" },
+        { "key": "guyane", "relevance": "high", "localName": "Canne à sucre" },
+        { "key": "reunion", "relevance": "high", "localName": "Canne à sucre" },
+        { "key": "haiti", "relevance": "high", "localName": "Kann" },
+        { "key": "afrique", "relevance": "high", "localName": "Canne à sucre" },
+        { "key": "ameriques", "relevance": "high", "localName": "Sugar cane" },
+        { "key": "international", "relevance": "high", "localName": "Sugar cane" }
+      ],
+      "matchNames": ["canne à sucre", "canne a sucre", "kann", "sugar cane", "caña de azúcar"]
+    },
+    {
+      "id": "ananas",
+      "taxon": "Ananas comosus",
+      "family": "Bromeliaceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Ananas" },
+        { "key": "martinique", "relevance": "high", "localName": "Ananas" },
+        { "key": "guyane", "relevance": "high", "localName": "Ananas" },
+        { "key": "reunion", "relevance": "high", "localName": "Ananas Victoria" },
+        { "key": "afrique", "relevance": "high", "localName": "Ananas" },
+        { "key": "france", "relevance": "medium", "localName": "Ananas" },
+        { "key": "ameriques", "relevance": "high", "localName": "Pineapple" },
+        { "key": "international", "relevance": "high", "localName": "Pineapple" }
+      ],
+      "matchNames": ["ananas", "pineapple", "piña"]
+    },
+    {
+      "id": "bois-inde",
+      "taxon": "Pimenta racemosa",
+      "family": "Myrtaceae",
+      "category": "arbre",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Bois d'Inde" },
+        { "key": "martinique", "relevance": "high", "localName": "Bois d'Inde" },
+        { "key": "caraibe", "relevance": "high", "localName": "Bay rum tree" }
+      ],
+      "matchNames": ["bois d'inde", "bois d inde", "bay rum tree", "bwa denn"]
+    },
+    {
+      "id": "citronnelle",
+      "taxon": "Cymbopogon citratus",
+      "family": "Poaceae",
+      "category": "plante_aromatique",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Citronnelle" },
+        { "key": "martinique", "relevance": "high", "localName": "Citronnelle" },
+        { "key": "guyane", "relevance": "high", "localName": "Citronnelle" },
+        { "key": "reunion", "relevance": "high", "localName": "Citronnelle" },
+        { "key": "afrique", "relevance": "high", "localName": "Citronnelle" },
+        { "key": "asie", "relevance": "high", "localName": "Lemongrass" },
+        { "key": "france", "relevance": "medium", "localName": "Citronnelle" },
+        { "key": "international", "relevance": "high", "localName": "Lemongrass" }
+      ],
+      "matchNames": ["citronnelle", "lemongrass", "citronèl"]
+    },
+    {
+      "id": "hibiscus-bissap",
+      "taxon": "Hibiscus sabdariffa",
+      "family": "Malvaceae",
+      "category": "plante_medicinale",
+      "suggestedLevel": "CE2",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Groseille péyi" },
+        { "key": "martinique", "relevance": "high", "localName": "Groseille péyi" },
+        { "key": "senegal", "relevance": "high", "localName": "Bissap" },
+        { "key": "afrique", "relevance": "high", "localName": "Bissap" },
+        { "key": "reunion", "relevance": "high", "localName": "Oseille de Guinée" },
+        { "key": "international", "relevance": "high", "localName": "Hibiscus" }
+      ],
+      "matchNames": ["groseille péyi", "groseille peyi", "bissap", "hibiscus sabdariffa", "oseille de guinée", "roselle"]
+    },
+    {
+      "id": "roucou",
+      "taxon": "Bixa orellana",
+      "family": "Bixaceae",
+      "category": "plante_tinctoriale",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Roucou" },
+        { "key": "martinique", "relevance": "high", "localName": "Roucou" },
+        { "key": "guyane", "relevance": "high", "localName": "Roucou" },
+        { "key": "haiti", "relevance": "high", "localName": "Wokou" },
+        { "key": "ameriques", "relevance": "high", "localName": "Annatto" },
+        { "key": "afrique", "relevance": "medium", "localName": "Roucou" }
+      ],
+      "matchNames": ["roucou", "wokou", "annatto", "achiote", "rocouyer"]
+    },
+    {
+      "id": "barbadine",
+      "taxon": "Passiflora quadrangularis",
+      "family": "Passifloraceae",
+      "category": "fruit",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Barbadine" },
+        { "key": "martinique", "relevance": "high", "localName": "Barbadine" },
+        { "key": "guyane", "relevance": "high", "localName": "Barbadine" },
+        { "key": "trinidad", "relevance": "high", "localName": "Barbadine" },
+        { "key": "ameriques", "relevance": "medium", "localName": "Giant granadilla" }
+      ],
+      "matchNames": ["barbadine", "giant granadilla", "grenadille géante"]
+    },
+    {
+      "id": "abricot-peyi",
+      "taxon": "Mammea americana",
+      "family": "Calophyllaceae",
+      "category": "fruit",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Abricot péyi" },
+        { "key": "martinique", "relevance": "high", "localName": "Abricot péyi" },
+        { "key": "guyane", "relevance": "high", "localName": "Abricot péyi" },
+        { "key": "caraibe", "relevance": "high", "localName": "Mammee apple" }
+      ],
+      "matchNames": ["abricot péyi", "abricot peyi", "abricot pays", "mammee apple", "mamey"]
+    },
+    {
+      "id": "cachiman",
+      "taxon": "Annona reticulata",
+      "family": "Annonaceae",
+      "category": "fruit",
+      "suggestedLevel": "CE2",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Cachiman" },
+        { "key": "martinique", "relevance": "high", "localName": "Cachiman" },
+        { "key": "guyane", "relevance": "high", "localName": "Cachiman" },
+        { "key": "caraibe", "relevance": "high", "localName": "Custard apple" },
+        { "key": "ameriques", "relevance": "medium", "localName": "Custard apple" }
+      ],
+      "matchNames": ["cachiman", "custard apple", "coeur de boeuf"]
+    },
+    {
+      "id": "pomme-cannelle",
+      "taxon": "Annona squamosa",
+      "family": "Annonaceae",
+      "category": "fruit",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Pomme cannelle" },
+        { "key": "martinique", "relevance": "high", "localName": "Pomme cannelle" },
+        { "key": "reunion", "relevance": "high", "localName": "Atte" },
+        { "key": "asie", "relevance": "high", "localName": "Sugar apple" },
+        { "key": "ameriques", "relevance": "medium", "localName": "Sugar apple" }
+      ],
+      "matchNames": ["pomme cannelle", "atte", "sugar apple", "anon"]
+    },
+    {
+      "id": "chadec",
+      "taxon": "Citrus maxima",
+      "family": "Rutaceae",
+      "category": "fruit",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Chadèque" },
+        { "key": "martinique", "relevance": "high", "localName": "Chadèque" },
+        { "key": "reunion", "relevance": "medium", "localName": "Pamplemousse" },
+        { "key": "asie", "relevance": "high", "localName": "Pomelo" },
+        { "key": "france", "relevance": "medium", "localName": "Pomelo" }
+      ],
+      "matchNames": ["chadèque", "chadec", "chadèc", "pomelo", "pamplemousse"]
+    },
+    {
+      "id": "vanille",
+      "taxon": "Vanilla planifolia",
+      "family": "Orchidaceae",
+      "category": "epice",
+      "suggestedLevel": "CE2",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "medium", "localName": "Vanille" },
+        { "key": "martinique", "relevance": "medium", "localName": "Vanille" },
+        { "key": "reunion", "relevance": "high", "localName": "Vanille Bourbon" },
+        { "key": "madagascar", "relevance": "high", "localName": "Vanille" },
+        { "key": "polynesie", "relevance": "high", "localName": "Vanille de Tahiti" },
+        { "key": "france", "relevance": "high", "localName": "Vanille" },
+        { "key": "international", "relevance": "high", "localName": "Vanilla" }
+      ],
+      "matchNames": ["vanille", "vanilla", "vanille bourbon", "vanille de tahiti"]
+    },
+    {
+      "id": "cacao",
+      "taxon": "Theobroma cacao",
+      "family": "Malvaceae",
+      "category": "plante_industrielle",
+      "suggestedLevel": "CE2",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "medium", "localName": "Cacao" },
+        { "key": "martinique", "relevance": "medium", "localName": "Cacao" },
+        { "key": "guyane", "relevance": "high", "localName": "Cacao" },
+        { "key": "afrique", "relevance": "high", "localName": "Cacao" },
+        { "key": "ameriques", "relevance": "high", "localName": "Cocoa" },
+        { "key": "france", "relevance": "medium", "localName": "Cacao" },
+        { "key": "international", "relevance": "high", "localName": "Cocoa" }
+      ],
+      "matchNames": ["cacao", "cocoa", "chocolat"]
+    },
+    {
+      "id": "cafe",
+      "taxon": "Coffea spp.",
+      "family": "Rubiaceae",
+      "category": "plante_industrielle",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Café Bonifieur" },
+        { "key": "martinique", "relevance": "medium", "localName": "Café" },
+        { "key": "reunion", "relevance": "high", "localName": "Café Bourbon pointu" },
+        { "key": "afrique", "relevance": "high", "localName": "Café" },
+        { "key": "ameriques", "relevance": "high", "localName": "Coffee" },
+        { "key": "france", "relevance": "high", "localName": "Café" },
+        { "key": "international", "relevance": "high", "localName": "Coffee" }
+      ],
+      "matchNames": ["café", "cafe", "coffee", "café bonifieur", "café bourbon"]
+    },
+    {
+      "id": "piment",
+      "taxon": "Capsicum spp.",
+      "family": "Solanaceae",
+      "category": "legume",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Piment" },
+        { "key": "martinique", "relevance": "high", "localName": "Piment" },
+        { "key": "guyane", "relevance": "high", "localName": "Piment" },
+        { "key": "haiti", "relevance": "high", "localName": "Piman" },
+        { "key": "reunion", "relevance": "high", "localName": "Piment" },
+        { "key": "afrique", "relevance": "high", "localName": "Piment" },
+        { "key": "france", "relevance": "medium", "localName": "Piment" },
+        { "key": "international", "relevance": "high", "localName": "Chili pepper" }
+      ],
+      "matchNames": ["piment", "piman", "chili", "chili pepper", "ají"]
+    },
+    {
+      "id": "flamboyant",
+      "taxon": "Delonix regia",
+      "family": "Fabaceae",
+      "category": "arbre",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Flamboyant" },
+        { "key": "martinique", "relevance": "high", "localName": "Flamboyant" },
+        { "key": "reunion", "relevance": "high", "localName": "Flamboyant" },
+        { "key": "madagascar", "relevance": "high", "localName": "Flamboyant" },
+        { "key": "afrique", "relevance": "high", "localName": "Flamboyant" },
+        { "key": "international", "relevance": "high", "localName": "Flame tree" }
+      ],
+      "matchNames": ["flamboyant", "flame tree", "royal poinciana"]
+    },
+    {
+      "id": "fromager",
+      "taxon": "Ceiba pentandra",
+      "family": "Malvaceae",
+      "category": "arbre",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Fromager" },
+        { "key": "martinique", "relevance": "high", "localName": "Fromager" },
+        { "key": "guyane", "relevance": "high", "localName": "Fromager" },
+        { "key": "haiti", "relevance": "high", "localName": "Mapou" },
+        { "key": "afrique", "relevance": "high", "localName": "Kapokier" },
+        { "key": "asie", "relevance": "high", "localName": "Kapok tree" }
+      ],
+      "matchNames": ["fromager", "mapou", "kapokier", "kapok tree", "ceiba"]
+    },
+    {
+      "id": "balisier",
+      "taxon": "Heliconia caribaea",
+      "family": "Heliconiaceae",
+      "category": "fleur",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Balisier" },
+        { "key": "martinique", "relevance": "high", "localName": "Balisier" },
+        { "key": "guyane", "relevance": "high", "localName": "Balisier" },
+        { "key": "caraibe", "relevance": "high", "localName": "Heliconia" },
+        { "key": "ameriques", "relevance": "high", "localName": "Lobster claw" }
+      ],
+      "matchNames": ["balisier", "heliconia", "lobster claw"]
+    },
+    {
+      "id": "noni",
+      "taxon": "Morinda citrifolia",
+      "family": "Rubiaceae",
+      "category": "fruit",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Pomme zombie" },
+        { "key": "martinique", "relevance": "high", "localName": "Pomme zombie" },
+        { "key": "reunion", "relevance": "high", "localName": "Noni" },
+        { "key": "polynesie", "relevance": "high", "localName": "Nono" },
+        { "key": "asie", "relevance": "high", "localName": "Noni" }
+      ],
+      "matchNames": ["pomme zombie", "noni", "nono", "morinda"]
+    },
+    {
+      "id": "citron-vert",
+      "taxon": "Citrus aurantiifolia",
+      "family": "Rutaceae",
+      "category": "fruit",
+      "suggestedLevel": "CP",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Citron vert" },
+        { "key": "martinique", "relevance": "high", "localName": "Citron vert" },
+        { "key": "guyane", "relevance": "high", "localName": "Citron vert" },
+        { "key": "reunion", "relevance": "high", "localName": "Citron vert" },
+        { "key": "france", "relevance": "medium", "localName": "Lime" },
+        { "key": "international", "relevance": "high", "localName": "Lime" }
+      ],
+      "matchNames": ["citron vert", "lime", "limon", "sitwon"]
+    },
+    {
+      "id": "vetiver",
+      "taxon": "Chrysopogon zizanioides",
+      "family": "Poaceae",
+      "category": "plante_industrielle",
+      "suggestedLevel": "CM2",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "medium", "localName": "Vétiver" },
+        { "key": "martinique", "relevance": "medium", "localName": "Vétiver" },
+        { "key": "reunion", "relevance": "high", "localName": "Vétiver" },
+        { "key": "haiti", "relevance": "high", "localName": "Vétiver" },
+        { "key": "asie", "relevance": "high", "localName": "Vetiver" },
+        { "key": "international", "relevance": "high", "localName": "Vetiver" }
+      ],
+      "matchNames": ["vétiver", "vetiver"]
+    },
+    {
+      "id": "letchi",
+      "taxon": "Litchi chinensis",
+      "family": "Sapindaceae",
+      "category": "fruit",
+      "suggestedLevel": "CE1",
+      "regions": [
+        { "key": "reunion", "relevance": "high", "localName": "Letchi" },
+        { "key": "madagascar", "relevance": "high", "localName": "Letchi" },
+        { "key": "asie", "relevance": "high", "localName": "Lychee" },
+        { "key": "guadeloupe", "relevance": "low", "localName": "Litchi" },
+        { "key": "france", "relevance": "medium", "localName": "Litchi" },
+        { "key": "international", "relevance": "high", "localName": "Lychee" }
+      ],
+      "matchNames": ["letchi", "litchi", "lychee", "litchee"]
+    },
+    {
+      "id": "nefle",
+      "taxon": "Eriobotrya japonica",
+      "family": "Rosaceae",
+      "category": "fruit",
+      "suggestedLevel": "CE2",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Nèfle" },
+        { "key": "martinique", "relevance": "high", "localName": "Nèfle" },
+        { "key": "reunion", "relevance": "high", "localName": "Bibasse" },
+        { "key": "asie", "relevance": "high", "localName": "Loquat" },
+        { "key": "france", "relevance": "medium", "localName": "Nèfle du Japon" }
+      ],
+      "matchNames": ["nèfle", "nefle", "bibasse", "loquat", "nèfle du japon"]
+    },
+    {
+      "id": "baobab",
+      "taxon": "Adansonia digitata",
+      "family": "Malvaceae",
+      "category": "arbre",
+      "suggestedLevel": "CE2",
+      "regions": [
+        { "key": "senegal", "relevance": "high", "localName": "Baobab" },
+        { "key": "afrique", "relevance": "high", "localName": "Baobab" },
+        { "key": "madagascar", "relevance": "high", "localName": "Baobab" },
+        { "key": "france", "relevance": "low", "localName": "Baobab" },
+        { "key": "international", "relevance": "medium", "localName": "Baobab" }
+      ],
+      "matchNames": ["baobab"]
+    },
+    {
+      "id": "karite",
+      "taxon": "Vitellaria paradoxa",
+      "family": "Sapotaceae",
+      "category": "arbre",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "senegal", "relevance": "high", "localName": "Karité" },
+        { "key": "afrique", "relevance": "high", "localName": "Karité" },
+        { "key": "cote_ivoire", "relevance": "high", "localName": "Karité" },
+        { "key": "france", "relevance": "medium", "localName": "Karité" },
+        { "key": "international", "relevance": "medium", "localName": "Shea tree" }
+      ],
+      "matchNames": ["karité", "karite", "shea", "shea tree"]
+    },
+    {
+      "id": "acajou",
+      "taxon": "Swietenia mahagoni",
+      "family": "Meliaceae",
+      "category": "arbre",
+      "suggestedLevel": "CM2",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Acajou" },
+        { "key": "martinique", "relevance": "high", "localName": "Acajou" },
+        { "key": "caraibe", "relevance": "high", "localName": "Mahogany" },
+        { "key": "ameriques", "relevance": "high", "localName": "Mahogany" }
+      ],
+      "matchNames": ["acajou", "mahogany", "caoba"]
+    },
+    {
+      "id": "bilimbi",
+      "taxon": "Averrhoa bilimbi",
+      "family": "Oxalidaceae",
+      "category": "fruit",
+      "suggestedLevel": "CM1",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Bilimbi" },
+        { "key": "martinique", "relevance": "high", "localName": "Bilimbi" },
+        { "key": "reunion", "relevance": "high", "localName": "Bilimbi" },
+        { "key": "asie", "relevance": "high", "localName": "Bilimbi" }
+      ],
+      "matchNames": ["bilimbi", "cornichon des antilles", "tree sorrel"]
+    },
+    {
+      "id": "pomme-cajou",
+      "taxon": "Anacardium occidentale",
+      "family": "Anacardiaceae",
+      "category": "fruit",
+      "suggestedLevel": "CE2",
+      "regions": [
+        { "key": "guadeloupe", "relevance": "high", "localName": "Pomme cajou" },
+        { "key": "martinique", "relevance": "high", "localName": "Pomme cajou" },
+        { "key": "guyane", "relevance": "high", "localName": "Pomme cajou" },
+        { "key": "afrique", "relevance": "high", "localName": "Anacarde" },
+        { "key": "asie", "relevance": "high", "localName": "Cashew" },
+        { "key": "ameriques", "relevance": "high", "localName": "Cashew" }
+      ],
+      "matchNames": ["pomme cajou", "noix de cajou", "cajou", "anacarde", "cashew"]
+    },
+    {
+      "id": "ylang-ylang",
+      "taxon": "Cananga odorata",
+      "family": "Annonaceae",
+      "category": "fleur",
+      "suggestedLevel": "CM2",
+      "regions": [
+        { "key": "mayotte", "relevance": "high", "localName": "Ylang-ylang" },
+        { "key": "madagascar", "relevance": "high", "localName": "Ylang-ylang" },
+        { "key": "reunion", "relevance": "medium", "localName": "Ylang-ylang" },
+        { "key": "asie", "relevance": "high", "localName": "Ylang-ylang" },
+        { "key": "france", "relevance": "low", "localName": "Ylang-ylang" },
+        { "key": "international", "relevance": "medium", "localName": "Ylang-ylang" }
+      ],
+      "matchNames": ["ylang-ylang", "ylang ylang", "cananga"]
+    }
+  ]
+}

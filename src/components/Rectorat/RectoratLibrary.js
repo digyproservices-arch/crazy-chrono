@@ -23,8 +23,22 @@ const REGIONS = [
   { key: 'guyane', label: 'Guyane', icon: '🌴' },
   { key: 'reunion', label: 'Réunion', icon: '🌋' },
   { key: 'mayotte', label: 'Mayotte', icon: '🏝️' },
+  { key: 'haiti', label: 'Haïti', icon: '🇭🇹' },
+  { key: 'cuba', label: 'Cuba', icon: '🇨🇺' },
+  { key: 'trinidad', label: 'Trinidad', icon: '🇹🇹' },
   { key: 'france', label: 'France métro.', icon: '🇫🇷' },
   { key: 'caraibe', label: 'Caraïbe', icon: '🌊' },
+  { key: 'afrique', label: 'Afrique', icon: '🌍' },
+  { key: 'senegal', label: 'Sénégal', icon: '🇸🇳' },
+  { key: 'cote_ivoire', label: "Côte d'Ivoire", icon: '🇨🇮' },
+  { key: 'cameroun', label: 'Cameroun', icon: '🇨🇲' },
+  { key: 'madagascar', label: 'Madagascar', icon: '🇲🇬' },
+  { key: 'asie', label: 'Asie', icon: '🌏' },
+  { key: 'oceanie', label: 'Océanie', icon: '🏝️' },
+  { key: 'polynesie', label: 'Polynésie', icon: '🌺' },
+  { key: 'nouvelle_caledonie', label: 'Nlle-Calédonie', icon: '🏝️' },
+  { key: 'ameriques', label: 'Amériques', icon: '🌎' },
+  { key: 'europe', label: 'Europe', icon: '🇪🇺' },
   { key: 'international', label: 'International', icon: '🌐' },
 ];
 
@@ -40,11 +54,12 @@ function getDomain(themes) {
   return null;
 }
 
-function getRegion(themes) {
+function getRegions(themes) {
+  const regions = [];
   for (const th of (themes || [])) {
-    if (th.startsWith('region:')) return th.slice(7);
+    if (th.startsWith('region:')) regions.push(th.slice(7));
   }
-  return null;
+  return regions;
 }
 
 export default function RectoratLibrary({ data, setData, saveToBackend }) {
@@ -67,8 +82,8 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
       const left = isMath ? (cMap.get(a.calculId)?.content || '') : (tMap.get(a.texteId)?.content || '');
       const right = isMath ? (nMap.get(a.chiffreId)?.content || '') : (iMap.get(a.imageId)?.url || '');
       const domain = getDomain(a.themes);
-      const region = getRegion(a.themes);
-      return { ...a, idx, isMath, left, right, domain, region };
+      const regions = getRegions(a.themes);
+      return { ...a, idx, isMath, left, right, domain, regions };
     });
   }, [data]);
 
@@ -83,7 +98,10 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
     const stats = {};
     let list = enriched;
     if (filterDomain !== 'all') list = list.filter(a => (a.domain || 'unknown') === filterDomain);
-    for (const a of list) { stats[a.region || 'unknown'] = (stats[a.region || 'unknown'] || 0) + 1; }
+    for (const a of list) {
+      if (a.regions.length === 0) { stats['unknown'] = (stats['unknown'] || 0) + 1; }
+      else { for (const r of a.regions) { stats[r] = (stats[r] || 0) + 1; } }
+    }
     return stats;
   }, [enriched, filterDomain]);
 
@@ -91,7 +109,7 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
   const filtered = useMemo(() => {
     let list = enriched;
     if (filterDomain !== 'all') list = list.filter(a => (a.domain || 'unknown') === filterDomain);
-    if (filterRegion !== 'all') list = list.filter(a => (a.region || 'unknown') === filterRegion);
+    if (filterRegion !== 'all') list = list.filter(a => filterRegion === 'unknown' ? a.regions.length === 0 : a.regions.includes(filterRegion));
     if (filterLevel !== 'all') list = list.filter(a => a.levelClass === filterLevel);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -131,10 +149,12 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
     });
   };
 
-  const updateRegion = (idx, regionKey) => {
+  const toggleRegion = (idx, regionKey) => {
     updateAssocField(idx, a => {
-      const themes = (a.themes || []).filter(t => !t.startsWith('region:'));
-      if (regionKey) themes.push('region:' + regionKey);
+      const themes = (a.themes || []).slice();
+      const tag = 'region:' + regionKey;
+      const i = themes.indexOf(tag);
+      if (i >= 0) themes.splice(i, 1); else themes.push(tag);
       return { ...a, themes };
     });
   };
@@ -150,7 +170,7 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
   }
   if (filterRegion !== 'all') {
     const rm = REGIONS.find(r => r.key === filterRegion);
-    breadcrumb.push(rm ? rm.icon + ' ' + rm.label : filterRegion);
+    breadcrumb.push(rm ? rm.icon + ' ' + rm.label : (filterRegion === 'unknown' ? 'Sans région' : filterRegion));
   }
   if (filterLevel !== 'all') breadcrumb.push(filterLevel);
 
@@ -244,7 +264,7 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 14 }}>
           {filtered.slice(0, 120).map(a => {
             const meta = DOMAIN_META[a.domain] || { icon: '❓', label: 'Non classé', color: '#94a3b8', bg: '#f8fafc' };
-            const regionMeta = REGIONS.find(r => r.key === a.region);
+            const regionMetas = a.regions.map(rk => REGIONS.find(r => r.key === rk)).filter(Boolean);
             const isImage = !a.isMath && a.right && /\.(jpe?g|png|gif|webp|svg)/i.test(a.right);
             return (
               <div key={a.idx} style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
@@ -276,11 +296,19 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
                       <option value="">Domaine...</option>
                       {DOMAIN_KEYS.map(k => <option key={k} value={k}>{DOMAIN_META[k].icon} {DOMAIN_META[k].label}</option>)}
                     </select>
-                    {/* Region selector */}
-                    <select value={a.region || ''} onChange={e => updateRegion(a.idx, e.target.value)}
-                      style={{ padding: '2px 4px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 11, fontWeight: 600, color: '#475569', cursor: 'pointer', maxWidth: 110 }}>
-                      <option value="">Région...</option>
-                      {REGIONS.map(r => <option key={r.key} value={r.key}>{r.icon} {r.label}</option>)}
+                  </div>
+                  {/* Region badges */}
+                  <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginBottom: 4 }}>
+                    {regionMetas.map(rm => (
+                      <span key={rm.key} onClick={() => toggleRegion(a.idx, rm.key)} title={`Retirer ${rm.label}`}
+                        style={{ fontSize: 9, padding: '1px 5px', borderRadius: 10, background: '#334155', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        {rm.icon} {rm.label} ✕
+                      </span>
+                    ))}
+                    <select value="" onChange={e => { if (e.target.value) toggleRegion(a.idx, e.target.value); e.target.value = ''; }}
+                      style={{ padding: '1px 3px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 10, color: '#94a3b8', cursor: 'pointer', maxWidth: 80 }}>
+                      <option value="">+ Région</option>
+                      {REGIONS.filter(r => !a.regions.includes(r.key)).map(r => <option key={r.key} value={r.key}>{r.icon} {r.label}</option>)}
                     </select>
                   </div>
                   {/* Level + delete */}
@@ -290,7 +318,7 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
                       <option value="">Niveau...</option>
                       {CLASS_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                     </select>
-                    {regionMeta && <span style={{ fontSize: 10, color: '#94a3b8' }}>{regionMeta.icon}</span>}
+                    {regionMetas.length > 0 && <span style={{ fontSize: 10, color: '#94a3b8' }}>{regionMetas.map(r => r.icon).join('')}</span>}
                     <button onClick={() => deleteAssoc(a.idx)} style={{ marginLeft: 'auto', padding: '2px 5px', fontSize: 10, background: 'none', border: '1px solid #fecaca', color: '#dc2626', borderRadius: 5, cursor: 'pointer' }} title="Supprimer">🗑️</button>
                   </div>
                 </div>
@@ -331,11 +359,22 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
                       </select>
                     </td>
                     <td style={{ padding: '4px 6px', textAlign: 'center' }}>
-                      <select value={a.region || ''} onChange={e => updateRegion(a.idx, e.target.value)}
-                        style={{ padding: '2px 4px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 11, cursor: 'pointer' }}>
-                        <option value="">—</option>
-                        {REGIONS.map(r => <option key={r.key} value={r.key}>{r.icon} {r.label}</option>)}
-                      </select>
+                      <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }}>
+                        {a.regions.map(rk => {
+                          const rm = REGIONS.find(r => r.key === rk);
+                          return rm ? (
+                            <span key={rk} onClick={() => toggleRegion(a.idx, rk)} title={`Retirer ${rm.label}`}
+                              style={{ fontSize: 9, padding: '0px 4px', borderRadius: 8, background: '#334155', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              {rm.icon}✕
+                            </span>
+                          ) : null;
+                        })}
+                        <select value="" onChange={e => { if (e.target.value) toggleRegion(a.idx, e.target.value); e.target.value = ''; }}
+                          style={{ padding: '1px 2px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 10, color: '#94a3b8', cursor: 'pointer', width: 22 }}>
+                          <option value="">+</option>
+                          {REGIONS.filter(r => !a.regions.includes(r.key)).map(r => <option key={r.key} value={r.key}>{r.icon} {r.label}</option>)}
+                        </select>
+                      </div>
                     </td>
                     <td style={{ padding: '4px 6px', textAlign: 'center' }}>
                       <select value={a.levelClass || ''} onChange={e => updateLevel(a.idx, e.target.value)}
