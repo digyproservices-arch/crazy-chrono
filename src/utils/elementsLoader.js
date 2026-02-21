@@ -145,6 +145,28 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       if (hasCN) return C.has(a.calculId) && N.has(a.chiffreId);
       return false;
     });
+
+    // Re-inclure éléments référencés par associations survivantes mais filtrés à tort
+    // (ex: image a themes=["botanique"] mais l'association a themes=["category:fruit","region:guadeloupe"])
+    if (selectedThemes.length > 0) {
+      const origTextes = Array.isArray(data.textes) ? data.textes : [];
+      const origImages = Array.isArray(data.images) ? data.images : [];
+      const origCalculs = Array.isArray(data.calculs) ? data.calculs : [];
+      const origChiffres = Array.isArray(data.chiffres) ? data.chiffres : [];
+      const assocImgIds = new Set(associations.filter(a => a.imageId).map(a => a.imageId));
+      const assocTxtIds = new Set(associations.filter(a => a.texteId).map(a => a.texteId));
+      const assocCalcIds = new Set(associations.filter(a => a.calculId).map(a => a.calculId));
+      const assocNumIds = new Set(associations.filter(a => a.chiffreId).map(a => a.chiffreId));
+      const existTxt = new Set(textes.map(t => t.id));
+      const existImg = new Set(images.map(i => i.id));
+      const existCalc = new Set(calculs.map(c => c.id));
+      const existNum = new Set(chiffres.map(n => n.id));
+      for (const t of origTextes) if (assocTxtIds.has(t.id) && !existTxt.has(t.id) && hasClass(t)) textes.push(t);
+      for (const i of origImages) if (assocImgIds.has(i.id) && !existImg.has(i.id) && hasClass(i)) images.push(i);
+      for (const c of origCalculs) if (assocCalcIds.has(c.id) && !existCalc.has(c.id) && hasClass(c)) calculs.push(c);
+      for (const n of origChiffres) if (assocNumIds.has(n.id) && !existNum.has(n.id) && hasClass(n)) chiffres.push(n);
+      console.log('[elementsLoader] Re-included elements from associations:', { textes: textes.length, images: images.length, calculs: calculs.length, chiffres: chiffres.length });
+    }
   }
 
   // ===== Filtrage des paires déjà validées =====

@@ -4386,10 +4386,10 @@ setZones(dataWithRandomTexts);
               const strictThemeOk = (o) => hasAny(o?.themes || [], selThemes);
               if (selThemes.length > 0 || selClasses.length > 0) {
                 const beforeCounts = { images: allImages.length, textes: allTextes.length, calculs: allCalcs.length, chiffres: allNums.length };
-                allImages = allImages.filter(i => strictThemeOk(i) && strictLevelOk(i));
-                allTextes = allTextes.filter(t => strictThemeOk(t) && strictLevelOk(t));
-                allCalcs = allCalcs.filter(c => strictThemeOk(c) && strictLevelOk(c));
-                allNums = allNums.filter(n => strictThemeOk(n) && strictLevelOk(n));
+                allImages = allImages.filter(i => allowedImgIds.has(String(i.id)) || (strictThemeOk(i) && strictLevelOk(i)));
+                allTextes = allTextes.filter(t => allowedTxtIds.has(String(t.id)) || (strictThemeOk(t) && strictLevelOk(t)));
+                allCalcs = allCalcs.filter(c => allowedCalcIds.has(String(c.id)) || (strictThemeOk(c) && strictLevelOk(c)));
+                allNums = allNums.filter(n => allowedNumIds.has(String(n.id)) || (strictThemeOk(n) && strictLevelOk(n)));
                 // Pool strict méta pour images (incluant celles non référencées par associations)
                 try {
                   const allStrict = (assocData.images || []).filter(i => strictThemeOk(i) && strictLevelOk(i));
