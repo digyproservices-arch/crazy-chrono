@@ -50,6 +50,52 @@ const PLAYER_ZONES = [
   { key: 'nouvelle_caledonie', label: 'Nlle-Calédonie', icon: '🏝️' },
 ];
 
+const MODE_META = {
+  solo: { icon: '🎮', label: 'Solo', desc: 'Jouez seul et progressez à votre rythme' },
+  online: { icon: '🌐', label: 'Multijoueur en ligne', desc: 'Affrontez d\'autres joueurs en temps réel' },
+  classroom: { icon: '🏫', label: 'Classe', desc: 'Session encadrée par un enseignant' },
+  tournament: { icon: '🏆', label: 'Tournoi', desc: 'Compétition Battle Royale entre joueurs' },
+};
+
+const DOMAIN_LABELS = {
+  'domain:botany': { label: 'Botanique', icon: '🌿', color: '#16a34a', bg: '#f0fdf4' },
+  'domain:zoology': { label: 'Zoologie', icon: '🐾', color: '#ea580c', bg: '#fff7ed' },
+  'domain:math': { label: 'Mathématiques', icon: '🔢', color: '#2563eb', bg: '#eff6ff' },
+  'domain:language': { label: 'Langue', icon: '📝', color: '#7c3aed', bg: '#f5f3ff' },
+  'domain:science': { label: 'Sciences', icon: '🔬', color: '#0891b2', bg: '#ecfeff' },
+  'domain:geography': { label: 'Géographie', icon: '🌍', color: '#ca8a04', bg: '#fefce8' },
+  'domain:history_civics': { label: 'Histoire & EMC', icon: '📜', color: '#b45309', bg: '#fffbeb' },
+  'domain:arts': { label: 'Arts', icon: '🎨', color: '#db2777', bg: '#fdf2f8' },
+  'domain:culture': { label: 'Culture', icon: '🎭', color: '#9333ea', bg: '#faf5ff' },
+  'domain:environment': { label: 'Environnement', icon: '♻️', color: '#059669', bg: '#ecfdf5' },
+  'domain:sports': { label: 'Sports', icon: '⚽', color: '#dc2626', bg: '#fef2f2' },
+};
+
+const REGION_LABELS = {};
+PLAYER_ZONES.forEach(z => { REGION_LABELS['region:' + z.key] = z; });
+// Extra region keys that may exist in data
+['afrique', 'asie', 'international', 'ameriques', 'caraibes', 'europe', 'oceanie'].forEach(k => {
+  if (!REGION_LABELS['region:' + k]) REGION_LABELS['region:' + k] = { key: k, label: k.charAt(0).toUpperCase() + k.slice(1), icon: '🌍' };
+});
+
+const ZONE_GROUPS = [
+  { label: 'Caraïbes & Amériques', keys: ['guadeloupe', 'martinique', 'guyane', 'haiti', 'cuba', 'trinidad'] },
+  { label: 'Océan Indien', keys: ['reunion', 'mayotte', 'madagascar'] },
+  { label: 'Afrique', keys: ['senegal', 'cote_ivoire', 'cameroun'] },
+  { label: 'Pacifique & Europe', keys: ['france', 'polynesie', 'nouvelle_caledonie'] },
+];
+
+const CARD = { background: '#fff', borderRadius: 16, padding: '20px 24px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0', marginBottom: 16 };
+const SECTION_TITLE = { fontSize: 15, fontWeight: 800, color: '#0D6A7A', marginTop: 0, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 };
+
+function themeDisplayLabel(t) {
+  if (DOMAIN_LABELS[t]) return DOMAIN_LABELS[t].icon + ' ' + DOMAIN_LABELS[t].label;
+  if (CATEGORY_LABELS[t]) return CATEGORY_LABELS[t];
+  if (REGION_LABELS[t]) return (REGION_LABELS[t].icon || '🌍') + ' ' + REGION_LABELS[t].label;
+  if (t.startsWith('group:')) return '📦 ' + t.slice(6);
+  return t;
+}
+
 export default function SessionConfig() {
   const { mode } = useParams();
   const navigate = useNavigate();
@@ -311,227 +357,295 @@ export default function SessionConfig() {
     try { window.dispatchEvent(new CustomEvent('cc:sessionConfigured', { detail: payload })); } catch {}
   };
 
+  const modeMeta = MODE_META[mode] || { icon: '🎮', label: mode, desc: '' };
+  const PILL = (sel) => ({
+    padding: '7px 14px', borderRadius: 10, border: sel ? '2px solid #0D6A7A' : '2px solid #e2e8f0',
+    background: sel ? '#0D6A7A' : '#fff', color: sel ? '#fff' : '#475569',
+    fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all 0.15s',
+  });
+  const PILL_ZONE = (sel) => ({
+    padding: '6px 12px', borderRadius: 10, border: sel ? '2px solid #0D6A7A' : '2px solid #e2e8f0',
+    background: sel ? '#0D6A7A' : '#fff', color: sel ? '#fff' : '#475569',
+    fontWeight: 600, fontSize: 12, cursor: 'pointer', transition: 'all 0.15s',
+  });
+
+  const ThemePill = ({ t }) => {
+    const sel = selectedThemes.includes(t);
+    const hasData = themeHasData(t);
+    const dl = DOMAIN_LABELS[t];
+    const rl = REGION_LABELS[t];
+    let label = themeDisplayLabel(t);
+    let pillBg = sel ? '#0D6A7A' : '#fff';
+    let pillColor = sel ? '#fff' : '#475569';
+    let pillBorder = sel ? '#0D6A7A' : '#e2e8f0';
+    if (!sel && dl) { pillBg = dl.bg; pillColor = dl.color; pillBorder = dl.color + '44'; }
+    if (!sel && rl) { pillBorder = '#94a3b8'; }
+    return (
+      <button onClick={() => toggleTheme(t)} disabled={!hasData}
+        title={hasData ? (sel ? 'Cliquez pour retirer' : 'Cliquez pour filtrer') : 'Aucune donnée pour les niveaux sélectionnés'}
+        style={{ padding: '6px 12px', borderRadius: 10, border: '2px solid ' + pillBorder, background: pillBg, color: pillColor, fontWeight: 600, fontSize: 12, cursor: hasData ? 'pointer' : 'not-allowed', opacity: hasData ? 1 : 0.4, transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
+        {label}
+      </button>
+    );
+  };
+
   return (
-    <div style={{ maxWidth: 980, margin: '24px auto', padding: '0 16px' }}>
-      <h2 style={{ marginTop: 12 }}>Configurer la session ({mode})</h2>
+    <div style={{ maxWidth: 880, margin: '0 auto', padding: '20px 16px 80px' }}>
 
-      <section style={{ marginTop: 12 }}>
-        <h3>Classes</h3>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {CLASS_LEVELS.map(lv => (
-            <button key={lv} onClick={() => toggleClass(lv)}
-              style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedClasses.includes(lv) ? '#1AACBE' : '#fff', color: selectedClasses.includes(lv) ? '#fff' : '#4A3728' }}>
-              {lv}
-            </button>
-          ))}
+      {/* ===== MODE BANNER ===== */}
+      <div style={{ background: 'linear-gradient(135deg, #0D6A7A 0%, #1AACBE 100%)', borderRadius: 18, padding: '24px 28px', marginBottom: 20, color: '#fff', boxShadow: '0 4px 20px rgba(13,106,122,0.25)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span style={{ fontSize: 36 }}>{modeMeta.icon}</span>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.02em' }}>Configurer la session</h1>
+            <div style={{ fontSize: 14, opacity: 0.9, marginTop: 2 }}>Mode {modeMeta.label} — {modeMeta.desc}</div>
+          </div>
         </div>
-      </section>
+      </div>
 
-      {/* Avertissements et options de cohérence */}
-      <section style={{ marginTop: 16 }}>
-        {(dataStats.textImage === 0 || dataStats.calcNum === 0) && (
-          <div style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #f59e0b', background: '#fff7ed', color: '#92400e' }}>
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>Avertissement contenu limité</div>
+      {/* ===== 1. NIVEAUX SCOLAIRES ===== */}
+      <div style={CARD}>
+        <h3 style={SECTION_TITLE}><span>📚</span> Niveaux scolaires</h3>
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Primaire</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {["CP","CE1","CE2","CM1","CM2"].map(lv => (
+              <button key={lv} onClick={() => toggleClass(lv)} style={PILL(selectedClasses.includes(lv))}>{lv}</button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Collège</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {["6e","5e","4e","3e"].map(lv => (
+              <button key={lv} onClick={() => toggleClass(lv)} style={PILL(selectedClasses.includes(lv))}>{lv}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ===== 2. ZONE GÉOGRAPHIQUE ===== */}
+      <div style={CARD}>
+        <h3 style={SECTION_TITLE}><span>🌍</span> Ma zone géographique</h3>
+        <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 12px', lineHeight: 1.5 }}>
+          Adapte les noms locaux des plantes selon votre région. Ex : <em>Madère</em> (GP) devient <em>Dachine</em> (MQ) ou <em>Taro</em> (Asie).
+        </p>
+        <div style={{ marginBottom: 12 }}>
+          <button onClick={() => setPlayerZone('')} style={{ ...PILL_ZONE(!playerZone), background: !playerZone ? '#0D6A7A' : '#f0fdfa', color: !playerZone ? '#fff' : '#0D6A7A', border: !playerZone ? '2px solid #0D6A7A' : '2px solid #99f6e4' }}>
+            🌐 Toutes zones
+          </button>
+        </div>
+        {ZONE_GROUPS.map(grp => (
+          <div key={grp.label} style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>{grp.label}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {grp.keys.map(k => {
+                const z = PLAYER_ZONES.find(pz => pz.key === k);
+                if (!z) return null;
+                return (
+                  <button key={k} onClick={() => setPlayerZone(k)} style={PILL_ZONE(playerZone === k)}>
+                    {z.icon} {z.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ===== 3. CONTENU PÉDAGOGIQUE (THÈMES) ===== */}
+      <div style={CARD}>
+        <h3 style={SECTION_TITLE}><span>🎯</span> Contenu pédagogique</h3>
+        <p style={{ fontSize: 12, color: '#64748b', margin: '-4px 0 14px', lineHeight: 1.5 }}>
+          Filtrez le contenu par domaine, catégorie ou région. Sans sélection, tout le contenu est disponible.
+        </p>
+
+        {/* Domaines */}
+        {domains.length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Domaines</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {domains.map(t => <ThemePill key={t} t={t} />)}
+            </div>
+          </div>
+        )}
+
+        {/* Catégories */}
+        {categories.length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Catégories</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {categories.map(t => <ThemePill key={t} t={t} />)}
+            </div>
+          </div>
+        )}
+
+        {/* Régions (thèmes) */}
+        {regions.length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Régions du contenu</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {regions.map(t => <ThemePill key={t} t={t} />)}
+            </div>
+          </div>
+        )}
+
+        {/* Groupes + Autres */}
+        {(groups.length > 0 || others.length > 0) && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Autres filtres</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {groups.map(t => <ThemePill key={t} t={t} />)}
+              {others.map(t => <ThemePill key={t} t={t} />)}
+            </div>
+          </div>
+        )}
+
+        {/* Résumé données */}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8, padding: '10px 14px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 18 }}>🖼️</span>
             <div>
-              Associations disponibles avec cette configuration:
-              <br />• Image ↔ Texte: {dataStats.textImage}
-              <br />• Calcul ↔ Chiffre: {dataStats.calcNum}
+              <div style={{ fontSize: 18, fontWeight: 800, color: dataStats.textImage > 0 ? '#0D6A7A' : '#dc2626' }}>{dataStats.textImage}</div>
+              <div style={{ fontSize: 10, color: '#64748b', marginTop: -2 }}>Image / Texte</div>
             </div>
-            <div style={{ marginTop: 6 }}>
-              Si certaines catégories ne disposent pas de données suffisantes, des zones pourront rester vides.
+          </div>
+          <div style={{ width: 1, background: '#e2e8f0', margin: '0 4px' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 18 }}>🔢</span>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: dataStats.calcNum > 0 ? '#0D6A7A' : '#dc2626' }}>{dataStats.calcNum}</div>
+              <div style={{ fontSize: 10, color: '#64748b', marginTop: -2 }}>Calcul / Chiffre</div>
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+          </div>
+          {selectedThemes.length > 0 && (
+            <>
+              <div style={{ width: 1, background: '#e2e8f0', margin: '0 4px' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>Filtres actifs :</span>
+                {selectedThemes.map(t => (
+                  <span key={t} onClick={() => toggleTheme(t)} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, background: '#0D6A7A', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+                    {themeDisplayLabel(t)} ✕
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Avertissement si contenu limité */}
+        {(dataStats.textImage === 0 || dataStats.calcNum === 0) && (
+          <div style={{ marginTop: 10, padding: '10px 14px', borderRadius: 10, border: '1px solid #fde68a', background: '#fffbeb', fontSize: 12 }}>
+            <div style={{ fontWeight: 700, color: '#92400e', marginBottom: 4 }}>⚠️ Contenu limité</div>
+            <div style={{ color: '#78350f', lineHeight: 1.5 }}>
+              Certaines catégories manquent de données. Des zones pourront rester vides.
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontSize: 12, color: '#92400e', cursor: 'pointer' }}>
               <input type="checkbox" checked={allowEmptyMath} onChange={e => setAllowEmptyMath(e.target.checked)} />
-              Laisser volontairement vides les zones Calcul/Chiffre lorsqu'aucune association correspondante n'existe
+              Autoriser les zones vides si aucune association disponible
             </label>
           </div>
         )}
-      </section>
+      </div>
 
-      <section style={{ marginTop: 16 }}>
-        <h3>🌍 Ma zone géographique</h3>
-        <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 10px' }}>
-          Sélectionnez votre zone pour adapter les noms locaux des plantes et le contenu affiché.
-        </p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          <button onClick={() => setPlayerZone('')}
-            style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: !playerZone ? '#1AACBE' : '#fff', color: !playerZone ? '#fff' : '#4A3728', fontWeight: 600, fontSize: 13 }}>
-            🌐 Toutes zones
-          </button>
-          {PLAYER_ZONES.map(z => (
-            <button key={z.key} onClick={() => setPlayerZone(z.key)}
-              style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: playerZone === z.key ? '#1AACBE' : '#fff', color: playerZone === z.key ? '#fff' : '#4A3728', fontWeight: 600, fontSize: 13 }}>
-              {z.icon} {z.label}
-            </button>
-          ))}
+      {/* ===== 4. PARAMÈTRES DE JEU ===== */}
+      <div style={CARD}>
+        <h3 style={SECTION_TITLE}><span>⚙️</span> Paramètres de jeu</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>🔄 Nombre de manches</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button onClick={() => stepRounds(-1)} style={{ width: 40, height: 40, borderRadius: 10, border: '2px solid #e2e8f0', background: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>−</button>
+              <div style={{ flex: 1, textAlign: 'center', padding: '8px 12px', border: '2px solid #e2e8f0', borderRadius: 10, background: '#f8fafc', fontWeight: 800, fontSize: 18, color: '#0D6A7A' }}>{rounds}</div>
+              <button onClick={() => stepRounds(+1)} style={{ width: 40, height: 40, borderRadius: 10, border: '2px solid #e2e8f0', background: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>+</button>
+            </div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>1 à 20 manches</div>
+          </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>⏱️ Durée par manche</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button onClick={() => stepDuration(-5)} style={{ width: 40, height: 40, borderRadius: 10, border: '2px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>−5</button>
+              <div style={{ flex: 1, textAlign: 'center', padding: '8px 12px', border: '2px solid #e2e8f0', borderRadius: 10, background: '#f8fafc', fontWeight: 800, fontSize: 18, color: '#0D6A7A' }}>{duration}<span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8' }}>s</span></div>
+              <button onClick={() => stepDuration(+5)} style={{ width: 40, height: 40, borderRadius: 10, border: '2px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>+5</button>
+            </div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>15 à 600 secondes</div>
+          </div>
         </div>
-      </section>
+      </div>
 
-      <section style={{ marginTop: 16 }}>
-        <h3>Thèmes par facettes</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))', gap: 12 }}>
-          <div>
-            <h4>Domain</h4>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {domains.map(t => {
-                const hasData = themeHasData(t);
-                return (
-                  <button key={t} onClick={() => toggleTheme(t)} disabled={!hasData} title={hasData ? '' : 'Aucune donnée pour les classes sélectionnées'}
-                    style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedThemes.includes(t) ? '#1AACBE' : '#fff', color: selectedThemes.includes(t) ? '#fff' : '#4A3728', opacity: hasData ? 1 : 0.5, cursor: hasData ? 'pointer' : 'not-allowed' }}>
-                    {t}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div>
-            <h4>Catégorie</h4>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {categories.map(t => {
-                const hasData = themeHasData(t);
-                return (
-                  <button key={t} onClick={() => toggleTheme(t)} disabled={!hasData} title={hasData ? '' : 'Aucune donnée pour les classes sélectionnées'}
-                    style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedThemes.includes(t) ? '#1AACBE' : '#fff', color: selectedThemes.includes(t) ? '#fff' : '#4A3728', opacity: hasData ? 1 : 0.5, cursor: hasData ? 'pointer' : 'not-allowed' }}>
-                    {CATEGORY_LABELS[t] || t.replace('category:', '')}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div>
-            <h4>Region</h4>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {regions.map(t => {
-                const hasData = themeHasData(t);
-                return (
-                  <button key={t} onClick={() => toggleTheme(t)} disabled={!hasData} title={hasData ? '' : 'Aucune donnée pour les classes sélectionnées'}
-                    style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedThemes.includes(t) ? '#1AACBE' : '#fff', color: selectedThemes.includes(t) ? '#fff' : '#4A3728', opacity: hasData ? 1 : 0.5, cursor: hasData ? 'pointer' : 'not-allowed' }}>
-                    {t}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div>
-            <h4>Group</h4>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {groups.map(t => {
-                const hasData = themeHasData(t);
-                return (
-                  <button key={t} onClick={() => toggleTheme(t)} disabled={!hasData} title={hasData ? '' : 'Aucune donnée pour les classes sélectionnées'}
-                    style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedThemes.includes(t) ? '#1AACBE' : '#fff', color: selectedThemes.includes(t) ? '#fff' : '#4A3728', opacity: hasData ? 1 : 0.5, cursor: hasData ? 'pointer' : 'not-allowed' }}>
-                    {t}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div>
-            <h4>Autres</h4>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {others.map(t => {
-                const hasData = themeHasData(t);
-                return (
-                  <button key={t} onClick={() => toggleTheme(t)} disabled={!hasData} title={hasData ? '' : 'Aucune donnée pour les classes sélectionnées'}
-                    style={{ padding: '8px 12px', borderRadius: 999, border: '1px solid #d1d5db', background: selectedThemes.includes(t) ? '#1AACBE' : '#fff', color: selectedThemes.includes(t) ? '#fff' : '#4A3728', opacity: hasData ? 1 : 0.5, cursor: hasData ? 'pointer' : 'not-allowed' }}>
-                    {t}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-        <div style={{ marginTop: 10, color: '#6b7280' }}>
-          Seuls les éléments correspondant aux thèmes sélectionnés seront utilisés. Si aucun thème n'est sélectionné, tous les éléments pourront être utilisés. Les thèmes listés sont filtrés par les classes sélectionnées.
-        </div>
-      </section>
-
-      <section style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px,1fr))', gap: 12 }}>
-        <div>
-          <label>Nombre de manches</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button onClick={() => stepRounds(-1)} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db' }}>−</button>
-            <div style={{ flex: 1, textAlign: 'center', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, background: '#f9fafb', fontWeight: 700 }}>{rounds}</div>
-            <button onClick={() => stepRounds(+1)} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db' }}>+</button>
-          </div>
-          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>Entre 1 et 20 manches.</div>
-        </div>
-        <div>
-          <label>Durée (secondes)</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button onClick={() => stepDuration(-5)} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db' }}>−5</button>
-            <div style={{ flex: 1, textAlign: 'center', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, background: '#f9fafb', fontWeight: 700 }}>{duration}</div>
-            <button onClick={() => stepDuration(+5)} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db' }}>+5</button>
-          </div>
-          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>Entre 15 et 600 secondes.</div>
-        </div>
-      </section>
-
-      {/* Mode-spécifique: Multijoueur en ligne */}
+      {/* ===== 5. MODE-SPÉCIFIQUE: Multijoueur ===== */}
       {mode === 'online' && (
-        <section style={{ marginTop: 16 }}>
-          <h3>Multijoueur en ligne</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))', gap: 12 }}>
+        <div style={CARD}>
+          <h3 style={SECTION_TITLE}><span>🌐</span> Multijoueur en ligne</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))', gap: 14 }}>
             <div>
-              <label>Nom du joueur</label>
+              <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>Nom du joueur</label>
               <input value={playerName} onChange={e=>setPlayerName(e.target.value)} placeholder="ex: Léa"
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8 }} />
+                style={{ width: '100%', padding: '10px 14px', border: '2px solid #e2e8f0', borderRadius: 10, fontSize: 13, boxSizing: 'border-box' }} />
             </div>
             <div>
-              <label>Type de salle</label>
-              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-                <label><input type="radio" name="roomMode" checked={roomMode==='create'} onChange={()=>setRoomMode('create')} /> Créer</label>
-                <label><input type="radio" name="roomMode" checked={roomMode==='join'} onChange={()=>setRoomMode('join')} /> Rejoindre</label>
+              <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>Type de salle</label>
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <button onClick={() => setRoomMode('create')} style={PILL(roomMode === 'create')}>Créer</button>
+                <button onClick={() => setRoomMode('join')} style={PILL(roomMode === 'join')}>Rejoindre</button>
               </div>
             </div>
             <div>
-              <label>Code de salle</label>
+              <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>Code de salle</label>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input value={roomCode} onChange={e=>setRoomCode(e.target.value.toUpperCase())} placeholder={roomMode==='create' ? 'Générer un code' : 'Saisir le code'}
-                  style={{ flex: 1, padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8 }} />
+                  style={{ flex: 1, padding: '10px 14px', border: '2px solid #e2e8f0', borderRadius: 10, fontSize: 13, letterSpacing: '0.1em', fontWeight: 700 }} />
                 {roomMode==='create' && (
-                  <button onClick={genCode} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db' }}>Générer</button>
+                  <button onClick={genCode} style={{ padding: '10px 14px', borderRadius: 10, border: '2px solid #0D6A7A', background: '#f0fdfa', color: '#0D6A7A', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>Générer</button>
                 )}
               </div>
             </div>
           </div>
-          <small style={{ color: '#6b7280' }}>Note: un code de salle à 6 caractères permet aux autres joueurs de rejoindre rapidement.</small>
-        </section>
+        </div>
       )}
 
-      {/* Mode-spécifique: Classe */}
+      {/* ===== 5. MODE-SPÉCIFIQUE: Classe ===== */}
       {mode === 'classroom' && (
-        <section style={{ marginTop: 16 }}>
-          <h3>Classe</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px,1fr))', gap: 12 }}>
+        <div style={CARD}>
+          <h3 style={SECTION_TITLE}><span>🏫</span> Configuration de la classe</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px,1fr))', gap: 14 }}>
             <div>
-              <label>Nom de l’enseignant(e)</label>
+              <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>Nom de l'enseignant(e)</label>
               <input value={teacherName} onChange={e=>setTeacherName(e.target.value)} placeholder="ex: Mme Martin"
-                style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8 }} />
+                style={{ width: '100%', padding: '10px 14px', border: '2px solid #e2e8f0', borderRadius: 10, fontSize: 13, boxSizing: 'border-box' }} />
             </div>
             <div>
-              <label>Élèves (licences actives)</label>
-              <input value={studentQuery} onChange={e=>setStudentQuery(e.target.value)} placeholder="Rechercher un élève"
-                style={{ width: '100%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: 8, marginTop: 6 }} />
-              <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 8, maxHeight: 200, overflow: 'auto', marginTop: 8 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>Élèves (licences actives)</label>
+              <input value={studentQuery} onChange={e=>setStudentQuery(e.target.value)} placeholder="🔍 Rechercher un élève..."
+                style={{ width: '100%', padding: '8px 12px', border: '2px solid #e2e8f0', borderRadius: 10, fontSize: 12, marginBottom: 8, boxSizing: 'border-box' }} />
+              <div style={{ border: '2px solid #e2e8f0', borderRadius: 10, padding: 10, maxHeight: 200, overflow: 'auto' }}>
                 {filteredStudents.map(s => (
-                  <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
-                    <input type="checkbox" checked={selectedStudentIds.includes(s.id)} onChange={()=>toggleStudent(s.id)} /> {s.name}
+                  <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 4px', borderRadius: 6, cursor: 'pointer', background: selectedStudentIds.includes(s.id) ? '#f0fdfa' : 'transparent' }}>
+                    <input type="checkbox" checked={selectedStudentIds.includes(s.id)} onChange={()=>toggleStudent(s.id)} />
+                    <span style={{ fontSize: 13, fontWeight: selectedStudentIds.includes(s.id) ? 700 : 400, color: '#334155' }}>{s.name}</span>
                   </label>
                 ))}
                 {filteredStudents.length === 0 && (
-                  <div style={{ color: '#6b7280' }}>(Aucun élève trouvé)</div>
+                  <div style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center', padding: 12 }}>Aucun élève trouvé</div>
                 )}
               </div>
+              {selectedStudentIds.length > 0 && (
+                <div style={{ fontSize: 11, color: '#0D6A7A', fontWeight: 600, marginTop: 6 }}>{selectedStudentIds.length} élève(s) sélectionné(s)</div>
+              )}
             </div>
           </div>
-        </section>
+        </div>
       )}
 
-      <div style={{ marginTop: 20, display: 'flex', gap: 12 }}>
-        <button onClick={() => navigate('/modes')} style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff' }}>Retour</button>
-        <button onClick={onStart} style={{ padding: '12px 16px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #1AACBE, #148A9C)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', boxShadow: '0 3px 10px rgba(26,172,190,0.3)' }}>
-          Démarrer
+      {/* ===== ACTION BAR (sticky bottom) ===== */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid #e2e8f0', padding: '12px 24px', display: 'flex', justifyContent: 'center', gap: 12, zIndex: 100, boxShadow: '0 -2px 10px rgba(0,0,0,0.06)' }}>
+        <button onClick={() => navigate('/modes')}
+          style={{ padding: '12px 24px', borderRadius: 12, border: '2px solid #e2e8f0', background: '#fff', color: '#475569', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+          ← Retour
+        </button>
+        <button onClick={onStart}
+          style={{ padding: '12px 32px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #0D6A7A 0%, #1AACBE 100%)', color: '#fff', fontWeight: 800, fontSize: 15, cursor: 'pointer', boxShadow: '0 4px 14px rgba(13,106,122,0.35)', letterSpacing: '-0.01em' }}>
+          {modeMeta.icon} Démarrer la partie
         </button>
       </div>
     </div>
