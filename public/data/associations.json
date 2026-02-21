@@ -4484,7 +4484,16 @@
       "imageId": "i3",
       "levelClass": "CP",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane",
+        "region:haiti",
+        "region:reunion",
+        "region:polynesie",
+        "region:asie",
+        "region:france",
+        "category:fruit"
       ]
     },
     {
@@ -4492,7 +4501,14 @@
       "imageId": "i1754579810850hhgl",
       "levelClass": "CP",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:reunion",
+        "region:asie",
+        "region:france",
+        "region:international",
+        "category:epice"
       ]
     },
     {
@@ -4500,7 +4516,15 @@
       "imageId": "i1754579810850ljuo",
       "levelClass": "CE1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane",
+        "region:haiti",
+        "region:reunion",
+        "region:asie",
+        "region:afrique",
+        "category:plante_medicinale"
       ]
     },
     {
@@ -4508,7 +4532,14 @@
       "imageId": "i1754579810850say6",
       "levelClass": "CE1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:reunion",
+        "region:afrique",
+        "region:france",
+        "region:international",
+        "category:plante_medicinale"
       ]
     },
     {
@@ -4516,7 +4547,13 @@
       "imageId": "i1754579810850ojzt",
       "levelClass": "CE1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane",
+        "region:reunion",
+        "region:asie",
+        "category:plante_medicinale"
       ]
     },
     {
@@ -4524,7 +4561,12 @@
       "imageId": "i1754579810850ikhk",
       "levelClass": "CM2",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:france",
+        "region:europe",
+        "region:guadeloupe",
+        "region:martinique",
+        "category:plante_medicinale"
       ]
     },
     {
@@ -4532,7 +4574,10 @@
       "imageId": "i1754579810850hu4a",
       "levelClass": "6e",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:france",
+        "region:europe",
+        "category:fleur"
       ]
     },
     {
@@ -4540,7 +4585,14 @@
       "imageId": "i17545798108509dt9",
       "levelClass": "CM1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:reunion",
+        "region:asie",
+        "region:france",
+        "region:international",
+        "category:epice"
       ]
     },
     {
@@ -4548,7 +4600,13 @@
       "imageId": "i1754579810850ah7e",
       "levelClass": "CM1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane",
+        "region:afrique",
+        "region:asie",
+        "category:plante_medicinale"
       ]
     },
     {
@@ -4556,7 +4614,13 @@
       "imageId": "i175457981085011fe",
       "levelClass": "CM1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:france",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:europe",
+        "region:international",
+        "category:plante_medicinale"
       ]
     },
     {
@@ -4564,7 +4628,12 @@
       "imageId": "i17545798108507zn0",
       "levelClass": "CM1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane",
+        "region:caraibe",
+        "category:tubercule"
       ]
     },
     {
@@ -4572,7 +4641,16 @@
       "imageId": "i1754579810850x51f",
       "levelClass": "CM1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane",
+        "region:reunion",
+        "region:asie",
+        "region:afrique",
+        "region:france",
+        "region:international",
+        "category:epice"
       ]
     },
     {
@@ -4580,7 +4658,12 @@
       "imageId": "i1754579810850f3d6",
       "levelClass": "CM1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:asie",
+        "region:reunion",
+        "category:plante_medicinale"
       ]
     },
     {
@@ -4588,7 +4671,13 @@
       "imageId": "i17545798108507u7h",
       "levelClass": "CM1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane",
+        "region:asie",
+        "region:afrique",
+        "category:plante_medicinale"
       ]
     },
     {
@@ -4596,7 +4685,13 @@
       "imageId": "i1754579810850trt6",
       "levelClass": "CM1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:france",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:europe",
+        "region:international",
+        "category:plante_aromatique"
       ]
     },
     {
@@ -4874,7 +4969,12 @@
       "imageId": "i1754579810850yj17",
       "levelClass": "CM1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:afrique",
+        "region:asie",
+        "category:tubercule"
       ]
     },
     {
@@ -4882,7 +4982,14 @@
       "imageId": "i1754579810850upfg",
       "levelClass": "CM1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:reunion",
+        "region:asie",
+        "region:france",
+        "region:international",
+        "category:fleur"
       ]
     },
     {
@@ -4890,7 +4997,13 @@
       "imageId": "i12",
       "levelClass": "CP",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:haiti",
+        "region:afrique",
+        "region:asie",
+        "category:fruit"
       ]
     },
     {
@@ -4898,7 +5011,14 @@
       "imageId": "i1754579810850k1r7",
       "levelClass": "CE1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane",
+        "region:haiti",
+        "region:afrique",
+        "region:asie",
+        "category:legumineuse"
       ]
     },
     {
@@ -4906,7 +5026,15 @@
       "imageId": "i17545798108509av3",
       "levelClass": "CE1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane",
+        "region:reunion",
+        "region:afrique",
+        "region:france",
+        "region:international",
+        "category:tubercule"
       ]
     },
     {
@@ -4914,7 +5042,14 @@
       "imageId": "i1754579810850pucr",
       "levelClass": "CP",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane",
+        "region:reunion",
+        "region:asie",
+        "region:polynesie",
+        "category:fruit"
       ]
     },
     {
@@ -4922,7 +5057,12 @@
       "imageId": "i1754579810850p76v",
       "levelClass": "CM1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane",
+        "region:caraibe",
+        "category:plante_medicinale"
       ]
     },
     {
@@ -4930,7 +5070,12 @@
       "imageId": "i1754579810850bq7v",
       "levelClass": "CM1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:asie",
+        "region:reunion",
+        "category:plante_medicinale"
       ]
     },
     {
@@ -4938,7 +5083,14 @@
       "imageId": "i1754579810850tdtf",
       "levelClass": "CM1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane",
+        "region:haiti",
+        "region:ameriques",
+        "region:france",
+        "category:plante_medicinale"
       ]
     },
     {
@@ -4946,7 +5098,13 @@
       "imageId": "i1754579810850ya9j",
       "levelClass": "CM1",
       "themes": [
-        "botanique"
+        "domain:botany",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane",
+        "region:afrique",
+        "region:asie",
+        "category:plante_medicinale"
       ]
     },
     {
@@ -6561,5 +6719,5 @@
       "levelClass": "CE2"
     }
   ],
-  "_dataVersion": 2
+  "_dataVersion": 3
 }
