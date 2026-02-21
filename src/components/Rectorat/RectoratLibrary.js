@@ -140,7 +140,7 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
       const category = getCategory(a.themes);
       const regions = getRegions(a.themes);
 
-      // Noms locaux par région (botanique uniquement)
+      // Noms locaux par région (botanique uniquement): référentiel + overrides utilisateur
       let localNames = null;
       if (domain === 'botany' && left) {
         const plant = botLookup.get(left.toLowerCase().trim());
@@ -149,6 +149,11 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
             acc[r.key] = r.localName;
             return acc;
           }, {});
+        }
+        // Fusionner les overrides utilisateur (prioritaires)
+        const overrides = a.localNameOverrides || {};
+        if (Object.keys(overrides).length > 0) {
+          localNames = { ...(localNames || {}), ...overrides };
         }
       }
 
@@ -243,6 +248,25 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
       if (i >= 0) themes.splice(i, 1); else themes.push(tag);
       return { ...a, themes };
     });
+  };
+
+  // État: carte en mode édition noms locaux (idx de l'association)
+  const [editingLocalNames, setEditingLocalNames] = useState(null);
+
+  const updateLocalName = (idx, regionKey, name) => {
+    updateAssocField(idx, a => {
+      const overrides = { ...(a.localNameOverrides || {}) };
+      if (name && name.trim()) {
+        overrides[regionKey] = name.trim();
+      } else {
+        delete overrides[regionKey];
+      }
+      return { ...a, localNameOverrides: Object.keys(overrides).length > 0 ? overrides : undefined };
+    });
+  };
+
+  const removeLocalName = (idx, regionKey) => {
+    updateLocalName(idx, regionKey, '');
   };
 
   const totalAssocs = data?.associations?.length || 0;
@@ -428,23 +452,64 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
                     {REGIONS.filter(r => !a.regions.includes(r.key)).map(r => <option key={r.key} value={r.key}>{r.icon} {r.label}</option>)}
                   </select>
                 </div>
-                {a.localNames && Object.keys(a.localNames).length > 0 && (() => {
-                  const uniqueNames = {};
-                  for (const rk of a.regions) {
-                    const ln = a.localNames[rk];
-                    if (ln && ln.toLowerCase() !== a.left.toLowerCase()) uniqueNames[rk] = ln;
-                  }
-                  const entries = Object.entries(uniqueNames);
-                  if (entries.length === 0) return null;
+                {a.domain === 'botany' && (() => {
+                  const isEditing = editingLocalNames === a.idx;
+                  // Tous les noms locaux (référentiel + overrides), filtrés aux régions taguées + overrides
+                  const allNames = a.localNames || {};
+                  const displayRegions = new Set([...a.regions, ...Object.keys(a.localNameOverrides || {})]);
+                  const visibleEntries = [...displayRegions].map(rk => [rk, allNames[rk] || '']).filter(([, ln]) => ln);
+                  const uniqueEntries = visibleEntries.filter(([, ln]) => ln.toLowerCase() !== a.left.toLowerCase());
+                  // Régions disponibles pour ajout (pas encore dans la liste)
+                  const usedRegions = new Set(visibleEntries.map(([rk]) => rk));
+                  const availableRegions = REGIONS.filter(r => !usedRegions.has(r.key));
+
                   return (
-                    <div style={{ marginBottom: 4, padding: '3px 6px', background: '#f0fdf4', borderRadius: 6, border: '1px dashed #bbf7d0' }}>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: '#16a34a', marginBottom: 2 }}>Noms locaux</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1px 6px' }}>
-                        {entries.map(([rk, ln]) => {
-                          const rm = REGIONS.find(r => r.key === rk);
-                          return <span key={rk} style={{ fontSize: 9, color: '#475569' }}>{rm?.icon || ''} <b>{ln}</b></span>;
-                        })}
+                    <div style={{ marginBottom: 4, padding: '3px 6px', background: isEditing ? '#ecfdf5' : '#f0fdf4', borderRadius: 6, border: isEditing ? '1px solid #86efac' : '1px dashed #bbf7d0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isEditing ? 4 : 2 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: '#16a34a' }}>Noms locaux {visibleEntries.length > 0 && `(${visibleEntries.length})`}</span>
+                        <button onClick={() => setEditingLocalNames(isEditing ? null : a.idx)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, padding: 0, color: isEditing ? '#dc2626' : '#16a34a' }}
+                          title={isEditing ? 'Fermer' : 'Modifier les noms locaux'}>{isEditing ? '✕' : '✏️'}</button>
                       </div>
+                      {!isEditing && uniqueEntries.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1px 6px' }}>
+                          {uniqueEntries.map(([rk, ln]) => {
+                            const rm = REGIONS.find(r => r.key === rk);
+                            return <span key={rk} style={{ fontSize: 9, color: '#475569' }}>{rm?.icon || ''} <b>{ln}</b></span>;
+                          })}
+                        </div>
+                      )}
+                      {!isEditing && uniqueEntries.length === 0 && (
+                        <div style={{ fontSize: 9, color: '#94a3b8', fontStyle: 'italic' }}>Cliquez ✏️ pour ajouter</div>
+                      )}
+                      {isEditing && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {visibleEntries.map(([rk, ln]) => {
+                            const rm = REGIONS.find(r => r.key === rk);
+                            const isOverride = !!(a.localNameOverrides || {})[rk];
+                            return (
+                              <div key={rk} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span style={{ fontSize: 9, minWidth: 60, color: '#64748b' }}>{rm?.icon || ''} {rm?.label || rk}</span>
+                                <input value={ln} onChange={e => updateLocalName(a.idx, rk, e.target.value)}
+                                  style={{ flex: 1, padding: '2px 4px', borderRadius: 4, border: '1px solid ' + (isOverride ? '#86efac' : '#e2e8f0'), fontSize: 10, background: isOverride ? '#f0fdf4' : '#fff' }} />
+                                {isOverride && (
+                                  <button onClick={() => removeLocalName(a.idx, rk)} title="Supprimer l'override"
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 10, padding: 0, color: '#ef4444' }}>✕</button>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {availableRegions.length > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                              <select onChange={e => { if (e.target.value) { updateLocalName(a.idx, e.target.value, a.left); e.target.value = ''; } }}
+                                style={{ flex: 1, padding: '2px 4px', borderRadius: 4, border: '1px solid #bbf7d0', fontSize: 10, color: '#16a34a', cursor: 'pointer' }}>
+                                <option value="">+ Ajouter une région...</option>
+                                {availableRegions.map(r => <option key={r.key} value={r.key}>{r.icon} {r.label}</option>)}
+                              </select>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })()}

@@ -40,15 +40,17 @@ function mergeUserEdits(staticData, cached) {
     const ca = cacheIndex.get(key);
     if (!ca) return sa; // pas de version en cache, garder la statique
     
-    // Si l'utilisateur a modifié themes ou levelClass, les préserver
+    // Si l'utilisateur a modifié themes, levelClass ou localNameOverrides, les préserver
     const hasUserThemes = ca.themes && ca.themes.length > 0 &&
       JSON.stringify(ca.themes.sort()) !== JSON.stringify((sa.themes || []).sort());
     const hasUserLevel = ca.levelClass && ca.levelClass !== sa.levelClass;
+    const hasUserLocalNames = ca.localNameOverrides && Object.keys(ca.localNameOverrides).length > 0;
     
-    if (hasUserThemes || hasUserLevel) {
+    if (hasUserThemes || hasUserLevel || hasUserLocalNames) {
       const result = { ...sa };
       if (hasUserThemes) result.themes = ca.themes;
       if (hasUserLevel) result.levelClass = ca.levelClass;
+      if (hasUserLocalNames) result.localNameOverrides = ca.localNameOverrides;
       return result;
     }
     return sa;

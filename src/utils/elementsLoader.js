@@ -79,6 +79,24 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   let chiffres = Array.isArray(data.chiffres) ? data.chiffres : [];
   let associations = Array.isArray(data.associations) ? data.associations : [];
 
+  // Overrides utilisateur: texteId → nom local pour la zone joueur
+  const userOverrides = new Map();
+  if (playerZone) {
+    const tById = new Map(textes.map(t => [t.id, t]));
+    for (const a of associations) {
+      if (a.localNameOverrides && a.localNameOverrides[playerZone] && a.texteId) {
+        const textContent = (tById.get(a.texteId)?.content || '').toLowerCase().trim();
+        if (textContent) userOverrides.set(textContent, a.localNameOverrides[playerZone]);
+      }
+    }
+    if (userOverrides.size > 0) {
+      // Fusionner dans locMap (overrides prioritaires)
+      if (!locMap) locMap = new Map();
+      for (const [k, v] of userOverrides) locMap.set(k, v);
+      console.log('[elementsLoader] User overrides pour zone ' + playerZone + ':', userOverrides.size);
+    }
+  }
+
   // ===== Filtrage par SessionConfig (classes/thèmes) =====
   // Lecture configuration côté client (définie par SessionConfig)
   let cfg = null;
