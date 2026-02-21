@@ -196,6 +196,14 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
     });
   };
 
+  const updateCategory = (idx, catKey) => {
+    updateAssocField(idx, a => {
+      const themes = (a.themes || []).filter(t => !t.startsWith('category:'));
+      if (catKey) themes.push('category:' + catKey);
+      return { ...a, themes };
+    });
+  };
+
   const toggleRegion = (idx, regionKey) => {
     updateAssocField(idx, a => {
       const themes = (a.themes || []).slice();
@@ -370,7 +378,11 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
                     <option value="">Domaine...</option>
                     {DOMAIN_KEYS.map(k => <option key={k} value={k}>{DOMAIN_META[k].icon} {DOMAIN_META[k].label}</option>)}
                   </select>
-                  {catMeta && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 8, background: catMeta.bg, color: catMeta.color, fontWeight: 600 }}>{catMeta.icon} {catMeta.label}</span>}
+                  <select value={a.category || ''} onChange={e => updateCategory(a.idx, e.target.value)}
+                    style={{ padding: '2px 4px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 10, fontWeight: 600, color: catMeta?.color || '#94a3b8', background: catMeta?.bg || '#fff', cursor: 'pointer', maxWidth: 140 }}>
+                    <option value="">Catégorie...</option>
+                    {Object.entries(CATEGORY_META).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+                  </select>
                 </div>
                 <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginBottom: 4 }}>
                   {regionMetas.map(rm => (
@@ -492,6 +504,7 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
               <tr style={{ background: '#f8fafc' }}>
                 <th style={{ padding: '8px 10px', textAlign: 'left', borderBottom: '2px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#475569' }}>Paire</th>
                 <th style={{ padding: '8px 10px', textAlign: 'center', borderBottom: '2px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#475569', width: 120 }}>Domaine</th>
+                <th style={{ padding: '8px 10px', textAlign: 'center', borderBottom: '2px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#475569', width: 140 }}>Catégorie</th>
                 <th style={{ padding: '8px 10px', textAlign: 'center', borderBottom: '2px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#475569', width: 110 }}>Région</th>
                 <th style={{ padding: '8px 10px', textAlign: 'center', borderBottom: '2px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#475569', width: 70 }}>Niveau</th>
                 <th style={{ padding: '8px 10px', textAlign: 'center', borderBottom: '2px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#475569', width: 50 }}></th>
@@ -513,6 +526,15 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
                         <option value="">—</option>
                         {DOMAIN_KEYS.map(k => <option key={k} value={k}>{DOMAIN_META[k].icon} {DOMAIN_META[k].label}</option>)}
                       </select>
+                    </td>
+                    <td style={{ padding: '4px 6px', textAlign: 'center' }}>
+                      {(() => { const cm = CATEGORY_META[a.category]; return (
+                        <select value={a.category || ''} onChange={e => updateCategory(a.idx, e.target.value)}
+                          style={{ padding: '2px 4px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 10, fontWeight: 600, color: cm?.color || '#94a3b8', background: cm?.bg || '#fff', cursor: 'pointer' }}>
+                          <option value="">—</option>
+                          {Object.entries(CATEGORY_META).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+                        </select>
+                      ); })()}
                     </td>
                     <td style={{ padding: '4px 6px', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }}>
