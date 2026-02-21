@@ -18,13 +18,82 @@ function saveToLocalStorage(d) {
   }
 }
 
+// Clé unique d'une association pour le merge
+function assocKey(a) {
+  if (a.texteId && a.imageId) return 'ti:' + a.texteId + ':' + a.imageId;
+  if (a.calculId && a.chiffreId) return 'cn:' + a.calculId + ':' + a.chiffreId;
+  return 'idx:' + (a.id || JSON.stringify(a));
+}
+
+// Fusionne les modifications utilisateur (themes, levelClass) du cache dans les données statiques
+function mergeUserEdits(staticData, cached) {
+  if (!cached || !cached.associations) return staticData;
+  
+  // Index des associations en cache par clé
+  const cacheIndex = new Map();
+  (cached.associations || []).forEach(a => cacheIndex.set(assocKey(a), a));
+  
+  // Partir de la base statique et appliquer les modifications utilisateur
+  const merged = { ...staticData };
+  merged.associations = (staticData.associations || []).map(sa => {
+    const key = assocKey(sa);
+    const ca = cacheIndex.get(key);
+    if (!ca) return sa; // pas de version en cache, garder la statique
+    
+    // Si l'utilisateur a modifié themes ou levelClass, les préserver
+    const hasUserThemes = ca.themes && ca.themes.length > 0 &&
+      JSON.stringify(ca.themes.sort()) !== JSON.stringify((sa.themes || []).sort());
+    const hasUserLevel = ca.levelClass && ca.levelClass !== sa.levelClass;
+    
+    if (hasUserThemes || hasUserLevel) {
+      const result = { ...sa };
+      if (hasUserThemes) result.themes = ca.themes;
+      if (hasUserLevel) result.levelClass = ca.levelClass;
+      return result;
+    }
+    return sa;
+  });
+  
+  // Ajouter les associations du cache qui n'existent pas dans le statique (ajouts utilisateur)
+  const staticKeys = new Set(merged.associations.map(assocKey));
+  const userAdded = (cached.associations || []).filter(a => !staticKeys.has(assocKey(a)));
+  if (userAdded.length > 0) {
+    merged.associations = [...merged.associations, ...userAdded];
+    console.log('[DataContext] Preserved ' + userAdded.length + ' user-added associations');
+  }
+  
+  // Préserver aussi les modifications sur textes/images/calculs/chiffres (levelClass, themes)
+  ['textes', 'images', 'calculs', 'chiffres'].forEach(arrKey => {
+    const cachedArr = cached[arrKey] || [];
+    if (!cachedArr.length) return;
+    const cMap = new Map(cachedArr.map(el => [el.id, el]));
+    merged[arrKey] = (staticData[arrKey] || []).map(sel => {
+      const cel = cMap.get(sel.id);
+      if (!cel) return sel;
+      const hasUserThemes = cel.themes && cel.themes.length > 0 &&
+        JSON.stringify((cel.themes || []).sort()) !== JSON.stringify((sel.themes || []).sort());
+      const hasUserLevel = cel.levelClass && cel.levelClass !== sel.levelClass;
+      if (hasUserThemes || hasUserLevel) {
+        const r = { ...sel };
+        if (hasUserThemes) r.themes = cel.themes;
+        if (hasUserLevel) r.levelClass = cel.levelClass;
+        return r;
+      }
+      return sel;
+    });
+  });
+  
+  merged._dataVersion = staticData._dataVersion || 0;
+  return merged;
+}
+
 export const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
   const [data, setDataRaw] = useState(null);
   const skipPersist = useRef(false);
 
-  // Charger le JSON au démarrage: comparer version statique vs localStorage
+  // Charger le JSON au démarrage: fusionner statique + modifications localStorage
   useEffect(() => {
     const empty = { textes: [], images: [], calculs: [], chiffres: [], associations: [] };
     fetch(process.env.PUBLIC_URL + "/data/associations.json")
@@ -35,14 +104,22 @@ export const DataProvider = ({ children }) => {
         const cachedVer = cached?._dataVersion || 0;
 
         if (cached && cachedVer >= staticVer) {
-          // localStorage a des modifications plus récentes ou identiques
+          // localStorage est à jour ou plus récent
           console.log('[DataContext] Loaded from localStorage (v' + cachedVer + ')');
           skipPersist.current = true;
           setDataRaw(cached);
           skipPersist.current = false;
+        } else if (cached) {
+          // Nouvelle version statique → FUSIONNER avec les modifications utilisateur
+          console.log('[DataContext] Merging static (v' + staticVer + ') with user edits from localStorage (v' + cachedVer + ')');
+          const merged = mergeUserEdits(staticData, cached);
+          skipPersist.current = true;
+          setDataRaw(merged);
+          skipPersist.current = false;
+          saveToLocalStorage(merged);
         } else {
-          // Nouveau déploiement avec version supérieure → utiliser le fichier statique
-          console.log('[DataContext] Loaded from static file (v' + staticVer + ')');
+          // Première visite, pas de cache
+          console.log('[DataContext] First load from static file (v' + staticVer + ')');
           skipPersist.current = true;
           setDataRaw(staticData);
           skipPersist.current = false;
