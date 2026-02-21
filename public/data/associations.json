@@ -711,23 +711,36 @@
     {
       "id": "c1",
       "content": "5+7",
-      "levelClass": "CP"
+      "levelClass": "CP",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ]
     },
     {
       "id": "c2",
       "content": "3+4",
-      "levelClass": "CP"
+      "levelClass": "CP",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ]
     },
     {
       "id": "c3",
       "content": "15x2",
-      "levelClass": "CM1"
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:table_15"
+      ]
     },
     {
       "id": "c1754621357628_0",
       "content": "2 × 2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_2"
       ],
       "levelClass": "CE2"
     },
@@ -735,7 +748,8 @@
       "id": "c1754621357628_1",
       "content": "2 × 3",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_2"
       ],
       "levelClass": "CE2"
     },
@@ -743,7 +757,8 @@
       "id": "c1754621357628_2",
       "content": "2 × 4",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_2"
       ],
       "levelClass": "CE2"
     },
@@ -751,7 +766,8 @@
       "id": "c1754621357628_3",
       "content": "2 × 5",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_2"
       ],
       "levelClass": "CE2"
     },
@@ -759,7 +775,8 @@
       "id": "c1754621357628_4",
       "content": "2 × 6",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_2"
       ],
       "levelClass": "CE2"
     },
@@ -767,7 +784,8 @@
       "id": "c1754621357628_5",
       "content": "3 × 2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_3"
       ],
       "levelClass": "CE2"
     },
@@ -775,7 +793,8 @@
       "id": "c1754621357628_6",
       "content": "3 × 3",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_3"
       ],
       "levelClass": "CE2"
     },
@@ -783,7 +802,8 @@
       "id": "c1754621357628_7",
       "content": "3 × 4",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_3"
       ],
       "levelClass": "CE2"
     },
@@ -791,7 +811,8 @@
       "id": "c1754621357628_8",
       "content": "3 × 5",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_3"
       ],
       "levelClass": "CE2"
     },
@@ -799,7 +820,8 @@
       "id": "c1754621357628_9",
       "content": "3 × 6",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_3"
       ],
       "levelClass": "CE2"
     },
@@ -807,7 +829,8 @@
       "id": "c1754621357628_10",
       "content": "4 × 2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_4"
       ],
       "levelClass": "CE2"
     },
@@ -815,7 +838,8 @@
       "id": "c1754621357628_11",
       "content": "4 × 3",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_4"
       ],
       "levelClass": "CE2"
     },
@@ -823,7 +847,8 @@
       "id": "c1754621357628_12",
       "content": "4 × 4",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_4"
       ],
       "levelClass": "CE2"
     },
@@ -831,7 +856,8 @@
       "id": "c1754621357628_13",
       "content": "4 × 5",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_4"
       ],
       "levelClass": "CE2"
     },
@@ -839,7 +865,8 @@
       "id": "c1754621357628_14",
       "content": "4 × 6",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_4"
       ],
       "levelClass": "CE2"
     },
@@ -847,7 +874,8 @@
       "id": "c1754621357628_15",
       "content": "5 × 2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_5"
       ],
       "levelClass": "CE2"
     },
@@ -855,7 +883,8 @@
       "id": "c1754621357628_16",
       "content": "5 × 3",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_5"
       ],
       "levelClass": "CE2"
     },
@@ -863,7 +892,8 @@
       "id": "c1754621357628_17",
       "content": "5 × 4",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_5"
       ],
       "levelClass": "CE2"
     },
@@ -871,7 +901,8 @@
       "id": "c1754621357628_18",
       "content": "5 × 5",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_5"
       ],
       "levelClass": "CE2"
     },
@@ -879,7 +910,8 @@
       "id": "c1754621357628_19",
       "content": "5 × 6",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_5"
       ],
       "levelClass": "CE2"
     },
@@ -887,7 +919,8 @@
       "id": "c1754621357628_20",
       "content": "6 × 2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_6"
       ],
       "levelClass": "CE2"
     },
@@ -895,7 +928,8 @@
       "id": "c1754621357628_21",
       "content": "6 × 3",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_6"
       ],
       "levelClass": "CE2"
     },
@@ -903,7 +937,8 @@
       "id": "c1754621357628_22",
       "content": "6 × 4",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_6"
       ],
       "levelClass": "CE2"
     },
@@ -911,7 +946,8 @@
       "id": "c1754621357628_23",
       "content": "6 × 5",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_6"
       ],
       "levelClass": "CE2"
     },
@@ -919,7 +955,8 @@
       "id": "c1754621357628_24",
       "content": "6 × 6",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_6"
       ],
       "levelClass": "CE2"
     },
@@ -927,7 +964,8 @@
       "id": "c1754621357628_25",
       "content": "7 × 2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_7"
       ],
       "levelClass": "CE2"
     },
@@ -935,7 +973,8 @@
       "id": "c1754621357628_26",
       "content": "7 × 3",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_7"
       ],
       "levelClass": "CE2"
     },
@@ -943,7 +982,8 @@
       "id": "c1754621357628_27",
       "content": "7 × 4",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_7"
       ],
       "levelClass": "CE2"
     },
@@ -951,7 +991,8 @@
       "id": "c1754621357628_28",
       "content": "7 × 5",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_7"
       ],
       "levelClass": "CE2"
     },
@@ -959,7 +1000,8 @@
       "id": "c1754621357628_29",
       "content": "7 × 6",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_7"
       ],
       "levelClass": "CE2"
     },
@@ -4562,7 +4604,8 @@
       "chiffreId": "n1754621357628_0",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_2"
       ]
     },
     {
@@ -4570,7 +4613,8 @@
       "chiffreId": "n1754621357628_1",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_2"
       ]
     },
     {
@@ -4578,7 +4622,8 @@
       "chiffreId": "n1754621357628_2",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_2"
       ]
     },
     {
@@ -4586,7 +4631,8 @@
       "chiffreId": "n1754621357628_3",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_2"
       ]
     },
     {
@@ -4594,7 +4640,8 @@
       "chiffreId": "n1754621357628_4",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_2"
       ]
     },
     {
@@ -4602,7 +4649,8 @@
       "chiffreId": "n1754621357628_5",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_3"
       ]
     },
     {
@@ -4610,7 +4658,8 @@
       "chiffreId": "n1754621357628_6",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_3"
       ]
     },
     {
@@ -4618,7 +4667,8 @@
       "chiffreId": "n1754621357628_7",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_3"
       ]
     },
     {
@@ -4626,7 +4676,8 @@
       "chiffreId": "n1754621357628_8",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_3"
       ]
     },
     {
@@ -4634,7 +4685,8 @@
       "chiffreId": "n1754621357628_9",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_3"
       ]
     },
     {
@@ -4642,7 +4694,8 @@
       "chiffreId": "n1754621357628_10",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_4"
       ]
     },
     {
@@ -4650,7 +4703,8 @@
       "chiffreId": "n1754621357628_11",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_4"
       ]
     },
     {
@@ -4658,7 +4712,8 @@
       "chiffreId": "n1754621357628_12",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_4"
       ]
     },
     {
@@ -4666,7 +4721,8 @@
       "chiffreId": "n1754621357628_13",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_4"
       ]
     },
     {
@@ -4674,7 +4730,8 @@
       "chiffreId": "n1754621357628_14",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_4"
       ]
     },
     {
@@ -4682,7 +4739,8 @@
       "chiffreId": "n1754621357628_15",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_5"
       ]
     },
     {
@@ -4690,7 +4748,8 @@
       "chiffreId": "n1754621357628_16",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_5"
       ]
     },
     {
@@ -4698,7 +4757,8 @@
       "chiffreId": "n1754621357628_17",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_5"
       ]
     },
     {
@@ -4706,7 +4766,8 @@
       "chiffreId": "n1754621357628_18",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_5"
       ]
     },
     {
@@ -4714,7 +4775,8 @@
       "chiffreId": "n1754621357628_19",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_5"
       ]
     },
     {
@@ -4722,7 +4784,8 @@
       "chiffreId": "n1754621357628_20",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_6"
       ]
     },
     {
@@ -4730,7 +4793,8 @@
       "chiffreId": "n1754621357628_21",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_6"
       ]
     },
     {
@@ -4738,7 +4802,8 @@
       "chiffreId": "n1754621357628_22",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_6"
       ]
     },
     {
@@ -4746,7 +4811,8 @@
       "chiffreId": "n1754621357628_23",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_6"
       ]
     },
     {
@@ -4754,7 +4820,8 @@
       "chiffreId": "n1754621357628_24",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_6"
       ]
     },
     {
@@ -4762,7 +4829,8 @@
       "chiffreId": "n1754621357628_25",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_7"
       ]
     },
     {
@@ -4770,7 +4838,8 @@
       "chiffreId": "n1754621357628_26",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_7"
       ]
     },
     {
@@ -4778,7 +4847,8 @@
       "chiffreId": "n1754621357628_27",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_7"
       ]
     },
     {
@@ -4786,7 +4856,8 @@
       "chiffreId": "n1754621357628_28",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_7"
       ]
     },
     {
@@ -4794,7 +4865,8 @@
       "chiffreId": "n1754621357628_29",
       "levelClass": "CE2",
       "themes": [
-        "multiplication"
+        "domain:math",
+        "category:table_7"
       ]
     },
     {
@@ -6488,5 +6560,6 @@
       ],
       "levelClass": "CE2"
     }
-  ]
+  ],
+  "_dataVersion": 2
 }

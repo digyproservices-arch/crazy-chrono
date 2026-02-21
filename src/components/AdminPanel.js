@@ -259,8 +259,8 @@ function AdminPanel() {
         const subMatch = !mulMatch && !addMatch && calcContent.match(/(\d+)\s*[−\-]\s*(\d+)/);
 
         if (mulMatch) {
-          const table = Math.min(parseInt(mulMatch[1], 10), parseInt(mulMatch[2], 10));
-          category = `table_${table}`;
+          const firstOp = parseInt(mulMatch[1], 10);
+          category = `table_${firstOp}`;
         } else if (addMatch) {
           category = 'addition';
         } else if (subMatch) {
