@@ -5760,10 +5760,9 @@ setZones(dataWithRandomTexts);
           });
         }
       } catch {}
-
       // Sécurité finale (Politique C): aucune image de zone ne doit référencer un ID non autorisé
+      // IMPORTANT: utiliser la logique association-based et niveaux cumulatifs (cohérent avec le post-processing)
       try {
-        // Reconstruire mapping URL -> id image à partir des données Admin chargées dans la portée
         const normUrl = (p) => {
           if (!p) return '';
           const normalized = String(p).startsWith('http')
@@ -5776,60 +5775,71 @@ setZones(dataWithRandomTexts);
           const u = normUrl(im.url || im.path || im.src || '');
           if (u) imgIdByUrl.set(u, String(im.id));
         }
-        // Ensemble d'IDs autorisés: reconstruit depuis les pools stricts utilisés pour l'assignation
-        const allowedImgIds = new Set(((assocData && assocData.images) || [])
-          .filter(im => {
-            // On n'a pas directement allImages ici; recalcul basique via niveaux/thèmes stricts
-            // Récupérer la config
-            const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
-            const selThemes = Array.isArray(cfg?.themes) ? cfg.themes.filter(Boolean).map(String) : [];
-            const selClasses = Array.isArray(cfg?.classes) ? cfg.classes.filter(Boolean).map(String) : [];
-            const normLevel = (s) => {
-              const x = String(s || '').toLowerCase();
-              if (/\bcp\b/.test(x)) return 'CP';
-              if (/\bce1\b/.test(x)) return 'CE1';
-              if (/\bce2\b/.test(x)) return 'CE2';
-              if (/\bcm1\b/.test(x)) return 'CM1';
-              if (/\bcm2\b/.test(x)) return 'CM2';
-              if (/\b6e\b|\bsixieme\b/.test(x)) return '6e';
-              if (/\b5e\b|\bcinquieme\b/.test(x)) return '5e';
-              if (/\b4e\b|\bquatrieme\b/.test(x)) return '4e';
-              if (/\b3e\b|\btroisieme\b/.test(x)) return '3e';
-              return '';
-            };
-            const hasAny = (vals, selected) => {
-              const ts = Array.isArray(vals) ? vals.map(String) : [];
-              return selected.length === 0 || ts.some(t => selected.includes(t));
-            };
-            const pickLevels = (o) => {
-              const lc = o?.levelClass ? [String(o.levelClass)] : [];
-              const arr = o?.levels || o?.classes || o?.classLevels || [];
-              return [...lc, ...arr].map(normLevel).filter(Boolean);
-            };
-            if (selThemes.length && !hasAny(im?.themes || [], selThemes)) return false;
-            if (selClasses.length) {
-              const lv = pickLevels(im);
-              if (!lv.length) return false;
-              if (!lv.some(v => selClasses.includes(v))) return false;
-            }
-            return true;
-          })
-          .map(im => String(im.id)));
+        const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+        const selThemes = Array.isArray(cfg?.themes) ? cfg.themes.filter(Boolean).map(String) : [];
+        const selClasses = Array.isArray(cfg?.classes) ? cfg.classes.filter(Boolean).map(String) : [];
+        const LEVEL_ORDER_F = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"];
+        const lvlIdxF = Object.fromEntries(LEVEL_ORDER_F.map((l, i) => [l, i]));
+        const normLevelF = (s) => {
+          const x = String(s || '').toLowerCase();
+          if (/\bcp\b/.test(x)) return 'CP';
+          if (/\bce1\b/.test(x)) return 'CE1';
+          if (/\bce2\b/.test(x)) return 'CE2';
+          if (/\bcm1\b/.test(x)) return 'CM1';
+          if (/\bcm2\b/.test(x)) return 'CM2';
+          if (/\b6e\b|\bsixieme\b/.test(x)) return '6e';
+          if (/\b5e\b|\bcinquieme\b/.test(x)) return '5e';
+          if (/\b4e\b|\bquatrieme\b/.test(x)) return '4e';
+          if (/\b3e\b|\btroisieme\b/.test(x)) return '3e';
+          return '';
+        };
+        const hasAnyF = (vals, selected) => {
+          const ts = Array.isArray(vals) ? vals.map(String) : [];
+          return selected.length === 0 || ts.some(t => selected.includes(t));
+        };
+        const maxLvlIdxF = selClasses.length ? Math.max(...selClasses.map(c => lvlIdxF[normLevelF(c)] ?? -1)) : 99;
+        // Filtrer associations par thèmes et niveaux CUMULATIFS (CM2 inclut CP→CM2)
+        let filteredAssoc = (assocData.associations || []);
+        if (selThemes.length > 0) filteredAssoc = filteredAssoc.filter(a => hasAnyF(a?.themes || [], selThemes));
+        if (selClasses.length > 0) filteredAssoc = filteredAssoc.filter(a => {
+          const lc = a?.levelClass ? [String(a.levelClass)] : [];
+          const arr = a?.levels || a?.classes || a?.classLevels || [];
+          const vals = [...lc, ...arr].map(normLevelF).filter(Boolean);
+          return vals.length === 0 || vals.some(v => (lvlIdxF[v] ?? 99) <= maxLvlIdxF);
+        });
+        // IDs autorisés = images référencées par associations filtrées (héritage de thème)
+        const allowedImgIds = new Set(filteredAssoc.filter(a => a.imageId).map(a => String(a.imageId)));
+        // Aussi inclure images qui matchent par elles-mêmes (niveaux cumulatifs + thèmes)
+        for (const im of ((assocData && assocData.images) || [])) {
+          if (selThemes.length && !hasAnyF(im?.themes || [], selThemes)) continue;
+          if (selClasses.length) {
+            const lc = im?.levelClass ? [String(im.levelClass)] : [];
+            const arr = im?.levels || im?.classes || im?.classLevels || [];
+            const lv = [...lc, ...arr].map(normLevelF).filter(Boolean);
+            if (!lv.length) continue;
+            if (!lv.some(v => (lvlIdxF[v] ?? 99) <= maxLvlIdxF)) continue;
+          }
+          allowedImgIds.add(String(im.id));
+        }
+        // Si aucun filtre actif, tout autoriser
+        if (!selThemes.length && !selClasses.length) {
+          for (const im of ((assocData && assocData.images) || [])) allowedImgIds.add(String(im.id));
+        }
 
         let cleaned = 0;
         post = post.map(z => {
           if (normType(z?.type) !== 'image') return z;
           const u = normUrl(z.content || z.url || z.path || z.src || '');
           const id = imgIdByUrl.get(u);
-          if (!id) return z; // si on ne sait pas relier, ne pas casser (image externe ou placeholder déjà)
+          if (!id) return z;
           if (!allowedImgIds.has(String(id))) {
             cleaned++;
             return { ...z, content: 'images/carte-vide.png', pairId: '' };
           }
           return z;
         });
-        if (cleaned && typeof window !== 'undefined' && /localhost|127\.0\.0\.1/.test(window.location.host)) {
-          console.debug('[ASSIGN][STRICT][FINAL] images non conformes nettoyées:', cleaned);
+        if (cleaned) {
+          console.warn('[ASSIGN][STRICT][FINAL] images nettoyées:', cleaned, 'allowedImgIds:', allowedImgIds.size);
         }
       } catch {}
       setZones(post);
