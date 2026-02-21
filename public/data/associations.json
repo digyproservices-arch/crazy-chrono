@@ -962,6 +962,1617 @@
         "multiplication"
       ],
       "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_0",
+      "content": "2 × 1",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_1",
+      "content": "2 × 7",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_2",
+      "content": "2 × 8",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_3",
+      "content": "2 × 9",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_4",
+      "content": "2 × 10",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_5",
+      "content": "2 × 11",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_6",
+      "content": "2 × 12",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_7",
+      "content": "3 × 1",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_8",
+      "content": "3 × 7",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_9",
+      "content": "3 × 8",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_10",
+      "content": "3 × 9",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_11",
+      "content": "3 × 10",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_12",
+      "content": "3 × 11",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_13",
+      "content": "3 × 12",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_14",
+      "content": "4 × 1",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_15",
+      "content": "4 × 7",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_16",
+      "content": "4 × 8",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_17",
+      "content": "4 × 9",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_18",
+      "content": "4 × 10",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_19",
+      "content": "4 × 11",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_20",
+      "content": "4 × 12",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_21",
+      "content": "5 × 1",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_22",
+      "content": "5 × 7",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_23",
+      "content": "5 × 8",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_24",
+      "content": "5 × 9",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_25",
+      "content": "5 × 10",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_26",
+      "content": "5 × 11",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_27",
+      "content": "5 × 12",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_28",
+      "content": "6 × 1",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_29",
+      "content": "6 × 7",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_30",
+      "content": "6 × 8",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_31",
+      "content": "6 × 9",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_32",
+      "content": "6 × 10",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_33",
+      "content": "6 × 11",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_34",
+      "content": "6 × 12",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_35",
+      "content": "7 × 1",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_36",
+      "content": "7 × 7",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_37",
+      "content": "7 × 8",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_38",
+      "content": "7 × 9",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_39",
+      "content": "7 × 10",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_40",
+      "content": "7 × 11",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_41",
+      "content": "7 × 12",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_42",
+      "content": "8 × 1",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_43",
+      "content": "8 × 2",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_44",
+      "content": "8 × 3",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_45",
+      "content": "8 × 4",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_46",
+      "content": "8 × 5",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_47",
+      "content": "8 × 6",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_48",
+      "content": "8 × 7",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_49",
+      "content": "8 × 8",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_50",
+      "content": "8 × 9",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_51",
+      "content": "8 × 10",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_52",
+      "content": "8 × 11",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_53",
+      "content": "8 × 12",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_54",
+      "content": "9 × 1",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_55",
+      "content": "9 × 2",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_56",
+      "content": "9 × 3",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_57",
+      "content": "9 × 4",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_58",
+      "content": "9 × 5",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_59",
+      "content": "9 × 6",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_60",
+      "content": "9 × 7",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_61",
+      "content": "9 × 8",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_62",
+      "content": "9 × 9",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_63",
+      "content": "9 × 10",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_64",
+      "content": "9 × 11",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_65",
+      "content": "9 × 12",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_66",
+      "content": "10 × 1",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_67",
+      "content": "10 × 2",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_68",
+      "content": "10 × 3",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_69",
+      "content": "10 × 4",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_70",
+      "content": "10 × 5",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_71",
+      "content": "10 × 6",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_72",
+      "content": "10 × 7",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_73",
+      "content": "10 × 8",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_74",
+      "content": "10 × 9",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_75",
+      "content": "10 × 10",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_76",
+      "content": "10 × 11",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_77",
+      "content": "10 × 12",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_78",
+      "content": "11 × 1",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_79",
+      "content": "11 × 2",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_80",
+      "content": "11 × 3",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_81",
+      "content": "11 × 4",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_82",
+      "content": "11 × 5",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_83",
+      "content": "11 × 6",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_84",
+      "content": "11 × 7",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_85",
+      "content": "11 × 8",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_86",
+      "content": "11 × 9",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_87",
+      "content": "11 × 10",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_88",
+      "content": "11 × 11",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_89",
+      "content": "11 × 12",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "cmath_1771641997727_90",
+      "content": "12 × 1",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "cmath_1771641997727_91",
+      "content": "12 × 2",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "cmath_1771641997727_92",
+      "content": "12 × 3",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "cmath_1771641997727_93",
+      "content": "12 × 4",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "cmath_1771641997727_94",
+      "content": "12 × 5",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "cmath_1771641997727_95",
+      "content": "12 × 6",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "cmath_1771641997727_96",
+      "content": "12 × 7",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "cmath_1771641997727_97",
+      "content": "12 × 8",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "cmath_1771641997727_98",
+      "content": "12 × 9",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "cmath_1771641997727_99",
+      "content": "12 × 10",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "cmath_1771641997727_100",
+      "content": "12 × 11",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "cmath_1771641997727_101",
+      "content": "12 × 12",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "cmath_1771641997727_102",
+      "content": "1 + 1",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_103",
+      "content": "1 + 2",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_104",
+      "content": "1 + 3",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_105",
+      "content": "1 + 4",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_106",
+      "content": "1 + 5",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_107",
+      "content": "2 + 2",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_108",
+      "content": "2 + 3",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_109",
+      "content": "2 + 4",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_110",
+      "content": "2 + 5",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_111",
+      "content": "2 + 6",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_112",
+      "content": "3 + 3",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_113",
+      "content": "3 + 5",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_114",
+      "content": "3 + 6",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_115",
+      "content": "3 + 7",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_116",
+      "content": "4 + 4",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_117",
+      "content": "4 + 5",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_118",
+      "content": "4 + 6",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_119",
+      "content": "5 + 5",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_120",
+      "content": "5 + 6",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_121",
+      "content": "6 + 4",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_122",
+      "content": "7 + 3",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_123",
+      "content": "8 + 2",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_124",
+      "content": "9 + 1",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_125",
+      "content": "6 + 6",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_126",
+      "content": "7 + 5",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_127",
+      "content": "8 + 4",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_128",
+      "content": "9 + 3",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_129",
+      "content": "7 + 7",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_130",
+      "content": "8 + 6",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "cmath_1771641997727_131",
+      "content": "12 + 15",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_132",
+      "content": "18 + 14",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_133",
+      "content": "23 + 19",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_134",
+      "content": "25 + 25",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_135",
+      "content": "30 + 17",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_136",
+      "content": "35 + 28",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_137",
+      "content": "42 + 36",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_138",
+      "content": "50 + 25",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_139",
+      "content": "15 + 27",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_140",
+      "content": "33 + 44",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_141",
+      "content": "27 + 18",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_142",
+      "content": "45 + 35",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_143",
+      "content": "38 + 22",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_144",
+      "content": "56 + 14",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_145",
+      "content": "61 + 29",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_146",
+      "content": "48 + 32",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_147",
+      "content": "10 − 3",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_148",
+      "content": "10 − 5",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_149",
+      "content": "10 − 7",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_150",
+      "content": "12 − 4",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_151",
+      "content": "12 − 8",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_152",
+      "content": "15 − 6",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_153",
+      "content": "15 − 9",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_154",
+      "content": "18 − 7",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_155",
+      "content": "20 − 8",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_156",
+      "content": "20 − 12",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_157",
+      "content": "14 − 5",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_158",
+      "content": "16 − 9",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_159",
+      "content": "13 − 6",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_160",
+      "content": "17 − 8",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_161",
+      "content": "19 − 11",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_162",
+      "content": "11 − 4",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "cmath_1771641997727_163",
+      "content": "50 − 23",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_164",
+      "content": "45 − 18",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_165",
+      "content": "60 − 35",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_166",
+      "content": "72 − 29",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_167",
+      "content": "80 − 47",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_168",
+      "content": "55 − 28",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_169",
+      "content": "68 − 39",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_170",
+      "content": "75 − 46",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_171",
+      "content": "90 − 54",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_172",
+      "content": "100 − 37",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_173",
+      "content": "85 − 48",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_174",
+      "content": "63 − 27",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_175",
+      "content": "78 − 35",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_176",
+      "content": "95 − 58",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_177",
+      "content": "42 − 19",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "cmath_1771641997727_178",
+      "content": "67 − 34",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
     }
   ],
   "chiffres": [
@@ -1210,6 +2821,1617 @@
       "content": "42",
       "themes": [
         "multiplication"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_0",
+      "content": "2",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_1",
+      "content": "14",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_2",
+      "content": "16",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_3",
+      "content": "18",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_4",
+      "content": "20",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_5",
+      "content": "22",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_6",
+      "content": "24",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_7",
+      "content": "3",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_8",
+      "content": "21",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_9",
+      "content": "24",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_10",
+      "content": "27",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_11",
+      "content": "30",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_12",
+      "content": "33",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_13",
+      "content": "36",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_14",
+      "content": "4",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_15",
+      "content": "28",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_16",
+      "content": "32",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_17",
+      "content": "36",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_18",
+      "content": "40",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_19",
+      "content": "44",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_20",
+      "content": "48",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_21",
+      "content": "5",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_22",
+      "content": "35",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_23",
+      "content": "40",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_24",
+      "content": "45",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_25",
+      "content": "50",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_26",
+      "content": "55",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_27",
+      "content": "60",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_28",
+      "content": "6",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_29",
+      "content": "42",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_30",
+      "content": "48",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_31",
+      "content": "54",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_32",
+      "content": "60",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_33",
+      "content": "66",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_34",
+      "content": "72",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_35",
+      "content": "7",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_36",
+      "content": "49",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_37",
+      "content": "56",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_38",
+      "content": "63",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_39",
+      "content": "70",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_40",
+      "content": "77",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_41",
+      "content": "84",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_42",
+      "content": "8",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_43",
+      "content": "16",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_44",
+      "content": "24",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_45",
+      "content": "32",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_46",
+      "content": "40",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_47",
+      "content": "48",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_48",
+      "content": "56",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_49",
+      "content": "64",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_50",
+      "content": "72",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_51",
+      "content": "80",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_52",
+      "content": "88",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_53",
+      "content": "96",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_54",
+      "content": "9",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_55",
+      "content": "18",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_56",
+      "content": "27",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_57",
+      "content": "36",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_58",
+      "content": "45",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_59",
+      "content": "54",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_60",
+      "content": "63",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_61",
+      "content": "72",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_62",
+      "content": "81",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_63",
+      "content": "90",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_64",
+      "content": "99",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_65",
+      "content": "108",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_66",
+      "content": "10",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_67",
+      "content": "20",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_68",
+      "content": "30",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_69",
+      "content": "40",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_70",
+      "content": "50",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_71",
+      "content": "60",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_72",
+      "content": "70",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_73",
+      "content": "80",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_74",
+      "content": "90",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_75",
+      "content": "100",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_76",
+      "content": "110",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_77",
+      "content": "120",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_78",
+      "content": "11",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_79",
+      "content": "22",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_80",
+      "content": "33",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_81",
+      "content": "44",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_82",
+      "content": "55",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_83",
+      "content": "66",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_84",
+      "content": "77",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_85",
+      "content": "88",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_86",
+      "content": "99",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_87",
+      "content": "110",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_88",
+      "content": "121",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_89",
+      "content": "132",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "nmath_1771641997727_90",
+      "content": "12",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "nmath_1771641997727_91",
+      "content": "24",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "nmath_1771641997727_92",
+      "content": "36",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "nmath_1771641997727_93",
+      "content": "48",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "nmath_1771641997727_94",
+      "content": "60",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "nmath_1771641997727_95",
+      "content": "72",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "nmath_1771641997727_96",
+      "content": "84",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "nmath_1771641997727_97",
+      "content": "96",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "nmath_1771641997727_98",
+      "content": "108",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "nmath_1771641997727_99",
+      "content": "120",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "nmath_1771641997727_100",
+      "content": "132",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "nmath_1771641997727_101",
+      "content": "144",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "nmath_1771641997727_102",
+      "content": "2",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_103",
+      "content": "3",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_104",
+      "content": "4",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_105",
+      "content": "5",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_106",
+      "content": "6",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_107",
+      "content": "4",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_108",
+      "content": "5",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_109",
+      "content": "6",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_110",
+      "content": "7",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_111",
+      "content": "8",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_112",
+      "content": "6",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_113",
+      "content": "8",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_114",
+      "content": "9",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_115",
+      "content": "10",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_116",
+      "content": "8",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_117",
+      "content": "9",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_118",
+      "content": "10",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_119",
+      "content": "10",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_120",
+      "content": "11",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_121",
+      "content": "10",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_122",
+      "content": "10",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_123",
+      "content": "10",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_124",
+      "content": "10",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_125",
+      "content": "12",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_126",
+      "content": "12",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_127",
+      "content": "12",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_128",
+      "content": "12",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_129",
+      "content": "14",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_130",
+      "content": "14",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "id": "nmath_1771641997727_131",
+      "content": "27",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_132",
+      "content": "32",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_133",
+      "content": "42",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_134",
+      "content": "50",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_135",
+      "content": "47",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_136",
+      "content": "63",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_137",
+      "content": "78",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_138",
+      "content": "75",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_139",
+      "content": "42",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_140",
+      "content": "77",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_141",
+      "content": "45",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_142",
+      "content": "80",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_143",
+      "content": "60",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_144",
+      "content": "70",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_145",
+      "content": "90",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_146",
+      "content": "80",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_147",
+      "content": "7",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_148",
+      "content": "5",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_149",
+      "content": "3",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_150",
+      "content": "8",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_151",
+      "content": "4",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_152",
+      "content": "9",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_153",
+      "content": "6",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_154",
+      "content": "11",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_155",
+      "content": "12",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_156",
+      "content": "8",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_157",
+      "content": "9",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_158",
+      "content": "7",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_159",
+      "content": "7",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_160",
+      "content": "9",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_161",
+      "content": "8",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_162",
+      "content": "7",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "nmath_1771641997727_163",
+      "content": "27",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_164",
+      "content": "27",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_165",
+      "content": "25",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_166",
+      "content": "43",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_167",
+      "content": "33",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_168",
+      "content": "27",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_169",
+      "content": "29",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_170",
+      "content": "29",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_171",
+      "content": "36",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_172",
+      "content": "63",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_173",
+      "content": "37",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_174",
+      "content": "36",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_175",
+      "content": "43",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_176",
+      "content": "37",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_177",
+      "content": "23",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "nmath_1771641997727_178",
+      "content": "33",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
       ],
       "levelClass": "CE2"
     }
@@ -1654,6 +4876,1617 @@
       "themes": [
         "botanique"
       ]
+    },
+    {
+      "calculId": "cmath_1771641997727_0",
+      "chiffreId": "nmath_1771641997727_0",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_1",
+      "chiffreId": "nmath_1771641997727_1",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_2",
+      "chiffreId": "nmath_1771641997727_2",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_3",
+      "chiffreId": "nmath_1771641997727_3",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_4",
+      "chiffreId": "nmath_1771641997727_4",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_5",
+      "chiffreId": "nmath_1771641997727_5",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_6",
+      "chiffreId": "nmath_1771641997727_6",
+      "themes": [
+        "domain:math",
+        "category:table_2"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_7",
+      "chiffreId": "nmath_1771641997727_7",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_8",
+      "chiffreId": "nmath_1771641997727_8",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_9",
+      "chiffreId": "nmath_1771641997727_9",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_10",
+      "chiffreId": "nmath_1771641997727_10",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_11",
+      "chiffreId": "nmath_1771641997727_11",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_12",
+      "chiffreId": "nmath_1771641997727_12",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_13",
+      "chiffreId": "nmath_1771641997727_13",
+      "themes": [
+        "domain:math",
+        "category:table_3"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_14",
+      "chiffreId": "nmath_1771641997727_14",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_15",
+      "chiffreId": "nmath_1771641997727_15",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_16",
+      "chiffreId": "nmath_1771641997727_16",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_17",
+      "chiffreId": "nmath_1771641997727_17",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_18",
+      "chiffreId": "nmath_1771641997727_18",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_19",
+      "chiffreId": "nmath_1771641997727_19",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_20",
+      "chiffreId": "nmath_1771641997727_20",
+      "themes": [
+        "domain:math",
+        "category:table_4"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_21",
+      "chiffreId": "nmath_1771641997727_21",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_22",
+      "chiffreId": "nmath_1771641997727_22",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_23",
+      "chiffreId": "nmath_1771641997727_23",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_24",
+      "chiffreId": "nmath_1771641997727_24",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_25",
+      "chiffreId": "nmath_1771641997727_25",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_26",
+      "chiffreId": "nmath_1771641997727_26",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_27",
+      "chiffreId": "nmath_1771641997727_27",
+      "themes": [
+        "domain:math",
+        "category:table_5"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_28",
+      "chiffreId": "nmath_1771641997727_28",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_29",
+      "chiffreId": "nmath_1771641997727_29",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_30",
+      "chiffreId": "nmath_1771641997727_30",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_31",
+      "chiffreId": "nmath_1771641997727_31",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_32",
+      "chiffreId": "nmath_1771641997727_32",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_33",
+      "chiffreId": "nmath_1771641997727_33",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_34",
+      "chiffreId": "nmath_1771641997727_34",
+      "themes": [
+        "domain:math",
+        "category:table_6"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_35",
+      "chiffreId": "nmath_1771641997727_35",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_36",
+      "chiffreId": "nmath_1771641997727_36",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_37",
+      "chiffreId": "nmath_1771641997727_37",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_38",
+      "chiffreId": "nmath_1771641997727_38",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_39",
+      "chiffreId": "nmath_1771641997727_39",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_40",
+      "chiffreId": "nmath_1771641997727_40",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_41",
+      "chiffreId": "nmath_1771641997727_41",
+      "themes": [
+        "domain:math",
+        "category:table_7"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_42",
+      "chiffreId": "nmath_1771641997727_42",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_43",
+      "chiffreId": "nmath_1771641997727_43",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_44",
+      "chiffreId": "nmath_1771641997727_44",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_45",
+      "chiffreId": "nmath_1771641997727_45",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_46",
+      "chiffreId": "nmath_1771641997727_46",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_47",
+      "chiffreId": "nmath_1771641997727_47",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_48",
+      "chiffreId": "nmath_1771641997727_48",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_49",
+      "chiffreId": "nmath_1771641997727_49",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_50",
+      "chiffreId": "nmath_1771641997727_50",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_51",
+      "chiffreId": "nmath_1771641997727_51",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_52",
+      "chiffreId": "nmath_1771641997727_52",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_53",
+      "chiffreId": "nmath_1771641997727_53",
+      "themes": [
+        "domain:math",
+        "category:table_8"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_54",
+      "chiffreId": "nmath_1771641997727_54",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_55",
+      "chiffreId": "nmath_1771641997727_55",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_56",
+      "chiffreId": "nmath_1771641997727_56",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_57",
+      "chiffreId": "nmath_1771641997727_57",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_58",
+      "chiffreId": "nmath_1771641997727_58",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_59",
+      "chiffreId": "nmath_1771641997727_59",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_60",
+      "chiffreId": "nmath_1771641997727_60",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_61",
+      "chiffreId": "nmath_1771641997727_61",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_62",
+      "chiffreId": "nmath_1771641997727_62",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_63",
+      "chiffreId": "nmath_1771641997727_63",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_64",
+      "chiffreId": "nmath_1771641997727_64",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_65",
+      "chiffreId": "nmath_1771641997727_65",
+      "themes": [
+        "domain:math",
+        "category:table_9"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_66",
+      "chiffreId": "nmath_1771641997727_66",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_67",
+      "chiffreId": "nmath_1771641997727_67",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_68",
+      "chiffreId": "nmath_1771641997727_68",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_69",
+      "chiffreId": "nmath_1771641997727_69",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_70",
+      "chiffreId": "nmath_1771641997727_70",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_71",
+      "chiffreId": "nmath_1771641997727_71",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_72",
+      "chiffreId": "nmath_1771641997727_72",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_73",
+      "chiffreId": "nmath_1771641997727_73",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_74",
+      "chiffreId": "nmath_1771641997727_74",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_75",
+      "chiffreId": "nmath_1771641997727_75",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_76",
+      "chiffreId": "nmath_1771641997727_76",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_77",
+      "chiffreId": "nmath_1771641997727_77",
+      "themes": [
+        "domain:math",
+        "category:table_10"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_78",
+      "chiffreId": "nmath_1771641997727_78",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_79",
+      "chiffreId": "nmath_1771641997727_79",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_80",
+      "chiffreId": "nmath_1771641997727_80",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_81",
+      "chiffreId": "nmath_1771641997727_81",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_82",
+      "chiffreId": "nmath_1771641997727_82",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_83",
+      "chiffreId": "nmath_1771641997727_83",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_84",
+      "chiffreId": "nmath_1771641997727_84",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_85",
+      "chiffreId": "nmath_1771641997727_85",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_86",
+      "chiffreId": "nmath_1771641997727_86",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_87",
+      "chiffreId": "nmath_1771641997727_87",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_88",
+      "chiffreId": "nmath_1771641997727_88",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_89",
+      "chiffreId": "nmath_1771641997727_89",
+      "themes": [
+        "domain:math",
+        "category:table_11"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "calculId": "cmath_1771641997727_90",
+      "chiffreId": "nmath_1771641997727_90",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "calculId": "cmath_1771641997727_91",
+      "chiffreId": "nmath_1771641997727_91",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "calculId": "cmath_1771641997727_92",
+      "chiffreId": "nmath_1771641997727_92",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "calculId": "cmath_1771641997727_93",
+      "chiffreId": "nmath_1771641997727_93",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "calculId": "cmath_1771641997727_94",
+      "chiffreId": "nmath_1771641997727_94",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "calculId": "cmath_1771641997727_95",
+      "chiffreId": "nmath_1771641997727_95",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "calculId": "cmath_1771641997727_96",
+      "chiffreId": "nmath_1771641997727_96",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "calculId": "cmath_1771641997727_97",
+      "chiffreId": "nmath_1771641997727_97",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "calculId": "cmath_1771641997727_98",
+      "chiffreId": "nmath_1771641997727_98",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "calculId": "cmath_1771641997727_99",
+      "chiffreId": "nmath_1771641997727_99",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "calculId": "cmath_1771641997727_100",
+      "chiffreId": "nmath_1771641997727_100",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "calculId": "cmath_1771641997727_101",
+      "chiffreId": "nmath_1771641997727_101",
+      "themes": [
+        "domain:math",
+        "category:table_12"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "calculId": "cmath_1771641997727_102",
+      "chiffreId": "nmath_1771641997727_102",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_103",
+      "chiffreId": "nmath_1771641997727_103",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_104",
+      "chiffreId": "nmath_1771641997727_104",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_105",
+      "chiffreId": "nmath_1771641997727_105",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_106",
+      "chiffreId": "nmath_1771641997727_106",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_107",
+      "chiffreId": "nmath_1771641997727_107",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_108",
+      "chiffreId": "nmath_1771641997727_108",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_109",
+      "chiffreId": "nmath_1771641997727_109",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_110",
+      "chiffreId": "nmath_1771641997727_110",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_111",
+      "chiffreId": "nmath_1771641997727_111",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_112",
+      "chiffreId": "nmath_1771641997727_112",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_113",
+      "chiffreId": "nmath_1771641997727_113",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_114",
+      "chiffreId": "nmath_1771641997727_114",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_115",
+      "chiffreId": "nmath_1771641997727_115",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_116",
+      "chiffreId": "nmath_1771641997727_116",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_117",
+      "chiffreId": "nmath_1771641997727_117",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_118",
+      "chiffreId": "nmath_1771641997727_118",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_119",
+      "chiffreId": "nmath_1771641997727_119",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_120",
+      "chiffreId": "nmath_1771641997727_120",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_121",
+      "chiffreId": "nmath_1771641997727_121",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_122",
+      "chiffreId": "nmath_1771641997727_122",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_123",
+      "chiffreId": "nmath_1771641997727_123",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_124",
+      "chiffreId": "nmath_1771641997727_124",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_125",
+      "chiffreId": "nmath_1771641997727_125",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_126",
+      "chiffreId": "nmath_1771641997727_126",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_127",
+      "chiffreId": "nmath_1771641997727_127",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_128",
+      "chiffreId": "nmath_1771641997727_128",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_129",
+      "chiffreId": "nmath_1771641997727_129",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_130",
+      "chiffreId": "nmath_1771641997727_130",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CP"
+    },
+    {
+      "calculId": "cmath_1771641997727_131",
+      "chiffreId": "nmath_1771641997727_131",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_132",
+      "chiffreId": "nmath_1771641997727_132",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_133",
+      "chiffreId": "nmath_1771641997727_133",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_134",
+      "chiffreId": "nmath_1771641997727_134",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_135",
+      "chiffreId": "nmath_1771641997727_135",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_136",
+      "chiffreId": "nmath_1771641997727_136",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_137",
+      "chiffreId": "nmath_1771641997727_137",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_138",
+      "chiffreId": "nmath_1771641997727_138",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_139",
+      "chiffreId": "nmath_1771641997727_139",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_140",
+      "chiffreId": "nmath_1771641997727_140",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_141",
+      "chiffreId": "nmath_1771641997727_141",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_142",
+      "chiffreId": "nmath_1771641997727_142",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_143",
+      "chiffreId": "nmath_1771641997727_143",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_144",
+      "chiffreId": "nmath_1771641997727_144",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_145",
+      "chiffreId": "nmath_1771641997727_145",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_146",
+      "chiffreId": "nmath_1771641997727_146",
+      "themes": [
+        "domain:math",
+        "category:addition"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_147",
+      "chiffreId": "nmath_1771641997727_147",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_148",
+      "chiffreId": "nmath_1771641997727_148",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_149",
+      "chiffreId": "nmath_1771641997727_149",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_150",
+      "chiffreId": "nmath_1771641997727_150",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_151",
+      "chiffreId": "nmath_1771641997727_151",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_152",
+      "chiffreId": "nmath_1771641997727_152",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_153",
+      "chiffreId": "nmath_1771641997727_153",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_154",
+      "chiffreId": "nmath_1771641997727_154",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_155",
+      "chiffreId": "nmath_1771641997727_155",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_156",
+      "chiffreId": "nmath_1771641997727_156",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_157",
+      "chiffreId": "nmath_1771641997727_157",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_158",
+      "chiffreId": "nmath_1771641997727_158",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_159",
+      "chiffreId": "nmath_1771641997727_159",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_160",
+      "chiffreId": "nmath_1771641997727_160",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_161",
+      "chiffreId": "nmath_1771641997727_161",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_162",
+      "chiffreId": "nmath_1771641997727_162",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE1"
+    },
+    {
+      "calculId": "cmath_1771641997727_163",
+      "chiffreId": "nmath_1771641997727_163",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_164",
+      "chiffreId": "nmath_1771641997727_164",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_165",
+      "chiffreId": "nmath_1771641997727_165",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_166",
+      "chiffreId": "nmath_1771641997727_166",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_167",
+      "chiffreId": "nmath_1771641997727_167",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_168",
+      "chiffreId": "nmath_1771641997727_168",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_169",
+      "chiffreId": "nmath_1771641997727_169",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_170",
+      "chiffreId": "nmath_1771641997727_170",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_171",
+      "chiffreId": "nmath_1771641997727_171",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_172",
+      "chiffreId": "nmath_1771641997727_172",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_173",
+      "chiffreId": "nmath_1771641997727_173",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_174",
+      "chiffreId": "nmath_1771641997727_174",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_175",
+      "chiffreId": "nmath_1771641997727_175",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_176",
+      "chiffreId": "nmath_1771641997727_176",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_177",
+      "chiffreId": "nmath_1771641997727_177",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "calculId": "cmath_1771641997727_178",
+      "chiffreId": "nmath_1771641997727_178",
+      "themes": [
+        "domain:math",
+        "category:soustraction"
+      ],
+      "levelClass": "CE2"
     }
   ]
 }

@@ -16,6 +16,19 @@ const CATEGORY_LABELS = {
   'category:legume': '🥬 Légumes',
   'category:cereale': '🌾 Céréales',
   'category:palmier': '🌴 Palmiers',
+  'category:table_2': '×2 Table de 2',
+  'category:table_3': '×3 Table de 3',
+  'category:table_4': '×4 Table de 4',
+  'category:table_5': '×5 Table de 5',
+  'category:table_6': '×6 Table de 6',
+  'category:table_7': '×7 Table de 7',
+  'category:table_8': '×8 Table de 8',
+  'category:table_9': '×9 Table de 9',
+  'category:table_10': '×10 Table de 10',
+  'category:table_11': '×11 Table de 11',
+  'category:table_12': '×12 Table de 12',
+  'category:addition': '➕ Additions',
+  'category:soustraction': '➖ Soustractions',
 };
 
 const PLAYER_ZONES = [

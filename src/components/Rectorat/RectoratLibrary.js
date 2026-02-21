@@ -43,6 +43,7 @@ const REGIONS = [
 ];
 
 const CATEGORY_META = {
+  // Botanique
   fruit: { label: 'Fruits', icon: '🍎', color: '#dc2626', bg: '#fef2f2' },
   epice: { label: 'Épices', icon: '🌶️', color: '#ea580c', bg: '#fff7ed' },
   plante_medicinale: { label: 'Plantes médicinales', icon: '🌿', color: '#16a34a', bg: '#f0fdf4' },
@@ -54,6 +55,20 @@ const CATEGORY_META = {
   legume: { label: 'Légumes', icon: '🥬', color: '#15803d', bg: '#f0fdf4' },
   cereale: { label: 'Céréales', icon: '🌾', color: '#a16207', bg: '#fefce8' },
   palmier: { label: 'Palmiers', icon: '🌴', color: '#065f46', bg: '#ecfdf5' },
+  // Mathématiques
+  table_2: { label: 'Table de 2', icon: '×2', color: '#2563eb', bg: '#eff6ff' },
+  table_3: { label: 'Table de 3', icon: '×3', color: '#2563eb', bg: '#eff6ff' },
+  table_4: { label: 'Table de 4', icon: '×4', color: '#2563eb', bg: '#eff6ff' },
+  table_5: { label: 'Table de 5', icon: '×5', color: '#2563eb', bg: '#eff6ff' },
+  table_6: { label: 'Table de 6', icon: '×6', color: '#7c3aed', bg: '#f5f3ff' },
+  table_7: { label: 'Table de 7', icon: '×7', color: '#7c3aed', bg: '#f5f3ff' },
+  table_8: { label: 'Table de 8', icon: '×8', color: '#7c3aed', bg: '#f5f3ff' },
+  table_9: { label: 'Table de 9', icon: '×9', color: '#9333ea', bg: '#faf5ff' },
+  table_10: { label: 'Table de 10', icon: '×10', color: '#2563eb', bg: '#eff6ff' },
+  table_11: { label: 'Table de 11', icon: '×11', color: '#9333ea', bg: '#faf5ff' },
+  table_12: { label: 'Table de 12', icon: '×12', color: '#9333ea', bg: '#faf5ff' },
+  addition: { label: 'Additions', icon: '➕', color: '#16a34a', bg: '#f0fdf4' },
+  soustraction: { label: 'Soustractions', icon: '➖', color: '#ea580c', bg: '#fff7ed' },
 };
 
 const DOMAIN_KEYS = Object.keys(DOMAIN_META);

@@ -239,6 +239,64 @@ function AdminPanel() {
     }
   };
 
+  // ===== Auto-classification mathématiques (calculs → domain + catégorie) =====
+  const autoClassifyMath = () => {
+    try {
+      const assocs = data?.associations || [];
+      const calcMap = new Map((data?.calculs || []).map(c => [c.id, c]));
+      let matched = 0;
+      let alreadyTagged = 0;
+
+      const nextAssocs = assocs.map(a => {
+        if (!a.calculId || !a.chiffreId) return a; // skip non-math
+        const calcContent = (calcMap.get(a.calculId)?.content || '').trim();
+        if (!calcContent) return a;
+
+        // Detect operation type and table
+        let category = null;
+        const mulMatch = calcContent.match(/(\d+)\s*[×x*]\s*(\d+)/i);
+        const addMatch = !mulMatch && calcContent.match(/(\d+)\s*[+]\s*(\d+)/);
+        const subMatch = !mulMatch && !addMatch && calcContent.match(/(\d+)\s*[−\-]\s*(\d+)/);
+
+        if (mulMatch) {
+          const table = Math.min(parseInt(mulMatch[1], 10), parseInt(mulMatch[2], 10));
+          category = `table_${table}`;
+        } else if (addMatch) {
+          category = 'addition';
+        } else if (subMatch) {
+          category = 'soustraction';
+        }
+
+        if (!category) return a;
+
+        const themes = (a.themes || []).slice();
+        const hasDomain = themes.includes('domain:math');
+        const hasCategory = themes.some(t => t === 'category:' + category);
+
+        if (hasDomain && hasCategory) { alreadyTagged++; return a; }
+
+        matched++;
+        const updated = themes.filter(t => t !== 'multiplication' && !t.startsWith('category:'));
+        if (!hasDomain) updated.push('domain:math');
+        updated.push('category:' + category);
+        return { ...a, themes: updated };
+      });
+
+      const newData = { ...data, associations: nextAssocs };
+      setData(newData);
+      saveToBackend(newData);
+
+      alert(
+        `Classification math terminée.\n` +
+        `${matched} association(s) mise(s) à jour.\n` +
+        `${alreadyTagged} déjà classée(s).`
+      );
+    } catch (err) {
+      console.error('autoClassifyMath error:', err);
+      alert('Erreur: ' + (err.message || err));
+    }
+  };
+
   // Filtres pour faciliter la recherche dans les listes d'association
   const [texteFilter, setTexteFilter] = useState("");
   const [imageFilter, setImageFilter] = useState("");
@@ -1137,6 +1195,7 @@ function AdminPanel() {
                     <button type="button" onClick={dedupeAssociations} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #fde68a', background: '#fffbeb', color: '#92400e', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>🧹 Dédup assoc.</button>
                     <button type="button" onClick={autoTagElements} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #a7f3d0', background: '#ecfdf5', color: '#065f46', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>🏷️ Auto-tag</button>
                     <button type="button" onClick={autoClassifyBotany} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #86efac', background: '#f0fdf4', color: '#166534', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>🌿 Classif. botanique</button>
+                    <button type="button" onClick={autoClassifyMath} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #93c5fd', background: '#eff6ff', color: '#1e40af', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>🔢 Classif. maths</button>
                   </div>
                   <div style={{ fontSize: 11, color: '#94a3b8' }}>
                     Textes: {(data.textes||[]).length} · Images: {(data.images||[]).length} · Calculs: {(data.calculs||[]).length} · Chiffres: {(data.chiffres||[]).length} · Associations: {(data.associations||[]).length}
