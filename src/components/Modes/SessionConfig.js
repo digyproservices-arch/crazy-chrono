@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { DataContext } from '../../context/DataContext';
 
@@ -104,6 +104,7 @@ export default function SessionConfig() {
   // Sélections
   const [selectedClasses, setSelectedClasses] = useState(["CP","CE1","CE2","CM1","CM2"]);
   const [selectedThemes, setSelectedThemes] = useState([]);
+  const userManuallyToggledThemes = useRef(false);
   // Garder des strings pour permettre la saisie sans "saut" (ex: vide, 1 puis 10, etc.)
   const [rounds, setRounds] = useState('3');
   const [duration, setDuration] = useState('60');
@@ -251,12 +252,22 @@ export default function SessionConfig() {
   }, [allThemes]);
 
   const toggleClass = (lv) => {
+    userManuallyToggledThemes.current = false;
     setSelectedClasses(prev => prev.includes(lv) ? prev.filter(x => x !== lv) : [...prev, lv]);
   };
 
   const toggleTheme = (t) => {
+    userManuallyToggledThemes.current = true;
     setSelectedThemes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
   };
+
+  // Auto-sélectionner tous les thèmes disponibles quand les niveaux changent
+  // (sauf si l'utilisateur a manuellement modifié la sélection de thèmes)
+  useEffect(() => {
+    if (!userManuallyToggledThemes.current && allThemes.length > 0) {
+      setSelectedThemes(allThemes);
+    }
+  }, [allThemes]);
 
   
 
@@ -287,7 +298,10 @@ export default function SessionConfig() {
       const prev = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
       if (prev && typeof prev === 'object') {
         if (Array.isArray(prev.classes) && prev.classes.length) setSelectedClasses(prev.classes);
-        if (Array.isArray(prev.themes)) setSelectedThemes(prev.themes);
+        if (Array.isArray(prev.themes) && prev.themes.length > 0) {
+          setSelectedThemes(prev.themes);
+          userManuallyToggledThemes.current = true;
+        }
         if (prev.rounds != null) setRounds(String(prev.rounds));
         if (prev.duration != null) setDuration(String(prev.duration));
         if (typeof prev.allowEmptyMathWhenNoData === 'boolean') setAllowEmptyMath(prev.allowEmptyMathWhenNoData);

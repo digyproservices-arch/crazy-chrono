@@ -4774,31 +4774,29 @@ setZones(dataWithRandomTexts);
                 if (enableMathFill) for (const o of calculsIdx) {
                   if ((post[o.i]?.pairId || '').trim()) continue;
                   let pick = null;
-                  // Pass 1: éviter calculs récents
-                  for (const cand of allCalcs) {
+                  // Pass 1: éviter calculs récents — sélection ALÉATOIRE pour distribution homogène
+                  const pool1 = allCalcs.filter(cand => {
                     const idStr = String(cand.id);
                     const contNorm = normCalc(cand.content || '');
-                    if (!usedCalcIds.has(idStr) && contNorm && !usedCalcContents.has(contNorm) && !recentCalcs.has(contNorm)) {
-                      const parsed = parseOperation(cand.content || '');
-                      const res = parsed && Number.isFinite(parsed.result) ? parsed.result : null;
-                      if (res != null && presentCalcResults.has(res)) continue;
-                      pick = cand;
-                      break;
-                    }
-                  }
-                  // Pass 2: si épuisé, autoriser réutilisation
+                    if (usedCalcIds.has(idStr) || !contNorm || usedCalcContents.has(contNorm) || recentCalcs.has(contNorm)) return false;
+                    const parsed = parseOperation(cand.content || '');
+                    const res = parsed && Number.isFinite(parsed.result) ? parsed.result : null;
+                    if (res != null && presentCalcResults.has(res)) return false;
+                    return true;
+                  });
+                  if (pool1.length) pick = pool1[Math.floor(rng() * pool1.length)];
+                  // Pass 2: si épuisé, autoriser réutilisation (toujours aléatoire)
                   if (!pick) {
-                    for (const cand of allCalcs) {
+                    const pool2 = allCalcs.filter(cand => {
                       const idStr = String(cand.id);
                       const contNorm = normCalc(cand.content || '');
-                      if (!usedCalcIds.has(idStr) && contNorm && !usedCalcContents.has(contNorm)) {
-                        const parsed = parseOperation(cand.content || '');
-                        const res = parsed && Number.isFinite(parsed.result) ? parsed.result : null;
-                        if (res != null && presentCalcResults.has(res)) continue;
-                        pick = cand;
-                        break;
-                      }
-                    }
+                      if (usedCalcIds.has(idStr) || !contNorm || usedCalcContents.has(contNorm)) return false;
+                      const parsed = parseOperation(cand.content || '');
+                      const res = parsed && Number.isFinite(parsed.result) ? parsed.result : null;
+                      if (res != null && presentCalcResults.has(res)) return false;
+                      return true;
+                    });
+                    if (pool2.length) pick = pool2[Math.floor(rng() * pool2.length)];
                   }
                   if (pick) {
                     usedCalcIds.add(String(pick.id));
@@ -4915,26 +4913,28 @@ setZones(dataWithRandomTexts);
                   // Ne pas toucher au calcul apparié (pairId non vide)
                   if ((post[o.i]?.pairId || '').trim()) continue;
                   let pick = null;
-                  // Pass 1: éviter calculs récents
-                  for (const cand of allCalcs) {
+                  // Pass 1: éviter calculs récents — sélection ALÉATOIRE pour distribution homogène
+                  const cnPool1 = allCalcs.filter(cand => {
                     const idStr = String(cand.id);
                     const contNorm = normCalc(cand.content || '');
-                    if (usedCalcIds.has(idStr) || recentCalcs.has(contNorm)) continue;
+                    if (usedCalcIds.has(idStr) || recentCalcs.has(contNorm)) return false;
                     const parsed = parseOperation(cand.content || '');
                     const res = parsed && Number.isFinite(parsed.result) ? parsed.result : null;
-                    if (res != null && (presentCalcResults.has(res) || numbersOnCardSet.has(res))) { filteredCalcsByResult++; continue; }
-                    pick = cand; break;
-                  }
-                  // Pass 2: si épuisé, autoriser réutilisation
+                    if (res != null && (presentCalcResults.has(res) || numbersOnCardSet.has(res))) { filteredCalcsByResult++; return false; }
+                    return true;
+                  });
+                  if (cnPool1.length) pick = cnPool1[Math.floor(rng() * cnPool1.length)];
+                  // Pass 2: si épuisé, autoriser réutilisation (toujours aléatoire)
                   if (!pick) {
-                    for (const cand of allCalcs) {
+                    const cnPool2 = allCalcs.filter(cand => {
                       const idStr = String(cand.id);
-                      if (usedCalcIds.has(idStr)) continue;
+                      if (usedCalcIds.has(idStr)) return false;
                       const parsed = parseOperation(cand.content || '');
                       const res = parsed && Number.isFinite(parsed.result) ? parsed.result : null;
-                      if (res != null && (presentCalcResults.has(res) || numbersOnCardSet.has(res))) { filteredCalcsByResult++; continue; }
-                      pick = cand; break;
-                    }
+                      if (res != null && (presentCalcResults.has(res) || numbersOnCardSet.has(res))) { filteredCalcsByResult++; return false; }
+                      return true;
+                    });
+                    if (cnPool2.length) pick = cnPool2[Math.floor(rng() * cnPool2.length)];
                   }
                   if (pick) {
                     usedCalcIds.add(String(pick.id));
