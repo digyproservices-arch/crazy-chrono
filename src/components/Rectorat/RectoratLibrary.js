@@ -321,74 +321,153 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
         </div>
       </div>
 
-      {/* Cards view */}
-      {viewMode === 'cards' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 14 }}>
-          {filtered.slice(0, 120).map(a => {
-            const meta = DOMAIN_META[a.domain] || { icon: '❓', label: 'Non classé', color: '#94a3b8', bg: '#f8fafc' };
-            const regionMetas = a.regions.map(rk => REGIONS.find(r => r.key === rk)).filter(Boolean);
-            const isImage = !a.isMath && a.right && /\.(jpe?g|png|gif|webp|svg)/i.test(a.right);
-            return (
-              <div key={a.idx} style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-                {/* Visual */}
-                {isImage && (
-                  <div style={{ height: 110, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                    <img src={process.env.PUBLIC_URL + '/' + a.right} alt={a.left} style={{ maxWidth: '100%', maxHeight: 110, objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
-                  </div>
-                )}
-                {a.isMath && (
-                  <div style={{ height: 70, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 20, fontWeight: 800, color: '#1d4ed8' }}>{a.left}</span>
-                    <span style={{ fontSize: 15, color: '#93c5fd' }}>=</span>
-                    <span style={{ fontSize: 20, fontWeight: 800, color: '#16a34a' }}>{a.right}</span>
-                  </div>
-                )}
-                {!a.isMath && !isImage && (
-                  <div style={{ height: 70, background: '#faf5ff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 10 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#6d28d9', textAlign: 'center' }}>{a.left}</span>
-                  </div>
-                )}
-                {/* Card body */}
-                <div style={{ padding: '8px 10px' }}>
-                  {!a.isMath && <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.left}</div>}
-                  {/* Domain selector */}
-                  <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>
-                    <select value={a.domain || ''} onChange={e => updateDomain(a.idx, e.target.value)}
-                      style={{ padding: '2px 4px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 11, fontWeight: 600, color: meta.color, background: meta.bg, cursor: 'pointer', maxWidth: 130 }}>
-                      <option value="">Domaine...</option>
-                      {DOMAIN_KEYS.map(k => <option key={k} value={k}>{DOMAIN_META[k].icon} {DOMAIN_META[k].label}</option>)}
-                    </select>
-                  </div>
-                  {/* Region badges */}
-                  <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginBottom: 4 }}>
-                    {regionMetas.map(rm => (
-                      <span key={rm.key} onClick={() => toggleRegion(a.idx, rm.key)} title={`Retirer ${rm.label}`}
-                        style={{ fontSize: 9, padding: '1px 5px', borderRadius: 10, background: '#334155', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                        {rm.icon} {rm.label} ✕
-                      </span>
-                    ))}
-                    <select value="" onChange={e => { if (e.target.value) toggleRegion(a.idx, e.target.value); e.target.value = ''; }}
-                      style={{ padding: '1px 3px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 10, color: '#94a3b8', cursor: 'pointer', maxWidth: 80 }}>
-                      <option value="">+ Région</option>
-                      {REGIONS.filter(r => !a.regions.includes(r.key)).map(r => <option key={r.key} value={r.key}>{r.icon} {r.label}</option>)}
-                    </select>
-                  </div>
-                  {/* Level + delete */}
-                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                    <select value={a.levelClass || ''} onChange={e => updateLevel(a.idx, e.target.value)}
-                      style={{ padding: '2px 4px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 11, fontWeight: 600, color: '#0D6A7A', background: '#f0fdfa', cursor: 'pointer' }}>
-                      <option value="">Niveau...</option>
-                      {CLASS_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-                    </select>
-                    {regionMetas.length > 0 && <span style={{ fontSize: 10, color: '#94a3b8' }}>{regionMetas.map(r => r.icon).join('')}</span>}
-                    <button onClick={() => deleteAssoc(a.idx)} style={{ marginLeft: 'auto', padding: '2px 5px', fontSize: 10, background: 'none', border: '1px solid #fecaca', color: '#dc2626', borderRadius: 5, cursor: 'pointer' }} title="Supprimer">🗑️</button>
-                  </div>
+      {/* Cards view — grouped by domain then category */}
+      {viewMode === 'cards' && (() => {
+        const renderCard = (a) => {
+          const meta = DOMAIN_META[a.domain] || { icon: '❓', label: 'Non classé', color: '#94a3b8', bg: '#f8fafc' };
+          const catMeta = CATEGORY_META[a.category] || null;
+          const regionMetas = a.regions.map(rk => REGIONS.find(r => r.key === rk)).filter(Boolean);
+          const isImage = !a.isMath && a.right && /\.(jpe?g|png|gif|webp|svg)/i.test(a.right);
+          return (
+            <div key={a.idx} style={{ background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+              {isImage && (
+                <div style={{ height: 110, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  <img src={process.env.PUBLIC_URL + '/' + a.right} alt={a.left} style={{ maxWidth: '100%', maxHeight: 110, objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
+                </div>
+              )}
+              {a.isMath && (
+                <div style={{ height: 70, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 20, fontWeight: 800, color: '#1d4ed8' }}>{a.left}</span>
+                  <span style={{ fontSize: 15, color: '#93c5fd' }}>=</span>
+                  <span style={{ fontSize: 20, fontWeight: 800, color: '#16a34a' }}>{a.right}</span>
+                </div>
+              )}
+              {!a.isMath && !isImage && (
+                <div style={{ height: 70, background: '#faf5ff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 10 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#6d28d9', textAlign: 'center' }}>{a.left}</span>
+                </div>
+              )}
+              <div style={{ padding: '8px 10px' }}>
+                {!a.isMath && <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.left}</div>}
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>
+                  <select value={a.domain || ''} onChange={e => updateDomain(a.idx, e.target.value)}
+                    style={{ padding: '2px 4px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 11, fontWeight: 600, color: meta.color, background: meta.bg, cursor: 'pointer', maxWidth: 130 }}>
+                    <option value="">Domaine...</option>
+                    {DOMAIN_KEYS.map(k => <option key={k} value={k}>{DOMAIN_META[k].icon} {DOMAIN_META[k].label}</option>)}
+                  </select>
+                  {catMeta && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 8, background: catMeta.bg, color: catMeta.color, fontWeight: 600 }}>{catMeta.icon} {catMeta.label}</span>}
+                </div>
+                <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', marginBottom: 4 }}>
+                  {regionMetas.map(rm => (
+                    <span key={rm.key} onClick={() => toggleRegion(a.idx, rm.key)} title={`Retirer ${rm.label}`}
+                      style={{ fontSize: 9, padding: '1px 5px', borderRadius: 10, background: '#334155', color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      {rm.icon} {rm.label} ✕
+                    </span>
+                  ))}
+                  <select value="" onChange={e => { if (e.target.value) toggleRegion(a.idx, e.target.value); e.target.value = ''; }}
+                    style={{ padding: '1px 3px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 10, color: '#94a3b8', cursor: 'pointer', maxWidth: 80 }}>
+                    <option value="">+ Région</option>
+                    {REGIONS.filter(r => !a.regions.includes(r.key)).map(r => <option key={r.key} value={r.key}>{r.icon} {r.label}</option>)}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <select value={a.levelClass || ''} onChange={e => updateLevel(a.idx, e.target.value)}
+                    style={{ padding: '2px 4px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 11, fontWeight: 600, color: '#0D6A7A', background: '#f0fdfa', cursor: 'pointer' }}>
+                    <option value="">Niveau...</option>
+                    {CLASS_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                  {regionMetas.length > 0 && <span style={{ fontSize: 10, color: '#94a3b8' }}>{regionMetas.map(r => r.icon).join('')}</span>}
+                  <button onClick={() => deleteAssoc(a.idx)} style={{ marginLeft: 'auto', padding: '2px 5px', fontSize: 10, background: 'none', border: '1px solid #fecaca', color: '#dc2626', borderRadius: 5, cursor: 'pointer' }} title="Supprimer">🗑️</button>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+            </div>
+          );
+        };
+
+        // Build grouped structure
+        const capped = filtered.slice(0, 120);
+        const domainOrder = [...Object.keys(DOMAIN_META), 'unknown'];
+        const catOrder = [...Object.keys(CATEGORY_META), 'unknown'];
+
+        // Group by domain → category
+        const groups = new Map();
+        for (const a of capped) {
+          const dk = a.domain || 'unknown';
+          const ck = a.category || 'unknown';
+          if (!groups.has(dk)) groups.set(dk, new Map());
+          const catMap = groups.get(dk);
+          if (!catMap.has(ck)) catMap.set(ck, []);
+          catMap.get(ck).push(a);
+        }
+
+        // If a specific domain is already filtered, just group by category
+        if (filterDomain !== 'all') {
+          const catMap = groups.values().next().value || new Map();
+          const sortedCats = catOrder.filter(ck => catMap.has(ck));
+          return (
+            <div>
+              {sortedCats.map(ck => {
+                const items = catMap.get(ck);
+                const cm = CATEGORY_META[ck];
+                const catLabel = cm ? `${cm.icon} ${cm.label}` : 'Sans catégorie';
+                return (
+                  <div key={ck} style={{ marginBottom: 20 }}>
+                    {sortedCats.length > 1 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, paddingBottom: 6, borderBottom: '2px solid ' + (cm?.color || '#e2e8f0') }}>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: cm?.color || '#64748b' }}>{catLabel}</span>
+                        <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>({items.length})</span>
+                      </div>
+                    )}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 14 }}>
+                      {items.map(renderCard)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        }
+
+        // "Tous" view: group by domain, then by category within each domain
+        const sortedDomains = domainOrder.filter(dk => groups.has(dk));
+        return (
+          <div>
+            {sortedDomains.map(dk => {
+              const dm = DOMAIN_META[dk] || { icon: '❓', label: 'Non classé', color: '#94a3b8', bg: '#f8fafc' };
+              const catMap = groups.get(dk);
+              const sortedCats = catOrder.filter(ck => catMap.has(ck));
+              const domainTotal = sortedCats.reduce((s, ck) => s + catMap.get(ck).length, 0);
+              return (
+                <div key={dk} style={{ marginBottom: 28 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, paddingBottom: 8, borderBottom: '3px solid ' + dm.color }}>
+                    <span style={{ fontSize: 20 }}>{dm.icon}</span>
+                    <span style={{ fontSize: 16, fontWeight: 800, color: dm.color }}>{dm.label}</span>
+                    <span style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>({domainTotal})</span>
+                  </div>
+                  {sortedCats.map(ck => {
+                    const items = catMap.get(ck);
+                    const cm = CATEGORY_META[ck];
+                    const catLabel = cm ? `${cm.icon} ${cm.label}` : '';
+                    return (
+                      <div key={ck} style={{ marginBottom: 16, paddingLeft: sortedCats.length > 1 && cm ? 12 : 0 }}>
+                        {sortedCats.length > 1 && cm && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: cm.color }}>{catLabel}</span>
+                            <span style={{ fontSize: 11, color: '#94a3b8' }}>({items.length})</span>
+                          </div>
+                        )}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: 14 }}>
+                          {items.map(renderCard)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Table view */}
       {viewMode === 'table' && (
