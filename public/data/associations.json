@@ -239,6 +239,252 @@
         "botanique"
       ],
       "levelClass": "CM1"
+    },
+    {
+      "id": "ta01",
+      "content": "Raton laveur",
+      "themes": ["animaux"],
+      "levelClass": "CP"
+    },
+    {
+      "id": "ta02",
+      "content": "Dauphin",
+      "themes": ["animaux"],
+      "levelClass": "CP"
+    },
+    {
+      "id": "ta03",
+      "content": "Colibri",
+      "themes": ["animaux"],
+      "levelClass": "CP"
+    },
+    {
+      "id": "ta04",
+      "content": "Tourterelle",
+      "themes": ["animaux"],
+      "levelClass": "CP"
+    },
+    {
+      "id": "ta05",
+      "content": "Toucan",
+      "themes": ["animaux"],
+      "levelClass": "CP"
+    },
+    {
+      "id": "ta06",
+      "content": "Flamant rose",
+      "themes": ["animaux"],
+      "levelClass": "CP"
+    },
+    {
+      "id": "ta07",
+      "content": "Cabri",
+      "themes": ["animaux"],
+      "levelClass": "CP"
+    },
+    {
+      "id": "ta08",
+      "content": "Lambi",
+      "themes": ["animaux"],
+      "levelClass": "CP"
+    },
+    {
+      "id": "ta09",
+      "content": "Tortue imbriquée",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "ta10",
+      "content": "Pélican brun",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "ta11",
+      "content": "Langouste",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "ta12",
+      "content": "Ibis rouge",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "ta13",
+      "content": "Bernard-l'hermite",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "ta14",
+      "content": "Crabe de terre",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "ta15",
+      "content": "Manicou",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "ta16",
+      "content": "Iguane vert",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "ta17",
+      "content": "Mangouste",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "ta18",
+      "content": "Oursin",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "id": "ta19",
+      "content": "Tapir",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ta20",
+      "content": "Tatou",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ta21",
+      "content": "Vivaneau rouge",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ta22",
+      "content": "Grande aigrette",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ta23",
+      "content": "Héron vert",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ta24",
+      "content": "Sucrier à ventre jaune",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ta25",
+      "content": "Scolopendre",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ta26",
+      "content": "Écrevisse",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ta27",
+      "content": "Paresseux",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ta28",
+      "content": "Jaguar",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ta29",
+      "content": "Fourmilier géant",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ta30",
+      "content": "Poisson-perroquet",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ta31",
+      "content": "Poisson-écureuil",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ta32",
+      "content": "Dorade coryphène",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ta33",
+      "content": "Caïman",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ta34",
+      "content": "Moqueur gorge-rouge",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ta35",
+      "content": "Vivaneau à queue jaune",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ta36",
+      "content": "Orphie",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ta37",
+      "content": "Raie manta",
+      "themes": ["animaux"],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ta38",
+      "content": "Corail corne d'élan",
+      "themes": ["animaux"],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ta39",
+      "content": "Corail tabulaire",
+      "themes": ["animaux"],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ta40",
+      "content": "Corail cerveau",
+      "themes": ["animaux"],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ta41",
+      "content": "Lamantin",
+      "themes": ["animaux"],
+      "levelClass": "CM2"
     }
   ],
   "images": [
@@ -544,167 +790,290 @@
     },
     {
       "id": "i1754579810850p3uq",
-      "url": "images/2024-09-10-13-37-16-(11).jpeg"
+      "url": "images/tapir.jpeg",
+      "content": "Tapir",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
     },
     {
       "id": "i1754579810850al10",
-      "url": "images/2024-09-10-13-37-16-(12).jpeg"
+      "url": "images/tatou.jpeg",
+      "content": "Tatou",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
     },
     {
       "id": "i1754579810850hjpg",
-      "url": "images/2024-09-10-13-37-16-(13).jpeg"
+      "url": "images/jaguar.jpeg",
+      "content": "Jaguar",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
     },
     {
       "id": "i1754579810850uebc",
-      "url": "images/2024-09-10-13-37-16-(14).jpeg"
+      "url": "images/tortue-imbriquee.jpeg",
+      "content": "Tortue imbriquée",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
     },
     {
       "id": "i1754579810850585z",
-      "url": "images/2024-09-10-13-37-16-(15).jpeg"
+      "url": "images/fourmilier-geant.jpeg",
+      "content": "Fourmilier géant",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
     },
     {
       "id": "i1754579810850x95g",
-      "url": "images/2024-09-10-13-37-16-(16).jpeg"
+      "url": "images/pelican-brun.jpeg",
+      "content": "Pélican brun",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
     },
     {
       "id": "i1754579810850jxaw",
-      "url": "images/2024-09-10-13-37-16-(17).jpeg"
+      "url": "images/poisson-perroquet.jpeg",
+      "content": "Poisson-perroquet",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
     },
     {
       "id": "i1754579810850moua",
-      "url": "images/2024-09-10-13-37-16-(18).jpeg"
+      "url": "images/langouste.jpeg",
+      "content": "Langouste",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
     },
     {
       "id": "i1754579810850cqro",
-      "url": "images/2024-09-10-13-37-16-(19).jpeg"
+      "url": "images/poisson-ecureuil.jpeg",
+      "content": "Poisson-écureuil",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
     },
     {
       "id": "i1754579810850evmn",
-      "url": "images/2024-09-10-13-37-16-(2).jpeg"
+      "url": "images/raton-laveur.jpeg",
+      "content": "Raton laveur",
+      "themes": ["animaux"],
+      "levelClass": "CP"
     },
     {
       "id": "i1754579810850heoz",
-      "url": "images/2024-09-10-13-37-16-(20).jpeg"
+      "url": "images/caiman.jpeg",
+      "content": "Caïman",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
     },
     {
       "id": "i1754579810850ay9g",
-      "url": "images/2024-09-10-13-37-16-(21).jpeg"
+      "url": "images/raie-manta.jpeg",
+      "content": "Raie manta",
+      "themes": ["animaux"],
+      "levelClass": "CM2"
     },
     {
       "id": "i1754579810850qyln",
-      "url": "images/2024-09-10-13-37-16-(3).jpeg"
+      "url": "images/corail-corne-delan.jpeg",
+      "content": "Corail corne d'élan",
+      "themes": ["animaux"],
+      "levelClass": "CM2"
     },
     {
       "id": "i1754579810850092a",
-      "url": "images/2024-09-10-13-37-16-(4).jpeg"
+      "url": "images/vivaneau-rouge.jpeg",
+      "content": "Vivaneau rouge",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
     },
     {
       "id": "i1754579810850n464",
-      "url": "images/2024-09-10-13-37-16-(5).jpeg"
+      "url": "images/dorade-coryphene.jpeg",
+      "content": "Dorade coryphène",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
     },
     {
       "id": "i17545798108503qib",
-      "url": "images/2024-09-10-13-37-16-(6).jpeg"
+      "url": "images/corail-tabulaire.jpeg",
+      "content": "Corail tabulaire",
+      "themes": ["animaux"],
+      "levelClass": "CM2"
     },
     {
       "id": "i1754579810850cto2",
-      "url": "images/2024-09-10-13-37-16-(8).jpeg"
+      "url": "images/dauphin.jpeg",
+      "content": "Dauphin",
+      "themes": ["animaux"],
+      "levelClass": "CP"
     },
     {
       "id": "i1754579810850cu13",
-      "url": "images/2024-09-10-13-37-16-(9).jpeg"
+      "url": "images/grande-aigrette.jpeg",
+      "content": "Grande aigrette",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
     },
     {
       "id": "i175457981085078jn",
-      "url": "images/2024-09-10-13-37-16.jpeg"
+      "url": "images/colibri.jpeg",
+      "content": "Colibri",
+      "themes": ["animaux"],
+      "levelClass": "CP"
     },
     {
       "id": "i1754579810850vy7k",
-      "url": "images/2024-09-10-13-38-10-(2).jpeg"
+      "url": "images/heron-vert.jpeg",
+      "content": "Héron vert",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
     },
     {
       "id": "i1754579810850ec9m",
-      "url": "images/2024-09-10-13-38-10-(3).jpeg"
+      "url": "images/tourterelle.jpeg",
+      "content": "Tourterelle",
+      "themes": ["animaux"],
+      "levelClass": "CP"
     },
     {
       "id": "i175457981085054ts",
-      "url": "images/2024-09-10-13-38-10-(4).jpeg"
+      "url": "images/moqueur-gorge-rouge.jpeg",
+      "content": "Moqueur gorge-rouge",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
     },
     {
       "id": "i17545798108501wob",
-      "url": "images/2024-09-10-13-38-10-(5).jpeg"
+      "url": "images/sucrier-ventre-jaune.jpeg",
+      "content": "Sucrier à ventre jaune",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
     },
     {
       "id": "i1754579810850w3ov",
-      "url": "images/2024-09-10-13-38-10-(6).jpeg"
+      "url": "images/ibis-rouge.jpeg",
+      "content": "Ibis rouge",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
     },
     {
       "id": "i1754579810850bx7w",
-      "url": "images/2024-09-10-13-38-10-(7).jpeg"
+      "url": "images/toucan.jpeg",
+      "content": "Toucan",
+      "themes": ["animaux"],
+      "levelClass": "CP"
     },
     {
       "id": "i17545798108503rlz",
-      "url": "images/2024-09-10-13-38-10.jpeg"
+      "url": "images/flamant-rose.jpeg",
+      "content": "Flamant rose",
+      "themes": ["animaux"],
+      "levelClass": "CP"
     },
     {
       "id": "i1754579810850udsj",
-      "url": "images/2024-09-10-13-38-11-(10).jpeg"
+      "url": "images/bernard-lhermite.jpeg",
+      "content": "Bernard-l'hermite",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
     },
     {
       "id": "i1754579810850uce7",
-      "url": "images/2024-09-10-13-38-11-(2).jpeg"
+      "url": "images/crabe-de-terre.jpeg",
+      "content": "Crabe de terre",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
     },
     {
       "id": "i1754579810850gu16",
-      "url": "images/2024-09-10-13-38-11-(3).jpeg"
+      "url": "images/manicou.jpeg",
+      "content": "Manicou",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
     },
     {
       "id": "i1754579810850q9ps",
-      "url": "images/2024-09-10-13-38-11-(4).jpeg"
+      "url": "images/cabri.jpeg",
+      "content": "Cabri",
+      "themes": ["animaux"],
+      "levelClass": "CP"
     },
     {
       "id": "i1754579810850drql",
-      "url": "images/2024-09-10-13-38-11-(5).jpeg"
+      "url": "images/scolopendre.jpeg",
+      "content": "Scolopendre",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
     },
     {
       "id": "i1754579810850gdy2",
-      "url": "images/2024-09-10-13-38-11-(6).jpeg"
+      "url": "images/lambi.jpeg",
+      "content": "Lambi",
+      "themes": ["animaux"],
+      "levelClass": "CP"
     },
     {
       "id": "i1754579810850a26e",
-      "url": "images/2024-09-10-13-38-11-(7).jpeg"
+      "url": "images/iguane-vert.jpeg",
+      "content": "Iguane vert",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
     },
     {
       "id": "i1754579810850ud63",
-      "url": "images/2024-09-10-13-38-11-(8).jpeg"
+      "url": "images/mangouste.jpeg",
+      "content": "Mangouste",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
     },
     {
       "id": "i1754579810850np2x",
-      "url": "images/2024-09-10-13-38-11-(9).jpeg"
+      "url": "images/ecrevisse.jpeg",
+      "content": "Écrevisse",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
     },
     {
       "id": "i1754579810850xphg",
-      "url": "images/2024-09-10-13-38-11.jpeg"
+      "url": "images/paresseux.jpeg",
+      "content": "Paresseux",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
     },
     {
       "id": "i1754579810850fb9q",
-      "url": "images/2024-09-10-13-38-12-(2).jpeg"
+      "url": "images/corail-cerveau.jpeg",
+      "content": "Corail cerveau",
+      "themes": ["animaux"],
+      "levelClass": "CM2"
     },
     {
       "id": "i1754579810850o2vj",
-      "url": "images/2024-09-10-13-38-12-(3).jpeg"
+      "url": "images/vivaneau-queue-jaune.jpeg",
+      "content": "Vivaneau à queue jaune",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
     },
     {
       "id": "i1754579810850w00a",
-      "url": "images/2024-09-10-13-38-12-(4).jpeg"
+      "url": "images/orphie.jpeg",
+      "content": "Orphie",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
     },
     {
       "id": "i1754579810850wcas",
-      "url": "images/2024-09-10-13-38-12-(5).jpeg"
+      "url": "images/oursin.jpeg",
+      "content": "Oursin",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
     },
     {
       "id": "i175457981085024ai",
-      "url": "images/2024-09-10-13-38-12.jpeg"
+      "url": "images/lamantin.jpeg",
+      "content": "Lamantin",
+      "themes": ["animaux"],
+      "levelClass": "CM2"
     }
   ],
   "calculs": [

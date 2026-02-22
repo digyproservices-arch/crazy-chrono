@@ -88,9 +88,15 @@ const ZONE_GROUPS = [
 const CARD = { background: '#fff', borderRadius: 16, padding: '20px 24px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0', marginBottom: 16 };
 const SECTION_TITLE = { fontSize: 15, fontWeight: 800, color: '#0D6A7A', marginTop: 0, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 };
 
+const SIMPLE_THEME_LABELS = {
+  'botanique': '🌿 Botanique',
+  'animaux': '🐾 Animaux',
+};
+
 function themeDisplayLabel(t) {
   if (DOMAIN_LABELS[t]) return DOMAIN_LABELS[t].icon + ' ' + DOMAIN_LABELS[t].label;
   if (CATEGORY_LABELS[t]) return CATEGORY_LABELS[t];
+  if (SIMPLE_THEME_LABELS[t]) return SIMPLE_THEME_LABELS[t];
   if (REGION_LABELS[t]) return (REGION_LABELS[t].icon || '🌍') + ' ' + REGION_LABELS[t].label;
   if (t.startsWith('group:')) return '📦 ' + t.slice(6);
   return t;
