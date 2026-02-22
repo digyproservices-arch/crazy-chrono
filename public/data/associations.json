@@ -7086,6 +7086,252 @@
         "category:soustraction"
       ],
       "levelClass": "CE2"
+    },
+    {
+      "texteId": "ta01",
+      "imageId": "i1754579810850evmn",
+      "themes": ["animaux"],
+      "levelClass": "CP"
+    },
+    {
+      "texteId": "ta02",
+      "imageId": "i1754579810850cto2",
+      "themes": ["animaux"],
+      "levelClass": "CP"
+    },
+    {
+      "texteId": "ta03",
+      "imageId": "i175457981085078jn",
+      "themes": ["animaux"],
+      "levelClass": "CP"
+    },
+    {
+      "texteId": "ta04",
+      "imageId": "i1754579810850ec9m",
+      "themes": ["animaux"],
+      "levelClass": "CP"
+    },
+    {
+      "texteId": "ta05",
+      "imageId": "i1754579810850bx7w",
+      "themes": ["animaux"],
+      "levelClass": "CP"
+    },
+    {
+      "texteId": "ta06",
+      "imageId": "i17545798108503rlz",
+      "themes": ["animaux"],
+      "levelClass": "CP"
+    },
+    {
+      "texteId": "ta07",
+      "imageId": "i1754579810850q9ps",
+      "themes": ["animaux"],
+      "levelClass": "CP"
+    },
+    {
+      "texteId": "ta08",
+      "imageId": "i1754579810850gdy2",
+      "themes": ["animaux"],
+      "levelClass": "CP"
+    },
+    {
+      "texteId": "ta09",
+      "imageId": "i1754579810850uebc",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "texteId": "ta10",
+      "imageId": "i1754579810850x95g",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "texteId": "ta11",
+      "imageId": "i1754579810850moua",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "texteId": "ta12",
+      "imageId": "i1754579810850w3ov",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "texteId": "ta13",
+      "imageId": "i1754579810850udsj",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "texteId": "ta14",
+      "imageId": "i1754579810850uce7",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "texteId": "ta15",
+      "imageId": "i1754579810850gu16",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "texteId": "ta16",
+      "imageId": "i1754579810850a26e",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "texteId": "ta17",
+      "imageId": "i1754579810850ud63",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "texteId": "ta18",
+      "imageId": "i1754579810850wcas",
+      "themes": ["animaux"],
+      "levelClass": "CE1"
+    },
+    {
+      "texteId": "ta19",
+      "imageId": "i1754579810850p3uq",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "texteId": "ta20",
+      "imageId": "i1754579810850al10",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "texteId": "ta21",
+      "imageId": "i1754579810850092a",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "texteId": "ta22",
+      "imageId": "i1754579810850cu13",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "texteId": "ta23",
+      "imageId": "i1754579810850vy7k",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "texteId": "ta24",
+      "imageId": "i17545798108501wob",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "texteId": "ta25",
+      "imageId": "i1754579810850drql",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "texteId": "ta26",
+      "imageId": "i1754579810850np2x",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "texteId": "ta27",
+      "imageId": "i1754579810850xphg",
+      "themes": ["animaux"],
+      "levelClass": "CE2"
+    },
+    {
+      "texteId": "ta28",
+      "imageId": "i1754579810850hjpg",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "texteId": "ta29",
+      "imageId": "i1754579810850585z",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "texteId": "ta30",
+      "imageId": "i1754579810850jxaw",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "texteId": "ta31",
+      "imageId": "i1754579810850cqro",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "texteId": "ta32",
+      "imageId": "i1754579810850n464",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "texteId": "ta33",
+      "imageId": "i1754579810850heoz",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "texteId": "ta34",
+      "imageId": "i175457981085054ts",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "texteId": "ta35",
+      "imageId": "i1754579810850o2vj",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "texteId": "ta36",
+      "imageId": "i1754579810850w00a",
+      "themes": ["animaux"],
+      "levelClass": "CM1"
+    },
+    {
+      "texteId": "ta37",
+      "imageId": "i1754579810850ay9g",
+      "themes": ["animaux"],
+      "levelClass": "CM2"
+    },
+    {
+      "texteId": "ta38",
+      "imageId": "i1754579810850qyln",
+      "themes": ["animaux"],
+      "levelClass": "CM2"
+    },
+    {
+      "texteId": "ta39",
+      "imageId": "i17545798108503qib",
+      "themes": ["animaux"],
+      "levelClass": "CM2"
+    },
+    {
+      "texteId": "ta40",
+      "imageId": "i1754579810850fb9q",
+      "themes": ["animaux"],
+      "levelClass": "CM2"
+    },
+    {
+      "texteId": "ta41",
+      "imageId": "i175457981085024ai",
+      "themes": ["animaux"],
+      "levelClass": "CM2"
     }
   ],
   "_dataVersion": 3
