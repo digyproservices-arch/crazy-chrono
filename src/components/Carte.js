@@ -6,6 +6,7 @@ import { pointToSvgCoords, polygonToPointsStr, segmentsToSvgPath, pointsToBezier
 import { getBackendUrl } from '../utils/subscription';
 import { assignElementsToZones, fetchElements } from '../utils/elementsLoader';
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
+import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError } from '../utils/gameIncidentTracker';
 import { isFree, canStartSessionToday, incrementSessionCount } from '../utils/subscription';
 
 // Single shared AudioContext for smoother audio on low devices
@@ -1335,6 +1336,7 @@ const Carte = () => {
           // Charger zones et démarrer immédiatement
           if (trainingData.zones && Array.isArray(trainingData.zones)) {
             console.log('[TRAINING] 🎮 Chargement zones:', trainingData.zones.length);
+            try { incidentValidateZones(trainingData.zones, { source: 'training:initial' }); } catch {}
             setZones(trainingData.zones);
             // ✅ FIX: Synchroniser calcAngles depuis les angles serveur dès le chargement initial
             const initAngles = {};
@@ -1837,6 +1839,7 @@ const Carte = () => {
         // ✅ FIX: Nettoyer validated=false pour rendre zones cliquables
         const cleanZones = Array.isArray(zones) ? zones.map(z => ({ ...z, validated: false })) : [];
         console.log('[ARENA] 🧹 Zones nettoyées (validated=false):', cleanZones.length);
+        try { incidentValidateZones(cleanZones, { source: 'arena:tiebreaker' }); } catch {}
         
         // Mettre à jour React directement (pas de reload)
         setZones(cleanZones);
@@ -2241,6 +2244,8 @@ const Carte = () => {
       // MODE MULTIJOUEUR : Utiliser les zones serveur si disponibles
       else if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
         console.log('[CC][client] MULTIPLAYER MODE: Using server-generated zones:', payload.zones.length);
+        
+        try { incidentValidateZones(payload.zones, { source: 'multiplayer:round-new' }); } catch {}
         
         // Log détaillé des zones reçues avec pairId
         const zonesWithPairId = payload.zones.filter(z => z.pairId);
@@ -5848,6 +5853,9 @@ setZones(dataWithRandomTexts);
       console.log('Zones après attribution automatique (post-traitées) :', post);
       // Enregistrer dans le diagnostic global pour analyse
       try { window.ccAddDiag && window.ccAddDiag('zones:assigned', post); } catch {}
+      
+      // Vérifier les anomalies sur les zones générées
+      try { incidentValidateZones(post, { source: 'solo:assignElements' }); } catch {}
       
       // Enregistrer dans le monitoring backend automatiquement
       try {

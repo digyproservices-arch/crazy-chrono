@@ -59,6 +59,9 @@ function MonitoringDashboard() {
   const perfSocketRef = useRef(null);
   const perfBottomRef = useRef(null);
   const [perfAutoScroll, setPerfAutoScroll] = useState(true);
+  const [incidents, setIncidents] = useState([]);
+  const [incidentsLoading, setIncidentsLoading] = useState(false);
+  const [incidentSeverityFilter, setIncidentSeverityFilter] = useState('all');
 
   const copyToClipboard = async (text, source) => {
     try {
@@ -89,6 +92,72 @@ function MonitoringDashboard() {
       const meta = log.meta && Object.keys(log.meta).length > 0 ? ' ' + JSON.stringify(log.meta) : '';
       return `${ts} [${lvl}] ${msg}${meta}`;
     }).join('\n');
+  };
+
+  const fetchIncidents = useCallback(async () => {
+    try {
+      setIncidentsLoading(true);
+      const token = getAuthToken();
+      const backendUrl = getBackendUrl();
+      const sevParam = incidentSeverityFilter !== 'all' ? `&severity=${incidentSeverityFilter}` : '';
+      const res = await fetch(`${backendUrl}/api/monitoring/incidents?limit=200${sevParam}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.ok) setIncidents(data.incidents || []);
+    } catch (err) {
+      console.error('[Monitoring] Error fetching incidents:', err);
+      // Fallback: load from localStorage
+      try {
+        const local = JSON.parse(localStorage.getItem('cc_game_incidents') || '[]');
+        setIncidents(local);
+      } catch {}
+    } finally {
+      setIncidentsLoading(false);
+    }
+  }, [incidentSeverityFilter]);
+
+  const clearIncidents = async () => {
+    try {
+      const token = getAuthToken();
+      const backendUrl = getBackendUrl();
+      await fetch(`${backendUrl}/api/monitoring/incidents`, {
+        method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      try { localStorage.removeItem('cc_game_incidents'); } catch {}
+      setIncidents([]);
+    } catch (err) {
+      console.error('[Monitoring] Error clearing incidents:', err);
+    }
+  };
+
+  const formatIncidentsForCopy = (arr) => {
+    if (!arr || !arr.length) return 'Aucun incident.';
+    return arr.map((inc, i) => {
+      const lines = [
+        `--- Incident #${i + 1} ---`,
+        `Type: ${inc.type || 'unknown'}`,
+        `Sévérité: ${inc.severity || 'warning'}`,
+        `Date: ${inc.timestamp ? new Date(inc.timestamp).toLocaleString('fr-FR') : 'N/A'}`,
+      ];
+      if (inc.details) {
+        if (typeof inc.details === 'string') {
+          lines.push(`Détails: ${inc.details}`);
+        } else {
+          lines.push(`Détails: ${JSON.stringify(inc.details, null, 2)}`);
+        }
+      }
+      if (inc.deviceInfo) {
+        lines.push(`Appareil: ${inc.deviceInfo.userAgent || 'N/A'}`);
+        lines.push(`Écran: ${inc.deviceInfo.screenWidth || '?'}x${inc.deviceInfo.screenHeight || '?'}`);
+      }
+      if (inc.sessionInfo) {
+        lines.push(`Session: ${JSON.stringify(inc.sessionInfo)}`);
+      }
+      return lines.join('\n');
+    }).join('\n\n');
   };
 
   const getAuthToken = () => {
@@ -172,7 +241,10 @@ function MonitoringDashboard() {
     if (activeTab === 'logs' || activeTab === 'errors') {
       fetchLogs();
     }
-  }, [activeTab, fetchLogs]);
+    if (activeTab === 'incidents') {
+      fetchIncidents();
+    }
+  }, [activeTab, fetchLogs, fetchIncidents]);
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -299,6 +371,7 @@ function MonitoringDashboard() {
             { id: 'overview', label: '📈 Vue d\'ensemble', icon: '' },
             { id: 'logs', label: '📋 Logs détaillés', icon: '' },
             { id: 'errors', label: `🔴 Erreurs (${totalErrors})`, icon: '' },
+            { id: 'incidents', label: `⚠️ Incidents (${incidents.length})`, icon: '' },
             { id: 'performance', label: `🎯 Performance${perfConnected ? ' 🟢' : ''}`, icon: '' },
           ].map(tab => (
             <button
@@ -665,6 +738,119 @@ function MonitoringDashboard() {
                     })}
                     <div ref={perfBottomRef} />
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* ====== INCIDENTS TAB ====== */}
+            {activeTab === 'incidents' && (
+              <div>
+                {/* Incidents Header */}
+                <div style={{ ...cardStyle, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 'bold' }}>⚠️ Incidents de jeu ({incidents.length})</h3>
+                    <select
+                      value={incidentSeverityFilter}
+                      onChange={(e) => setIncidentSeverityFilter(e.target.value)}
+                      style={{
+                        padding: '6px 12px', background: COLORS.bg,
+                        border: `1px solid ${COLORS.border}`, borderRadius: 8,
+                        color: COLORS.text, fontSize: 13, cursor: 'pointer',
+                      }}
+                    >
+                      <option value="all">Toutes sévérités</option>
+                      <option value="critical">🔴 Critical</option>
+                      <option value="error">🟠 Error</option>
+                      <option value="warning">🟡 Warning</option>
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => fetchIncidents()}
+                      style={btnStyle(COLORS.info)}
+                    >
+                      🔄 Rafraîchir
+                    </button>
+                    <button
+                      onClick={() => copyToClipboard(formatIncidentsForCopy(incidents), 'incidents')}
+                      disabled={!incidents.length}
+                      style={{
+                        ...btnStyle(copyFeedback === 'incidents' ? '#148A9C' : '#f59e0b'),
+                        opacity: incidents.length ? 1 : 0.5,
+                      }}
+                    >
+                      {copyFeedback === 'incidents' ? '✅ Copié !' : '📋 Copier les incidents'}
+                    </button>
+                    <button
+                      onClick={clearIncidents}
+                      disabled={!incidents.length}
+                      style={{ ...btnStyle('#334155'), opacity: incidents.length ? 1 : 0.5 }}
+                    >
+                      🗑️ Vider
+                    </button>
+                  </div>
+                </div>
+
+                {/* Incidents List */}
+                <div style={cardStyle}>
+                  {incidentsLoading ? (
+                    <div style={{ textAlign: 'center', padding: 40, color: COLORS.textMuted }}>Chargement des incidents...</div>
+                  ) : incidents.length === 0 ? (
+                    <div style={{ padding: 40, textAlign: 'center' }}>
+                      <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+                      <div style={{ fontSize: 16, color: COLORS.success }}>Aucun incident détecté</div>
+                      <div style={{ fontSize: 13, color: COLORS.textMuted, marginTop: 8 }}>Les anomalies de jeu (paires dupliquées, SVG décalés, etc.) apparaîtront ici.</div>
+                    </div>
+                  ) : (
+                    <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                      {incidents.map((inc, i) => {
+                        const sevColor = inc.severity === 'critical' ? '#ef4444' : inc.severity === 'error' ? '#f97316' : '#f59e0b';
+                        return (
+                          <div key={inc.id || i} style={{
+                            padding: '12px 16px',
+                            borderLeft: `4px solid ${sevColor}`,
+                            background: `${sevColor}08`,
+                            marginBottom: 8,
+                            borderRadius: '0 8px 8px 0',
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <span style={{
+                                  padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700,
+                                  background: sevColor, color: '#fff',
+                                }}>
+                                  {(inc.severity || 'warning').toUpperCase()}
+                                </span>
+                                <span style={{
+                                  padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+                                  background: 'rgba(255,255,255,0.1)', color: COLORS.text,
+                                }}>
+                                  {inc.type || 'unknown'}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: 12, color: COLORS.textMuted }}>
+                                {inc.timestamp ? new Date(inc.timestamp).toLocaleString('fr-FR') : ''}
+                              </span>
+                            </div>
+                            {inc.details && (
+                              <pre style={{
+                                fontSize: 11, color: COLORS.textMuted, margin: '6px 0 0',
+                                background: 'rgba(0,0,0,0.2)', padding: 8, borderRadius: 4,
+                                overflow: 'auto', maxHeight: 150, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                              }}>
+                                {typeof inc.details === 'string' ? inc.details : JSON.stringify(inc.details, null, 2)}
+                              </pre>
+                            )}
+                            {inc.deviceInfo && (
+                              <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 4 }}>
+                                📱 {inc.deviceInfo.screenWidth}x{inc.deviceInfo.screenHeight} — {(inc.deviceInfo.userAgent || '').substring(0, 80)}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
