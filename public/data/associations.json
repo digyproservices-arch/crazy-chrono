@@ -243,247 +243,247 @@
     {
       "id": "ta01",
       "content": "Raton laveur",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "id": "ta02",
       "content": "Dauphin",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "id": "ta03",
       "content": "Colibri",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "id": "ta04",
       "content": "Tourterelle",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "id": "ta05",
       "content": "Toucan",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "id": "ta06",
       "content": "Flamant rose",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "id": "ta07",
       "content": "Cabri",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "id": "ta08",
       "content": "Lambi",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "id": "ta09",
       "content": "Tortue imbriquée",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "ta10",
       "content": "Pélican brun",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "ta11",
       "content": "Langouste",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "ta12",
       "content": "Ibis rouge",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "ta13",
       "content": "Bernard-l'hermite",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "ta14",
       "content": "Crabe de terre",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "ta15",
       "content": "Manicou",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "ta16",
       "content": "Iguane vert",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "ta17",
       "content": "Mangouste",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "ta18",
       "content": "Oursin",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "ta19",
       "content": "Tapir",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "ta20",
       "content": "Tatou",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "ta21",
       "content": "Vivaneau rouge",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "ta22",
       "content": "Grande aigrette",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "ta23",
       "content": "Héron vert",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "ta24",
       "content": "Sucrier à ventre jaune",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "ta25",
       "content": "Scolopendre",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "ta26",
       "content": "Écrevisse",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "ta27",
       "content": "Paresseux",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "ta28",
       "content": "Jaguar",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "ta29",
       "content": "Fourmilier géant",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "ta30",
       "content": "Poisson-perroquet",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "ta31",
       "content": "Poisson-écureuil",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "ta32",
       "content": "Dorade coryphène",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "ta33",
       "content": "Caïman",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "ta34",
       "content": "Moqueur gorge-rouge",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "ta35",
       "content": "Vivaneau à queue jaune",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "ta36",
       "content": "Orphie",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "ta37",
       "content": "Raie manta",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM2"
     },
     {
       "id": "ta38",
       "content": "Corail corne d'élan",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM2"
     },
     {
       "id": "ta39",
       "content": "Corail tabulaire",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM2"
     },
     {
       "id": "ta40",
       "content": "Corail cerveau",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM2"
     },
     {
       "id": "ta41",
       "content": "Lamantin",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM2"
     }
   ],
@@ -792,287 +792,287 @@
       "id": "i1754579810850p3uq",
       "url": "images/tapir.jpeg",
       "content": "Tapir",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "i1754579810850al10",
       "url": "images/tatou.jpeg",
       "content": "Tatou",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "i1754579810850hjpg",
       "url": "images/jaguar.jpeg",
       "content": "Jaguar",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "i1754579810850uebc",
       "url": "images/tortue-imbriquee.jpeg",
       "content": "Tortue imbriquée",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850585z",
       "url": "images/fourmilier-geant.jpeg",
       "content": "Fourmilier géant",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "i1754579810850x95g",
       "url": "images/pelican-brun.jpeg",
       "content": "Pélican brun",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850jxaw",
       "url": "images/poisson-perroquet.jpeg",
       "content": "Poisson-perroquet",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "i1754579810850moua",
       "url": "images/langouste.jpeg",
       "content": "Langouste",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850cqro",
       "url": "images/poisson-ecureuil.jpeg",
       "content": "Poisson-écureuil",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "i1754579810850evmn",
       "url": "images/raton-laveur.jpeg",
       "content": "Raton laveur",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "id": "i1754579810850heoz",
       "url": "images/caiman.jpeg",
       "content": "Caïman",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "i1754579810850ay9g",
       "url": "images/raie-manta.jpeg",
       "content": "Raie manta",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM2"
     },
     {
       "id": "i1754579810850qyln",
       "url": "images/corail-corne-delan.jpeg",
       "content": "Corail corne d'élan",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM2"
     },
     {
       "id": "i1754579810850092a",
       "url": "images/vivaneau-rouge.jpeg",
       "content": "Vivaneau rouge",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "i1754579810850n464",
       "url": "images/dorade-coryphene.jpeg",
       "content": "Dorade coryphène",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "i17545798108503qib",
       "url": "images/corail-tabulaire.jpeg",
       "content": "Corail tabulaire",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM2"
     },
     {
       "id": "i1754579810850cto2",
       "url": "images/dauphin.jpeg",
       "content": "Dauphin",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "id": "i1754579810850cu13",
       "url": "images/grande-aigrette.jpeg",
       "content": "Grande aigrette",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "i175457981085078jn",
       "url": "images/colibri.jpeg",
       "content": "Colibri",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "id": "i1754579810850vy7k",
       "url": "images/heron-vert.jpeg",
       "content": "Héron vert",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "i1754579810850ec9m",
       "url": "images/tourterelle.jpeg",
       "content": "Tourterelle",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "id": "i175457981085054ts",
       "url": "images/moqueur-gorge-rouge.jpeg",
       "content": "Moqueur gorge-rouge",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "i17545798108501wob",
       "url": "images/sucrier-ventre-jaune.jpeg",
       "content": "Sucrier à ventre jaune",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "i1754579810850w3ov",
       "url": "images/ibis-rouge.jpeg",
       "content": "Ibis rouge",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850bx7w",
       "url": "images/toucan.jpeg",
       "content": "Toucan",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "id": "i17545798108503rlz",
       "url": "images/flamant-rose.jpeg",
       "content": "Flamant rose",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "id": "i1754579810850udsj",
       "url": "images/bernard-lhermite.jpeg",
       "content": "Bernard-l'hermite",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850uce7",
       "url": "images/crabe-de-terre.jpeg",
       "content": "Crabe de terre",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850gu16",
       "url": "images/manicou.jpeg",
       "content": "Manicou",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850q9ps",
       "url": "images/cabri.jpeg",
       "content": "Cabri",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "id": "i1754579810850drql",
       "url": "images/scolopendre.jpeg",
       "content": "Scolopendre",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "i1754579810850gdy2",
       "url": "images/lambi.jpeg",
       "content": "Lambi",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "id": "i1754579810850a26e",
       "url": "images/iguane-vert.jpeg",
       "content": "Iguane vert",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850ud63",
       "url": "images/mangouste.jpeg",
       "content": "Mangouste",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850np2x",
       "url": "images/ecrevisse.jpeg",
       "content": "Écrevisse",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "i1754579810850xphg",
       "url": "images/paresseux.jpeg",
       "content": "Paresseux",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "id": "i1754579810850fb9q",
       "url": "images/corail-cerveau.jpeg",
       "content": "Corail cerveau",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM2"
     },
     {
       "id": "i1754579810850o2vj",
       "url": "images/vivaneau-queue-jaune.jpeg",
       "content": "Vivaneau à queue jaune",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "i1754579810850w00a",
       "url": "images/orphie.jpeg",
       "content": "Orphie",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "id": "i1754579810850wcas",
       "url": "images/oursin.jpeg",
       "content": "Oursin",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "id": "i175457981085024ai",
       "url": "images/lamantin.jpeg",
       "content": "Lamantin",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM2"
     }
   ],
@@ -7090,247 +7090,247 @@
     {
       "texteId": "ta01",
       "imageId": "i1754579810850evmn",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "texteId": "ta02",
       "imageId": "i1754579810850cto2",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "texteId": "ta03",
       "imageId": "i175457981085078jn",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "texteId": "ta04",
       "imageId": "i1754579810850ec9m",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "texteId": "ta05",
       "imageId": "i1754579810850bx7w",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "texteId": "ta06",
       "imageId": "i17545798108503rlz",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "texteId": "ta07",
       "imageId": "i1754579810850q9ps",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "texteId": "ta08",
       "imageId": "i1754579810850gdy2",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CP"
     },
     {
       "texteId": "ta09",
       "imageId": "i1754579810850uebc",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta10",
       "imageId": "i1754579810850x95g",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta11",
       "imageId": "i1754579810850moua",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta12",
       "imageId": "i1754579810850w3ov",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta13",
       "imageId": "i1754579810850udsj",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta14",
       "imageId": "i1754579810850uce7",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta15",
       "imageId": "i1754579810850gu16",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta16",
       "imageId": "i1754579810850a26e",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta17",
       "imageId": "i1754579810850ud63",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta18",
       "imageId": "i1754579810850wcas",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta19",
       "imageId": "i1754579810850p3uq",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta20",
       "imageId": "i1754579810850al10",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta21",
       "imageId": "i1754579810850092a",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta22",
       "imageId": "i1754579810850cu13",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta23",
       "imageId": "i1754579810850vy7k",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta24",
       "imageId": "i17545798108501wob",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta25",
       "imageId": "i1754579810850drql",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta26",
       "imageId": "i1754579810850np2x",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta27",
       "imageId": "i1754579810850xphg",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta28",
       "imageId": "i1754579810850hjpg",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta29",
       "imageId": "i1754579810850585z",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta30",
       "imageId": "i1754579810850jxaw",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta31",
       "imageId": "i1754579810850cqro",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta32",
       "imageId": "i1754579810850n464",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta33",
       "imageId": "i1754579810850heoz",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta34",
       "imageId": "i175457981085054ts",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta35",
       "imageId": "i1754579810850o2vj",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta36",
       "imageId": "i1754579810850w00a",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta37",
       "imageId": "i1754579810850ay9g",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM2"
     },
     {
       "texteId": "ta38",
       "imageId": "i1754579810850qyln",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM2"
     },
     {
       "texteId": "ta39",
       "imageId": "i17545798108503qib",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM2"
     },
     {
       "texteId": "ta40",
       "imageId": "i1754579810850fb9q",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM2"
     },
     {
       "texteId": "ta41",
       "imageId": "i175457981085024ai",
-      "themes": ["animaux"],
+      "themes": ["domain:zoology", "animaux"],
       "levelClass": "CM2"
     }
   ],
