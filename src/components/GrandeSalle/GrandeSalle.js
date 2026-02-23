@@ -33,6 +33,20 @@ export default function GrandeSalle() {
 
   useEffect(() => { if (isFree()) navigate('/pricing', { replace: true }); }, [navigate]);
 
+  // Check if returning from /carte with finish data
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('cc_gs_finish');
+      if (raw) {
+        const data = JSON.parse(raw);
+        localStorage.removeItem('cc_gs_finish');
+        setFinish(data);
+        setStatus('finished');
+        if (data.leaderboard) setLeaderboard(data.leaderboard);
+      }
+    } catch {}
+  }, []);
+
   // Fetch upcoming tournaments for lobby display
   useEffect(() => {
     if (isFree() || tournamentId) return;
@@ -74,23 +88,24 @@ export default function GrandeSalle() {
     });
     socket.on('gs:joined-as-spectator', (d) => { setIsSpectator(true); if (d?.tournamentTitle) setTournamentTitle(d.tournamentTitle); });
     socket.on('gs:countdown', ({ t }) => { setCountdown(t); setStatus('countdown'); });
-    socket.on('gs:round:new', (d) => {
-      setStatus('playing'); setCountdown(null); setZones(d.zones||[]); setSelectedZones([]); setPairFeedback(null);
-      setRoundTimeLeft(d.duration||90);
-      if (roundTimerRef.current) clearInterval(roundTimerRef.current);
-      roundTimerRef.current = setInterval(() => setRoundTimeLeft(p => { if (p<=1){clearInterval(roundTimerRef.current);return 0;} return p-1; }), 1000);
+    socket.on('gs:round:new', () => {
+      // Store GS session config and navigate to /carte for the real card rendering
+      const salleId = tournamentId ? `tournament:${tournamentId}` : 'grande-salle-publique';
+      try {
+        localStorage.setItem('cc_session_cfg', JSON.stringify({ mode: 'grande-salle' }));
+        localStorage.setItem('cc_gs_session', JSON.stringify({
+          salleId,
+          tournamentId: tournamentId || null,
+          playerName: getPlayerName(),
+          tournamentTitle: tournamentTitle || null,
+        }));
+      } catch {}
+      // Disconnect this socket — Carte.js will create its own and reconnect
+      socket.disconnect();
+      navigate('/carte');
     });
-    socket.on('gs:round:result', (d) => setLeaderboard(d.leaderboard||[]));
-    socket.on('gs:elimination', (d) => {
-      setLastElimination(d); setStatus('elimination');
-      if (d.eliminated?.some(e => e.id === socket.id)) setIsSpectator(true);
-    });
-    socket.on('gs:finish', (d) => { setFinish(d); setStatus('finished'); if(roundTimerRef.current)clearInterval(roundTimerRef.current); });
-    socket.on('gs:pair:valid', (d) => {
-      if (d.by===socket.id) { setPairFeedback({type:'valid'}); setTimeout(()=>setPairFeedback(null),1500); }
-      setLeaderboard(d.leaderboard||[]);
-    });
-    socket.on('gs:pair:invalid', () => { setPairFeedback({type:'invalid'}); setTimeout(()=>setPairFeedback(null),1500); setSelectedZones([]); });
+    // If finish arrives while still on this page (e.g. returned from /carte)
+    socket.on('gs:finish', (d) => { setFinish(d); setStatus('finished'); });
 
     return () => { socket.emit('gs:leave'); socket.disconnect(); if(roundTimerRef.current)clearInterval(roundTimerRef.current); };
   }, [getPlayerName, navigate, tournamentId]);

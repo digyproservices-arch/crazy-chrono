@@ -1985,18 +1985,14 @@ const Carte = () => {
       const onRoomState = (payload) => {
         try {
           if (!payload || !Array.isArray(payload.players)) return;
-          // Vérifier que NOUS sommes l'hôte
           const self = payload.players.find(p => p && p.id === s.id);
           const amHost = !!self?.isHost;
-          // Charger la config souhaitée
           let cfg = null; try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
           const wantRounds = parseInt(cfg?.rounds, 10);
           const wantDuration = parseInt(cfg?.duration, 10);
           const hasWanted = (Number.isFinite(payload.roundsPerSession) ? payload.roundsPerSession === wantRounds : false)
             && (Number.isFinite(payload.duration) ? payload.duration === wantDuration : false);
-          // Si l'état reflète déjà la config, marquer appliqué
           if (hasWanted) { configAppliedRef.current = true; return; }
-          // Sinon, si nous sommes l'hôte, tenter d'appliquer
           if (!configAppliedRef.current && amHost) {
             if (Number.isFinite(wantDuration) && wantDuration >= 10 && wantDuration <= 600) {
               addDiag('emit room:duration:set', { duration: wantDuration });
@@ -2006,20 +2002,123 @@ const Carte = () => {
               addDiag('emit room:setRounds', { rounds: wantRounds });
               try { s.emit('room:setRounds', wantRounds); } catch {}
             }
-            // Ne pas marquer comme appliqué tant que le room:state ne correspond pas
           }
         } catch {}
       };
       s.on('room:state', onRoomState);
-      // Lire la config de session (si définie par l'écran Modes/SessionConfig)
+
+      // Lire la config de session
       let cfg = null;
       try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
       const isOnline = cfg && cfg.mode === 'online';
+      const isGrandeSalle = cfg && cfg.mode === 'grande-salle';
+
+      // === GRANDE SALLE MODE ===
+      if (isGrandeSalle) {
+        let gsSession = null;
+        try { gsSession = JSON.parse(localStorage.getItem('cc_gs_session') || 'null'); } catch {}
+        const gsName = gsSession?.playerName || playerName;
+        const gsSalleId = gsSession?.salleId || 'grande-salle-publique';
+        const gsTournamentId = gsSession?.tournamentId || null;
+        try { if (gsName) setPlayerName(gsName); } catch {}
+
+        console.log('[CC][GS] Grande Salle mode — joining', { salleId: gsSalleId, name: gsName, tournamentId: gsTournamentId });
+
+        const joinPayload = { name: gsName };
+        if (gsTournamentId) joinPayload.tournamentId = gsTournamentId;
+        else joinPayload.salleId = gsSalleId;
+        s.emit('gs:join', joinPayload, (res) => {
+          console.log('[CC][GS] gs:join response', res);
+        });
+
+        try { s._isGrandeSalle = true; s._gsSalleId = gsSalleId; } catch {}
+
+        // GS: round:new — same zone processing as regular multiplayer
+        s.on('gs:round:new', (payload) => {
+          console.log('[CC][GS] gs:round:new', { zonesCount: payload?.zones?.length, duration: payload?.duration });
+          try { if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } } catch {}
+          if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
+            setZones(payload.zones);
+            setPreparing(false);
+          }
+          setGameActive(true);
+          try {
+            const d = parseInt(payload?.duration, 10);
+            if (Number.isFinite(d) && d > 0) { setGameDuration(d); setTimeLeft(d); }
+          } catch {}
+          try {
+            const idx = parseInt(payload?.roundIndex, 10);
+            if (Number.isFinite(idx) && idx >= 0) setRoundsPlayed(idx);
+          } catch {}
+          setGameSelectedIds([]);
+          setGameMsg('');
+          setCurrentTargetPairKey(null);
+          setValidatedPairIds(new Set());
+          try { enterGameFullscreen(); } catch {}
+          try { setPanelCollapsed(true); } catch {}
+        });
+
+        s.on('gs:pair:valid', (payload) => {
+          console.log('[CC][GS] gs:pair:valid', { by: payload?.by, a: payload?.a, b: payload?.b });
+          setGameSelectedIds([]);
+          setGameMsg('');
+          if (Array.isArray(payload?.leaderboard)) {
+            setScoresMP(payload.leaderboard.map(p => ({ id: p.id, name: p.name, score: p.score })));
+          }
+          try {
+            const aId = payload?.a; const bId = payload?.b;
+            const ZA = zonesByIdRef.current?.get ? zonesByIdRef.current.get(aId) : null;
+            const ZB = zonesByIdRef.current?.get ? zonesByIdRef.current.get(bId) : null;
+            const winnerId = payload?.by;
+            const winnerName = payload?.playerName || 'Joueur';
+            const players = Array.isArray(roomPlayersRef.current) ? roomPlayersRef.current : [];
+            const idx = Math.max(0, players.findIndex(x => x.id === winnerId));
+            const { primary, border } = getPlayerColorComboByIndex(idx);
+            const initials = getInitials(winnerName);
+            animateBubblesFromZones(aId, bId, primary, ZA, ZB, border, initials);
+          } catch (e) { console.warn('[CC][GS] pair:valid animation error', e); }
+        });
+
+        s.on('gs:pair:invalid', () => {
+          setGameSelectedIds([]);
+          try { playWrongSound(); } catch {}
+          try { showWrongFlash(); } catch {}
+        });
+
+        s.on('gs:elimination', (data) => {
+          console.log('[CC][GS] gs:elimination', data);
+          const amEliminated = data?.eliminated?.some(e => e.id === s.id);
+          if (amEliminated) {
+            setGameActive(false);
+            setMpMsg('Vous avez été éliminé ! Mode spectateur...');
+          } else {
+            setMpMsg(`Vague ${data?.wave || '?'} — ${data?.eliminated?.length || 0} joueurs éliminés. ${data?.remainingCount || '?'} restants.`);
+          }
+          if (Array.isArray(data?.leaderboard)) {
+            setScoresMP(data.leaderboard.map(p => ({ id: p.id, name: p.name, score: p.score })));
+          }
+        });
+
+        s.on('gs:finish', (data) => {
+          console.log('[CC][GS] gs:finish', data);
+          try { localStorage.setItem('cc_gs_finish', JSON.stringify(data)); } catch {}
+          setGameActive(false);
+          try { navigate('/grande-salle'); } catch {}
+        });
+
+        s.on('gs:round:result', (data) => {
+          if (Array.isArray(data?.leaderboard)) {
+            setScoresMP(data.leaderboard.map(p => ({ id: p.id, name: p.name, score: p.score })));
+          }
+        });
+
+        // Don't fall through to regular online/solo logic
+        return;
+      }
       // Freemium guard: Free plan is solo only (EXCEPTION: mode arena bypass)
       if (isOnline && isFree() && !arenaMatchId) {
         try { alert('Le mode en ligne est réservé aux abonnés Pro.'); } catch {}
         try { navigate('/pricing'); } catch {}
-        // Rejoindre quand même une salle locale par défaut pour éviter un état incohérent
         try { s.emit('joinRoom', { roomId, name: cfg.playerName || playerName }); } catch {}
         return;
       }
@@ -3218,6 +3317,9 @@ function handleGameClick(zone) {
             } catch (e) {
               console.error('[TRAINING] Erreur émission pair-validated:', e);
             }
+          } else if (socket._isGrandeSalle) {
+            // Mode Grande Salle
+            try { socket.emit('gs:attemptPair', { a, b }); } catch {}
           } else {
             // Mode multijoueur classique
             try { socket.emit('attemptPair', { a, b }); } catch {}

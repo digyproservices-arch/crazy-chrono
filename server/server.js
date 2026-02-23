@@ -3076,11 +3076,35 @@ io.on('connection', (socket) => {
     
     const playerName = String(name || `Joueur-${socket.id.slice(0, 4)}`);
     
-    // If game is in progress, join as spectator
+    // If game is in progress, check if this player was already in the room (reconnection from Carte.js)
     if (salle.sessionActive) {
-      salle.spectators.add(socket.id);
-      socket.emit('gs:joined-as-spectator', { salleId: id, tournamentTitle: salle.tournamentTitle || null });
-      console.log(`[GS] ${playerName} joined "${id}" as spectator (game in progress)`);
+      // Try to find existing player by name (reconnection after navigating to /carte)
+      let reconnected = false;
+      for (const [oldId, p] of salle.players.entries()) {
+        if (p.name === playerName && oldId !== socket.id) {
+          // Transfer player data to new socket
+          const playerData = { ...p };
+          salle.players.delete(oldId);
+          salle.players.set(socket.id, playerData);
+          salle.spectators.delete(oldId);
+          reconnected = true;
+          console.log(`[GS] ${playerName} reconnected in "${id}" (${oldId} -> ${socket.id}), score=${playerData.score}`);
+          // Send current round zones to the reconnected player
+          if (salle.currentZones && Array.isArray(salle.currentZones)) {
+            socket.emit('gs:round:new', {
+              zones: salle.currentZones,
+              duration: salle.config.duration || 90,
+              roundIndex: salle.roundsPlayed,
+            });
+          }
+          break;
+        }
+      }
+      if (!reconnected) {
+        salle.spectators.add(socket.id);
+        socket.emit('gs:joined-as-spectator', { salleId: id, tournamentTitle: salle.tournamentTitle || null });
+        console.log(`[GS] ${playerName} joined "${id}" as spectator (game in progress)`);
+      }
     } else {
       salle.players.set(socket.id, {
         name: playerName,
