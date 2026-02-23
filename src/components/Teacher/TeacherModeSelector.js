@@ -75,6 +75,28 @@ const TeacherModeSelector = () => {
             VOIR TOURNOI
           </button>
         </div>
+
+        <div className="mode-card" style={{ borderColor: '#ff6b35', background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)' }}>
+          <div className="mode-icon">📅</div>
+          <h2>TOURNOIS GRANDE SALLE</h2>
+          <p className="mode-description">
+            Créer et programmer des tournois publics
+          </p>
+          
+          <div className="mode-features">
+            <div className="feature">🏟️ Salle publique</div>
+            <div className="feature">📅 Programmable</div>
+            <div className="feature">🎁 Récompenses</div>
+          </div>
+
+          <button 
+            className="mode-button"
+            style={{ background: 'linear-gradient(135deg, #ff6b35, #F5A623)', color: '#fff' }}
+            onClick={() => navigate('/admin/tournaments')}
+          >
+            GÉRER TOURNOIS
+          </button>
+        </div>
       </div>
 
       {/* Séparateur */}
@@ -104,8 +126,8 @@ const TeacherModeSelector = () => {
         </div>
 
         <div className="mode-card" style={{ background: 'linear-gradient(135deg, #F5A623 0%, #d4900e 100%)', color: '#fff', borderColor: '#d4900e' }}>
-          <div className="mode-icon">👥</div>
-          <h2 style={{ color: '#fff' }}>MULTIJOUEUR</h2>
+          <div className="mode-icon">�</div>
+          <h2 style={{ color: '#fff' }}>SALLE PRIVÉE</h2>
           <p className="mode-description" style={{ color: 'rgba(255,255,255,0.9)' }}>
             Défiez vos amis en ligne
           </p>
@@ -115,6 +137,21 @@ const TeacherModeSelector = () => {
             onClick={() => navigate('/config/online')}
           >
             JOUER EN LIGNE
+          </button>
+        </div>
+
+        <div className="mode-card" style={{ background: 'linear-gradient(135deg, #ff6b35 0%, #F5A623 100%)', color: '#fff', borderColor: '#ff6b35' }}>
+          <div className="mode-icon">🏟️</div>
+          <h2 style={{ color: '#fff' }}>GRANDE SALLE</h2>
+          <p className="mode-description" style={{ color: 'rgba(255,255,255,0.9)' }}>
+            Course éliminatoire ouverte à tous
+          </p>
+          <button 
+            className="mode-button"
+            style={{ background: '#fff', color: '#ff6b35', fontWeight: 700 }}
+            onClick={() => navigate('/grande-salle')}
+          >
+            REJOINDRE
           </button>
         </div>
 
