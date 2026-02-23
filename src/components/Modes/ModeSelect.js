@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import TeacherModeSelector from '../Teacher/TeacherModeSelector';
+import { isFree } from '../../utils/subscription';
 
 export default function ModeSelect({ auth: authProp }) {
   const navigate = useNavigate();
@@ -89,13 +90,37 @@ export default function ModeSelect({ auth: authProp }) {
           gradient="linear-gradient(135deg, #1AACBE 0%, #148A9C 100%)"
           onClick={() => go('solo')} 
         />
-        <Card 
-          title="Multijoueur" 
-          subtitle="Défiez vos amis en ligne et créez des parties privées"
-          icon="👥"
-          gradient="linear-gradient(135deg, #F5A623 0%, #d4900e 100%)"
-          onClick={() => go('online')} 
-        />
+        {isFree() ? (
+          <button onClick={() => navigate('/pricing')} style={{
+            width: '100%', textAlign: 'left', padding: 24, borderRadius: 16, border: 'none',
+            background: 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.15)', color: '#fff', cursor: 'pointer',
+            transition: 'all 0.3s ease', position: 'relative', overflow: 'hidden'
+          }}>
+            <div style={{ position: 'absolute', top: 12, right: 12, background: '#F5A623', color: '#fff', fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 20 }}>PRO</div>
+            <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.7 }}>🔒</div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Multijoueur</div>
+            <div style={{ opacity: 0.9, fontSize: 14, lineHeight: 1.5 }}>Abonnez-vous pour défier d'autres joueurs en ligne !</div>
+            <div style={{ marginTop: 12, background: '#F5A623', color: '#fff', display: 'inline-block', padding: '8px 16px', borderRadius: 10, fontWeight: 700, fontSize: 13 }}>Passer en Pro</div>
+          </button>
+        ) : (
+          <>
+            <Card 
+              title="Salle Privée" 
+              subtitle="Créez ou rejoignez une salle entre amis avec un code"
+              icon="🔑"
+              gradient="linear-gradient(135deg, #F5A623 0%, #d4900e 100%)"
+              onClick={() => go('online')} 
+            />
+            <Card 
+              title="Grande Salle" 
+              subtitle="Course éliminatoire ouverte à tous les abonnés !"
+              icon="🏟️"
+              gradient="linear-gradient(135deg, #ff6b35 0%, #F5A623 100%)"
+              onClick={() => navigate('/grande-salle')} 
+            />
+          </>
+        )}
         <Card 
           title="Mes Performances" 
           subtitle="Analyse ta progression, ta rapidité et ta précision match par match"

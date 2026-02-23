@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { DataContext } from '../../context/DataContext';
+import { isFree } from '../../utils/subscription';
 
 const CLASS_LEVELS = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"];
 const LEVEL_INDEX = Object.fromEntries(CLASS_LEVELS.map((l, i) => [l, i]));
@@ -106,6 +107,13 @@ export default function SessionConfig() {
   const { mode } = useParams();
   const navigate = useNavigate();
   const { data } = useContext(DataContext);
+
+  // Gate abonnement: multijoueur réservé aux abonnés
+  useEffect(() => {
+    if (mode === 'online' && isFree()) {
+      navigate('/pricing', { replace: true });
+    }
+  }, [mode, navigate]);
 
   // Sélections
   const [selectedClasses, setSelectedClasses] = useState(["CP","CE1","CE2","CM1","CM2"]);

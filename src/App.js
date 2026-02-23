@@ -39,6 +39,8 @@ import TrainingPlayerLobby from './components/Teacher/TrainingPlayerLobby';
 import { fetchAndSyncStatus, getBackendUrl } from './utils/subscription';
 import supabase from './utils/supabaseClient';
 import NotificationBadge from './components/NotificationBadge';
+import GrandeSalle from './components/GrandeSalle/GrandeSalle';
+import TournamentAdmin from './components/GrandeSalle/TournamentAdmin';
 
 // ✅ AUTH WRAPPERS (outside App to prevent remount loops!)
 const RequireAuth = ({ children, auth }) => auth ? children : <Navigate to="/login" replace />;
@@ -425,6 +427,10 @@ function App() {
               <Route path="/training-arena/manager" element={<RequireAuth auth={auth}><TrainingArenaManagerDashboard /></RequireAuth>} />
               <Route path="/training-arena/lobby/:roomCode" element={<RequireAuth auth={auth}><TrainingArenaLobby /></RequireAuth>} />
               <Route path="/training-arena/game" element={<RequireAuth auth={auth}><TrainingArenaGame /></RequireAuth>} />
+              {/* Grande Salle publique */}
+              <Route path="/grande-salle" element={<RequireAuth auth={auth}><GrandeSalle /></RequireAuth>} />
+              <Route path="/grande-salle/tournament/:tournamentId" element={<RequireAuth auth={auth}><GrandeSalle /></RequireAuth>} />
+              <Route path="/admin/tournaments" element={<RequireAdmin><TournamentAdmin /></RequireAdmin>} />
               {/* Carte (éditeur/jeu) accessible en direct si nécessaire, sinon on y accède après config */}
               <Route path="/carte" element={<div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div>} />
               <Route path="*" element={<Navigate to="/" replace />} />

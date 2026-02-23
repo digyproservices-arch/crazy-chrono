@@ -150,6 +150,10 @@ app.use('/api/training', trainingRoutes);
 const notificationsRoutes = require('./routes/notifications');
 app.use('/api/notifications', notificationsRoutes);
 
+// ===== Grande Salle Routes (Tournois programmés) =====
+const grandeSalleRoutes = require('./routes/grandeSalle');
+app.use('/api/gs', grandeSalleRoutes);
+
 // ===== Auth Routes (Licences professionnelles) =====
 const authRoutes = require('./routes/auth');
 
@@ -1844,6 +1848,283 @@ app.post('/purge-elements', async (req, res) => {
 // rooms: Map<roomCode, { players: Map<socketId,{name,score,ready}>, resolved:boolean, status:'lobby'|'countdown'|'playing', hostId:string|null, duration:number, sessionActive:boolean, sessions:Array, roundsPerSession:number, roundsPlayed:number, roundTimer:any, pendingClaims:Map<string,{claimants:Set<string>, timer:any}> }>
 const rooms = new Map();
 
+// ==========================================
+// GRANDE SALLE - Salle publique ouverte à tous les abonnés
+// Pas de limite de joueurs, course éliminatoire
+// ==========================================
+const grandeSalles = new Map(); // Map<salleId, GrandeSalleState>
+
+function createGrandeSalle(id, config = {}) {
+  const salle = {
+    id,
+    status: 'lobby', // 'lobby' | 'countdown' | 'playing' | 'elimination' | 'finished'
+    players: new Map(), // socketId -> { name, score, errors, rank, eliminated, joinedAt }
+    spectators: new Set(), // socketIds of eliminated players watching
+    config: {
+      duration: config.duration || 90, // seconds per round
+      roundsPerElimination: config.roundsPerElimination || 1, // rounds before an elimination
+      eliminationPercent: config.eliminationPercent || 25, // % eliminated each wave
+      minPlayersToStart: config.minPlayersToStart || 3,
+      themes: config.themes || [],
+      classes: config.classes || [],
+    },
+    roundsPlayed: 0,
+    eliminationWave: 0,
+    roundTimer: null,
+    countdownTimer: null,
+    sessionActive: false,
+    currentZones: null,
+    roundSeed: null,
+    foundPairs: new Set(),
+    pendingClaims: new Map(),
+    validatedPairIds: new Set(),
+    createdAt: Date.now(),
+    startedAt: null,
+  };
+  grandeSalles.set(id, salle);
+  console.log(`[GS] Grande Salle "${id}" created`);
+  return salle;
+}
+
+function getOrCreateDefaultGrandeSalle() {
+  const defaultId = 'grande-salle-publique';
+  if (!grandeSalles.has(defaultId)) {
+    createGrandeSalle(defaultId);
+  }
+  return grandeSalles.get(defaultId);
+}
+
+function gsEmitState(salleId) {
+  const salle = grandeSalles.get(salleId);
+  if (!salle) return;
+  const activePlayers = Array.from(salle.players.entries())
+    .filter(([, p]) => !p.eliminated)
+    .map(([id, p]) => ({ id, name: p.name, score: p.score || 0, rank: p.rank || 0 }));
+  const eliminatedPlayers = Array.from(salle.players.entries())
+    .filter(([, p]) => p.eliminated)
+    .map(([id, p]) => ({ id, name: p.name, score: p.score || 0, eliminatedWave: p.eliminatedWave || 0 }));
+  const payload = {
+    salleId,
+    status: salle.status,
+    totalPlayers: salle.players.size,
+    activePlayers: activePlayers.length,
+    eliminatedCount: eliminatedPlayers.length,
+    spectatorCount: salle.spectators.size,
+    players: activePlayers.sort((a, b) => b.score - a.score).map((p, i) => ({ ...p, rank: i + 1 })),
+    eliminated: eliminatedPlayers,
+    config: salle.config,
+    roundsPlayed: salle.roundsPlayed,
+    eliminationWave: salle.eliminationWave,
+  };
+  io.to(`gs:${salleId}`).emit('gs:state', payload);
+}
+
+function gsStartRound(salleId) {
+  const salle = grandeSalles.get(salleId);
+  if (!salle || !salle.sessionActive) return;
+  
+  salle.roundsPlayed++;
+  salle.status = 'playing';
+  salle.foundPairs = new Set();
+  salle.pendingClaims = new Map();
+  
+  // Snapshot scores at round start for delta calculation
+  salle.roundBaseScores = new Map();
+  for (const [id, p] of salle.players.entries()) {
+    if (!p.eliminated) salle.roundBaseScores.set(id, p.score || 0);
+  }
+  
+  if (salle.roundTimer) { try { clearTimeout(salle.roundTimer); } catch {} }
+  
+  const seed = Math.floor(Date.now() % 2147483647);
+  salle.roundSeed = seed;
+  
+  const zoneGenResult = generateRoundZones(seed, {
+    themes: salle.config.themes || [],
+    classes: salle.config.classes || [],
+    excludedPairIds: salle.validatedPairIds || new Set(),
+  });
+  const zones = Array.isArray(zoneGenResult) ? zoneGenResult : (zoneGenResult?.zones || []);
+  salle.currentZones = zones;
+  
+  const payload = {
+    seed,
+    zones,
+    hasZones: true,
+    duration: salle.config.duration,
+    roundIndex: salle.roundsPlayed,
+    eliminationWave: salle.eliminationWave,
+  };
+  
+  console.log(`[GS] Round ${salle.roundsPlayed} started in "${salleId}" with ${zones.length} zones, ${salle.players.size} players`);
+  io.to(`gs:${salleId}`).emit('gs:round:new', payload);
+  gsEmitState(salleId);
+  
+  // Round timer
+  salle.roundTimer = setTimeout(() => {
+    gsEndRound(salleId);
+  }, salle.config.duration * 1000);
+}
+
+function gsEndRound(salleId) {
+  const salle = grandeSalles.get(salleId);
+  if (!salle) return;
+  
+  if (salle.roundTimer) { try { clearTimeout(salle.roundTimer); } catch {} salle.roundTimer = null; }
+  
+  // Calculate round results
+  const base = salle.roundBaseScores || new Map();
+  const deltas = [];
+  for (const [id, p] of salle.players.entries()) {
+    if (p.eliminated) continue;
+    const start = base.get(id) || 0;
+    deltas.push({ id, name: p.name, delta: (p.score || 0) - start, total: p.score || 0 });
+  }
+  deltas.sort((a, b) => b.total - a.total);
+  
+  // Update ranks
+  deltas.forEach((d, i) => {
+    const p = salle.players.get(d.id);
+    if (p) p.rank = i + 1;
+  });
+  
+  io.to(`gs:${salleId}`).emit('gs:round:result', {
+    roundIndex: salle.roundsPlayed,
+    leaderboard: deltas.map((d, i) => ({ ...d, rank: i + 1 })),
+  });
+  
+  // Check if it's elimination time
+  const shouldEliminate = (salle.roundsPlayed % salle.config.roundsPerElimination) === 0;
+  const activePlayers = Array.from(salle.players.values()).filter(p => !p.eliminated);
+  
+  if (shouldEliminate && activePlayers.length > 2) {
+    gsEliminationWave(salleId);
+  } else if (activePlayers.length <= 1) {
+    gsFinish(salleId);
+  } else {
+    // Next round after short pause
+    setTimeout(() => {
+      const s = grandeSalles.get(salleId);
+      if (s && s.sessionActive) gsStartRound(salleId);
+    }, 3000);
+  }
+}
+
+function gsEliminationWave(salleId) {
+  const salle = grandeSalles.get(salleId);
+  if (!salle) return;
+  
+  salle.eliminationWave++;
+  salle.status = 'elimination';
+  
+  const activePlayers = Array.from(salle.players.entries())
+    .filter(([, p]) => !p.eliminated)
+    .sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
+  
+  const eliminateCount = Math.max(1, Math.floor(activePlayers.length * salle.config.eliminationPercent / 100));
+  const toEliminate = activePlayers.slice(-eliminateCount); // lowest scorers
+  
+  const eliminatedNames = [];
+  for (const [id, p] of toEliminate) {
+    p.eliminated = true;
+    p.eliminatedWave = salle.eliminationWave;
+    p.finalRank = activePlayers.length - eliminatedNames.length;
+    eliminatedNames.push({ id, name: p.name, score: p.score || 0 });
+    // Move to spectators
+    salle.spectators.add(id);
+  }
+  
+  const remaining = activePlayers.length - eliminateCount;
+  
+  console.log(`[GS] Elimination wave ${salle.eliminationWave} in "${salleId}": ${eliminateCount} eliminated, ${remaining} remaining`);
+  
+  io.to(`gs:${salleId}`).emit('gs:elimination', {
+    wave: salle.eliminationWave,
+    eliminated: eliminatedNames,
+    remainingCount: remaining,
+    totalPlayers: salle.players.size,
+  });
+  
+  gsEmitState(salleId);
+  
+  if (remaining <= 1) {
+    // Final winner
+    setTimeout(() => gsFinish(salleId), 2000);
+  } else {
+    // Next round after elimination announcement
+    setTimeout(() => {
+      const s = grandeSalles.get(salleId);
+      if (s && s.sessionActive) {
+        s.status = 'playing';
+        gsStartRound(salleId);
+      }
+    }, 5000);
+  }
+}
+
+async function gsFinish(salleId) {
+  const salle = grandeSalles.get(salleId);
+  if (!salle) return;
+  
+  salle.status = 'finished';
+  salle.sessionActive = false;
+  if (salle.roundTimer) { try { clearTimeout(salle.roundTimer); } catch {} salle.roundTimer = null; }
+  
+  // Final podium
+  const allPlayers = Array.from(salle.players.entries())
+    .map(([id, p]) => ({ id, name: p.name, score: p.score || 0, eliminated: !!p.eliminated, eliminatedWave: p.eliminatedWave || 999 }))
+    .sort((a, b) => {
+      if (a.eliminated !== b.eliminated) return a.eliminated ? 1 : -1;
+      if (!a.eliminated && !b.eliminated) return b.score - a.score;
+      return b.eliminatedWave - a.eliminatedWave || b.score - a.score;
+    })
+    .map((p, i) => ({ ...p, finalRank: i + 1 }));
+  
+  const winner = allPlayers[0] || null;
+  
+  console.log(`[GS] Grande Salle "${salleId}" finished. Winner: ${winner?.name || 'none'} with ${winner?.score || 0} points. ${allPlayers.length} total players.`);
+  
+  // Save tournament results to Supabase
+  if (salle.tournamentId && supabaseAdmin) {
+    try {
+      await supabaseAdmin.from('gs_tournaments').update({
+        status: 'finished',
+        winner_name: winner?.name || null,
+        winner_score: winner?.score || 0,
+        total_players: allPlayers.length,
+        total_rounds: salle.roundsPlayed,
+        updated_at: new Date().toISOString(),
+      }).eq('id', salle.tournamentId);
+      console.log(`[GS] Tournament ${salle.tournamentId} results saved to Supabase`);
+    } catch (e) { console.error('[GS] Tournament save error:', e.message); }
+  }
+  
+  io.to(`gs:${salleId}`).emit('gs:finish', {
+    podium: allPlayers.slice(0, 10),
+    fullRanking: allPlayers,
+    totalPlayers: allPlayers.length,
+    winner,
+    roundsPlayed: salle.roundsPlayed,
+    eliminationWaves: salle.eliminationWave,
+  });
+  
+  // Reset salle after 30s for next event
+  setTimeout(() => {
+    const s = grandeSalles.get(salleId);
+    if (s && s.status === 'finished') {
+      // Clear all players and reset
+      s.players.clear();
+      s.spectators.clear();
+      s.status = 'lobby';
+      s.roundsPlayed = 0;
+      s.eliminationWave = 0;
+      s.validatedPairIds = new Set();
+      console.log(`[GS] Grande Salle "${salleId}" reset to lobby`);
+      gsEmitState(salleId);
+    }
+  }, 30000);
+}
+
 function getRoom(roomCode) {
   if (!rooms.has(roomCode)) rooms.set(roomCode, { players: new Map(), resolved: false, status: 'lobby', hostId: null, duration: 60, sessionActive: false, sessions: [], roundsPerSession: 3, roundsPlayed: 0, roundTimer: null, pendingClaims: new Map(), validatedPairIds: new Set(), selectedThemes: [], selectedClasses: [] });
   const r = rooms.get(roomCode);
@@ -2744,7 +3025,247 @@ io.on('connection', (socket) => {
     await crazyArena.startTiebreakerByTeacher(matchId);
   });
 
+  // ===== GRANDE SALLE EVENTS =====
+  let currentGS = null; // salleId the player is in
+
+  socket.on('gs:join', async ({ name, salleId, tournamentId }, cb) => {
+    let id = salleId || 'grande-salle-publique';
+    
+    // If joining a tournament, use tournament ID as salle ID and load config
+    if (tournamentId) {
+      id = `tournament:${tournamentId}`;
+      if (!grandeSalles.has(id) && supabaseAdmin) {
+        try {
+          const { data: t } = await supabaseAdmin.from('gs_tournaments').select('*').eq('id', tournamentId).single();
+          if (t && ['scheduled', 'open'].includes(t.status)) {
+            createGrandeSalle(id, {
+              duration: t.duration_round || 90,
+              eliminationPercent: t.elimination_percent || 25,
+              roundsPerElimination: t.rounds_per_elimination || 1,
+              minPlayersToStart: t.min_players || 3,
+              themes: t.themes || [],
+              classes: t.classes || [],
+            });
+            const s = grandeSalles.get(id);
+            if (s) { s.tournamentId = tournamentId; s.tournamentTitle = t.title; }
+            // Mark tournament as open
+            await supabaseAdmin.from('gs_tournaments').update({ status: 'open', updated_at: new Date().toISOString() }).eq('id', tournamentId);
+          } else if (!t) {
+            if (typeof cb === 'function') cb({ ok: false, error: 'Tournoi introuvable' });
+            return;
+          }
+        } catch (e) { console.error('[GS] Tournament load error:', e.message); }
+      }
+    }
+    
+    const salle = grandeSalles.has(id) ? grandeSalles.get(id) : createGrandeSalle(id);
+    
+    // Leave previous GS if any
+    if (currentGS && currentGS !== id) {
+      const prev = grandeSalles.get(currentGS);
+      if (prev) {
+        prev.players.delete(socket.id);
+        prev.spectators.delete(socket.id);
+        socket.leave(`gs:${currentGS}`);
+        gsEmitState(currentGS);
+      }
+    }
+    
+    currentGS = id;
+    socket.join(`gs:${id}`);
+    
+    const playerName = String(name || `Joueur-${socket.id.slice(0, 4)}`);
+    
+    // If game is in progress, join as spectator
+    if (salle.sessionActive) {
+      salle.spectators.add(socket.id);
+      socket.emit('gs:joined-as-spectator', { salleId: id, tournamentTitle: salle.tournamentTitle || null });
+      console.log(`[GS] ${playerName} joined "${id}" as spectator (game in progress)`);
+    } else {
+      salle.players.set(socket.id, {
+        name: playerName,
+        score: 0,
+        errors: 0,
+        rank: 0,
+        eliminated: false,
+        joinedAt: Date.now(),
+      });
+      console.log(`[GS] ${playerName} joined "${id}" (${salle.players.size} players)`);
+    }
+    
+    gsEmitState(id);
+    if (typeof cb === 'function') cb({ ok: true, salleId: id, status: salle.status, playerCount: salle.players.size, tournamentTitle: salle.tournamentTitle || null });
+  });
+
+  socket.on('gs:leave', () => {
+    if (!currentGS) return;
+    const salle = grandeSalles.get(currentGS);
+    if (salle) {
+      salle.players.delete(socket.id);
+      salle.spectators.delete(socket.id);
+      socket.leave(`gs:${currentGS}`);
+      gsEmitState(currentGS);
+      console.log(`[GS] Player left "${currentGS}" (${salle.players.size} remaining)`);
+    }
+    currentGS = null;
+  });
+
+  socket.on('gs:start', ({ salleId }, cb) => {
+    const id = salleId || 'grande-salle-publique';
+    const salle = grandeSalles.get(id);
+    if (!salle) { if (typeof cb === 'function') cb({ ok: false, error: 'Salle introuvable' }); return; }
+    if (salle.sessionActive) { if (typeof cb === 'function') cb({ ok: false, error: 'Partie déjà en cours' }); return; }
+    
+    const playerCount = salle.players.size;
+    if (playerCount < salle.config.minPlayersToStart) {
+      if (typeof cb === 'function') cb({ ok: false, error: `Minimum ${salle.config.minPlayersToStart} joueurs requis (${playerCount} actuellement)` });
+      return;
+    }
+    
+    console.log(`[GS] Starting Grande Salle "${id}" with ${playerCount} players`);
+    salle.sessionActive = true;
+    salle.startedAt = Date.now();
+    salle.status = 'countdown';
+    
+    // Reset all player scores
+    for (const [, p] of salle.players.entries()) {
+      p.score = 0;
+      p.errors = 0;
+      p.rank = 0;
+      p.eliminated = false;
+    }
+    salle.roundsPlayed = 0;
+    salle.eliminationWave = 0;
+    salle.validatedPairIds = new Set();
+    
+    gsEmitState(id);
+    
+    // Countdown
+    let t = 5;
+    io.to(`gs:${id}`).emit('gs:countdown', { t });
+    const intv = setInterval(() => {
+      t -= 1;
+      if (t > 0) {
+        io.to(`gs:${id}`).emit('gs:countdown', { t });
+      } else {
+        clearInterval(intv);
+        gsStartRound(id);
+      }
+    }, 1000);
+    
+    if (typeof cb === 'function') cb({ ok: true, playerCount });
+  });
+
+  // Pair attempt in Grande Salle
+  socket.on('gs:attemptPair', ({ a, b }) => {
+    if (!currentGS) return;
+    const salle = grandeSalles.get(currentGS);
+    if (!salle || salle.status !== 'playing') return;
+    
+    const player = salle.players.get(socket.id);
+    if (!player || player.eliminated) return;
+    
+    // Debounce
+    if (!salle._attemptDebounce) salle._attemptDebounce = new Map();
+    const now = Date.now();
+    if ((now - (salle._attemptDebounce.get(socket.id) || 0)) < 300) return;
+    salle._attemptDebounce.set(socket.id, now);
+    
+    const keyZones = [String(a), String(b)].sort().join('|');
+    if (salle.foundPairs.has(keyZones)) return;
+    
+    // Validate pair using zones
+    if (salle.currentZones && Array.isArray(salle.currentZones)) {
+      const zA = salle.currentZones.find(z => String(z.id) === String(a));
+      const zB = salle.currentZones.find(z => String(z.id) === String(b));
+      if (!zA || !zB || !zA.pairId || zA.pairId !== zB.pairId) {
+        // Invalid pair - increment errors
+        player.errors = (player.errors || 0) + 1;
+        socket.emit('gs:pair:invalid', { a, b });
+        return;
+      }
+    }
+    
+    // Valid pair!
+    salle.foundPairs.add(keyZones);
+    player.score = (player.score || 0) + 1;
+    
+    // Track validated pairId for exclusion
+    try {
+      if (salle.currentZones) {
+        const zA = salle.currentZones.find(z => String(z.id) === String(a));
+        if (zA?.pairId) {
+          salle.validatedPairIds.add(zA.pairId);
+          if (salle.validatedPairIds.size > 15) {
+            const oldest = Array.from(salle.validatedPairIds)[0];
+            salle.validatedPairIds.delete(oldest);
+          }
+        }
+      }
+    } catch {}
+    
+    // Emit to all players
+    const leaderboard = Array.from(salle.players.entries())
+      .filter(([, p]) => !p.eliminated)
+      .map(([id, p]) => ({ id, name: p.name, score: p.score || 0 }))
+      .sort((a, b) => b.score - a.score)
+      .map((p, i) => ({ ...p, rank: i + 1 }));
+    
+    io.to(`gs:${currentGS}`).emit('gs:pair:valid', {
+      by: socket.id,
+      playerName: player.name,
+      a, b,
+      leaderboard,
+    });
+    
+    // Regenerate zones for this player (new card)
+    const newSeed = Math.floor(Date.now() % 2147483647);
+    try {
+      const regenResult = generateRoundZones(newSeed, {
+        themes: salle.config.themes || [],
+        classes: salle.config.classes || [],
+        excludedPairIds: new Set(),
+      });
+      const newZones = Array.isArray(regenResult) ? regenResult : (regenResult?.zones || []);
+      salle.currentZones = newZones;
+      salle.roundSeed = newSeed;
+      salle.foundPairs.clear();
+      
+      io.to(`gs:${currentGS}`).emit('gs:round:new', {
+        seed: newSeed,
+        zones: newZones,
+        hasZones: true,
+        duration: salle.config.duration,
+        roundIndex: salle.roundsPlayed,
+        eliminationWave: salle.eliminationWave,
+      });
+    } catch (err) {
+      console.error('[GS] Zone regen error:', err.message);
+    }
+  });
+
+  socket.on('gs:pair:error', () => {
+    if (!currentGS) return;
+    const salle = grandeSalles.get(currentGS);
+    if (!salle || salle.status !== 'playing') return;
+    const player = salle.players.get(socket.id);
+    if (player && !player.eliminated) {
+      player.errors = (player.errors || 0) + 1;
+    }
+  });
+
   socket.on('disconnect', () => {
+    // Gérer déconnexion Grande Salle
+    if (currentGS) {
+      const salle = grandeSalles.get(currentGS);
+      if (salle) {
+        salle.players.delete(socket.id);
+        salle.spectators.delete(socket.id);
+        gsEmitState(currentGS);
+        console.log(`[GS] Player disconnected from "${currentGS}" (${salle.players.size} remaining)`);
+      }
+    }
+    
     // Gérer déconnexion Crazy Arena
     crazyArena.handleDisconnect(socket);
     
