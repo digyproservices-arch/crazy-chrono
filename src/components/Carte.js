@@ -2012,15 +2012,17 @@ const Carte = () => {
       let cfg = null;
       try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
       const isOnline = cfg && cfg.mode === 'online';
-      const isGrandeSalle = !!gsMode || (cfg && cfg.mode === 'grande-salle');
-      console.log('[CC][GS] Mode detection:', { gsMode, cfgMode: cfg?.mode, isGrandeSalle });
+      // Triple détection GS: URL param ?gs= OR cc_session_cfg OR cc_gs_session
+      let gsSession = null;
+      try { gsSession = JSON.parse(localStorage.getItem('cc_gs_session') || 'null'); } catch {}
+      const isGrandeSalle = !!gsMode || (cfg && cfg.mode === 'grande-salle') || !!gsSession;
+      console.log('[CC][GS] Mode detection:', { gsMode, cfgMode: cfg?.mode, hasGsSession: !!gsSession, isGrandeSalle });
 
       // === GRANDE SALLE MODE ===
       if (isGrandeSalle) {
-        let gsSession = null;
-        try { gsSession = JSON.parse(localStorage.getItem('cc_gs_session') || 'null'); } catch {}
         const gsName = gsSession?.playerName || playerName;
-        const gsSalleId = gsSession?.salleId || 'grande-salle-publique';
+        // URL param carries salleId directly (e.g. ?gs=grande-salle-publique)
+        const gsSalleId = (gsMode && gsMode !== '1' && gsMode !== 'true') ? decodeURIComponent(gsMode) : (gsSession?.salleId || 'grande-salle-publique');
         const gsTournamentId = gsSession?.tournamentId || null;
         try { if (gsName) setPlayerName(gsName); } catch {}
 
@@ -2031,13 +2033,38 @@ const Carte = () => {
         else joinPayload.salleId = gsSalleId;
         s.emit('gs:join', joinPayload, (res) => {
           console.log('[CC][GS] gs:join response', res);
+          // Fallback: load zones from localStorage if server reconnection is slow
+          if (res?.ok) {
+            setTimeout(() => {
+              try {
+                const roundData = JSON.parse(localStorage.getItem('cc_gs_round') || 'null');
+                if (roundData && Array.isArray(roundData.zones) && roundData.zones.length > 0) {
+                  console.log('[CC][GS] Loading zones from localStorage fallback', { count: roundData.zones.length });
+                  setZones(roundData.zones);
+                  setPreparing(false);
+                  setGameActive(true);
+                  const d = parseInt(roundData.duration, 10);
+                  if (Number.isFinite(d) && d > 0) {
+                    const elapsed = Math.floor((Date.now() - (roundData.startedAt || Date.now())) / 1000);
+                    const remaining = Math.max(1, d - elapsed);
+                    setGameDuration(d);
+                    setTimeLeft(remaining);
+                  }
+                  try { enterGameFullscreen(); } catch {}
+                  try { setPanelCollapsed(true); } catch {}
+                  localStorage.removeItem('cc_gs_round');
+                }
+              } catch {}
+            }, 1500);
+          }
         });
 
         try { s._isGrandeSalle = true; s._gsSalleId = gsSalleId; } catch {}
 
-        // GS: round:new — same zone processing as regular multiplayer
+        // GS: round:new — zone processing
         s.on('gs:round:new', (payload) => {
           console.log('[CC][GS] gs:round:new', { zonesCount: payload?.zones?.length, duration: payload?.duration });
+          try { localStorage.removeItem('cc_gs_round'); } catch {}
           try { if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } } catch {}
           if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
             setZones(payload.zones);
@@ -2104,6 +2131,8 @@ const Carte = () => {
         s.on('gs:finish', (data) => {
           console.log('[CC][GS] gs:finish', data);
           try { localStorage.setItem('cc_gs_finish', JSON.stringify(data)); } catch {}
+          try { localStorage.removeItem('cc_gs_session'); } catch {}
+          try { localStorage.removeItem('cc_gs_round'); } catch {}
           setGameActive(false);
           try { navigate('/grande-salle'); } catch {}
         });
@@ -2121,6 +2150,7 @@ const Carte = () => {
       if (isOnline && isFree() && !arenaMatchId) {
         try { alert('Le mode en ligne est réservé aux abonnés Pro.'); } catch {}
         try { navigate('/pricing'); } catch {}
+        // ... (rest of the code remains the same)
         try { s.emit('joinRoom', { roomId, name: cfg.playerName || playerName }); } catch {}
         return;
       }

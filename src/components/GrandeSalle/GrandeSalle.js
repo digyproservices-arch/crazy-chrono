@@ -88,7 +88,7 @@ export default function GrandeSalle() {
     });
     socket.on('gs:joined-as-spectator', (d) => { setIsSpectator(true); if (d?.tournamentTitle) setTournamentTitle(d.tournamentTitle); });
     socket.on('gs:countdown', ({ t }) => { setCountdown(t); setStatus('countdown'); });
-    socket.on('gs:round:new', () => {
+    socket.on('gs:round:new', (payload) => {
       // Store GS session config and navigate to /carte for the real card rendering
       const salleId = tournamentId ? `tournament:${tournamentId}` : 'grande-salle-publique';
       try {
@@ -99,10 +99,20 @@ export default function GrandeSalle() {
           playerName: getPlayerName(),
           tournamentTitle: tournamentTitle || null,
         }));
+        // Store round data so Carte.js can start immediately
+        if (payload && Array.isArray(payload.zones)) {
+          localStorage.setItem('cc_gs_round', JSON.stringify({
+            zones: payload.zones,
+            duration: payload.duration || 90,
+            roundIndex: payload.roundIndex || 1,
+            startedAt: Date.now(),
+          }));
+        }
       } catch {}
+      console.log('[GS] Navigating to /carte with GS mode', { salleId, zonesCount: payload?.zones?.length });
       // Disconnect this socket — Carte.js will create its own and reconnect
       socket.disconnect();
-      navigate('/carte?gs=1');
+      navigate('/carte?gs=' + encodeURIComponent(salleId));
     });
     // If finish arrives while still on this page (e.g. returned from /carte)
     socket.on('gs:finish', (d) => { setFinish(d); setStatus('finished'); });

@@ -3125,11 +3125,21 @@ io.on('connection', (socket) => {
     if (!currentGS) return;
     const salle = grandeSalles.get(currentGS);
     if (salle) {
-      salle.players.delete(socket.id);
-      salle.spectators.delete(socket.id);
+      if (salle.sessionActive) {
+        // Session in progress: keep player data for reconnection
+        const player = salle.players.get(socket.id);
+        if (player) {
+          player.disconnectedAt = Date.now();
+          console.log(`[GS] Player "${player.name}" left "${currentGS}" during active session (kept for reconnection)`);
+        }
+        salle.spectators.delete(socket.id);
+      } else {
+        salle.players.delete(socket.id);
+        salle.spectators.delete(socket.id);
+        console.log(`[GS] Player left "${currentGS}" (${salle.players.size} remaining)`);
+      }
       socket.leave(`gs:${currentGS}`);
       gsEmitState(currentGS);
-      console.log(`[GS] Player left "${currentGS}" (${salle.players.size} remaining)`);
     }
     currentGS = null;
   });
@@ -3283,10 +3293,22 @@ io.on('connection', (socket) => {
     if (currentGS) {
       const salle = grandeSalles.get(currentGS);
       if (salle) {
-        salle.players.delete(socket.id);
-        salle.spectators.delete(socket.id);
+        if (salle.sessionActive) {
+          // Session in progress: keep player data for reconnection from Carte.js
+          // Just mark as disconnected, don't delete
+          const player = salle.players.get(socket.id);
+          if (player) {
+            player.disconnectedAt = Date.now();
+            console.log(`[GS] Player "${player.name}" disconnected from "${currentGS}" (kept for reconnection, ${salle.players.size} players)`);
+          }
+          salle.spectators.delete(socket.id);
+        } else {
+          // No active session: clean up normally
+          salle.players.delete(socket.id);
+          salle.spectators.delete(socket.id);
+          console.log(`[GS] Player disconnected from "${currentGS}" (${salle.players.size} remaining)`);
+        }
         gsEmitState(currentGS);
-        console.log(`[GS] Player disconnected from "${currentGS}" (${salle.players.size} remaining)`);
       }
     }
     
