@@ -101,14 +101,14 @@ const NavBar = () => {
         overflow: 'visible'
       }}>
         {/* ===== LOGO IN CIRCLE — coin supérieur gauche, partiellement caché ===== */}
-        <Link to="/modes" style={{
+        <Link to="/modes" className="cc-nav-logo-link" style={{
           position: 'absolute',
           top: -30,
           left: -30,
           zIndex: 1002,
           textDecoration: 'none'
         }}>
-          <div style={{
+          <div className="cc-nav-logo-circle" style={{
             width: 140,
             height: 140,
             borderRadius: '50%',
@@ -134,7 +134,7 @@ const NavBar = () => {
           </div>
         </Link>
         {/* Spacer pour le contenu de la nav après le cercle */}
-        <div style={{ width: 110, flexShrink: 0 }} />
+        <div className="cc-nav-logo-spacer" style={{ width: 110, flexShrink: 0 }} />
 
         {/* ===== DESKTOP NAV ===== */}
         <div style={{
@@ -176,9 +176,9 @@ const NavBar = () => {
 
         {/* ===== RIGHT SIDE ===== */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <NetworkIndicator />
+          <span className="cc-nav-hide-mobile"><NetworkIndicator /></span>
           {isFree() && (
-            <Link to="/pricing" style={{
+            <Link to="/pricing" className="cc-nav-hide-mobile" style={{
               fontSize: 11, color: CC.brown, background: CC.yellow,
               border: 'none', borderRadius: 20,
               padding: '5px 12px', textDecoration: 'none', fontWeight: 700,
@@ -188,7 +188,7 @@ const NavBar = () => {
             </Link>
           )}
 
-          <Link to="/pricing" style={{
+          <Link to="/pricing" className="cc-nav-hide-mobile" style={{
             fontSize: 12, color: 'rgba(255,255,255,0.7)', textDecoration: 'none',
             padding: '6px 10px', borderRadius: 6, transition: 'color 0.2s'
           }}
@@ -233,6 +233,8 @@ const NavBar = () => {
           {isTeacher && <MobileLink icon="🏅" label="Compétition" to="/crazy-arena/competition" navigate={navigate} active={isActive('/crazy-arena/competition')} />}
           <MobileLink icon="📊" label="Performances" to="/my-performance" navigate={navigate} active={isActive('/my-performance')} />
           <MobileLink icon="💰" label="Tarifs" to="/pricing" navigate={navigate} active={isActive('/pricing')} />
+          <MobileLink icon="🏪" label="Boutique" to="/pricing" navigate={navigate} active={false} />
+          <MobileLink icon="🏟️" label="Grande Salle" to="/grande-salle" navigate={navigate} active={isActive('/grande-salle')} />
           {isAdmin && <div style={{ height: 1, background: 'rgba(255,255,255,0.15)', margin: '6px 0' }} />}
           {isAdmin && <MobileLink icon="📊" label="Admin Dashboard" to="/admin/dashboard" navigate={navigate} active={isActive('/admin/dashboard')} />}
           {isAdmin && <MobileLink icon="👥" label="Rôles" to="/admin/roles" navigate={navigate} active={isActive('/admin/roles')} />}
@@ -261,6 +263,11 @@ const NavBar = () => {
         @media (max-width: 860px) {
           .cc-nav-desktop { display: none !important; }
           .cc-nav-mobile-btn { display: block !important; }
+          .cc-nav-hide-mobile { display: none !important; }
+          .cc-nav-logo-circle { width: 90px !important; height: 90px !important; }
+          .cc-nav-logo-circle img { height: 60px !important; margin-left: 8px !important; margin-top: 6px !important; }
+          .cc-nav-logo-link { top: -18px !important; left: -18px !important; }
+          .cc-nav-logo-spacer { width: 60px !important; }
         }
         @media (min-width: 861px) {
           .cc-nav-mobile-menu { display: none !important; }
