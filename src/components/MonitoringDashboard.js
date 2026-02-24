@@ -62,6 +62,7 @@ function MonitoringDashboard() {
   const [incidents, setIncidents] = useState([]);
   const [incidentsLoading, setIncidentsLoading] = useState(false);
   const [incidentSeverityFilter, setIncidentSeverityFilter] = useState('all');
+  const [rumEvents, setRumEvents] = useState([]);
 
   const copyToClipboard = async (text, source) => {
     try {
@@ -215,7 +216,7 @@ function MonitoringDashboard() {
 
   // Socket.IO connection for real-time performance monitoring
   useEffect(() => {
-    if (activeTab !== 'performance') return;
+    if (activeTab !== 'performance' && activeTab !== 'rum') return;
     const base = getBackendUrl();
     const s = io(base, { transports: ['websocket'], withCredentials: false });
     perfSocketRef.current = s;
@@ -226,6 +227,9 @@ function MonitoringDashboard() {
     s.on('disconnect', () => setPerfConnected(false));
     s.on('monitoring:perf', (event) => {
       setPerfEvents(prev => [...prev.slice(-499), event]);
+      if (event && event.type === 'rum:layout') {
+        setRumEvents(prev => [...prev.slice(-199), { ...event, _receivedAt: new Date().toISOString() }]);
+      }
     });
     return () => { s.disconnect(); perfSocketRef.current = null; };
   }, [activeTab]);
@@ -373,6 +377,7 @@ function MonitoringDashboard() {
             { id: 'errors', label: `🔴 Erreurs (${totalErrors})`, icon: '' },
             { id: 'incidents', label: `⚠️ Incidents (${incidents.length})`, icon: '' },
             { id: 'performance', label: `🎯 Performance${perfConnected ? ' 🟢' : ''}`, icon: '' },
+            { id: 'rum', label: `📱 RUM (${rumEvents.length})`, icon: '' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -703,6 +708,7 @@ function MonitoringDashboard() {
                   <span><b style={{ color: '#3b82f6' }}>●</b> mp:identify / joinRoom</span>
                   <span><b style={{ color: '#f59e0b' }}>●</b> endSession</span>
                   <span><b style={{ color: '#a855f7' }}>●</b> client events</span>
+                  <span><b style={{ color: '#14b8a6' }}>●</b> rum:layout</span>
                 </div>
 
                 {/* Live Event Stream */}
@@ -844,6 +850,206 @@ function MonitoringDashboard() {
                             {inc.deviceInfo && (
                               <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 4 }}>
                                 📱 {inc.deviceInfo.screenWidth}x{inc.deviceInfo.screenHeight} — {(inc.deviceInfo.userAgent || '').substring(0, 80)}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ====== RUM TAB ====== */}
+            {activeTab === 'rum' && (
+              <div>
+                {/* RUM Status Bar */}
+                <div style={{ ...cardStyle, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{
+                      width: 12, height: 12, borderRadius: '50%',
+                      background: perfConnected ? '#22c55e' : '#ef4444',
+                      boxShadow: perfConnected ? '0 0 8px #22c55e' : '0 0 8px #ef4444',
+                    }} />
+                    <span style={{ fontSize: 14, color: perfConnected ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
+                      {perfConnected ? 'RUM connecté — en attente d\'événements' : 'Déconnecté — activez l\'onglet pour recevoir les données'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => setRumEvents([])} style={btnStyle('#334155')}>🗑️ Vider</button>
+                    <button
+                      onClick={() => copyToClipboard(JSON.stringify(rumEvents, null, 2), 'rum')}
+                      style={btnStyle(COLORS.info)}
+                    >
+                      {copyFeedback === 'rum' ? '✅ Copié !' : '📋 Copier JSON'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* RUM KPI Cards */}
+                {(() => {
+                  const total = rumEvents.length;
+                  const withAnomalies = rumEvents.filter(e => e.hasAnomalies).length;
+                  const mobileEvents = rumEvents.filter(e => e.mobile).length;
+                  const desktopEvents = total - mobileEvents;
+                  const lastEvt = total > 0 ? rumEvents[total - 1] : null;
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
+                      <KPICard title="Snapshots RUM" value={total} icon="📸" color={COLORS.info} />
+                      <KPICard title="Mobile" value={mobileEvents} icon="📱" color="#8b5cf6" />
+                      <KPICard title="Desktop" value={desktopEvents} icon="🖥️" color="#3b82f6" />
+                      <KPICard title="Anomalies" value={withAnomalies} icon="🚨" color={COLORS.error} highlight={withAnomalies > 0} />
+                      {lastEvt && lastEvt.viewport && (
+                        <KPICard title="Dernier viewport" value={`${lastEvt.viewport.w}×${lastEvt.viewport.h}`} icon="📐" color={COLORS.success} />
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Anomaly Summary */}
+                {(() => {
+                  const allAnomalies = {};
+                  rumEvents.forEach(e => {
+                    if (e.anomalies && e.anomalies.length > 0) {
+                      e.anomalies.forEach(a => { allAnomalies[a] = (allAnomalies[a] || 0) + 1; });
+                    }
+                  });
+                  const anomalyKeys = Object.keys(allAnomalies);
+                  if (anomalyKeys.length === 0) return null;
+                  const anomalyDescriptions = {
+                    'carte-collapsed': 'Carte effondrée (< 50px) → page blanche',
+                    'carte-overflow': 'Carte dépasse le viewport',
+                    'carte-offscreen': 'Carte hors écran',
+                    'carte-clipped-top': 'Carte masquée en haut',
+                    'carte-behind-hud': 'Carte cachée sous le HUD mobile',
+                    'mobile-hud-missing': 'HUD mobile absent',
+                    'svg-overlay-collapsed': 'SVG overlay effondré',
+                  };
+                  return (
+                    <div style={{ ...cardStyle, marginBottom: 16, borderLeft: `4px solid ${COLORS.error}` }}>
+                      <h3 style={{ ...cardTitleStyle, color: COLORS.error }}>🚨 Anomalies détectées</h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {anomalyKeys.sort((a, b) => allAnomalies[b] - allAnomalies[a]).map(key => (
+                          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: 'rgba(239,68,68,0.08)', borderRadius: 8 }}>
+                            <span style={{ padding: '2px 10px', borderRadius: 6, fontSize: 13, fontWeight: 700, background: COLORS.error, color: '#fff', minWidth: 32, textAlign: 'center' }}>
+                              {allAnomalies[key]}×
+                            </span>
+                            <span style={{ fontWeight: 700, color: '#fff', minWidth: 180 }}>{key}</span>
+                            <span style={{ fontSize: 13, color: COLORS.textMuted }}>{anomalyDescriptions[key] || ''}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* RUM Snapshots List */}
+                <div style={cardStyle}>
+                  <h3 style={cardTitleStyle}>📸 Snapshots layout ({rumEvents.length})</h3>
+                  {rumEvents.length === 0 ? (
+                    <div style={{ padding: 40, textAlign: 'center' }}>
+                      <div style={{ fontSize: 48, marginBottom: 12 }}>📱</div>
+                      <div style={{ fontSize: 16, color: COLORS.textMuted }}>Aucun snapshot RUM reçu</div>
+                      <div style={{ fontSize: 13, color: COLORS.textMuted, marginTop: 8 }}>
+                        Lancez une partie sur mobile ou desktop pour voir les mesures de layout ici en temps réel.
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+                      {[...rumEvents].reverse().map((evt, i) => {
+                        const hasAnomaly = evt.hasAnomalies;
+                        const borderColor = hasAnomaly ? COLORS.error : evt.mobile ? '#8b5cf6' : '#3b82f6';
+                        return (
+                          <div key={i} style={{
+                            padding: '12px 16px',
+                            borderLeft: `4px solid ${borderColor}`,
+                            background: hasAnomaly ? 'rgba(239,68,68,0.06)' : (i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'),
+                            marginBottom: 6,
+                            borderRadius: '0 8px 8px 0',
+                          }}>
+                            {/* Header row */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <span style={{ fontSize: 16 }}>{evt.mobile ? '📱' : '🖥️'}</span>
+                                <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: borderColor, color: '#fff' }}>
+                                  {evt.mobile ? 'MOBILE' : 'DESKTOP'}
+                                </span>
+                                {hasAnomaly && (
+                                  <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: COLORS.error, color: '#fff', animation: 'pulse 2s infinite' }}>
+                                    🚨 ANOMALIE
+                                  </span>
+                                )}
+                              </div>
+                              <span style={{ fontSize: 12, color: COLORS.textMuted }}>
+                                {evt.ts ? new Date(evt.ts).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}
+                              </span>
+                            </div>
+
+                            {/* Measurements grid */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, fontSize: 12 }}>
+                              {/* Viewport */}
+                              {evt.viewport && (
+                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: 6 }}>
+                                  <div style={{ color: COLORS.textMuted, fontSize: 10, textTransform: 'uppercase', marginBottom: 2 }}>Viewport</div>
+                                  <div style={{ color: '#fff', fontWeight: 600, fontFamily: 'monospace' }}>
+                                    {evt.viewport.w} × {evt.viewport.h} <span style={{ color: COLORS.textMuted }}>@{evt.viewport.dpr}x</span>
+                                  </div>
+                                </div>
+                              )}
+                              {/* Carte */}
+                              {evt.carte && (
+                                <div style={{ background: (evt.carte.w < 50 || evt.carte.h < 50) ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: 6 }}>
+                                  <div style={{ color: COLORS.textMuted, fontSize: 10, textTransform: 'uppercase', marginBottom: 2 }}>Carte (.carte)</div>
+                                  <div style={{ color: '#fff', fontWeight: 600, fontFamily: 'monospace' }}>
+                                    {evt.carte.w} × {evt.carte.h} <span style={{ color: COLORS.textMuted }}>pos({evt.carte.x},{evt.carte.y})</span>
+                                  </div>
+                                </div>
+                              )}
+                              {/* Container */}
+                              {evt.container && (
+                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: 6 }}>
+                                  <div style={{ color: COLORS.textMuted, fontSize: 10, textTransform: 'uppercase', marginBottom: 2 }}>Container</div>
+                                  <div style={{ color: '#fff', fontWeight: 600, fontFamily: 'monospace' }}>
+                                    {evt.container.w} × {evt.container.h} <span style={{ color: COLORS.textMuted }}>pos({evt.container.x},{evt.container.y})</span>
+                                  </div>
+                                </div>
+                              )}
+                              {/* HUD (mobile only) */}
+                              {evt.hud && (
+                                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: 6 }}>
+                                  <div style={{ color: COLORS.textMuted, fontSize: 10, textTransform: 'uppercase', marginBottom: 2 }}>HUD Mobile</div>
+                                  <div style={{ color: '#fff', fontWeight: 600, fontFamily: 'monospace' }}>
+                                    {evt.hud.w} × {evt.hud.h} <span style={{ color: COLORS.textMuted }}>pos({evt.hud.x},{evt.hud.y})</span>
+                                  </div>
+                                </div>
+                              )}
+                              {/* SVG Overlay */}
+                              {evt.svg && (
+                                <div style={{ background: (evt.svg.w < 50 || evt.svg.h < 50) ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)', padding: '6px 10px', borderRadius: 6 }}>
+                                  <div style={{ color: COLORS.textMuted, fontSize: 10, textTransform: 'uppercase', marginBottom: 2 }}>SVG Overlay</div>
+                                  <div style={{ color: '#fff', fontWeight: 600, fontFamily: 'monospace' }}>
+                                    {evt.svg.w} × {evt.svg.h} <span style={{ color: COLORS.textMuted }}>pos({evt.svg.x},{evt.svg.y})</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Anomalies */}
+                            {evt.anomalies && evt.anomalies.length > 0 && (
+                              <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                {evt.anomalies.map((a, j) => (
+                                  <span key={j} style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: 'rgba(239,68,68,0.2)', color: COLORS.error, border: `1px solid ${COLORS.error}` }}>
+                                    {a}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* User Agent */}
+                            {evt.ua && (
+                              <div style={{ marginTop: 6, fontSize: 11, color: COLORS.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                🌐 {evt.ua}
                               </div>
                             )}
                           </div>
@@ -1040,6 +1246,7 @@ function getPerfEventColor(type) {
   if (type.startsWith('endSession')) return '#f59e0b';
   if (type === 'cc_student_id:resolved' || type === 'cc_student_id:missing') return '#8b5cf6';
   if (type === 'perf:transition' || type === 'perf:save-attempt' || type === 'perf:save-result') return '#a855f7';
+  if (type === 'rum:layout') return '#14b8a6';
   if (type === 'connected') return '#22c55e';
   return '#94a3b8';
 }
