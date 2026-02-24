@@ -2974,6 +2974,73 @@ useEffect(() => {
   }
 }, [gameActive, arenaMatchId, trainingMatchId, gameDuration, emitMonitoringEvent]);
 
+// === RUM: Real User Monitoring — viewport + key elements ===
+useEffect(() => {
+  if (!gameActive) return;
+  // Delay to let layout settle after game activation
+  const rumTimer = setTimeout(() => {
+    try {
+      const vw = window.innerWidth || 0;
+      const vh = window.innerHeight || 0;
+      const dpr = window.devicePixelRatio || 1;
+      const ua = navigator.userAgent || '';
+      const mobile = vw <= 768;
+
+      // Measure key elements
+      const carteEl = document.querySelector('.carte');
+      const hudEl = document.querySelector('.mobile-hud');
+      const svgOverlay = document.querySelector('.carte-svg-overlay');
+      const containerEl = document.querySelector('.carte-container');
+
+      const measure = (el) => {
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { w: Math.round(r.width), h: Math.round(r.height), x: Math.round(r.x), y: Math.round(r.y) };
+      };
+
+      const carte = measure(carteEl);
+      const hud = measure(hudEl);
+      const svg = measure(svgOverlay);
+      const container = measure(containerEl);
+
+      // Detect anomalies
+      const anomalies = [];
+      if (carte && (carte.w < 50 || carte.h < 50)) anomalies.push('carte-collapsed');
+      if (carte && (carte.w > vw + 10 || carte.h > vh + 10)) anomalies.push('carte-overflow');
+      if (carte && (carte.x + carte.w < 0 || carte.y + carte.h < 0)) anomalies.push('carte-offscreen');
+      if (carte && carte.y < 0) anomalies.push('carte-clipped-top');
+      if (mobile && !hud) anomalies.push('mobile-hud-missing');
+      if (mobile && hud && carte && carte.y < hud.y + hud.h - 5) anomalies.push('carte-behind-hud');
+      if (svg && (svg.w < 50 || svg.h < 50)) anomalies.push('svg-overlay-collapsed');
+
+      const payload = {
+        viewport: { w: vw, h: vh, dpr },
+        mobile,
+        carte,
+        hud: mobile ? hud : undefined,
+        svg,
+        container,
+        anomalies,
+        hasAnomalies: anomalies.length > 0,
+        ua: ua.slice(0, 120),
+      };
+
+      // Always log on mobile; on desktop only if anomalies
+      if (mobile || anomalies.length > 0) {
+        emitMonitoringEvent('rum:layout', payload);
+      }
+
+      // Console warning for anomalies
+      if (anomalies.length > 0) {
+        console.warn('[RUM] Layout anomalies detected:', anomalies, payload);
+      }
+    } catch (e) {
+      console.warn('[RUM] Error:', e);
+    }
+  }, 1200);
+  return () => clearTimeout(rumTimer);
+}, [gameActive, emitMonitoringEvent]);
+
 // Persister la durée choisie
 useEffect(() => {
   try { localStorage.setItem('gameDuration', String(gameDuration)); } catch {}
