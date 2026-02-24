@@ -644,6 +644,7 @@ const Carte = () => {
   const [searchParams] = useSearchParams();
   const arenaMatchId = searchParams.get('arena');
   const trainingMatchId = searchParams.get('training');
+  const gsMode = searchParams.get('gs');
   
   // Mode plein écran de jeu
   const [fullScreen, setFullScreen] = useState(false);
@@ -2011,7 +2012,8 @@ const Carte = () => {
       let cfg = null;
       try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
       const isOnline = cfg && cfg.mode === 'online';
-      const isGrandeSalle = cfg && cfg.mode === 'grande-salle';
+      const isGrandeSalle = !!gsMode || (cfg && cfg.mode === 'grande-salle');
+      console.log('[CC][GS] Mode detection:', { gsMode, cfgMode: cfg?.mode, isGrandeSalle });
 
       // === GRANDE SALLE MODE ===
       if (isGrandeSalle) {

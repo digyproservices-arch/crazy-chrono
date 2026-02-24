@@ -102,7 +102,7 @@ export default function GrandeSalle() {
       } catch {}
       // Disconnect this socket — Carte.js will create its own and reconnect
       socket.disconnect();
-      navigate('/carte');
+      navigate('/carte?gs=1');
     });
     // If finish arrives while still on this page (e.g. returned from /carte)
     socket.on('gs:finish', (d) => { setFinish(d); setStatus('finished'); });
