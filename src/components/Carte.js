@@ -2012,11 +2012,18 @@ const Carte = () => {
       let cfg = null;
       try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
       const isOnline = cfg && cfg.mode === 'online';
-      // Triple détection GS: URL param ?gs= OR cc_session_cfg OR cc_gs_session
+      // GS detection: URL param ?gs= OR cc_session_cfg.mode === 'grande-salle' ONLY
+      // cc_gs_session is supplementary data, NOT a trigger (may be stale from previous GS game)
+      const isGrandeSalle = !!gsMode || (cfg && cfg.mode === 'grande-salle');
       let gsSession = null;
-      try { gsSession = JSON.parse(localStorage.getItem('cc_gs_session') || 'null'); } catch {}
-      const isGrandeSalle = !!gsMode || (cfg && cfg.mode === 'grande-salle') || !!gsSession;
-      console.log('[CC][GS] Mode detection:', { gsMode, cfgMode: cfg?.mode, hasGsSession: !!gsSession, isGrandeSalle });
+      if (isGrandeSalle) {
+        try { gsSession = JSON.parse(localStorage.getItem('cc_gs_session') || 'null'); } catch {}
+      } else {
+        // Clean up stale GS data when entering non-GS modes
+        try { localStorage.removeItem('cc_gs_session'); } catch {}
+        try { localStorage.removeItem('cc_gs_round'); } catch {}
+      }
+      console.log('[CC][GS] Mode detection:', { gsMode, cfgMode: cfg?.mode, isGrandeSalle });
 
       // === GRANDE SALLE MODE ===
       if (isGrandeSalle) {
