@@ -3010,13 +3010,16 @@ useEffect(() => {
       if (carte && (carte.w > vw + 10 || carte.h > vh + 10)) anomalies.push('carte-overflow');
       if (carte && (carte.x + carte.w < 0 || carte.y + carte.h < 0)) anomalies.push('carte-offscreen');
       if (carte && carte.y < 0) anomalies.push('carte-clipped-top');
+      if (carte && carte.x < -5) anomalies.push('carte-clipped-left');
       if (mobile && !hud) anomalies.push('mobile-hud-missing');
       if (mobile && hud && carte && carte.y < hud.y + hud.h - 5) anomalies.push('carte-behind-hud');
       if (svg && (svg.w < 50 || svg.h < 50)) anomalies.push('svg-overlay-collapsed');
 
+      const orientation = vw > vh ? 'landscape' : 'portrait';
       const payload = {
         viewport: { w: vw, h: vh, dpr },
         mobile,
+        orientation,
         carte,
         hud: mobile ? hud : undefined,
         svg,
@@ -3040,7 +3043,7 @@ useEffect(() => {
     }
   }, 1200);
   return () => clearTimeout(rumTimer);
-}, [gameActive, emitMonitoringEvent]);
+}, [gameActive, emitMonitoringEvent, isPortrait]);
 
 // Persister la durée choisie
 useEffect(() => {
@@ -3733,37 +3736,47 @@ const handleEditGreenZone = (zone) => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleResize);
     };
-  }, []);
+  }, [gameActive, roomStatus]);
 
-  // Force landscape orientation on mobile when game is active
+  // Force fullscreen + landscape orientation on mobile when game is active
   useEffect(() => {
     if (!gameActive && roomStatus !== 'playing') return;
-    const tryLock = async () => {
+    if (!isMobile) return;
+    const tryImmersive = async () => {
+      // 1. Request fullscreen to hide browser chrome (address bar + nav bar)
+      try {
+        const el = document.documentElement;
+        const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+        if (rfs && !document.fullscreenElement && !document.webkitFullscreenElement) {
+          await rfs.call(el);
+        }
+      } catch (e) {
+        console.debug('[CC] Fullscreen not supported:', e.message);
+      }
+      // 2. Try to lock orientation to landscape
       try {
         if (screen.orientation && screen.orientation.lock) {
           await screen.orientation.lock('landscape');
         }
       } catch (e) {
-        // iOS Safari and some browsers don't support orientation lock
         console.debug('[CC] Orientation lock not supported:', e.message);
       }
     };
-    tryLock();
+    tryImmersive();
     return () => {
       try {
         if (screen.orientation && screen.orientation.unlock) {
           screen.orientation.unlock();
         }
       } catch {}
+      try {
+        const efd = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+        if (efd && (document.fullscreenElement || document.webkitFullscreenElement)) {
+          efd.call(document);
+        }
+      } catch {}
     };
-  }, [gameActive, roomStatus]);
-
-  // Disable edit mode when a game starts/room playing
-  useEffect(() => {
-    if (gameActive || roomStatus === 'playing') {
-      setEditMode(false);
-    }
-  }, [gameActive, roomStatus]);
+  }, [gameActive, roomStatus, isMobile]);
 
   const handleToggleEditMode = () => {
     if (gameActive || roomStatus === 'playing') {
@@ -6232,8 +6245,8 @@ setZones(dataWithRandomTexts);
       )}
       {/* Particules flottantes CSS-only */}
       {hasSidebar && <div className="cc-game-particles" />}
-      {/* Boutons flottants (toujours visibles) */}
-      <div style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 10000, display: 'flex', gap: 8 }}>
+      {/* Boutons flottants (masqués en mobile landscape pour ne pas gêner) */}
+      <div style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 10000, display: (isMobile && !isPortrait && hasSidebar) ? 'none' : 'flex', gap: 8 }}>
         <button
           onClick={() => setImageAnalysisOpen(v => !v)}
           title="Analyse des images (Ctrl+Alt+I)"
@@ -6361,7 +6374,7 @@ setZones(dataWithRandomTexts);
           </div>
         );
       })()}
-      {Array.isArray(activeThemes) && activeThemes.length > 0 && (
+      {Array.isArray(activeThemes) && activeThemes.length > 0 && !(isMobile && !isPortrait && hasSidebar) && (
         <div
           title={activeThemes.join(', ')}
           style={{
