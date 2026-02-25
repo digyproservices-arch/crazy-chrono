@@ -41,6 +41,7 @@ import supabase from './utils/supabaseClient';
 import NotificationBadge from './components/NotificationBadge';
 import GrandeSalle from './components/GrandeSalle/GrandeSalle';
 import TournamentAdmin from './components/GrandeSalle/TournamentAdmin';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
 
 // ✅ AUTH WRAPPERS (outside App to prevent remount loops!)
 const RequireAuth = ({ children, auth }) => auth ? children : <Navigate to="/login" replace />;
@@ -493,6 +494,7 @@ function App() {
             </div>
           )}
         </div>
+        <PWAInstallPrompt />
       </Router>
     </DataProvider>
   );

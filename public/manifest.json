@@ -1,6 +1,7 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "Crazy Chrono",
+  "name": "Crazy Chrono - Jeu éducatif",
+  "description": "Jeu éducatif interactif de rapidité et d'association pour apprendre en s'amusant",
   "icons": [
     {
       "src": "favicon.ico",
@@ -8,18 +9,25 @@
       "type": "image/x-icon"
     },
     {
-      "src": "logo192.png",
+      "src": "images/logo192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
-      "src": "logo512.png",
+      "src": "images/logo512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "orientation": "any",
+  "theme_color": "#0D6A7A",
+  "background_color": "#0D6A7A",
+  "categories": ["education", "games"],
+  "lang": "fr-FR",
+  "dir": "ltr"
 }
