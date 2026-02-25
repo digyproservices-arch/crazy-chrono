@@ -664,6 +664,7 @@ const Carte = () => {
   // Index des zones par id pour éviter les .find() répétitifs (déclaré après l'init de `zones`)
   // Responsive UI state
   const [isMobile, setIsMobile] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
   // Socket and timers
   const socketRef = useRef(null);
   const trainingEndedRef = useRef(false);
@@ -3720,14 +3721,42 @@ const handleEditGreenZone = (zone) => {
     const handleResize = () => {
       const mobile = window.innerWidth <= 768;
       setIsMobile(mobile);
+      setIsPortrait(window.innerHeight > window.innerWidth);
       // Par défaut sur mobile, masquer l'historique
       setHistoryExpanded(!mobile);
     };
 
     handleResize();
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
   }, []);
+
+  // Force landscape orientation on mobile when game is active
+  useEffect(() => {
+    if (!gameActive && roomStatus !== 'playing') return;
+    const tryLock = async () => {
+      try {
+        if (screen.orientation && screen.orientation.lock) {
+          await screen.orientation.lock('landscape');
+        }
+      } catch (e) {
+        // iOS Safari and some browsers don't support orientation lock
+        console.debug('[CC] Orientation lock not supported:', e.message);
+      }
+    };
+    tryLock();
+    return () => {
+      try {
+        if (screen.orientation && screen.orientation.unlock) {
+          screen.orientation.unlock();
+        }
+      } catch {}
+    };
+  }, [gameActive, roomStatus]);
 
   // Disable edit mode when a game starts/room playing
   useEffect(() => {
@@ -6190,6 +6219,17 @@ setZones(dataWithRandomTexts);
 
  return (
     <div className={`carte-container ${hasSidebar ? 'game-with-sidebar' : ''}`} style={{ position: 'relative' }}>
+      {/* Overlay: tournez votre téléphone en mode paysage */}
+      {isMobile && isPortrait && (gameActive || roomStatus === 'playing') && (
+        <div className="cc-rotate-overlay">
+          <div className="cc-rotate-content">
+            <div className="cc-rotate-phone">📱</div>
+            <div className="cc-rotate-arrow">↻</div>
+            <p className="cc-rotate-text">Tournez votre téléphone en mode paysage</p>
+            <p className="cc-rotate-sub">pour une meilleure expérience de jeu</p>
+          </div>
+        </div>
+      )}
       {/* Particules flottantes CSS-only */}
       {hasSidebar && <div className="cc-game-particles" />}
       {/* Boutons flottants (toujours visibles) */}
