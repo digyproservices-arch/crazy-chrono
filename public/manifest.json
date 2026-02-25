@@ -9,6 +9,12 @@
       "type": "image/x-icon"
     },
     {
+      "src": "images/apple-touch-icon.png",
+      "type": "image/png",
+      "sizes": "180x180",
+      "purpose": "any"
+    },
+    {
       "src": "images/logo192.png",
       "type": "image/png",
       "sizes": "192x192",
