@@ -6409,7 +6409,7 @@ setZones(dataWithRandomTexts);
         } catch {}
         return null;
       })()}
-      {isMobile && (
+      {isMobile && isPortrait && (
         <div className="mobile-hud">
           <div className="hud-left">
             {!isTiebreaker && <div className="hud-chip">⏱ {Math.max(0, timeLeft)}s</div>}
@@ -6432,7 +6432,7 @@ setZones(dataWithRandomTexts);
           </div>
         </div>
       )}
-      {isMobile && Array.isArray(wonPairsHistory) && wonPairsHistory.length > 0 && (
+      {isMobile && isPortrait && Array.isArray(wonPairsHistory) && wonPairsHistory.length > 0 && (
         <div className="mobile-history-strip" aria-label="Historique des paires">
           {wonPairsHistory.slice(0, 10).map((e, i) => (
             <div key={i} className="hist-item" title={e.text}>
