@@ -5,7 +5,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const http = require('http');
 const { Server } = require('socket.io');
-const { generateRoundZones } = require('./utils/serverZoneGenerator');
+const { generateRoundZones, createDeckState } = require('./utils/serverZoneGenerator');
 const logger = require('./logger'); // ✅ Winston logger professionnel
 
 // Load env (safe)
@@ -1878,6 +1878,7 @@ function createGrandeSalle(id, config = {}) {
     foundPairs: new Set(),
     pendingClaims: new Map(),
     validatedPairIds: new Set(),
+    deckState: createDeckState(), // Anti-repetition deck for variety across rounds
     createdAt: Date.now(),
     startedAt: null,
   };
@@ -1939,10 +1940,12 @@ function gsStartRound(salleId) {
   const seed = Math.floor(Date.now() % 2147483647);
   salle.roundSeed = seed;
   
+  if (!salle.deckState) salle.deckState = createDeckState();
   const zoneGenResult = generateRoundZones(seed, {
     themes: salle.config.themes || [],
     classes: salle.config.classes || [],
     excludedPairIds: salle.validatedPairIds || new Set(),
+    deckState: salle.deckState,
   });
   const zones = Array.isArray(zoneGenResult) ? zoneGenResult : (zoneGenResult?.zones || []);
   salle.currentZones = zones;
@@ -2126,10 +2129,11 @@ async function gsFinish(salleId) {
 }
 
 function getRoom(roomCode) {
-  if (!rooms.has(roomCode)) rooms.set(roomCode, { players: new Map(), resolved: false, status: 'lobby', hostId: null, duration: 60, sessionActive: false, sessions: [], roundsPerSession: 3, roundsPlayed: 0, roundTimer: null, pendingClaims: new Map(), validatedPairIds: new Set(), selectedThemes: [], selectedClasses: [] });
+  if (!rooms.has(roomCode)) rooms.set(roomCode, { players: new Map(), resolved: false, status: 'lobby', hostId: null, duration: 60, sessionActive: false, sessions: [], roundsPerSession: 3, roundsPlayed: 0, roundTimer: null, pendingClaims: new Map(), validatedPairIds: new Set(), deckState: createDeckState(), selectedThemes: [], selectedClasses: [] });
   const r = rooms.get(roomCode);
   if (!r.pendingClaims) r.pendingClaims = new Map();
   if (!r.validatedPairIds) r.validatedPairIds = new Set();
+  if (!r.deckState) r.deckState = createDeckState();
   if (!r.selectedThemes) r.selectedThemes = [];
   if (!r.selectedClasses) r.selectedClasses = [];
   return r;
@@ -2229,6 +2233,7 @@ function startRound(roomCode) {
     themes: room.selectedThemes || [],
     classes: room.selectedClasses || [],
     excludedPairIds: room.validatedPairIds || new Set(),
+    deckState: room.deckState,
     logFn: (level, message, data) => emitServerLog(roomCode, level, message, data)
   });
   
@@ -2746,6 +2751,7 @@ io.on('connection', (socket) => {
             themes: room.selectedThemes || [],
             classes: room.selectedClasses || [],
             excludedPairIds: new Set(),
+            deckState: room.deckState,
             logFn: (level, message, data) => emitServerLog(currentRoom, level, message, data)
           };
           const regenResult = generateRoundZones(newSeed, config);
@@ -3255,10 +3261,12 @@ io.on('connection', (socket) => {
     // Regenerate zones for this player (new card)
     const newSeed = Math.floor(Date.now() % 2147483647);
     try {
+      if (!salle.deckState) salle.deckState = createDeckState();
       const regenResult = generateRoundZones(newSeed, {
         themes: salle.config.themes || [],
         classes: salle.config.classes || [],
         excludedPairIds: new Set(),
+        deckState: salle.deckState,
       });
       const newZones = Array.isArray(regenResult) ? regenResult : (regenResult?.zones || []);
       salle.currentZones = newZones;

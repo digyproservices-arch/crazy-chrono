@@ -43,16 +43,55 @@ function isValidMathPair(calculContent, chiffreContent) {
   return result === chiffre;
 }
 
+// ===== Anti-Repetition Deck System (server-side) =====
+// Same principle as client-side: elements are drawn sequentially from a shuffled deck.
+// When the deck is exhausted, it is refilled & reshuffled. Guarantees maximum variety.
+// The deckState object is owned by the room/match and passed via config.deckState.
+
+function createDeckState() {
+  return { decks: {}, roundCount: 0 };
+}
+
+function _drawFromDeck(deckState, deckName, allIds, rng, filterFn) {
+  if (!deckState || !deckState.decks) return undefined;
+  if (!deckState.decks[deckName]) deckState.decks[deckName] = [];
+  const deck = deckState.decks[deckName];
+
+  // Try drawing from existing deck
+  for (let i = 0; i < deck.length; i++) {
+    if (filterFn(deck[i])) {
+      return deck.splice(i, 1)[0];
+    }
+  }
+
+  // Deck exhausted → refill with all IDs (shuffled) and try again
+  const fresh = allIds.slice();
+  for (let i = fresh.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [fresh[i], fresh[j]] = [fresh[j], fresh[i]];
+  }
+  deckState.decks[deckName] = fresh;
+
+  for (let i = 0; i < deckState.decks[deckName].length; i++) {
+    if (filterFn(deckState.decks[deckName][i])) {
+      return deckState.decks[deckName].splice(i, 1)[0];
+    }
+  }
+
+  return undefined;
+}
+
 /**
  * Génère les zones avec contenu pour une manche multijoueur
  * @param {number} seed - Seed pour RNG déterministe
- * @param {Object} config - Configuration { themes, classes, excludedPairIds, logFn }
- * @returns {Array} Zones avec contenu et pairId
+ * @param {Object} config - Configuration { themes, classes, excludedPairIds, logFn, deckState }
+ * @returns {Object} { zones, goodPairIds }
  */
 function generateRoundZones(seed, config = {}) {
   try {
     const logFn = config.logFn || (() => {}); // Callback optionnel pour logs
-    console.log('[ServerZoneGen] Starting with seed:', seed, 'config:', config);
+    const deckState = config.deckState || null; // Anti-repetition deck (mutable, owned by room)
+    console.log('[ServerZoneGen] Starting with seed:', seed, 'hasDeck:', !!deckState);
     logFn('info', '[ZoneGen] Starting generation', {
       seed,
       themesCount: (config.themes || []).length,
@@ -295,18 +334,30 @@ function generateRoundZones(seed, config = {}) {
     let goodPairIds = null;
     
     if (placedPairType === 'TI') {
-      // Paire Image-Texte
-      const links = [];
+      // Paire Image-Texte (deck-based for variety)
+      const tiLinkMap = new Map();
       for (const [tId, imgSet] of texteToImages.entries()) {
-        for (const imgId of imgSet) links.push({ tId, imgId });
+        for (const imgId of imgSet) {
+          tiLinkMap.set(`ti-${tId}-${imgId}`, { tId, imgId });
+        }
       }
-      // Filtrer d'abord les paires valides, puis choisir aléatoirement
-      const validLinks = links.filter(l => imageIds.includes(l.imgId) && texteIds.includes(l.tId));
-      const chosen = validLinks.length > 0 ? validLinks[Math.floor(rng() * validLinks.length)] : null;
+      const tiKeys = [...tiLinkMap.keys()];
+      let chosen = null;
+      if (deckState) {
+        const chosenKey = _drawFromDeck(deckState, 'assocTI', tiKeys, rng, (key) => {
+          const l = tiLinkMap.get(key);
+          return l && imageIds.includes(l.imgId) && texteIds.includes(l.tId);
+        });
+        chosen = chosenKey ? tiLinkMap.get(chosenKey) : null;
+      } else {
+        const validLinks = tiKeys.filter(k => { const l = tiLinkMap.get(k); return l && imageIds.includes(l.imgId) && texteIds.includes(l.tId); });
+        const key = validLinks.length > 0 ? validLinks[Math.floor(rng() * validLinks.length)] : null;
+        chosen = key ? tiLinkMap.get(key) : null;
+      }
       
-      console.log('[ServerZoneGen] Image-Texte pairs available:', validLinks.length);
+      console.log('[ServerZoneGen] Image-Texte pairs available:', tiKeys.length);
       logFn('info', '[ZoneGen] Image-Texte selection', {
-        availablePairs: validLinks.length,
+        availablePairs: tiKeys.length,
         chosenTexteId: chosen?.tId,
         chosenImageId: chosen?.imgId,
         chosenTexteContent: chosen ? textesById[chosen.tId]?.content : null
@@ -344,18 +395,30 @@ function generateRoundZones(seed, config = {}) {
         }
       }
     } else if (placedPairType === 'CC') {
-      // Paire Calcul-Chiffre
-      const links = [];
+      // Paire Calcul-Chiffre (deck-based for variety)
+      const ccLinkMap = new Map();
       for (const [cId, nSet] of calculToChiffres.entries()) {
-        for (const nId of nSet) links.push({ cId, nId });
+        for (const nId of nSet) {
+          ccLinkMap.set(`cc-${cId}-${nId}`, { cId, nId });
+        }
       }
-      // Filtrer d'abord les paires valides, puis choisir aléatoirement
-      const validLinks = links.filter(l => calculIds.includes(l.cId) && chiffreIds.includes(l.nId));
-      const chosen = validLinks.length > 0 ? validLinks[Math.floor(rng() * validLinks.length)] : null;
+      const ccKeys = [...ccLinkMap.keys()];
+      let chosen = null;
+      if (deckState) {
+        const chosenKey = _drawFromDeck(deckState, 'assocCC', ccKeys, rng, (key) => {
+          const l = ccLinkMap.get(key);
+          return l && calculIds.includes(l.cId) && chiffreIds.includes(l.nId);
+        });
+        chosen = chosenKey ? ccLinkMap.get(chosenKey) : null;
+      } else {
+        const validLinks = ccKeys.filter(k => { const l = ccLinkMap.get(k); return l && calculIds.includes(l.cId) && chiffreIds.includes(l.nId); });
+        const key = validLinks.length > 0 ? validLinks[Math.floor(rng() * validLinks.length)] : null;
+        chosen = key ? ccLinkMap.get(key) : null;
+      }
       
-      console.log('[ServerZoneGen] Calcul-Chiffre pairs available:', validLinks.length);
+      console.log('[ServerZoneGen] Calcul-Chiffre pairs available:', ccKeys.length);
       logFn('info', '[ZoneGen] Calcul-Chiffre selection', {
-        availablePairs: validLinks.length,
+        availablePairs: ccKeys.length,
         chosenCalculId: chosen?.cId,
         chosenChiffreId: chosen?.nId,
         chosenCalculContent: chosen ? calculsById[chosen.cId]?.content : null,
@@ -395,69 +458,67 @@ function generateRoundZones(seed, config = {}) {
       }
     }
     
-    // ===== Remplir avec des distracteurs (sans pairId) =====
+    // ===== Remplir avec des distracteurs via deck (anti-répétition inter-manches) =====
+    const _imgFilter = (forbiddenTextIds, usedContents) => (imgId) => {
+      const url = imagesById[imgId]?.url;
+      return !used.image.has(imgId) && 
+             !usedContents.has(url) &&
+             (!forbiddenTextIds || !imageToTextes.get(imgId) || 
+              ![...imageToTextes.get(imgId)].some(t => forbiddenTextIds.has(t)));
+    };
     const pickImageDistractor = (forbiddenTextIds, usedContents) => {
+      if (deckState) return _drawFromDeck(deckState, 'distImg', imageIds, rng, _imgFilter(forbiddenTextIds, usedContents));
       const pool = shuffle(imageIds.slice());
-      return pool.find(imgId => {
-        const url = imagesById[imgId]?.url;
-        return !used.image.has(imgId) && 
-               !usedContents.has(url) &&
-               (!forbiddenTextIds || !imageToTextes.get(imgId) || 
-                ![...imageToTextes.get(imgId)].some(t => forbiddenTextIds.has(t)));
-      });
+      return pool.find(_imgFilter(forbiddenTextIds, usedContents));
     };
     
+    const _txtFilter = (forbiddenImageIds, usedContents) => (tId) => {
+      const content = textesById[tId]?.content;
+      return !used.texte.has(tId) && 
+             !usedContents.has(content) &&
+             (!forbiddenImageIds || !texteToImages.get(tId) || 
+              ![...texteToImages.get(tId)].some(i => forbiddenImageIds.has(i)));
+    };
     const pickTexteDistractor = (forbiddenImageIds, usedContents) => {
+      if (deckState) return _drawFromDeck(deckState, 'distTxt', texteIds, rng, _txtFilter(forbiddenImageIds, usedContents));
       const pool = shuffle(texteIds.slice());
-      return pool.find(tId => {
-        const content = textesById[tId]?.content;
-        return !used.texte.has(tId) && 
-               !usedContents.has(content) &&
-               (!forbiddenImageIds || !texteToImages.get(tId) || 
-                ![...texteToImages.get(tId)].some(i => forbiddenImageIds.has(i)));
-      });
+      return pool.find(_txtFilter(forbiddenImageIds, usedContents));
     };
     
+    const _calcFilter = (forbiddenChiffreIds, usedContents, placedChiffreContents) => (cId) => {
+      const content = calculsById[cId]?.content;
+      if (placedChiffreContents && placedChiffreContents.size > 0) {
+        for (const chiffreContent of placedChiffreContents) {
+          if (isValidMathPair(content, chiffreContent)) return false;
+        }
+      }
+      return !used.calcul.has(cId) && 
+             !usedContents.has(content) &&
+             (!forbiddenChiffreIds || !calculToChiffres.get(cId) || 
+              ![...calculToChiffres.get(cId)].some(n => forbiddenChiffreIds.has(n)));
+    };
     const pickCalculDistractor = (forbiddenChiffreIds, usedContents, placedChiffreContents) => {
+      if (deckState) return _drawFromDeck(deckState, 'distCalc', calculIds, rng, _calcFilter(forbiddenChiffreIds, usedContents, placedChiffreContents));
       const pool = shuffle(calculIds.slice());
-      return pool.find(cId => {
-        const content = calculsById[cId]?.content;
-        
-        // Vérifier qu'aucun chiffre déjà placé ne forme une paire valide avec ce calcul
-        if (placedChiffreContents && placedChiffreContents.size > 0) {
-          for (const chiffreContent of placedChiffreContents) {
-            if (isValidMathPair(content, chiffreContent)) {
-              return false; // Ce calcul formerait une paire valide avec un chiffre déjà placé
-            }
-          }
-        }
-        
-        return !used.calcul.has(cId) && 
-               !usedContents.has(content) &&
-               (!forbiddenChiffreIds || !calculToChiffres.get(cId) || 
-                ![...calculToChiffres.get(cId)].some(n => forbiddenChiffreIds.has(n)));
-      });
+      return pool.find(_calcFilter(forbiddenChiffreIds, usedContents, placedChiffreContents));
     };
     
-    const pickChiffreDistractor = (forbiddenCalculIds, usedContents, placedCalculContents) => {
-      const pool = shuffle(chiffreIds.slice());
-      return pool.find(nId => {
-        const content = chiffresById[nId]?.content;
-        
-        // Vérifier qu'aucun calcul déjà placé ne forme une paire valide avec ce chiffre
-        if (placedCalculContents && placedCalculContents.size > 0) {
-          for (const calculContent of placedCalculContents) {
-            if (isValidMathPair(calculContent, content)) {
-              return false; // Ce chiffre formerait une paire valide avec un calcul déjà placé
-            }
-          }
+    const _numFilter = (forbiddenCalculIds, usedContents, placedCalculContents) => (nId) => {
+      const content = chiffresById[nId]?.content;
+      if (placedCalculContents && placedCalculContents.size > 0) {
+        for (const calculContent of placedCalculContents) {
+          if (isValidMathPair(calculContent, content)) return false;
         }
-        
-        return !used.chiffre.has(nId) && 
-               !usedContents.has(content) &&
-               (!forbiddenCalculIds || !chiffreToCalculs.get(nId) || 
-                ![...chiffreToCalculs.get(nId)].some(c => forbiddenCalculIds.has(c)));
-      });
+      }
+      return !used.chiffre.has(nId) && 
+             !usedContents.has(content) &&
+             (!forbiddenCalculIds || !chiffreToCalculs.get(nId) || 
+              ![...chiffreToCalculs.get(nId)].some(c => forbiddenCalculIds.has(c)));
+    };
+    const pickChiffreDistractor = (forbiddenCalculIds, usedContents, placedCalculContents) => {
+      if (deckState) return _drawFromDeck(deckState, 'distNum', chiffreIds, rng, _numFilter(forbiddenCalculIds, usedContents, placedCalculContents));
+      const pool = shuffle(chiffreIds.slice());
+      return pool.find(_numFilter(forbiddenCalculIds, usedContents, placedCalculContents));
     };
     
     // Interdire les éléments de la paire correcte
@@ -762,6 +823,19 @@ function generateRoundZones(seed, config = {}) {
       zones: finalPairIds
     });
     
+    // Increment deck round counter for logging
+    if (deckState) {
+      deckState.roundCount = (deckState.roundCount || 0) + 1;
+      console.log('[ServerZoneGen] Deck round', deckState.roundCount, '| Deck sizes:', {
+        assocTI: (deckState.decks.assocTI || []).length,
+        assocCC: (deckState.decks.assocCC || []).length,
+        distImg: (deckState.decks.distImg || []).length,
+        distTxt: (deckState.decks.distTxt || []).length,
+        distCalc: (deckState.decks.distCalc || []).length,
+        distNum: (deckState.decks.distNum || []).length,
+      });
+    }
+
     return {
       zones: result,
       goodPairIds: goodPairIds
@@ -774,4 +848,4 @@ function generateRoundZones(seed, config = {}) {
   }
 }
 
-module.exports = { generateRoundZones };
+module.exports = { generateRoundZones, createDeckState };

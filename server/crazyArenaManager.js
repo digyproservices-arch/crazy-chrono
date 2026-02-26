@@ -1709,7 +1709,7 @@ class CrazyArenaManager {
    */
   async generateZones(config, matchId = null) {
     // Utiliser le générateur de zones du serveur
-    const { generateRoundZones } = require('./utils/serverZoneGenerator');
+    const { generateRoundZones, createDeckState } = require('./utils/serverZoneGenerator');
     const seed = Math.floor(Math.random() * 1000000000);
     
     try {
@@ -1722,11 +1722,17 @@ class CrazyArenaManager {
       
       // ✅ CRITIQUE: Récupérer les paires exclues du match (FIFO)
       let excludedPairIds = new Set();
+      let deckState = null;
       if (matchId) {
         const match = this.matches.get(matchId);
-        if (match && match.validatedPairIds) {
-          excludedPairIds = match.validatedPairIds;
-          console.log(`[ZoneGen] 🚫 Exclusion FIFO: ${excludedPairIds.size} paires`);
+        if (match) {
+          if (match.validatedPairIds) {
+            excludedPairIds = match.validatedPairIds;
+            console.log(`[ZoneGen] 🚫 Exclusion FIFO: ${excludedPairIds.size} paires`);
+          }
+          // Anti-repetition deck per match
+          if (!match.deckState) match.deckState = createDeckState();
+          deckState = match.deckState;
         }
       }
       
@@ -1734,14 +1740,16 @@ class CrazyArenaManager {
         seed,
         classes: finalClasses,
         themes: finalThemes,
-        excludedCount: excludedPairIds.size
+        excludedCount: excludedPairIds.size,
+        hasDeck: !!deckState
       });
       
-      // IMPORTANT: Passer excludedPairIds au générateur
+      // IMPORTANT: Passer excludedPairIds + deckState au générateur
       const result = generateRoundZones(seed, {
         classes: finalClasses,
         themes: finalThemes,
-        excludedPairIds: excludedPairIds
+        excludedPairIds: excludedPairIds,
+        deckState: deckState
       });
       
       // generateRoundZones retourne {zones: [], goodPairIds: {}}
