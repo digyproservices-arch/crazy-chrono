@@ -650,6 +650,7 @@ const Carte = () => {
   const [fullScreen, setFullScreen] = useState(false);
   // Thèmes actifs de la session (pour badge UI)
   const [activeThemes, setActiveThemes] = useState([]);
+  const [themesDropdownOpen, setThemesDropdownOpen] = useState(false);
   // Sélection interactive des deux points d'arc pour chaque zone texte
   const [selectedArcPoints, setSelectedArcPoints] = useState({}); // { [zoneId]: [idx1, idx2] }
   const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélection d'arc
@@ -6260,39 +6261,57 @@ setZones(dataWithRandomTexts);
               <div style={{ height: 8, background: 'rgba(255,255,255,0.2)', borderRadius: 999 }}>
                 <div style={{ width: `${Math.max(0, Math.min(100, prepProgress))}%`, height: '100%', background: '#10b981', borderRadius: 999, transition: 'width .2s ease' }} />
               </div>
-              <div style={{ marginTop: 8, fontSize: 12, opacity: 0.85 }}>{Math.max(0, Math.min(100, prepProgress))}%</div>
             </div>
           </div>
         );
       })()}
       {Array.isArray(activeThemes) && activeThemes.length > 0 && !(isMobile && !isPortrait && hasSidebar) && (
-        <div
-          title={activeThemes.join(', ')}
-          style={{
-            position: 'fixed',
-            top: 8,
-            left: 8,
-            zIndex: 8,
-            background: 'rgba(17,24,39,0.85)',
-            color: '#fff',
-            padding: '6px 10px',
-            borderRadius: 999,
-            border: '1px solid rgba(255,255,255,0.15)',
-            boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
-            fontSize: 12,
-            maxWidth: '60vw',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis'
-          }}
-        >
-          {(() => {
-            const arr = activeThemes;
-            if (arr.length <= 3) return `Thèmes: ${arr.join(', ')}`;
-            const head = arr.slice(0, 3).join(', ');
-            const rest = arr.length - 3;
-            return `Thèmes: ${head} +${rest}`;
-          })()}
+        <div style={{ position: 'fixed', top: 8, right: 8, zIndex: 8 }}>
+          <button
+            onClick={() => setThemesDropdownOpen(v => !v)}
+            style={{
+              background: 'rgba(17,24,39,0.65)',
+              color: '#fff',
+              padding: '5px 10px',
+              borderRadius: 999,
+              border: '1px solid rgba(255,255,255,0.15)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              fontSize: 11,
+              cursor: 'pointer',
+              opacity: themesDropdownOpen ? 1 : 0.55,
+              transition: 'opacity 0.2s'
+            }}
+            title={activeThemes.join(', ')}
+          >
+            🏷️ {activeThemes.length} thème{activeThemes.length > 1 ? 's' : ''} {themesDropdownOpen ? '▲' : '▼'}
+          </button>
+          {themesDropdownOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: 4,
+                background: 'rgba(17,24,39,0.95)',
+                color: '#e5e7eb',
+                borderRadius: 8,
+                border: '1px solid rgba(255,255,255,0.15)',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                fontSize: 12,
+                minWidth: 180,
+                maxWidth: '70vw',
+                maxHeight: '50vh',
+                overflowY: 'auto',
+                padding: '6px 0'
+              }}
+            >
+              {activeThemes.map((t, i) => (
+                <div key={i} style={{ padding: '5px 12px', borderBottom: i < activeThemes.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                  {t}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
       {(() => {
@@ -6305,7 +6324,7 @@ setZones(dataWithRandomTexts);
           })();
           if (allow && !hasMathAssoc) {
             return (
-              <div style={{ position: 'fixed', top: 8, right: 8, zIndex: 8, background: 'rgba(245,158,11,0.95)', color: '#111827', padding: '6px 10px', borderRadius: 999, border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 6px 18px rgba(0,0,0,0.18)', fontSize: 12 }}>
+              <div style={{ position: 'fixed', top: 44, right: 8, zIndex: 8, background: 'rgba(245,158,11,0.95)', color: '#111827', padding: '6px 10px', borderRadius: 999, border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 6px 18px rgba(0,0,0,0.18)', fontSize: 12 }}>
                 Zones calcul/chiffre volontairement vides (pas de données pour cette configuration)
               </div>
             );
