@@ -44,6 +44,56 @@ function localizeText(text, locMap) {
   return local || text;
 }
 
+// ===== Anti-Repetition Deck System =====
+// Persists across rounds within a session. Each element type has its own "deck" (shuffled pool).
+// Elements are drawn sequentially from the deck. When exhausted, the deck is refilled & reshuffled.
+// This guarantees maximum variety: every element appears before any element repeats.
+let _deckState = null;
+
+export function resetElementDecks(sessionId) {
+  _deckState = {
+    sessionId: sessionId || Date.now(),
+    decks: {},
+    roundCount: 0,
+  };
+  console.log('[elementsLoader] Anti-repetition decks reset for session:', _deckState.sessionId);
+}
+
+function _ensureDeckState() {
+  if (!_deckState) resetElementDecks();
+}
+
+// Draw one element from a named deck that passes filterFn.
+// If the deck is empty or has no valid element, refill from allIds (shuffled) and retry.
+function _drawFromDeck(deckName, allIds, rng, filterFn) {
+  _ensureDeckState();
+  if (!_deckState.decks[deckName]) _deckState.decks[deckName] = [];
+  const deck = _deckState.decks[deckName];
+
+  // Try drawing from existing deck
+  for (let i = 0; i < deck.length; i++) {
+    if (filterFn(deck[i])) {
+      return deck.splice(i, 1)[0];
+    }
+  }
+
+  // Deck exhausted → refill with all IDs (shuffled) and try again
+  const fresh = allIds.slice();
+  for (let i = fresh.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [fresh[i], fresh[j]] = [fresh[j], fresh[i]];
+  }
+  _deckState.decks[deckName] = fresh;
+
+  for (let i = 0; i < _deckState.decks[deckName].length; i++) {
+    if (filterFn(_deckState.decks[deckName][i])) {
+      return _deckState.decks[deckName].splice(i, 1)[0];
+    }
+  }
+
+  return undefined; // No valid element in entire pool
+}
+
 // Chargement dynamique des éléments depuis le dossier public/data/elements.json
 export async function fetchElements() {
   try {
@@ -265,16 +315,22 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     return z.id;
   };
 
-  // Place 1 paire correcte
+  // Place 1 paire correcte (using deck for variety across rounds)
   let goodPairIds = null; // {texteId,imageId} ou {calculId,chiffreId}
   if (placedPairType === 'TI') {
-    // Choisir une association valide au hasard
-    const links = [];
+    // Build stable key map for TI associations
+    const tiLinkMap = new Map();
     for (const [tId, imgSet] of texteToImages.entries()) {
-      for (const imgId of imgSet) links.push({ tId, imgId });
+      for (const imgId of imgSet) {
+        tiLinkMap.set(`ti-${tId}-${imgId}`, { tId, imgId });
+      }
     }
-    shuffle(links);
-    const chosen = links.find(l => imageIds.includes(l.imgId) && texteIds.includes(l.tId));
+    const tiKeys = [...tiLinkMap.keys()];
+    const chosenKey = _drawFromDeck('assocTI', tiKeys, rng, (key) => {
+      const l = tiLinkMap.get(key);
+      return l && imageIds.includes(l.imgId) && texteIds.includes(l.tId);
+    });
+    const chosen = chosenKey ? tiLinkMap.get(chosenKey) : null;
     if (chosen) {
       const rawText = textesById[chosen.tId]?.content || '';
       const tzId = placeIntoZone(texteZones, () => ({ type: 'texte', content: localizeText(rawText, locMap) }));
@@ -285,12 +341,19 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       }
     }
   } else if (placedPairType === 'CC') {
-    const links = [];
+    // Build stable key map for CC associations
+    const ccLinkMap = new Map();
     for (const [cId, nSet] of calculToChiffres.entries()) {
-      for (const nId of nSet) links.push({ cId, nId });
+      for (const nId of nSet) {
+        ccLinkMap.set(`cc-${cId}-${nId}`, { cId, nId });
+      }
     }
-    shuffle(links);
-    const chosen = links.find(l => calculIds.includes(l.cId) && chiffreIds.includes(l.nId));
+    const ccKeys = [...ccLinkMap.keys()];
+    const chosenKey = _drawFromDeck('assocCC', ccKeys, rng, (key) => {
+      const l = ccLinkMap.get(key);
+      return l && calculIds.includes(l.cId) && chiffreIds.includes(l.nId);
+    });
+    const chosen = chosenKey ? ccLinkMap.get(chosenKey) : null;
     if (chosen) {
       const czId = placeIntoZone(calculZones, () => ({ type: 'calcul', content: calculsById[chosen.cId]?.content || '' }));
       const nzId = placeIntoZone(chiffreZones, () => ({ type: 'chiffre', content: chiffresById[chosen.nId]?.content || '' }));
@@ -301,22 +364,26 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     }
   }
 
-  // Remplissage distracteurs (sans créer d'autres paires, sans doublons)
+  // Remplissage distracteurs via deck (anti-répétition inter-manches)
   const pickImageDistractor = (forbiddenTextIds) => {
-    const pool = shuffle(imageIds.slice());
-    return pool.find(imgId => !used.image.has(imgId) && (!forbiddenTextIds || !imageToTextes.get(imgId) || ![...imageToTextes.get(imgId)].some(t => forbiddenTextIds.has(t))));
+    return _drawFromDeck('distImg', imageIds, rng, (imgId) =>
+      !used.image.has(imgId) && (!forbiddenTextIds || !imageToTextes.get(imgId) || ![...imageToTextes.get(imgId)].some(t => forbiddenTextIds.has(t)))
+    );
   };
   const pickTexteDistractor = (forbiddenImageIds) => {
-    const pool = shuffle(texteIds.slice());
-    return pool.find(tId => !used.texte.has(tId) && (!forbiddenImageIds || !texteToImages.get(tId) || ![...texteToImages.get(tId)].some(i => forbiddenImageIds.has(i))));
+    return _drawFromDeck('distTxt', texteIds, rng, (tId) =>
+      !used.texte.has(tId) && (!forbiddenImageIds || !texteToImages.get(tId) || ![...texteToImages.get(tId)].some(i => forbiddenImageIds.has(i)))
+    );
   };
   const pickCalculDistractor = (forbiddenChiffreIds) => {
-    const pool = shuffle(calculIds.slice());
-    return pool.find(cId => !used.calcul.has(cId) && (!forbiddenChiffreIds || !calculToChiffres.get(cId) || ![...calculToChiffres.get(cId)].some(n => forbiddenChiffreIds.has(n))));
+    return _drawFromDeck('distCalc', calculIds, rng, (cId) =>
+      !used.calcul.has(cId) && (!forbiddenChiffreIds || !calculToChiffres.get(cId) || ![...calculToChiffres.get(cId)].some(n => forbiddenChiffreIds.has(n)))
+    );
   };
   const pickChiffreDistractor = (forbiddenCalculIds) => {
-    const pool = shuffle(chiffreIds.slice());
-    return pool.find(nId => !used.chiffre.has(nId) && (!forbiddenCalculIds || !chiffreToCalculs.get(nId) || ![...chiffreToCalculs.get(nId)].some(c => forbiddenCalculIds.has(c))));
+    return _drawFromDeck('distNum', chiffreIds, rng, (nId) =>
+      !used.chiffre.has(nId) && (!forbiddenCalculIds || !chiffreToCalculs.get(nId) || ![...chiffreToCalculs.get(nId)].some(c => forbiddenCalculIds.has(c)))
+    );
   };
 
   const forbiddenTextIds = new Set(goodPairIds?.texteId ? [goodPairIds.texteId] : []);
@@ -340,6 +407,19 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       const nId = pickChiffreDistractor(forbiddenCalculIds);
       if (nId) { z.content = chiffresById[nId]?.content || ''; used.chiffre.add(nId); }
     }
+  }
+
+  // Increment round counter for logging
+  if (_deckState) {
+    _deckState.roundCount++;
+    console.log('[elementsLoader] Round', _deckState.roundCount, '| Deck sizes:', {
+      assocTI: (_deckState.decks.assocTI || []).length,
+      assocCC: (_deckState.decks.assocCC || []).length,
+      distImg: (_deckState.decks.distImg || []).length,
+      distTxt: (_deckState.decks.distTxt || []).length,
+      distCalc: (_deckState.decks.distCalc || []).length,
+      distNum: (_deckState.decks.distNum || []).length,
+    });
   }
 
   return result;

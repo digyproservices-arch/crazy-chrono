@@ -4,7 +4,7 @@ import { io } from 'socket.io-client';
 import '../styles/Carte.css';
 import { pointToSvgCoords, polygonToPointsStr, segmentsToSvgPath, pointsToBezierPath } from './CarteUtils';
 import { getBackendUrl } from '../utils/subscription';
-import { assignElementsToZones, fetchElements } from '../utils/elementsLoader';
+import { assignElementsToZones, fetchElements, resetElementDecks } from '../utils/elementsLoader';
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
 import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError } from '../utils/gameIncidentTracker';
 import { isFree, canStartSessionToday, incrementSessionCount } from '../utils/subscription';
@@ -3095,6 +3095,8 @@ async function doStart() {
     if (sessionSaveTimerRef.current) { clearTimeout(sessionSaveTimerRef.current); sessionSaveTimerRef.current = null; }
     // Réinitialiser le Set des paires validées au début d'une nouvelle session
     setValidatedPairIds(new Set());
+    // Réinitialiser les decks anti-répétition pour garantir la variété des éléments
+    resetElementDecks(Date.now());
     try { window.ccAddDiag && window.ccAddDiag('session:reset:validatedPairs'); } catch {}
     // Si connecté au serveur, lancer une session SOLO via le backend
   if (socket && socket.connected) {
