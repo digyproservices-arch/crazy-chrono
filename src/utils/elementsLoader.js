@@ -409,17 +409,20 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     }
   }
 
-  // Increment round counter for logging
+  // Increment round counter for logging (via monitoring pipeline)
   if (_deckState) {
     _deckState.roundCount++;
-    console.log('[elementsLoader] Round', _deckState.roundCount, '| Deck sizes:', {
+    const deckSizes = {
+      round: _deckState.roundCount,
       assocTI: (_deckState.decks.assocTI || []).length,
       assocCC: (_deckState.decks.assocCC || []).length,
       distImg: (_deckState.decks.distImg || []).length,
       distTxt: (_deckState.decks.distTxt || []).length,
       distCalc: (_deckState.decks.distCalc || []).length,
       distNum: (_deckState.decks.distNum || []).length,
-    });
+    };
+    console.log('[elementsLoader] Round', _deckState.roundCount, '| Deck sizes:', deckSizes);
+    try { if (window && typeof window.ccAddDiag === 'function') window.ccAddDiag('deck:anti-repetition', deckSizes); } catch {}
   }
 
   return result;

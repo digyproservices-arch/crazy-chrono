@@ -823,17 +823,20 @@ function generateRoundZones(seed, config = {}) {
       zones: finalPairIds
     });
     
-    // Increment deck round counter for logging
+    // Increment deck round counter for logging (via monitoring pipeline)
     if (deckState) {
       deckState.roundCount = (deckState.roundCount || 0) + 1;
-      console.log('[ServerZoneGen] Deck round', deckState.roundCount, '| Deck sizes:', {
+      const deckSizes = {
+        round: deckState.roundCount,
         assocTI: (deckState.decks.assocTI || []).length,
         assocCC: (deckState.decks.assocCC || []).length,
         distImg: (deckState.decks.distImg || []).length,
         distTxt: (deckState.decks.distTxt || []).length,
         distCalc: (deckState.decks.distCalc || []).length,
         distNum: (deckState.decks.distNum || []).length,
-      });
+      };
+      console.log('[ServerZoneGen] Deck round', deckState.roundCount, '| Deck sizes:', deckSizes);
+      logFn('info', '[ZoneGen] Deck anti-repetition status', deckSizes);
     }
 
     return {
