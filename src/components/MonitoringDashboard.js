@@ -52,7 +52,7 @@ function MonitoringDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview'); // overview | logs | errors | performance
+  const [activeTab, setActiveTab] = useState('report'); // report | overview | logs | errors | performance
   const [copyFeedback, setCopyFeedback] = useState(null); // 'logs' | 'errors' | null
   const [perfEvents, setPerfEvents] = useState([]);
   const [perfConnected, setPerfConnected] = useState(false);
@@ -242,10 +242,10 @@ function MonitoringDashboard() {
   }, [perfEvents, perfAutoScroll]);
 
   useEffect(() => {
-    if (activeTab === 'logs' || activeTab === 'errors') {
+    if (activeTab === 'logs' || activeTab === 'errors' || activeTab === 'report') {
       fetchLogs();
     }
-    if (activeTab === 'incidents') {
+    if (activeTab === 'incidents' || activeTab === 'report') {
       fetchIncidents();
     }
   }, [activeTab, fetchLogs, fetchIncidents]);
@@ -372,6 +372,7 @@ function MonitoringDashboard() {
         {/* Tab Navigation */}
         <div style={{ display: 'flex', gap: 4, marginBottom: '20px', borderBottom: `1px solid ${COLORS.border}`, paddingBottom: 0 }}>
           {[
+            { id: 'report', label: '📊 Rapport complet', icon: '' },
             { id: 'overview', label: '📈 Vue d\'ensemble', icon: '' },
             { id: 'logs', label: '📋 Logs détaillés', icon: '' },
             { id: 'errors', label: `🔴 Erreurs (${totalErrors})`, icon: '' },
@@ -406,6 +407,217 @@ function MonitoringDashboard() {
           </div>
         ) : (
           <>
+            {/* ====== REPORT TAB ====== */}
+            {activeTab === 'report' && (() => {
+              const buildFullReport = () => {
+                const sections = [];
+                const now = new Date().toLocaleString('fr-FR');
+                sections.push(`===== RAPPORT MONITORING CRAZY CHRONO =====`);
+                sections.push(`Date: ${now} | Période: ${selectedRange}h`);
+                sections.push('');
+
+                // KPIs
+                sections.push(`--- KPIs ---`);
+                sections.push(`Total logs: ${totalLogs} | Info: ${totalInfo} | Warn: ${totalWarns} | Erreurs: ${totalErrors}`);
+                sections.push(`Incidents: ${incidents.length} | Perf events: ${perfEvents.length} | RUM snapshots: ${rumEvents.length}`);
+                sections.push('');
+
+                // Recent errors (max 20)
+                const recentErrors = logs.filter(l => l.level === 'error').slice(0, 20);
+                sections.push(`--- ERREURS (${recentErrors.length} dernières) ---`);
+                if (recentErrors.length === 0) {
+                  sections.push('Aucune erreur.');
+                } else {
+                  recentErrors.forEach(log => {
+                    const ts = log.timestamp || '';
+                    const msg = log.message || '';
+                    const meta = log.meta && Object.keys(log.meta).length > 0 ? ' ' + JSON.stringify(log.meta) : '';
+                    sections.push(`${ts} [ERROR] ${msg}${meta}`);
+                  });
+                }
+                sections.push('');
+
+                // Incidents (max 20)
+                sections.push(`--- INCIDENTS (${Math.min(incidents.length, 20)}/${incidents.length}) ---`);
+                if (incidents.length === 0) {
+                  sections.push('Aucun incident.');
+                } else {
+                  incidents.slice(0, 20).forEach((inc, i) => {
+                    const ts = inc.timestamp ? new Date(inc.timestamp).toLocaleString('fr-FR') : 'N/A';
+                    sections.push(`[${i+1}] ${(inc.severity||'warning').toUpperCase()} | ${inc.type || 'unknown'} | ${ts}`);
+                    if (inc.details) sections.push(`    Détails: ${typeof inc.details === 'string' ? inc.details : JSON.stringify(inc.details)}`);
+                  });
+                }
+                sections.push('');
+
+                // All logs (max 100)
+                const allLogs = logs.slice(0, 100);
+                sections.push(`--- LOGS DÉTAILLÉS (${allLogs.length}/${logs.length} derniers) ---`);
+                allLogs.forEach(log => {
+                  const ts = log.timestamp || '';
+                  const lvl = (log.level || 'info').toUpperCase();
+                  const msg = log.message || '';
+                  const meta = log.meta && Object.keys(log.meta).length > 0 ? ' ' + JSON.stringify(log.meta) : '';
+                  sections.push(`${ts} [${lvl}] ${msg}${meta}`);
+                });
+                sections.push('');
+
+                // Performance events (max 50)
+                if (perfEvents.length > 0) {
+                  const perfSlice = perfEvents.slice(-50);
+                  sections.push(`--- PERFORMANCE (${perfSlice.length} derniers events) ---`);
+                  perfSlice.forEach(evt => {
+                    const ts = evt.ts ? new Date(evt.ts).toLocaleTimeString('fr-FR') : '';
+                    const src = evt.source === 'client' ? 'CLIENT' : 'SERVER';
+                    sections.push(`${ts} [${src}] ${evt.type || '?'} ${JSON.stringify(evt)}`);
+                  });
+                  sections.push('');
+                }
+
+                // RUM (max 10)
+                if (rumEvents.length > 0) {
+                  const rumSlice = rumEvents.slice(-10);
+                  sections.push(`--- RUM LAYOUT (${rumSlice.length} derniers snapshots) ---`);
+                  rumSlice.forEach(evt => {
+                    const ts = evt.ts ? new Date(evt.ts).toLocaleTimeString('fr-FR') : '';
+                    const device = evt.mobile ? 'MOBILE' : 'DESKTOP';
+                    const vp = evt.viewport ? `${evt.viewport.w}x${evt.viewport.h}@${evt.viewport.dpr}x` : '?';
+                    const anomalies = evt.anomalies && evt.anomalies.length > 0 ? ` ANOMALIES: ${evt.anomalies.join(', ')}` : '';
+                    sections.push(`${ts} [${device}] viewport=${vp}${anomalies}`);
+                  });
+                  sections.push('');
+                }
+
+                sections.push(`===== FIN DU RAPPORT =====`);
+                return sections.join('\n');
+              };
+
+              const reportText = buildFullReport();
+              const recentErrors = logs.filter(l => l.level === 'error').slice(0, 20);
+
+              return (
+                <div>
+                  {/* Action bar */}
+                  <div style={{ ...cardStyle, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <h3 style={{ margin: 0, fontSize: 16, fontWeight: 'bold' }}>📊 Rapport complet — 1 clic pour tout copier</h3>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        onClick={() => { fetchStats(); fetchLogs(); fetchIncidents(); }}
+                        style={btnStyle(COLORS.info)}
+                      >
+                        🔄 Rafraîchir tout
+                      </button>
+                      <button
+                        onClick={() => copyToClipboard(reportText, 'report')}
+                        style={{
+                          padding: '10px 24px',
+                          background: copyFeedback === 'report' ? '#148A9C' : 'linear-gradient(135deg, #1AACBE 0%, #148A9C 100%)',
+                          border: 'none',
+                          borderRadius: 8,
+                          color: '#fff',
+                          cursor: 'pointer',
+                          fontWeight: 700,
+                          fontSize: 15,
+                          transition: 'all 0.3s',
+                          boxShadow: '0 4px 12px rgba(26,172,190,0.4)',
+                        }}
+                      >
+                        {copyFeedback === 'report' ? '✅ Rapport copié !' : '📋 Copier tout le rapport'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* KPI Summary */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 16 }}>
+                    <KPICard title="Total Logs" value={totalLogs} icon="📊" color={COLORS.info} />
+                    <KPICard title="Erreurs" value={totalErrors} icon="🔴" color={COLORS.error} highlight={totalErrors > 0} />
+                    <KPICard title="Warnings" value={totalWarns} icon="⚠️" color={COLORS.warn} />
+                    <KPICard title="Incidents" value={incidents.length} icon="🚨" color={COLORS.accent} highlight={incidents.length > 0} />
+                    <KPICard title="Perf Events" value={perfEvents.length} icon="🎯" color={COLORS.success} />
+                    <KPICard title="RUM" value={rumEvents.length} icon="📱" color="#8b5cf6" />
+                  </div>
+
+                  {/* Errors section */}
+                  <div style={{ ...cardStyle, marginBottom: 16, borderLeft: recentErrors.length > 0 ? `4px solid ${COLORS.error}` : undefined }}>
+                    <h3 style={{ ...cardTitleStyle, color: recentErrors.length > 0 ? COLORS.error : COLORS.success }}>
+                      {recentErrors.length > 0 ? `🔴 ${recentErrors.length} erreurs récentes` : '✅ Aucune erreur'}
+                    </h3>
+                    {recentErrors.length > 0 && (
+                      <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                        {recentErrors.map((log, i) => (
+                          <div key={i} style={{ padding: '6px 10px', borderLeft: `3px solid ${COLORS.error}`, background: 'rgba(239,68,68,0.05)', marginBottom: 4, borderRadius: '0 6px 6px 0', fontSize: 12 }}>
+                            <span style={{ color: COLORS.textMuted, fontSize: 11 }}>{formatDateTime(log.timestamp)} </span>
+                            <span style={{ color: COLORS.text }}>{log.message}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Incidents section */}
+                  <div style={{ ...cardStyle, marginBottom: 16, borderLeft: incidents.length > 0 ? `4px solid ${COLORS.warn}` : undefined }}>
+                    <h3 style={{ ...cardTitleStyle, color: incidents.length > 0 ? COLORS.warn : COLORS.success }}>
+                      {incidents.length > 0 ? `⚠️ ${incidents.length} incidents` : '✅ Aucun incident'}
+                    </h3>
+                    {incidents.length > 0 && (
+                      <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                        {incidents.slice(0, 10).map((inc, i) => (
+                          <div key={i} style={{ padding: '6px 10px', borderLeft: `3px solid ${COLORS.warn}`, background: 'rgba(245,158,11,0.05)', marginBottom: 4, borderRadius: '0 6px 6px 0', fontSize: 12 }}>
+                            <span style={{ padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: COLORS.warn, color: '#fff', marginRight: 6 }}>
+                              {(inc.severity || 'warning').toUpperCase()}
+                            </span>
+                            <span style={{ color: COLORS.textMuted, fontSize: 11 }}>{inc.type} </span>
+                            <span style={{ color: COLORS.text }}>{typeof inc.details === 'string' ? inc.details.substring(0, 80) : JSON.stringify(inc.details || '').substring(0, 80)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Logs preview */}
+                  <div style={{ ...cardStyle, marginBottom: 16 }}>
+                    <h3 style={cardTitleStyle}>📋 Derniers logs ({Math.min(logs.length, 30)} affichés / {logs.length} total)</h3>
+                    {logsLoading ? (
+                      <div style={{ textAlign: 'center', padding: 20, color: COLORS.textMuted }}>Chargement...</div>
+                    ) : (
+                      <div style={{ maxHeight: 300, overflowY: 'auto', fontFamily: 'monospace', fontSize: 11 }}>
+                        {logs.slice(0, 30).map((log, i) => {
+                          const lvlColor = LEVEL_COLORS[log.level] || COLORS.info;
+                          return (
+                            <div key={i} style={{ padding: '3px 8px', borderLeft: `3px solid ${lvlColor}`, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)', marginBottom: 1 }}>
+                              <span style={{ color: COLORS.textMuted }}>{formatDateTime(log.timestamp)} </span>
+                              <span style={{ color: lvlColor, fontWeight: 700 }}>[{(log.level || 'info').toUpperCase()}] </span>
+                              <span style={{ color: COLORS.text }}>{log.message}</span>
+                              {log.meta && Object.keys(log.meta).length > 0 && (
+                                <span style={{ color: COLORS.textMuted }}> {JSON.stringify(log.meta).substring(0, 100)}</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {logs.length === 0 && (
+                          <div style={{ padding: 20, textAlign: 'center', color: COLORS.textMuted }}>Aucun log sur cette période</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Full text preview */}
+                  <div style={cardStyle}>
+                    <h3 style={cardTitleStyle}>📄 Aperçu du rapport complet (texte brut)</h3>
+                    <pre style={{
+                      maxHeight: 300, overflowY: 'auto', fontSize: 11, color: COLORS.textMuted,
+                      background: 'rgba(0,0,0,0.3)', padding: 12, borderRadius: 8,
+                      whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                    }}>
+                      {reportText}
+                    </pre>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* ====== OVERVIEW TAB ====== */}
             {activeTab === 'overview' && (
               <>
