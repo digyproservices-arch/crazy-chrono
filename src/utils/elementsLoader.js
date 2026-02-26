@@ -396,16 +396,16 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     const type = z.type || 'image';
     if (type === 'image' && !z.content) {
       const imgId = pickImageDistractor(forbiddenTextIds);
-      if (imgId) { z.content = encodedImageUrl(imagesById[imgId]?.url || ''); used.image.add(imgId); }
+      if (imgId) { z.content = encodedImageUrl(imagesById[imgId]?.url || ''); used.image.add(imgId); z.isDistractor = true; }
     } else if (type === 'texte' && !z.content) {
       const tId = pickTexteDistractor(forbiddenImageIds);
-      if (tId) { z.content = localizeText(textesById[tId]?.content || '', locMap); used.texte.add(tId); }
+      if (tId) { z.content = localizeText(textesById[tId]?.content || '', locMap); used.texte.add(tId); z.isDistractor = true; }
     } else if (type === 'calcul' && !z.content) {
       const cId = pickCalculDistractor(forbiddenChiffreIds);
-      if (cId) { z.content = calculsById[cId]?.content || ''; used.calcul.add(cId); }
+      if (cId) { z.content = calculsById[cId]?.content || ''; used.calcul.add(cId); z.isDistractor = true; }
     } else if (type === 'chiffre' && !z.content) {
       const nId = pickChiffreDistractor(forbiddenCalculIds);
-      if (nId) { z.content = chiffresById[nId]?.content || ''; used.chiffre.add(nId); }
+      if (nId) { z.content = chiffresById[nId]?.content || ''; used.chiffre.add(nId); z.isDistractor = true; }
     }
   }
 

@@ -159,12 +159,15 @@ export function validateZones(zones, context = {}) {
     if (z.validated) continue; // ignorer les zones déjà validées/masquées
     const pid = z.pairId || z.pairID || z.pairid || z.pair || z.groupId || z.groupID || z.group || '';
     if (!pid) {
-      incidents.push(reportIncident(INCIDENT_TYPES.MISSING_PAIR, {
-        zoneId: z.id,
-        type: z.type,
-        content: (z.content || z.label || '').substring(0, 50),
-        message: `Zone ${z.id} sans pairId`,
-      }, minimalSnapshot(zones)));
+      // Les distracteurs (zones sans paire) n'ont légitimement pas de pairId — ne pas signaler
+      if (!z.isDistractor) {
+        incidents.push(reportIncident(INCIDENT_TYPES.MISSING_PAIR, {
+          zoneId: z.id,
+          type: z.type,
+          content: (z.content || z.label || '').substring(0, 50),
+          message: `Zone ${z.id} sans pairId`,
+        }, minimalSnapshot(zones)));
+      }
       continue;
     }
     if (!pairGroups.has(pid)) pairGroups.set(pid, []);

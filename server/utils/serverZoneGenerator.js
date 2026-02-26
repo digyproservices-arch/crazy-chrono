@@ -600,6 +600,7 @@ function generateRoundZones(seed, config = {}) {
         }
         z.content = encodedImageUrl(url); 
         z.pairId = '';
+        z.isDistractor = true;
       } else if (type === 'texte' && !hasValidContent) {
         // Interdire les images de la paire correcte ET les images des distracteurs déjà placés
         const allForbiddenImageIds = new Set([...forbiddenImageIds, ...placedDistractorImageIds]);
@@ -609,6 +610,7 @@ function generateRoundZones(seed, config = {}) {
           z.content = content; 
           z.label = content;
           z.pairId = '';
+          z.isDistractor = true;
           used.texte.add(tId);
           placedDistractorTextIds.add(tId);
           usedTextContents.add(content);
@@ -651,6 +653,7 @@ function generateRoundZones(seed, config = {}) {
         }
         z.content = content; 
         z.pairId = '';
+        z.isDistractor = true;
       } else if (type === 'chiffre' && !hasValidContent) {
         // Interdire les calculs de la paire correcte ET les calculs des distracteurs déjà placés
         const allForbiddenCalculIds = new Set([...forbiddenCalculIds, ...placedDistractorCalculIds]);
@@ -688,6 +691,7 @@ function generateRoundZones(seed, config = {}) {
         z.content = content; 
         z.label = content;
         z.pairId = '';
+        z.isDistractor = true;
       }
     }
     

@@ -2140,6 +2140,7 @@ function getRoom(roomCode) {
 }
 
 // Helper: Émettre un log serveur aux clients d'une room (pour l'enregistrement global)
+// Aussi persiste dans Winston pour apparaître dans le monitoring API
 function emitServerLog(roomCode, level, message, data = {}) {
   try {
     const timestamp = new Date().toISOString();
@@ -2149,6 +2150,11 @@ function emitServerLog(roomCode, level, message, data = {}) {
       message,
       data
     });
+    // Persister dans Winston pour le monitoring dashboard
+    const wLevel = (level === 'error' || level === 'warn' || level === 'info') ? level : 'info';
+    if (logger && typeof logger[wLevel] === 'function') {
+      logger[wLevel](message, { room: roomCode, ...data });
+    }
   } catch (err) {
     console.error('[ServerLog] Failed to emit log:', err);
   }
