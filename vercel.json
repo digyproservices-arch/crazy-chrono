@@ -13,6 +13,26 @@
       "dest": "/images/$1"
     },
     {
+      "src": "/favicon\\.ico",
+      "dest": "/favicon.ico"
+    },
+    {
+      "src": "/favicon.*\\.png",
+      "dest": "/$0"
+    },
+    {
+      "src": "/manifest\\.json",
+      "dest": "/manifest.json"
+    },
+    {
+      "src": "/service-worker\\.js",
+      "dest": "/service-worker.js"
+    },
+    {
+      "src": "/robots\\.txt",
+      "dest": "/robots.txt"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
