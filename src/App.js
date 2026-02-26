@@ -442,57 +442,6 @@ function App() {
               <p style={{ margin: 0 }}>© 2025 CRAZY CHRONO — DIGIKAZ · Tous droits réservés</p>
             </footer>
           )}
-          {/* Global Diagnostic floating button - Admin only */}
-          {isAdminUI && (
-          <button
-            onClick={() => setDiagOpen(v=>!v)}
-            title="Diagnostic (Ctrl+Alt+D)"
-            style={{ position: 'fixed', right: 12, bottom: 12, zIndex: 10000, background: '#111827', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, padding: '8px 12px', boxShadow: '0 6px 18px rgba(0,0,0,0.25)', opacity: 0.7, fontSize: 12 }}
-          >🔧 Diag</button>
-          )}
-          {diagOpen && (
-            <div style={{ position: 'fixed', right: 12, bottom: 56, width: 420, maxWidth: '90vw', maxHeight: '70vh', overflow: 'auto', zIndex: 10000, background: '#111827', color: '#e5e7eb', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, boxShadow: '0 10px 30px rgba(0,0,0,0.4)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 10, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ fontWeight: 'bold' }}>Diagnostic (global)</div>
-                <button onClick={() => setDiagOpen(false)} style={{ color: '#e5e7eb', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', borderRadius: 6, padding: '4px 8px' }}>Fermer</button>
-              </div>
-              {isAdminUI ? (
-                <div style={{ padding: 10 }}>
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-                    <button onClick={() => { setDiagRecLines([]); setDiagRecording(true); try { window.ccAddDiag && window.ccAddDiag('recording:start'); } catch {} }} disabled={diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #10b981', background: diagRecording ? '#064e3b' : '#065f46', color: '#ecfdf5', fontSize: 12 }}>▶ Démarrer</button>
-                    <button onClick={() => { setDiagRecording(false); try { window.ccAddDiag && window.ccAddDiag('recording:stop', { count: diagRecLines.length }); } catch {} }} disabled={!diagRecording} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ef4444', background: '#7f1d1d', color: '#fee2e2', fontSize: 12 }}>■ Arrêter</button>
-                    <button onClick={downloadDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #3b82f6', background: '#1e3a8a', color: '#dbeafe', fontSize: 12 }}>📥 Télécharger</button>
-                    <button onClick={sendLogsToBackend} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: logsSent ? '1px solid #10b981' : '1px solid #8b5cf6', background: logsSent ? '#065f46' : '#5b21b6', color: '#ede9fe', fontSize: 12, transition: 'all 0.2s' }}>{logsSent ? '✓ Envoyé !' : '📤 Envoyer backend'}</button>
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                    <button onClick={copyDiagRecording} disabled={!diagRecLines.length} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: logsCopied ? '#10b981' : 'transparent', color: logsCopied ? '#ecfdf5' : '#e5e7eb', transition: 'all 0.2s', fontSize: 12 }}>{logsCopied ? '✓ Copié !' : '📋 Copier'}</button>
-                    <button onClick={()=>{ setDiagLines([]); setDiagRecLines([]); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#e5e7eb', fontSize: 12 }}>🗑️ Vider</button>
-                  </div>
-                  {diagRecording && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, padding: '6px 10px', background: 'rgba(16,185,129,0.1)', borderRadius: 6, border: '1px solid rgba(16,185,129,0.3)' }}>
-                      <span style={{ width: 10, height: 10, borderRadius: 20, background: '#10b981', boxShadow: '0 0 0 0 rgba(16,185,129,0.7)', animation: 'cc-blink 1s infinite' }} />
-                      <span style={{ fontSize: 12, color: '#a7f3d0' }}>Enregistrement en cours… ({diagRecLines.length} lignes)</span>
-                    </div>
-                  )}
-                  <style>{`@keyframes cc-blink { 0%{opacity:1} 50%{opacity:0.3} 100%{opacity:1} }`}</style>
-                  <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>Derniers évènements</div>
-                  <div style={{ maxHeight: 180, overflow: 'auto', background: '#0b1220', padding: 8, borderRadius: 6 }}>
-                    {(diagLines||[]).slice(-120).map((l,i)=>(<div key={i} style={{ whiteSpace: 'pre-wrap' }}>{l}</div>))}
-                  </div>
-                  <div style={{ fontSize: 12, opacity: 0.8, margin: '6px 0 4px' }}>Enregistrement ({diagRecLines.length} lignes, affichage 200 dernières)</div>
-                  <div style={{ maxHeight: 160, overflow: 'auto', background: '#0b1220', padding: 8, borderRadius: 6 }}>
-                    {(diagRecLines||[]).slice(-200).map((l,i)=>(<div key={i} style={{ whiteSpace: 'pre-wrap' }}>{l}</div>))}
-                  </div>
-                </div>
-              ) : (
-                <div style={{ padding: 10, fontSize: 14 }}>
-                  <div style={{ marginBottom: 6, fontWeight: 'bold' }}>Accès restreint</div>
-                  <div style={{ opacity: 0.9, marginBottom: 8 }}>Panneau réservé aux administrateurs. Connectez‑vous avec un compte admin.</div>
-                  <div style={{ fontSize: 12, opacity: 0.75 }}>Raccourci: Ctrl+Alt+D</div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
         <PWAInstallPrompt />
       </Router>

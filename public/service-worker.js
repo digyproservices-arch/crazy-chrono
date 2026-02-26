@@ -4,15 +4,18 @@
    Network-first pour les API
    ============================================ */
 
-const CACHE_NAME = 'crazy-chrono-v1';
+const CACHE_NAME = 'crazy-chrono-v2';
 
 // Assets à pré-cacher au moment de l'installation
 const PRECACHE_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/favicon.png',
+  '/favicon-32.png',
   '/images/logo192.png',
   '/images/logo512.png',
+  '/images/apple-touch-icon.png',
   '/images/carte-svg.svg',
 ];
 
