@@ -7153,28 +7153,28 @@ setZones(dataWithRandomTexts);
       </div>
       {/* Lobby / Multijoueur UI (masqué en mode solo) */}
       {socket && !hasSidebar && !isSoloMode && (
-        <div style={{ position: 'fixed', top: 12, right: 12, zIndex: 2000, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {/* Compte à rebours (caché en mode réduit) */}
+        <div style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(8px)' }}>
+          <div style={{
+            background: '#ffffff', borderRadius: 24, padding: isMobile ? 20 : 32, maxWidth: 620, width: isMobile ? '94vw' : '90vw',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto', color: '#1e293b', position: 'relative'
+          }}>
+          {/* Compte à rebours */}
           {countdownT !== null && !panelCollapsed && (
-            <div style={{ alignSelf: 'flex-end', background: 'linear-gradient(135deg, #0D6A7A, #1AACBE)', color: '#fff', padding: '8px 16px', borderRadius: 12, fontSize: 20, fontWeight: 900, zIndex: 3000, boxShadow: '0 4px 15px rgba(13,106,122,0.4)', letterSpacing: 1 }}>
+            <div style={{ position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg, #0D6A7A, #1AACBE)', color: '#fff', padding: '8px 24px', borderRadius: 12, fontSize: 22, fontWeight: 900, zIndex: 3000, boxShadow: '0 4px 15px rgba(13,106,122,0.4)', letterSpacing: 1 }}>
               {countdownT}
             </div>
           )}
-          <div style={{
-            background: 'linear-gradient(135deg, #0D6A7A 0%, #148A9C 50%, #1AACBE 100%)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 16,
-            boxShadow: '0 8px 32px rgba(13,106,122,0.35)', padding: 16, minWidth: isMobile ? 0 : 280, width: isMobile ? '88vw' : undefined, color: '#fff'
-          }}>
             {/* Header: réduit = minimal; étendu = toutes les actions */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 {!panelCollapsed && (
-                  <div style={{ fontWeight: 'bold' }}>Salle <span style={{ fontFamily: 'monospace' }}>{roomId}</span></div>
+                  <div style={{ fontWeight: 800, fontSize: 18, color: '#0D6A7A' }}>🎮 Salle <span style={{ fontFamily: 'monospace', background: '#f1f5f9', padding: '2px 8px', borderRadius: 6 }}>{roomId}</span></div>
                 )}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   {!panelCollapsed && isHost && (
                     <button
                       onClick={() => { try { socket && socket.emit('session:end'); } catch {} }}
                       title={'Terminer la session (hôte)'}
-                      style={{ background: 'rgba(220,38,38,0.2)', border: '1px solid rgba(239,68,68,0.4)', color: '#fca5a5', borderRadius: 8, padding: '4px 8px', fontSize: 12, fontWeight: 700 }}
+                      style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
                     >
                       Terminer la session
                     </button>
@@ -7188,7 +7188,7 @@ setZones(dataWithRandomTexts);
                       step={1}
                       value={Number.isFinite(roundsPerSession) ? roundsPerSession : 3}
                       onChange={(e) => handleSetRounds(e.target.value)}
-                      style={{ width: 70, padding: '4px 6px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: 12 }}
+                      style={{ width: 60, padding: '4px 6px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#1e293b', fontSize: 12 }}
                     />
                   )}
                   {!panelCollapsed && (
@@ -7210,7 +7210,7 @@ setZones(dataWithRandomTexts);
                         });
                       }}
                       title={historyExpanded ? "Masquer l'historique" : "Afficher l'historique"}
-                      style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '4px 8px', fontSize: 12, color: '#fff' }}
+                      style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 8, padding: '4px 10px', fontSize: 12, color: '#475569', cursor: 'pointer' }}
                     >
                       Historique {sessions?.length ? `(${sessions.length})` : ''}
                     </button>
@@ -7218,14 +7218,14 @@ setZones(dataWithRandomTexts);
                   <button
                     onClick={() => setPanelCollapsed(c => !c)}
                     title={panelCollapsed ? 'Déployer' : 'Réduire'}
-                    style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 8, padding: '4px 8px', fontSize: 12, color: '#fff' }}
+                    style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 8, padding: '4px 10px', fontSize: 12, color: '#475569', cursor: 'pointer' }}
                   >
                     {panelCollapsed ? '▢' : '—'}
                   </button>
                 </div>
               {/* Bandeau compact: affiche toujours la dernière paire dans l'en-tête */}
               <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: 12, color: '#64748b', whiteSpace: 'nowrap' }}>
                     {Number.isFinite(roundsPerSession) ? (
                     <>Manche: {Math.max(0, roundsPlayed || 0)} / {roundsPerSession}</>
                   ) : (
@@ -7234,16 +7234,16 @@ setZones(dataWithRandomTexts);
                 </div>
                 <div data-cc-vignette="last-pair" ref={mpLastPairRef} style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                    <span style={{ width: 12, height: 12, borderRadius: 999, background: lastWonPair?.color || '#e5e7eb', boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none', border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none' }} />
-                    <span style={{ fontSize: 12, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {lastWonPair ? (<><b>{lastWonPair.winnerName}</b>: {lastWonPair.text} {lastWonPair.tie && (<span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: 'rgba(251,191,36,0.25)', border: '1px solid rgba(251,191,36,0.5)', color: '#fbbf24' }}>Égalité</span>)}</>) : 'Dernière paire: —'}
+                    <span style={{ width: 12, height: 12, borderRadius: 999, background: lastWonPair?.color || '#e2e8f0', boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e2e8f0')}55` : 'none', border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none' }} />
+                    <span style={{ fontSize: 12, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {lastWonPair ? (<><b style={{ color: '#1e293b' }}>{lastWonPair.winnerName}</b>: {lastWonPair.text} {lastWonPair.tie && (<span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: '#fef3c7', border: '1px solid #fbbf24', color: '#92400e' }}>Égalité</span>)}</>) : 'Dernière paire: —'}
                     </span>
                   </div>
                 </div>
               </div>
               {/* Progression de la session */}
               {!panelCollapsed && (
-                <div style={{ marginTop: 6, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
+                <div style={{ marginTop: 6, fontSize: 12, color: '#64748b' }}>
                   {Number.isFinite(roundsPerSession) ? (
                     <span>Manche: {Math.max(0, roundsPlayed || 0)} / {roundsPerSession}</span>
                   ) : (
@@ -7262,19 +7262,19 @@ setZones(dataWithRandomTexts);
             )}
             {!panelCollapsed && (
             <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
-              <input value={playerName} onChange={e => setPlayerName(e.target.value)} placeholder="Pseudo" style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: 13 }} />
-              <input value={roomId} onChange={e => setRoomId(e.target.value)} placeholder="Code salle" style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: 13 }} />
+              <input value={playerName} onChange={e => setPlayerName(e.target.value)} placeholder="Pseudo" style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#1e293b', fontSize: 13 }} />
+              <input value={roomId} onChange={e => setRoomId(e.target.value)} placeholder="Code salle" style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#1e293b', fontSize: 13 }} />
               {/* Durée de manche (hôte uniquement) */}
               {isHost ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', minWidth: 50 }}>Durée:</label>
-                  <select value={roomDuration} onChange={e => handleSetRoomDuration(e.target.value)} style={{ flex: 1, padding: '6px 8px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: 12 }} >
+                  <label style={{ fontSize: 12, color: '#333', minWidth: 50 }}>Durée:</label>
+                  <select value={roomDuration} onChange={e => handleSetRoomDuration(e.target.value)} style={{ flex: 1, padding: '6px 8px', borderRadius: 10, border: '1px solid #cbd5e1', background: '#fff', color: '#333', fontSize: 12 }} >
                     <option value={30}>30 s</option>
                     <option value={60}>60 s</option>
                     <option value={90}>90 s</option>
                   </select>
                   {/* Sélection du nombre de manches (hôte) */}
-                  <label style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', minWidth: 60 }}>Manches:</label>
+                  <label style={{ fontSize: 12, color: '#333', minWidth: 60 }}>Manches:</label>
                   <input
                     type="number"
                     title="Nombre de manches de la session"
@@ -7283,43 +7283,43 @@ setZones(dataWithRandomTexts);
                     step={1}
                     value={Number.isFinite(roundsPerSession) ? roundsPerSession : 3}
                     onChange={(e) => handleSetRounds(e.target.value)}
-                    style={{ flex: 1, padding: '6px 8px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(0,0,0,0.2)', color: '#fff', fontSize: 12 }}
+                    style={{ flex: 1, padding: '6px 8px', borderRadius: 10, border: '1px solid #cbd5e1', background: '#fff', color: '#333', fontSize: 12 }}
                   />
                 </div>
               ) : (
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Durée: <b style={{ color: '#fff' }}>{roomDuration}</b>s</div>
+                <div style={{ fontSize: 12, color: '#333' }}>Durée: <b style={{ color: '#333' }}>{roomDuration}</b>s</div>
               )}
               <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
                 <button
                   onClick={handleCreateRoom}
-                  style={{ flex: 1, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 10, padding: '8px 10px', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                  style={{ flex: 1, background: '#fff', border: '1px solid #ddd', borderRadius: 10, padding: '8px 10px', color: '#333', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
                 >
                   Créer une salle
                 </button>
-                <button onClick={handleJoinRoom} style={{ flex: 1, background: 'rgba(26,172,190,0.3)', border: '1px solid rgba(26,172,190,0.6)', borderRadius: 10, padding: '8px 10px', fontWeight: 700, fontSize: 13, color: '#fff', cursor: 'pointer' }}>Rejoindre</button>
-                <button onClick={handleLeaveRoom} style={{ flex: 1, background: 'rgba(220,38,38,0.2)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 10, padding: '8px 10px', color: '#fca5a5', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Quitter</button>
+                <button onClick={handleJoinRoom} style={{ flex: 1, background: '#0D6A7A', border: '1px solid #0D6A7A', borderRadius: 10, padding: '8px 10px', fontWeight: 700, fontSize: 13, color: '#fff', cursor: 'pointer' }}>Rejoindre</button>
+                <button onClick={handleLeaveRoom} style={{ flex: 1, background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 10, padding: '8px 10px', color: '#dc2626', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Quitter</button>
               </div>
             </div>
             )}
-            {!panelCollapsed && <div style={{ marginTop: 10, fontWeight: 'bold', color: '#fff' }}>Joueurs</div>}
+            {!panelCollapsed && <div style={{ marginTop: 10, fontWeight: 'bold', color: '#0D6A7A', fontSize: 15 }}>Joueurs</div>}
             {!panelCollapsed && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6, maxHeight: isMobile ? '22vh' : 220, overflowY: 'auto' }}>
               {[...(roomPlayers.length ? roomPlayers : (scoresMP || []).map(p => ({ id: p.id, nickname: p.name, score: p.score })))]
                 .sort((a, b) => (b.score || 0) - (a.score || 0))
                 .map(p => (
-                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '6px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 12px', borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 140 }}>
-                      {p.isHost && <span title="Hôte" style={{ color: '#fbbf24' }}>★</span>}
-                      <span style={{ color: '#fff', fontWeight: 600, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }} title={p.nickname || p.name}>{p.nickname || p.name || 'Joueur'}</span>
+                      {p.isHost && <span title="Hôte" style={{ color: '#d97706' }}>★</span>}
+                      <span style={{ color: '#1e293b', fontWeight: 600, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }} title={p.nickname || p.name}>{p.nickname || p.name || 'Joueur'}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {typeof p.ready === 'boolean' && (
-                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: p.ready ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)', border: `1px solid ${p.ready ? 'rgba(34,197,94,0.5)' : 'rgba(239,68,68,0.5)'}`, color: p.ready ? '#86efac' : '#fca5a5', fontWeight: 600 }}>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: p.ready ? '#dcfce7' : '#fee2e2', border: `1px solid ${p.ready ? '#86efac' : '#fca5a5'}`, color: p.ready ? '#166534' : '#dc2626', fontWeight: 600 }}>
                           {p.ready ? 'Prêt' : 'Pas prêt'}
                         </span>
                       )}
-                      <div style={{ background: '#fff', borderRadius: 10, padding: '2px 8px', boxShadow: '0 2px 6px rgba(0,0,0,0.12)' }}>
-                        <span style={{ fontWeight: 900, color: '#22c55e', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>{p.score ?? 0}</span>
+                      <div style={{ background: '#0D6A7A', borderRadius: 10, padding: '2px 8px', boxShadow: '0 2px 6px rgba(0,0,0,0.12)' }}>
+                        <span style={{ fontWeight: 900, color: '#fff', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>{p.score ?? 0}</span>
                       </div>
                     </div>
                   </div>
@@ -7328,7 +7328,7 @@ setZones(dataWithRandomTexts);
             )}
             {!panelCollapsed && roomStatus === 'lobby' && (
             <>
-              <div style={{ marginTop: 10, padding: 8, borderRadius: 10, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.15)', fontSize: 12, color: 'rgba(255,255,255,0.9)', textAlign: 'center' }}>
+              <div style={{ marginTop: 10, padding: 10, borderRadius: 10, background: '#f0fdfa', border: '1px solid #99f6e4', fontSize: 13, color: '#0D6A7A', textAlign: 'center', fontWeight: 500 }}>
                 {(() => {
                   const allReady = roomPlayers.length >= 2 && roomPlayers.every(p => p.ready);
                   if (roomPlayers.length < 2) return '⏳ En attente d\'autres joueurs...';
@@ -7339,13 +7339,13 @@ setZones(dataWithRandomTexts);
                 })()}
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                <button onClick={handleToggleReady} style={{ flex: 1, background: myReady ? 'rgba(251,191,36,0.2)' : 'rgba(34,197,94,0.25)', border: '2px solid ' + (myReady ? 'rgba(251,191,36,0.6)' : 'rgba(34,197,94,0.6)'), borderRadius: 10, padding: '10px', fontWeight: 700, fontSize: 14, color: myReady ? '#fbbf24' : '#86efac', cursor: 'pointer' }}>
+                <button onClick={handleToggleReady} style={{ flex: 1, background: myReady ? '#fef3c7' : '#0D6A7A', border: '2px solid ' + (myReady ? '#f59e0b' : '#0D6A7A'), borderRadius: 10, padding: '10px', fontWeight: 700, fontSize: 14, color: myReady ? '#92400e' : '#fff', cursor: 'pointer' }}>
                   {myReady ? '❌ Pas prêt' : '✅ Je suis prêt'}
                 </button>
                 {(() => {
                   const allReady = roomPlayers.length >= 2 && roomPlayers.every(p => p.ready);
                   return (
-                    <button onClick={handleStartRoom} disabled={!isHost || !allReady} title={!isHost ? 'Réservé à l\'hôte' : (allReady ? 'Lancer la partie' : 'Tous les joueurs doivent être prêts')} style={{ flex: 1, background: isHost && allReady ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.08)', border: '2px solid ' + (isHost && allReady ? 'rgba(251,191,36,0.6)' : 'rgba(255,255,255,0.15)'), borderRadius: 10, padding: '10px', fontWeight: 700, fontSize: 14, color: isHost && allReady ? '#fbbf24' : 'rgba(255,255,255,0.4)', cursor: !isHost || !allReady ? 'not-allowed' : 'pointer', opacity: !isHost || !allReady ? 0.6 : 1 }}>
+                    <button onClick={handleStartRoom} disabled={!isHost || !allReady} title={!isHost ? 'Réservé à l\'hôte' : (allReady ? 'Lancer la partie' : 'Tous les joueurs doivent être prêts')} style={{ flex: 1, background: isHost && allReady ? '#f59e0b' : '#e2e8f0', border: '2px solid ' + (isHost && allReady ? '#f59e0b' : '#cbd5e1'), borderRadius: 10, padding: '10px', fontWeight: 700, fontSize: 14, color: isHost && allReady ? '#fff' : '#94a3b8', cursor: !isHost || !allReady ? 'not-allowed' : 'pointer', opacity: !isHost || !allReady ? 0.6 : 1 }}>
                       🚀 Démarrer
                     </button>
                   );
@@ -7354,7 +7354,7 @@ setZones(dataWithRandomTexts);
             </>
             )}
             {mpMsg && !panelCollapsed && (
-              <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{mpMsg}</div>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#64748b' }}>{mpMsg}</div>
             )}
             {/* Dernière paire trouvée (vignette compacte) */}
             {!panelCollapsed && (
@@ -7362,8 +7362,8 @@ setZones(dataWithRandomTexts);
                 marginTop: 10,
                 padding: '10px 12px',
                 borderRadius: 12,
-                border: '1px solid rgba(255,255,255,0.1)',
-                background: 'rgba(0,0,0,0.2)',
+                border: '1px solid #e2e8f0',
+                background: '#f8fafc',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8
@@ -7373,19 +7373,19 @@ setZones(dataWithRandomTexts);
                   height: 14,
                   borderRadius: 999,
                   flexShrink: 0,
-                  background: lastWonPair?.color || 'rgba(255,255,255,0.3)',
-                  boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none',
+                  background: lastWonPair?.color || '#fff',
+                  boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#fff')}55` : 'none',
                   border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none'
                 }} />
 
                 <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {lastWonPair ? `${lastWonPair.winnerName} a trouvé:` : 'Aucune paire trouvée'}
                   </div>
                   {lastWonPair && (
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lastWonPair.text}>
+                    <div style={{ fontSize: 12, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lastWonPair.text}>
                       {lastWonPair.text} {lastWonPair.tie && (
-                        <span style={{ marginLeft: 8, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: 'rgba(251,191,36,0.25)', border: '1px solid rgba(251,191,36,0.5)', color: '#fbbf24' }}>Égalité</span>
+                        <span style={{ marginLeft: 8, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: '#fef3c7', border: '1px solid #fbbf24', color: '#92400e' }}>Égalité</span>
                       )}
                     </div>
                   )}
@@ -7396,25 +7396,25 @@ setZones(dataWithRandomTexts);
             {!panelCollapsed && (
               <div style={{
                 marginTop: 8,
-                borderTop: '1px solid rgba(255,255,255,0.1)',
+                borderTop: '1px solid #e2e8f0',
                 paddingTop: 8,
                 maxHeight: isMobile ? '16vh' : 140,
                 overflowY: 'auto',
               }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.8)', marginBottom: 4 }}>Dernières paires</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#0D6A7A', marginBottom: 4 }}>Dernières paires</div>
                 {Array.isArray(wonPairsHistory) && wonPairsHistory.length ? (
                   wonPairsHistory.slice(0, 12).map((e, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
-                      <span style={{ width: 8, height: 8, borderRadius: 999, background: e.color || 'rgba(255,255,255,0.3)', display: 'inline-block', flexShrink: 0 }} />
-                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={e.text}>
-                        <b style={{ color: '#fff' }}>{e.winnerName}:</b> {e.text} {e.tie && (
-                          <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: 'rgba(251,191,36,0.25)', border: '1px solid rgba(251,191,36,0.5)', color: '#fbbf24' }}>Égalité</span>
+                      <span style={{ width: 8, height: 8, borderRadius: 999, background: e.color || '#e2e8f0', display: 'inline-block', flexShrink: 0 }} />
+                      <span style={{ fontSize: 12, color: '#475569', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={e.text}>
+                        <b style={{ color: '#1e293b' }}>{e.winnerName}:</b> {e.text} {e.tie && (
+                          <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: '#fef3c7', border: '1px solid #fbbf24', color: '#92400e' }}>Égalité</span>
                         )}
                       </span>
                     </div>
                   ))
                 ) : (
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>—</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8' }}>—</div>
                 )}
               </div>
             )}
@@ -7422,30 +7422,30 @@ setZones(dataWithRandomTexts);
           {/* Tableau d'historique sous le panneau multijoueur */}
           {historyExpanded && (
             <div style={{
-              background: 'linear-gradient(135deg, #0D6A7A 0%, #148A9C 50%, #1AACBE 100%)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 14,
-              boxShadow: '0 8px 32px rgba(13,106,122,0.35)', padding: 12, minWidth: isMobile ? 0 : 280, width: isMobile ? '88vw' : undefined,
-              maxHeight: isMobile ? '25vh' : 220, overflowY: 'auto', color: '#fff'
+              background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)', padding: 12, marginTop: 12,
+              maxHeight: isMobile ? '25vh' : 220, overflowY: 'auto', color: '#1e293b'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ fontWeight: 'bold', color: '#fff' }}>Historique des sessions</div>
-                <button onClick={() => setHistoryExpanded(false)} style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 8, fontSize: 16, lineHeight: 1, cursor: 'pointer', color: '#fff', padding: '2px 8px' }}>×</button>
+                <div style={{ fontWeight: 'bold', color: '#0D6A7A' }}>Historique des sessions</div>
+                <button onClick={() => setHistoryExpanded(false)} style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 16, lineHeight: 1, cursor: 'pointer', color: '#475569', padding: '2px 8px' }}>×</button>
               </div>
               {Array.isArray(sessions) && sessions.length > 0 ? (
                 <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {sessions.slice().reverse().map((s, idx) => (
-                    <div key={idx} style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: 8, background: 'rgba(0,0,0,0.2)' }}>
-                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{new Date(s.endedAt).toLocaleString()}</div>
-                      <div style={{ fontWeight: 700, marginTop: 2, color: '#fff' }}>
+                    <div key={idx} style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 8, background: '#f8fafc' }}>
+                      <div style={{ fontSize: 12, color: '#94a3b8' }}>{new Date(s.endedAt).toLocaleString()}</div>
+                      <div style={{ fontWeight: 700, marginTop: 2, color: '#1e293b' }}>
                         {s.winnerTitle ? `${s.winnerTitle}: ` : 'Vainqueur: '}{s.winner?.name || '—'} {typeof s.winner?.score === 'number' ? `( ${s.winner.score} )` : ''}
                       </div>
-                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
                         {Array.isArray(s.scores) && s.scores.length > 0 ? s.scores.map(sc => `${sc.name || 'Joueur'}: ${sc.score ?? 0}`).join(', ') : '—'}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div style={{ marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>Aucun historique pour le moment.</div>
+                <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8' }}>Aucun historique pour le moment.</div>
               )}
             </div>
           )}
