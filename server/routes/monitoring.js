@@ -183,4 +183,28 @@ router.delete('/incidents', async (req, res) => {
   }
 });
 
+// ── Client Diagnostic Forwarding ─────────────────────────
+/**
+ * POST /api/monitoring/client-diag
+ * Receives batched ccAddDiag events from the client and writes them to Winston.
+ * Body: { events: [{ label, payload, ts }] }
+ */
+router.post('/client-diag', (req, res) => {
+  try {
+    const { events } = req.body;
+    if (!Array.isArray(events)) return res.status(400).json({ ok: false, error: 'events must be array' });
+    const logger = require('../logger');
+    const batch = events.slice(0, 50); // cap per request
+    for (const evt of batch) {
+      const label = evt.label || 'diag';
+      const payload = typeof evt.payload === 'object' && evt.payload !== null ? evt.payload : {};
+      logger.info(`[Client] ${label}`, { ...payload, source: 'client', ts: evt.ts || new Date().toISOString() });
+    }
+    res.json({ ok: true, count: batch.length });
+  } catch (error) {
+    console.error('[ClientDiag] POST error:', error.message);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 module.exports = router;

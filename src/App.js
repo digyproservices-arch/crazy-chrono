@@ -256,7 +256,8 @@ function App() {
     };
   }, [diagRecording]);
 
-  // Global addDiag exposed on window
+  // Global addDiag exposed on window + server forwarding via batched HTTP
+  const diagBufferRef = useRef([]);
   useEffect(() => {
     const add = (label, payload) => {
       try {
@@ -272,10 +273,25 @@ function App() {
             return arr.slice(Math.max(0, arr.length - 999));
           });
         }
+        // Buffer for server forwarding
+        diagBufferRef.current.push({ label, payload: payload !== undefined ? payload : null, ts });
       } catch {}
     };
     try { window.ccAddDiag = add; } catch {}
-    return () => { try { delete window.ccAddDiag; } catch {} };
+    // Flush buffer to server every 5 seconds
+    const flushInterval = setInterval(() => {
+      const buf = diagBufferRef.current;
+      if (!buf.length) return;
+      diagBufferRef.current = [];
+      try {
+        fetch(`${getBackendUrl()}/api/monitoring/client-diag`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ events: buf.slice(0, 50) }),
+        }).catch(() => {});
+      } catch {}
+    }, 5000);
+    return () => { clearInterval(flushInterval); try { delete window.ccAddDiag; } catch {} };
   }, []);
 
   function serializeSafe(v) {

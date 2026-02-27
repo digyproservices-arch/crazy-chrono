@@ -4,7 +4,7 @@ import { io } from 'socket.io-client';
 import '../styles/Carte.css';
 import { pointToSvgCoords, polygonToPointsStr, segmentsToSvgPath, pointsToBezierPath } from './CarteUtils';
 import { getBackendUrl } from '../utils/subscription';
-import { assignElementsToZones, fetchElements, resetElementDecks } from '../utils/elementsLoader';
+import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck } from '../utils/elementsLoader';
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
 import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError } from '../utils/gameIncidentTracker';
 import { isFree, canStartSessionToday, incrementSessionCount } from '../utils/subscription';
@@ -4419,6 +4419,18 @@ setZones(dataWithRandomTexts);
       }
       // Identifie une image "principale" et garantit qu'au moins un texte partage son pairId
       let post = validated.map(z => ({ ...z }));
+      // Helper anti-répétition: tire un élément du deck (garantit voir TOUS avant répéter)
+      // Remplace les boucles linéaires + mémoire courte (3 items) par le vrai deck system
+      const pickFromPool = (deckName, pool, filterFn) => {
+        const byId = new Map(pool.map(c => [String(c.id), c]));
+        const ids = [...byId.keys()];
+        if (!ids.length) return null;
+        const picked = drawFromDeck(deckName, ids, rng, (candidateId) => {
+          const cand = byId.get(candidateId);
+          return cand && (!filterFn || filterFn(cand));
+        });
+        return picked ? byId.get(picked) : null;
+      };
       const selectedCalcIdxs = new Set(); // protéger le calcul choisi si c'est une paire calc-chiffre
       let hadAnyAdminPairAssigned = false; // indique si on a pu poser 1 vraie paire Admin
       try {
@@ -4860,26 +4872,13 @@ setZones(dataWithRandomTexts);
                 } catch {}
 
                 for (const o of otherImageSpots) {
-                  // pick unique by id and by normalized url
-                  let pick = null;
                   const poolImgs = [...allImages, ...(extraStrictImages || [])];
-                  // Pass 1: try to pick non-recent, non-used, non-pairing image
-                  for (const cand of poolImgs) {
+                  // Deck anti-répétition: garantit voir TOUTES les images avant répéter
+                  const pick = pickFromPool('postImg', poolImgs, (cand) => {
                     const idStr = String(cand.id);
                     const urlNorm = normUrl(cand.url || cand.path || cand.src || '');
-                    // Ne pas choisir une image qui formerait une paire valide avec le texte principal (ou futurs textes, pris en charge côté textes)
-                    // Éviter aussi les images récemment utilisées (no-near-repeat entre manches) par ID et par URL
-                    if (!usedImgIds.has(idStr) && urlNorm && !usedImgUrls.has(urlNorm) && !imgTxtPairs.has(`${idStr}|${txInfo.id}`) && !recentImages.has(idStr) && !recentUrls.has(urlNorm)) { pick = cand; break; }
-                  }
-                  // Pass 2: if pool exhausted (all recent), allow reuse but still avoid pairs and duplicates on same card
-                  if (!pick) {
-                    try { window.ccAddDiag && window.ccAddDiag('round:images:pool:exhausted', { spot: o.i }); } catch {}
-                    for (const cand of poolImgs) {
-                      const idStr = String(cand.id);
-                      const urlNorm = normUrl(cand.url || cand.path || cand.src || '');
-                      if (!usedImgIds.has(idStr) && urlNorm && !usedImgUrls.has(urlNorm) && !imgTxtPairs.has(`${idStr}|${txInfo.id}`)) { pick = cand; break; }
-                    }
-                  }
+                    return !usedImgIds.has(idStr) && urlNorm && !usedImgUrls.has(urlNorm) && !imgTxtPairs.has(`${idStr}|${txInfo.id}`);
+                  });
                   if (pick) {
                     usedImgIds.add(String(pick.id));
                     const pUrlNorm = normUrl(pick.url || pick.path || pick.src || '');
@@ -4928,30 +4927,15 @@ setZones(dataWithRandomTexts);
                 } catch {}
                 // Choisir des textes qui ne forment aucune association valide avec les images présentes
                 const pickTextAvoidingPairs = () => {
-                  // Pass 1: éviter les textes récents
-                  const poolBase = allTextes.filter(t => !usedTxtIds.has(String(t.id)) && !usedTxtContents.has(norm(t.content)) && !recentTexts.has(norm(t.content)));
-                  const poolExtra = (extraStrictTextes || []).filter(t => !usedTxtIds.has(String(t.id)) && !usedTxtContents.has(norm(t.content)) && !recentTexts.has(norm(t.content)));
-                  // Préférer un texte strict si possible
-                  const ordered = [...poolExtra, ...poolBase];
-                  const safe = ordered.filter(t => {
+                  // Deck anti-répétition: garantit voir TOUS les textes avant répéter
+                  const poolTxt = [...(extraStrictTextes || []), ...allTextes];
+                  return pickFromPool('postTxt', poolTxt, (t) => {
+                    if (usedTxtIds.has(String(t.id)) || usedTxtContents.has(norm(t.content))) return false;
                     for (const imgId of presentImageIds) {
                       if (imgTxtPairs.has(`${imgId}|${t.id}`)) return false;
                     }
                     return true;
                   });
-                  if (safe.length) return safe[Math.floor(rng() * safe.length)];
-                  // Pass 2: si pool épuisé (tous récents), autoriser réutilisation mais éviter paires et doublons
-                  const poolBase2 = allTextes.filter(t => !usedTxtIds.has(String(t.id)) && !usedTxtContents.has(norm(t.content)));
-                  const poolExtra2 = (extraStrictTextes || []).filter(t => !usedTxtIds.has(String(t.id)) && !usedTxtContents.has(norm(t.content)));
-                  const ordered2 = [...poolExtra2, ...poolBase2];
-                  const safe2 = ordered2.filter(t => {
-                    for (const imgId of presentImageIds) {
-                      if (imgTxtPairs.has(`${imgId}|${t.id}`)) return false;
-                    }
-                    return true;
-                  });
-                  if (!safe2.length) return null;
-                  return safe2[Math.floor(rng() * safe2.length)];
                 };
                 const otherTextSpots = textesIdx.filter(o => o !== txtSpot);
                 // Préférence: placer au moins UN texte strict-meta si disponible et éligible
@@ -5280,21 +5264,12 @@ setZones(dataWithRandomTexts);
                 const presentImageIds = new Set();
                 for (const o of imagesIdx) {
                   if ((post[o.i]?.pairId || '').trim()) continue;
-                  let pick = null;
-                  // Pass 1: éviter les images récentes
-                  for (const cand of allImages) {
+                  // Deck anti-répétition: garantit voir TOUTES les images avant répéter
+                  const pick = pickFromPool('postImg', allImages, (cand) => {
                     const idStr = String(cand.id);
                     const urlNorm = normUrl(cand.url || cand.path || cand.src || '');
-                    if (!usedImgIds.has(idStr) && urlNorm && !usedImgUrls.has(urlNorm) && !recentImages.has(idStr) && !recentUrls.has(urlNorm)) { pick = cand; break; }
-                  }
-                  // Pass 2: si pool épuisé, autoriser réutilisation mais éviter duplicatas sur même carte
-                  if (!pick) {
-                    for (const cand of allImages) {
-                      const idStr = String(cand.id);
-                      const urlNorm = normUrl(cand.url || cand.path || cand.src || '');
-                      if (!usedImgIds.has(idStr) && urlNorm && !usedImgUrls.has(urlNorm)) { pick = cand; break; }
-                    }
-                  }
+                    return !usedImgIds.has(idStr) && urlNorm && !usedImgUrls.has(urlNorm);
+                  });
                   if (pick) {
                     usedImgIds.add(String(pick.id));
                     const pUrlNorm = normUrl(pick.url || pick.path || pick.src || '');
@@ -5313,25 +5288,14 @@ setZones(dataWithRandomTexts);
                   }
                 }
                 const pickTextAvoidingPairsCalcBranch = () => {
-                  // Pass 1: éviter les textes récents
-                  const pool = allTextes.filter(t => !usedTxtIds.has(String(t.id)) && !usedTxtContents.has(norm(t.content)) && !recentTexts.has(norm(t.content)));
-                  const safe = pool.filter(t => {
+                  // Deck anti-répétition: garantit voir TOUS les textes avant répéter
+                  return pickFromPool('postTxt', allTextes, (t) => {
+                    if (usedTxtIds.has(String(t.id)) || usedTxtContents.has(norm(t.content))) return false;
                     for (const imgId of presentImageIds) {
                       if (imgTxtPairs.has(`${imgId}|${t.id}`)) return false;
                     }
                     return true;
                   });
-                  if (safe.length) return safe[Math.floor(rng() * safe.length)];
-                  // Pass 2: si pool épuisé, autoriser réutilisation
-                  const pool2 = allTextes.filter(t => !usedTxtIds.has(String(t.id)) && !usedTxtContents.has(norm(t.content)));
-                  const safe2 = pool2.filter(t => {
-                    for (const imgId of presentImageIds) {
-                      if (imgTxtPairs.has(`${imgId}|${t.id}`)) return false;
-                    }
-                    return true;
-                  });
-                  if (!safe2.length) return null;
-                  return safe2[Math.floor(rng() * safe2.length)];
                 };
                 for (const o of textesIdx) {
                   if ((post[o.i]?.pairId || '').trim()) continue;

@@ -94,6 +94,12 @@ function _drawFromDeck(deckName, allIds, rng, filterFn) {
   return undefined; // No valid element in entire pool
 }
 
+// Public API: draw from a named deck for use by Carte.js post-processing
+// Uses the same anti-repetition deck state (session-scoped).
+export function drawFromDeck(deckName, allIds, rng, filterFn) {
+  return _drawFromDeck(deckName, allIds, rng, filterFn || (() => true));
+}
+
 // Chargement dynamique des éléments depuis le dossier public/data/elements.json
 export async function fetchElements() {
   try {
