@@ -6107,6 +6107,13 @@ setZones(dataWithRandomTexts);
       // Enregistrer dans le diagnostic global pour analyse
       try { window.ccAddDiag && window.ccAddDiag('zones:assigned', post); } catch {}
       
+      // Marquer explicitement les zones sans pairId comme distracteurs
+      // (le post-traitement Carte.js remplace le contenu sans préserver isDistractor d'elementsLoader)
+      post = post.map(z => {
+        const pid = (z.pairId || '').trim();
+        if (!pid && !z.isDistractor) return { ...z, isDistractor: true };
+        return z;
+      });
       // Vérifier les anomalies sur les zones générées
       try { incidentValidateZones(post, { source: 'solo:assignElements' }); } catch {}
       
