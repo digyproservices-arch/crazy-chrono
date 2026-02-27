@@ -3617,6 +3617,10 @@ const handleEditGreenZone = (zone) => {
   });
   const [scoresMP, setScoresMP] = useState([]); // [{id,name,score}]
   const [mpMsg, setMpMsg] = useState('');
+  // Solo mode detection (hide lobby UI)
+  const [isSoloMode] = useState(() => {
+    try { const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); return cfg && cfg.mode === 'solo'; } catch { return false; }
+  });
   // Lobby/ready state
   const [roomStatus, setRoomStatus] = useState('lobby'); // 'lobby'|'countdown'|'playing'
   const [roomPlayers, setRoomPlayers] = useState([]); // [{id,nickname,score,ready,isHost}]
@@ -7147,8 +7151,8 @@ setZones(dataWithRandomTexts);
           ))}
         </svg>
       </div>
-      {/* Lobby / Multijoueur UI */}
-      {socket && !hasSidebar && (
+      {/* Lobby / Multijoueur UI (masqué en mode solo) */}
+      {socket && !hasSidebar && !isSoloMode && (
         <div style={{ position: 'fixed', top: 12, right: 12, zIndex: 2000, display: 'flex', flexDirection: 'column', gap: 10 }}>
           {/* Compte à rebours (caché en mode réduit) */}
           {countdownT !== null && !panelCollapsed && (
