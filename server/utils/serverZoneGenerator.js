@@ -207,6 +207,27 @@ function generateRoundZones(seed, config = {}) {
         return false;
       });
       
+      // Re-include elements referenced by surviving associations but filtered out
+      // (e.g. image has themes=["botanique"] but association has themes=["category:fruit"])
+      if (selectedThemes.length > 0) {
+        const origTextes = Array.isArray(associationsFile.textes) ? associationsFile.textes : [];
+        const origImages = Array.isArray(associationsFile.images) ? associationsFile.images : [];
+        const origCalculs = Array.isArray(associationsFile.calculs) ? associationsFile.calculs : [];
+        const origChiffres = Array.isArray(associationsFile.chiffres) ? associationsFile.chiffres : [];
+        const assocImgIds = new Set(associations.filter(a => a.imageId).map(a => a.imageId));
+        const assocTxtIds = new Set(associations.filter(a => a.texteId).map(a => a.texteId));
+        const assocCalcIds = new Set(associations.filter(a => a.calculId).map(a => a.calculId));
+        const assocNumIds = new Set(associations.filter(a => a.chiffreId).map(a => a.chiffreId));
+        const existTxt = new Set(textes.map(t => t.id));
+        const existImg = new Set(images.map(i => i.id));
+        const existCalc = new Set(calculs.map(c => c.id));
+        const existNum = new Set(chiffres.map(n => n.id));
+        for (const t of origTextes) if (assocTxtIds.has(t.id) && !existTxt.has(t.id) && hasClass(t)) textes.push(t);
+        for (const i of origImages) if (assocImgIds.has(i.id) && !existImg.has(i.id) && hasClass(i)) images.push(i);
+        for (const c of origCalculs) if (assocCalcIds.has(c.id) && !existCalc.has(c.id) && hasClass(c)) calculs.push(c);
+        for (const n of origChiffres) if (assocNumIds.has(n.id) && !existNum.has(n.id) && hasClass(n)) chiffres.push(n);
+      }
+      
       console.log('[ServerZoneGen] After filtering:', {
         textes: textes.length,
         images: images.length,
