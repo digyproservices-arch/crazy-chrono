@@ -123,12 +123,39 @@ function generateRoundZones(seed, config = {}) {
     
     // ===== Filtrage par thématiques et classes =====
     const selectedThemes = Array.isArray(config.themes) ? config.themes.filter(Boolean) : [];
-    const selectedClasses = Array.isArray(config.classes) ? new Set(config.classes.filter(Boolean)) : null;
+    const selectedClassesRaw = Array.isArray(config.classes) ? config.classes.filter(Boolean) : [];
     const excludedPairIds = config.excludedPairIds || new Set();
+    
+    // Cumulative level logic (matches client SessionConfig.js)
+    // Selecting "CM2" means include CP, CE1, CE2, CM1, CM2
+    const CLASS_LEVELS = ['CP','CE1','CE2','CM1','CM2','6e','5e','4e','3e'];
+    const LEVEL_INDEX = Object.fromEntries(CLASS_LEVELS.map((l, i) => [l, i]));
+    const normLevel = (s) => {
+      const x = String(s || '').toLowerCase();
+      if (/\bcp\b/.test(x)) return 'CP';
+      if (/\bce1\b/.test(x)) return 'CE1';
+      if (/\bce2\b/.test(x)) return 'CE2';
+      if (/\bcm1\b/.test(x)) return 'CM1';
+      if (/\bcm2\b/.test(x)) return 'CM2';
+      if (/\b6e?\b|\bsixi/.test(x)) return '6e';
+      if (/\b5e?\b|\bcinqui/.test(x)) return '5e';
+      if (/\b4e?\b|\bquatri/.test(x)) return '4e';
+      if (/\b3e?\b|\btroisi/.test(x)) return '3e';
+      return s || '';
+    };
+    const maxClassIdx = selectedClassesRaw.length > 0
+      ? Math.max(...selectedClassesRaw.map(c => LEVEL_INDEX[normLevel(c)] ?? -1))
+      : -1;
+    // Build the set of ALL classes up to maxClassIdx (cumulative)
+    const selectedClasses = maxClassIdx >= 0
+      ? new Set(CLASS_LEVELS.filter((_, i) => i <= maxClassIdx))
+      : null;
     
     console.log('[ServerZoneGen] Filter config:', {
       themes: selectedThemes,
-      classes: selectedClasses ? Array.from(selectedClasses) : null,
+      classesRaw: selectedClassesRaw,
+      maxClassIdx,
+      classesExpanded: selectedClasses ? Array.from(selectedClasses) : null,
       hasThemes: selectedThemes.length > 0,
       hasClasses: selectedClasses && selectedClasses.size > 0
     });
@@ -137,7 +164,13 @@ function generateRoundZones(seed, config = {}) {
     const shouldFilter = selectedThemes.length > 0 || (selectedClasses && selectedClasses.size > 0);
     
     if (shouldFilter) {
-      const hasClass = (el) => !selectedClasses || selectedClasses.has(el?.levelClass);
+      const hasClass = (el) => {
+        if (!selectedClasses) return true;
+        const lc = normLevel(el?.levelClass);
+        // Elements without a levelClass pass through (includeUntagged)
+        if (!lc) return true;
+        return selectedClasses.has(lc);
+      };
       const hasThemes = (el) => {
         const tags = Array.isArray(el?.themes) ? el.themes : [];
         if (selectedThemes.length === 0) return true;
