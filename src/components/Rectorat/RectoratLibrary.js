@@ -69,6 +69,11 @@ const CATEGORY_META = {
   table_12: { label: 'Table de 12', icon: '×12', color: '#9333ea', bg: '#faf5ff' },
   addition: { label: 'Additions', icon: '➕', color: '#16a34a', bg: '#f0fdf4' },
   soustraction: { label: 'Soustractions', icon: '➖', color: '#ea580c', bg: '#fff7ed' },
+  division: { label: 'Divisions', icon: '➗', color: '#0891b2', bg: '#ecfeff' },
+  multiplication_avancee: { label: 'Mult. avancées', icon: '🧮', color: '#7c3aed', bg: '#f5f3ff' },
+  fraction: { label: 'Fractions', icon: '🍕', color: '#db2777', bg: '#fdf2f8' },
+  numeration: { label: 'Numération', icon: '🔢', color: '#ca8a04', bg: '#fefce8' },
+  equation: { label: 'Équations', icon: '❓', color: '#4f46e5', bg: '#eef2ff' },
 };
 
 const DOMAIN_KEYS = Object.keys(DOMAIN_META);
