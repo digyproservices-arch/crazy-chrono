@@ -18,6 +18,7 @@ const FILTER_LABELS = {
   'category:table_': '✖️ Multiplications',
   'category:addition': '➕ Additions',
   'category:soustraction': '➖ Soustractions',
+  'category:division': '➗ Divisions',
 };
 
 function matchFilter(themes, filterKey) {

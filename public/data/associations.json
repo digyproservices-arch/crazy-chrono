@@ -243,247 +243,370 @@
     {
       "id": "ta01",
       "content": "Raton laveur",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "id": "ta02",
       "content": "Dauphin",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "id": "ta03",
       "content": "Colibri",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "id": "ta04",
       "content": "Tourterelle",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "id": "ta05",
       "content": "Toucan",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "id": "ta06",
       "content": "Flamant rose",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "id": "ta07",
       "content": "Cabri",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "id": "ta08",
       "content": "Lambi",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "id": "ta09",
       "content": "Tortue imbriquée",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "ta10",
       "content": "Pélican brun",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "ta11",
       "content": "Langouste",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "ta12",
       "content": "Ibis rouge",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "ta13",
       "content": "Bernard-l'hermite",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "ta14",
       "content": "Crabe de terre",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "ta15",
       "content": "Manicou",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "ta16",
       "content": "Iguane vert",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "ta17",
       "content": "Mangouste",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "ta18",
       "content": "Oursin",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "ta19",
       "content": "Tapir",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "ta20",
       "content": "Tatou",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "ta21",
       "content": "Vivaneau rouge",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "ta22",
       "content": "Grande aigrette",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "ta23",
       "content": "Héron vert",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "ta24",
       "content": "Sucrier à ventre jaune",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "ta25",
       "content": "Scolopendre",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "ta26",
       "content": "Écrevisse",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "ta27",
       "content": "Paresseux",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "ta28",
       "content": "Jaguar",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "ta29",
       "content": "Fourmilier géant",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "ta30",
       "content": "Poisson-perroquet",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "ta31",
       "content": "Poisson-écureuil",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "ta32",
       "content": "Dorade coryphène",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "ta33",
       "content": "Caïman",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "ta34",
       "content": "Moqueur gorge-rouge",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "ta35",
       "content": "Vivaneau à queue jaune",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "ta36",
       "content": "Orphie",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "ta37",
       "content": "Raie manta",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM2"
     },
     {
       "id": "ta38",
       "content": "Corail corne d'élan",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM2"
     },
     {
       "id": "ta39",
       "content": "Corail tabulaire",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM2"
     },
     {
       "id": "ta40",
       "content": "Corail cerveau",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM2"
     },
     {
       "id": "ta41",
       "content": "Lamantin",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM2"
     }
   ],
@@ -792,287 +915,410 @@
       "id": "i1754579810850p3uq",
       "url": "images/tapir.jpeg",
       "content": "Tapir",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "i1754579810850al10",
       "url": "images/tatou.jpeg",
       "content": "Tatou",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "i1754579810850hjpg",
       "url": "images/jaguar.jpeg",
       "content": "Jaguar",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "i1754579810850uebc",
       "url": "images/tortue-imbriquee.jpeg",
       "content": "Tortue imbriquée",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850585z",
       "url": "images/fourmilier-geant.jpeg",
       "content": "Fourmilier géant",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "i1754579810850x95g",
       "url": "images/pelican-brun.jpeg",
       "content": "Pélican brun",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850jxaw",
       "url": "images/poisson-perroquet.jpeg",
       "content": "Poisson-perroquet",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "i1754579810850moua",
       "url": "images/langouste.jpeg",
       "content": "Langouste",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850cqro",
       "url": "images/poisson-ecureuil.jpeg",
       "content": "Poisson-écureuil",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "i1754579810850evmn",
       "url": "images/raton-laveur.jpeg",
       "content": "Raton laveur",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "id": "i1754579810850heoz",
       "url": "images/caiman.jpeg",
       "content": "Caïman",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "i1754579810850ay9g",
       "url": "images/raie-manta.jpeg",
       "content": "Raie manta",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM2"
     },
     {
       "id": "i1754579810850qyln",
       "url": "images/corail-corne-delan.jpeg",
       "content": "Corail corne d'élan",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM2"
     },
     {
       "id": "i1754579810850092a",
       "url": "images/vivaneau-rouge.jpeg",
       "content": "Vivaneau rouge",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "i1754579810850n464",
       "url": "images/dorade-coryphene.jpeg",
       "content": "Dorade coryphène",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "i17545798108503qib",
       "url": "images/corail-tabulaire.jpeg",
       "content": "Corail tabulaire",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM2"
     },
     {
       "id": "i1754579810850cto2",
       "url": "images/dauphin.jpeg",
       "content": "Dauphin",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "id": "i1754579810850cu13",
       "url": "images/grande-aigrette.jpeg",
       "content": "Grande aigrette",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "i175457981085078jn",
       "url": "images/colibri.jpeg",
       "content": "Colibri",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "id": "i1754579810850vy7k",
       "url": "images/heron-vert.jpeg",
       "content": "Héron vert",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "i1754579810850ec9m",
       "url": "images/tourterelle.jpeg",
       "content": "Tourterelle",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "id": "i175457981085054ts",
       "url": "images/moqueur-gorge-rouge.jpeg",
       "content": "Moqueur gorge-rouge",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "i17545798108501wob",
       "url": "images/sucrier-ventre-jaune.jpeg",
       "content": "Sucrier à ventre jaune",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "i1754579810850w3ov",
       "url": "images/ibis-rouge.jpeg",
       "content": "Ibis rouge",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850bx7w",
       "url": "images/toucan.jpeg",
       "content": "Toucan",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "id": "i17545798108503rlz",
       "url": "images/flamant-rose.jpeg",
       "content": "Flamant rose",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "id": "i1754579810850udsj",
       "url": "images/bernard-lhermite.jpeg",
       "content": "Bernard-l'hermite",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850uce7",
       "url": "images/crabe-de-terre.jpeg",
       "content": "Crabe de terre",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850gu16",
       "url": "images/manicou.jpeg",
       "content": "Manicou",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850q9ps",
       "url": "images/cabri.jpeg",
       "content": "Cabri",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "id": "i1754579810850drql",
       "url": "images/scolopendre.jpeg",
       "content": "Scolopendre",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "i1754579810850gdy2",
       "url": "images/lambi.jpeg",
       "content": "Lambi",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "id": "i1754579810850a26e",
       "url": "images/iguane-vert.jpeg",
       "content": "Iguane vert",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850ud63",
       "url": "images/mangouste.jpeg",
       "content": "Mangouste",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "i1754579810850np2x",
       "url": "images/ecrevisse.jpeg",
       "content": "Écrevisse",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "i1754579810850xphg",
       "url": "images/paresseux.jpeg",
       "content": "Paresseux",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "id": "i1754579810850fb9q",
       "url": "images/corail-cerveau.jpeg",
       "content": "Corail cerveau",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM2"
     },
     {
       "id": "i1754579810850o2vj",
       "url": "images/vivaneau-queue-jaune.jpeg",
       "content": "Vivaneau à queue jaune",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "i1754579810850w00a",
       "url": "images/orphie.jpeg",
       "content": "Orphie",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "id": "i1754579810850wcas",
       "url": "images/oursin.jpeg",
       "content": "Oursin",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "id": "i175457981085024ai",
       "url": "images/lamantin.jpeg",
       "content": "Lamantin",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM2"
     }
   ],
@@ -2984,6 +3230,1743 @@
         "category:soustraction"
       ],
       "levelClass": "CE2"
+    },
+    {
+      "id": "cdiv_1772258240371_0",
+      "content": "146 ÷ 2",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_1",
+      "content": "la moitié de 150",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_2",
+      "content": "242 ÷ 2",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_3",
+      "content": "73 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_4",
+      "content": "138 ÷ 3",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_5",
+      "content": "le tiers de 141",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_6",
+      "content": "140 ÷ 4",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_7",
+      "content": "136 ÷ 2",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_8",
+      "content": "3,4 ÷ 2",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_9",
+      "content": "la moitié de 2,4",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_10",
+      "content": "3,3 ÷ 3",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_11",
+      "content": "8,2 ÷ 4",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_12",
+      "content": "0,63 ÷ 7",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_13",
+      "content": "0,63 ÷ 9",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_14",
+      "content": "0,6 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_15",
+      "content": "6,3 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_16",
+      "content": "24,6 ÷ 3",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_17",
+      "content": "24,3 ÷ 3",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_18",
+      "content": "le tiers de 27",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_19",
+      "content": "32,4 ÷ 8",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_20",
+      "content": "3,6 ÷ 9",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_21",
+      "content": "36 ÷ 4",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_22",
+      "content": "3,8 ÷ 2",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_23",
+      "content": "6,3 ÷ 9",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_24",
+      "content": "0,035 ÷ 5",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_25",
+      "content": "7 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_26",
+      "content": "0,35 ÷ 7",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_27",
+      "content": "0,5 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_28",
+      "content": "6,4 ÷ 8",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_29",
+      "content": "6,2 ÷ 2",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_30",
+      "content": "8 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_31",
+      "content": "143 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_32",
+      "content": "24,6 ÷ 2",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_33",
+      "content": "21,9 ÷ 3",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_34",
+      "content": "1,43 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_35",
+      "content": "368 ÷ 2",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_36",
+      "content": "la moitié de 242",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_37",
+      "content": "le tiers de 333",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_38",
+      "content": "963 ÷ 3",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_39",
+      "content": "600 ÷ 4",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_40",
+      "content": "350 ÷ 2",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_41",
+      "content": "160 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_42",
+      "content": "330 ÷ 3",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_43",
+      "content": "584 ÷ 2",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_44",
+      "content": "570 ÷ 2",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_45",
+      "content": "500 ÷ 4",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_46",
+      "content": "321 ÷ 3",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_47",
+      "content": "80 ÷ 5",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_48",
+      "content": "90 ÷ 5",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_49",
+      "content": "125 ÷ 5",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_50",
+      "content": "190 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_51",
+      "content": "42,06 ÷ 6",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_52",
+      "content": "42,6 ÷ 6",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_53",
+      "content": "56,7 ÷ 7",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_54",
+      "content": "2 400 ÷ 50",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_55",
+      "content": "480 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_56",
+      "content": "85 ÷ 5",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_57",
+      "content": "84 ÷ 2",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_58",
+      "content": "9,54 ÷ 9",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_59",
+      "content": "6,54 ÷ 6",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_60",
+      "content": "54 ÷ 9",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_61",
+      "content": "54 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_62",
+      "content": "324,7 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_63",
+      "content": "14,3 ÷ 1000",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_64",
+      "content": "2,4 ÷ 8",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_65",
+      "content": "18,3 ÷ 3",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_66",
+      "content": "200 ÷ 8",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_67",
+      "content": "250 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_68",
+      "content": "84 ÷ 4",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_69",
+      "content": "120 ÷ 5",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_70",
+      "content": "150 ÷ 6",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_71",
+      "content": "90 ÷ 3",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_72",
+      "content": "350 ÷ 25",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_73",
+      "content": "39 ÷ 3",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_74",
+      "content": "55 ÷ 5",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_75",
+      "content": "36 ÷ 2",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_76",
+      "content": "6,8 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_77",
+      "content": "42 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_78",
+      "content": "75 ÷ 5",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_79",
+      "content": "60 ÷ 12",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_80",
+      "content": "4,5 ÷ 5",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_81",
+      "content": "120 ÷ 20",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_82",
+      "content": "54,9 ÷ 9",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_83",
+      "content": "le quart de 70",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_84",
+      "content": "la moitié de 34",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_85",
+      "content": "le tiers de 45",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_86",
+      "content": "175 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_87",
+      "content": "425 ÷ 1 000",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_88",
+      "content": "126 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_89",
+      "content": "67 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_90",
+      "content": "la moitié de 730",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_91",
+      "content": "la moitié de 610",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_92",
+      "content": "550 ÷ 2",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_93",
+      "content": "808 ÷ 2",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_94",
+      "content": "129 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_95",
+      "content": "129 ÷ 1 000",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_96",
+      "content": "12 900 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_97",
+      "content": "1 290 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_98",
+      "content": "le tiers de 75",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_99",
+      "content": "le double de 75",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_100",
+      "content": "la moitié de 500",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_101",
+      "content": "le tiers de 90",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_102",
+      "content": "7,4 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_103",
+      "content": "740 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_104",
+      "content": "740 ÷ 74",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_105",
+      "content": "7,4 ÷ 1 000",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_106",
+      "content": "56,14 ÷ 7",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_107",
+      "content": "56,14 ÷ 8",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_108",
+      "content": "561,4 ÷ 7",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_109",
+      "content": "56,014 ÷ 7",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_110",
+      "content": "13,6 ÷ 2",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_111",
+      "content": "26,04 ÷ 2",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_112",
+      "content": "12,16 ÷ 2",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_113",
+      "content": "14,06 ÷ 2",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_114",
+      "content": "358 ÷ 1 000",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_115",
+      "content": "3,58 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_116",
+      "content": "0,358 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_117",
+      "content": "350,8 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_118",
+      "content": "le quart de 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_119",
+      "content": "le double de 50",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_120",
+      "content": "la moitié de 200",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_121",
+      "content": "le quart de 75",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_122",
+      "content": "le quart de 60",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_123",
+      "content": "le double de 30",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_124",
+      "content": "la moitié de 120",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_125",
+      "content": "le quart de 160",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_126",
+      "content": "1,6 ÷ 4",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_127",
+      "content": "16 ÷ 4",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_128",
+      "content": "4,128 ÷ 4",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_129",
+      "content": "4,16 ÷ 4",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_130",
+      "content": "le tiers de 360",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_131",
+      "content": "le double de 180",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_132",
+      "content": "la moitié de 180",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_133",
+      "content": "le tiers de 120",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_134",
+      "content": "760 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_135",
+      "content": "7,6 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_136",
+      "content": "760 ÷ 1 000",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_137",
+      "content": "7 060 ÷ 1 000",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_138",
+      "content": "1 025 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_139",
+      "content": "10,25 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_140",
+      "content": "10,25 ÷ 1 000",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_141",
+      "content": "1 250 ÷ 1 000",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_142",
+      "content": "4 300 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_143",
+      "content": "400,3 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_144",
+      "content": "0,43 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_145",
+      "content": "4 030 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_146",
+      "content": "9 090 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_147",
+      "content": "900,9 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_148",
+      "content": "0,99 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_149",
+      "content": "9 099 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_150",
+      "content": "33 000 ÷ 1 000",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_151",
+      "content": "30 300 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_152",
+      "content": "0,33 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_153",
+      "content": "33 ÷ 1 000",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_154",
+      "content": "5 008 ÷ 1 000",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_155",
+      "content": "5,08 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_156",
+      "content": "508 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_157",
+      "content": "5 080 ÷ 1 000",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_158",
+      "content": "175 ÷ 25",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_159",
+      "content": "150 ÷ 25",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_160",
+      "content": "43 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_161",
+      "content": "250 ÷ 25",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_162",
+      "content": "600 ÷ 25",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_163",
+      "content": "550 ÷ 25",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_164",
+      "content": "24 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_165",
+      "content": "525 ÷ 25",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_166",
+      "content": "300 ÷ 15",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_167",
+      "content": "90 ÷ 15",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_168",
+      "content": "180 ÷ 15",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_169",
+      "content": "500 ÷ 25",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_170",
+      "content": "1 500 ÷ 15",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_171",
+      "content": "150 ÷ 15",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_172",
+      "content": "1 010 ÷ 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_173",
+      "content": "1 500 ÷ 25",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_174",
+      "content": "720 ÷ 80",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_175",
+      "content": "90 ÷ 0,1",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_176",
+      "content": "9 ÷ 1 000",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_177",
+      "content": "7 200 ÷ 8",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_178",
+      "content": "5 600 ÷ 70",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_179",
+      "content": "80 ÷ 0,1",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_180",
+      "content": "80 ÷ 1 000",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_181",
+      "content": "560 ÷ 80",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_182",
+      "content": "3 600 ÷ 40",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_183",
+      "content": "40 ÷ 0,1",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_184",
+      "content": "4 000 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_185",
+      "content": "360 ÷ 90",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_186",
+      "content": "900 ÷ 30",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_187",
+      "content": "9 ÷ 0,1",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_188",
+      "content": "3 000 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_189",
+      "content": "300 ÷ 3",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_190",
+      "content": "900 ÷ 20",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_191",
+      "content": "4 500 ÷ 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "id": "cdiv_1772258240371_192",
+      "content": "900 ÷ 2",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
     }
   ],
   "chiffres": [
@@ -4843,6 +6826,1743 @@
       "themes": [
         "domain:math",
         "category:soustraction"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_0",
+      "content": "73",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_1",
+      "content": "75",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_2",
+      "content": "121",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_3",
+      "content": "0,73",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_4",
+      "content": "46",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_5",
+      "content": "47",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_6",
+      "content": "35",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_7",
+      "content": "68",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_8",
+      "content": "1,7",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_9",
+      "content": "1,2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_10",
+      "content": "1,1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_11",
+      "content": "2,05",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_12",
+      "content": "0,09",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_13",
+      "content": "0,07",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_14",
+      "content": "0,06",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_15",
+      "content": "0,63",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_16",
+      "content": "8,2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_17",
+      "content": "8,1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_18",
+      "content": "9",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_19",
+      "content": "4,05",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_20",
+      "content": "0,4",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_21",
+      "content": "9",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_22",
+      "content": "1,9",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_23",
+      "content": "0,7",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_24",
+      "content": "0,007",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_25",
+      "content": "0,07",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_26",
+      "content": "0,05",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_27",
+      "content": "0,05",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_28",
+      "content": "0,8",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_29",
+      "content": "3,1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_30",
+      "content": "0,08",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_31",
+      "content": "14,3",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_32",
+      "content": "12,3",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_33",
+      "content": "7,3",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_34",
+      "content": "0,143",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_35",
+      "content": "184",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_36",
+      "content": "121",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_37",
+      "content": "111",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_38",
+      "content": "321",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_39",
+      "content": "150",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_40",
+      "content": "175",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_41",
+      "content": "16",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_42",
+      "content": "110",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_43",
+      "content": "292",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_44",
+      "content": "285",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_45",
+      "content": "125",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_46",
+      "content": "107",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_47",
+      "content": "16",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_48",
+      "content": "18",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_49",
+      "content": "25",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_50",
+      "content": "19",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_51",
+      "content": "7,01",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_52",
+      "content": "7,1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_53",
+      "content": "8,1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_54",
+      "content": "48",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_55",
+      "content": "4,8",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_56",
+      "content": "17",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_57",
+      "content": "42",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_58",
+      "content": "1,06",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_59",
+      "content": "1,09",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_60",
+      "content": "6",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_61",
+      "content": "5,4",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_62",
+      "content": "32,47",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_63",
+      "content": "0,0143",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_64",
+      "content": "0,3",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_65",
+      "content": "6,1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_66",
+      "content": "25",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_67",
+      "content": "2,5",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_68",
+      "content": "21",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_69",
+      "content": "24",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_70",
+      "content": "25",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_71",
+      "content": "30",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_72",
+      "content": "14",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_73",
+      "content": "13",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_74",
+      "content": "11",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_75",
+      "content": "18",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_76",
+      "content": "0,68",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_77",
+      "content": "0,42",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_78",
+      "content": "15",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_79",
+      "content": "5",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_80",
+      "content": "0,9",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_81",
+      "content": "6",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_82",
+      "content": "6,1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_83",
+      "content": "17,5",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_84",
+      "content": "17",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_85",
+      "content": "15",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_86",
+      "content": "1,75",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_87",
+      "content": "0,425",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_88",
+      "content": "12,6",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_89",
+      "content": "0,67",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_90",
+      "content": "365",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_91",
+      "content": "305",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_92",
+      "content": "275",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_93",
+      "content": "404",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_94",
+      "content": "1,29",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_95",
+      "content": "0,129",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_96",
+      "content": "129",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_97",
+      "content": "129",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_98",
+      "content": "25",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_99",
+      "content": "150",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_100",
+      "content": "250",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_101",
+      "content": "30",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_102",
+      "content": "0,074",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_103",
+      "content": "7,4",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_104",
+      "content": "10",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_105",
+      "content": "0,0074",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_106",
+      "content": "8,02",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_107",
+      "content": "7,0175",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_108",
+      "content": "80,2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_109",
+      "content": "8,002",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_110",
+      "content": "6,8",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_111",
+      "content": "13,02",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_112",
+      "content": "6,08",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_113",
+      "content": "7,03",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_114",
+      "content": "0,358",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_115",
+      "content": "0,0358",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_116",
+      "content": "0,0358",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_117",
+      "content": "3,508",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_118",
+      "content": "25",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_119",
+      "content": "100",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_120",
+      "content": "100",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_121",
+      "content": "18,75",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_122",
+      "content": "15",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_123",
+      "content": "60",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_124",
+      "content": "60",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_125",
+      "content": "40",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_126",
+      "content": "0,4",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_127",
+      "content": "4",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_128",
+      "content": "1,032",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_129",
+      "content": "1,04",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_130",
+      "content": "120",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_131",
+      "content": "360",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_132",
+      "content": "90",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_133",
+      "content": "40",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_134",
+      "content": "76",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_135",
+      "content": "0,076",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_136",
+      "content": "0,76",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_137",
+      "content": "7,06",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_138",
+      "content": "102,5",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_139",
+      "content": "0,1025",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_140",
+      "content": "0,01025",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_141",
+      "content": "1,25",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_142",
+      "content": "43",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_143",
+      "content": "4,003",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_144",
+      "content": "0,043",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_145",
+      "content": "40,3",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_146",
+      "content": "90,9",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_147",
+      "content": "9,009",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_148",
+      "content": "0,099",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_149",
+      "content": "90,99",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_150",
+      "content": "33",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_151",
+      "content": "303",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_152",
+      "content": "0,033",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_153",
+      "content": "0,033",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_154",
+      "content": "5,008",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_155",
+      "content": "0,508",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_156",
+      "content": "5,08",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_157",
+      "content": "5,08",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_158",
+      "content": "7",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_159",
+      "content": "6",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_160",
+      "content": "0,43",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_161",
+      "content": "10",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_162",
+      "content": "24",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_163",
+      "content": "22",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_164",
+      "content": "0,24",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_165",
+      "content": "21",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_166",
+      "content": "20",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_167",
+      "content": "6",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_168",
+      "content": "12",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_169",
+      "content": "20",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_170",
+      "content": "100",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_171",
+      "content": "10",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_172",
+      "content": "10,1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_173",
+      "content": "60",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_174",
+      "content": "9",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_175",
+      "content": "900",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_176",
+      "content": "0,009",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_177",
+      "content": "900",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_178",
+      "content": "80",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_179",
+      "content": "800",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_180",
+      "content": "0,08",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_181",
+      "content": "7",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_182",
+      "content": "90",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_183",
+      "content": "400",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_184",
+      "content": "400",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_185",
+      "content": "4",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_186",
+      "content": "30",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_187",
+      "content": "90",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_188",
+      "content": "300",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_189",
+      "content": "100",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncdiv_1772258240371_190",
+      "content": "45",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncdiv_1772258240371_191",
+      "content": "450",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncdiv_1772258240371_192",
+      "content": "450",
+      "themes": [
+        "domain:math",
+        "category:division"
       ],
       "levelClass": "CE2"
     }
@@ -7090,248 +10810,2108 @@
     {
       "texteId": "ta01",
       "imageId": "i1754579810850evmn",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "texteId": "ta02",
       "imageId": "i1754579810850cto2",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "texteId": "ta03",
       "imageId": "i175457981085078jn",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "texteId": "ta04",
       "imageId": "i1754579810850ec9m",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "texteId": "ta05",
       "imageId": "i1754579810850bx7w",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "texteId": "ta06",
       "imageId": "i17545798108503rlz",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "texteId": "ta07",
       "imageId": "i1754579810850q9ps",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "texteId": "ta08",
       "imageId": "i1754579810850gdy2",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CP"
     },
     {
       "texteId": "ta09",
       "imageId": "i1754579810850uebc",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta10",
       "imageId": "i1754579810850x95g",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta11",
       "imageId": "i1754579810850moua",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta12",
       "imageId": "i1754579810850w3ov",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta13",
       "imageId": "i1754579810850udsj",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta14",
       "imageId": "i1754579810850uce7",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta15",
       "imageId": "i1754579810850gu16",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta16",
       "imageId": "i1754579810850a26e",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta17",
       "imageId": "i1754579810850ud63",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta18",
       "imageId": "i1754579810850wcas",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE1"
     },
     {
       "texteId": "ta19",
       "imageId": "i1754579810850p3uq",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta20",
       "imageId": "i1754579810850al10",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta21",
       "imageId": "i1754579810850092a",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta22",
       "imageId": "i1754579810850cu13",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta23",
       "imageId": "i1754579810850vy7k",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta24",
       "imageId": "i17545798108501wob",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta25",
       "imageId": "i1754579810850drql",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta26",
       "imageId": "i1754579810850np2x",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta27",
       "imageId": "i1754579810850xphg",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CE2"
     },
     {
       "texteId": "ta28",
       "imageId": "i1754579810850hjpg",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta29",
       "imageId": "i1754579810850585z",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta30",
       "imageId": "i1754579810850jxaw",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta31",
       "imageId": "i1754579810850cqro",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta32",
       "imageId": "i1754579810850n464",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta33",
       "imageId": "i1754579810850heoz",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta34",
       "imageId": "i175457981085054ts",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta35",
       "imageId": "i1754579810850o2vj",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta36",
       "imageId": "i1754579810850w00a",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM1"
     },
     {
       "texteId": "ta37",
       "imageId": "i1754579810850ay9g",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM2"
     },
     {
       "texteId": "ta38",
       "imageId": "i1754579810850qyln",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM2"
     },
     {
       "texteId": "ta39",
       "imageId": "i17545798108503qib",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM2"
     },
     {
       "texteId": "ta40",
       "imageId": "i1754579810850fb9q",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM2"
     },
     {
       "texteId": "ta41",
       "imageId": "i175457981085024ai",
-      "themes": ["domain:zoology", "animaux"],
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
       "levelClass": "CM2"
+    },
+    {
+      "calculId": "cdiv_1772258240371_0",
+      "chiffreId": "ncdiv_1772258240371_0",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_1",
+      "chiffreId": "ncdiv_1772258240371_1",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_2",
+      "chiffreId": "ncdiv_1772258240371_2",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_3",
+      "chiffreId": "ncdiv_1772258240371_3",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_4",
+      "chiffreId": "ncdiv_1772258240371_4",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_5",
+      "chiffreId": "ncdiv_1772258240371_5",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_6",
+      "chiffreId": "ncdiv_1772258240371_6",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_7",
+      "chiffreId": "ncdiv_1772258240371_7",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_8",
+      "chiffreId": "ncdiv_1772258240371_8",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_9",
+      "chiffreId": "ncdiv_1772258240371_9",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_10",
+      "chiffreId": "ncdiv_1772258240371_10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_11",
+      "chiffreId": "ncdiv_1772258240371_11",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_12",
+      "chiffreId": "ncdiv_1772258240371_12",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_13",
+      "chiffreId": "ncdiv_1772258240371_13",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_14",
+      "chiffreId": "ncdiv_1772258240371_14",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_15",
+      "chiffreId": "ncdiv_1772258240371_15",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_16",
+      "chiffreId": "ncdiv_1772258240371_16",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_17",
+      "chiffreId": "ncdiv_1772258240371_17",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_18",
+      "chiffreId": "ncdiv_1772258240371_18",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_19",
+      "chiffreId": "ncdiv_1772258240371_19",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_20",
+      "chiffreId": "ncdiv_1772258240371_20",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_21",
+      "chiffreId": "ncdiv_1772258240371_21",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_22",
+      "chiffreId": "ncdiv_1772258240371_22",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_23",
+      "chiffreId": "ncdiv_1772258240371_23",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_24",
+      "chiffreId": "ncdiv_1772258240371_24",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_25",
+      "chiffreId": "ncdiv_1772258240371_25",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_26",
+      "chiffreId": "ncdiv_1772258240371_26",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_27",
+      "chiffreId": "ncdiv_1772258240371_27",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_28",
+      "chiffreId": "ncdiv_1772258240371_28",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_29",
+      "chiffreId": "ncdiv_1772258240371_29",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_30",
+      "chiffreId": "ncdiv_1772258240371_30",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_31",
+      "chiffreId": "ncdiv_1772258240371_31",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_32",
+      "chiffreId": "ncdiv_1772258240371_32",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_33",
+      "chiffreId": "ncdiv_1772258240371_33",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_34",
+      "chiffreId": "ncdiv_1772258240371_34",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_35",
+      "chiffreId": "ncdiv_1772258240371_35",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_36",
+      "chiffreId": "ncdiv_1772258240371_36",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_37",
+      "chiffreId": "ncdiv_1772258240371_37",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_38",
+      "chiffreId": "ncdiv_1772258240371_38",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_39",
+      "chiffreId": "ncdiv_1772258240371_39",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_40",
+      "chiffreId": "ncdiv_1772258240371_40",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_41",
+      "chiffreId": "ncdiv_1772258240371_41",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_42",
+      "chiffreId": "ncdiv_1772258240371_42",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_43",
+      "chiffreId": "ncdiv_1772258240371_43",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_44",
+      "chiffreId": "ncdiv_1772258240371_44",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_45",
+      "chiffreId": "ncdiv_1772258240371_45",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_46",
+      "chiffreId": "ncdiv_1772258240371_46",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_47",
+      "chiffreId": "ncdiv_1772258240371_47",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_48",
+      "chiffreId": "ncdiv_1772258240371_48",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_49",
+      "chiffreId": "ncdiv_1772258240371_49",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_50",
+      "chiffreId": "ncdiv_1772258240371_50",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_51",
+      "chiffreId": "ncdiv_1772258240371_51",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_52",
+      "chiffreId": "ncdiv_1772258240371_52",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_53",
+      "chiffreId": "ncdiv_1772258240371_53",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_54",
+      "chiffreId": "ncdiv_1772258240371_54",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_55",
+      "chiffreId": "ncdiv_1772258240371_55",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_56",
+      "chiffreId": "ncdiv_1772258240371_56",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_57",
+      "chiffreId": "ncdiv_1772258240371_57",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_58",
+      "chiffreId": "ncdiv_1772258240371_58",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_59",
+      "chiffreId": "ncdiv_1772258240371_59",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_60",
+      "chiffreId": "ncdiv_1772258240371_60",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_61",
+      "chiffreId": "ncdiv_1772258240371_61",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_62",
+      "chiffreId": "ncdiv_1772258240371_62",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_63",
+      "chiffreId": "ncdiv_1772258240371_63",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_64",
+      "chiffreId": "ncdiv_1772258240371_64",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_65",
+      "chiffreId": "ncdiv_1772258240371_65",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_66",
+      "chiffreId": "ncdiv_1772258240371_66",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_67",
+      "chiffreId": "ncdiv_1772258240371_67",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_68",
+      "chiffreId": "ncdiv_1772258240371_68",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_69",
+      "chiffreId": "ncdiv_1772258240371_69",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_70",
+      "chiffreId": "ncdiv_1772258240371_70",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_71",
+      "chiffreId": "ncdiv_1772258240371_71",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_72",
+      "chiffreId": "ncdiv_1772258240371_72",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_73",
+      "chiffreId": "ncdiv_1772258240371_73",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_74",
+      "chiffreId": "ncdiv_1772258240371_74",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_75",
+      "chiffreId": "ncdiv_1772258240371_75",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_76",
+      "chiffreId": "ncdiv_1772258240371_76",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_77",
+      "chiffreId": "ncdiv_1772258240371_77",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_78",
+      "chiffreId": "ncdiv_1772258240371_78",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_79",
+      "chiffreId": "ncdiv_1772258240371_79",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_80",
+      "chiffreId": "ncdiv_1772258240371_80",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_81",
+      "chiffreId": "ncdiv_1772258240371_81",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_82",
+      "chiffreId": "ncdiv_1772258240371_82",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_83",
+      "chiffreId": "ncdiv_1772258240371_83",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_84",
+      "chiffreId": "ncdiv_1772258240371_84",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_85",
+      "chiffreId": "ncdiv_1772258240371_85",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_86",
+      "chiffreId": "ncdiv_1772258240371_86",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_87",
+      "chiffreId": "ncdiv_1772258240371_87",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_88",
+      "chiffreId": "ncdiv_1772258240371_88",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_89",
+      "chiffreId": "ncdiv_1772258240371_89",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_90",
+      "chiffreId": "ncdiv_1772258240371_90",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_91",
+      "chiffreId": "ncdiv_1772258240371_91",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_92",
+      "chiffreId": "ncdiv_1772258240371_92",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_93",
+      "chiffreId": "ncdiv_1772258240371_93",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_94",
+      "chiffreId": "ncdiv_1772258240371_94",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_95",
+      "chiffreId": "ncdiv_1772258240371_95",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_96",
+      "chiffreId": "ncdiv_1772258240371_96",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_97",
+      "chiffreId": "ncdiv_1772258240371_97",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_98",
+      "chiffreId": "ncdiv_1772258240371_98",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_99",
+      "chiffreId": "ncdiv_1772258240371_99",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_100",
+      "chiffreId": "ncdiv_1772258240371_100",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_101",
+      "chiffreId": "ncdiv_1772258240371_101",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_102",
+      "chiffreId": "ncdiv_1772258240371_102",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_103",
+      "chiffreId": "ncdiv_1772258240371_103",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_104",
+      "chiffreId": "ncdiv_1772258240371_104",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_105",
+      "chiffreId": "ncdiv_1772258240371_105",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_106",
+      "chiffreId": "ncdiv_1772258240371_106",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_107",
+      "chiffreId": "ncdiv_1772258240371_107",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_108",
+      "chiffreId": "ncdiv_1772258240371_108",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_109",
+      "chiffreId": "ncdiv_1772258240371_109",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_110",
+      "chiffreId": "ncdiv_1772258240371_110",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_111",
+      "chiffreId": "ncdiv_1772258240371_111",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_112",
+      "chiffreId": "ncdiv_1772258240371_112",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_113",
+      "chiffreId": "ncdiv_1772258240371_113",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_114",
+      "chiffreId": "ncdiv_1772258240371_114",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_115",
+      "chiffreId": "ncdiv_1772258240371_115",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_116",
+      "chiffreId": "ncdiv_1772258240371_116",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_117",
+      "chiffreId": "ncdiv_1772258240371_117",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_118",
+      "chiffreId": "ncdiv_1772258240371_118",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_119",
+      "chiffreId": "ncdiv_1772258240371_119",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_120",
+      "chiffreId": "ncdiv_1772258240371_120",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_121",
+      "chiffreId": "ncdiv_1772258240371_121",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_122",
+      "chiffreId": "ncdiv_1772258240371_122",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_123",
+      "chiffreId": "ncdiv_1772258240371_123",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_124",
+      "chiffreId": "ncdiv_1772258240371_124",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_125",
+      "chiffreId": "ncdiv_1772258240371_125",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_126",
+      "chiffreId": "ncdiv_1772258240371_126",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_127",
+      "chiffreId": "ncdiv_1772258240371_127",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_128",
+      "chiffreId": "ncdiv_1772258240371_128",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_129",
+      "chiffreId": "ncdiv_1772258240371_129",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_130",
+      "chiffreId": "ncdiv_1772258240371_130",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_131",
+      "chiffreId": "ncdiv_1772258240371_131",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_132",
+      "chiffreId": "ncdiv_1772258240371_132",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_133",
+      "chiffreId": "ncdiv_1772258240371_133",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_134",
+      "chiffreId": "ncdiv_1772258240371_134",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_135",
+      "chiffreId": "ncdiv_1772258240371_135",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_136",
+      "chiffreId": "ncdiv_1772258240371_136",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_137",
+      "chiffreId": "ncdiv_1772258240371_137",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_138",
+      "chiffreId": "ncdiv_1772258240371_138",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_139",
+      "chiffreId": "ncdiv_1772258240371_139",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_140",
+      "chiffreId": "ncdiv_1772258240371_140",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_141",
+      "chiffreId": "ncdiv_1772258240371_141",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_142",
+      "chiffreId": "ncdiv_1772258240371_142",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_143",
+      "chiffreId": "ncdiv_1772258240371_143",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_144",
+      "chiffreId": "ncdiv_1772258240371_144",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_145",
+      "chiffreId": "ncdiv_1772258240371_145",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_146",
+      "chiffreId": "ncdiv_1772258240371_146",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_147",
+      "chiffreId": "ncdiv_1772258240371_147",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_148",
+      "chiffreId": "ncdiv_1772258240371_148",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_149",
+      "chiffreId": "ncdiv_1772258240371_149",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_150",
+      "chiffreId": "ncdiv_1772258240371_150",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_151",
+      "chiffreId": "ncdiv_1772258240371_151",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_152",
+      "chiffreId": "ncdiv_1772258240371_152",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_153",
+      "chiffreId": "ncdiv_1772258240371_153",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_154",
+      "chiffreId": "ncdiv_1772258240371_154",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_155",
+      "chiffreId": "ncdiv_1772258240371_155",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_156",
+      "chiffreId": "ncdiv_1772258240371_156",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_157",
+      "chiffreId": "ncdiv_1772258240371_157",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_158",
+      "chiffreId": "ncdiv_1772258240371_158",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_159",
+      "chiffreId": "ncdiv_1772258240371_159",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_160",
+      "chiffreId": "ncdiv_1772258240371_160",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_161",
+      "chiffreId": "ncdiv_1772258240371_161",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_162",
+      "chiffreId": "ncdiv_1772258240371_162",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_163",
+      "chiffreId": "ncdiv_1772258240371_163",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_164",
+      "chiffreId": "ncdiv_1772258240371_164",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_165",
+      "chiffreId": "ncdiv_1772258240371_165",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_166",
+      "chiffreId": "ncdiv_1772258240371_166",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_167",
+      "chiffreId": "ncdiv_1772258240371_167",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_168",
+      "chiffreId": "ncdiv_1772258240371_168",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_169",
+      "chiffreId": "ncdiv_1772258240371_169",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_170",
+      "chiffreId": "ncdiv_1772258240371_170",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_171",
+      "chiffreId": "ncdiv_1772258240371_171",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_172",
+      "chiffreId": "ncdiv_1772258240371_172",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_173",
+      "chiffreId": "ncdiv_1772258240371_173",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_174",
+      "chiffreId": "ncdiv_1772258240371_174",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_175",
+      "chiffreId": "ncdiv_1772258240371_175",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_176",
+      "chiffreId": "ncdiv_1772258240371_176",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_177",
+      "chiffreId": "ncdiv_1772258240371_177",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_178",
+      "chiffreId": "ncdiv_1772258240371_178",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_179",
+      "chiffreId": "ncdiv_1772258240371_179",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_180",
+      "chiffreId": "ncdiv_1772258240371_180",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_181",
+      "chiffreId": "ncdiv_1772258240371_181",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_182",
+      "chiffreId": "ncdiv_1772258240371_182",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_183",
+      "chiffreId": "ncdiv_1772258240371_183",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_184",
+      "chiffreId": "ncdiv_1772258240371_184",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_185",
+      "chiffreId": "ncdiv_1772258240371_185",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_186",
+      "chiffreId": "ncdiv_1772258240371_186",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_187",
+      "chiffreId": "ncdiv_1772258240371_187",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_188",
+      "chiffreId": "ncdiv_1772258240371_188",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_189",
+      "chiffreId": "ncdiv_1772258240371_189",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_190",
+      "chiffreId": "ncdiv_1772258240371_190",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_191",
+      "chiffreId": "ncdiv_1772258240371_191",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
+    },
+    {
+      "calculId": "cdiv_1772258240371_192",
+      "chiffreId": "ncdiv_1772258240371_192",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:division"
+      ]
     }
   ],
   "_dataVersion": 4

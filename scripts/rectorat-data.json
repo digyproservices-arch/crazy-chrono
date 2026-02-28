@@ -1,0 +1,452 @@
+[
+  {
+    "main": {"calc": "146 ÷ 2", "result": "73"},
+    "distractors": [
+      {"calc": "la moitié de 150", "wrongResult": "122"},
+      {"calc": "242 ÷ 2", "wrongResult": "70"},
+      {"calc": "73 ÷ 100", "wrongResult": "7,3"}
+    ],
+    "strategy": "Diviser un nombre par 2 c'est rechercher la moitié de ce nombre. 146 c'est 140 + 6. La moitié de 140 c'est 70 et la moitié de 6 c'est 3. 146 divisé par 2 c'est 70 plus 3, c'est encore 73."
+  },
+  {
+    "main": {"calc": "138 ÷ 3", "result": "46"},
+    "distractors": [
+      {"calc": "le tiers de 141", "wrongResult": "30"},
+      {"calc": "140 ÷ 4", "wrongResult": "45"},
+      {"calc": "136 ÷ 2", "wrongResult": "70"}
+    ],
+    "strategy": "Diviser un nombre par 3 c'est rechercher le tiers de ce nombre. Décomposons 138 par des nombres multiples de 3 pour trouver plus facilement son tiers. 138 c'est 120 plus 18 et comme 120 ÷ 3 = 40 et que 18 ÷ 3 = 6, 138 ÷ 3 c'est 40 + 6 ou encore 46."
+  },
+  {
+    "main": {"calc": "3,4 ÷ 2", "result": "1,7"},
+    "distractors": [
+      {"calc": "la moitié de 2,4", "wrongResult": "1,3"},
+      {"calc": "3,3 ÷ 3", "wrongResult": "1,03"},
+      {"calc": "8,2 ÷ 4", "wrongResult": "2,2"}
+    ],
+    "strategy": "Diviser un nombre par 2 c'est rechercher la moitié de ce nombre. 3,4 c'est 34 dixièmes. La moitié de 34 c'est la moitié de 30 plus la moitié de 4 soit 15 plus 2. 15 + 2 = 17. La moitié de 34 dixièmes égal 17 dixièmes soit 1,7."
+  },
+  {
+    "main": {"calc": "0,63 ÷ 7", "result": "0,09"},
+    "distractors": [
+      {"calc": "0,63 ÷ 9", "wrongResult": "0,7"},
+      {"calc": "0,6 ÷ 10", "wrongResult": "0,9"},
+      {"calc": "6,3 ÷ 10", "wrongResult": "0,6"}
+    ],
+    "strategy": "0,63 c'est 63 centièmes. Comme 63 c'est 7 fois 9, 63 centièmes ÷ 7 est égal à 9 centièmes. 9 centièmes c'est 0,09."
+  },
+  {
+    "main": {"calc": "24,6 ÷ 3", "result": "8,2"},
+    "distractors": [
+      {"calc": "24,3 ÷ 3", "wrongResult": "8,02"},
+      {"calc": "le tiers de 27", "wrongResult": "8"},
+      {"calc": "32,4 ÷ 8", "wrongResult": "4,5"}
+    ],
+    "strategy": "Diviser un nombre par 3 c'est rechercher le tiers de ce nombre. 24,6 c'est 24 unités plus 6 dixièmes. 24 unités divisées par 3 est égal à 8 unités et 6 dixièmes divisés par 3 est égal à 2 dixièmes. 24,6 ÷ 3 c'est 8 unités plus 2 dixièmes ou encore 8 + 0,2 soit 8,2."
+  },
+  {
+    "main": {"calc": "3,6 ÷ 9", "result": "0,4"},
+    "distractors": [
+      {"calc": "36 ÷ 4", "wrongResult": "4"},
+      {"calc": "3,8 ÷ 2", "wrongResult": "0,19"},
+      {"calc": "6,3 ÷ 9", "wrongResult": "0,07"}
+    ],
+    "strategy": "3,6 c'est 36 dixièmes. Comme 36 c'est 9 fois 4 alors 36 dixièmes ÷ 9 est égal à 4 dixièmes. 4 dixièmes c'est 0,4."
+  },
+  {
+    "main": {"calc": "0,035 ÷ 5", "result": "0,007"},
+    "distractors": [
+      {"calc": "7 ÷ 100", "wrongResult": "0,7"},
+      {"calc": "0,35 ÷ 7", "wrongResult": "0,005"},
+      {"calc": "0,5 ÷ 10", "wrongResult": "0,5"}
+    ],
+    "strategy": "0,035 c'est 35 millièmes. Comme 35 c'est 5 fois 7 alors 35 millièmes ÷ 5 est égal à 7 millièmes. 7 millièmes c'est 0,007."
+  },
+  {
+    "main": {"calc": "6,4 ÷ 8", "result": "0,8"},
+    "distractors": [
+      {"calc": "6,2 ÷ 2", "wrongResult": "3,01"},
+      {"calc": "8 ÷ 100", "wrongResult": "0,5"},
+      {"calc": "0,35 ÷ 7", "wrongResult": "0,008"}
+    ],
+    "strategy": "6,4 c'est 64 dixièmes. Comme 64 c'est 8 fois 8 alors 64 dixièmes ÷ 8 est égal à 8 dixièmes. 8 dixièmes c'est 0,8."
+  },
+  {
+    "main": {"calc": "143 ÷ 10", "result": "14,3"},
+    "distractors": [
+      {"calc": "24,6 ÷ 2", "wrongResult": "7,03"},
+      {"calc": "21,9 ÷ 3", "wrongResult": "12,03"},
+      {"calc": "1,43 ÷ 10", "wrongResult": "1,43"}
+    ],
+    "strategy": "Diviser un nombre par 10 c'est le rendre 10 fois plus petit. Quand je divise un nombre par 10, le nombre d'unités devient le nombre de dixièmes. 143 unités divisées par 10 c'est 143 dixièmes. 143 dixièmes c'est aussi 14,3."
+  },
+  {
+    "main": {"calc": "368 ÷ 2", "result": "184"},
+    "distractors": [
+      {"calc": "la moitié de 242", "wrongResult": "110"},
+      {"calc": "le tiers de 333", "wrongResult": "120"},
+      {"calc": "963 ÷ 3", "wrongResult": "311"}
+    ],
+    "strategy": "Diviser un nombre par 2 c'est rechercher la moitié de ce nombre. 368 c'est 300 plus 68 ou encore 300 plus 60 plus 8. La moitié de 300 est 150, la moitié de 60 égale à 30 et celle de 8 vaut 4. 368 ÷ 2 c'est 150 plus 30 plus 4 soit 180 plus 4 ou encore 184."
+  },
+  {
+    "main": {"calc": "600 ÷ 4", "result": "150"},
+    "distractors": [
+      {"calc": "350 ÷ 2", "wrongResult": "170"},
+      {"calc": "160 ÷ 10", "wrongResult": "1,6"},
+      {"calc": "330 ÷ 3", "wrongResult": "111"}
+    ],
+    "strategy": "Diviser un nombre par 4 c'est rechercher son quart ou encore la moitié de sa moitié. La moitié de 600 est 300 et la moitié de 300 est 150. Donc 600 ÷ 4 c'est 150."
+  },
+  {
+    "main": {"calc": "584 ÷ 2", "result": "292"},
+    "distractors": [
+      {"calc": "570 ÷ 2", "wrongResult": "280"},
+      {"calc": "500 ÷ 4", "wrongResult": "120"},
+      {"calc": "321 ÷ 3", "wrongResult": "100,7"}
+    ],
+    "strategy": "Diviser un nombre par 2 c'est rechercher la moitié de ce nombre. 584 c'est 500 plus 84 ou encore 500 plus 80 plus 4. La moitié de 500 vaut 250 et la moitié de 84 est égale à 42. La moitié de 584 est donc 250 + 42 soit 292."
+  },
+  {
+    "main": {"calc": "80 ÷ 5", "result": "16"},
+    "distractors": [
+      {"calc": "90 ÷ 5", "wrongResult": "10,8"},
+      {"calc": "125 ÷ 5", "wrongResult": "25,1"},
+      {"calc": "190 ÷ 10", "wrongResult": "1,9"}
+    ],
+    "strategy": "Stratégie 1 : 80 c'est 50 + 30. Comme 50 ÷ 5 vaut 10 et que 30 ÷ 5 vaut 6, 80 ÷ 5 c'est 10 + 6 ou encore 16. Stratégie 2 : 80 c'est 8 fois 10 et 10 c'est 2 fois 5. Donc 80 c'est 8 × 2 × 5. Comme 2 fois 8 c'est 16, 80 est égal à 16 fois 5. Donc 80 divisé par 5 vaut 16."
+  },
+  {
+    "main": {"calc": "42,06 ÷ 6", "result": "7,01"},
+    "distractors": [
+      {"calc": "42,6 ÷ 6", "wrongResult": "7,001"},
+      {"calc": "56,7 ÷ 7", "wrongResult": "8,01"},
+      {"calc": "0,35 ÷ 7", "wrongResult": "0,5"}
+    ],
+    "strategy": "42,06 c'est 42 unités et 6 centièmes. 42,06 divisé par 6 c'est 42 unités divisées par 6 et 6 centièmes divisées par 6. Comme 42 c'est 6 fois 7 alors 42 unités divisées par 6 vaut 7 unités et 6 centièmes divisées par 6 vaut 1 centième. Ainsi 42,06 divisé par 6 vaut 7 unités et 1 centième ou encore 7,01."
+  },
+  {
+    "main": {"calc": "2 400 ÷ 50", "result": "48"},
+    "distractors": [
+      {"calc": "480 ÷ 100", "wrongResult": "24"},
+      {"calc": "85 ÷ 5", "wrongResult": "15"},
+      {"calc": "84 ÷ 2", "wrongResult": "41"}
+    ],
+    "strategy": "Diviser un nombre par 50 revient à diviser ce nombre par 100 puis multiplier le résultat par 2. Pour diviser 2 400 par 50, il suffit de diviser 2 400 par 100 ce qui vaut 24 puis de multiplier 24 par 2. 24 fois 2 vaut 48. 2 400 ÷ 50 est égal à 48."
+  },
+  {
+    "main": {"calc": "9,54 ÷ 9", "result": "1,06"},
+    "distractors": [
+      {"calc": "6,54 ÷ 6", "wrongResult": "1,9"},
+      {"calc": "54 ÷ 9", "wrongResult": "0,6"},
+      {"calc": "54 ÷ 10", "wrongResult": "0,54"}
+    ],
+    "strategy": "9,54 c'est 9 unités et 54 centièmes. 9,54 divisé par 9 c'est 9 unités divisées par 9 et 54 centièmes divisées par 9. Comme 54 c'est 9 fois 6 alors 54 centièmes divisées par 9 vaut 6 centièmes et 9 unités divisées par 9 c'est 1 unité. Ainsi 9,54 divisé par 9 vaut 1 unité et 6 centièmes ou encore 1,06."
+  },
+  {
+    "main": {"calc": "324,7 ÷ 10", "result": "32,47"},
+    "distractors": [
+      {"calc": "14,3 ÷ 1000", "wrongResult": "0,143"},
+      {"calc": "2,4 ÷ 8", "wrongResult": "0,03"},
+      {"calc": "18,3 ÷ 3", "wrongResult": "6,01"}
+    ],
+    "strategy": "Diviser un nombre par 10 c'est le rendre 10 fois plus petit. Chaque chiffre du nombre initial prend une valeur 10 fois plus petite. Le chiffre des unités devient le chiffre des dixièmes, celui des dixièmes devient le chiffre des centièmes. Les 324 unités deviennent 324 dixièmes et les 7 dixièmes deviennent 7 centièmes soit 3247 centièmes. 3247 centièmes c'est aussi 32,47."
+  },
+  {
+    "main": {"calc": "200 ÷ 8", "result": "25"},
+    "distractors": [
+      {"calc": "250 ÷ 100", "wrongResult": "0,25"},
+      {"calc": "84 ÷ 4", "wrongResult": "20"},
+      {"calc": "120 ÷ 5", "wrongResult": "22"}
+    ],
+    "strategy": "Diviser un nombre par 8 c'est diviser par 2 trois fois de suite ou encore rechercher la moitié trois fois de suite. La moitié de 200 est 100. La moitié de 100 c'est 50. Et la moitié de 50 c'est 25. 200 divisé par 8 c'est 25."
+  },
+  {
+    "main": {"calc": "150 ÷ 6", "result": "25"},
+    "distractors": [
+      {"calc": "250 ÷ 100", "wrongResult": "0,25"},
+      {"calc": "90 ÷ 3", "wrongResult": "20"},
+      {"calc": "120 ÷ 5", "wrongResult": "23"}
+    ],
+    "strategy": "Diviser un nombre par 6 c'est diviser par 3 puis par 2. 15 c'est 3 fois 5. Donc 150 c'est 3 fois 5 fois 10 ou encore 3 fois 50. 150 divisé par 3 c'est 50. 50 divisé par 2, c'est la moitié de 50 soit 25. 150 divisé par 6 c'est 25."
+  },
+  {
+    "main": {"calc": "350 ÷ 25", "result": "14"},
+    "distractors": [
+      {"calc": "39 ÷ 3", "wrongResult": "12"},
+      {"calc": "55 ÷ 5", "wrongResult": "15"},
+      {"calc": "36 ÷ 2", "wrongResult": "16"}
+    ],
+    "strategy": "350 = 300 + 50. Pour diviser 350 par 25, il suffit d'additionner les résultats de 300 ÷ 25 et 50 ÷ 25. 100 c'est 4 fois 25, donc 300 c'est 3 × 4 × 25 soit 12 fois 25; 50 c'est 2 fois 25. 350 ÷ 25 = 12 + 2 soit 14."
+  },
+  {
+    "main": {"calc": "6,8 ÷ 10", "result": "0,68"},
+    "distractors": [
+      {"calc": "42 ÷ 100", "wrongResult": "14,1"},
+      {"calc": "39 ÷ 3", "wrongResult": "12"},
+      {"calc": "75 ÷ 5", "wrongResult": "4,2"}
+    ],
+    "strategy": "Diviser un nombre par 10 c'est le rendre 10 fois plus petit. Chaque chiffre du nombre initial prend une valeur 10 fois plus petite. Le chiffre des unités devient le chiffre des dixièmes, celui des dixièmes devient le chiffre des centièmes. Les 6 unités deviennent 6 dixièmes et 8 dixièmes deviennent 8 centièmes soit 68 centièmes. 68 centièmes c'est aussi 0,68."
+  },
+  {
+    "main": {"calc": "60 ÷ 12", "result": "5"},
+    "distractors": [
+      {"calc": "4,5 ÷ 5", "wrongResult": "9,1"},
+      {"calc": "120 ÷ 20", "wrongResult": "4"},
+      {"calc": "54,9 ÷ 9", "wrongResult": "6,9"}
+    ],
+    "strategy": "Diviser par 12, c'est diviser par 3 puis par 4. 60 divisé par 3, c'est le tiers de 60. Comme 60 = 3 × 20, le tiers de 60 c'est 20. Comme 20 = 4 × 5 donc 20 ÷ 4 = 5. Ainsi 60 ÷ 12 = 5."
+  },
+  {
+    "main": {"calc": "le quart de 70", "result": "17,5"},
+    "distractors": [
+      {"calc": "la moitié de 34", "wrongResult": "16"},
+      {"calc": "le tiers de 45", "wrongResult": "12"},
+      {"calc": "175 ÷ 100", "wrongResult": "13"}
+    ],
+    "strategy": "Pour trouver le quart d'un nombre il suffit de rechercher la moitié deux fois. Comme 70 = 60 + 10 donc la moitié de 70 est la moitié de 60 plus la moitié de 10 soit 30 + 5. Soit 35. La moitié de 35 c'est aussi la moitié de 30 plus la moitié de 5 soit 15 + 2,5 ce qui donne 17,5. Le quart de 70 est donc 17,5."
+  },
+  {
+    "main": {"calc": "425 ÷ 1 000", "result": "0,425"},
+    "distractors": [
+      {"calc": "126 ÷ 10", "wrongResult": "15"},
+      {"calc": "67 ÷ 100", "wrongResult": "6,7"},
+      {"calc": "85 ÷ 5", "wrongResult": "1,26"}
+    ],
+    "strategy": "Diviser un nombre par 1000 c'est le rendre 1000 fois plus petit. Quand je divise un nombre par 1000, le nombre d'unités devient le nombre de millièmes. 425 unités divisées par 1000 c'est 425 millièmes. 425 millièmes c'est aussi 0,425."
+  },
+  {
+    "main": {"calc": "la moitié de 730", "result": "365"},
+    "distractors": [
+      {"calc": "la moitié de 610", "wrongResult": "300"},
+      {"calc": "550 ÷ 2", "wrongResult": "225"},
+      {"calc": "808 ÷ 2", "wrongResult": "402"}
+    ],
+    "strategy": "730 = 600 + 100 + 30. La moitié de 730 c'est la moitié de 600 plus la moitié de 100 plus la moitié de 30. La moitié de 600 vaut 300, la moitié de 100 vaut 50 et la moitié de 30 est égale à 15. La moitié de 730 est donc 300 plus 50 plus 15 soit 365."
+  },
+  {
+    "main": {"calc": "129 ÷ 100", "result": "1,29"},
+    "distractors": [
+      {"calc": "129 ÷ 1 000", "wrongResult": "12 900"},
+      {"calc": "12 900 ÷ 100", "wrongResult": "12,9"},
+      {"calc": "1 290 ÷ 10", "wrongResult": "1 290"}
+    ],
+    "strategy": "Diviser un nombre par 100 c'est le rendre 100 fois plus petit. Quand je divise un nombre par 100, le nombre d'unités devient le nombre de centièmes. 129 unités divisées par 100 c'est 129 centièmes. 129 centièmes c'est aussi 1,29."
+  },
+  {
+    "main": {"calc": "le tiers de 75", "result": "25"},
+    "distractors": [
+      {"calc": "le double de 75", "wrongResult": "125"},
+      {"calc": "la moitié de 500", "wrongResult": "225"},
+      {"calc": "le tiers de 90", "wrongResult": "50"}
+    ],
+    "strategy": "75 = 60 + 15. Le tiers de 75 c'est le tiers de 60 plus le tiers de 15. Le tiers de 60 est 20 car 60 = 3 × 20. Le tiers de 15 est 5 car 15 = 3 × 5. Le tiers de 75 est donc 20 + 5 soit 25."
+  },
+  {
+    "main": {"calc": "7,4 ÷ 100", "result": "0,074"},
+    "distractors": [
+      {"calc": "740 ÷ 100", "wrongResult": "740"},
+      {"calc": "740 ÷ 74", "wrongResult": "74"},
+      {"calc": "7,4 ÷ 1 000", "wrongResult": "0,74"}
+    ],
+    "strategy": "Diviser un nombre par 100 c'est le rendre 100 fois plus petit. Chaque chiffre du nombre initial prend une valeur 100 fois plus petite. Le chiffre des unités devient le chiffre des centièmes, celui des dixièmes devient le chiffre des millièmes. Les 7 unités deviennent 7 centièmes et 4 dixièmes deviennent 4 millièmes soit 74 millièmes. 74 millièmes c'est aussi 0,074."
+  },
+  {
+    "main": {"calc": "56,14 ÷ 7", "result": "8,02"},
+    "distractors": [
+      {"calc": "56,14 ÷ 8", "wrongResult": "8,14"},
+      {"calc": "561,4 ÷ 7", "wrongResult": "56,2"},
+      {"calc": "56,014 ÷ 7", "wrongResult": "8,2"}
+    ],
+    "strategy": "56,14 c'est 56 unités et 14 centièmes. 56,14 divisé par 7 c'est 56 unités divisées par 7 et 14 centièmes divisées par 7. Comme 56 c'est 7 fois 8 alors 56 unités divisées par 7 vaut 8 unités. Comme 14 c'est 7 fois 2 alors 14 centièmes divisées par 7 c'est 2 centièmes. Ainsi 56,14 divisé par 7 c'est 8 unités et 2 centièmes ou encore 8,02."
+  },
+  {
+    "main": {"calc": "13,6 ÷ 2", "result": "6,8"},
+    "distractors": [
+      {"calc": "26,04 ÷ 2", "wrongResult": "7,3"},
+      {"calc": "12,16 ÷ 2", "wrongResult": "6,3"},
+      {"calc": "14,06 ÷ 2", "wrongResult": "13,2"}
+    ],
+    "strategy": "Stratégie 1 : Diviser un nombre par 2 c'est rechercher la moitié de ce nombre. 13,6 c'est 12 plus 1,6. La moitié de 12 c'est 6. 1,6 c'est 16 dixièmes. La moitié de 16 dixièmes c'est 8 dixièmes. 13,6 divisé par 2 égale 6 unités plus 8 dixièmes ou encore 6,8. Stratégie 2 : 13,6 c'est 136 dixièmes. La moitié de 136 dixièmes c'est la moitié de 100 dixièmes plus la moitié de 36 dixièmes. La moitié de 100 dixièmes c'est 50 dixièmes et celle de 36 dixièmes c'est 18 dixièmes. La moitié de 136 dixièmes c'est 68 dixièmes ou 6,8."
+  },
+  {
+    "main": {"calc": "358 ÷ 1 000", "result": "0,358"},
+    "distractors": [
+      {"calc": "3,58 ÷ 100", "wrongResult": "3,58"},
+      {"calc": "0,358 ÷ 10", "wrongResult": "35,8"},
+      {"calc": "350,8 ÷ 100", "wrongResult": "35,08"}
+    ],
+    "strategy": "Diviser un nombre par 1000 c'est le rendre 1000 fois plus petit. Quand je divise un nombre par 1000, le nombre d'unités devient le nombre de millièmes. 358 unités divisées par 1000 c'est 358 millièmes. 358 millièmes, c'est 0,358."
+  },
+  {
+    "main": {"calc": "le quart de 100", "result": "25"},
+    "distractors": [
+      {"calc": "le double de 50", "wrongResult": "50"},
+      {"calc": "la moitié de 200", "wrongResult": "75"},
+      {"calc": "le quart de 75", "wrongResult": "150"}
+    ],
+    "strategy": "Pour trouver le quart d'un nombre il suffit de rechercher la moitié deux fois. La moitié de 100 est 50 et la moitié de 50 vaut 25. Le quart de 100 est donc 25."
+  },
+  {
+    "main": {"calc": "le quart de 60", "result": "15"},
+    "distractors": [
+      {"calc": "le double de 30", "wrongResult": "30"},
+      {"calc": "la moitié de 120", "wrongResult": "45"},
+      {"calc": "le quart de 160", "wrongResult": "90"}
+    ],
+    "strategy": "Pour trouver le quart d'un nombre il suffit de rechercher la moitié deux fois. La moitié de 60 est 30 et la moitié de 30 vaut 15. Le quart de 60 est donc 15."
+  },
+  {
+    "main": {"calc": "1,6 ÷ 4", "result": "0,4"},
+    "distractors": [
+      {"calc": "16 ÷ 4", "wrongResult": "0,04"},
+      {"calc": "4,128 ÷ 4", "wrongResult": "1,64"},
+      {"calc": "4,16 ÷ 4", "wrongResult": "1,4"}
+    ],
+    "strategy": "Diviser un nombre par 4 c'est rechercher son quart ou encore la moitié de sa moitié. 1,6 c'est 16 dixièmes. La moitié de 16 dixièmes vaut 8 dixièmes et la moitié de 8 dixièmes est égal à 4 dixièmes. Donc 1,6 divisé par 4 est égal à 4 dixièmes ou encore 0,4."
+  },
+  {
+    "main": {"calc": "le tiers de 360", "result": "120"},
+    "distractors": [
+      {"calc": "le double de 180", "wrongResult": "180"},
+      {"calc": "la moitié de 180", "wrongResult": "270"},
+      {"calc": "le tiers de 120", "wrongResult": "60"}
+    ],
+    "strategy": "360 c'est 36 fois 10. Le tiers de 360, c'est le tiers de 36 fois 10. Or le tiers de 36 est 12. Le tiers de 360 est 12 fois 10 soit 120."
+  },
+  {
+    "main": {"calc": "760 ÷ 10", "result": "76"},
+    "distractors": [
+      {"calc": "7,6 ÷ 100", "wrongResult": "7 600"},
+      {"calc": "760 ÷ 1 000", "wrongResult": "7,6"},
+      {"calc": "7 060 ÷ 1 000", "wrongResult": "0,76"}
+    ],
+    "strategy": "Diviser un nombre par 10 c'est le rendre 10 fois plus petit. Quand je divise un nombre par 10, le nombre d'unités devient le nombre de dixièmes. 760 unités divisées par 10 c'est 760 dixièmes. 760 dixièmes c'est aussi 76 unités soit 76."
+  },
+  {
+    "main": {"calc": "1 025 ÷ 10", "result": "102,5"},
+    "distractors": [
+      {"calc": "10,25 ÷ 100", "wrongResult": "10,25"},
+      {"calc": "10,25 ÷ 1 000", "wrongResult": "1,025"},
+      {"calc": "1 250 ÷ 1 000", "wrongResult": "0,125"}
+    ],
+    "strategy": "Diviser un nombre par 10 c'est le rendre 10 fois plus petit. Quand je divise un nombre par 10, le nombre d'unités devient le nombre de dixièmes. 1025 unités divisées par 10 c'est 1025 dixièmes. 1025 dixièmes, c'est aussi 102 unités et 5 dixièmes soit 102,5."
+  },
+  {
+    "main": {"calc": "4 300 ÷ 100", "result": "43"},
+    "distractors": [
+      {"calc": "400,3 ÷ 100", "wrongResult": "4,3"},
+      {"calc": "0,43 ÷ 10", "wrongResult": "430"},
+      {"calc": "4 030 ÷ 100", "wrongResult": "0,43"}
+    ],
+    "strategy": "Diviser un nombre par 100 c'est le rendre 100 fois plus petit. Quand je divise un nombre par 100, le nombre d'unités devient le nombre de centièmes. 4 300 unités divisées par 100 c'est 4 300 centièmes. 4 300 centièmes, c'est encore 43 unités soit 43."
+  },
+  {
+    "main": {"calc": "9 090 ÷ 100", "result": "90,9"},
+    "distractors": [
+      {"calc": "900,9 ÷ 100", "wrongResult": "9,09"},
+      {"calc": "0,99 ÷ 10", "wrongResult": "909"},
+      {"calc": "9 099 ÷ 100", "wrongResult": "0,909"}
+    ],
+    "strategy": "Diviser un nombre par 100 c'est le rendre 100 fois plus petit. Quand je divise un nombre par 100, le nombre d'unités devient le nombre de centièmes. 9 090 unités divisées par 100 c'est 9 090 centièmes. 9 090 centièmes, c'est 90 unités et 90 centièmes ou encore 90 unités et 9 dixièmes soit 90,9."
+  },
+  {
+    "main": {"calc": "33 000 ÷ 1 000", "result": "33"},
+    "distractors": [
+      {"calc": "30 300 ÷ 100", "wrongResult": "330"},
+      {"calc": "0,33 ÷ 10", "wrongResult": "3 300"},
+      {"calc": "33 ÷ 1 000", "wrongResult": "0,33"}
+    ],
+    "strategy": "Diviser un nombre par 1000 c'est le rendre 1000 fois plus petit. Quand je divise un nombre par 1000, le nombre d'unités devient le nombre de millièmes. 33 000 unités divisées par 1000 c'est 33 000 millièmes. 33 000 millièmes, c'est encore 33 unités soit 33."
+  },
+  {
+    "main": {"calc": "5 008 ÷ 1 000", "result": "5,008"},
+    "distractors": [
+      {"calc": "5,08 ÷ 10", "wrongResult": "50,08"},
+      {"calc": "508 ÷ 100", "wrongResult": "500,8"},
+      {"calc": "5 080 ÷ 1 000", "wrongResult": "0,058"}
+    ],
+    "strategy": "Diviser un nombre par 1000 c'est le rendre 1000 fois plus petit. Quand je divise un nombre par 1000, le nombre d'unités devient le nombre de millièmes. 5 008 unités divisées par 1000 c'est 5 008 millièmes. 5 008 millièmes, c'est 5 unités et 8 millièmes soit 5,008."
+  },
+  {
+    "main": {"calc": "175 ÷ 25", "result": "7"},
+    "distractors": [
+      {"calc": "150 ÷ 25", "wrongResult": "5"},
+      {"calc": "43 ÷ 100", "wrongResult": "8"},
+      {"calc": "250 ÷ 25", "wrongResult": "4,3"}
+    ],
+    "strategy": "175 c'est 100 plus 75. Comme 100 c'est 4 fois 25 et que 75 c'est 3 fois 25, 175 c'est (4 + 3) fois 25 soit 7 fois 25."
+  },
+  {
+    "main": {"calc": "600 ÷ 25", "result": "24"},
+    "distractors": [
+      {"calc": "550 ÷ 25", "wrongResult": "2,4"},
+      {"calc": "24 ÷ 100", "wrongResult": "20"},
+      {"calc": "525 ÷ 25", "wrongResult": "25"}
+    ],
+    "strategy": "600 c'est 6 fois 100. Comme 100 c'est 4 fois 25 alors 600 c'est 6 fois 4 fois 25. C'est donc 24 fois 25."
+  },
+  {
+    "main": {"calc": "300 ÷ 15", "result": "20"},
+    "distractors": [
+      {"calc": "90 ÷ 15", "wrongResult": "10"},
+      {"calc": "180 ÷ 15", "wrongResult": "15"},
+      {"calc": "500 ÷ 25", "wrongResult": "25"}
+    ],
+    "strategy": "300 c'est 10 fois 30. Comme 30 c'est 2 fois 15 alors 300 c'est 10 fois 2 fois 15. C'est donc 20 fois 15."
+  },
+  {
+    "main": {"calc": "1 500 ÷ 15", "result": "100"},
+    "distractors": [
+      {"calc": "150 ÷ 15", "wrongResult": "1 000"},
+      {"calc": "1 010 ÷ 100", "wrongResult": "150"},
+      {"calc": "1 500 ÷ 25", "wrongResult": "1,01"}
+    ],
+    "strategy": "1 500 c'est 15 fois 100."
+  },
+  {
+    "main": {"calc": "720 ÷ 80", "result": "9"},
+    "distractors": [
+      {"calc": "90 ÷ 0,1", "wrongResult": "90"},
+      {"calc": "9 ÷ 1 000", "wrongResult": "0,9"},
+      {"calc": "7 200 ÷ 8", "wrongResult": "0,09"}
+    ],
+    "strategy": "Diviser un nombre par 80, c'est le diviser par 10 puis par 8. 720 c'est 10 fois 72. C'est encore 10 fois 8 fois 9. C'est donc 80 fois 9."
+  },
+  {
+    "main": {"calc": "5 600 ÷ 70", "result": "80"},
+    "distractors": [
+      {"calc": "80 ÷ 0,1", "wrongResult": "8"},
+      {"calc": "80 ÷ 1 000", "wrongResult": "70"},
+      {"calc": "560 ÷ 80", "wrongResult": "0,8"}
+    ],
+    "strategy": "Stratégie 1 : Diviser un nombre par 70, c'est le diviser par 10 puis par 7. 5 600 c'est 10 fois 560. Or 560 est égal à 7 fois 80. On peut considérer que 5 600, c'est 10 fois 7 fois 80. C'est encore 70 × 80. Stratégie 2 : 5 600 c'est 56 fois 100. Or 56 est égal à 8 fois 7. Donc 560 c'est 8 × 7 × 10 soit 8 × 70. 5 600, c'est 10 fois 560. C'est donc 10 × 8 × 70. C'est encore 80 × 70."
+  },
+  {
+    "main": {"calc": "3 600 ÷ 40", "result": "90"},
+    "distractors": [
+      {"calc": "40 ÷ 0,1", "wrongResult": "40"},
+      {"calc": "4 000 ÷ 10", "wrongResult": "9"},
+      {"calc": "360 ÷ 90", "wrongResult": "0,9"}
+    ],
+    "strategy": "Stratégie 1 : Diviser un nombre par 40, c'est le diviser par 10 puis par 4. 3 600 c'est 10 fois 360. Or 360 est égal à 4 fois 90. On peut considérer que 3 600, c'est 10 fois 4 fois 90. C'est encore 40 × 90. Stratégie 2 : 3 600 c'est 36 fois 100. Or 36 est égal à 9 fois 4. Donc 360 c'est 9 × 4 × 10 soit 9 × 40. 3 600, c'est 10 fois 360. C'est donc 10 × 9 × 40. C'est encore 90 × 40."
+  },
+  {
+    "main": {"calc": "900 ÷ 30", "result": "30"},
+    "distractors": [
+      {"calc": "9 ÷ 0,1", "wrongResult": "3"},
+      {"calc": "3 000 ÷ 10", "wrongResult": "9"},
+      {"calc": "300 ÷ 3", "wrongResult": "0,3"}
+    ],
+    "strategy": "Stratégie 1 : Diviser un nombre par 30, c'est le diviser par 10 puis par 3. 900 c'est 10 fois 90. Or 90 est égal à 3 fois 30. On peut considérer que 900, c'est 10 fois 3 fois 30. C'est encore 30 × 30. Stratégie 2 : 900 c'est 9 fois 100. Or 9 est égal à 3 fois 3. Donc 90 c'est 3 × 3 × 10 soit 3 × 30. 900, c'est 10 fois 90. C'est donc 10 × 3 × 30. C'est encore 30 × 30."
+  },
+  {
+    "main": {"calc": "900 ÷ 20", "result": "45"},
+    "distractors": [
+      {"calc": "90 ÷ 0,1", "wrongResult": "4 500"},
+      {"calc": "4 500 ÷ 10", "wrongResult": "4,5"},
+      {"calc": "900 ÷ 2", "wrongResult": "0,45"}
+    ],
+    "strategy": "Stratégie 1 : Diviser un nombre par 20, c'est le diviser par 10 puis par 2. 900 c'est 10 fois 90. Or 90 est égal à 2 fois 45. On peut considérer que 900, c'est 10 fois 2 fois 45. C'est encore 20 × 45. Stratégie 2 : 900 c'est 9 fois 100. 900 divisé par 20 c'est 9 fois 100 divisé par 20. Or 100 divisé par 20 est égal à 5; 900 divisé par 20 c'est 9 × 5. Ce qui vaut 45."
+  }
+]
