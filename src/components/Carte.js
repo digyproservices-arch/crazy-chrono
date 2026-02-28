@@ -1520,6 +1520,7 @@ const Carte = () => {
         // Créer overlay countdown full-screen
         let countdownOverlay = document.getElementById('arena-countdown-overlay');
         if (!countdownOverlay) {
+          setTimeout(() => {
           countdownOverlay = document.createElement('div');
           countdownOverlay.id = 'arena-countdown-overlay';
           countdownOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;';
@@ -1600,10 +1601,11 @@ const Carte = () => {
           container.appendChild(contentDiv);
           container.appendChild(readyBtn);
           container.appendChild(statusEl);
-          overlay.appendChild(container);
-          document.body.appendChild(overlay);
+          countdownOverlay.appendChild(container);
+          document.body.appendChild(countdownOverlay);
           console.log('[ARENA] ✅ Overlay ajouté au DOM avec onclick attaché');
-        }, 500);
+          }, 500);
+        }
       });
 
       // ✅ DEBUG: Logs de diagnostic
