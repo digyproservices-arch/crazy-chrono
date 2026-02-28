@@ -42,6 +42,7 @@ import NotificationBadge from './components/NotificationBadge';
 import GrandeSalle from './components/GrandeSalle/GrandeSalle';
 import TournamentAdmin from './components/GrandeSalle/TournamentAdmin';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
+import LearnMode from './components/Modes/LearnMode';
 
 // ✅ AUTH WRAPPERS (outside App to prevent remount loops!)
 const RequireAuth = ({ children, auth }) => auth ? children : <Navigate to="/login" replace />;
@@ -448,6 +449,8 @@ function App() {
               <Route path="/grande-salle" element={<RequireAuth auth={auth}><GrandeSalle /></RequireAuth>} />
               <Route path="/grande-salle/tournament/:tournamentId" element={<RequireAuth auth={auth}><GrandeSalle /></RequireAuth>} />
               <Route path="/admin/tournaments" element={<RequireAdmin><TournamentAdmin /></RequireAdmin>} />
+              {/* Mode Apprendre (Premium) */}
+              <Route path="/apprendre" element={<RequireAuth auth={auth}><LearnMode /></RequireAuth>} />
               {/* Carte (éditeur/jeu) accessible en direct si nécessaire, sinon on y accède après config */}
               <Route path="/carte" element={<div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div>} />
               <Route path="*" element={<Navigate to="/" replace />} />

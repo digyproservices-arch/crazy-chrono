@@ -1,0 +1,403 @@
+{
+  "_version": 1,
+  "_description": "Stratégies d'apprentissage pour le mode Apprendre. Clé = texteId:imageId ou calculId:chiffreId",
+  "strategies": {
+    "ta01:i1754579810850evmn": {
+      "title": "Raton laveur",
+      "strategy": "Observe le masque noir autour des yeux : c'est la marque distinctive du raton laveur ! On dirait qu'il porte un loup de carnaval. Ses pattes ressemblent à de petites mains.",
+      "ecoFact": "Le raton laveur lave sa nourriture avant de la manger. En Guadeloupe, il est appelé « rakoun » et joue un rôle important dans l'écosystème en dispersant les graines des fruits qu'il mange.",
+      "hint": "Cherche l'animal avec un masque noir sur les yeux."
+    },
+    "ta02:i1754579810850cto2": {
+      "title": "Dauphin",
+      "strategy": "Le dauphin a un corps lisse et fuselé, parfait pour nager vite. Son sourire permanent et son rostre (bec) allongé le rendent facile à reconnaître.",
+      "ecoFact": "Les dauphins vivent en groupe et communiquent par des sifflements. Dans les eaux des Antilles, ils aident à maintenir l'équilibre de la chaîne alimentaire marine en régulant les populations de poissons.",
+      "hint": "Cherche le mammifère marin avec un « sourire »."
+    },
+    "ta03:i175457981085078jn": {
+      "title": "Colibri",
+      "strategy": "Le colibri est le plus petit oiseau du monde ! Ses ailes battent si vite qu'on les voit à peine. Il a un long bec fin pour aspirer le nectar des fleurs.",
+      "ecoFact": "Le colibri est un pollinisateur essentiel aux Antilles. En butinant les fleurs, il transporte le pollen et permet aux plantes de se reproduire. Sans lui, beaucoup de fleurs tropicales disparaîtraient.",
+      "hint": "Cherche le tout petit oiseau aux couleurs vives avec un long bec."
+    },
+    "ta04:i1754579810850ec9m": {
+      "title": "Tourterelle",
+      "strategy": "La tourterelle a un plumage doux, gris-brun, et un collier noir sur la nuque. Son roucoulement doux et répétitif est très reconnaissable.",
+      "ecoFact": "La tourterelle à queue carrée est typique des Antilles. Elle se nourrit de graines et de fruits, participant ainsi à la dispersion des plantes dans les forêts tropicales.",
+      "hint": "Cherche l'oiseau gris-brun avec un collier noir sur le cou."
+    },
+    "ta05:i1754579810850bx7w": {
+      "title": "Toucan",
+      "strategy": "Impossible de le rater avec son énorme bec coloré ! Le bec du toucan est très léger malgré sa taille. Son plumage noir contraste avec sa gorge jaune ou blanche.",
+      "ecoFact": "Le toucan joue un rôle crucial dans la forêt tropicale : en mangeant des fruits et en recrachant les graines loin de l'arbre parent, il aide à la régénération de la forêt.",
+      "hint": "Cherche l'oiseau avec un très grand bec coloré."
+    },
+    "ta06:i17545798108503rlz": {
+      "title": "Flamant rose",
+      "strategy": "Le flamant rose est facile à reconnaître : de longues pattes fines, un long cou en S, et un plumage rose. Il se tient souvent sur une seule patte !",
+      "ecoFact": "La couleur rose du flamant vient de sa nourriture : les crevettes et les algues riches en caroténoïdes. Il filtre l'eau avec son bec spécial pour attraper ces petits organismes.",
+      "hint": "Cherche le grand oiseau rose sur de longues pattes."
+    },
+    "ta07:i1754579810850q9ps": {
+      "title": "Cabri",
+      "strategy": "Le cabri (chèvre) a des cornes, une barbichette et des sabots fendus. Il est agile et peut grimper sur des terrains très escarpés.",
+      "ecoFact": "Aux Antilles, le cabri est un animal d'élevage traditionnel. Son pâturage peut aider à contrôler la végétation, mais en trop grand nombre, il peut aussi dégrader les sols.",
+      "hint": "Cherche l'animal avec des cornes et une barbichette."
+    },
+    "ta08:i1754579810850gdy2": {
+      "title": "Lambi",
+      "strategy": "Le lambi est un grand coquillage marin en spirale, rose à l'intérieur. C'est un gastéropode (comme un escargot de mer géant).",
+      "ecoFact": "Le lambi est une espèce protégée aux Antilles car il a été trop pêché. Sa coquille met environ 5 ans à se former. Il broute les algues sur les fonds marins, gardant les récifs propres.",
+      "hint": "Cherche le grand coquillage rose en spirale."
+    },
+    "ta09:i1754579810850uebc": {
+      "title": "Tortue imbriquée",
+      "strategy": "La tortue imbriquée a une carapace avec des écailles qui se chevauchent comme des tuiles. Son bec pointu ressemble à celui d'un rapace.",
+      "ecoFact": "Espèce en danger critique ! La tortue imbriquée mange les éponges des récifs coralliens, empêchant ces éponges d'étouffer les coraux. Elle est essentielle à la santé des récifs.",
+      "hint": "Cherche la tortue marine avec des écailles qui se chevauchent."
+    },
+    "ta10:i1754579810850x95g": {
+      "title": "Pélican brun",
+      "strategy": "Le pélican brun a une grande poche sous son long bec pour attraper les poissons. Il plonge en piqué dans l'eau depuis les airs pour pêcher.",
+      "ecoFact": "Le pélican brun est le plus petit des pélicans mais le seul à plonger pour pêcher. Aux Antilles, il est un indicateur de la santé des écosystèmes côtiers.",
+      "hint": "Cherche le grand oiseau avec une poche sous le bec."
+    },
+    "ta11:i1754579810850moua": {
+      "title": "Langouste",
+      "strategy": "La langouste a un corps allongé, une carapace épineuse et de très longues antennes. Contrairement au homard, elle n'a pas de grosses pinces.",
+      "ecoFact": "La langouste des Caraïbes migre en file indienne sur le fond marin. Elle est un maillon important de la chaîne alimentaire et sa pêche est réglementée pour préserver l'espèce.",
+      "hint": "Cherche le crustacé avec de très longues antennes mais sans grosses pinces."
+    },
+    "ta12:i1754579810850w3ov": {
+      "title": "Ibis rouge",
+      "strategy": "L'ibis rouge est entièrement rouge écarlate avec un long bec courbé vers le bas. Impossible de le confondre avec un autre oiseau !",
+      "ecoFact": "L'ibis rouge vit dans les mangroves et se nourrit de crabes, crevettes et insectes. Sa couleur rouge vient des pigments contenus dans les crustacés qu'il mange.",
+      "hint": "Cherche l'oiseau entièrement rouge avec un bec courbé."
+    },
+    "ta13:i1754579810850udsj": {
+      "title": "Bernard-l'hermite",
+      "strategy": "Le bernard-l'hermite vit dans une coquille vide qu'il trouve ! Quand il grandit, il doit trouver une coquille plus grande. On voit ses pattes et ses antennes dépasser.",
+      "ecoFact": "Le bernard-l'hermite est un recycleur de la nature : il réutilise les coquilles vides. Il nettoie aussi les plages en mangeant les débris organiques.",
+      "hint": "Cherche le petit crustacé qui habite dans une coquille empruntée."
+    },
+    "ta14:i1754579810850uce7": {
+      "title": "Crabe de terre",
+      "strategy": "Le crabe de terre a un corps large et aplati avec deux grosses pinces. Il vit dans des terriers creusés dans la terre, contrairement aux crabes de mer.",
+      "ecoFact": "Le crabe de terre est essentiel aux écosystèmes des Antilles. Ses terriers aèrent le sol et favorisent l'infiltration de l'eau de pluie. Sa migration vers la mer pour pondre est un spectacle impressionnant.",
+      "hint": "Cherche le crabe avec de grosses pinces qui vit sur la terre."
+    },
+    "ta15:i1754579810850gu16": {
+      "title": "Manicou",
+      "strategy": "Le manicou (opossum) a une tête pointue, de grandes oreilles sans poils et une longue queue préhensile (qui peut s'accrocher aux branches).",
+      "ecoFact": "Le manicou est le seul marsupial des Antilles ! La femelle porte ses petits dans une poche. Il est nocturne et mange les insectes nuisibles, aidant ainsi les agriculteurs.",
+      "hint": "Cherche le petit mammifère avec une longue queue et de grandes oreilles."
+    },
+    "ta16:i1754579810850a26e": {
+      "title": "Iguane vert",
+      "strategy": "L'iguane vert est un grand lézard avec une crête d'épines sur le dos et un fanon (poche de peau) sous la gorge. Il peut mesurer jusqu'à 1,5 mètre !",
+      "ecoFact": "L'iguane vert est herbivore et contribue à la dispersion des graines. En Guadeloupe, l'iguane des Petites Antilles est une espèce protégée menacée par l'iguane vert envahissant venu d'Amérique du Sud.",
+      "hint": "Cherche le grand lézard vert avec une crête sur le dos."
+    },
+    "ta17:i1754579810850ud63": {
+      "title": "Mangouste",
+      "strategy": "La mangouste a un corps allongé et bas sur pattes, un museau pointu et une queue touffue. Elle est très rapide et agile.",
+      "ecoFact": "La mangouste a été introduite aux Antilles pour chasser les serpents dans les champs de canne à sucre. Malheureusement, elle s'attaque aussi aux espèces locales (oiseaux, lézards), menaçant la biodiversité.",
+      "hint": "Cherche le petit mammifère allongé avec un museau pointu."
+    },
+    "ta18:i1754579810850wcas": {
+      "title": "Oursin",
+      "strategy": "L'oursin est une boule couverte de piquants ! Il vit sur les rochers et les fonds marins. Attention à ne pas marcher dessus en se baignant.",
+      "ecoFact": "L'oursin est un brouteur d'algues essentiel pour les récifs coralliens. Sans lui, les algues envahiraient les coraux. La surpêche d'oursins a contribué au déclin de certains récifs aux Antilles.",
+      "hint": "Cherche la boule couverte de piquants dans la mer."
+    },
+    "ta19:i1754579810850p3uq": {
+      "title": "Tapir",
+      "strategy": "Le tapir ressemble à un gros cochon avec une courte trompe mobile. Il a un corps massif et des pattes courtes. C'est un animal très ancien, cousin des rhinocéros.",
+      "ecoFact": "Le tapir est surnommé le « jardinier de la forêt » car il disperse les graines dans ses excréments, contribuant à la régénération de la forêt tropicale d'Amérique du Sud et centrale.",
+      "hint": "Cherche l'animal massif avec une petite trompe."
+    },
+    "ta20:i1754579810850al10": {
+      "title": "Tatou",
+      "strategy": "Le tatou a une carapace d'écailles osseuses qui protège son dos. Il peut se rouler en boule pour se défendre. Ses griffes puissantes lui servent à creuser.",
+      "ecoFact": "Le tatou aère le sol en creusant ses terriers, ce qui favorise la croissance des plantes. Il mange les insectes et larves nuisibles, contribuant à l'équilibre de l'écosystème forestier.",
+      "hint": "Cherche l'animal avec une carapace d'écailles dures."
+    },
+    "ta21:i1754579810850092a": {
+      "title": "Vivaneau rouge",
+      "strategy": "Le vivaneau rouge est un poisson entièrement rouge ou rose, avec de grands yeux et une bouche large. Il vit près des récifs coralliens.",
+      "ecoFact": "Le vivaneau est un prédateur qui régule les populations de petits poissons et crustacés sur les récifs. Sa surpêche déstabilise l'écosystème marin des Caraïbes.",
+      "hint": "Cherche le poisson rouge/rose avec de grands yeux."
+    },
+    "ta22:i1754579810850cu13": {
+      "title": "Grande aigrette",
+      "strategy": "La grande aigrette est un grand oiseau blanc avec un long cou en S, de longues pattes noires et un bec jaune pointu. Elle chasse en restant immobile dans l'eau peu profonde.",
+      "ecoFact": "La grande aigrette est un bioindicateur : sa présence indique un écosystème aquatique en bonne santé. Elle régule les populations de poissons et de grenouilles dans les zones humides.",
+      "hint": "Cherche le grand oiseau blanc avec un long cou et de longues pattes."
+    },
+    "ta23:i1754579810850vy7k": {
+      "title": "Héron vert",
+      "strategy": "Le héron vert est plus petit que les autres hérons. Il a un plumage vert foncé sur le dos et des reflets bleutés. Il se tient penché au bord de l'eau.",
+      "ecoFact": "Le héron vert est l'un des rares oiseaux à utiliser des outils : il pose des appâts (insectes, morceaux de pain) sur l'eau pour attirer les poissons ! C'est un signe d'intelligence remarquable.",
+      "hint": "Cherche le petit héron avec un dos vert foncé."
+    },
+    "ta24:i17545798108501wob": {
+      "title": "Sucrier à ventre jaune",
+      "strategy": "Le sucrier est un petit oiseau avec le ventre jaune vif, le dos gris-vert et un sourcil blanc. Il a un bec courbé pour aspirer le nectar.",
+      "ecoFact": "Le sucrier à ventre jaune est un pollinisateur important aux Antilles. En perçant la base des fleurs pour atteindre le nectar, il a développé une technique unique qui le distingue des colibris.",
+      "hint": "Cherche le petit oiseau avec un ventre jaune vif."
+    },
+    "ta25:i1754579810850drql": {
+      "title": "Scolopendre",
+      "strategy": "Le scolopendre est un mille-pattes géant avec un corps segmenté et aplati. Chaque segment a une paire de pattes. Il a des crochets venimeux à l'avant.",
+      "ecoFact": "Malgré sa mauvaise réputation, le scolopendre est un prédateur utile qui régule les populations d'insectes. Il est un indicateur de la santé des sols forestiers tropicaux.",
+      "hint": "Cherche la longue créature avec beaucoup de pattes."
+    },
+    "ta26:i1754579810850np2x": {
+      "title": "Écrevisse",
+      "strategy": "L'écrevisse ressemble à un petit homard d'eau douce. Elle a des pinces, des antennes et vit dans les rivières et les ravines des Antilles.",
+      "ecoFact": "L'écrevisse des rivières antillaises (ouassou/zabiatan) est menacée par la pollution et la destruction de son habitat. Elle est un indicateur de la qualité de l'eau des rivières.",
+      "hint": "Cherche le petit « homard » d'eau douce."
+    },
+    "ta27:i1754579810850xphg": {
+      "title": "Paresseux",
+      "strategy": "Le paresseux vit accroché la tête en bas aux branches. Il bouge très lentement et a un visage qui semble toujours sourire. Sa fourrure a souvent des algues vertes.",
+      "ecoFact": "Le paresseux descend de son arbre une seule fois par semaine pour faire ses besoins. Ses excréments fertilisent l'arbre qui l'héberge. Les algues sur sa fourrure lui servent de camouflage.",
+      "hint": "Cherche l'animal suspendu la tête en bas qui bouge très lentement."
+    },
+    "ta28:i1754579810850hjpg": {
+      "title": "Jaguar",
+      "strategy": "Le jaguar a un pelage jaune avec des taches noires en forme de rosettes (cercles avec un point au centre). Il est plus trapu que le léopard avec une tête plus large.",
+      "ecoFact": "Le jaguar est le plus grand félin des Amériques et un superprédateur : il régule les populations d'autres animaux. Sa disparition entraînerait un déséquilibre de tout l'écosystème forestier.",
+      "hint": "Cherche le grand félin avec des taches en forme de rosettes."
+    },
+    "ta29:i1754579810850585z": {
+      "title": "Fourmilier géant",
+      "strategy": "Le fourmilier géant a un très long museau tubulaire, pas de dents, et une longue langue collante pour attraper les fourmis. Sa queue en panache est aussi longue que son corps.",
+      "ecoFact": "Le fourmilier géant peut manger 30 000 fourmis par jour ! En régulant les colonies de fourmis et de termites, il protège les arbres et maintient l'équilibre de la forêt.",
+      "hint": "Cherche l'animal avec un très long museau pointu et une queue en panache."
+    },
+    "ta30:i1754579810850jxaw": {
+      "title": "Poisson-perroquet",
+      "strategy": "Le poisson-perroquet a des couleurs vives (bleu, vert, rose) et un « bec » formé par ses dents fusionnées, comme celui d'un perroquet. Il croque le corail !",
+      "ecoFact": "Le poisson-perroquet produit le sable blanc des plages tropicales ! En broyant le corail dont il se nourrit, il rejette du sable fin. Un seul poisson-perroquet peut produire 300 kg de sable par an.",
+      "hint": "Cherche le poisson coloré avec un « bec » comme un perroquet."
+    },
+    "ta31:i1754579810850cqro": {
+      "title": "Poisson-écureuil",
+      "strategy": "Le poisson-écureuil a de très grands yeux (car il est nocturne) et un corps rouge vif. Il a aussi une grande épine sur chaque opercule (joue).",
+      "ecoFact": "Le poisson-écureuil sort la nuit pour chasser les petits crustacés. Ses grands yeux captent la moindre lumière. Il vit dans les failles et grottes des récifs coralliens des Caraïbes.",
+      "hint": "Cherche le poisson rouge avec de très grands yeux."
+    },
+    "ta32:i1754579810850n464": {
+      "title": "Dorade coryphène",
+      "strategy": "La dorade coryphène (mahi-mahi) a un front très bombé chez le mâle, un corps aplati latéralement et des couleurs spectaculaires : bleu, vert, jaune.",
+      "ecoFact": "La dorade coryphène est un poisson pélagique très rapide (jusqu'à 90 km/h). Elle vit en haute mer et se reproduit rapidement, ce qui la rend plus résistante à la pêche que d'autres espèces.",
+      "hint": "Cherche le poisson avec un front bombé et des couleurs bleu-vert-jaune."
+    },
+    "ta33:i1754579810850heoz": {
+      "title": "Caïman",
+      "strategy": "Le caïman ressemble à un petit crocodile avec un museau large et des yeux qui dépassent de l'eau. Son corps est couvert d'écailles épaisses.",
+      "ecoFact": "Le caïman est un prédateur au sommet de la chaîne alimentaire des rivières tropicales. Ses terriers servent de refuge à d'autres espèces pendant la saison sèche, créant des « oasis ».",
+      "hint": "Cherche le reptile avec un museau large qui ressemble à un crocodile."
+    },
+    "ta34:i175457981085054ts": {
+      "title": "Moqueur gorge-rouge",
+      "strategy": "Le moqueur gorge-rouge a un plumage brun-gris avec une tache rouge-orangé sur la gorge. Il a un long bec légèrement courbé et une longue queue.",
+      "ecoFact": "Le moqueur gorge-rouge est endémique de certaines îles des Antilles. Il est menacé par la perte de son habitat et par la mangouste introduite qui mange ses œufs.",
+      "hint": "Cherche l'oiseau brun avec une tache rouge sur la gorge."
+    },
+    "ta35:i1754579810850o2vj": {
+      "title": "Vivaneau à queue jaune",
+      "strategy": "Ce vivaneau se distingue par sa queue jaune vif qui contraste avec son corps argenté ou rosé. Il a une bande jaune le long du corps.",
+      "ecoFact": "Le vivaneau à queue jaune vit en bancs sur les récifs coralliens. Il est un indicateur de la santé du récif et sa présence signifie que l'écosystème est en bon état.",
+      "hint": "Cherche le poisson avec une queue jaune bien visible."
+    },
+    "ta36:i1754579810850w00a": {
+      "title": "Orphie",
+      "strategy": "L'orphie a un corps très allongé, argenté et un bec fin avec des dents acérées. Elle nage près de la surface et peut sauter hors de l'eau.",
+      "ecoFact": "L'orphie est un poisson qui chasse en surface. Quand elle fuit un prédateur, elle peut sauter et « voler » au-dessus de l'eau. Elle est un maillon important entre les petits poissons et les gros prédateurs.",
+      "hint": "Cherche le poisson très allongé avec un long bec fin."
+    },
+    "ta37:i1754579810850ay9g": {
+      "title": "Raie manta",
+      "strategy": "La raie manta est la plus grande raie du monde, avec des « ailes » qui peuvent mesurer jusqu'à 7 mètres d'envergure. Elle a deux cornes céphaliques devant la bouche.",
+      "ecoFact": "La raie manta filtre le plancton avec ses branchies. Elle est inoffensive malgré sa taille impressionnante. Elle est menacée par la pollution plastique qu'elle ingère en filtrant l'eau.",
+      "hint": "Cherche la très grande raie avec des « cornes » devant la bouche."
+    },
+    "ta38:i1754579810850qyln": {
+      "title": "Corail corne d'élan",
+      "strategy": "Ce corail a des branches larges et plates qui ressemblent aux bois (cornes) d'un élan. Il forme de grandes structures dans les eaux peu profondes.",
+      "ecoFact": "Le corail corne d'élan est en danger critique aux Caraïbes. Il protège les côtes des vagues et des tempêtes. Un récif en bonne santé absorbe jusqu'à 97% de l'énergie des vagues !",
+      "hint": "Cherche le corail avec des branches larges et plates comme des bois d'élan."
+    },
+    "ta39:i17545798108503qib": {
+      "title": "Corail tabulaire",
+      "strategy": "Le corail tabulaire forme des plaques horizontales superposées, comme des tables empilées. Il pousse dans les eaux moins profondes pour capter un maximum de lumière.",
+      "ecoFact": "Les coraux tabulaires abritent de nombreuses espèces de poissons et crustacés sous leurs « tables ». Un seul massif corallien peut héberger des centaines d'espèces différentes.",
+      "hint": "Cherche le corail en forme de tables plates superposées."
+    },
+    "ta40:i1754579810850fb9q": {
+      "title": "Corail cerveau",
+      "strategy": "Le corail cerveau a une surface avec des sillons sinueux qui ressemblent exactement aux circonvolutions d'un cerveau humain. Il est rond et massif.",
+      "ecoFact": "Le corail cerveau peut vivre plusieurs centaines d'années ! C'est l'un des coraux les plus résistants. Il grandit de seulement 3 à 5 mm par an. Chaque colonie est une vraie ville sous-marine.",
+      "hint": "Cherche le corail rond avec des sillons qui ressemblent à un cerveau."
+    },
+    "ta41:i175457981085024ai": {
+      "title": "Lamantin",
+      "strategy": "Le lamantin est un gros mammifère marin doux et lent, aussi appelé « vache de mer ». Il a un corps gris arrondi, une queue en forme de spatule et de petits yeux.",
+      "ecoFact": "Le lamantin broute les herbiers marins et les maintient en bonne santé, comme une tondeuse naturelle. En Guadeloupe, il est une espèce protégée réintroduite pour restaurer les écosystèmes côtiers.",
+      "hint": "Cherche le gros mammifère marin gris avec une queue plate."
+    },
+
+    "c1754621357628_0": {
+      "title": "2 × 2 = 4",
+      "strategy": "La table de 2, c'est le double ! 2 × 2, c'est 2 + 2 = 4. Pour la table de 2, il suffit d'additionner le nombre avec lui-même.",
+      "hint": "Double de 2"
+    },
+    "c1754621357628_1": {
+      "title": "2 × 3 = 6",
+      "strategy": "2 × 3 = 2 + 2 + 2 = 6. Astuce : compter par 2 trois fois : 2, 4, 6.",
+      "hint": "Compter par 2 : 2, 4, 6"
+    },
+    "c1754621357628_2": {
+      "title": "2 × 4 = 8",
+      "strategy": "2 × 4 = 4 + 4 = 8. Tu connais déjà 4 + 4 ! Ou bien : compter par 2 quatre fois : 2, 4, 6, 8.",
+      "hint": "Compter par 2 : 2, 4, 6, 8"
+    },
+    "c1754621357628_3": {
+      "title": "2 × 5 = 10",
+      "strategy": "2 × 5 = 10. Facile à retenir : 5 + 5 = 10. Tous les multiples de 5 finissent par 0 ou 5.",
+      "hint": "5 + 5"
+    },
+    "c1754621357628_4": {
+      "title": "2 × 6 = 12",
+      "strategy": "2 × 6 = 12. Astuce : 2 × 5 = 10, puis on ajoute 2 → 12. Ou bien : 6 + 6 = 12 (une douzaine !).",
+      "hint": "Une douzaine"
+    },
+    "c1754621357628_5": {
+      "title": "3 × 2 = 6",
+      "strategy": "3 × 2 = 2 × 3 = 6. La multiplication est commutative : l'ordre ne change pas le résultat !",
+      "hint": "Comme 2 × 3"
+    },
+    "c1754621357628_6": {
+      "title": "3 × 3 = 9",
+      "strategy": "3 × 3 = 9. Un carré parfait ! 3 rangées de 3 = 9 éléments. Astuce : 3 + 3 + 3 = 9.",
+      "hint": "3 + 3 + 3"
+    },
+    "c1754621357628_7": {
+      "title": "3 × 4 = 12",
+      "strategy": "3 × 4 = 12. Pense aux mois de l'année : il y en a 12, soit 3 groupes de 4 mois (trimestres).",
+      "hint": "Les 12 mois = 3 × 4"
+    },
+    "c1754621357628_8": {
+      "title": "3 × 5 = 15",
+      "strategy": "3 × 5 = 15. Astuce de la table de 5 : les résultats alternent entre 5 et 0 (5, 10, 15, 20…).",
+      "hint": "Table de 5 : 5, 10, 15"
+    },
+    "c1754621357628_9": {
+      "title": "3 × 6 = 18",
+      "strategy": "3 × 6 = 18. Décompose : 3 × 6 = 3 × 5 + 3 = 15 + 3 = 18. Ou : 6 + 6 + 6 = 18.",
+      "hint": "15 + 3"
+    },
+    "c1754621357628_10": {
+      "title": "4 × 2 = 8",
+      "strategy": "4 × 2 = 8. C'est le double de 4. Les doubles sont toujours faciles : 4 + 4 = 8.",
+      "hint": "Double de 4"
+    },
+    "c1754621357628_11": {
+      "title": "4 × 3 = 12",
+      "strategy": "4 × 3 = 12. C'est comme 3 × 4. Pense aux trimestres : 4 mois × 3 trimestres = 12 mois.",
+      "hint": "Comme 3 × 4"
+    },
+    "c1754621357628_12": {
+      "title": "4 × 4 = 16",
+      "strategy": "4 × 4 = 16. C'est un carré parfait ! 4 rangées de 4 cases. Astuce : double de double : 4 × 2 = 8, puis 8 × 2 = 16.",
+      "hint": "Double-double : 4→8→16"
+    },
+    "c1754621357628_13": {
+      "title": "4 × 5 = 20",
+      "strategy": "4 × 5 = 20. Très utile ! 4 pièces de 5 centimes = 20 centimes. La moitié de 40.",
+      "hint": "4 pièces de 5"
+    },
+    "c1754621357628_14": {
+      "title": "4 × 6 = 24",
+      "strategy": "4 × 6 = 24. Pense aux heures : une journée a 24 heures = 4 × 6. Ou décompose : 4 × 5 + 4 = 24.",
+      "hint": "24 heures dans une journée"
+    },
+    "c1754621357628_15": {
+      "title": "5 × 2 = 10",
+      "strategy": "5 × 2 = 10. La table de 5 finit toujours par 0 ou 5. 5 × un nombre pair finit par 0.",
+      "hint": "Finit par 0"
+    },
+    "c1754621357628_16": {
+      "title": "5 × 3 = 15",
+      "strategy": "5 × 3 = 15. Moyen mnémotechnique : 5, 10, 15 — on compte de 5 en 5.",
+      "hint": "Compter par 5 : 5, 10, 15"
+    },
+    "c1754621357628_17": {
+      "title": "5 × 4 = 20",
+      "strategy": "5 × 4 = 20. La moitié de 10 × 4 = 40. Ou : 4 billets de 5€ = 20€.",
+      "hint": "Moitié de 40"
+    },
+    "c1754621357628_18": {
+      "title": "5 × 5 = 25",
+      "strategy": "5 × 5 = 25. Un carré parfait ! Un quart de 100. Pense à une pièce de 25 centimes.",
+      "hint": "Quart de 100"
+    },
+    "c1754621357628_19": {
+      "title": "5 × 6 = 30",
+      "strategy": "5 × 6 = 30. Facile : c'est la moitié de 60. Ou : 6 × 5 = 5 + 5 + 5 + 5 + 5 + 5 = 30.",
+      "hint": "Moitié de 60"
+    },
+    "c1754621357628_20": {
+      "title": "6 × 2 = 12",
+      "strategy": "6 × 2 = 12. Le double de 6. Une douzaine d'œufs !",
+      "hint": "Double de 6 = une douzaine"
+    },
+    "c1754621357628_21": {
+      "title": "6 × 3 = 18",
+      "strategy": "6 × 3 = 18. Décompose : 6 × 3 = 6 × 2 + 6 = 12 + 6 = 18.",
+      "hint": "12 + 6"
+    },
+    "c1754621357628_22": {
+      "title": "6 × 4 = 24",
+      "strategy": "6 × 4 = 24. Les heures d'une journée ! Ou : 6 × 4 = 6 × 2 × 2 = 12 × 2 = 24.",
+      "hint": "24h = une journée"
+    },
+    "c1754621357628_23": {
+      "title": "6 × 5 = 30",
+      "strategy": "6 × 5 = 30. Moitié d'une heure (60 min). La table de 5 rend tout facile : ça finit par 0.",
+      "hint": "Moitié d'une heure"
+    },
+    "c1754621357628_24": {
+      "title": "6 × 6 = 36",
+      "strategy": "6 × 6 = 36. Carré parfait ! Astuce : 6 × 5 + 6 = 30 + 6 = 36. Un jeu de 36 cartes.",
+      "hint": "30 + 6"
+    },
+    "c1754621357628_25": {
+      "title": "7 × 2 = 14",
+      "strategy": "7 × 2 = 14. Le double de 7. Deux semaines = 14 jours.",
+      "hint": "Deux semaines"
+    },
+    "c1754621357628_26": {
+      "title": "7 × 3 = 21",
+      "strategy": "7 × 3 = 21. Trois semaines = 21 jours. Ou : 7 × 2 + 7 = 14 + 7 = 21.",
+      "hint": "Trois semaines"
+    },
+    "c1754621357628_27": {
+      "title": "7 × 4 = 28",
+      "strategy": "7 × 4 = 28. Quatre semaines = 28 jours (un mois de février). Ou : 7 × 3 + 7 = 21 + 7 = 28.",
+      "hint": "Un mois de février"
+    },
+    "c1754621357628_28": {
+      "title": "7 × 5 = 35",
+      "strategy": "7 × 5 = 35. Table de 5 : ça finit par 5. Cinq semaines = 35 jours.",
+      "hint": "Cinq semaines"
+    },
+    "c1754621357628_29": {
+      "title": "7 × 6 = 42",
+      "strategy": "7 × 6 = 42. Astuce mnémotechnique : la réponse à tout l'univers (dans le livre « Le Guide du voyageur galactique »). Ou : 7 × 5 + 7 = 35 + 7 = 42.",
+      "hint": "35 + 7"
+    }
+  }
+}

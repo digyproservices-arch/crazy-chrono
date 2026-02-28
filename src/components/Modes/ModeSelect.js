@@ -128,6 +128,28 @@ export default function ModeSelect({ auth: authProp }) {
           gradient="linear-gradient(135deg, #0D6A7A 0%, #148A9C 100%)"
           onClick={() => navigate('/my-performance')} 
         />
+        {isFree() ? (
+          <button onClick={() => navigate('/pricing')} style={{
+            width: '100%', textAlign: 'left', padding: 24, borderRadius: 16, border: 'none',
+            background: 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.15)', color: '#fff', cursor: 'pointer',
+            transition: 'all 0.3s ease', position: 'relative', overflow: 'hidden'
+          }}>
+            <div style={{ position: 'absolute', top: 12, right: 12, background: '#F5A623', color: '#fff', fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 20 }}>PRO</div>
+            <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.7 }}>🔒</div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Mode Apprendre</div>
+            <div style={{ opacity: 0.9, fontSize: 14, lineHeight: 1.5 }}>Abonnez-vous pour réviser les associations avec des stratégies et de l'audio !</div>
+            <div style={{ marginTop: 12, background: '#F5A623', color: '#fff', display: 'inline-block', padding: '8px 16px', borderRadius: 10, fontWeight: 700, fontSize: 13 }}>Passer en Pro</div>
+          </button>
+        ) : (
+          <Card 
+            title="Mode Apprendre" 
+            subtitle="Révise les associations avec des stratégies, des faits écologiques et de l'audio"
+            icon="📚"
+            gradient="linear-gradient(135deg, #10b981 0%, #059669 100%)"
+            onClick={() => navigate('/apprendre')} 
+          />
+        )}
       </div>
       {Array.isArray(history) && history.length > 0 && (
         <section style={{ marginTop: 20 }}>
