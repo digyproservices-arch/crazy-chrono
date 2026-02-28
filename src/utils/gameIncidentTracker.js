@@ -19,6 +19,7 @@ export const INCIDENT_TYPES = {
   TYPE_MISMATCH: 'type_mismatch',         // Paire avec types incompatibles (ex: 2 images)
   ZERO_VALID_PAIRS: 'zero_valid_pairs',   // Carte générée sans aucune paire valide
   MULTIPLE_TARGETS: 'multiple_targets',   // Plus d'une paire cible sur la carte
+  FALSE_CALC_NUM_PAIR: 'false_calc_num_pair', // Distractor calcul dont le résultat = distractor chiffre
 };
 
 const SEVERITY = {
@@ -30,7 +31,8 @@ const SEVERITY = {
   [INCIDENT_TYPES.ORPHAN_ZONE]: 'error',
   [INCIDENT_TYPES.TYPE_MISMATCH]: 'critical',
   [INCIDENT_TYPES.ZERO_VALID_PAIRS]: 'critical',
-  [INCIDENT_TYPES.MULTIPLE_TARGETS]: 'error',
+  [INCIDENT_TYPES.MULTIPLE_TARGETS]: 'critical',
+  [INCIDENT_TYPES.FALSE_CALC_NUM_PAIR]: 'critical',
 };
 
 // ── Device info helper ─────────────────────────────────────
@@ -239,6 +241,52 @@ export function validateZones(zones, context = {}) {
     }, minimalSnapshot(zones)));
   }
 
+  // MULTIPLE_TARGETS: plus d'une PA (paire avec pairId) sur la carte
+  if (validPairs.length > 1) {
+    const pairDetails = validPairs.map(g => {
+      const pid = (g[0].pairId || g[0].pairID || '').substring(0, 60);
+      return {
+        pairId: pid,
+        zones: g.map(z => ({ id: z.id, type: z.type, content: (z.content || z.label || '').substring(0, 50) })),
+      };
+    });
+    incidents.push(reportIncident(INCIDENT_TYPES.MULTIPLE_TARGETS, {
+      count: validPairs.length,
+      pairs: pairDetails,
+      message: `${validPairs.length} PA détectées sur la même carte (attendu: 1)`,
+    }, minimalSnapshot(zones)));
+  }
+
+  // FALSE_CALC_NUM_PAIR: distractor calcul dont le résultat = distractor chiffre
+  try {
+    const distractorCalcs = zones.filter(z => !z.validated && normalizeType(z.type) === 'calcul' && !(z.pairId || '').trim());
+    const distractorNums = zones.filter(z => !z.validated && normalizeType(z.type) === 'chiffre' && !(z.pairId || '').trim());
+    if (distractorCalcs.length > 0 && distractorNums.length > 0) {
+      const parseNum = (s) => { const v = parseFloat(String(s).replace(/\s/g, '').replace(/,/g, '.')); return Number.isFinite(v) ? Math.round(v * 1e8) / 1e8 : NaN; };
+      const numValues = new Map();
+      for (const n of distractorNums) {
+        const v = parseNum(n.content);
+        if (Number.isFinite(v)) numValues.set(v, n);
+      }
+      for (const c of distractorCalcs) {
+        const parsed = _parseOperationForMonitoring(c.content);
+        if (parsed && Number.isFinite(parsed.result) && numValues.has(parsed.result)) {
+          const matchingNum = numValues.get(parsed.result);
+          incidents.push(reportIncident(INCIDENT_TYPES.FALSE_CALC_NUM_PAIR, {
+            calcZoneId: c.id,
+            calcContent: (c.content || '').substring(0, 60),
+            calcResult: parsed.result,
+            numZoneId: matchingNum.id,
+            numContent: (matchingNum.content || '').substring(0, 40),
+            message: `Distractor calcul "${(c.content || '').substring(0, 40)}" = ${parsed.result} correspond au distractor chiffre "${(matchingNum.content || '').substring(0, 20)}"`,
+          }, minimalSnapshot(zones)));
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[IncidentTracker] Erreur détection false calc-num pair:', e);
+  }
+
   if (incidents.length > 0) {
     console.warn(`[IncidentTracker] ${incidents.length} anomalie(s) détectée(s) sur cette carte`);
   }
@@ -350,6 +398,44 @@ export function formatIncidentsForCopy(incidents) {
 }
 
 // ── Helpers ────────────────────────────────────────────────
+
+/**
+ * Mini-parseur d'opérations pour le monitoring (copie autonome de Carte.js parseOperation).
+ * Gère: "A op B", "A op ? = C", "le double/moitié/tiers/quart/triple de X"
+ */
+function _parseOperationForMonitoring(s) {
+  if (!s) return null;
+  const raw = String(s).trim();
+  const _pn = (t) => { const c = String(t).replace(/\s/g, '').replace(/,/g, '.'); const v = parseFloat(c); return Number.isFinite(v) ? v : NaN; };
+  const _r8 = (v) => Math.round(v * 1e8) / 1e8;
+  // Format textuel
+  const tm = raw.match(/^l[ea]\s+(double|triple|tiers|quart|moiti[ée])\s+de\s+(.+)$/i);
+  if (tm) {
+    const k = tm[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const v = _pn(tm[2]); if (Number.isNaN(v)) return null;
+    let r; switch (k) { case 'double': r = v * 2; break; case 'triple': r = v * 3; break; case 'moitie': r = v / 2; break; case 'tiers': r = v / 3; break; case 'quart': r = v / 4; break; default: return null; }
+    return Number.isFinite(r) ? { result: _r8(r) } : null;
+  }
+  // Format "A op ? = C"
+  const norm = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/');
+  const um = norm.match(/^(.+?)\s*([+\-*/])\s*\?\s*=\s*(.+)$/);
+  if (um) {
+    const a = _pn(um[1]), op = um[2], c = _pn(um[3]);
+    if (Number.isNaN(a) || Number.isNaN(c)) return null;
+    let r; switch (op) { case '+': r = c - a; break; case '-': r = a - c; break; case '*': r = a !== 0 ? c / a : NaN; break; case '/': r = c !== 0 ? a / c : NaN; break; default: return null; }
+    return Number.isFinite(r) ? { result: _r8(r) } : null;
+  }
+  // Format simple "A op B"
+  const stripped = norm.replace(/\s/g, '').replace(/,/g, '.');
+  const sm = stripped.match(/^(-?[\d.]+)([+\-*/])(-?[\d.]+)$/);
+  if (sm) {
+    const a = parseFloat(sm[1]), op = sm[2], b = parseFloat(sm[3]);
+    if (Number.isNaN(a) || Number.isNaN(b)) return null;
+    let r; switch (op) { case '+': r = a + b; break; case '-': r = a - b; break; case '*': r = a * b; break; case '/': r = b !== 0 ? a / b : NaN; break; default: return null; }
+    return Number.isFinite(r) ? { result: _r8(r) } : null;
+  }
+  return null;
+}
 
 function normalizeType(t) {
   if (!t) return '';

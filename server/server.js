@@ -6,6 +6,7 @@ const bodyParser = require('body-parser');
 const http = require('http');
 const { Server } = require('socket.io');
 const { generateRoundZones, createDeckState } = require('./utils/serverZoneGenerator');
+const { validateZonesServer } = require('./utils/validateZonesServer');
 const logger = require('./logger'); // ✅ Winston logger professionnel
 
 // Load env (safe)
@@ -1960,6 +1961,8 @@ function gsStartRound(salleId) {
   };
   
   console.log(`[GS] Round ${salle.roundsPlayed} started in "${salleId}" with ${zones.length} zones, ${salle.players.size} players`);
+  // Valider les zones avant émission (monitoring double PA / fausse paire)
+  try { validateZonesServer(zones, { source: 'gs:round-start', salleId, roundIndex: salle.roundsPlayed }); } catch (e) { logger.warn('[GS] Zone validation error:', e.message); }
   io.to(`gs:${salleId}`).emit('gs:round:new', payload);
   gsEmitState(salleId);
   
@@ -2286,6 +2289,9 @@ function startRound(roomCode) {
     zonesIsArray: Array.isArray(payload.zones),
     firstZoneId: payload.zones?.[0]?.id || null
   });
+  
+  // Valider les zones avant émission (monitoring double PA / fausse paire)
+  try { validateZonesServer(payload.zones, { source: 'mp:round-start', roomCode, roundIndex: payload.roundIndex }); } catch (e) { logger.warn('[MP] Zone validation error:', e.message); }
   
   io.to(roomCode).emit('round:new', payload);
   // Timer d'expiration pour annoncer le résultat si personne n'a gagné
@@ -2791,6 +2797,8 @@ io.on('connection', (socket) => {
           firstZoneId: newZones[0]?.id || null,
           lastZoneId: newZones[newZones.length - 1]?.id || null
         });
+        // Valider les zones régénérées (monitoring double PA / fausse paire)
+        try { validateZonesServer(newZones, { source: 'mp:round-regen', roomCode: currentRoom, roundIndex: room.roundsPlayed }); } catch (e) { logger.warn('[MP] Zone validation error (regen):', e.message); }
         io.to(currentRoom).emit('round:new', {
           seed: newSeed,
           zones: newZones,
@@ -3279,6 +3287,8 @@ io.on('connection', (socket) => {
       salle.roundSeed = newSeed;
       salle.foundPairs.clear();
       
+      // Valider les zones régénérées (monitoring double PA / fausse paire)
+      try { validateZonesServer(newZones, { source: 'gs:round-regen', salleId: currentGS, roundIndex: salle.roundsPlayed }); } catch (e) { logger.warn('[GS] Zone validation error (regen):', e.message); }
       io.to(`gs:${currentGS}`).emit('gs:round:new', {
         seed: newSeed,
         zones: newZones,

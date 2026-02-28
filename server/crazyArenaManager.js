@@ -10,6 +10,7 @@
 
 const logger = require('./logger');
 const { v4: uuidv4 } = require('uuid');
+const { validateZonesServer } = require('./utils/validateZonesServer');
 
 class CrazyArenaManager {
   constructor(io, supabase = null) {
@@ -1635,6 +1636,8 @@ class CrazyArenaManager {
       zonesCount: zones.length
     });
     
+    // Valider les zones avant émission (monitoring double PA / fausse paire)
+    try { validateZonesServer(zones, { source: 'arena:game-start', matchId: matchId.slice(-8) }); } catch (e) { logger.warn('[CrazyArena] Zone validation error:', e.message); }
     this.io.to(matchId).emit('arena:game-start', gameStartPayload);
 
     // 💾 PERSISTENCE: Créer match_results initiaux en DB (skip si reprise après redémarrage)
@@ -1669,6 +1672,8 @@ class CrazyArenaManager {
           match.zones = newZones;
           console.log(`[CrazyArena] 🎯 Nouvelle carte pour manche ${match.roundsPlayed + 1}: ${newZones.length} zones`);
           
+          // Valider les zones avant émission (monitoring double PA / fausse paire)
+          try { validateZonesServer(newZones, { source: 'arena:round-new', matchId: matchId.slice(-8), roundIndex: match.roundsPlayed }); } catch (e) { logger.warn('[CrazyArena] Zone validation error (round-new):', e.message); }
           // Émettre nouvelle carte à tous les joueurs
           this.io.to(matchId).emit('arena:round-new', {
             zones: newZones,
@@ -1912,6 +1917,8 @@ class CrazyArenaManager {
               timestamp: Date.now()
             };
             
+            // Valider les zones avant émission (monitoring double PA / fausse paire)
+            try { validateZonesServer(newZones, { source: 'arena:tiebreaker-round', matchId: matchId.slice(-8) }); } catch (e) { logger.warn('[CrazyArena] Zone validation error (tiebreaker):', e.message); }
             this.io.to(matchId).emit('arena:round-new', payload);
             
             logger.info('[CrazyArena][Arena] Événement arena:round-new émis (tiebreaker)', { 
@@ -2045,6 +2052,8 @@ class CrazyArenaManager {
             timestamp: Date.now()
           };
           
+          // Valider les zones avant émission (monitoring double PA / fausse paire)
+          try { validateZonesServer(newZones, { source: 'arena:round-regen', matchId: matchId.slice(-8), roundIndex: match.roundsPlayed }); } catch (e) { logger.warn('[CrazyArena] Zone validation error (round-regen):', e.message); }
           this.io.to(matchId).emit('arena:round-new', roundPayload);
           
           logger.info('[CrazyArena][Arena] Événement arena:round-new émis (mode normal)', { 
