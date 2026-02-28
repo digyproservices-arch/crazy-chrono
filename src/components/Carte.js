@@ -6129,9 +6129,24 @@ setZones(dataWithRandomTexts);
       {gameActive && (
         <button
           onClick={() => {
-            const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-            if (isFs) { try { exitGameFullscreen(); } catch {} }
-            else { try { enterGameFullscreen(); } catch {} }
+            try {
+              const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+              if (isFs) {
+                const exitFn = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+                if (exitFn) exitFn.call(document);
+                try { document.body.style.overflow = ''; } catch {}
+                try { document.body.classList.remove('cc-game'); } catch {}
+                setFullScreen(false);
+              } else {
+                const root = document.documentElement;
+                const enterFn = root.requestFullscreen || root.webkitRequestFullscreen || root.mozRequestFullScreen || root.msRequestFullscreen;
+                if (enterFn) enterFn.call(root);
+                try { document.body.style.overflow = 'hidden'; } catch {}
+                try { document.body.classList.add('cc-game'); } catch {}
+                setFullScreen(true);
+                setPanelCollapsed(true);
+              }
+            } catch (err) { console.warn('[Fullscreen] toggle error:', err); }
           }}
           title={fullScreen ? 'Quitter le plein écran' : 'Plein écran'}
           style={{ position: 'fixed', bottom: isMobile ? 12 : 16, right: isMobile ? 12 : 16, zIndex: 50, width: isMobile ? 36 : 32, height: isMobile ? 36 : 32, borderRadius: 10, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(17,24,39,0.5)', color: '#fff', fontSize: isMobile ? 18 : 16, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.2)', opacity: 0.45, transition: 'opacity 0.2s', padding: 0, lineHeight: 1 }}
