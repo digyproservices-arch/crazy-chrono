@@ -1,6 +1,10 @@
 {
-  "_version": 1,
-  "_description": "Stratégies d'apprentissage pour le mode Apprendre. Clé = texteId:imageId ou calculId:chiffreId",
+  "_version": 2,
+  "_description": "Stratégies d'apprentissage pour le mode Apprendre. Couvre zoologie, botanique, multiplications, additions et soustractions.",
+  "_stats": {
+    "total": 275,
+    "generated": "2026-02-28T05:27:14.996Z"
+  },
   "strategies": {
     "ta01:i1754579810850evmn": {
       "title": "Raton laveur",
@@ -248,7 +252,6 @@
       "ecoFact": "Le lamantin broute les herbiers marins et les maintient en bonne santé, comme une tondeuse naturelle. En Guadeloupe, il est une espèce protégée réintroduite pour restaurer les écosystèmes côtiers.",
       "hint": "Cherche le gros mammifère marin gris avec une queue plate."
     },
-
     "c1754621357628_0": {
       "title": "2 × 2 = 4",
       "strategy": "La table de 2, c'est le double ! 2 × 2, c'est 2 + 2 = 4. Pour la table de 2, il suffit d'additionner le nombre avec lui-même.",
@@ -398,6 +401,1051 @@
       "title": "7 × 6 = 42",
       "strategy": "7 × 6 = 42. Astuce mnémotechnique : la réponse à tout l'univers (dans le livre « Le Guide du voyageur galactique »). Ou : 7 × 5 + 7 = 35 + 7 = 42.",
       "hint": "35 + 7"
+    },
+    "t1754619592818:i3": {
+      "title": "Fruit à Pain",
+      "strategy": "Le fruit à pain est un gros fruit rond et vert, à la peau bosselée, qui pousse sur un grand arbre tropical. Sa chair blanche et farineuse se cuisine comme un féculent.",
+      "ecoFact": "L'arbre à pain est essentiel aux Antilles : un seul arbre peut produire jusqu'à 200 fruits par an ! Il a nourri des générations. Le fruit se mange grillé, frit ou en purée. C'est un pilier de la cuisine créole.",
+      "hint": "Cherche le gros fruit vert et rond à la peau bosselée."
+    },
+    "t1:i1754579810850hhgl": {
+      "title": "Cannelle",
+      "strategy": "La cannelle se reconnaît à ses bâtons enroulés de couleur brun clair. C'est l'écorce intérieure d'un arbre tropical. Son parfum chaud et sucré est unique.",
+      "ecoFact": "La cannelle vient du cannelier, un arbre de la famille des lauriers. Aux Antilles, elle est utilisée dans de nombreuses recettes traditionnelles comme le chocolat chaud créole et les gâteaux.",
+      "hint": "Cherche les bâtons d'écorce enroulés brun clair."
+    },
+    "t20:i1754579810850ljuo": {
+      "title": "Paroka",
+      "strategy": "Le paroka (ou margose, pomme coolie) est un fruit allongé et bosselé, de couleur verte, qui devient orange à maturité. Sa chair est très amère.",
+      "ecoFact": "Le paroka est un légume-fruit tropical consommé aux Antilles et en Asie pour ses propriétés médicinales. Il aide à réguler le taux de sucre dans le sang. Malgré son amertume, il est très nutritif.",
+      "hint": "Cherche le fruit vert allongé et bosselé."
+    },
+    "t25:i1754579810850say6": {
+      "title": "Aloé Vera",
+      "strategy": "L'aloé vera a d'épaisses feuilles charnues en forme de lance, bordées de petites épines. Quand on coupe une feuille, un gel transparent apparaît.",
+      "ecoFact": "L'aloé vera est cultivé aux Antilles pour son gel aux multiples vertus : brûlures, cicatrisation, hydratation de la peau. Cette plante succulente nécessite peu d'eau et pousse facilement dans les jardins créoles.",
+      "hint": "Cherche la plante aux feuilles épaisses et charnues remplies de gel."
+    },
+    "t21:i1754579810850ojzt": {
+      "title": "Atoumo",
+      "strategy": "L'atoumo (ou bois d'Inde, bay rum) a des feuilles aromatiques vert foncé et brillantes. Froissées, elles dégagent une forte odeur épicée rappelant le clou de girofle.",
+      "ecoFact": "L'atoumo est un arbre emblématique des Antilles utilisé en médecine traditionnelle créole. Ses feuilles servent à préparer des bains démarrage et des tisanes. Son huile essentielle est recherchée en parfumerie.",
+      "hint": "Cherche l'arbre aux feuilles brillantes à odeur de clou de girofle."
+    },
+    "t10:i1754579810850ikhk": {
+      "title": "Consoude",
+      "strategy": "La consoude a de grandes feuilles velues et rugueuses, et des petites fleurs en clochettes violettes, roses ou blanches regroupées en grappes.",
+      "ecoFact": "La consoude est une plante médicinale puissante utilisée depuis l'Antiquité pour aider à la cicatrisation des os (d'où son nom). Au jardin, elle est un excellent engrais vert et attire les pollinisateurs.",
+      "hint": "Cherche la plante aux feuilles velues et fleurs en clochettes."
+    },
+    "t16:i1754579810850hu4a": {
+      "title": "Bleuets",
+      "strategy": "Le bleuet est une fleur sauvage d'un bleu intense, avec des pétales fins et découpés en étoile. On le trouve souvent dans les champs de céréales.",
+      "ecoFact": "Le bleuet est devenu rare à cause de l'agriculture intensive. Il est le symbole du souvenir des combattants en France. Ses pétales sont utilisés en cosmétique pour apaiser les yeux fatigués.",
+      "hint": "Cherche la fleur bleu vif aux pétales découpés."
+    },
+    "t22:i17545798108509dt9": {
+      "title": "Curcuma",
+      "strategy": "Le curcuma est un rhizome (comme le gingembre) avec une chair orange vif caractéristique. La poudre de curcuma donne la couleur jaune au curry.",
+      "ecoFact": "Le curcuma est cultivé aux Antilles et en Asie. Sa curcumine (pigment orange) a des propriétés anti-inflammatoires reconnues. Il est utilisé dans la cuisine créole et comme colorant naturel pour les tissus.",
+      "hint": "Cherche le rhizome à la chair orange vif."
+    },
+    "t27:i1754579810850ah7e": {
+      "title": "Malnommée",
+      "strategy": "La malnommée (ou euphorbe) est une petite plante rampante avec de minuscules feuilles et un latex blanc qui coule quand on la casse.",
+      "ecoFact": "La malnommée est une plante médicinale commune aux Antilles, utilisée en tisane pour les problèmes digestifs et les infections. Malgré son nom péjoratif, elle est très appréciée en médecine traditionnelle créole.",
+      "hint": "Cherche la petite plante rampante au latex blanc."
+    },
+    "t17:i175457981085011fe": {
+      "title": "Mélisse",
+      "strategy": "La mélisse a des feuilles dentelées qui ressemblent à celles de la menthe, mais dégagent une odeur citronnée quand on les froisse.",
+      "ecoFact": "La mélisse citronnelle est cultivée aux Antilles et en Europe pour ses vertus calmantes. En tisane, elle aide à dormir et à digérer. Elle attire les abeilles (son nom vient du grec « melissa » = abeille).",
+      "hint": "Cherche la plante aux feuilles dentelées à odeur de citron."
+    },
+    "t5:i17545798108507zn0": {
+      "title": "FARINE CHAUD",
+      "strategy": "La farine chaud (ou toloman) est un tubercule tropical qui produit une fécule très fine. La plante a de grandes feuilles vertes et des fleurs spectaculaires.",
+      "ecoFact": "Le toloman est cultivé aux Antilles pour ses rhizomes dont on tire une fécule digestible. C'est un aliment de substitution important en cas de pénurie de blé, et il pousse bien dans les jardins créoles.",
+      "hint": "Cherche le tubercule tropical aux grandes feuilles."
+    },
+    "t2:i1754579810850x51f": {
+      "title": "Gingembre",
+      "strategy": "Le gingembre est un rhizome (tige souterraine) de forme irrégulière, avec une peau beige et une chair jaune piquante. Il a un goût piquant et frais.",
+      "ecoFact": "Le gingembre est cultivé aux Antilles depuis des siècles. Il est utilisé comme épice et en médecine traditionnelle pour ses propriétés anti-inflammatoires. Le « jus de gingembre » est une boisson festive incontournable.",
+      "hint": "Cherche la racine noueuse de couleur beige."
+    },
+    "t6:i1754579810850f3d6": {
+      "title": "Orthosiphon",
+      "strategy": "L'orthosiphon (ou moustache de chat) a des fleurs blanches ou mauves avec de très longues étamines qui ressemblent à des moustaches de chat.",
+      "ecoFact": "L'orthosiphon est utilisé en phytothérapie aux Antilles et en Asie pour ses propriétés diurétiques. Il aide à drainer les reins naturellement. C'est une plante médicinale précieuse des jardins créoles.",
+      "hint": "Cherche la plante avec des fleurs aux longues étamines comme des moustaches."
+    },
+    "t23:i17545798108507u7h": {
+      "title": "Grenn anba fey",
+      "strategy": "Le grenn anba fey (graines sous les feuilles, ou phyllanthus) est une petite plante dont les minuscules fruits sont alignés sous les feuilles, le long des tiges.",
+      "ecoFact": "Cette plante médicinale créole est utilisée aux Antilles pour les problèmes de foie et de reins. Elle pousse spontanément dans les jardins et est un trésor de la pharmacopée traditionnelle.",
+      "hint": "Cherche la plante avec de petits fruits alignés sous les feuilles."
+    },
+    "t24:i1754579810850trt6": {
+      "title": "Romarin",
+      "strategy": "Le romarin a des feuilles fines, allongées, vert foncé dessus et blanchâtres dessous, comme des aiguilles. Il dégage un parfum puissant et aromatique.",
+      "ecoFact": "Le romarin est une plante méditerranéenne adaptée aux Antilles. Il est utilisé en cuisine, en médecine traditionnelle et en cosmétique. Il attire les abeilles et résiste bien à la sécheresse.",
+      "hint": "Cherche la plante aux feuilles en aiguilles très parfumées."
+    },
+    "t7:i1754579810850yj17": {
+      "title": "Patate Chandelier",
+      "strategy": "La patate chandelier est un tubercule tropical de forme allongée. Sa chair est blanche et farineuse. La plante grimpe et s'enroule autour des supports.",
+      "ecoFact": "La patate chandelier est un igname sauvage des Antilles, riche en amidon. Elle fait partie du patrimoine culinaire créole et pousse naturellement dans les forêts tropicales humides.",
+      "hint": "Cherche le tubercule allongé qui pousse sur une liane."
+    },
+    "t8:i1754579810850upfg": {
+      "title": "Soulier zombie",
+      "strategy": "Le soulier zombie (ou sabot de Vénus tropical) est une orchidée remarquable dont la fleur a la forme d'un petit sabot ou d'une chaussure. Ses couleurs sont souvent vives.",
+      "ecoFact": "Cette orchidée rare des forêts tropicales est menacée par la déforestation. Elle pousse sur les troncs d'arbres (épiphyte) et participe à la biodiversité des forêts antillaises. Sa pollinisation est assurée par des insectes spécifiques.",
+      "hint": "Cherche l'orchidée en forme de petit sabot."
+    },
+    "t1761691305732:i12": {
+      "title": "Pomme Surette",
+      "strategy": "La pomme surette (ou jujube) est un petit fruit rond, jaune-vert à brun, avec un noyau dur. Sa chair est croquante et acidulée.",
+      "ecoFact": "La pomme surette pousse sur un arbre épineux commun aux Antilles. Riche en vitamine C, elle est consommée fraîche ou confite. Les enfants antillais la cueillent directement sur l'arbre.",
+      "hint": "Cherche le petit fruit rond et acidulé jaune-vert."
+    },
+    "t1761691305733:i1754579810850k1r7": {
+      "title": "Pois d'Angole",
+      "strategy": "Le pois d'Angole est une légumineuse tropicale dont les graines rondes poussent dans des gousses. La plante forme un petit arbuste aux feuilles composées de trois folioles.",
+      "ecoFact": "Le pois d'Angole est cultivé aux Antilles depuis des siècles. Riche en protéines, il est un aliment de base. L'arbre enrichit aussi le sol en azote, aidant les autres cultures à pousser.",
+      "hint": "Cherche les gousses contenant des graines rondes sur un arbuste."
+    },
+    "t1761691305734:i17545798108509av3": {
+      "title": "Patate Douce",
+      "strategy": "La patate douce est un tubercule à la peau fine, rose, violette ou beige, avec une chair orange, blanche ou violette. Ses feuilles en forme de cœur sont aussi comestibles.",
+      "ecoFact": "La patate douce est l'un des aliments les plus nutritifs au monde : riche en vitamines A et C, en fibres et en antioxydants. Aux Antilles, elle se mange en purée, frite, ou en dessert.",
+      "hint": "Cherche le tubercule à la chair orangée."
+    },
+    "t1761691305735:i1754579810850pucr": {
+      "title": "Pomme Malaka",
+      "strategy": "La pomme malaka (ou jamalac, pomme de Malaisie) est un fruit en forme de cloche, rouge ou rose, à la chair blanche croquante et juteuse.",
+      "ecoFact": "La pomme malaka est originaire d'Asie du Sud-Est et s'est bien adaptée aux Antilles. Son arbre fournit de l'ombre et ses fruits désaltérants sont riches en eau, parfaits pour les climats tropicaux.",
+      "hint": "Cherche le fruit en forme de cloche rouge ou rose."
+    },
+    "t1761691305736:i1754579810850p76v": {
+      "title": "Herbe Charpentier",
+      "strategy": "L'herbe charpentier (ou herbe à charpentier) est une plante aux longues feuilles vertes et aux fleurs jaunes. Son nom vient de son utilisation pour soigner les coupures.",
+      "ecoFact": "L'herbe charpentier est une plante médicinale des Antilles : les charpentiers l'utilisaient autrefois pour soigner leurs blessures de travail. Ses feuilles fraîches, écrasées, ont des propriétés cicatrisantes.",
+      "hint": "Cherche la plante aux feuilles longues utilisée pour les coupures."
+    },
+    "t26:i1754579810850bq7v": {
+      "title": "Gwo Ten",
+      "strategy": "Le gwo ten (ou grand thym, origan français) est un petit arbuste aux feuilles épaisses, charnues et très aromatiques, utilisé comme condiment aux Antilles.",
+      "ecoFact": "Le gwo ten est incontournable dans la cuisine créole : il parfume les courts-bouillons, les grillades et les bouillons. C'est aussi une plante médicinale utilisée contre la toux et les refroidissements.",
+      "hint": "Cherche le petit arbuste aux feuilles épaisses et aromatiques."
+    },
+    "t1761691305737:i1754579810850tdtf": {
+      "title": "Simen Kontra",
+      "strategy": "Le simen kontra (ou semen contra, armoise) est une plante aromatique aux feuilles finement découpées, gris-vert, très parfumées.",
+      "ecoFact": "Le simen kontra est utilisé aux Antilles en médecine traditionnelle comme vermifuge (contre les vers intestinaux). C'est l'un des remèdes créoles les plus anciens, transmis de génération en génération.",
+      "hint": "Cherche la plante aux feuilles finement découpées gris-vert."
+    },
+    "t1761691305738:i1754579810850ya9j": {
+      "title": "Ti Poul Bwa",
+      "strategy": "Le ti poul bwa (ou petit poulbois) est un petit arbuste aux feuilles aromatiques utilisées en tisane. Ses feuilles sont petites, ovales et dégagent une odeur mentholée.",
+      "ecoFact": "Le ti poul bwa est une plante médicinale endémique des Antilles, utilisée contre les refroidissements et la fièvre. C'est un trésor de la pharmacopée créole menacé par la déforestation.",
+      "hint": "Cherche le petit arbuste aux feuilles ovales et mentholées."
+    },
+    "cmath_1771641997727_0": {
+      "title": "2 × 1 = 2",
+      "strategy": "2 × 1 = 2. Tout nombre multiplié par 1 reste identique. C'est l'élément neutre de la multiplication.",
+      "hint": "× 1 = le nombre lui-même"
+    },
+    "cmath_1771641997727_1": {
+      "title": "2 × 7 = 14",
+      "strategy": "2 × 7 = 14. C'est le double de 7 : 7 + 7 = 14.",
+      "hint": "Double de 7"
+    },
+    "cmath_1771641997727_2": {
+      "title": "2 × 8 = 16",
+      "strategy": "2 × 8 = 16. C'est le double de 8 : 8 + 8 = 16.",
+      "hint": "Double de 8"
+    },
+    "cmath_1771641997727_3": {
+      "title": "2 × 9 = 18",
+      "strategy": "2 × 9 = 18. C'est le double de 9 : 9 + 9 = 18.",
+      "hint": "Double de 9"
+    },
+    "cmath_1771641997727_4": {
+      "title": "2 × 10 = 20",
+      "strategy": "2 × 10 = 20. C'est le double de 10 : 10 + 10 = 20.",
+      "hint": "Double de 10"
+    },
+    "cmath_1771641997727_5": {
+      "title": "2 × 11 = 22",
+      "strategy": "2 × 11 = 22. C'est le double de 11 : 11 + 11 = 22.",
+      "hint": "Double de 11"
+    },
+    "cmath_1771641997727_6": {
+      "title": "2 × 12 = 24",
+      "strategy": "2 × 12 = 24. C'est le double de 12 : 12 + 12 = 24.",
+      "hint": "Double de 12"
+    },
+    "cmath_1771641997727_7": {
+      "title": "3 × 1 = 3",
+      "strategy": "3 × 1 = 3. Tout nombre multiplié par 1 reste identique. C'est l'élément neutre de la multiplication.",
+      "hint": "× 1 = le nombre lui-même"
+    },
+    "cmath_1771641997727_8": {
+      "title": "3 × 7 = 21",
+      "strategy": "3 × 7 = 21. Décompose : 7 × 3 = 7 × 2 + 7 = 14 + 7 = 21.",
+      "hint": "14 + 7"
+    },
+    "cmath_1771641997727_9": {
+      "title": "3 × 8 = 24",
+      "strategy": "3 × 8 = 24. Décompose : 8 × 3 = 8 × 2 + 8 = 16 + 8 = 24.",
+      "hint": "16 + 8"
+    },
+    "cmath_1771641997727_10": {
+      "title": "3 × 9 = 27",
+      "strategy": "3 × 9 = 27. Astuce de la table de 9 : 3 × 9 = 3 × 10 − 3 = 30 − 3 = 27. Aussi : les chiffres du résultat s'additionnent pour faire 9 (2 + 7 = 9).",
+      "hint": "3 × 10 − 3"
+    },
+    "cmath_1771641997727_11": {
+      "title": "3 × 10 = 30",
+      "strategy": "3 × 10 = 30. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 30 = 30.",
+      "hint": "Ajouter un 0 : 3 → 30"
+    },
+    "cmath_1771641997727_12": {
+      "title": "3 × 11 = 33",
+      "strategy": "3 × 11 = 33. Astuce pour la table de 11 : jusqu'à 9, on double le chiffre : 33 → mais vérifie ! 3 × 11 = 33.",
+      "hint": "3 × 10 + 3"
+    },
+    "cmath_1771641997727_13": {
+      "title": "3 × 12 = 36",
+      "strategy": "3 × 12 = 36. Décompose : 3 × 12 = 3 × 10 + 3 × 2 = 30 + 6 = 36.",
+      "hint": "3 × 10 + 3 × 2"
+    },
+    "cmath_1771641997727_14": {
+      "title": "4 × 1 = 4",
+      "strategy": "4 × 1 = 4. Tout nombre multiplié par 1 reste identique. C'est l'élément neutre de la multiplication.",
+      "hint": "× 1 = le nombre lui-même"
+    },
+    "cmath_1771641997727_15": {
+      "title": "4 × 7 = 28",
+      "strategy": "4 × 7 = 28. Décompose : 7 × 4 = 7 × 3 + 7 = 21 + 7 = 28.",
+      "hint": "21 + 7"
+    },
+    "cmath_1771641997727_16": {
+      "title": "4 × 8 = 32",
+      "strategy": "4 × 8 = 32. Décompose : 8 × 4 = 8 × 3 + 8 = 24 + 8 = 32.",
+      "hint": "24 + 8"
+    },
+    "cmath_1771641997727_17": {
+      "title": "4 × 9 = 36",
+      "strategy": "4 × 9 = 36. Astuce de la table de 9 : 4 × 9 = 4 × 10 − 4 = 40 − 4 = 36. Aussi : les chiffres du résultat s'additionnent pour faire 9 (3 + 6 = 9).",
+      "hint": "4 × 10 − 4"
+    },
+    "cmath_1771641997727_18": {
+      "title": "4 × 10 = 40",
+      "strategy": "4 × 10 = 40. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 40 = 40.",
+      "hint": "Ajouter un 0 : 4 → 40"
+    },
+    "cmath_1771641997727_19": {
+      "title": "4 × 11 = 44",
+      "strategy": "4 × 11 = 44. Astuce pour la table de 11 : jusqu'à 9, on double le chiffre : 44 → mais vérifie ! 4 × 11 = 44.",
+      "hint": "4 × 10 + 4"
+    },
+    "cmath_1771641997727_20": {
+      "title": "4 × 12 = 48",
+      "strategy": "4 × 12 = 48. Décompose : 4 × 12 = 4 × 10 + 4 × 2 = 40 + 8 = 48.",
+      "hint": "4 × 10 + 4 × 2"
+    },
+    "cmath_1771641997727_21": {
+      "title": "5 × 1 = 5",
+      "strategy": "5 × 1 = 5. Tout nombre multiplié par 1 reste identique. C'est l'élément neutre de la multiplication.",
+      "hint": "× 1 = le nombre lui-même"
+    },
+    "cmath_1771641997727_22": {
+      "title": "5 × 7 = 35",
+      "strategy": "5 × 7 = 35. La table de 5 finit toujours par 0 ou 5. Nombre impair × 5 finit par 5.",
+      "hint": "Table de 5 → finit par 5"
+    },
+    "cmath_1771641997727_23": {
+      "title": "5 × 8 = 40",
+      "strategy": "5 × 8 = 40. La table de 5 finit toujours par 0 ou 5. Nombre pair × 5 finit par 0.",
+      "hint": "Table de 5 → finit par 0"
+    },
+    "cmath_1771641997727_24": {
+      "title": "5 × 9 = 45",
+      "strategy": "5 × 9 = 45. La table de 5 finit toujours par 0 ou 5. Nombre impair × 5 finit par 5.",
+      "hint": "Table de 5 → finit par 5"
+    },
+    "cmath_1771641997727_25": {
+      "title": "5 × 10 = 50",
+      "strategy": "5 × 10 = 50. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 50 = 50.",
+      "hint": "Ajouter un 0 : 5 → 50"
+    },
+    "cmath_1771641997727_26": {
+      "title": "5 × 11 = 55",
+      "strategy": "5 × 11 = 55. Astuce pour la table de 11 : jusqu'à 9, on double le chiffre : 55 → mais vérifie ! 5 × 11 = 55.",
+      "hint": "5 × 10 + 5"
+    },
+    "cmath_1771641997727_27": {
+      "title": "5 × 12 = 60",
+      "strategy": "5 × 12 = 60. La table de 5 finit toujours par 0 ou 5. Nombre pair × 5 finit par 0.",
+      "hint": "Table de 5 → finit par 0"
+    },
+    "cmath_1771641997727_28": {
+      "title": "6 × 1 = 6",
+      "strategy": "6 × 1 = 6. Tout nombre multiplié par 1 reste identique. C'est l'élément neutre de la multiplication.",
+      "hint": "× 1 = le nombre lui-même"
+    },
+    "cmath_1771641997727_29": {
+      "title": "6 × 7 = 42",
+      "strategy": "6 × 7 = 42. Décompose : 7 × 6 = 7 × 5 + 7 = 35 + 7 = 42.",
+      "hint": "35 + 7"
+    },
+    "cmath_1771641997727_30": {
+      "title": "6 × 8 = 48",
+      "strategy": "6 × 8 = 48. Décompose : 8 × 6 = 8 × 5 + 8 = 40 + 8 = 48.",
+      "hint": "40 + 8"
+    },
+    "cmath_1771641997727_31": {
+      "title": "6 × 9 = 54",
+      "strategy": "6 × 9 = 54. Astuce de la table de 9 : 6 × 9 = 6 × 10 − 6 = 60 − 6 = 54. Aussi : les chiffres du résultat s'additionnent pour faire 9 (5 + 4 = 9).",
+      "hint": "6 × 10 − 6"
+    },
+    "cmath_1771641997727_32": {
+      "title": "6 × 10 = 60",
+      "strategy": "6 × 10 = 60. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 60 = 60.",
+      "hint": "Ajouter un 0 : 6 → 60"
+    },
+    "cmath_1771641997727_33": {
+      "title": "6 × 11 = 66",
+      "strategy": "6 × 11 = 66. Astuce pour la table de 11 : jusqu'à 9, on double le chiffre : 66 → mais vérifie ! 6 × 11 = 66.",
+      "hint": "6 × 10 + 6"
+    },
+    "cmath_1771641997727_34": {
+      "title": "6 × 12 = 72",
+      "strategy": "6 × 12 = 72. Décompose : 6 × 12 = 6 × 10 + 6 × 2 = 60 + 12 = 72.",
+      "hint": "6 × 10 + 6 × 2"
+    },
+    "cmath_1771641997727_35": {
+      "title": "7 × 1 = 7",
+      "strategy": "7 × 1 = 7. Tout nombre multiplié par 1 reste identique. C'est l'élément neutre de la multiplication.",
+      "hint": "× 1 = le nombre lui-même"
+    },
+    "cmath_1771641997727_36": {
+      "title": "7 × 7 = 49",
+      "strategy": "7 × 7 = 49. C'est un carré parfait ! 7 rangées de 7 = 49. Ou : 7 × 6 + 7 = 42 + 7 = 49.",
+      "hint": "Carré de 7"
+    },
+    "cmath_1771641997727_37": {
+      "title": "7 × 8 = 56",
+      "strategy": "7 × 8 = 56. Décompose : 8 × 7 = 8 × 6 + 8 = 48 + 8 = 56.",
+      "hint": "48 + 8"
+    },
+    "cmath_1771641997727_38": {
+      "title": "7 × 9 = 63",
+      "strategy": "7 × 9 = 63. Astuce de la table de 9 : 7 × 9 = 7 × 10 − 7 = 70 − 7 = 63. Aussi : les chiffres du résultat s'additionnent pour faire 9 (6 + 3 = 9).",
+      "hint": "7 × 10 − 7"
+    },
+    "cmath_1771641997727_39": {
+      "title": "7 × 10 = 70",
+      "strategy": "7 × 10 = 70. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 70 = 70.",
+      "hint": "Ajouter un 0 : 7 → 70"
+    },
+    "cmath_1771641997727_40": {
+      "title": "7 × 11 = 77",
+      "strategy": "7 × 11 = 77. Astuce pour la table de 11 : jusqu'à 9, on double le chiffre : 77 → mais vérifie ! 7 × 11 = 77.",
+      "hint": "7 × 10 + 7"
+    },
+    "cmath_1771641997727_41": {
+      "title": "7 × 12 = 84",
+      "strategy": "7 × 12 = 84. Décompose : 7 × 12 = 7 × 10 + 7 × 2 = 70 + 14 = 84.",
+      "hint": "7 × 10 + 7 × 2"
+    },
+    "cmath_1771641997727_42": {
+      "title": "8 × 1 = 8",
+      "strategy": "8 × 1 = 8. Tout nombre multiplié par 1 reste identique. C'est l'élément neutre de la multiplication.",
+      "hint": "× 1 = le nombre lui-même"
+    },
+    "cmath_1771641997727_43": {
+      "title": "8 × 2 = 16",
+      "strategy": "8 × 2 = 16. C'est le double de 8 : 8 + 8 = 16.",
+      "hint": "Double de 8"
+    },
+    "cmath_1771641997727_44": {
+      "title": "8 × 3 = 24",
+      "strategy": "8 × 3 = 24. Décompose : 8 × 3 = 8 × 2 + 8 = 16 + 8 = 24.",
+      "hint": "16 + 8"
+    },
+    "cmath_1771641997727_45": {
+      "title": "8 × 4 = 32",
+      "strategy": "8 × 4 = 32. Décompose : 8 × 4 = 8 × 3 + 8 = 24 + 8 = 32.",
+      "hint": "24 + 8"
+    },
+    "cmath_1771641997727_46": {
+      "title": "8 × 5 = 40",
+      "strategy": "8 × 5 = 40. La table de 5 finit toujours par 0 ou 5. Nombre pair × 5 finit par 0.",
+      "hint": "Table de 5 → finit par 0"
+    },
+    "cmath_1771641997727_47": {
+      "title": "8 × 6 = 48",
+      "strategy": "8 × 6 = 48. Décompose : 8 × 6 = 8 × 5 + 8 = 40 + 8 = 48.",
+      "hint": "40 + 8"
+    },
+    "cmath_1771641997727_48": {
+      "title": "8 × 7 = 56",
+      "strategy": "8 × 7 = 56. Décompose : 8 × 7 = 8 × 6 + 8 = 48 + 8 = 56.",
+      "hint": "48 + 8"
+    },
+    "cmath_1771641997727_49": {
+      "title": "8 × 8 = 64",
+      "strategy": "8 × 8 = 64. C'est un carré parfait ! 8 rangées de 8 = 64. Ou : 8 × 7 + 8 = 56 + 8 = 64.",
+      "hint": "Carré de 8"
+    },
+    "cmath_1771641997727_50": {
+      "title": "8 × 9 = 72",
+      "strategy": "8 × 9 = 72. Astuce de la table de 9 : 8 × 9 = 8 × 10 − 8 = 80 − 8 = 72. Aussi : les chiffres du résultat s'additionnent pour faire 9 (7 + 2 = 9).",
+      "hint": "8 × 10 − 8"
+    },
+    "cmath_1771641997727_51": {
+      "title": "8 × 10 = 80",
+      "strategy": "8 × 10 = 80. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 80 = 80.",
+      "hint": "Ajouter un 0 : 8 → 80"
+    },
+    "cmath_1771641997727_52": {
+      "title": "8 × 11 = 88",
+      "strategy": "8 × 11 = 88. Astuce pour la table de 11 : jusqu'à 9, on double le chiffre : 88 → mais vérifie ! 8 × 11 = 88.",
+      "hint": "8 × 10 + 8"
+    },
+    "cmath_1771641997727_53": {
+      "title": "8 × 12 = 96",
+      "strategy": "8 × 12 = 96. Décompose : 8 × 12 = 8 × 10 + 8 × 2 = 80 + 16 = 96.",
+      "hint": "8 × 10 + 8 × 2"
+    },
+    "cmath_1771641997727_54": {
+      "title": "9 × 1 = 9",
+      "strategy": "9 × 1 = 9. Tout nombre multiplié par 1 reste identique. C'est l'élément neutre de la multiplication.",
+      "hint": "× 1 = le nombre lui-même"
+    },
+    "cmath_1771641997727_55": {
+      "title": "9 × 2 = 18",
+      "strategy": "9 × 2 = 18. C'est le double de 9 : 9 + 9 = 18.",
+      "hint": "Double de 9"
+    },
+    "cmath_1771641997727_56": {
+      "title": "9 × 3 = 27",
+      "strategy": "9 × 3 = 27. Astuce de la table de 9 : 3 × 9 = 3 × 10 − 3 = 30 − 3 = 27. Aussi : les chiffres du résultat s'additionnent pour faire 9 (2 + 7 = 9).",
+      "hint": "3 × 10 − 3"
+    },
+    "cmath_1771641997727_57": {
+      "title": "9 × 4 = 36",
+      "strategy": "9 × 4 = 36. Astuce de la table de 9 : 4 × 9 = 4 × 10 − 4 = 40 − 4 = 36. Aussi : les chiffres du résultat s'additionnent pour faire 9 (3 + 6 = 9).",
+      "hint": "4 × 10 − 4"
+    },
+    "cmath_1771641997727_58": {
+      "title": "9 × 5 = 45",
+      "strategy": "9 × 5 = 45. La table de 5 finit toujours par 0 ou 5. Nombre impair × 5 finit par 5.",
+      "hint": "Table de 5 → finit par 5"
+    },
+    "cmath_1771641997727_59": {
+      "title": "9 × 6 = 54",
+      "strategy": "9 × 6 = 54. Astuce de la table de 9 : 6 × 9 = 6 × 10 − 6 = 60 − 6 = 54. Aussi : les chiffres du résultat s'additionnent pour faire 9 (5 + 4 = 9).",
+      "hint": "6 × 10 − 6"
+    },
+    "cmath_1771641997727_60": {
+      "title": "9 × 7 = 63",
+      "strategy": "9 × 7 = 63. Astuce de la table de 9 : 7 × 9 = 7 × 10 − 7 = 70 − 7 = 63. Aussi : les chiffres du résultat s'additionnent pour faire 9 (6 + 3 = 9).",
+      "hint": "7 × 10 − 7"
+    },
+    "cmath_1771641997727_61": {
+      "title": "9 × 8 = 72",
+      "strategy": "9 × 8 = 72. Astuce de la table de 9 : 8 × 9 = 8 × 10 − 8 = 80 − 8 = 72. Aussi : les chiffres du résultat s'additionnent pour faire 9 (7 + 2 = 9).",
+      "hint": "8 × 10 − 8"
+    },
+    "cmath_1771641997727_62": {
+      "title": "9 × 9 = 81",
+      "strategy": "9 × 9 = 81. C'est un carré parfait ! 9 rangées de 9 = 81. Ou : 9 × 8 + 9 = 72 + 9 = 81.",
+      "hint": "Carré de 9"
+    },
+    "cmath_1771641997727_63": {
+      "title": "9 × 10 = 90",
+      "strategy": "9 × 10 = 90. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 90 = 90.",
+      "hint": "Ajouter un 0 : 9 → 90"
+    },
+    "cmath_1771641997727_64": {
+      "title": "9 × 11 = 99",
+      "strategy": "9 × 11 = 99. Astuce pour la table de 11 : jusqu'à 9, on double le chiffre : 99 → mais vérifie ! 9 × 11 = 99.",
+      "hint": "9 × 10 + 9"
+    },
+    "cmath_1771641997727_65": {
+      "title": "9 × 12 = 108",
+      "strategy": "9 × 12 = 108. Astuce de la table de 9 : 12 × 9 = 12 × 10 − 12 = 120 − 12 = 108. Aussi : les chiffres du résultat s'additionnent pour faire 9 (10 + 8 = 18).",
+      "hint": "12 × 10 − 12"
+    },
+    "cmath_1771641997727_66": {
+      "title": "10 × 1 = 10",
+      "strategy": "10 × 1 = 10. Tout nombre multiplié par 1 reste identique. C'est l'élément neutre de la multiplication.",
+      "hint": "× 1 = le nombre lui-même"
+    },
+    "cmath_1771641997727_67": {
+      "title": "10 × 2 = 20",
+      "strategy": "10 × 2 = 20. C'est le double de 10 : 10 + 10 = 20.",
+      "hint": "Double de 10"
+    },
+    "cmath_1771641997727_68": {
+      "title": "10 × 3 = 30",
+      "strategy": "10 × 3 = 30. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 30 = 30.",
+      "hint": "Ajouter un 0 : 3 → 30"
+    },
+    "cmath_1771641997727_69": {
+      "title": "10 × 4 = 40",
+      "strategy": "10 × 4 = 40. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 40 = 40.",
+      "hint": "Ajouter un 0 : 4 → 40"
+    },
+    "cmath_1771641997727_70": {
+      "title": "10 × 5 = 50",
+      "strategy": "10 × 5 = 50. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 50 = 50.",
+      "hint": "Ajouter un 0 : 5 → 50"
+    },
+    "cmath_1771641997727_71": {
+      "title": "10 × 6 = 60",
+      "strategy": "10 × 6 = 60. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 60 = 60.",
+      "hint": "Ajouter un 0 : 6 → 60"
+    },
+    "cmath_1771641997727_72": {
+      "title": "10 × 7 = 70",
+      "strategy": "10 × 7 = 70. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 70 = 70.",
+      "hint": "Ajouter un 0 : 7 → 70"
+    },
+    "cmath_1771641997727_73": {
+      "title": "10 × 8 = 80",
+      "strategy": "10 × 8 = 80. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 80 = 80.",
+      "hint": "Ajouter un 0 : 8 → 80"
+    },
+    "cmath_1771641997727_74": {
+      "title": "10 × 9 = 90",
+      "strategy": "10 × 9 = 90. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 90 = 90.",
+      "hint": "Ajouter un 0 : 9 → 90"
+    },
+    "cmath_1771641997727_75": {
+      "title": "10 × 10 = 100",
+      "strategy": "10 × 10 = 100. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 100 = 100.",
+      "hint": "Ajouter un 0 : 10 → 100"
+    },
+    "cmath_1771641997727_76": {
+      "title": "10 × 11 = 110",
+      "strategy": "10 × 11 = 110. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 110 = 110.",
+      "hint": "Ajouter un 0 : 11 → 110"
+    },
+    "cmath_1771641997727_77": {
+      "title": "10 × 12 = 120",
+      "strategy": "10 × 12 = 120. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 120 = 120.",
+      "hint": "Ajouter un 0 : 12 → 120"
+    },
+    "cmath_1771641997727_78": {
+      "title": "11 × 1 = 11",
+      "strategy": "11 × 1 = 11. Tout nombre multiplié par 1 reste identique. C'est l'élément neutre de la multiplication.",
+      "hint": "× 1 = le nombre lui-même"
+    },
+    "cmath_1771641997727_79": {
+      "title": "11 × 2 = 22",
+      "strategy": "11 × 2 = 22. C'est le double de 11 : 11 + 11 = 22.",
+      "hint": "Double de 11"
+    },
+    "cmath_1771641997727_80": {
+      "title": "11 × 3 = 33",
+      "strategy": "11 × 3 = 33. Astuce pour la table de 11 : jusqu'à 9, on double le chiffre : 33 → mais vérifie ! 11 × 3 = 33.",
+      "hint": "11 × 10 + 11"
+    },
+    "cmath_1771641997727_81": {
+      "title": "11 × 4 = 44",
+      "strategy": "11 × 4 = 44. Astuce pour la table de 11 : jusqu'à 9, on double le chiffre : 44 → mais vérifie ! 11 × 4 = 44.",
+      "hint": "11 × 10 + 11"
+    },
+    "cmath_1771641997727_82": {
+      "title": "11 × 5 = 55",
+      "strategy": "11 × 5 = 55. Astuce pour la table de 11 : jusqu'à 9, on double le chiffre : 55 → mais vérifie ! 11 × 5 = 55.",
+      "hint": "11 × 10 + 11"
+    },
+    "cmath_1771641997727_83": {
+      "title": "11 × 6 = 66",
+      "strategy": "11 × 6 = 66. Astuce pour la table de 11 : jusqu'à 9, on double le chiffre : 66 → mais vérifie ! 11 × 6 = 66.",
+      "hint": "11 × 10 + 11"
+    },
+    "cmath_1771641997727_84": {
+      "title": "11 × 7 = 77",
+      "strategy": "11 × 7 = 77. Astuce pour la table de 11 : jusqu'à 9, on double le chiffre : 77 → mais vérifie ! 11 × 7 = 77.",
+      "hint": "11 × 10 + 11"
+    },
+    "cmath_1771641997727_85": {
+      "title": "11 × 8 = 88",
+      "strategy": "11 × 8 = 88. Astuce pour la table de 11 : jusqu'à 9, on double le chiffre : 88 → mais vérifie ! 11 × 8 = 88.",
+      "hint": "11 × 10 + 11"
+    },
+    "cmath_1771641997727_86": {
+      "title": "11 × 9 = 99",
+      "strategy": "11 × 9 = 99. Astuce pour la table de 11 : jusqu'à 9, on double le chiffre : 99 → mais vérifie ! 11 × 9 = 99.",
+      "hint": "11 × 10 + 11"
+    },
+    "cmath_1771641997727_87": {
+      "title": "11 × 10 = 110",
+      "strategy": "11 × 10 = 110. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 110 = 110.",
+      "hint": "Ajouter un 0 : 11 → 110"
+    },
+    "cmath_1771641997727_88": {
+      "title": "11 × 11 = 121",
+      "strategy": "11 × 11 = 121. Décompose : 11 × 11 = 11 × 10 + 11 = 110 + 11 = 121.",
+      "hint": "11 × 10 + 11"
+    },
+    "cmath_1771641997727_89": {
+      "title": "11 × 12 = 132",
+      "strategy": "11 × 12 = 132. Décompose : 11 × 12 = 11 × 10 + 11 = 110 + 11 = 132.",
+      "hint": "11 × 10 + 11"
+    },
+    "cmath_1771641997727_90": {
+      "title": "12 × 1 = 12",
+      "strategy": "12 × 1 = 12. Tout nombre multiplié par 1 reste identique. C'est l'élément neutre de la multiplication.",
+      "hint": "× 1 = le nombre lui-même"
+    },
+    "cmath_1771641997727_91": {
+      "title": "12 × 2 = 24",
+      "strategy": "12 × 2 = 24. C'est le double de 12 : 12 + 12 = 24.",
+      "hint": "Double de 12"
+    },
+    "cmath_1771641997727_92": {
+      "title": "12 × 3 = 36",
+      "strategy": "12 × 3 = 36. Décompose : 3 × 12 = 3 × 10 + 3 × 2 = 30 + 6 = 36.",
+      "hint": "3 × 10 + 3 × 2"
+    },
+    "cmath_1771641997727_93": {
+      "title": "12 × 4 = 48",
+      "strategy": "12 × 4 = 48. Décompose : 4 × 12 = 4 × 10 + 4 × 2 = 40 + 8 = 48.",
+      "hint": "4 × 10 + 4 × 2"
+    },
+    "cmath_1771641997727_94": {
+      "title": "12 × 5 = 60",
+      "strategy": "12 × 5 = 60. La table de 5 finit toujours par 0 ou 5. Nombre pair × 5 finit par 0.",
+      "hint": "Table de 5 → finit par 0"
+    },
+    "cmath_1771641997727_95": {
+      "title": "12 × 6 = 72",
+      "strategy": "12 × 6 = 72. Décompose : 6 × 12 = 6 × 10 + 6 × 2 = 60 + 12 = 72.",
+      "hint": "6 × 10 + 6 × 2"
+    },
+    "cmath_1771641997727_96": {
+      "title": "12 × 7 = 84",
+      "strategy": "12 × 7 = 84. Décompose : 7 × 12 = 7 × 10 + 7 × 2 = 70 + 14 = 84.",
+      "hint": "7 × 10 + 7 × 2"
+    },
+    "cmath_1771641997727_97": {
+      "title": "12 × 8 = 96",
+      "strategy": "12 × 8 = 96. Décompose : 8 × 12 = 8 × 10 + 8 × 2 = 80 + 16 = 96.",
+      "hint": "8 × 10 + 8 × 2"
+    },
+    "cmath_1771641997727_98": {
+      "title": "12 × 9 = 108",
+      "strategy": "12 × 9 = 108. Astuce de la table de 9 : 12 × 9 = 12 × 10 − 12 = 120 − 12 = 108. Aussi : les chiffres du résultat s'additionnent pour faire 9 (10 + 8 = 18).",
+      "hint": "12 × 10 − 12"
+    },
+    "cmath_1771641997727_99": {
+      "title": "12 × 10 = 120",
+      "strategy": "12 × 10 = 120. Pour multiplier par 10, il suffit d'ajouter un 0 à droite du nombre : 120 = 120.",
+      "hint": "Ajouter un 0 : 12 → 120"
+    },
+    "cmath_1771641997727_100": {
+      "title": "12 × 11 = 132",
+      "strategy": "12 × 11 = 132. Décompose : 12 × 11 = 12 × 10 + 12 = 120 + 12 = 132.",
+      "hint": "12 × 10 + 12"
+    },
+    "cmath_1771641997727_101": {
+      "title": "12 × 12 = 144",
+      "strategy": "12 × 12 = 144. C'est un carré parfait ! 12 rangées de 12 = 144. Ou : 12 × 11 + 12 = 132 + 12 = 144.",
+      "hint": "Carré de 12"
+    },
+    "cmath_1771641997727_102": {
+      "title": "1 + 1 = 2",
+      "strategy": "1 + 1 = 2. C'est un double ! 1 + 1 = 2. Les doubles sont faciles à retenir.",
+      "hint": "Double de 1"
+    },
+    "cmath_1771641997727_103": {
+      "title": "1 + 2 = 3",
+      "strategy": "1 + 2 = 3. Compte sur tes doigts ou utilise une droite numérique : pars de 1 et avance de 2.",
+      "hint": "Pars de 1, avance de 2"
+    },
+    "cmath_1771641997727_104": {
+      "title": "1 + 3 = 4",
+      "strategy": "1 + 3 = 4. Compte sur tes doigts ou utilise une droite numérique : pars de 1 et avance de 3.",
+      "hint": "Pars de 1, avance de 3"
+    },
+    "cmath_1771641997727_105": {
+      "title": "1 + 4 = 5",
+      "strategy": "1 + 4 = 5. Compte sur tes doigts ou utilise une droite numérique : pars de 1 et avance de 4.",
+      "hint": "Pars de 1, avance de 4"
+    },
+    "cmath_1771641997727_106": {
+      "title": "1 + 5 = 6",
+      "strategy": "1 + 5 = 6. Compte sur tes doigts ou utilise une droite numérique : pars de 1 et avance de 5.",
+      "hint": "Pars de 1, avance de 5"
+    },
+    "cmath_1771641997727_107": {
+      "title": "2 + 2 = 4",
+      "strategy": "2 + 2 = 4. C'est un double ! 2 + 2 = 4. Les doubles sont faciles à retenir.",
+      "hint": "Double de 2"
+    },
+    "cmath_1771641997727_108": {
+      "title": "2 + 3 = 5",
+      "strategy": "2 + 3 = 5. Compte sur tes doigts ou utilise une droite numérique : pars de 2 et avance de 3.",
+      "hint": "Pars de 2, avance de 3"
+    },
+    "cmath_1771641997727_109": {
+      "title": "2 + 4 = 6",
+      "strategy": "2 + 4 = 6. Compte sur tes doigts ou utilise une droite numérique : pars de 2 et avance de 4.",
+      "hint": "Pars de 2, avance de 4"
+    },
+    "cmath_1771641997727_110": {
+      "title": "2 + 5 = 7",
+      "strategy": "2 + 5 = 7. Compte sur tes doigts ou utilise une droite numérique : pars de 2 et avance de 5.",
+      "hint": "Pars de 2, avance de 5"
+    },
+    "cmath_1771641997727_111": {
+      "title": "2 + 6 = 8",
+      "strategy": "2 + 6 = 8. Compte sur tes doigts ou utilise une droite numérique : pars de 2 et avance de 6.",
+      "hint": "Pars de 2, avance de 6"
+    },
+    "cmath_1771641997727_112": {
+      "title": "3 + 3 = 6",
+      "strategy": "3 + 3 = 6. C'est un double ! 3 + 3 = 6. Les doubles sont faciles à retenir.",
+      "hint": "Double de 3"
+    },
+    "cmath_1771641997727_113": {
+      "title": "3 + 5 = 8",
+      "strategy": "3 + 5 = 8. Compte sur tes doigts ou utilise une droite numérique : pars de 3 et avance de 5.",
+      "hint": "Pars de 3, avance de 5"
+    },
+    "cmath_1771641997727_114": {
+      "title": "3 + 6 = 9",
+      "strategy": "3 + 6 = 9. Compte sur tes doigts ou utilise une droite numérique : pars de 3 et avance de 6.",
+      "hint": "Pars de 3, avance de 6"
+    },
+    "cmath_1771641997727_115": {
+      "title": "3 + 7 = 10",
+      "strategy": "3 + 7 = 10. Ce sont des compléments à 10 ! Retiens les paires qui font 10 : 1+9, 2+8, 3+7, 4+6, 5+5.",
+      "hint": "Compléments à 10"
+    },
+    "cmath_1771641997727_116": {
+      "title": "4 + 4 = 8",
+      "strategy": "4 + 4 = 8. C'est un double ! 4 + 4 = 8. Les doubles sont faciles à retenir.",
+      "hint": "Double de 4"
+    },
+    "cmath_1771641997727_117": {
+      "title": "4 + 5 = 9",
+      "strategy": "4 + 5 = 9. Compte sur tes doigts ou utilise une droite numérique : pars de 4 et avance de 5.",
+      "hint": "Pars de 4, avance de 5"
+    },
+    "cmath_1771641997727_118": {
+      "title": "4 + 6 = 10",
+      "strategy": "4 + 6 = 10. Ce sont des compléments à 10 ! Retiens les paires qui font 10 : 1+9, 2+8, 3+7, 4+6, 5+5.",
+      "hint": "Compléments à 10"
+    },
+    "cmath_1771641997727_119": {
+      "title": "5 + 5 = 10",
+      "strategy": "5 + 5 = 10. C'est un double ! 5 + 5 = 10. Les doubles sont faciles à retenir.",
+      "hint": "Double de 5"
+    },
+    "cmath_1771641997727_120": {
+      "title": "5 + 6 = 11",
+      "strategy": "5 + 6 = 11. Passe par 10 : 6 + 4 = 10, puis 10 + 1 = 11.",
+      "hint": "Passer par 10"
+    },
+    "cmath_1771641997727_121": {
+      "title": "6 + 4 = 10",
+      "strategy": "6 + 4 = 10. Ce sont des compléments à 10 ! Retiens les paires qui font 10 : 1+9, 2+8, 3+7, 4+6, 5+5.",
+      "hint": "Compléments à 10"
+    },
+    "cmath_1771641997727_122": {
+      "title": "7 + 3 = 10",
+      "strategy": "7 + 3 = 10. Ce sont des compléments à 10 ! Retiens les paires qui font 10 : 1+9, 2+8, 3+7, 4+6, 5+5.",
+      "hint": "Compléments à 10"
+    },
+    "cmath_1771641997727_123": {
+      "title": "8 + 2 = 10",
+      "strategy": "8 + 2 = 10. Ce sont des compléments à 10 ! Retiens les paires qui font 10 : 1+9, 2+8, 3+7, 4+6, 5+5.",
+      "hint": "Compléments à 10"
+    },
+    "cmath_1771641997727_124": {
+      "title": "9 + 1 = 10",
+      "strategy": "9 + 1 = 10. Ce sont des compléments à 10 ! Retiens les paires qui font 10 : 1+9, 2+8, 3+7, 4+6, 5+5.",
+      "hint": "Compléments à 10"
+    },
+    "cmath_1771641997727_125": {
+      "title": "6 + 6 = 12",
+      "strategy": "6 + 6 = 12. C'est un double ! 6 + 6 = 12. Les doubles sont faciles à retenir.",
+      "hint": "Double de 6"
+    },
+    "cmath_1771641997727_126": {
+      "title": "7 + 5 = 12",
+      "strategy": "7 + 5 = 12. Passe par 10 : 7 + 3 = 10, puis 10 + 2 = 12.",
+      "hint": "Passer par 10"
+    },
+    "cmath_1771641997727_127": {
+      "title": "8 + 4 = 12",
+      "strategy": "8 + 4 = 12. Passe par 10 : 8 + 2 = 10, puis 10 + 2 = 12.",
+      "hint": "Passer par 10"
+    },
+    "cmath_1771641997727_128": {
+      "title": "9 + 3 = 12",
+      "strategy": "9 + 3 = 12. Passe par 10 : 9 + 1 = 10, puis 10 + 2 = 12.",
+      "hint": "Passer par 10"
+    },
+    "cmath_1771641997727_129": {
+      "title": "7 + 7 = 14",
+      "strategy": "7 + 7 = 14. C'est un double ! 7 + 7 = 14. Les doubles sont faciles à retenir.",
+      "hint": "Double de 7"
+    },
+    "cmath_1771641997727_130": {
+      "title": "8 + 6 = 14",
+      "strategy": "8 + 6 = 14. Passe par 10 : 8 + 2 = 10, puis 10 + 4 = 14.",
+      "hint": "Passer par 10"
+    },
+    "cmath_1771641997727_131": {
+      "title": "12 + 15 = 27",
+      "strategy": "12 + 15 = 27. Décompose : 10 + 10 = 20, puis 2 + 5 = 7. Total : 27 = 27.",
+      "hint": "Dizaines + unités séparément"
+    },
+    "cmath_1771641997727_132": {
+      "title": "18 + 14 = 32",
+      "strategy": "18 + 14 = 32. Décompose : 10 + 10 = 20, puis 8 + 4 = 12. Total : 20 + 12 = 32. Attention à la retenue !",
+      "hint": "20 + 12 (retenue)"
+    },
+    "cmath_1771641997727_133": {
+      "title": "23 + 19 = 42",
+      "strategy": "23 + 19 = 42. Décompose : 20 + 10 = 30, puis 3 + 9 = 12. Total : 30 + 12 = 42. Attention à la retenue !",
+      "hint": "30 + 12 (retenue)"
+    },
+    "cmath_1771641997727_134": {
+      "title": "25 + 25 = 50",
+      "strategy": "25 + 25 = 50. C'est un double ! 25 + 25 = 50. Les doubles sont faciles à retenir.",
+      "hint": "Double de 25"
+    },
+    "cmath_1771641997727_135": {
+      "title": "30 + 17 = 47",
+      "strategy": "30 + 17 = 47. Décompose : 30 + 10 = 40, puis 0 + 7 = 7. Total : 47 = 47.",
+      "hint": "Dizaines + unités séparément"
+    },
+    "cmath_1771641997727_136": {
+      "title": "35 + 28 = 63",
+      "strategy": "35 + 28 = 63. Décompose : 30 + 20 = 50, puis 5 + 8 = 13. Total : 50 + 13 = 63. Attention à la retenue !",
+      "hint": "50 + 13 (retenue)"
+    },
+    "cmath_1771641997727_137": {
+      "title": "42 + 36 = 78",
+      "strategy": "42 + 36 = 78. Décompose : 40 + 30 = 70, puis 2 + 6 = 8. Total : 78 = 78.",
+      "hint": "Dizaines + unités séparément"
+    },
+    "cmath_1771641997727_138": {
+      "title": "50 + 25 = 75",
+      "strategy": "50 + 25 = 75. Décompose : 50 + 20 = 70, puis 0 + 5 = 5. Total : 75 = 75.",
+      "hint": "Dizaines + unités séparément"
+    },
+    "cmath_1771641997727_139": {
+      "title": "15 + 27 = 42",
+      "strategy": "15 + 27 = 42. Décompose : 10 + 20 = 30, puis 5 + 7 = 12. Total : 30 + 12 = 42. Attention à la retenue !",
+      "hint": "30 + 12 (retenue)"
+    },
+    "cmath_1771641997727_140": {
+      "title": "33 + 44 = 77",
+      "strategy": "33 + 44 = 77. Décompose : 30 + 40 = 70, puis 3 + 4 = 7. Total : 77 = 77.",
+      "hint": "Dizaines + unités séparément"
+    },
+    "cmath_1771641997727_141": {
+      "title": "27 + 18 = 45",
+      "strategy": "27 + 18 = 45. Décompose : 20 + 10 = 30, puis 7 + 8 = 15. Total : 30 + 15 = 45. Attention à la retenue !",
+      "hint": "30 + 15 (retenue)"
+    },
+    "cmath_1771641997727_142": {
+      "title": "45 + 35 = 80",
+      "strategy": "45 + 35 = 80. Décompose : 40 + 30 = 70, puis 5 + 5 = 10. Total : 70 + 10 = 80. Attention à la retenue !",
+      "hint": "70 + 10 (retenue)"
+    },
+    "cmath_1771641997727_143": {
+      "title": "38 + 22 = 60",
+      "strategy": "38 + 22 = 60. Décompose : 30 + 20 = 50, puis 8 + 2 = 10. Total : 50 + 10 = 60. Attention à la retenue !",
+      "hint": "50 + 10 (retenue)"
+    },
+    "cmath_1771641997727_144": {
+      "title": "56 + 14 = 70",
+      "strategy": "56 + 14 = 70. Décompose : 50 + 10 = 60, puis 6 + 4 = 10. Total : 60 + 10 = 70. Attention à la retenue !",
+      "hint": "60 + 10 (retenue)"
+    },
+    "cmath_1771641997727_145": {
+      "title": "61 + 29 = 90",
+      "strategy": "61 + 29 = 90. Décompose : 60 + 20 = 80, puis 1 + 9 = 10. Total : 80 + 10 = 90. Attention à la retenue !",
+      "hint": "80 + 10 (retenue)"
+    },
+    "cmath_1771641997727_146": {
+      "title": "48 + 32 = 80",
+      "strategy": "48 + 32 = 80. Décompose : 40 + 30 = 70, puis 8 + 2 = 10. Total : 70 + 10 = 80. Attention à la retenue !",
+      "hint": "70 + 10 (retenue)"
+    },
+    "cmath_1771641997727_147": {
+      "title": "10 − 3 = 7",
+      "strategy": "10 − 3 = 7. Pense à l'addition inverse : 7 + 3 = 10. Si tu connais l'addition, tu connais la soustraction !",
+      "hint": "7 + 3 = 10"
+    },
+    "cmath_1771641997727_148": {
+      "title": "10 − 5 = 5",
+      "strategy": "10 − 5 = 5. Pense à l'addition inverse : 5 + 5 = 10. Si tu connais l'addition, tu connais la soustraction !",
+      "hint": "5 + 5 = 10"
+    },
+    "cmath_1771641997727_149": {
+      "title": "10 − 7 = 3",
+      "strategy": "10 − 7 = 3. Pense à l'addition inverse : 3 + 7 = 10. Si tu connais l'addition, tu connais la soustraction !",
+      "hint": "3 + 7 = 10"
+    },
+    "cmath_1771641997727_150": {
+      "title": "12 − 4 = 8",
+      "strategy": "12 − 4 = 8. Pense à l'addition inverse : 8 + 4 = 12. Si tu connais l'addition, tu connais la soustraction !",
+      "hint": "8 + 4 = 12"
+    },
+    "cmath_1771641997727_151": {
+      "title": "12 − 8 = 4",
+      "strategy": "12 − 8 = 4. Pense à l'addition inverse : 4 + 8 = 12. Si tu connais l'addition, tu connais la soustraction !",
+      "hint": "4 + 8 = 12"
+    },
+    "cmath_1771641997727_152": {
+      "title": "15 − 6 = 9",
+      "strategy": "15 − 6 = 9. Pense à l'addition inverse : 9 + 6 = 15. Si tu connais l'addition, tu connais la soustraction !",
+      "hint": "9 + 6 = 15"
+    },
+    "cmath_1771641997727_153": {
+      "title": "15 − 9 = 6",
+      "strategy": "15 − 9 = 6. Pense à l'addition inverse : 6 + 9 = 15. Si tu connais l'addition, tu connais la soustraction !",
+      "hint": "6 + 9 = 15"
+    },
+    "cmath_1771641997727_154": {
+      "title": "18 − 7 = 11",
+      "strategy": "18 − 7 = 11. Pense à l'addition inverse : 11 + 7 = 18. Si tu connais l'addition, tu connais la soustraction !",
+      "hint": "11 + 7 = 18"
+    },
+    "cmath_1771641997727_155": {
+      "title": "20 − 8 = 12",
+      "strategy": "20 − 8 = 12. Pense à l'addition inverse : 12 + 8 = 20. Si tu connais l'addition, tu connais la soustraction !",
+      "hint": "12 + 8 = 20"
+    },
+    "cmath_1771641997727_156": {
+      "title": "20 − 12 = 8",
+      "strategy": "20 − 12 = 8. Avec retenue : pense à « combien faut-il ajouter à 12 pour obtenir 20 ? ». Compte de 12 à 20 : +8. Ou décompose : 20 − 10 = 10, puis 10 − 2 = 8.",
+      "hint": "De 12 à 20, il y a 8"
+    },
+    "cmath_1771641997727_157": {
+      "title": "14 − 5 = 9",
+      "strategy": "14 − 5 = 9. Pense à l'addition inverse : 9 + 5 = 14. Si tu connais l'addition, tu connais la soustraction !",
+      "hint": "9 + 5 = 14"
+    },
+    "cmath_1771641997727_158": {
+      "title": "16 − 9 = 7",
+      "strategy": "16 − 9 = 7. Pense à l'addition inverse : 7 + 9 = 16. Si tu connais l'addition, tu connais la soustraction !",
+      "hint": "7 + 9 = 16"
+    },
+    "cmath_1771641997727_159": {
+      "title": "13 − 6 = 7",
+      "strategy": "13 − 6 = 7. Pense à l'addition inverse : 7 + 6 = 13. Si tu connais l'addition, tu connais la soustraction !",
+      "hint": "7 + 6 = 13"
+    },
+    "cmath_1771641997727_160": {
+      "title": "17 − 8 = 9",
+      "strategy": "17 − 8 = 9. Pense à l'addition inverse : 9 + 8 = 17. Si tu connais l'addition, tu connais la soustraction !",
+      "hint": "9 + 8 = 17"
+    },
+    "cmath_1771641997727_161": {
+      "title": "19 − 11 = 8",
+      "strategy": "19 − 11 = 8. Sans retenue : dizaines 1 − 1 = 0, unités 9 − 1 = 8. Résultat : 8.",
+      "hint": "Dizaines et unités séparément"
+    },
+    "cmath_1771641997727_162": {
+      "title": "11 − 4 = 7",
+      "strategy": "11 − 4 = 7. Pense à l'addition inverse : 7 + 4 = 11. Si tu connais l'addition, tu connais la soustraction !",
+      "hint": "7 + 4 = 11"
+    },
+    "cmath_1771641997727_163": {
+      "title": "50 − 23 = 27",
+      "strategy": "50 − 23 = 27. Avec retenue : pense à « combien faut-il ajouter à 23 pour obtenir 50 ? ». Compte de 23 à 50 : +27. Ou décompose : 50 − 20 = 30, puis 30 − 3 = 27.",
+      "hint": "De 23 à 50, il y a 27"
+    },
+    "cmath_1771641997727_164": {
+      "title": "45 − 18 = 27",
+      "strategy": "45 − 18 = 27. Avec retenue : pense à « combien faut-il ajouter à 18 pour obtenir 45 ? ». Compte de 18 à 45 : +27. Ou décompose : 45 − 10 = 35, puis 35 − 8 = 27.",
+      "hint": "De 18 à 45, il y a 27"
+    },
+    "cmath_1771641997727_165": {
+      "title": "60 − 35 = 25",
+      "strategy": "60 − 35 = 25. Avec retenue : pense à « combien faut-il ajouter à 35 pour obtenir 60 ? ». Compte de 35 à 60 : +25. Ou décompose : 60 − 30 = 30, puis 30 − 5 = 25.",
+      "hint": "De 35 à 60, il y a 25"
+    },
+    "cmath_1771641997727_166": {
+      "title": "72 − 29 = 43",
+      "strategy": "72 − 29 = 43. Avec retenue : pense à « combien faut-il ajouter à 29 pour obtenir 72 ? ». Compte de 29 à 72 : +43. Ou décompose : 72 − 20 = 52, puis 52 − 9 = 43.",
+      "hint": "De 29 à 72, il y a 43"
+    },
+    "cmath_1771641997727_167": {
+      "title": "80 − 47 = 33",
+      "strategy": "80 − 47 = 33. Avec retenue : pense à « combien faut-il ajouter à 47 pour obtenir 80 ? ». Compte de 47 à 80 : +33. Ou décompose : 80 − 40 = 40, puis 40 − 7 = 33.",
+      "hint": "De 47 à 80, il y a 33"
+    },
+    "cmath_1771641997727_168": {
+      "title": "55 − 28 = 27",
+      "strategy": "55 − 28 = 27. Avec retenue : pense à « combien faut-il ajouter à 28 pour obtenir 55 ? ». Compte de 28 à 55 : +27. Ou décompose : 55 − 20 = 35, puis 35 − 8 = 27.",
+      "hint": "De 28 à 55, il y a 27"
+    },
+    "cmath_1771641997727_169": {
+      "title": "68 − 39 = 29",
+      "strategy": "68 − 39 = 29. Avec retenue : pense à « combien faut-il ajouter à 39 pour obtenir 68 ? ». Compte de 39 à 68 : +29. Ou décompose : 68 − 30 = 38, puis 38 − 9 = 29.",
+      "hint": "De 39 à 68, il y a 29"
+    },
+    "cmath_1771641997727_170": {
+      "title": "75 − 46 = 29",
+      "strategy": "75 − 46 = 29. Avec retenue : pense à « combien faut-il ajouter à 46 pour obtenir 75 ? ». Compte de 46 à 75 : +29. Ou décompose : 75 − 40 = 35, puis 35 − 6 = 29.",
+      "hint": "De 46 à 75, il y a 29"
+    },
+    "cmath_1771641997727_171": {
+      "title": "90 − 54 = 36",
+      "strategy": "90 − 54 = 36. Avec retenue : pense à « combien faut-il ajouter à 54 pour obtenir 90 ? ». Compte de 54 à 90 : +36. Ou décompose : 90 − 50 = 40, puis 40 − 4 = 36.",
+      "hint": "De 54 à 90, il y a 36"
+    },
+    "cmath_1771641997727_172": {
+      "title": "100 − 37 = 63",
+      "strategy": "100 − 37 = 63. Avec retenue : pense à « combien faut-il ajouter à 37 pour obtenir 100 ? ». Compte de 37 à 100 : +63. Ou décompose : 100 − 30 = 70, puis 70 − 7 = 63.",
+      "hint": "De 37 à 100, il y a 63"
+    },
+    "cmath_1771641997727_173": {
+      "title": "85 − 48 = 37",
+      "strategy": "85 − 48 = 37. Avec retenue : pense à « combien faut-il ajouter à 48 pour obtenir 85 ? ». Compte de 48 à 85 : +37. Ou décompose : 85 − 40 = 45, puis 45 − 8 = 37.",
+      "hint": "De 48 à 85, il y a 37"
+    },
+    "cmath_1771641997727_174": {
+      "title": "63 − 27 = 36",
+      "strategy": "63 − 27 = 36. Avec retenue : pense à « combien faut-il ajouter à 27 pour obtenir 63 ? ». Compte de 27 à 63 : +36. Ou décompose : 63 − 20 = 43, puis 43 − 7 = 36.",
+      "hint": "De 27 à 63, il y a 36"
+    },
+    "cmath_1771641997727_175": {
+      "title": "78 − 35 = 43",
+      "strategy": "78 − 35 = 43. Sans retenue : dizaines 7 − 3 = 4, unités 8 − 5 = 3. Résultat : 43.",
+      "hint": "Dizaines et unités séparément"
+    },
+    "cmath_1771641997727_176": {
+      "title": "95 − 58 = 37",
+      "strategy": "95 − 58 = 37. Avec retenue : pense à « combien faut-il ajouter à 58 pour obtenir 95 ? ». Compte de 58 à 95 : +37. Ou décompose : 95 − 50 = 45, puis 45 − 8 = 37.",
+      "hint": "De 58 à 95, il y a 37"
+    },
+    "cmath_1771641997727_177": {
+      "title": "42 − 19 = 23",
+      "strategy": "42 − 19 = 23. Avec retenue : pense à « combien faut-il ajouter à 19 pour obtenir 42 ? ». Compte de 19 à 42 : +23. Ou décompose : 42 − 10 = 32, puis 32 − 9 = 23.",
+      "hint": "De 19 à 42, il y a 23"
+    },
+    "cmath_1771641997727_178": {
+      "title": "67 − 34 = 33",
+      "strategy": "67 − 34 = 33. Sans retenue : dizaines 6 − 3 = 3, unités 7 − 4 = 3. Résultat : 33.",
+      "hint": "Dizaines et unités séparément"
     }
   }
 }

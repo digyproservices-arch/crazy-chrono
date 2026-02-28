@@ -14,8 +14,17 @@ function saveUserEdits(edits) {
 
 const FILTER_LABELS = {
   'domain:zoology': '🐾 Zoologie',
-  'domain:math': '🔢 Multiplications',
+  'domain:botany': '🌿 Botanique',
+  'category:table_': '✖️ Multiplications',
+  'category:addition': '➕ Additions',
+  'category:soustraction': '➖ Soustractions',
 };
+
+function matchFilter(themes, filterKey) {
+  if (filterKey === 'all') return true;
+  if (filterKey === 'category:table_') return themes.some(t => t.startsWith('category:table_'));
+  return themes.some(t => t === filterKey);
+}
 
 export default function LearnMode() {
   const navigate = useNavigate();
@@ -70,7 +79,8 @@ export default function LearnMode() {
       let key, type, element1, element2;
       if (isZoo) {
         key = `${assoc.texteId}:${assoc.imageId}`;
-        type = 'zoology';
+        const assocThemes = assoc.themes || [];
+        type = assocThemes.some(t => t === 'domain:botany' || t === 'botanique') ? 'botanique' : 'zoology';
         element1 = textMap[assoc.texteId];
         element2 = imgMap[assoc.imageId];
       } else {
@@ -101,7 +111,7 @@ export default function LearnMode() {
   // Filtered slides
   const filteredSlides = useMemo(() => {
     if (activeFilter === 'all') return slides;
-    return slides.filter(s => s.themes.some(t => t === activeFilter));
+    return slides.filter(s => matchFilter(s.themes, activeFilter));
   }, [slides, activeFilter]);
 
   // Reset index when filter changes
@@ -244,7 +254,7 @@ export default function LearnMode() {
           Tout ({slides.length})
         </button>
         {Object.entries(FILTER_LABELS).map(([key, label]) => {
-          const count = slides.filter(s => s.themes.some(t => t === key)).length;
+          const count = slides.filter(s => matchFilter(s.themes, key)).length;
           if (count === 0) return null;
           return (
             <button
@@ -275,7 +285,7 @@ export default function LearnMode() {
           >
             <div className="learn-mode__slide">
               {/* Image or Calcul header */}
-              {currentSlide.type === 'zoology' && currentSlide.element2 ? (
+              {(currentSlide.type === 'zoology' || currentSlide.type === 'botanique') && currentSlide.element2 ? (
                 <div className="learn-mode__slide-image-area">
                   <button className="learn-mode__edit-btn" onClick={() => openEdit(currentSlide)} title="Modifier">
                     ✏️
@@ -404,7 +414,7 @@ export default function LearnMode() {
                 placeholder="Comment trouver cette association ?"
               />
             </div>
-            {editingSlide.type === 'zoology' && (
+            {(editingSlide.type === 'zoology' || editingSlide.type === 'botanique') && (
               <div className="learn-mode__edit-field">
                 <label>🌿 Fait écologique</label>
                 <textarea
