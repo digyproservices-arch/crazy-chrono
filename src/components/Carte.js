@@ -6751,10 +6751,10 @@ setZones(dataWithRandomTexts);
                   { x: bbox.x + bbox.width - 18, y: bbox.y + bbox.height - 18 },
                 ];
                 const cardCenter = { x: 500, y: 500 };
-                let best = corners[0], bestDist = Infinity;
+                let best = corners[0], bestDist = 0;
                 for (const c of corners) {
                   const d = Math.hypot(c.x - cardCenter.x, c.y - cardCenter.y);
-                  if (d < bestDist) { bestDist = d; best = c; }
+                  if (d > bestDist) { bestDist = d; best = c; }
                 }
                 const lx = best.x, ly = best.y;
                 const raw = zone.content;
