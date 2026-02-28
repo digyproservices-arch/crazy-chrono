@@ -4235,25 +4235,36 @@ setZones(dataWithRandomTexts);
       // --- Post-traitement: garantir AU MOINS UNE association vraie ---
       function parseOperation(s) {
         if (!s) return null;
-        const str = String(s).trim().replace(/\s+/g, '').replace(/×/g, 'x').replace(/÷/g, '/');
-        const m = str.match(/^(-?\d+)([+\-x*\/:])(-?\d+)$/i);
-        if (!m) return null;
-        const a = parseInt(m[1], 10);
-        const op = m[2];
-        const b = parseInt(m[3], 10);
-        if (Number.isNaN(a) || Number.isNaN(b)) return null;
-        let result;
-        switch (op) {
-          case '+': result = a + b; break;
-          case '-': result = a - b; break;
-          case 'x':
-          case '*': result = a * b; break;
-          case '/': result = b !== 0 ? a / b : NaN; break;
-          case ':': result = b !== 0 ? a / b : NaN; break;
-          default: result = NaN;
+        const raw = String(s).trim();
+        const _pn = (t) => { const c = String(t).replace(/\s/g, '').replace(/,/g, '.'); const v = parseFloat(c); return Number.isFinite(v) ? v : NaN; };
+        const _r8 = (v) => Math.round(v * 1e8) / 1e8;
+        // Format textuel: "le/la double/moitié/tiers/quart/triple de X"
+        const tm = raw.match(/^l[ea]\s+(double|triple|tiers|quart|moiti[ée])\s+de\s+(.+)$/i);
+        if (tm) {
+          const k = tm[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+          const v = _pn(tm[2]); if (Number.isNaN(v)) return null;
+          let r; switch (k) { case 'double': r = v * 2; break; case 'triple': r = v * 3; break; case 'moitie': r = v / 2; break; case 'tiers': r = v / 3; break; case 'quart': r = v / 4; break; default: return null; }
+          return Number.isFinite(r) ? { a: v, b: null, op: k, result: _r8(r) } : null;
         }
-        if (!Number.isFinite(result)) return null;
-        return { a, b, op, result };
+        // Format "A op ? = C" (trouver l'inconnu)
+        const norm = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/');
+        const um = norm.match(/^(.+?)\s*([+\-*/])\s*\?\s*=\s*(.+)$/);
+        if (um) {
+          const a = _pn(um[1]), op = um[2], c = _pn(um[3]);
+          if (Number.isNaN(a) || Number.isNaN(c)) return null;
+          let r; switch (op) { case '+': r = c - a; break; case '-': r = a - c; break; case '*': r = a !== 0 ? c / a : NaN; break; case '/': r = c !== 0 ? a / c : NaN; break; default: return null; }
+          return Number.isFinite(r) ? { a, b: c, op, result: _r8(r) } : null;
+        }
+        // Format simple "A op B" (décimaux, espaces milliers)
+        const stripped = norm.replace(/\s/g, '').replace(/,/g, '.');
+        const sm = stripped.match(/^(-?[\d.]+)([+\-*/])(-?[\d.]+)$/);
+        if (sm) {
+          const a = parseFloat(sm[1]), op = sm[2], b = parseFloat(sm[3]);
+          if (Number.isNaN(a) || Number.isNaN(b)) return null;
+          let r; switch (op) { case '+': r = a + b; break; case '-': r = a - b; break; case '*': r = a * b; break; case '/': r = b !== 0 ? a / b : NaN; break; default: return null; }
+          return Number.isFinite(r) ? { a, b, op, result: _r8(r) } : null;
+        }
+        return null;
       }
       function randomDistractorText(exclude = []) {
         const pool = TEXTES_RANDOM.filter(t => !exclude.includes(t));
@@ -4905,11 +4916,12 @@ setZones(dataWithRandomTexts);
                     post[o.i] = { ...post[o.i], content: '', label: '', pairId: '' };
                   }
                 }
+                const _pcImg = (s) => { const v = parseFloat(String(s).replace(/\s/g, '').replace(/,/g, '.')); return Number.isFinite(v) ? Math.round(v * 1e8) / 1e8 : NaN; };
                 const pickNumberAvoidingPairsImgBranch = () => {
                   // Pass 1: éviter chiffres récents
                   const pool = allNums.filter(n => !usedNumIds.has(String(n.id)) && !usedNumContents.has(normNum(n.content)) && !recentNums.has(String(n.content)));
                   const safe = pool.filter(n => {
-                    const v = parseInt(String(n.content).replace(/\s+/g, ''), 10);
+                    const v = _pcImg(String(n.content));
                     if (Number.isFinite(v) && presentCalcResults.has(v)) return false;
                     for (const calcId of presentCalcIds) {
                       if (calcNumPairs.has(`${calcId}|${n.id}`)) return false;
@@ -4920,7 +4932,7 @@ setZones(dataWithRandomTexts);
                   // Pass 2: si épuisé, autoriser réutilisation
                   const pool2 = allNums.filter(n => !usedNumIds.has(String(n.id)) && !usedNumContents.has(normNum(n.content)));
                   const safe2 = pool2.filter(n => {
-                    const v = parseInt(String(n.content).replace(/\s+/g, ''), 10);
+                    const v = _pcImg(String(n.content));
                     if (Number.isFinite(v) && presentCalcResults.has(v)) return false;
                     for (const calcId of presentCalcIds) {
                       if (calcNumPairs.has(`${calcId}|${n.id}`)) return false;
@@ -4990,8 +5002,9 @@ setZones(dataWithRandomTexts);
                 const existingNumContents = new Set(
                   post.filter(z => normType(z?.type) === 'chiffre').map(z => String(z.content ?? '').trim())
                 );
+                const _parseChiffre = (s) => { const v = parseFloat(String(s).replace(/\s/g, '').replace(/,/g, '.')); return Number.isFinite(v) ? Math.round(v * 1e8) / 1e8 : NaN; };
                 const numbersOnCardSet = new Set(
-                  Array.from(existingNumContents).map(s => parseInt(String(s).replace(/\s+/g, ''), 10)).filter(n => Number.isFinite(n))
+                  Array.from(existingNumContents).map(s => _parseChiffre(s)).filter(n => Number.isFinite(n))
                 );
                 let filteredCalcsByResult = 0;
                 for (const o of calculsIdx) {
@@ -5051,7 +5064,7 @@ setZones(dataWithRandomTexts);
                   // Pass 1: éviter chiffres récents
                   const pool = allNums.filter(n => !usedNumIds.has(String(n.id)) && !recentNums.has(String(n.content)));
                   const safe = pool.filter(n => {
-                    const v = parseInt(String(n.content).replace(/\s+/g, ''), 10);
+                    const v = _parseChiffre(String(n.content));
                     if (Number.isFinite(v)) {
                       if (presentCalcResults.has(v)) return false;
                     }
@@ -5064,7 +5077,7 @@ setZones(dataWithRandomTexts);
                   // Pass 2: si épuisé, autoriser réutilisation
                   const pool2 = allNums.filter(n => !usedNumIds.has(String(n.id)));
                   const safe2 = pool2.filter(n => {
-                    const v = parseInt(String(n.content).replace(/\s+/g, ''), 10);
+                    const v = _parseChiffre(String(n.content));
                     if (Number.isFinite(v)) {
                       if (presentCalcResults.has(v)) return false;
                     }
@@ -5257,10 +5270,11 @@ setZones(dataWithRandomTexts);
         }
       }
       // Casser les vérités math: aucune opération ne doit égaler un nombre présent
+      const _pcFinal = (s) => { const v = parseFloat(String(s).replace(/\s/g, '').replace(/,/g, '.')); return Number.isFinite(v) ? Math.round(v * 1e8) / 1e8 : NaN; };
       const numbersOnCard = new Set(
         post
           .filter(z => z?.type === 'chiffre')
-          .map(z => parseInt(String(z.content).replace(/\s+/g, ''), 10))
+          .map(z => _pcFinal(String(z.content)))
           .filter(n => Number.isFinite(n))
       );
       post = post.map(z => {
