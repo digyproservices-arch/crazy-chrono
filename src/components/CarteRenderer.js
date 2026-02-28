@@ -304,12 +304,12 @@ export function CarteRenderer({
               // Pour les chiffres, garantir une taille minimale basée sur la moyenne
               const chiffreBaseMin = chiffreRefBase ? 0.95 * chiffreRefBase : base;
               const effectiveBase = (zone.type === 'chiffre') ? Math.max(base, chiffreBaseMin) : base;
-              const rawFontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * effectiveBase;
+              const rawFontSize = (zone.type === 'chiffre' ? 0.42 : 0.38) * effectiveBase;
               // Adapter la taille du texte pour qu'il reste dans la zone
               const contentStr = String(zone.content ?? '').trim();
-              const charW = 0.6;
-              const fitW = contentStr.length > 0 ? (bbox.width * 0.85) / (contentStr.length * charW) : rawFontSize;
-              const fitH = bbox.height * 0.7;
+              const charW = 0.52;
+              const fitW = contentStr.length > 0 ? (bbox.width * 0.92) / (contentStr.length * charW) : rawFontSize;
+              const fitH = bbox.height * 0.75;
               const fontSize = Math.max(10, Math.min(rawFontSize, fitW, fitH));
               
               const angle = Number(calcAngles[zone.id] || zone.angle || 0);
