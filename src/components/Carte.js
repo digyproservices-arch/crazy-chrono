@@ -3843,6 +3843,9 @@ const handleEditGreenZone = (zone) => {
   });
   const [topLinkUrl, setTopLinkUrl] = useState('https://example.com');
   const [copiedDebugZoneId, setCopiedDebugZoneId] = useState(null);
+  // Zoom preview pour agrandir les images en jeu
+  const [zoomPreviewSrc, setZoomPreviewSrc] = useState(null);
+  const zoomTimerRef = useRef(null);
   // Gestion des retries ciblés pour certaines images problématiques
   const [retryMap, setRetryMap] = useState({}); // { [contentPath]: retryCount }
   const problematicList = useRef(new Set([
@@ -6738,6 +6741,49 @@ setZones(dataWithRandomTexts);
                   }
                 }}
               />
+              {/* Loupe d'agrandissement image (uniquement en jeu) */}
+              {gameActive && zone.type === 'image' && zone.content && (() => {
+                const bbox = getZoneBoundingBox(zone.points);
+                const corners = [
+                  { x: bbox.x + 18, y: bbox.y + 18 },
+                  { x: bbox.x + bbox.width - 18, y: bbox.y + 18 },
+                  { x: bbox.x + 18, y: bbox.y + bbox.height - 18 },
+                  { x: bbox.x + bbox.width - 18, y: bbox.y + bbox.height - 18 },
+                ];
+                const cardCenter = { x: 500, y: 500 };
+                let best = corners[0], bestDist = Infinity;
+                for (const c of corners) {
+                  const d = Math.hypot(c.x - cardCenter.x, c.y - cardCenter.y);
+                  if (d < bestDist) { bestDist = d; best = c; }
+                }
+                const lx = best.x, ly = best.y;
+                const raw = zone.content;
+                const normalized = raw.startsWith('http')
+                  ? raw
+                  : process.env.PUBLIC_URL + '/' + (raw.startsWith('/')
+                    ? raw.slice(1)
+                    : (raw.startsWith('images/') ? raw : 'images/' + raw));
+                const imgSrc = encodeURI(normalized)
+                  .replace(/ /g, '%20')
+                  .replace(/\(/g, '%28')
+                  .replace(/\)/g, '%29');
+                return (
+                  <g
+                    style={{ cursor: 'pointer' }}
+                    pointerEvents="all"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (zoomTimerRef.current) clearTimeout(zoomTimerRef.current);
+                      setZoomPreviewSrc(imgSrc);
+                      zoomTimerRef.current = setTimeout(() => setZoomPreviewSrc(null), 2000);
+                    }}
+                  >
+                    <circle cx={lx} cy={ly} r={16} fill="rgba(0,0,0,0.5)" stroke="rgba(255,255,255,0.85)" strokeWidth={1.5} />
+                    <circle cx={lx - 2} cy={ly - 2} r={5.5} fill="none" stroke="#fff" strokeWidth={1.8} />
+                    <line x1={lx + 2} y1={ly + 2} x2={lx + 7} y2={ly + 7} stroke="#fff" strokeWidth={1.8} strokeLinecap="round" />
+                  </g>
+                );
+              })()}
               {zone.type === 'texte' && (
   <>
     {(() => {
@@ -7024,6 +7070,31 @@ setZones(dataWithRandomTexts);
           ))}
         </svg>
       </div>
+      {/* Popup zoom image (loupe) */}
+      {zoomPreviewSrc && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
+            cursor: 'pointer',
+          }}
+          onClick={() => {
+            setZoomPreviewSrc(null);
+            if (zoomTimerRef.current) { clearTimeout(zoomTimerRef.current); zoomTimerRef.current = null; }
+          }}
+        >
+          <img
+            src={zoomPreviewSrc}
+            alt="Aperçu"
+            style={{
+              maxWidth: '70vw', maxHeight: '70vh',
+              borderRadius: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              objectFit: 'contain',
+            }}
+          />
+        </div>
+      )}
       {/* Lobby / Multijoueur UI (masqué en mode solo) */}
       {socket && !hasSidebar && !isSoloMode && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(8px)' }}>
