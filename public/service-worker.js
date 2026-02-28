@@ -4,7 +4,7 @@
    Network-first pour les API
    ============================================ */
 
-const CACHE_NAME = 'crazy-chrono-v2';
+const CACHE_NAME = 'crazy-chrono-v3';
 
 // Assets à pré-cacher au moment de l'installation
 const PRECACHE_URLS = [
@@ -72,6 +72,20 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
+  // Pour les fichiers de données (JSON) : Network-first, fallback cache
+  if (url.pathname.startsWith('/data/')) {
+    event.respondWith(
+      fetch(event.request).then((response) => {
+        if (response && response.status === 200) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+        }
+        return response;
+      }).catch(() => caches.match(event.request))
     );
     return;
   }
