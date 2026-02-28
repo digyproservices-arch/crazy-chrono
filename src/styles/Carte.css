@@ -6,6 +6,26 @@ html, body, #root {
   height: 100%;
 }
 
+/* PWA fullscreen lock — active during gameplay via body.cc-game */
+body.cc-game {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-overflow-scrolling: auto;
+}
+body.cc-game #root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 /* Bandeau historique compact sous la HUD (mobile) */
 .mobile-history-strip {
   position: fixed;

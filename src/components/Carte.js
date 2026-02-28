@@ -1152,6 +1152,25 @@ const Carte = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [exitGameFullscreen]);
 
+  // PWA: block pull-to-refresh / overscroll during gameplay to prevent nav bar
+  useEffect(() => {
+    if (!fullScreen) return;
+    const prevent = (e) => {
+      if (window.scrollY <= 0 && e.touches && e.touches[0] && e.touches[0].clientY > (e.target._startY || 0)) {
+        e.preventDefault();
+      }
+    };
+    const saveY = (e) => {
+      if (e.touches && e.touches[0]) e.target._startY = e.touches[0].clientY;
+    };
+    document.addEventListener('touchstart', saveY, { passive: true });
+    document.addEventListener('touchmove', prevent, { passive: false });
+    return () => {
+      document.removeEventListener('touchstart', saveY);
+      document.removeEventListener('touchmove', prevent);
+    };
+  }, [fullScreen]);
+
   // Charger les thèmes actifs depuis la config (localStorage), et écouter les mises à jour
   useEffect(() => {
     const loadThemes = () => {
