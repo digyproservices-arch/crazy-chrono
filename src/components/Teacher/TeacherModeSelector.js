@@ -169,6 +169,21 @@ const TeacherModeSelector = () => {
             VOIR STATS
           </button>
         </div>
+
+        <div className="mode-card" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', color: '#fff', borderColor: '#059669' }}>
+          <div className="mode-icon">📚</div>
+          <h2 style={{ color: '#fff' }}>MODE APPRENDRE</h2>
+          <p className="mode-description" style={{ color: 'rgba(255,255,255,0.9)' }}>
+            Révisez les associations avec stratégies et audio
+          </p>
+          <button 
+            className="mode-button"
+            style={{ background: '#fff', color: '#059669', fontWeight: 700 }}
+            onClick={() => navigate('/apprendre')}
+          >
+            APPRENDRE
+          </button>
+        </div>
       </div>
 
       <div className="mode-info">
