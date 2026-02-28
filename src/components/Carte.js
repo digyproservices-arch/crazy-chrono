@@ -1340,6 +1340,7 @@ const Carte = () => {
           if (trainingData.zones && Array.isArray(trainingData.zones)) {
             console.log('[TRAINING] 🎮 Chargement zones:', trainingData.zones.length);
             try { incidentValidateZones(trainingData.zones, { source: 'training:initial' }); } catch {}
+            try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: trainingData.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: trainingData.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
             setZones(trainingData.zones);
             // ✅ FIX: Synchroniser calcAngles depuis les angles serveur dès le chargement initial
             const initAngles = {};
@@ -1405,6 +1406,7 @@ const Carte = () => {
 
         if (Array.isArray(zones)) {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
+          try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: cleanZones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: cleanZones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
           setZones(cleanZones);
           // ✅ FIX: Synchroniser calcAngles depuis les angles serveur pour éviter que le localStorage ne les écrase
           const serverAngles = {};
@@ -1521,197 +1523,6 @@ const Carte = () => {
           countdownOverlay = document.createElement('div');
           countdownOverlay.id = 'arena-countdown-overlay';
           countdownOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;';
-          document.body.appendChild(countdownOverlay);
-        }
-        
-        // Afficher le chiffre ou GO!
-        countdownOverlay.innerHTML = `<div style="font-size:200px;font-weight:900;color:${count === 0 ? '#10b981' : '#f59e0b'};text-shadow:0 0 30px rgba(255,255,255,0.5);">${count === 0 ? 'GO!' : count}</div>`;
-        
-        // Retirer overlay après "GO!"
-        if (count === 0) {
-          setTimeout(() => {
-            countdownOverlay.remove();
-            console.log('[ARENA] 🗑️ Overlay countdown retiré (GO! terminé)');
-          }, 800);
-        }
-      });
-      
-      // ✅ CRITIQUE: Écouter timer tick du backend pour synchroniser timeLeft
-      s.on('arena:timer-tick', ({ timeLeft: serverTimeLeft }) => {
-        setTimeLeft(serverTimeLeft);
-      });
-      
-      // Écouter confirmation join room
-      s.on('arena:player-joined', ({ players, count }) => {
-        console.log('[ARENA] ✅ Player joined confirmé - Joueurs dans la room:', count, players);
-      });
-      
-      s.on('arena:error', ({ message }) => {
-        console.error('[ARENA] ❌ Erreur backend:', message);
-      });
-      
-      // ⏸️ PAUSE: Un joueur s'est déconnecté pendant la partie
-      s.on('arena:match-paused', ({ disconnectedPlayer, gracePeriodMs }) => {
-        console.log('[ARENA] ⏸️ Match en PAUSE —', disconnectedPlayer, 'déconnecté');
-        setArenaPauseInfo({ paused: true, disconnectedPlayer, gracePeriodMs: gracePeriodMs || 15000 });
-      });
-
-      // ▶️ REPRISE: Le joueur déconnecté s'est reconnecté
-      s.on('arena:match-resumed', ({ reconnectedPlayer }) => {
-        console.log('[ARENA] ▶️ Match REPRIS —', reconnectedPlayer, 'reconnecté');
-        setArenaPauseInfo(null);
-      });
-
-      // 🏳️ FORFAIT: Un joueur n'a pas pu se reconnecter à temps
-      s.on('arena:player-forfeit', ({ forfeitStudentId, remainingPlayers }) => {
-        console.log('[ARENA] 🏳️ Forfait de', forfeitStudentId, '— joueurs restants:', remainingPlayers);
-        setArenaPauseInfo(null);
-      });
-
-      // Écouter paire validée par un autre joueur
-      s.on('arena:pair-validated', ({ pairId, zoneAId, zoneBId, playerName, studentId }) => {
-        console.log('[ARENA] Paire validée par', playerName, ':', pairId);
-        
-        // ✅ CRITIQUE: Utiliser zonesRef.current pour accéder à la version actuelle (pas stale closure)
-        const currentZones = zonesRef.current || [];
-        const ZA = currentZones.find(z => z.id === zoneAId);
-        const ZB = currentZones.find(z => z.id === zoneBId);
-        
-        // ✅ CORRECTION Bug #3: Animation bulle avec couleur du joueur
-        let playerColor = '#22c55e';
-        let borderColor = '#ffffff';
-        let playerInitials = '';
-        
-        try {
-          const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
-          const players = Array.isArray(arenaData.players) ? arenaData.players : [];
-          const playerIdx = players.findIndex(p => p.studentId === studentId);
-          
-          if (playerIdx >= 0) {
-            const { primary, border } = getPlayerColorComboByIndex(playerIdx);
-            playerColor = primary;
-            borderColor = border;
-            playerInitials = getInitials(playerName || players[playerIdx]?.name || 'Joueur');
-            
-            // Lancer animation bulle avec couleur du joueur
-            animateBubblesFromZones(zoneAId, zoneBId, playerColor, ZA, ZB, borderColor, playerInitials);
-          }
-        } catch (e) {
-          console.warn('[ARENA] Erreur animation bulle:', e);
-        }
-        
-        // ✅ BUG FIX: Ajouter à l'historique pédagogique (comme mode MP classique)
-        try {
-          console.log('[ARENA] 🖼️ Diagnostic images historique:', { 
-            ZA_type: ZA?.type, 
-            ZA_content: ZA?.content, 
-            ZB_type: ZB?.type, 
-            ZB_content: ZB?.content 
-          });
-          const textFor = (Z) => {
-            const t = (Z?.label || Z?.content || Z?.text || Z?.value || '').toString();
-            if (t && t.trim()) return t;
-            const pid = Z?.pairId || pairId;
-            return pid ? `[${pid}]` : '…';
-          };
-          
-          const textForCalc = (Z) => {
-            const t = (Z?.content || Z?.label || Z?.text || Z?.value || '').toString();
-            if (t && t.trim()) return t;
-            const pid = Z?.pairId || pairId;
-            return pid ? `[${pid}]` : '…';
-          };
-          
-          const textA = textFor(ZA);
-          const textB = textFor(ZB);
-          const typeA = ZA?.type || '';
-          const typeB = ZB?.type || '';
-          let kind = null;
-          let calcExpr = null;
-          let calcResult = null;
-          let imageSrc = null;
-          let imageLabel = null;
-          let displayText = `${textA || '…'} ↔ ${textB || '…'}`;
-          
-          const resolveImageSrc = (raw) => {
-            if (!raw) return null;
-            const normalized = String(raw).startsWith('http') ? String(raw) : process.env.PUBLIC_URL + '/' + (String(raw).startsWith('/') ? String(raw).slice(1) : (String(raw).startsWith('images/') ? String(raw) : 'images/' + String(raw)));
-            return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
-          };
-          
-          if ((typeA === 'calcul' && typeB === 'chiffre') || (typeA === 'chiffre' && typeB === 'calcul')) {
-            kind = 'calcnum';
-            const calcZone = typeA === 'calcul' ? ZA : ZB;
-            const numZone = typeA === 'chiffre' ? ZA : ZB;
-            calcExpr = textForCalc(calcZone);
-            calcResult = textForCalc(numZone);
-            displayText = (calcExpr && calcResult) ? `${calcExpr} = ${calcResult}` : `${textA || '…'} ↔ ${textB || '…'}`;
-          } else if ((typeA === 'image' && typeB === 'texte') || (typeA === 'texte' && typeB === 'image')) {
-            kind = 'imgtxt';
-            const imgZone = typeA === 'image' ? ZA : ZB;
-            const txtZone = typeA === 'texte' ? ZA : ZB;
-            const raw = imgZone?.content || imgZone?.url || imgZone?.path || imgZone?.src || '';
-            if (raw) imageSrc = resolveImageSrc(String(raw));
-            imageLabel = textFor(txtZone);
-            displayText = imageLabel || `${textA || '…'} ↔ ${textB || '…'}`;
-          }
-          
-          const entry = {
-            a: zoneAId,
-            b: zoneBId,
-            winnerId: studentId,
-            winnerName: playerName || 'Joueur',
-            color: playerColor,
-            borderColor: borderColor,
-            initials: playerInitials,
-            text: displayText,
-            kind,
-            calcExpr,
-            calcResult,
-            imageSrc,
-            imageLabel
-          };
-          
-          setLastWonPair(entry);
-          setWonPairsHistory(h => [entry, ...(Array.isArray(h) ? h : [])].slice(0, 25));
-        } catch (e) {
-          console.warn('[ARENA] Erreur mise à jour historique:', e);
-        }
-        
-        // ✅ FIX DISPARITÉ: Désactiver gameActive pendant transition (1.5s backend)
-        setGameActive(false);
-        console.log('[ARENA] ⚠️ gameActive=false (paire validée, attente nouvelle carte)');
-        
-        // Masquer les zones validées pour tous les joueurs
-        setZones(prevZones => {
-          return prevZones.map(z => {
-            if (z.id === zoneAId || z.id === zoneBId) {
-              return { ...z, validated: true };
-            }
-            return z;
-          });
-        });
-        // Ajouter à l'historique paires validées
-        setValidatedPairIds(prev => new Set([...prev, pairId]));
-      });
-      
-      // Écouter scores
-      s.on('arena:scores-update', ({ scores }) => {
-        setScoresMP(scores);
-      });
-      
-      // Écouter égalité détectée
-      s.on('arena:tie-detected', ({ tiedPlayers, message }) => {
-        console.log('[ARENA] ÉGALITÉ détectée !', tiedPlayers);
-        setGameActive(false);
-        
-        // Afficher podium d'égalité avec bouton "Je suis prêt"
-        setTimeout(() => {
-          console.log('[ARENA] 🎨 Construction overlay égalité...');
-          
-          const overlay = document.createElement('div');
-          overlay.id = 'arena-tie-overlay';
-          overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);z-index:10000;display:flex;align-items:center;justify-content:center;';
           
           const container = document.createElement('div');
           container.style.cssText = 'text-align:center;color:white;max-width:800px;padding:40px;';
@@ -1907,6 +1718,7 @@ const Carte = () => {
         // Mettre à jour les zones - FORCER validated=false pour éviter héritage entre manches
         if (Array.isArray(zones)) {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
+          try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: cleanZones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: cleanZones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
           setZones(cleanZones);
           // ✅ FIX: Synchroniser calcAngles depuis les angles serveur pour éviter que le localStorage ne les écrase
           const serverAngles = {};
@@ -2049,6 +1861,7 @@ const Carte = () => {
                 const roundData = JSON.parse(localStorage.getItem('cc_gs_round') || 'null');
                 if (roundData && Array.isArray(roundData.zones) && roundData.zones.length > 0) {
                   console.log('[CC][GS] Loading zones from localStorage fallback', { count: roundData.zones.length });
+                  try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: roundData.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: roundData.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
                   setZones(roundData.zones);
                   setPreparing(false);
                   setGameActive(true);
@@ -2076,6 +1889,7 @@ const Carte = () => {
           try { localStorage.removeItem('cc_gs_round'); } catch {}
           try { if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } } catch {}
           if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
+            try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: payload.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: payload.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
             setZones(payload.zones);
             setPreparing(false);
           }
@@ -2400,6 +2214,7 @@ const Carte = () => {
           }))
         });
         
+        try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: payload.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: payload.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
         setZones(payload.zones);
         setPreparing(false);
       } else {
