@@ -6124,6 +6124,23 @@ setZones(dataWithRandomTexts);
         } catch {}
         return null;
       })()}
+      {gameActive && (
+        <button
+          onClick={() => {
+            const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+            if (isFs) { try { exitGameFullscreen(); } catch {} }
+            else { try { enterGameFullscreen(); } catch {} }
+          }}
+          title={fullScreen ? 'Quitter le plein écran' : 'Plein écran'}
+          style={{ position: 'fixed', bottom: isMobile ? 12 : 16, right: isMobile ? 12 : 16, zIndex: 50, width: isMobile ? 36 : 32, height: isMobile ? 36 : 32, borderRadius: 10, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(17,24,39,0.5)', color: '#fff', fontSize: isMobile ? 18 : 16, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.2)', opacity: 0.45, transition: 'opacity 0.2s', padding: 0, lineHeight: 1 }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '0.45'}
+          onTouchStart={e => e.currentTarget.style.opacity = '0.9'}
+          onTouchEnd={e => { setTimeout(() => { try { e.target.style.opacity = '0.45'; } catch {} }, 1500); }}
+        >
+          {fullScreen ? '⊖' : '⛶'}
+        </button>
+      )}
       {isMobile && isPortrait && (
         <div className="mobile-hud">
           <div className="hud-left">
