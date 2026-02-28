@@ -1,0 +1,452 @@
+[
+  {
+    "main": {"calc": "6 × 70", "result": "420"},
+    "distractors": [
+      {"calc": "9 × 5", "wrongResult": "40"},
+      {"calc": "50 × 7", "wrongResult": "300"},
+      {"calc": "5 × 0,09", "wrongResult": "4,5"}
+    ],
+    "strategy": "Stratégie 1 : 6 fois 7 fois 10. 6 fois 7 → 42 et 42 fois 10 → 420. Stratégie 2 : 6 fois 7 dizaines. 42 dizaines c'est 420."
+  },
+  {
+    "main": {"calc": "82 × 11", "result": "902"},
+    "distractors": [
+      {"calc": "10 × 92", "wrongResult": "900"},
+      {"calc": "4 × 52", "wrongResult": "204"},
+      {"calc": "31 × 30", "wrongResult": "820"}
+    ],
+    "strategy": "82 fois 10 plus 82. 820 plus 82. 820 plus 80 plus 2. 900 plus 2 c'est 902."
+  },
+  {
+    "main": {"calc": "6 × 8", "result": "48"},
+    "distractors": [
+      {"calc": "3 × 5", "wrongResult": "42"},
+      {"calc": "4 × 9", "wrongResult": "49"},
+      {"calc": "7 × 4", "wrongResult": "35"}
+    ],
+    "strategy": "6 fois 8 c'est 8 fois 6, c'est 48."
+  },
+  {
+    "main": {"calc": "35 × 7", "result": "245"},
+    "distractors": [
+      {"calc": "9 × 7", "wrongResult": "77"},
+      {"calc": "26 × 12", "wrongResult": "262"},
+      {"calc": "5 × 51", "wrongResult": "251"}
+    ],
+    "strategy": "35 fois 7, c'est 7 fois 35 et 7 fois 35, c'est 7 fois 30 plus 7 fois 5. 7 fois 30, c'est 7 fois 3 fois 10 → 210. 7 fois 5 → 35. 210 plus 35, c'est 245."
+  },
+  {
+    "main": {"calc": "89 × 9", "result": "801"},
+    "distractors": [
+      {"calc": "4 × 8", "wrongResult": "35"},
+      {"calc": "79 × 13", "wrongResult": "793"},
+      {"calc": "4 × 5", "wrongResult": "30"}
+    ],
+    "strategy": "Stratégie 1 : 89 × 9, c'est 9 fois 80 plus 9 fois 9. 9 fois 80 → 720 et 720 plus 80 plus 1 → 801. Stratégie 2 : 89 c'est 90 moins 1 donc 89 fois 9, c'est 90 fois 9 moins 1 fois 9. 90 fois 9 → 810. 810 moins 9 → 801."
+  },
+  {
+    "main": {"calc": "30 × 15", "result": "450"},
+    "distractors": [
+      {"calc": "20 × 9", "wrongResult": "200"},
+      {"calc": "2 × 190", "wrongResult": "390"},
+      {"calc": "67 × 8", "wrongResult": "607"}
+    ],
+    "strategy": "Stratégie 1 : 30 fois 15 c'est 30 fois 10 plus 30 fois 5. 30 fois 10 → 300 et 30 fois 5 → 150. Stratégie 2 : 30 fois 15 c'est 3 fois 15 fois 10. 3 fois 15 → 45 et 45 fois 10 → 450. 300 plus 150 → 450."
+  },
+  {
+    "main": {"calc": "31 × 10", "result": "310"},
+    "distractors": [
+      {"calc": "7 × 9", "wrongResult": "64"},
+      {"calc": "22 × 19", "wrongResult": "229"},
+      {"calc": "7 × 8", "wrongResult": "54"}
+    ],
+    "strategy": "31 fois 10, c'est 31 dizaines, c'est 310."
+  },
+  {
+    "main": {"calc": "24 × 25", "result": "600"},
+    "distractors": [
+      {"calc": "63 × 14", "wrongResult": "712"},
+      {"calc": "9 × 5", "wrongResult": "40"},
+      {"calc": "2 × 7", "wrongResult": "15"}
+    ],
+    "strategy": "Stratégie 1 : 24 fois 25, c'est 6 fois 4 fois 25. Comme 4 fois 25 → 100, 6 fois 100 → 600. Stratégie 2 : 25 c'est le quart de 100, donc c'est 24 fois 100 divisé par 4. C'est 2 400 divisé par 4 → 600."
+  },
+  {
+    "main": {"calc": "40 × 13", "result": "520"},
+    "distractors": [
+      {"calc": "68 × 10", "wrongResult": "600"},
+      {"calc": "200 × 6", "wrongResult": "1 000"},
+      {"calc": "7 × 9", "wrongResult": "64"}
+    ],
+    "strategy": "40 fois 13, c'est 40 fois 10 plus 40 fois 3. 40 fois 10, c'est 40 dizaines donc 400 et 40 fois 3 c'est 120. 400 plus 120 → 520."
+  },
+  {
+    "main": {"calc": "3 fois 4/4", "result": "3"},
+    "distractors": [
+      {"calc": "4 fois 3/4", "wrongResult": "12,4"},
+      {"calc": "3,4 × 10", "wrongResult": "12"},
+      {"calc": "3 × 0,4", "wrongResult": "0,34"}
+    ],
+    "strategy": "4 quarts, c'est 1 donc 3 fois 4 quarts, c'est 3 fois 1 donc 3."
+  },
+  {
+    "main": {"calc": "3 × ? = 27", "result": "9"},
+    "distractors": [
+      {"calc": "5 × 8", "wrongResult": "58"},
+      {"calc": "? × 7 = 21", "wrongResult": "2"},
+      {"calc": "3 × 9", "wrongResult": "12"}
+    ],
+    "strategy": "3 fois 9 égal 9 plus 9 plus 9 égal 27."
+  },
+  {
+    "main": {"calc": "15 × ? = 45", "result": "3"},
+    "distractors": [
+      {"calc": "3 × 8", "wrongResult": "11"},
+      {"calc": "7 × 9", "wrongResult": "79"},
+      {"calc": "8 × 10", "wrongResult": "90"}
+    ],
+    "strategy": "15 fois 3 égal 15 plus 15 plus 15 égal 45."
+  },
+  {
+    "main": {"calc": "3 × ? = 45", "result": "15"},
+    "distractors": [
+      {"calc": "2 × 7", "wrongResult": "9"},
+      {"calc": "3 × 7", "wrongResult": "73"},
+      {"calc": "5 × 5", "wrongResult": "35"}
+    ],
+    "strategy": "3 fois 15 égal 45, c'est par exemple 3 fois un quart d'heure soit 3 quarts d'heure soit 45 minutes."
+  },
+  {
+    "main": {"calc": "7 × ? = 49", "result": "7"},
+    "distractors": [
+      {"calc": "6 × ? = 24", "wrongResult": "3"},
+      {"calc": "6 × 6", "wrongResult": "26"},
+      {"calc": "13 × 10", "wrongResult": "30"}
+    ],
+    "strategy": "Le carré de 7 vaut 49, 7 fois 7 égal 49."
+  },
+  {
+    "main": {"calc": "? × 5 = 45", "result": "9"},
+    "distractors": [
+      {"calc": "5 × 9", "wrongResult": "35"},
+      {"calc": "5 × 5", "wrongResult": "10"},
+      {"calc": "6 × 5", "wrongResult": "65"}
+    ],
+    "strategy": "Stratégie 1 : 9 fois 5 c'est 5 fois 9 c'est 45. Stratégie 2 : 10 fois 5 vaut 50, c'est 5 de plus donc 50 moins 5, soit 9 fois 5 égal 45."
+  },
+  {
+    "main": {"calc": "9 × ? = 36", "result": "4"},
+    "distractors": [
+      {"calc": "6 × 7", "wrongResult": "67"},
+      {"calc": "3 × 20", "wrongResult": "80"},
+      {"calc": "6 × 5", "wrongResult": "35"}
+    ],
+    "strategy": "9 fois 4 c'est 4 fois 9, c'est 36."
+  },
+  {
+    "main": {"calc": "3 × 25", "result": "75"},
+    "distractors": [
+      {"calc": "? × 15 = 45", "wrongResult": "4"},
+      {"calc": "5 × 7", "wrongResult": "45"},
+      {"calc": "10 × 1,5", "wrongResult": "150"}
+    ],
+    "strategy": "Stratégie 1 : 3 fois 25 c'est 2 fois 25 plus 25, soit 50 plus 25 égal 75. Stratégie 2 : 3 fois 25, c'est 4 fois 25 moins 25. C'est 100 moins 25 soit 75."
+  },
+  {
+    "main": {"calc": "20 × ? = 80", "result": "4"},
+    "distractors": [
+      {"calc": "4 × 7", "wrongResult": "21"},
+      {"calc": "6 × 9", "wrongResult": "69"},
+      {"calc": "3,2 × 10", "wrongResult": "320"}
+    ],
+    "strategy": "80 c'est 4 fois 20."
+  },
+  {
+    "main": {"calc": "8 × ? = 24", "result": "3"},
+    "distractors": [
+      {"calc": "4 × 6", "wrongResult": "18"},
+      {"calc": "3 × 10", "wrongResult": "40"},
+      {"calc": "3 × 3", "wrongResult": "33"}
+    ],
+    "strategy": "8 fois 3 c'est 3 fois 8 soit 24."
+  },
+  {
+    "main": {"calc": "4 × ? = 20", "result": "5"},
+    "distractors": [
+      {"calc": "double de 13", "wrongResult": "23"},
+      {"calc": "8 × 7", "wrongResult": "15"},
+      {"calc": "9 × 9", "wrongResult": "80"}
+    ],
+    "strategy": "4 fois 5 c'est 5 fois 4 soit 20."
+  },
+  {
+    "main": {"calc": "2,5 × 2", "result": "5"},
+    "distractors": [
+      {"calc": "25 × 2", "wrongResult": "0,5"},
+      {"calc": "2,5 × 10", "wrongResult": "0,25"},
+      {"calc": "4 × 15", "wrongResult": "75"}
+    ],
+    "strategy": "2,5 fois 2, c'est 2 fois 2,5, c'est le double de 25 divisé par 10, soit 50 divisé par 10, soit 5."
+  },
+  {
+    "main": {"calc": "25 × 2", "result": "50"},
+    "distractors": [
+      {"calc": "2,5 × 2", "wrongResult": "0,5"},
+      {"calc": "2,5 × 10", "wrongResult": "0,25"},
+      {"calc": "4 × 25", "wrongResult": "75"}
+    ],
+    "strategy": "25 fois 2, c'est 2 fois 25, c'est le double de 25, soit 50."
+  },
+  {
+    "main": {"calc": "0,5 × 8", "result": "4"},
+    "distractors": [
+      {"calc": "4 × 0,7", "wrongResult": "0,28"},
+      {"calc": "1,5 × 10", "wrongResult": "150"},
+      {"calc": "10 × 12", "wrongResult": "102"}
+    ],
+    "strategy": "0,5 fois 8 c'est 8 fois 0,5, c'est 8 fois 5 dixièmes soit 40 dixièmes. Et 40 dixièmes c'est 4."
+  },
+  {
+    "main": {"calc": "4 × 0,7", "result": "2,8"},
+    "distractors": [
+      {"calc": "0,5 × 8", "wrongResult": "0,4"},
+      {"calc": "1,5 × 10", "wrongResult": "150"},
+      {"calc": "10 × 12", "wrongResult": "102"}
+    ],
+    "strategy": "4 fois 0,7 c'est 4 fois 7 dixièmes soit 28 dixièmes. Et 28 dixièmes c'est 2,8."
+  },
+  {
+    "main": {"calc": "0,25 × 10", "result": "2,5"},
+    "distractors": [
+      {"calc": "1,3 × 12", "wrongResult": "2,6"},
+      {"calc": "2,5 × 10", "wrongResult": "20,5"},
+      {"calc": "2,5 × 2", "wrongResult": "4,1"}
+    ],
+    "strategy": "0,25 fois 10 c'est 10 fois 0,25 soit 10 fois 25 centièmes soit 250 centièmes. Et 250 centièmes égal 2,5."
+  },
+  {
+    "main": {"calc": "0,25 × 4", "result": "1"},
+    "distractors": [
+      {"calc": "2,5 × 4", "wrongResult": "8,20"},
+      {"calc": "25 × 0,4", "wrongResult": "0,100"},
+      {"calc": "2,5 × 20", "wrongResult": "500"}
+    ],
+    "strategy": "0,25 fois 4 c'est 4 fois 0,25 soit 4 fois 25 centièmes soit 100 centièmes. Et 100 centièmes égal 1."
+  },
+  {
+    "main": {"calc": "8,9 × 100", "result": "890"},
+    "distractors": [
+      {"calc": "0,89 × 10", "wrongResult": "8 900"},
+      {"calc": "0,89 × 100", "wrongResult": "0,890"},
+      {"calc": "89 × 0,1", "wrongResult": "0,89"}
+    ],
+    "strategy": "8 unités deviennent 8 centaines et 9 dixièmes donnent 9 dizaines, soit 890."
+  },
+  {
+    "main": {"calc": "0,42 × ? = 42", "result": "100"},
+    "distractors": [
+      {"calc": "10 × 4,2", "wrongResult": "4,20"},
+      {"calc": "0,4 × 0,1", "wrongResult": "0,410"},
+      {"calc": "4,2 × 100", "wrongResult": "4 200"}
+    ],
+    "strategy": "42 centièmes, c'est 100 fois plus petit que 42 unités. On a donc 42 unités égal 100 fois 42 centièmes."
+  },
+  {
+    "main": {"calc": "20 × 50", "result": "1 000"},
+    "distractors": [
+      {"calc": "25 × 5", "wrongResult": "100"},
+      {"calc": "20 × 4", "wrongResult": "10"},
+      {"calc": "5,2 × 40", "wrongResult": "200"}
+    ],
+    "strategy": "Stratégie 1 : 20 fois 50 c'est 20 × 5 × 10, soit 100 multiplié par 10 égal 1 000. Stratégie 2 : c'est 2 fois 5 fois 10 fois 10, c'est 2 fois 5 fois 100, soit 10 fois 100 égal 1 000. Stratégie 3 : 20 fois 50 c'est 50 fois 20 soit 50 fois 2 fois 10. Soit le double de 50 fois 10. On obtient 100 multiplié par 10."
+  },
+  {
+    "main": {"calc": "0,6 × 50", "result": "30"},
+    "distractors": [
+      {"calc": "0,6 × 0,5", "wrongResult": "3"},
+      {"calc": "60 × 50", "wrongResult": "300"},
+      {"calc": "? × 100 = 6", "wrongResult": "0,6"}
+    ],
+    "strategy": "0,6 fois 50, c'est 50 fois 0,6, c'est 5 fois 6 dixièmes fois 10, soit 30 dixièmes fois 10 soit 300 dixièmes égal 3 dizaines donc 30 unités."
+  },
+  {
+    "main": {"calc": "3 × (1/2)", "result": "3/2"},
+    "distractors": [
+      {"calc": "2 × 1,5", "wrongResult": "3,2"},
+      {"calc": "3,1 × 2", "wrongResult": "3/6"},
+      {"calc": "3,12 × 10", "wrongResult": "312"}
+    ],
+    "strategy": "1/2 + 1/2 + 1/2 ou trois fois 1/2 c'est 3/2."
+  },
+  {
+    "main": {"calc": "2 × 1/4", "result": "1/2"},
+    "distractors": [
+      {"calc": "24 dizaines", "wrongResult": "2,4"},
+      {"calc": "2 × 1/6", "wrongResult": "3/6"},
+      {"calc": "3 × 1/2", "wrongResult": "3/4"}
+    ],
+    "strategy": "2 fois 1/4 c'est 1/4 plus 1/4 soit 2/4 ou encore 1/2."
+  },
+  {
+    "main": {"calc": "3/2", "result": "1 + 1/2"},
+    "distractors": [
+      {"calc": "6 × (1/6)", "wrongResult": "3,2"},
+      {"calc": "3,1 × 0,1", "wrongResult": "3/6"},
+      {"calc": "3,12 × 10", "wrongResult": "312"}
+    ],
+    "strategy": "3/2 c'est 2/2 plus 1/2. Or 2/2 c'est 1 donc 3/2 c'est 1 + 1/2."
+  },
+  {
+    "main": {"calc": "9 fois 1/4", "result": "9/4"},
+    "distractors": [
+      {"calc": "3,1 × 3", "wrongResult": "2,5"},
+      {"calc": "9,14 × 10", "wrongResult": "9,9"},
+      {"calc": "8 × 1/4", "wrongResult": "914"}
+    ],
+    "strategy": "9 fois 1/4 c'est 1/4 + 1/4 + 1/4 + 1/4 + 1/4 + 1/4 + 1/4 + 1/4 + 1/4 égal 9/4."
+  },
+  {
+    "main": {"calc": "3/4", "result": "6/8"},
+    "distractors": [
+      {"calc": "2 × (1/4)", "wrongResult": "3,4"},
+      {"calc": "68 dizaines", "wrongResult": "21,4"},
+      {"calc": "6,8", "wrongResult": "1,2"}
+    ],
+    "strategy": "Voir représentation. 1/8 c'est la moitié de 1/4. Donc 1/4 c'est 2/8. Ainsi 3/4 égal à 6/8."
+  },
+  {
+    "main": {"calc": "5/10", "result": "1/2"},
+    "distractors": [
+      {"calc": "1,5 × 10", "wrongResult": "5,1"},
+      {"calc": "4/10", "wrongResult": "5"},
+      {"calc": "5/2", "wrongResult": "50"}
+    ],
+    "strategy": "10/10 c'est 1. 5/10 c'est la moitié de 1. 2/2 c'est 1 et 1/2 c'est la moitié de 1. Ainsi 5/10 égal à 1/2."
+  },
+  {
+    "main": {"calc": "1/2", "result": "1/4 + 1/4"},
+    "distractors": [
+      {"calc": "12 dizaines", "wrongResult": "1,2"},
+      {"calc": "2 dixièmes", "wrongResult": "12"},
+      {"calc": "4 quarts", "wrongResult": "0,12"}
+    ],
+    "strategy": "1/4 c'est la moitié de 1/2. Donc 1/2 c'est 2 fois 1/4. Voir représentation."
+  },
+  {
+    "main": {"calc": "2/10", "result": "20/100"},
+    "distractors": [
+      {"calc": "10 × 0,2", "wrongResult": "2,01"},
+      {"calc": "21/100", "wrongResult": "20 100"},
+      {"calc": "2 × 0,01", "wrongResult": "2,1"}
+    ],
+    "strategy": "1 dixième, c'est 10 centièmes donc 2 dixièmes c'est 20 centièmes donc 20/100."
+  },
+  {
+    "main": {"calc": "4 = ?/10", "result": "40"},
+    "distractors": [
+      {"calc": "4 centièmes", "wrongResult": "4"},
+      {"calc": "40/40", "wrongResult": "0,4"},
+      {"calc": "2 fois 2 centièmes", "wrongResult": "400"}
+    ],
+    "strategy": "1 c'est 10 dixièmes donc 4 c'est 40 dixièmes. Ainsi 4 égal 40/10."
+  },
+  {
+    "main": {"calc": "320/100", "result": "32/10"},
+    "distractors": [
+      {"calc": "3 × 1,2", "wrongResult": "3,02"},
+      {"calc": "10 × 0,32", "wrongResult": "32"},
+      {"calc": "10 × 3,02", "wrongResult": "321"}
+    ],
+    "strategy": "1 c'est 100 centièmes. 100 centièmes c'est 10 dixièmes. 320 centièmes c'est 32 dixièmes. Donc 300 centièmes c'est 30 dixièmes et 20 centièmes c'est 2 dixièmes. Ainsi 320 centièmes c'est 32 dixièmes."
+  },
+  {
+    "main": {"calc": "32 = ?/10", "result": "320"},
+    "distractors": [
+      {"calc": "3 × 1,2", "wrongResult": "3,02"},
+      {"calc": "10 × 0,32", "wrongResult": "32"},
+      {"calc": "10 × 3,02", "wrongResult": "321"}
+    ],
+    "strategy": "32 unités, c'est 320 dixièmes donc 320/10."
+  },
+  {
+    "main": {"calc": "9 × 50", "result": "450"},
+    "distractors": [
+      {"calc": "4 × 20 × 8", "wrongResult": "400"},
+      {"calc": "50 × 50", "wrongResult": "250"},
+      {"calc": "12 × 50", "wrongResult": "620"}
+    ],
+    "strategy": "9 fois 5 c'est 45. 9 fois 5 dizaines, c'est 45 dizaines soit 450."
+  },
+  {
+    "main": {"calc": "80 × 60", "result": "4 800"},
+    "distractors": [
+      {"calc": "30 × 40", "wrongResult": "2 400"},
+      {"calc": "30 × 6 × 10", "wrongResult": "3 200"},
+      {"calc": "40 × 4 × 5", "wrongResult": "1 600"}
+    ],
+    "strategy": "8 fois 6, c'est 48. 80 × 60 égal (8 × 10 × 6 × 10) égal 8 × 6 fois 100 soit 48 × 100 égal 4 800."
+  },
+  {
+    "main": {"calc": "7 × 700", "result": "4 900"},
+    "distractors": [
+      {"calc": "60 × 30", "wrongResult": "5 400"},
+      {"calc": "80 × 60", "wrongResult": "6 300"},
+      {"calc": "5 × 8 × 50", "wrongResult": "2 500"}
+    ],
+    "strategy": "7 × 7 c'est 49 donc 7 fois 7 centaines c'est 49 centaines soit 4 900."
+  },
+  {
+    "main": {"calc": "7 × 10 × 80", "result": "5 600"},
+    "distractors": [
+      {"calc": "30 × 40", "wrongResult": "2 400"},
+      {"calc": "30 × 6 × 10", "wrongResult": "3 200"},
+      {"calc": "40 × 4 × 5", "wrongResult": "1 600"}
+    ],
+    "strategy": "On sait que 7 × 8 = 56 et 5 600 c'est 56 centaines soit 7 × 8 × 100. Mais aussi 7 × 8 × 10 × 10 ou encore 7 × 10 × 8 × 10 soit 7 × 10 × 80."
+  },
+  {
+    "main": {"calc": "3 × 3 × 80", "result": "720"},
+    "distractors": [
+      {"calc": "4 × 20 × 8", "wrongResult": "400"},
+      {"calc": "50 × 50", "wrongResult": "250"},
+      {"calc": "12 × 50", "wrongResult": "620"}
+    ],
+    "strategy": "On sait que 9 × 8 = 72 et 3 × 3 = 9 alors 3 × 3 × 80 = 9 × 80 = 720."
+  },
+  {
+    "main": {"calc": "4 × 2 × 8", "result": "64"},
+    "distractors": [
+      {"calc": "2 × 3 × 8", "wrongResult": "32"},
+      {"calc": "3 × 3 × 9", "wrongResult": "72"},
+      {"calc": "2 × 4 × 5", "wrongResult": "45"}
+    ],
+    "strategy": "64 c'est 8 × 8 or 4 × 2 = 8. On aura donc 4 × 2 × 8 = 64."
+  },
+  {
+    "main": {"calc": "2 × 2 × 25", "result": "100"},
+    "distractors": [
+      {"calc": "2 × 3 × 10", "wrongResult": "120"},
+      {"calc": "5 × 4 × 10", "wrongResult": "160"},
+      {"calc": "5 × 4 × 9", "wrongResult": "224"}
+    ],
+    "strategy": "4 × 25 = 100. 25 est le quart de 100. 2 × 50 = 100. 50 est la moitié de 100."
+  },
+  {
+    "main": {"calc": "9 × 0,6", "result": "5,4"},
+    "distractors": [
+      {"calc": "0,7 × 7", "wrongResult": "4,2"},
+      {"calc": "6 × 8 × 0,1", "wrongResult": "0,48"},
+      {"calc": "9 × 7 × 0,1", "wrongResult": "63,9"}
+    ],
+    "strategy": "0,6 c'est 6 dixièmes. 9 fois 6 dixièmes c'est 54 dixièmes ou encore 5,4."
+  },
+  {
+    "main": {"calc": "6 × 0,7", "result": "4,2"},
+    "distractors": [
+      {"calc": "0,9 × 0,6", "wrongResult": "5,4"},
+      {"calc": "9 × 0,9", "wrongResult": "0,81"},
+      {"calc": "8 × 0,1", "wrongResult": "6,4"}
+    ],
+    "strategy": "0,7 c'est 7 dixièmes. 6 fois 7 dixièmes c'est 42 dixièmes ou encore 4,2."
+  }
+]

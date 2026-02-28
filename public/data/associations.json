@@ -4967,6 +4967,1293 @@
         "domain:math",
         "category:division"
       ]
+    },
+    {
+      "id": "cmult_1772259541773_0",
+      "content": "6 × 70",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_1",
+      "content": "50 × 7",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_2",
+      "content": "5 × 0,09",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_3",
+      "content": "82 × 11",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_4",
+      "content": "10 × 92",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_5",
+      "content": "4 × 52",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_6",
+      "content": "31 × 30",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_7",
+      "content": "35 × 7",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_8",
+      "content": "26 × 12",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_9",
+      "content": "5 × 51",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_10",
+      "content": "89 × 9",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_11",
+      "content": "79 × 13",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_12",
+      "content": "30 × 15",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_13",
+      "content": "20 × 9",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_14",
+      "content": "2 × 190",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_15",
+      "content": "67 × 8",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_16",
+      "content": "31 × 10",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_17",
+      "content": "22 × 19",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_18",
+      "content": "24 × 25",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_19",
+      "content": "63 × 14",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_20",
+      "content": "40 × 13",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_21",
+      "content": "68 × 10",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_22",
+      "content": "200 × 6",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_23",
+      "content": "3 fois 4/4",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_24",
+      "content": "4 fois 3/4",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_25",
+      "content": "3,4 × 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_26",
+      "content": "3 × 0,4",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_27",
+      "content": "3 × ? = 27",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_28",
+      "content": "? × 7 = 21",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_29",
+      "content": "15 × ? = 45",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_30",
+      "content": "3 × ? = 45",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_31",
+      "content": "7 × ? = 49",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_32",
+      "content": "6 × ? = 24",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_33",
+      "content": "13 × 10",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_34",
+      "content": "? × 5 = 45",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_35",
+      "content": "9 × ? = 36",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_36",
+      "content": "3 × 20",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_37",
+      "content": "3 × 25",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_38",
+      "content": "? × 15 = 45",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_39",
+      "content": "10 × 1,5",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_40",
+      "content": "20 × ? = 80",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_41",
+      "content": "3,2 × 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_42",
+      "content": "8 × ? = 24",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_43",
+      "content": "4 × ? = 20",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_44",
+      "content": "double de 13",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_45",
+      "content": "2,5 × 2",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_46",
+      "content": "25 × 2",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_47",
+      "content": "2,5 × 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_48",
+      "content": "4 × 15",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_49",
+      "content": "4 × 25",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_50",
+      "content": "0,5 × 8",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_51",
+      "content": "4 × 0,7",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_52",
+      "content": "1,5 × 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_53",
+      "content": "0,25 × 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_54",
+      "content": "1,3 × 12",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_55",
+      "content": "0,25 × 4",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_56",
+      "content": "2,5 × 4",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_57",
+      "content": "25 × 0,4",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_58",
+      "content": "2,5 × 20",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_59",
+      "content": "8,9 × 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_60",
+      "content": "0,89 × 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_61",
+      "content": "0,89 × 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_62",
+      "content": "89 × 0,1",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_63",
+      "content": "0,42 × ? = 42",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_64",
+      "content": "10 × 4,2",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_65",
+      "content": "0,4 × 0,1",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_66",
+      "content": "4,2 × 100",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_67",
+      "content": "20 × 50",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_68",
+      "content": "25 × 5",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_69",
+      "content": "20 × 4",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_70",
+      "content": "5,2 × 40",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_71",
+      "content": "0,6 × 50",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_72",
+      "content": "0,6 × 0,5",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_73",
+      "content": "60 × 50",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_74",
+      "content": "? × 100 = 6",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_75",
+      "content": "3 × (1/2)",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_76",
+      "content": "2 × 1,5",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_77",
+      "content": "3,1 × 2",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_78",
+      "content": "3,12 × 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_79",
+      "content": "2 × 1/4",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_80",
+      "content": "24 dizaines",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_81",
+      "content": "2 × 1/6",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_82",
+      "content": "3 × 1/2",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_83",
+      "content": "3/2",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_84",
+      "content": "6 × (1/6)",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_85",
+      "content": "3,1 × 0,1",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_86",
+      "content": "9 fois 1/4",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_87",
+      "content": "3,1 × 3",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_88",
+      "content": "9,14 × 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_89",
+      "content": "8 × 1/4",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_90",
+      "content": "3/4",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_91",
+      "content": "2 × (1/4)",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_92",
+      "content": "68 dizaines",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_93",
+      "content": "6,8",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_94",
+      "content": "5/10",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_95",
+      "content": "4/10",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_96",
+      "content": "5/2",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_97",
+      "content": "1/2",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_98",
+      "content": "12 dizaines",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_99",
+      "content": "2 dixièmes",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_100",
+      "content": "4 quarts",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_101",
+      "content": "2/10",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_102",
+      "content": "10 × 0,2",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_103",
+      "content": "21/100",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_104",
+      "content": "2 × 0,01",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_105",
+      "content": "4 = ?/10",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_106",
+      "content": "4 centièmes",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_107",
+      "content": "40/40",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_108",
+      "content": "2 fois 2 centièmes",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_109",
+      "content": "320/100",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_110",
+      "content": "3 × 1,2",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_111",
+      "content": "10 × 0,32",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_112",
+      "content": "10 × 3,02",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_113",
+      "content": "32 = ?/10",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_114",
+      "content": "9 × 50",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_115",
+      "content": "4 × 20 × 8",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_116",
+      "content": "50 × 50",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_117",
+      "content": "12 × 50",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_118",
+      "content": "80 × 60",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_119",
+      "content": "30 × 40",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_120",
+      "content": "30 × 6 × 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_121",
+      "content": "40 × 4 × 5",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_122",
+      "content": "7 × 700",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_123",
+      "content": "60 × 30",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_124",
+      "content": "5 × 8 × 50",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_125",
+      "content": "7 × 10 × 80",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_126",
+      "content": "3 × 3 × 80",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_127",
+      "content": "4 × 2 × 8",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_128",
+      "content": "2 × 3 × 8",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_129",
+      "content": "3 × 3 × 9",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_130",
+      "content": "2 × 4 × 5",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_131",
+      "content": "2 × 2 × 25",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_132",
+      "content": "2 × 3 × 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_133",
+      "content": "5 × 4 × 10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_134",
+      "content": "5 × 4 × 9",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_135",
+      "content": "9 × 0,6",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_136",
+      "content": "0,7 × 7",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_137",
+      "content": "6 × 8 × 0,1",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_138",
+      "content": "9 × 7 × 0,1",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_139",
+      "content": "6 × 0,7",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_140",
+      "content": "0,9 × 0,6",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_141",
+      "content": "9 × 0,9",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "id": "cmult_1772259541773_142",
+      "content": "8 × 0,1",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
     }
   ],
   "chiffres": [
@@ -8565,6 +9852,1293 @@
         "category:division"
       ],
       "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_0",
+      "content": "420",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_1",
+      "content": "350",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_2",
+      "content": "0,45",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_3",
+      "content": "902",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_4",
+      "content": "920",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_5",
+      "content": "208",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_6",
+      "content": "930",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_7",
+      "content": "245",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_8",
+      "content": "312",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_9",
+      "content": "255",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_10",
+      "content": "801",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_11",
+      "content": "1027",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_12",
+      "content": "450",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_13",
+      "content": "180",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_14",
+      "content": "380",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_15",
+      "content": "536",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_16",
+      "content": "310",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_17",
+      "content": "418",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_18",
+      "content": "600",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_19",
+      "content": "882",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_20",
+      "content": "520",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_21",
+      "content": "680",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_22",
+      "content": "1200",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_23",
+      "content": "3",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_24",
+      "content": "3",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_25",
+      "content": "34",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_26",
+      "content": "1,2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_27",
+      "content": "9",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_28",
+      "content": "3",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_29",
+      "content": "3",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_30",
+      "content": "15",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_31",
+      "content": "7",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_32",
+      "content": "4",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_33",
+      "content": "130",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_34",
+      "content": "9",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_35",
+      "content": "4",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_36",
+      "content": "60",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_37",
+      "content": "75",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_38",
+      "content": "3",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_39",
+      "content": "15",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_40",
+      "content": "4",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_41",
+      "content": "32",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_42",
+      "content": "3",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_43",
+      "content": "5",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_44",
+      "content": "26",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_45",
+      "content": "5",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_46",
+      "content": "50",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_47",
+      "content": "25",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_48",
+      "content": "60",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_49",
+      "content": "100",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_50",
+      "content": "4",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_51",
+      "content": "2,8",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_52",
+      "content": "15",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_53",
+      "content": "2,5",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_54",
+      "content": "15,6",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_55",
+      "content": "1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_56",
+      "content": "10",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_57",
+      "content": "10",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_58",
+      "content": "50",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_59",
+      "content": "890",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_60",
+      "content": "8,9",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_61",
+      "content": "89",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_62",
+      "content": "8,9",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_63",
+      "content": "100",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_64",
+      "content": "42",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_65",
+      "content": "0,04",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_66",
+      "content": "420",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_67",
+      "content": "1 000",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_68",
+      "content": "125",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_69",
+      "content": "80",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_70",
+      "content": "208",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_71",
+      "content": "30",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_72",
+      "content": "0,3",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_73",
+      "content": "3000",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_74",
+      "content": "0,06",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_75",
+      "content": "3/2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_76",
+      "content": "3",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_77",
+      "content": "6,2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_78",
+      "content": "31,2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_79",
+      "content": "1/2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_80",
+      "content": "240",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_81",
+      "content": "0,333333",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_82",
+      "content": "1,5",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_83",
+      "content": "1 + 1/2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_84",
+      "content": "1",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_85",
+      "content": "0,31",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_86",
+      "content": "9/4",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_87",
+      "content": "9,3",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_88",
+      "content": "91,4",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_89",
+      "content": "2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_90",
+      "content": "6/8",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_91",
+      "content": "0,5",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_92",
+      "content": "680",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_93",
+      "content": "6,8",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_94",
+      "content": "1/2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_95",
+      "content": "0,4",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_96",
+      "content": "2,5",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_97",
+      "content": "1/4 + 1/4",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_98",
+      "content": "120",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_99",
+      "content": "0,2",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_100",
+      "content": "1",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_101",
+      "content": "20/100",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_102",
+      "content": "2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_103",
+      "content": "0,21",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_104",
+      "content": "0,02",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_105",
+      "content": "40",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_106",
+      "content": "0,04",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_107",
+      "content": "1",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_108",
+      "content": "0,02",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_109",
+      "content": "32/10",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_110",
+      "content": "3,6",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_111",
+      "content": "3,2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_112",
+      "content": "30,2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_113",
+      "content": "320",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_114",
+      "content": "450",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_115",
+      "content": "640",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_116",
+      "content": "2500",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_117",
+      "content": "600",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_118",
+      "content": "4 800",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_119",
+      "content": "1200",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_120",
+      "content": "1800",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_121",
+      "content": "800",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_122",
+      "content": "4 900",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_123",
+      "content": "1800",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_124",
+      "content": "2000",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_125",
+      "content": "5 600",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM2"
+    },
+    {
+      "id": "ncmult_1772259541773_126",
+      "content": "720",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_127",
+      "content": "64",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_128",
+      "content": "48",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_129",
+      "content": "81",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_130",
+      "content": "40",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_131",
+      "content": "100",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_132",
+      "content": "60",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_133",
+      "content": "200",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_134",
+      "content": "180",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CE2"
+    },
+    {
+      "id": "ncmult_1772259541773_135",
+      "content": "5,4",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_136",
+      "content": "4,9",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_137",
+      "content": "4,8",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_138",
+      "content": "6,3",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_139",
+      "content": "4,2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_140",
+      "content": "0,54",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_141",
+      "content": "8,1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
+    },
+    {
+      "id": "ncmult_1772259541773_142",
+      "content": "0,8",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ],
+      "levelClass": "CM1"
     }
   ],
   "associations": [
@@ -12911,6 +15485,1293 @@
       "themes": [
         "domain:math",
         "category:division"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_0",
+      "chiffreId": "ncmult_1772259541773_0",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_1",
+      "chiffreId": "ncmult_1772259541773_1",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_2",
+      "chiffreId": "ncmult_1772259541773_2",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_3",
+      "chiffreId": "ncmult_1772259541773_3",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_4",
+      "chiffreId": "ncmult_1772259541773_4",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_5",
+      "chiffreId": "ncmult_1772259541773_5",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_6",
+      "chiffreId": "ncmult_1772259541773_6",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_7",
+      "chiffreId": "ncmult_1772259541773_7",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_8",
+      "chiffreId": "ncmult_1772259541773_8",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_9",
+      "chiffreId": "ncmult_1772259541773_9",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_10",
+      "chiffreId": "ncmult_1772259541773_10",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_11",
+      "chiffreId": "ncmult_1772259541773_11",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_12",
+      "chiffreId": "ncmult_1772259541773_12",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_13",
+      "chiffreId": "ncmult_1772259541773_13",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_14",
+      "chiffreId": "ncmult_1772259541773_14",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_15",
+      "chiffreId": "ncmult_1772259541773_15",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_16",
+      "chiffreId": "ncmult_1772259541773_16",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_17",
+      "chiffreId": "ncmult_1772259541773_17",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_18",
+      "chiffreId": "ncmult_1772259541773_18",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_19",
+      "chiffreId": "ncmult_1772259541773_19",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_20",
+      "chiffreId": "ncmult_1772259541773_20",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_21",
+      "chiffreId": "ncmult_1772259541773_21",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_22",
+      "chiffreId": "ncmult_1772259541773_22",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_23",
+      "chiffreId": "ncmult_1772259541773_23",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_24",
+      "chiffreId": "ncmult_1772259541773_24",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_25",
+      "chiffreId": "ncmult_1772259541773_25",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_26",
+      "chiffreId": "ncmult_1772259541773_26",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_27",
+      "chiffreId": "ncmult_1772259541773_27",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_28",
+      "chiffreId": "ncmult_1772259541773_28",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_29",
+      "chiffreId": "ncmult_1772259541773_29",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_30",
+      "chiffreId": "ncmult_1772259541773_30",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_31",
+      "chiffreId": "ncmult_1772259541773_31",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_32",
+      "chiffreId": "ncmult_1772259541773_32",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_33",
+      "chiffreId": "ncmult_1772259541773_33",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_34",
+      "chiffreId": "ncmult_1772259541773_34",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_35",
+      "chiffreId": "ncmult_1772259541773_35",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_36",
+      "chiffreId": "ncmult_1772259541773_36",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_37",
+      "chiffreId": "ncmult_1772259541773_37",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_38",
+      "chiffreId": "ncmult_1772259541773_38",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_39",
+      "chiffreId": "ncmult_1772259541773_39",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_40",
+      "chiffreId": "ncmult_1772259541773_40",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_41",
+      "chiffreId": "ncmult_1772259541773_41",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_42",
+      "chiffreId": "ncmult_1772259541773_42",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_43",
+      "chiffreId": "ncmult_1772259541773_43",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_44",
+      "chiffreId": "ncmult_1772259541773_44",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_45",
+      "chiffreId": "ncmult_1772259541773_45",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_46",
+      "chiffreId": "ncmult_1772259541773_46",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_47",
+      "chiffreId": "ncmult_1772259541773_47",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_48",
+      "chiffreId": "ncmult_1772259541773_48",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_49",
+      "chiffreId": "ncmult_1772259541773_49",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_50",
+      "chiffreId": "ncmult_1772259541773_50",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_51",
+      "chiffreId": "ncmult_1772259541773_51",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_52",
+      "chiffreId": "ncmult_1772259541773_52",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_53",
+      "chiffreId": "ncmult_1772259541773_53",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_54",
+      "chiffreId": "ncmult_1772259541773_54",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_55",
+      "chiffreId": "ncmult_1772259541773_55",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_56",
+      "chiffreId": "ncmult_1772259541773_56",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_57",
+      "chiffreId": "ncmult_1772259541773_57",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_58",
+      "chiffreId": "ncmult_1772259541773_58",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_59",
+      "chiffreId": "ncmult_1772259541773_59",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_60",
+      "chiffreId": "ncmult_1772259541773_60",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_61",
+      "chiffreId": "ncmult_1772259541773_61",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_62",
+      "chiffreId": "ncmult_1772259541773_62",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_63",
+      "chiffreId": "ncmult_1772259541773_63",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_64",
+      "chiffreId": "ncmult_1772259541773_64",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_65",
+      "chiffreId": "ncmult_1772259541773_65",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_66",
+      "chiffreId": "ncmult_1772259541773_66",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_67",
+      "chiffreId": "ncmult_1772259541773_67",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_68",
+      "chiffreId": "ncmult_1772259541773_68",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_69",
+      "chiffreId": "ncmult_1772259541773_69",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_70",
+      "chiffreId": "ncmult_1772259541773_70",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_71",
+      "chiffreId": "ncmult_1772259541773_71",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_72",
+      "chiffreId": "ncmult_1772259541773_72",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_73",
+      "chiffreId": "ncmult_1772259541773_73",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_74",
+      "chiffreId": "ncmult_1772259541773_74",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_75",
+      "chiffreId": "ncmult_1772259541773_75",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_76",
+      "chiffreId": "ncmult_1772259541773_76",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_77",
+      "chiffreId": "ncmult_1772259541773_77",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_78",
+      "chiffreId": "ncmult_1772259541773_78",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_79",
+      "chiffreId": "ncmult_1772259541773_79",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_80",
+      "chiffreId": "ncmult_1772259541773_80",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_81",
+      "chiffreId": "ncmult_1772259541773_81",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_82",
+      "chiffreId": "ncmult_1772259541773_82",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_83",
+      "chiffreId": "ncmult_1772259541773_83",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_84",
+      "chiffreId": "ncmult_1772259541773_84",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_85",
+      "chiffreId": "ncmult_1772259541773_85",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_86",
+      "chiffreId": "ncmult_1772259541773_86",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_87",
+      "chiffreId": "ncmult_1772259541773_87",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_88",
+      "chiffreId": "ncmult_1772259541773_88",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_89",
+      "chiffreId": "ncmult_1772259541773_89",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_90",
+      "chiffreId": "ncmult_1772259541773_90",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_91",
+      "chiffreId": "ncmult_1772259541773_91",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_92",
+      "chiffreId": "ncmult_1772259541773_92",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_93",
+      "chiffreId": "ncmult_1772259541773_93",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_94",
+      "chiffreId": "ncmult_1772259541773_94",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_95",
+      "chiffreId": "ncmult_1772259541773_95",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_96",
+      "chiffreId": "ncmult_1772259541773_96",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_97",
+      "chiffreId": "ncmult_1772259541773_97",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_98",
+      "chiffreId": "ncmult_1772259541773_98",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_99",
+      "chiffreId": "ncmult_1772259541773_99",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_100",
+      "chiffreId": "ncmult_1772259541773_100",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_101",
+      "chiffreId": "ncmult_1772259541773_101",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_102",
+      "chiffreId": "ncmult_1772259541773_102",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_103",
+      "chiffreId": "ncmult_1772259541773_103",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_104",
+      "chiffreId": "ncmult_1772259541773_104",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_105",
+      "chiffreId": "ncmult_1772259541773_105",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_106",
+      "chiffreId": "ncmult_1772259541773_106",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_107",
+      "chiffreId": "ncmult_1772259541773_107",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_108",
+      "chiffreId": "ncmult_1772259541773_108",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:numeration"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_109",
+      "chiffreId": "ncmult_1772259541773_109",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:fraction"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_110",
+      "chiffreId": "ncmult_1772259541773_110",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_111",
+      "chiffreId": "ncmult_1772259541773_111",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_112",
+      "chiffreId": "ncmult_1772259541773_112",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_113",
+      "chiffreId": "ncmult_1772259541773_113",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:equation"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_114",
+      "chiffreId": "ncmult_1772259541773_114",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_115",
+      "chiffreId": "ncmult_1772259541773_115",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_116",
+      "chiffreId": "ncmult_1772259541773_116",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_117",
+      "chiffreId": "ncmult_1772259541773_117",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_118",
+      "chiffreId": "ncmult_1772259541773_118",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_119",
+      "chiffreId": "ncmult_1772259541773_119",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_120",
+      "chiffreId": "ncmult_1772259541773_120",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_121",
+      "chiffreId": "ncmult_1772259541773_121",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_122",
+      "chiffreId": "ncmult_1772259541773_122",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_123",
+      "chiffreId": "ncmult_1772259541773_123",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_124",
+      "chiffreId": "ncmult_1772259541773_124",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_125",
+      "chiffreId": "ncmult_1772259541773_125",
+      "levelClass": "CM2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_126",
+      "chiffreId": "ncmult_1772259541773_126",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_127",
+      "chiffreId": "ncmult_1772259541773_127",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_128",
+      "chiffreId": "ncmult_1772259541773_128",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_129",
+      "chiffreId": "ncmult_1772259541773_129",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_130",
+      "chiffreId": "ncmult_1772259541773_130",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_131",
+      "chiffreId": "ncmult_1772259541773_131",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_132",
+      "chiffreId": "ncmult_1772259541773_132",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_133",
+      "chiffreId": "ncmult_1772259541773_133",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_134",
+      "chiffreId": "ncmult_1772259541773_134",
+      "levelClass": "CE2",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_135",
+      "chiffreId": "ncmult_1772259541773_135",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_136",
+      "chiffreId": "ncmult_1772259541773_136",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_137",
+      "chiffreId": "ncmult_1772259541773_137",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_138",
+      "chiffreId": "ncmult_1772259541773_138",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_139",
+      "chiffreId": "ncmult_1772259541773_139",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_140",
+      "chiffreId": "ncmult_1772259541773_140",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_141",
+      "chiffreId": "ncmult_1772259541773_141",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
+      ]
+    },
+    {
+      "calculId": "cmult_1772259541773_142",
+      "chiffreId": "ncmult_1772259541773_142",
+      "levelClass": "CM1",
+      "themes": [
+        "domain:math",
+        "category:multiplication_avancee"
       ]
     }
   ],

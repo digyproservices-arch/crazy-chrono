@@ -4,7 +4,8 @@
   "_stats": {
     "total": 275,
     "generated": "2026-02-28T05:27:14.996Z",
-    "division": 50
+    "division": 50,
+    "multiplication_rectorat": 48
   },
   "strategies": {
     "ta01:i1754579810850evmn": {
@@ -704,9 +705,9 @@
       "hint": "35 + 7"
     },
     "cmath_1771641997727_30": {
-      "title": "6 × 8 = 48",
-      "strategy": "6 × 8 = 48. Décompose : 8 × 6 = 8 × 5 + 8 = 40 + 8 = 48.",
-      "hint": "40 + 8"
+      "title": "6 × 8",
+      "strategy": "6 fois 8 c'est 8 fois 6, c'est 48.",
+      "hint": "Le résultat est 48."
     },
     "cmath_1771641997727_31": {
       "title": "6 × 9 = 54",
@@ -1697,6 +1698,241 @@
       "title": "900 ÷ 20",
       "strategy": "Stratégie 1 : Diviser un nombre par 20, c'est le diviser par 10 puis par 2. 900 c'est 10 fois 90. Or 90 est égal à 2 fois 45. On peut considérer que 900, c'est 10 fois 2 fois 45. C'est encore 20 × 45. Stratégie 2 : 900 c'est 9 fois 100. 900 divisé par 20 c'est 9 fois 100 divisé par 20. Or 100 divisé par 20 est égal à 5; 900 divisé par 20 c'est 9 × 5. Ce qui vaut 45.",
       "hint": "Le résultat est 45."
+    },
+    "cmult_1772259541773_0": {
+      "title": "6 × 70",
+      "strategy": "Stratégie 1 : 6 fois 7 fois 10. 6 fois 7 → 42 et 42 fois 10 → 420. Stratégie 2 : 6 fois 7 dizaines. 42 dizaines c'est 420.",
+      "hint": "Le résultat est 420."
+    },
+    "cmult_1772259541773_3": {
+      "title": "82 × 11",
+      "strategy": "82 fois 10 plus 82. 820 plus 82. 820 plus 80 plus 2. 900 plus 2 c'est 902.",
+      "hint": "Le résultat est 902."
+    },
+    "cmult_1772259541773_7": {
+      "title": "35 × 7",
+      "strategy": "35 fois 7, c'est 7 fois 35 et 7 fois 35, c'est 7 fois 30 plus 7 fois 5. 7 fois 30, c'est 7 fois 3 fois 10 → 210. 7 fois 5 → 35. 210 plus 35, c'est 245.",
+      "hint": "Le résultat est 245."
+    },
+    "cmult_1772259541773_10": {
+      "title": "89 × 9",
+      "strategy": "Stratégie 1 : 89 × 9, c'est 9 fois 80 plus 9 fois 9. 9 fois 80 → 720 et 720 plus 80 plus 1 → 801. Stratégie 2 : 89 c'est 90 moins 1 donc 89 fois 9, c'est 90 fois 9 moins 1 fois 9. 90 fois 9 → 810. 810 moins 9 → 801.",
+      "hint": "Le résultat est 801."
+    },
+    "cmult_1772259541773_12": {
+      "title": "30 × 15",
+      "strategy": "Stratégie 1 : 30 fois 15 c'est 30 fois 10 plus 30 fois 5. 30 fois 10 → 300 et 30 fois 5 → 150. Stratégie 2 : 30 fois 15 c'est 3 fois 15 fois 10. 3 fois 15 → 45 et 45 fois 10 → 450. 300 plus 150 → 450.",
+      "hint": "Le résultat est 450."
+    },
+    "cmult_1772259541773_16": {
+      "title": "31 × 10",
+      "strategy": "31 fois 10, c'est 31 dizaines, c'est 310.",
+      "hint": "Le résultat est 310."
+    },
+    "cmult_1772259541773_18": {
+      "title": "24 × 25",
+      "strategy": "Stratégie 1 : 24 fois 25, c'est 6 fois 4 fois 25. Comme 4 fois 25 → 100, 6 fois 100 → 600. Stratégie 2 : 25 c'est le quart de 100, donc c'est 24 fois 100 divisé par 4. C'est 2 400 divisé par 4 → 600.",
+      "hint": "Le résultat est 600."
+    },
+    "cmult_1772259541773_20": {
+      "title": "40 × 13",
+      "strategy": "40 fois 13, c'est 40 fois 10 plus 40 fois 3. 40 fois 10, c'est 40 dizaines donc 400 et 40 fois 3 c'est 120. 400 plus 120 → 520.",
+      "hint": "Le résultat est 520."
+    },
+    "cmult_1772259541773_23": {
+      "title": "3 fois 4/4",
+      "strategy": "4 quarts, c'est 1 donc 3 fois 4 quarts, c'est 3 fois 1 donc 3.",
+      "hint": "Le résultat est 3."
+    },
+    "cmult_1772259541773_27": {
+      "title": "3 × ? = 27",
+      "strategy": "3 fois 9 égal 9 plus 9 plus 9 égal 27.",
+      "hint": "Le résultat est 9."
+    },
+    "cmult_1772259541773_29": {
+      "title": "15 × ? = 45",
+      "strategy": "15 fois 3 égal 15 plus 15 plus 15 égal 45.",
+      "hint": "Le résultat est 3."
+    },
+    "cmult_1772259541773_30": {
+      "title": "3 × ? = 45",
+      "strategy": "3 fois 15 égal 45, c'est par exemple 3 fois un quart d'heure soit 3 quarts d'heure soit 45 minutes.",
+      "hint": "Le résultat est 15."
+    },
+    "cmult_1772259541773_31": {
+      "title": "7 × ? = 49",
+      "strategy": "Le carré de 7 vaut 49, 7 fois 7 égal 49.",
+      "hint": "Le résultat est 7."
+    },
+    "cmult_1772259541773_34": {
+      "title": "? × 5 = 45",
+      "strategy": "Stratégie 1 : 9 fois 5 c'est 5 fois 9 c'est 45. Stratégie 2 : 10 fois 5 vaut 50, c'est 5 de plus donc 50 moins 5, soit 9 fois 5 égal 45.",
+      "hint": "Le résultat est 9."
+    },
+    "cmult_1772259541773_35": {
+      "title": "9 × ? = 36",
+      "strategy": "9 fois 4 c'est 4 fois 9, c'est 36.",
+      "hint": "Le résultat est 4."
+    },
+    "cmult_1772259541773_37": {
+      "title": "3 × 25",
+      "strategy": "Stratégie 1 : 3 fois 25 c'est 2 fois 25 plus 25, soit 50 plus 25 égal 75. Stratégie 2 : 3 fois 25, c'est 4 fois 25 moins 25. C'est 100 moins 25 soit 75.",
+      "hint": "Le résultat est 75."
+    },
+    "cmult_1772259541773_40": {
+      "title": "20 × ? = 80",
+      "strategy": "80 c'est 4 fois 20.",
+      "hint": "Le résultat est 4."
+    },
+    "cmult_1772259541773_42": {
+      "title": "8 × ? = 24",
+      "strategy": "8 fois 3 c'est 3 fois 8 soit 24.",
+      "hint": "Le résultat est 3."
+    },
+    "cmult_1772259541773_43": {
+      "title": "4 × ? = 20",
+      "strategy": "4 fois 5 c'est 5 fois 4 soit 20.",
+      "hint": "Le résultat est 5."
+    },
+    "cmult_1772259541773_45": {
+      "title": "2,5 × 2",
+      "strategy": "2,5 fois 2, c'est 2 fois 2,5, c'est le double de 25 divisé par 10, soit 50 divisé par 10, soit 5.",
+      "hint": "Le résultat est 5."
+    },
+    "cmult_1772259541773_50": {
+      "title": "0,5 × 8",
+      "strategy": "0,5 fois 8 c'est 8 fois 0,5, c'est 8 fois 5 dixièmes soit 40 dixièmes. Et 40 dixièmes c'est 4.",
+      "hint": "Le résultat est 4."
+    },
+    "cmult_1772259541773_53": {
+      "title": "0,25 × 10",
+      "strategy": "0,25 fois 10 c'est 10 fois 0,25 soit 10 fois 25 centièmes soit 250 centièmes. Et 250 centièmes égal 2,5.",
+      "hint": "Le résultat est 2,5."
+    },
+    "cmult_1772259541773_55": {
+      "title": "0,25 × 4",
+      "strategy": "0,25 fois 4 c'est 4 fois 0,25 soit 4 fois 25 centièmes soit 100 centièmes. Et 100 centièmes égal 1.",
+      "hint": "Le résultat est 1."
+    },
+    "cmult_1772259541773_59": {
+      "title": "8,9 × 100",
+      "strategy": "8 unités deviennent 8 centaines et 9 dixièmes donnent 9 dizaines, soit 890.",
+      "hint": "Le résultat est 890."
+    },
+    "cmult_1772259541773_63": {
+      "title": "0,42 × ? = 42",
+      "strategy": "42 centièmes, c'est 100 fois plus petit que 42 unités. On a donc 42 unités égal 100 fois 42 centièmes.",
+      "hint": "Le résultat est 100."
+    },
+    "cmult_1772259541773_67": {
+      "title": "20 × 50",
+      "strategy": "Stratégie 1 : 20 fois 50 c'est 20 × 5 × 10, soit 100 multiplié par 10 égal 1 000. Stratégie 2 : c'est 2 fois 5 fois 10 fois 10, c'est 2 fois 5 fois 100, soit 10 fois 100 égal 1 000. Stratégie 3 : 20 fois 50 c'est 50 fois 20 soit 50 fois 2 fois 10. Soit le double de 50 fois 10. On obtient 100 multiplié par 10.",
+      "hint": "Le résultat est 1 000."
+    },
+    "cmult_1772259541773_71": {
+      "title": "0,6 × 50",
+      "strategy": "0,6 fois 50, c'est 50 fois 0,6, c'est 5 fois 6 dixièmes fois 10, soit 30 dixièmes fois 10 soit 300 dixièmes égal 3 dizaines donc 30 unités.",
+      "hint": "Le résultat est 30."
+    },
+    "cmult_1772259541773_75": {
+      "title": "3 × (1/2)",
+      "strategy": "1/2 + 1/2 + 1/2 ou trois fois 1/2 c'est 3/2.",
+      "hint": "Le résultat est 3/2."
+    },
+    "cmult_1772259541773_79": {
+      "title": "2 × 1/4",
+      "strategy": "2 fois 1/4 c'est 1/4 plus 1/4 soit 2/4 ou encore 1/2.",
+      "hint": "Le résultat est 1/2."
+    },
+    "cmult_1772259541773_83": {
+      "title": "3/2",
+      "strategy": "3/2 c'est 2/2 plus 1/2. Or 2/2 c'est 1 donc 3/2 c'est 1 + 1/2.",
+      "hint": "Le résultat est 1 + 1/2."
+    },
+    "cmult_1772259541773_86": {
+      "title": "9 fois 1/4",
+      "strategy": "9 fois 1/4 c'est 1/4 + 1/4 + 1/4 + 1/4 + 1/4 + 1/4 + 1/4 + 1/4 + 1/4 égal 9/4.",
+      "hint": "Le résultat est 9/4."
+    },
+    "cmult_1772259541773_90": {
+      "title": "3/4",
+      "strategy": "Voir représentation. 1/8 c'est la moitié de 1/4. Donc 1/4 c'est 2/8. Ainsi 3/4 égal à 6/8.",
+      "hint": "Le résultat est 6/8."
+    },
+    "cmult_1772259541773_94": {
+      "title": "5/10",
+      "strategy": "10/10 c'est 1. 5/10 c'est la moitié de 1. 2/2 c'est 1 et 1/2 c'est la moitié de 1. Ainsi 5/10 égal à 1/2.",
+      "hint": "Le résultat est 1/2."
+    },
+    "cmult_1772259541773_97": {
+      "title": "1/2",
+      "strategy": "1/4 c'est la moitié de 1/2. Donc 1/2 c'est 2 fois 1/4. Voir représentation.",
+      "hint": "Le résultat est 1/4 + 1/4."
+    },
+    "cmult_1772259541773_101": {
+      "title": "2/10",
+      "strategy": "1 dixième, c'est 10 centièmes donc 2 dixièmes c'est 20 centièmes donc 20/100.",
+      "hint": "Le résultat est 20/100."
+    },
+    "cmult_1772259541773_105": {
+      "title": "4 = ?/10",
+      "strategy": "1 c'est 10 dixièmes donc 4 c'est 40 dixièmes. Ainsi 4 égal 40/10.",
+      "hint": "Le résultat est 40."
+    },
+    "cmult_1772259541773_109": {
+      "title": "320/100",
+      "strategy": "1 c'est 100 centièmes. 100 centièmes c'est 10 dixièmes. 320 centièmes c'est 32 dixièmes. Donc 300 centièmes c'est 30 dixièmes et 20 centièmes c'est 2 dixièmes. Ainsi 320 centièmes c'est 32 dixièmes.",
+      "hint": "Le résultat est 32/10."
+    },
+    "cmult_1772259541773_113": {
+      "title": "32 = ?/10",
+      "strategy": "32 unités, c'est 320 dixièmes donc 320/10.",
+      "hint": "Le résultat est 320."
+    },
+    "cmult_1772259541773_114": {
+      "title": "9 × 50",
+      "strategy": "9 fois 5 c'est 45. 9 fois 5 dizaines, c'est 45 dizaines soit 450.",
+      "hint": "Le résultat est 450."
+    },
+    "cmult_1772259541773_118": {
+      "title": "80 × 60",
+      "strategy": "8 fois 6, c'est 48. 80 × 60 égal (8 × 10 × 6 × 10) égal 8 × 6 fois 100 soit 48 × 100 égal 4 800.",
+      "hint": "Le résultat est 4 800."
+    },
+    "cmult_1772259541773_122": {
+      "title": "7 × 700",
+      "strategy": "7 × 7 c'est 49 donc 7 fois 7 centaines c'est 49 centaines soit 4 900.",
+      "hint": "Le résultat est 4 900."
+    },
+    "cmult_1772259541773_125": {
+      "title": "7 × 10 × 80",
+      "strategy": "On sait que 7 × 8 = 56 et 5 600 c'est 56 centaines soit 7 × 8 × 100. Mais aussi 7 × 8 × 10 × 10 ou encore 7 × 10 × 8 × 10 soit 7 × 10 × 80.",
+      "hint": "Le résultat est 5 600."
+    },
+    "cmult_1772259541773_126": {
+      "title": "3 × 3 × 80",
+      "strategy": "On sait que 9 × 8 = 72 et 3 × 3 = 9 alors 3 × 3 × 80 = 9 × 80 = 720.",
+      "hint": "Le résultat est 720."
+    },
+    "cmult_1772259541773_127": {
+      "title": "4 × 2 × 8",
+      "strategy": "64 c'est 8 × 8 or 4 × 2 = 8. On aura donc 4 × 2 × 8 = 64.",
+      "hint": "Le résultat est 64."
+    },
+    "cmult_1772259541773_131": {
+      "title": "2 × 2 × 25",
+      "strategy": "4 × 25 = 100. 25 est le quart de 100. 2 × 50 = 100. 50 est la moitié de 100.",
+      "hint": "Le résultat est 100."
+    },
+    "cmult_1772259541773_135": {
+      "title": "9 × 0,6",
+      "strategy": "0,6 c'est 6 dixièmes. 9 fois 6 dixièmes c'est 54 dixièmes ou encore 5,4.",
+      "hint": "Le résultat est 5,4."
+    },
+    "cmult_1772259541773_139": {
+      "title": "6 × 0,7",
+      "strategy": "0,7 c'est 7 dixièmes. 6 fois 7 dixièmes c'est 42 dixièmes ou encore 4,2.",
+      "hint": "Le résultat est 4,2."
     }
   }
 }

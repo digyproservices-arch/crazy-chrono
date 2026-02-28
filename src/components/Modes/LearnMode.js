@@ -19,6 +19,10 @@ const FILTER_LABELS = {
   'category:addition': '➕ Additions',
   'category:soustraction': '➖ Soustractions',
   'category:division': '➗ Divisions',
+  'category:multiplication_avancee': '🧮 Multiplications avancées',
+  'category:fraction': '🍕 Fractions',
+  'category:numeration': '🔢 Numération',
+  'category:equation': '❓ Équations',
 };
 
 function matchFilter(themes, filterKey) {
