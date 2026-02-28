@@ -6897,7 +6897,13 @@ setZones(dataWithRandomTexts);
                   // Pour les chiffres, garantissons une taille minimale basée sur la moyenne des zones chiffre
                   const chiffreBaseMin = chiffreRefBase ? 0.95 * chiffreRefBase : base;
                   const effectiveBase = (zone.type === 'chiffre') ? Math.max(base, chiffreBaseMin) : base;
-                  const fontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * effectiveBase;
+                  const rawFontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * effectiveBase;
+                  // Adapter la taille du texte pour qu'il reste dans la zone
+                  const contentStr = String(zone.content ?? '').trim();
+                  const charW = 0.6;
+                  const fitW = contentStr.length > 0 ? (bbox.width * 0.85) / (contentStr.length * charW) : rawFontSize;
+                  const fitH = bbox.height * 0.7;
+                  const fontSize = Math.max(10, Math.min(rawFontSize, fitW, fitH));
                   // In Training/Arena mode, use server zone data directly (bypass localStorage-derived state)
                   const isServerMode = trainingMatchId || arenaMatchId;
                   const angle = isServerMode ? Number(zone.angle || 0) : Number(calcAngles[zone.id] || 0);
@@ -6911,7 +6917,6 @@ setZones(dataWithRandomTexts);
                     }));
                   };
                   // Apply a tiny centering offset exclusively for digit "6" in chiffre zones
-                  const contentStr = String(zone.content ?? '').trim();
                   const isSix = (zone.type === 'chiffre') && contentStr === '6';
                   // Negative X shifts slightly to the left; scale by font size for consistency
                   const offsetX = isSix ? (-0.04 * fontSize) : 0;
