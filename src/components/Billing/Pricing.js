@@ -29,7 +29,7 @@ const PLANS_PARTICULIERS = [
     price: '4,90',
     period: '/mois',
     badge: null,
-    description: 'Pour les familles à revenus modestes. Même accès complet que le plan Individuel. Aucun justificatif demandé.',
+    description: 'Pour les familles à revenus modestes. Même accès complet que le plan Individuel. Sur simple déclaration sur l\'honneur.',
     priceId: 'price_1SSXeAEvlCapRsCIR5SfojR0',
     highlight: false,
     icon: '💛',
@@ -121,7 +121,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Qu\'est-ce que le tarif Solidaire ?',
-    a: 'Le tarif Solidaire (4,90€/mois) est destiné aux familles à revenus modestes. Il donne exactement le même accès que le tarif Individuel. Aucun justificatif n\'est demandé, nous faisons confiance.',
+    a: 'Le tarif Solidaire (4,90€/mois) est destiné aux familles à revenus modestes. Il donne exactement le même accès que le tarif Individuel. Une simple déclaration sur l\'honneur est requise lors de la souscription (aucun justificatif financier n\'est demandé).',
   },
 ];
 
@@ -131,8 +131,17 @@ export default function Pricing() {
   const [error, setError] = useState('');
   const [openFaq, setOpenFaq] = useState(null);
   const [showInstitutionForm, setShowInstitutionForm] = useState(false);
+  const [showSolidaireDeclaration, setShowSolidaireDeclaration] = useState(false);
+  const [solidaireAccepted, setSolidaireAccepted] = useState(false);
+  const [pendingSolidarePlan, setPendingSolidarePlan] = useState(null);
 
   const handleSubscribe = useCallback(async (plan) => {
+    // Intercept solidarity plan: show declaration modal first
+    if (plan.id === 'solidaire' && !solidaireAccepted) {
+      setPendingSolidarePlan(plan);
+      setShowSolidaireDeclaration(true);
+      return;
+    }
     try {
       setLoadingPlan(plan.id);
       setError('');
@@ -162,7 +171,7 @@ export default function Pricing() {
     } finally {
       setLoadingPlan(null);
     }
-  }, []);
+  }, [solidaireAccepted]);
 
   // --- Styles ---
   const pageStyle = {
@@ -429,6 +438,57 @@ export default function Pricing() {
           </button>
         </div>
       </div>
+      {/* Solidarity Declaration Modal */}
+      {showSolidaireDeclaration && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
+          <div style={{ background: CC.white, borderRadius: 20, padding: '28px 24px', maxWidth: 480, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ textAlign: 'center', fontSize: 40, marginBottom: 8 }}>💛</div>
+            <h3 style={{ margin: '0 0 12px', color: CC.brown, fontSize: 20, textAlign: 'center' }}>Tarif Solidaire — Déclaration sur l'honneur</h3>
+            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
+              <p style={{ margin: 0, fontSize: 14, color: '#92400e', lineHeight: 1.6 }}>
+                Le tarif Solidaire (4,90€/mois) est réservé aux <strong>familles à revenus modestes</strong>. Il donne accès aux mêmes fonctionnalités que le tarif Individuel (9,90€/mois).
+              </p>
+            </div>
+            <div style={{ background: '#f8fafc', border: '2px solid #e2e8f0', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={solidaireAccepted}
+                  onChange={e => setSolidaireAccepted(e.target.checked)}
+                  style={{ marginTop: 3, flexShrink: 0, width: 18, height: 18 }}
+                />
+                <span style={{ fontSize: 13, color: '#1e293b', lineHeight: 1.6 }}>
+                  <strong>Je déclare sur l'honneur</strong> que les revenus mensuels de mon foyer sont modestes et que je ne suis pas en mesure de souscrire au tarif normal. Je suis informé(e) qu'une fausse déclaration sur l'honneur est un délit passible de sanctions (Art. 441-7 du Code pénal) et peut entraîner le passage au tarif normal.
+                </span>
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setShowSolidaireDeclaration(false); setSolidaireAccepted(false); setPendingSolidarePlan(null); }}
+                style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: '#f3f4f6', color: '#374151', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  setShowSolidaireDeclaration(false);
+                  if (pendingSolidarePlan) handleSubscribe(pendingSolidarePlan);
+                }}
+                disabled={!solidaireAccepted}
+                style={{
+                  padding: '10px 24px', borderRadius: 10, border: 'none',
+                  background: solidaireAccepted ? `linear-gradient(135deg, ${CC.yellow}, #FFC940)` : '#d1d5db',
+                  color: solidaireAccepted ? CC.brown : '#fff',
+                  fontWeight: 800, cursor: solidaireAccepted ? 'pointer' : 'not-allowed',
+                  boxShadow: solidaireAccepted ? '0 3px 12px rgba(245,166,35,0.3)' : 'none',
+                }}
+              >
+                Confirmer et souscrire
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`
         @media (max-width: 900px) {
           .cc-pricing-grid { grid-template-columns: repeat(2, 1fr) !important; }

@@ -20,6 +20,7 @@ export default function Login({ onLogin }) {
   const [inviteRole, setInviteRole] = useState('');
   const [studentMode, setStudentMode] = useState(false);
   const [studentCode, setStudentCode] = useState('');
+  const [acceptCgu, setAcceptCgu] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -224,6 +225,10 @@ export default function Login({ onLogin }) {
       
       if (!fn || !ln) {
         setError('Nom et prénom requis');
+        return;
+      }
+      if (!acceptCgu) {
+        setError('Vous devez accepter les CGU et la politique de confidentialité pour créer un compte.');
         return;
       }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
@@ -445,6 +450,14 @@ export default function Login({ onLogin }) {
               Le mot de passe doit contenir au minimum 8 caractères, dont au moins: une majuscule, une minuscule, un chiffre et un caractère spécial.
             </div>
             {password ? <PasswordStrength pwd={password} /> : null}
+            <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 8, background: '#f0fdff', border: '1px solid #e0f2fe' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
+                <input type="checkbox" checked={acceptCgu} onChange={e => setAcceptCgu(e.target.checked)} style={{ marginTop: 3, flexShrink: 0 }} />
+                <span style={{ fontSize: 12, color: '#374151', lineHeight: 1.5 }}>
+                  J'accepte les <a href="/legal?tab=cgu" target="_blank" rel="noopener noreferrer" style={{ color: '#1AACBE', fontWeight: 600 }}>Conditions Générales d'Utilisation</a> et la <a href="/legal?tab=confidentialite" target="_blank" rel="noopener noreferrer" style={{ color: '#1AACBE', fontWeight: 600 }}>Politique de confidentialité</a> de Crazy Chrono. *
+                </span>
+              </label>
+            </div>
           </>
         )}
         {!signupMode && (

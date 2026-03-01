@@ -43,6 +43,7 @@ import GrandeSalle from './components/GrandeSalle/GrandeSalle';
 import TournamentAdmin from './components/GrandeSalle/TournamentAdmin';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import LearnMode from './components/Modes/LearnMode';
+import LegalPages from './components/LegalPages';
 
 // ✅ AUTH WRAPPERS (outside App to prevent remount loops!)
 const RequireAuth = ({ children, auth }) => auth ? children : <Navigate to="/login" replace />;
@@ -453,12 +454,18 @@ function App() {
               <Route path="/apprendre" element={<RequireAuth auth={auth}><LearnMode /></RequireAuth>} />
               {/* Carte (éditeur/jeu) accessible en direct si nécessaire, sinon on y accède après config */}
               <Route path="/carte" element={<div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div>} />
+              <Route path="/legal" element={<LegalPages />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
           {!gameMode && (
             <footer style={{ background: '#0D6A7A', color: 'rgba(255,255,255,0.7)', padding: '16px 24px', textAlign: 'center', fontSize: 13 }}>
               <p style={{ margin: 0 }}>© 2025 CRAZY CHRONO — DIGIKAZ · Tous droits réservés</p>
+              <div style={{ marginTop: 6, display: 'flex', justifyContent: 'center', gap: 16, flexWrap: 'wrap' }}>
+                <a href="/legal?tab=mentions" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', fontSize: 12 }}>Mentions légales</a>
+                <a href="/legal?tab=confidentialite" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', fontSize: 12 }}>Confidentialité</a>
+                <a href="/legal?tab=cgu" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none', fontSize: 12 }}>CGU / CGV</a>
+              </div>
             </footer>
           )}
         </div>
