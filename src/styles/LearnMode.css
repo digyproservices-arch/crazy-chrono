@@ -78,6 +78,47 @@
   border-color: transparent;
 }
 
+/* Sub-filters */
+.learn-mode__subfilters {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 2px;
+  scrollbar-width: none;
+}
+
+.learn-mode__subfilters::-webkit-scrollbar {
+  display: none;
+}
+
+.learn-mode__subfilter-btn {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 16px;
+  border: 1.5px solid #d1d5db;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.learn-mode__subfilter-btn:hover {
+  border-color: #1AACBE;
+  color: #0D6A7A;
+}
+
+.learn-mode__subfilter-btn--active {
+  background: #0D6A7A;
+  color: #fff;
+  border-color: transparent;
+}
+
 /* Slide card */
 .learn-mode__slide-wrapper {
   position: relative;

@@ -25,6 +25,47 @@ const FILTER_LABELS = {
   'category:equation': '❓ Équations',
 };
 
+// Sub-filter labels per main filter
+const SUB_FILTER_LABELS = {
+  'category:table_': {
+    'category:table_2': 'Table de 2',
+    'category:table_3': 'Table de 3',
+    'category:table_4': 'Table de 4',
+    'category:table_5': 'Table de 5',
+    'category:table_6': 'Table de 6',
+    'category:table_7': 'Table de 7',
+    'category:table_8': 'Table de 8',
+    'category:table_9': 'Table de 9',
+    'category:table_10': 'Table de 10',
+    'category:table_11': 'Table de 11',
+    'category:table_12': 'Table de 12',
+  },
+  'domain:botany': {
+    'category:fleur': '🌸 Fleurs',
+    'category:fruit': '🍎 Fruits',
+    'category:legumineuse': '🫘 Légumineuses',
+    'category:epice': '🌶️ Épices',
+    'category:plante_aromatique': '🌿 Aromatiques',
+    'category:plante_medicinale': '💊 Médicinales',
+    'category:tubercule': '🥔 Tubercules',
+  },
+  'domain:zoology': {
+    'region:caraibe': '🏝️ Caraïbe',
+    'region:guadeloupe': '🇬🇵 Guadeloupe',
+    'region:martinique': '🇲🇶 Martinique',
+    'region:guyane': '🇬🇫 Guyane',
+    'region:reunion': '🇷🇪 Réunion',
+    'region:polynesie': '🏝️ Polynésie',
+    'region:france': '🇫🇷 France',
+    'region:europe': '🇪🇺 Europe',
+    'region:afrique': '🌍 Afrique',
+    'region:asie': '🌏 Asie',
+    'region:ameriques': '🌎 Amériques',
+    'region:haiti': '🇭🇹 Haïti',
+    'region:international': '🌐 International',
+  },
+};
+
 function matchFilter(themes, filterKey) {
   if (filterKey === 'all') return true;
   if (filterKey === 'category:table_') return themes.some(t => t.startsWith('category:table_'));
@@ -36,6 +77,7 @@ export default function LearnMode() {
   const [assocData, setAssocData] = useState(null);
   const [strategies, setStrategies] = useState(null);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [activeSubFilter, setActiveSubFilter] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [editingSlide, setEditingSlide] = useState(null);
@@ -117,16 +159,36 @@ export default function LearnMode() {
     return result;
   }, [assocData, strategies, userEdits]);
 
+  // Available sub-filters for current main filter
+  const availableSubFilters = useMemo(() => {
+    const subDefs = SUB_FILTER_LABELS[activeFilter];
+    if (!subDefs) return [];
+    const mainFiltered = slides.filter(s => matchFilter(s.themes, activeFilter));
+    return Object.entries(subDefs)
+      .map(([key, label]) => ({
+        key,
+        label,
+        count: mainFiltered.filter(s => s.themes.some(t => t === key)).length,
+      }))
+      .filter(sf => sf.count > 0);
+  }, [activeFilter, slides]);
+
   // Filtered slides
   const filteredSlides = useMemo(() => {
-    if (activeFilter === 'all') return slides;
-    return slides.filter(s => matchFilter(s.themes, activeFilter));
-  }, [slides, activeFilter]);
+    let result = slides;
+    if (activeFilter !== 'all') {
+      result = result.filter(s => matchFilter(s.themes, activeFilter));
+    }
+    if (activeSubFilter) {
+      result = result.filter(s => s.themes.some(t => t === activeSubFilter));
+    }
+    return result;
+  }, [slides, activeFilter, activeSubFilter]);
 
   // Reset index when filter changes
   useEffect(() => {
     setCurrentIndex(0);
-  }, [activeFilter]);
+  }, [activeFilter, activeSubFilter]);
 
   const currentSlide = filteredSlides[currentIndex] || null;
 
@@ -303,7 +365,7 @@ export default function LearnMode() {
       <div className="learn-mode__filters">
         <button
           className={`learn-mode__filter-btn ${activeFilter === 'all' ? 'learn-mode__filter-btn--active' : ''}`}
-          onClick={() => setActiveFilter('all')}
+          onClick={() => { setActiveFilter('all'); setActiveSubFilter(null); }}
         >
           Tout ({slides.length})
         </button>
@@ -314,13 +376,34 @@ export default function LearnMode() {
             <button
               key={key}
               className={`learn-mode__filter-btn ${activeFilter === key ? 'learn-mode__filter-btn--active' : ''}`}
-              onClick={() => setActiveFilter(key)}
+              onClick={() => { setActiveFilter(key); setActiveSubFilter(null); }}
             >
               {label} ({count})
             </button>
           );
         })}
       </div>
+
+      {/* Sub-filters */}
+      {availableSubFilters.length > 0 && (
+        <div className="learn-mode__subfilters">
+          <button
+            className={`learn-mode__subfilter-btn ${!activeSubFilter ? 'learn-mode__subfilter-btn--active' : ''}`}
+            onClick={() => setActiveSubFilter(null)}
+          >
+            Tout ({slides.filter(s => matchFilter(s.themes, activeFilter)).length})
+          </button>
+          {availableSubFilters.map(sf => (
+            <button
+              key={sf.key}
+              className={`learn-mode__subfilter-btn ${activeSubFilter === sf.key ? 'learn-mode__subfilter-btn--active' : ''}`}
+              onClick={() => setActiveSubFilter(sf.key)}
+            >
+              {sf.label} ({sf.count})
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Slide */}
       {filteredSlides.length === 0 ? (
