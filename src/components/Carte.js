@@ -6734,7 +6734,7 @@ setZones(dataWithRandomTexts);
               <path
                 d={pointsToBezierPath(zone.points)}
                 fill={(() => {
-                  const isHover = hoveredZoneId === zone.id;
+                  const isHover = !gameActive && hoveredZoneId === zone.id;
                   const isSelected = gameActive && gameSelectedIds.includes(zone.id);
                   const isEditorSelected = !gameActive && selectedZoneIds.includes(zone.id);
                   if (zone.type === 'image') {
