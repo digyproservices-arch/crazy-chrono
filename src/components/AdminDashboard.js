@@ -3,6 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { getBackendUrl } from '../utils/apiHelpers';
 import supabase from '../utils/supabaseClient';
 
+// Helper: get auth headers for admin API calls
+async function getAdminHeaders() {
+  try {
+    const { data: sess } = await supabase.auth.getSession();
+    const token = sess?.session?.access_token;
+    if (token) return { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  } catch {}
+  // Fallback to localStorage token
+  try {
+    const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+    if (auth.token) return { 'Authorization': `Bearer ${auth.token}`, 'Content-Type': 'application/json' };
+  } catch {}
+  return { 'Content-Type': 'application/json' };
+}
+
 function AdminDashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({
@@ -35,7 +50,8 @@ function AdminDashboard() {
     async function fetchStats() {
       try {
         const backendUrl = getBackendUrl();
-        const res = await fetch(`${backendUrl}/api/admin/dashboard-stats`);
+        const headers = await getAdminHeaders();
+        const res = await fetch(`${backendUrl}/api/admin/dashboard-stats`, { headers });
         const data = await res.json();
         
         if (data.ok) {
@@ -55,7 +71,8 @@ function AdminDashboard() {
     async function fetchSchools() {
       try {
         const backendUrl = getBackendUrl();
-        const res = await fetch(`${backendUrl}/api/admin/onboarding/schools`);
+        const headers = await getAdminHeaders();
+        const res = await fetch(`${backendUrl}/api/admin/onboarding/schools`, { headers });
         const data = await res.json();
         if (data.ok) setSchoolsList(data.schools || []);
       } catch (e) { console.error('Erreur schools:', e); }
@@ -242,7 +259,8 @@ function AdminDashboard() {
                   setLicenseUI(prev => ({ ...prev, open: true, result: null }));
                   try {
                     const backendUrl = getBackendUrl();
-                    const res = await fetch(`${backendUrl}/api/admin/licenses/filters`);
+                    const headers = await getAdminHeaders();
+                    const res = await fetch(`${backendUrl}/api/admin/licenses/filters`, { headers });
                     const data = await res.json();
                     if (data.ok) setFilters({ schools: data.schools, classes: data.classes, summary: data.summary });
                   } catch (e) { console.error('Filters error:', e); }
@@ -377,18 +395,19 @@ function AdminDashboard() {
                     setLicenseUI(prev => ({ ...prev, loading: true, result: null }));
                     try {
                       const backendUrl = getBackendUrl();
+                      const headers = await getAdminHeaders();
                       const res = await fetch(`${backendUrl}/api/admin/licenses/bulk-activate`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        method: 'POST', headers,
                         body: JSON.stringify({ scope: licenseUI.scope, schoolId: licenseUI.schoolId, classId: licenseUI.classId, count: licenseUI.count }),
                       });
                       const data = await res.json();
                       setLicenseUI(prev => ({ ...prev, loading: false, result: { type: 'success', message: `✅ ${data.activated} licence(s) activée(s) !` } }));
                       // Refresh filters
-                      const fRes = await fetch(`${backendUrl}/api/admin/licenses/filters`);
+                      const fRes = await fetch(`${backendUrl}/api/admin/licenses/filters`, { headers });
                       const fData = await fRes.json();
                       if (fData.ok) setFilters({ schools: fData.schools, classes: fData.classes, summary: fData.summary });
                       // Refresh stats
-                      const sRes = await fetch(`${backendUrl}/api/admin/dashboard-stats`);
+                      const sRes = await fetch(`${backendUrl}/api/admin/dashboard-stats`, { headers });
                       const sData = await sRes.json();
                       if (sData.ok) { setStats({ ...sData.stats, loading: false }); setRecentUsers(sData.users || []); }
                     } catch (e) {
@@ -412,13 +431,14 @@ function AdminDashboard() {
                     setLicenseUI(prev => ({ ...prev, loading: true, result: null }));
                     try {
                       const backendUrl = getBackendUrl();
+                      const headers = await getAdminHeaders();
                       const res = await fetch(`${backendUrl}/api/admin/licenses/bulk-deactivate`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        method: 'POST', headers,
                         body: JSON.stringify({ scope: licenseUI.scope, schoolId: licenseUI.schoolId, classId: licenseUI.classId }),
                       });
                       const data = await res.json();
                       setLicenseUI(prev => ({ ...prev, loading: false, result: { type: 'warning', message: `🔒 ${data.deactivated} licence(s) désactivée(s).` } }));
-                      const fRes = await fetch(`${backendUrl}/api/admin/licenses/filters`);
+                      const fRes = await fetch(`${backendUrl}/api/admin/licenses/filters`, { headers });
                       const fData = await fRes.json();
                       if (fData.ok) setFilters({ schools: fData.schools, classes: fData.classes, summary: fData.summary });
                     } catch (e) {
@@ -457,19 +477,28 @@ function AdminDashboard() {
               🏫 Inscription école
             </h2>
             <div style={{ display: 'flex', gap: 8 }}>
-              <a
-                href={`${getBackendUrl()}/api/admin/onboarding/csv-template`}
-                download
-                style={{ padding: '8px 14px', background: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}
+              <button
+                onClick={async () => {
+                  try {
+                    const headers = await getAdminHeaders();
+                    const res = await fetch(`${getBackendUrl()}/api/admin/onboarding/csv-template`, { headers });
+                    if (!res.ok) throw new Error(`Erreur ${res.status}`);
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = 'modele_inscription_eleves.csv'; a.click(); URL.revokeObjectURL(url);
+                  } catch (e) { alert('Erreur: ' + e.message); }
+                }}
+                style={{ padding: '8px 14px', background: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
               >
                 📥 Modèle CSV
-              </a>
+              </button>
               {onboarding.step === 0 ? (
                 <button
                   onClick={async () => {
                     setOnboarding(prev => ({ ...prev, step: 1, result: null, csvPreview: null, csvError: null }));
                     try {
-                      const res = await fetch(`${getBackendUrl()}/api/admin/onboarding/schools`);
+                      const headers = await getAdminHeaders();
+                      const res = await fetch(`${getBackendUrl()}/api/admin/onboarding/schools`, { headers });
                       const data = await res.json();
                       if (data.ok) setSchoolsList(data.schools || []);
                     } catch (e) { console.error(e); }
@@ -671,9 +700,10 @@ function AdminDashboard() {
                           : utf8Text;
                       }
                       const backendUrl = getBackendUrl();
+                      const adminH = await getAdminHeaders();
                       const res = await fetch(`${backendUrl}/api/admin/onboarding/preview-csv`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'text/plain' },
+                        headers: { ...adminH, 'Content-Type': 'text/plain' },
                         body: text,
                       });
                       const data = await res.json();
@@ -823,9 +853,10 @@ function AdminDashboard() {
                     setOnboarding(p => ({ ...p, loading: true, step: 4 }));
                     try {
                       const backendUrl = getBackendUrl();
+                      const headers = await getAdminHeaders();
                       const res = await fetch(`${backendUrl}/api/admin/onboarding/import`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers,
                         body: JSON.stringify({
                           schoolName: onboarding.schoolName,
                           schoolCity: onboarding.schoolCity,
@@ -845,13 +876,13 @@ function AdminDashboard() {
                       if (data.ok) {
                         setOnboarding(p => ({ ...p, loading: false, result: data.result, step: 5 }));
                         // Refresh dashboard
-                        const sRes = await fetch(`${backendUrl}/api/admin/dashboard-stats`);
+                        const sRes = await fetch(`${backendUrl}/api/admin/dashboard-stats`, { headers });
                         const sData = await sRes.json();
                         if (sData.ok) { setStats({ ...sData.stats, loading: false }); setRecentUsers(sData.users || []); }
-                        const fRes = await fetch(`${backendUrl}/api/admin/licenses/filters`);
+                        const fRes = await fetch(`${backendUrl}/api/admin/licenses/filters`, { headers });
                         const fData = await fRes.json();
                         if (fData.ok) setFilters({ schools: fData.schools, classes: fData.classes, summary: fData.summary });
-                        const scRes = await fetch(`${backendUrl}/api/admin/onboarding/schools`);
+                        const scRes = await fetch(`${backendUrl}/api/admin/onboarding/schools`, { headers });
                         const scData = await scRes.json();
                         if (scData.ok) setSchoolsList(scData.schools || []);
                       } else {
@@ -1095,15 +1126,16 @@ function AdminDashboard() {
                               setEditSchool(prev => ({ ...prev, saving: true, error: null }));
                               try {
                                 const backendUrl = getBackendUrl();
+                                const headers = await getAdminHeaders();
                                 const res = await fetch(`${backendUrl}/api/admin/onboarding/classes/merge`, {
                                   method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
+                                  headers,
                                   body: JSON.stringify({ sourceId: cls.id, targetId }),
                                 });
                                 const data = await res.json();
                                 if (data.ok) {
                                   // Refresh schools list and update modal
-                                  const scRes = await fetch(`${backendUrl}/api/admin/onboarding/schools`);
+                                  const scRes = await fetch(`${backendUrl}/api/admin/onboarding/schools`, { headers });
                                   const scData = await scRes.json();
                                   if (scData.ok) {
                                     setSchoolsList(scData.schools || []);
@@ -1168,11 +1200,12 @@ function AdminDashboard() {
                   setEditSchool(prev => ({ ...prev, saving: true, error: null }));
                   try {
                     const backendUrl = getBackendUrl();
+                    const headers = await getAdminHeaders();
                     const { id, saving, error, classes: editClasses, ...fields } = editSchool;
                     // 1. Update school fields
                     const res = await fetch(`${backendUrl}/api/admin/onboarding/schools/${id}`, {
                       method: 'PUT',
-                      headers: { 'Content-Type': 'application/json' },
+                      headers,
                       body: JSON.stringify(fields),
                     });
                     const data = await res.json();
@@ -1185,13 +1218,13 @@ function AdminDashboard() {
                       for (const cls of editClasses) {
                         await fetch(`${backendUrl}/api/admin/onboarding/classes/${cls.id}`, {
                           method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
+                          headers,
                           body: JSON.stringify({ teacher_name: cls.teacher_name, teacher_email: cls.teacher_email }),
                         });
                       }
                     }
                     // 3. Refresh schools list to get updated data
-                    const scRes = await fetch(`${backendUrl}/api/admin/onboarding/schools`);
+                    const scRes = await fetch(`${backendUrl}/api/admin/onboarding/schools`, { headers });
                     const scData = await scRes.json();
                     if (scData.ok) setSchoolsList(scData.schools || []);
                     setEditSchool(null);

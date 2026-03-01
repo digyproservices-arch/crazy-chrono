@@ -2,6 +2,8 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const bodyParser = require('body-parser');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -27,11 +29,25 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization']
 };
 app.use(cors(corsOptions));
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(express.json({ limit: '10mb' }));
 
+// Rate limiting — global
+const globalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { ok: false, error: 'too_many_requests' } });
+app.use(globalLimiter);
+
+// Rate limiting — auth endpoints (stricter)
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { ok: false, error: 'too_many_auth_requests' } });
+app.use('/api/auth/student-login', authLimiter);
+
 const server = http.createServer(app);
+const ALLOWED_ORIGINS = [
+  'https://app.crazy-chrono.com',
+  'http://localhost:3000',
+  'http://localhost:5173'
+];
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
+  cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'], credentials: true }
 });
 
 logger.info('[Server] Starting Crazy Chrono backend...', { 
@@ -64,6 +80,47 @@ try {
   }
 } catch (e) {
   console.warn('[Server] Supabase admin not configured:', e.message);
+}
+
+// ==========================================
+// SECURITY MIDDLEWARE — Admin authentication
+// Validates JWT token + checks admin role in user_profiles
+// ==========================================
+async function requireAdminAuth(req, res, next) {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'service_unavailable' });
+    const authz = String(req.headers['authorization'] || '').trim();
+    if (!authz.startsWith('Bearer ')) return res.status(401).json({ ok: false, error: 'missing_token' });
+    const token = authz.slice(7).trim();
+    const { data: who, error: whoErr } = await supabaseAdmin.auth.getUser(token);
+    if (whoErr || !who?.user) return res.status(401).json({ ok: false, error: 'invalid_token' });
+    const { data: prof } = await supabaseAdmin.from('user_profiles').select('role').eq('id', who.user.id).single();
+    if (!prof || prof.role !== 'admin') {
+      logger.warn('[Security] Non-admin access attempt', { userId: who.user.id, email: who.user.email, path: req.path });
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
+    req.adminUser = { id: who.user.id, email: who.user.email };
+    next();
+  } catch (e) {
+    logger.error('[Security] Auth middleware error', { error: e.message });
+    return res.status(500).json({ ok: false, error: 'auth_error' });
+  }
+}
+
+// Reusable auth middleware (any logged-in user, not necessarily admin)
+async function requireAuth(req, res, next) {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'service_unavailable' });
+    const authz = String(req.headers['authorization'] || '').trim();
+    if (!authz.startsWith('Bearer ')) return res.status(401).json({ ok: false, error: 'missing_token' });
+    const token = authz.slice(7).trim();
+    const { data: who, error: whoErr } = await supabaseAdmin.auth.getUser(token);
+    if (whoErr || !who?.user) return res.status(401).json({ ok: false, error: 'invalid_token' });
+    req.authUser = { id: who.user.id, email: who.user.email };
+    next();
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'auth_error' });
+  }
 }
 
 // Crazy Arena Manager pour tournois (groupes de 4) - AVEC Supabase
@@ -471,7 +528,7 @@ const listImagesRouter = require('./listImages');
 app.use(listImagesRouter);
 
 // Endpoint pour sauvegarder le JSON associations
-app.post('/save-associations', (req, res) => {
+app.post('/save-associations', requireAdminAuth, (req, res) => {
   const data = req.body;
   const filePath = path.join(__dirname, '../public/data/associations.json');
   fs.writeFile(filePath, JSON.stringify(data, null, 2), err => {
@@ -501,7 +558,7 @@ app.get('/math-positions', async (req, res) => {
 });
 
 // Sauvegarder les positions/angles des éléments math dans public/data/math_positions.json
-app.post('/save-math-positions', async (req, res) => {
+app.post('/save-math-positions', requireAdminAuth, async (req, res) => {
   try {
     // Autoriser soit {data: {...}}, soit {...} directement
     const payload = (req.body && req.body.data != null) ? req.body.data : req.body;
@@ -518,7 +575,7 @@ app.post('/save-math-positions', async (req, res) => {
 });
 
 // Endpoint pour renommer une image
-app.post('/rename-image', (req, res) => {
+app.post('/rename-image', requireAdminAuth, (req, res) => {
   const { oldPath, newPath } = req.body;
   const baseDir = path.join(__dirname, '../public/');
   const absOld = path.join(baseDir, oldPath);
@@ -541,7 +598,7 @@ app.post('/rename-image', (req, res) => {
 // ==========================================
 // ADMIN DASHBOARD STATS — Données réelles
 // ==========================================
-app.get('/api/admin/dashboard-stats', async (req, res) => {
+app.get('/api/admin/dashboard-stats', requireAdminAuth, async (req, res) => {
   try {
     if (!supabaseAdmin) {
       return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
@@ -684,7 +741,7 @@ app.get('/api/admin/dashboard-stats', async (req, res) => {
 // ==========================================
 
 // GET filters (schools + classes) for the bulk activation UI
-app.get('/api/admin/licenses/filters', async (req, res) => {
+app.get('/api/admin/licenses/filters', requireAdminAuth, async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
 
@@ -742,7 +799,7 @@ app.get('/api/admin/licenses/filters', async (req, res) => {
 });
 
 // GET list all students with class details (admin diagnostic)
-app.get('/api/admin/students', async (req, res) => {
+app.get('/api/admin/students', requireAdminAuth, async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
     const { data: students } = await supabaseAdmin
@@ -768,7 +825,7 @@ app.get('/api/admin/students', async (req, res) => {
 });
 
 // POST generate test class: fix codes for existing students + add new students
-app.post('/api/admin/generate-test-class', async (req, res) => {
+app.post('/api/admin/generate-test-class', requireAdminAuth, async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
 
@@ -855,7 +912,7 @@ app.post('/api/admin/generate-test-class', async (req, res) => {
 });
 
 // POST bulk activate licenses
-app.post('/api/admin/licenses/bulk-activate', async (req, res) => {
+app.post('/api/admin/licenses/bulk-activate', requireAdminAuth, async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
 
@@ -907,7 +964,7 @@ app.post('/api/admin/licenses/bulk-activate', async (req, res) => {
 });
 
 // POST bulk deactivate licenses (for revocation)
-app.post('/api/admin/licenses/bulk-deactivate', async (req, res) => {
+app.post('/api/admin/licenses/bulk-deactivate', requireAdminAuth, async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
 
@@ -951,7 +1008,7 @@ function generateAccessCode(firstName, className) {
 }
 
 // GET CSV template download
-app.get('/api/admin/onboarding/csv-template', (req, res) => {
+app.get('/api/admin/onboarding/csv-template', requireAdminAuth, (req, res) => {
   const BOM = '\uFEFF';
   const sep = ';'; // Point-virgule = standard Excel français
   const header = ['Nom École', 'Ville', 'Circonscription', 'Code Postal', 'Type Établissement', 'Email École', 'Téléphone École', 'Classe', 'Niveau', 'Professeur', 'Email Professeur', 'Prénom Élève', 'Nom Élève'].join(sep);
@@ -970,7 +1027,7 @@ app.get('/api/admin/onboarding/csv-template', (req, res) => {
 });
 
 // POST parse CSV and return preview (no DB write)
-app.post('/api/admin/onboarding/preview-csv', express.text({ type: '*/*', limit: '5mb' }), (req, res) => {
+app.post('/api/admin/onboarding/preview-csv', requireAdminAuth, express.text({ type: '*/*', limit: '5mb' }), (req, res) => {
   try {
     const raw = typeof req.body === 'string' ? req.body : '';
     const lines = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim());
@@ -1076,7 +1133,7 @@ app.post('/api/admin/onboarding/preview-csv', express.text({ type: '*/*', limit:
 });
 
 // POST import confirmed data into DB
-app.post('/api/admin/onboarding/import', async (req, res) => {
+app.post('/api/admin/onboarding/import', requireAdminAuth, async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
 
@@ -1236,7 +1293,7 @@ app.post('/api/admin/onboarding/import', async (req, res) => {
 });
 
 // GET list all schools with onboarding summary
-app.get('/api/admin/onboarding/schools', async (req, res) => {
+app.get('/api/admin/onboarding/schools', requireAdminAuth, async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
 
@@ -1269,7 +1326,7 @@ app.get('/api/admin/onboarding/schools', async (req, res) => {
 });
 
 // PUT update a school
-app.put('/api/admin/onboarding/schools/:id', express.json(), async (req, res) => {
+app.put('/api/admin/onboarding/schools/:id', requireAdminAuth, express.json(), async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
     const { id } = req.params;
@@ -1291,7 +1348,7 @@ app.put('/api/admin/onboarding/schools/:id', express.json(), async (req, res) =>
 });
 
 // PUT update a class (teacher info)
-app.put('/api/admin/onboarding/classes/:id', express.json(), async (req, res) => {
+app.put('/api/admin/onboarding/classes/:id', requireAdminAuth, express.json(), async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
     const { id } = req.params;
@@ -1313,7 +1370,7 @@ app.put('/api/admin/onboarding/classes/:id', express.json(), async (req, res) =>
 });
 
 // POST merge two classes (move students from sourceId to targetId, delete source)
-app.post('/api/admin/onboarding/classes/merge', express.json(), async (req, res) => {
+app.post('/api/admin/onboarding/classes/merge', requireAdminAuth, express.json(), async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
     const { sourceId, targetId } = req.body;
@@ -1498,7 +1555,7 @@ app.post('/api/auth/student-login', async (req, res) => {
 });
 
 // GET export access codes for a school as CSV
-app.get('/api/admin/onboarding/export-codes/:schoolId', async (req, res) => {
+app.get('/api/admin/onboarding/export-codes/:schoolId', requireAdminAuth, async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'no_admin' });
 
@@ -1558,13 +1615,11 @@ app.get('/health', (req, res) => {
   res.json({ ok: true, ts: new Date().toISOString(), uptime: process.uptime() });
 });
 
-// Debug: expose whether Supabase admin is configured (no secrets leaked)
-app.get('/debug/supabase', (req, res) => {
+// Debug: expose whether Supabase admin is configured (admin-only in production)
+app.get('/debug/supabase', requireAdminAuth, (req, res) => {
   try {
-    const hasUrl = !!process.env.SUPABASE_URL;
-    const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
     const adminConfigured = !!supabaseAdmin;
-    return res.json({ ok: true, hasUrl, hasServiceKey, adminConfigured });
+    return res.json({ ok: true, adminConfigured });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'debug_error' });
   }

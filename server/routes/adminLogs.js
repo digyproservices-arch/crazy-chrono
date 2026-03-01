@@ -7,15 +7,28 @@ const express = require('express');
 const router = express.Router();
 const logger = require('../logger');
 
-// Middleware auth admin (simple check - améliorer avec JWT en prod)
-const requireAdmin = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  // Pour l'instant, accepter si header présent (améliorer avec vrai JWT)
-  if (!authHeader) {
-    logger.warn('[AdminLogs] Unauthorized access attempt', { ip: req.ip });
-    return res.status(401).json({ ok: false, error: 'Unauthorized' });
+// Middleware auth admin — validates JWT + checks admin role in user_profiles
+const requireAdmin = async (req, res, next) => {
+  try {
+    const authHeader = String(req.headers.authorization || '').trim();
+    if (!authHeader.startsWith('Bearer ')) {
+      logger.warn('[AdminLogs] Unauthorized access attempt', { ip: req.ip });
+      return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    }
+    const token = authHeader.slice(7).trim();
+    const supabase = getSupabase();
+    const { data: who, error: whoErr } = await supabase.auth.getUser(token);
+    if (whoErr || !who?.user) return res.status(401).json({ ok: false, error: 'invalid_token' });
+    const { data: prof } = await supabase.from('user_profiles').select('role').eq('id', who.user.id).single();
+    if (!prof || prof.role !== 'admin') {
+      logger.warn('[AdminLogs] Non-admin access attempt', { userId: who.user.id, email: who.user.email });
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
+    next();
+  } catch (e) {
+    logger.error('[AdminLogs] Auth error', { error: e.message });
+    return res.status(500).json({ ok: false, error: 'auth_error' });
   }
-  next();
 };
 
 // Récupérer le client Supabase depuis global (initialisé dans server.js)
