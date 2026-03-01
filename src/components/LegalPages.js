@@ -76,6 +76,7 @@ function MentionsLegales() {
       </Section>
 
       <Section title="2. Éditeur">
+        <p><strong>Édité par :</strong> Digikaz</p>
         <p><strong>Propriétaire :</strong> Mr VERIN MARIUS</p>
         <p><strong>Siège social :</strong> Chemin de ravine Houël, Castel Lamentin 97129</p>
         <p><strong>Email :</strong> <a href="mailto:crazy.chrono.contact@gmail.com" style={linkStyle}>crazy.chrono.contact@gmail.com</a></p>
