@@ -450,15 +450,35 @@
   color: #374151;
 }
 
-/* Swipe animation */
-.learn-mode__slide--swipe-left {
-  transform: translateX(-100%);
+/* Swipe animation — smooth slide transitions */
+.learn-mode__slide--out-left {
+  transform: translateX(-110%);
   opacity: 0;
+  transition: transform 0.25s ease-in, opacity 0.25s ease-in;
 }
 
-.learn-mode__slide--swipe-right {
-  transform: translateX(100%);
+.learn-mode__slide--out-right {
+  transform: translateX(110%);
   opacity: 0;
+  transition: transform 0.25s ease-in, opacity 0.25s ease-in;
+}
+
+.learn-mode__slide--in-left {
+  transform: translateX(-110%);
+  opacity: 0;
+  transition: none;
+}
+
+.learn-mode__slide--in-right {
+  transform: translateX(110%);
+  opacity: 0;
+  transition: none;
+}
+
+.learn-mode__slide--in-center {
+  transform: translateX(0);
+  opacity: 1;
+  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
 }
 
 /* Responsive */

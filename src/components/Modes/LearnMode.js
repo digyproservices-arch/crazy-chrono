@@ -44,6 +44,10 @@ export default function LearnMode() {
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
   const slideRef = useRef(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [swipeAnim, setSwipeAnim] = useState('');  // '' | 'out-left' | 'out-right' | 'in-left' | 'in-right'
+  const swipeLocked = useRef(false);  // true = horizontal swipe detected, lock axis
+  const swipeIgnored = useRef(false); // true = vertical scroll, ignore swipe
 
   // Load data
   useEffect(() => {
@@ -157,31 +161,76 @@ export default function LearnMode() {
     return parts.join('. ');
   }, []);
 
-  // Navigation
-  const goNext = useCallback(() => {
+  // Navigation with slide animation
+  const animateSlide = useCallback((direction) => {
+    // direction: 'next' or 'prev'
     stopSpeaking();
-    setCurrentIndex(i => Math.min(i + 1, filteredSlides.length - 1));
-  }, [filteredSlides.length, stopSpeaking]);
+    const isNext = direction === 'next';
+    const canGo = isNext
+      ? currentIndex < filteredSlides.length - 1
+      : currentIndex > 0;
+    if (!canGo) { setSwipeOffset(0); return; }
 
-  const goPrev = useCallback(() => {
-    stopSpeaking();
-    setCurrentIndex(i => Math.max(i - 1, 0));
-  }, [stopSpeaking]);
+    // Phase 1: slide current card out
+    setSwipeAnim(isNext ? 'out-left' : 'out-right');
+    setTimeout(() => {
+      // Phase 2: change index (instant, card is off-screen)
+      setCurrentIndex(i => isNext ? i + 1 : i - 1);
+      // Position new card on opposite side
+      setSwipeAnim(isNext ? 'in-right' : 'in-left');
+      // Phase 3: after a frame, slide new card in
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setSwipeAnim('in-center');
+          setTimeout(() => { setSwipeAnim(''); }, 300);
+        });
+      });
+    }, 250);
+  }, [currentIndex, filteredSlides.length, stopSpeaking]);
 
-  // Swipe handling
+  const goNext = useCallback(() => animateSlide('next'), [animateSlide]);
+  const goPrev = useCallback(() => animateSlide('prev'), [animateSlide]);
+
+  // Swipe handling with real-time drag
   const onTouchStart = useCallback((e) => {
+    if (swipeAnim) return;
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
-  }, []);
+    swipeLocked.current = false;
+    swipeIgnored.current = false;
+    setSwipeOffset(0);
+  }, [swipeAnim]);
+
+  const onTouchMove = useCallback((e) => {
+    if (swipeAnim || swipeIgnored.current) return;
+    const dx = e.touches[0].clientX - touchStartX.current;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    // Detect axis on first significant move
+    if (!swipeLocked.current) {
+      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
+        swipeIgnored.current = true; // vertical scroll, ignore
+        return;
+      }
+      if (Math.abs(dx) > 10) swipeLocked.current = true;
+      else return;
+    }
+    // Dampen at boundaries
+    const atStart = currentIndex === 0 && dx > 0;
+    const atEnd = currentIndex >= filteredSlides.length - 1 && dx < 0;
+    const offset = (atStart || atEnd) ? dx * 0.25 : dx;
+    setSwipeOffset(offset);
+  }, [swipeAnim, currentIndex, filteredSlides.length]);
 
   const onTouchEnd = useCallback((e) => {
+    if (swipeAnim) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
-    const dy = e.changedTouches[0].clientY - touchStartY.current;
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+    if (swipeLocked.current && Math.abs(dx) > 60) {
       if (dx < 0) goNext();
       else goPrev();
     }
-  }, [goNext, goPrev]);
+    setSwipeOffset(0);
+    swipeLocked.current = false;
+  }, [swipeAnim, goNext, goPrev]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -285,10 +334,20 @@ export default function LearnMode() {
           <div
             className="learn-mode__slide-wrapper"
             onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
             ref={slideRef}
           >
-            <div className="learn-mode__slide">
+            <div
+              className={`learn-mode__slide${
+                swipeAnim === 'out-left' ? ' learn-mode__slide--out-left' :
+                swipeAnim === 'out-right' ? ' learn-mode__slide--out-right' :
+                swipeAnim === 'in-left' ? ' learn-mode__slide--in-left' :
+                swipeAnim === 'in-right' ? ' learn-mode__slide--in-right' :
+                swipeAnim === 'in-center' ? ' learn-mode__slide--in-center' : ''
+              }`}
+              style={!swipeAnim && swipeOffset ? { transform: `translateX(${swipeOffset}px)`, transition: 'none' } : undefined}
+            >
               {/* Image or Calcul header */}
               {(currentSlide.type === 'zoology' || currentSlide.type === 'botanique') && currentSlide.element2 ? (
                 <div className="learn-mode__slide-image-area">
