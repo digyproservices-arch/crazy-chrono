@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const path = require('path');
+const { requireAdminAuth } = require('../middleware/auth');
 const { recordImageUsage, analyzeImageUsage, sendEmailReport } = require('../imageMonitoring');
 
 // ── Game Incidents Storage ─────────────────────────────────
@@ -57,9 +58,8 @@ router.post('/record-images', async (req, res) => {
  * GET /api/monitoring/analyze?theme=botanique&days=7
  * Analyse l'utilisation des images (admin only)
  */
-router.get('/analyze', async (req, res) => {
+router.get('/analyze', requireAdminAuth, async (req, res) => {
   try {
-    // TODO: Vérifier que l'utilisateur est admin
     
     const theme = req.query.theme || 'botanique';
     const days = parseInt(req.query.days) || 7;
@@ -77,9 +77,8 @@ router.get('/analyze', async (req, res) => {
  * POST /api/monitoring/send-report
  * Génère et envoie un rapport par email (admin only)
  */
-router.post('/send-report', async (req, res) => {
+router.post('/send-report', requireAdminAuth, async (req, res) => {
   try {
-    // TODO: Vérifier que l'utilisateur est admin
     
     const theme = req.body.theme || 'botanique';
     const days = parseInt(req.body.days) || 7;
@@ -131,7 +130,7 @@ router.post('/incidents', async (req, res) => {
  * GET /api/monitoring/incidents?severity=critical&limit=100&since=2026-01-01
  * Récupère les incidents sauvegardés (admin only)
  */
-router.get('/incidents', async (req, res) => {
+router.get('/incidents', requireAdminAuth, async (req, res) => {
   try {
     let incidents = loadIncidents();
 
@@ -174,7 +173,7 @@ router.get('/incidents', async (req, res) => {
  * DELETE /api/monitoring/incidents
  * Vider les incidents (admin only)
  */
-router.delete('/incidents', async (req, res) => {
+router.delete('/incidents', requireAdminAuth, async (req, res) => {
   try {
     saveIncidents([]);
     res.json({ ok: true, message: 'Incidents cleared' });

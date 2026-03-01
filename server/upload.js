@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+const { requireAdminAuth } = require('./middleware/auth');
 const router = express.Router();
 
 const IMAGES_DIR = path.join(__dirname, '../public/images/');
@@ -23,7 +24,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-router.post('/upload-images', upload.array('images', 20), (req, res) => {
+router.post('/upload-images', requireAdminAuth, upload.array('images', 20), (req, res) => {
   if (!req.files) {
     return res.status(400).json({ success: false, message: 'Aucun fichier reçu.' });
   }

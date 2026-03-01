@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { requireAdminAuth } = require('../middleware/auth');
 
 // Helper: resolve non-UUID user_id (e.g. "s001") to auth UUID via user_student_mapping
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -107,7 +108,7 @@ router.post('/log', (req, res) => {
 });
 
 // GET /api/progress/debug/:userId — Show data for a specific user (diagnostic)
-router.get('/debug/:userId', async (req, res) => {
+router.get('/debug/:userId', requireAdminAuth, async (req, res) => {
   try {
     const supabase = req.app.locals.supabaseAdmin;
     if (!supabase) return res.status(503).json({ error: 'supabase_not_configured' });
