@@ -6781,20 +6781,25 @@ setZones(dataWithRandomTexts);
                   .replace(/ /g, '%20')
                   .replace(/\(/g, '%28')
                   .replace(/\)/g, '%29');
+                const handleLoupeTap = (e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (zoomTimerRef.current) clearTimeout(zoomTimerRef.current);
+                  setZoomPreviewSrc(imgSrc);
+                  zoomTimerRef.current = setTimeout(() => setZoomPreviewSrc(null), 2000);
+                };
                 return (
                   <g
                     style={{ cursor: 'pointer' }}
                     pointerEvents="all"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (zoomTimerRef.current) clearTimeout(zoomTimerRef.current);
-                      setZoomPreviewSrc(imgSrc);
-                      zoomTimerRef.current = setTimeout(() => setZoomPreviewSrc(null), 2000);
-                    }}
+                    onClick={handleLoupeTap}
+                    onTouchStart={handleLoupeTap}
                   >
-                    <circle cx={lx} cy={ly} r={16} fill="rgba(0,0,0,0.5)" stroke="rgba(255,255,255,0.85)" strokeWidth={1.5} />
-                    <circle cx={lx - 2} cy={ly - 2} r={5.5} fill="none" stroke="#fff" strokeWidth={1.8} />
-                    <line x1={lx + 2} y1={ly + 2} x2={lx + 7} y2={ly + 7} stroke="#fff" strokeWidth={1.8} strokeLinecap="round" />
+                    {/* Zone de clic invisible élargie pour mobile (min 44pt) */}
+                    <circle cx={lx} cy={ly} r={36} fill="transparent" />
+                    <circle cx={lx} cy={ly} r={22} fill="rgba(0,0,0,0.55)" stroke="rgba(255,255,255,0.9)" strokeWidth={2} />
+                    <circle cx={lx - 2.5} cy={ly - 2.5} r={7} fill="none" stroke="#fff" strokeWidth={2.2} />
+                    <line x1={lx + 2.5} y1={ly + 2.5} x2={lx + 9} y2={ly + 9} stroke="#fff" strokeWidth={2.2} strokeLinecap="round" />
                   </g>
                 );
               })()}
