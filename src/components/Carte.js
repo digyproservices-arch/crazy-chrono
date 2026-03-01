@@ -6736,13 +6736,16 @@ setZones(dataWithRandomTexts);
                 fill={(() => {
                   const isHover = hoveredZoneId === zone.id;
                   const isSelected = gameActive && gameSelectedIds.includes(zone.id);
+                  const isEditorSelected = !gameActive && selectedZoneIds.includes(zone.id);
                   if (zone.type === 'image') {
-                    if (isSelected) return 'rgba(255, 214, 0, 0.55)'; // jaune persistant pour sélection
-                    return (selectedZoneIds.includes(zone.id) || isHover) ? 'rgba(255, 214, 0, 0.5)' : 'rgba(255, 214, 0, 0.01)';
+                    if (isSelected) return 'rgba(255, 214, 0, 0.55)';
+                    if (isEditorSelected || isHover) return 'rgba(255, 214, 0, 0.5)';
+                    return 'transparent';
                   }
                   if (zone.type === 'texte' || zone.type === 'chiffre' || zone.type === 'calcul') {
-                    if (isSelected) return 'rgba(40, 167, 69, 0.55)'; // sélection persistante plus visible
-                    return isHover ? 'rgba(40, 167, 69, 0.35)' : 'rgba(40, 167, 69, 0.01)';
+                    if (isSelected) return 'rgba(40, 167, 69, 0.55)';
+                    if (isEditorSelected || isHover) return 'rgba(40, 167, 69, 0.35)';
+                    return 'transparent';
                   }
                   return 'transparent';
                 })()}
