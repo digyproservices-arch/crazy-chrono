@@ -30,11 +30,31 @@ const Account = () => {
   const [rgpdMsg, setRgpdMsg] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isSchoolStudent, setIsSchoolStudent] = useState(false);
 
   useEffect(() => {
     const onAuth = () => setAuth(readAuth());
     window.addEventListener('cc:authChanged', onAuth);
     return () => window.removeEventListener('cc:authChanged', onAuth);
+  }, []);
+
+  // Detect if user is a school-linked student
+  useEffect(() => {
+    (async () => {
+      if (!supabase) return;
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess?.session?.access_token;
+        if (!token) return;
+        const res = await fetch(`${BACKEND_URL}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json();
+        if (json?.ok && json?.student?.schoolId) {
+          setIsSchoolStudent(true);
+        }
+      } catch {}
+    })();
   }, []);
 
   const onUploadAvatar = async (e) => {
@@ -214,17 +234,26 @@ const Account = () => {
           >
             {rgpdLoading === 'export' ? 'Export en cours...' : 'Télécharger mes données'}
           </button>
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={!!rgpdLoading}
-            style={{
-              padding: '10px 18px', borderRadius: 10, border: '2px solid #dc2626',
-              background: '#fff', color: '#dc2626', fontWeight: 700, cursor: rgpdLoading ? 'wait' : 'pointer',
-              opacity: rgpdLoading ? 0.6 : 1,
-            }}
-          >
-            Supprimer mon compte
-          </button>
+          {isSchoolStudent ? (
+            <div style={{
+              padding: '10px 14px', borderRadius: 10, border: '2px solid #d1d5db',
+              background: '#f9fafb', color: '#6b7280', fontSize: 13, maxWidth: 340,
+            }}>
+              🏫 Votre compte est géré par votre établissement scolaire. Pour toute demande de suppression, contactez votre professeur.
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={!!rgpdLoading}
+              style={{
+                padding: '10px 18px', borderRadius: 10, border: '2px solid #dc2626',
+                background: '#fff', color: '#dc2626', fontWeight: 700, cursor: rgpdLoading ? 'wait' : 'pointer',
+                opacity: rgpdLoading ? 0.6 : 1,
+              }}
+            >
+              Supprimer mon compte
+            </button>
+          )}
         </div>
         {rgpdMsg && (
           <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 8, background: rgpdMsg.includes('succ') || rgpdMsg.includes('supprim') ? '#ecfdf5' : '#fef2f2', color: rgpdMsg.includes('succ') || rgpdMsg.includes('supprim') ? '#065f46' : '#991b1b', fontSize: 14, fontWeight: 600 }}>

@@ -161,12 +161,30 @@ router.delete('/delete-account', async (req, res) => {
   try {
     const { supabase, user } = await authenticateUser(req);
     const userId = user.id;
-    const deletionLog = [];
 
     console.log(`[RGPD] ⚠️ Account deletion requested by user ${userId} (${user.email})`);
 
-    // 1. Get linked student_id before deleting mappings
+    // 0. Block deletion for school-linked students
     const studentId = await getLinkedStudentId(supabase, userId);
+    if (studentId) {
+      try {
+        const { data: student } = await supabase
+          .from('students')
+          .select('school_id, class_id')
+          .eq('id', studentId)
+          .single();
+        if (student && student.school_id) {
+          console.log(`[RGPD] ❌ Deletion blocked: user ${userId} is school student (school=${student.school_id}, class=${student.class_id})`);
+          return res.status(403).json({
+            ok: false,
+            error: 'school_student',
+            message: 'Votre compte est géré par votre établissement scolaire. Contactez votre professeur ou l\'administrateur de l\'école pour toute demande de suppression de données.',
+          });
+        }
+      } catch {}
+    }
+
+    const deletionLog = [];
     deletionLog.push({ step: 'resolve_student', studentId });
 
     // 2. Delete game attempts
