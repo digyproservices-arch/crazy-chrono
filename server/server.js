@@ -168,6 +168,10 @@ app.use('/api/auth', authRoutes);
 const progressRoutes = require('./routes/progress');
 app.use('/api/progress', progressRoutes);
 
+// ===== RGPD Routes (export données, suppression compte) =====
+const rgpdRoutes = require('./routes/rgpd');
+app.use('/api/rgpd', rgpdRoutes);
+
 // POST /usage/can-start { user_id }
 // Returns { ok:true, allow:boolean, limit:number, sessionsToday:number, reason?:string }
 app.post('/usage/can-start', async (req, res) => {
