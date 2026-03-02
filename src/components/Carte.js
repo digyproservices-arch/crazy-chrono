@@ -3114,6 +3114,15 @@ function handleGameClick(zone) {
     // Marquer le 1er clic
     if (next.length === 1) {
       firstClickTsRef.current = Date.now();
+      try {
+        const z = zonesById.get(zone.id);
+        window.ccAddDiag && window.ccAddDiag('solo:click:1st', {
+          zoneId: zone.id, type: z?.type,
+          content: String(z?.content || z?.label || '').substring(0, 60),
+          pairId: z?.pairId || null,
+          round: Number(roundsPlayed) || 0
+        });
+      } catch {}
     }
     if (next.length === 2) {
       const [a, b] = next;
@@ -3190,6 +3199,14 @@ function handleGameClick(zone) {
       }
       if (okPair) {
         console.log('[GAME] OK pair', { a, b, ZA: { id: ZA.id, type: ZA.type, pairId: ZA.pairId }, ZB: { id: ZB.id, type: ZB.type, pairId: ZB.pairId } });
+        try {
+          window.ccAddDiag && window.ccAddDiag('solo:pair:correct', {
+            zoneA: { id: a, type: t1, content: String(ZA?.content || ZA?.label || '').substring(0, 60), pairId: p1 },
+            zoneB: { id: b, type: t2, content: String(ZB?.content || ZB?.label || '').substring(0, 60), pairId: p2 },
+            pairKey, latencyMs: latency, itemType: item_type, theme, itemDetail,
+            round: Number(roundsPlayed) || 0, score: scoreRef.current
+          });
+        } catch {}
         // ✅ FIX DISPARITÉ: Activer verrou pendant traitement
         processingPairRef.current = true;
         setTimeout(() => { processingPairRef.current = false; }, 800);
@@ -3323,6 +3340,15 @@ function handleGameClick(zone) {
           }, 450);
       } else {
         console.log('[GAME] BAD pair', { a, b, ZA: ZA && { id: ZA.id, type: ZA.type, pairId: ZA.pairId }, ZB: ZB && { id: ZB.id, type: ZB.type, pairId: ZB.pairId } });
+        try {
+          const reason = !ZA || !ZB ? 'zone_missing' : !allowed(t1, t2) ? 'type_mismatch' : !p1 || !p2 ? 'no_pairId' : p1 !== p2 ? 'pairId_mismatch' : 'unknown';
+          window.ccAddDiag && window.ccAddDiag('solo:pair:incorrect', {
+            zoneA: { id: a, type: t1, content: String(ZA?.content || ZA?.label || '').substring(0, 60), pairId: p1 || null },
+            zoneB: { id: b, type: t2, content: String(ZB?.content || ZB?.label || '').substring(0, 60), pairId: p2 || null },
+            reason, latencyMs: latency, itemType: item_type, theme, itemDetail,
+            round: Number(roundsPlayed) || 0, score: scoreRef.current
+          });
+        } catch {}
         setGameMsg('Mauvaise association');
         setShowBigCross(true);
         playWrongSound();
