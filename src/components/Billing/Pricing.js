@@ -29,7 +29,7 @@ const PLANS_PARTICULIERS = [
     price: '4,90',
     period: '/mois',
     badge: null,
-    description: 'Pour les familles à revenus modestes. Même accès complet que le plan Individuel. Sur simple déclaration sur l\'honneur.',
+    description: 'Réservé aux familles sous conditions de revenus (quotient familial CAF < 700 ou RSA/ASS). Accès identique au plan Individuel. Déclaration sur l\'honneur obligatoire.',
     priceId: 'price_1SSXeAEvlCapRsCIR5SfojR0',
     highlight: false,
     icon: '💛',
@@ -120,8 +120,8 @@ const FAQ_ITEMS = [
     a: 'Oui ! Pilote gratuit 1 mois pour les écoles, -10% sur engagement 2 ans, -5% pour commande avant le 15 septembre (pack rentrée), et 1 mois offert pour le parrainage entre écoles.',
   },
   {
-    q: 'Qu\'est-ce que le tarif Solidaire ?',
-    a: 'Le tarif Solidaire (4,90€/mois) est destiné aux familles à revenus modestes. Il donne exactement le même accès que le tarif Individuel. Une simple déclaration sur l\'honneur est requise lors de la souscription (aucun justificatif financier n\'est demandé).',
+    q: 'Qu\'est-ce que le tarif Solidaire et qui peut en bénéficier ?',
+    a: 'Le tarif Solidaire (4,90€/mois) est destiné aux familles à revenus modestes. Il donne exactement le même accès que le tarif Individuel. Pour en bénéficier, votre foyer doit remplir au moins un critère : quotient familial CAF inférieur à 700, bénéficiaire du RSA/ASS/AAH, ou revenus du foyer inférieurs aux plafonds de la CMU-C. Une déclaration sur l\'honneur est requise. Attention : toute fausse déclaration constitue un délit (Art. 441-7 du Code pénal) passible d\'une amende de 15 000€ et d\'un an d\'emprisonnement, et entraînera la résiliation immédiate et le passage rétroactif au tarif normal.',
   },
 ];
 
@@ -445,8 +445,19 @@ export default function Pricing() {
             <div style={{ textAlign: 'center', fontSize: 40, marginBottom: 8 }}>💛</div>
             <h3 style={{ margin: '0 0 12px', color: CC.brown, fontSize: 20, textAlign: 'center' }}>Tarif Solidaire — Déclaration sur l'honneur</h3>
             <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
-              <p style={{ margin: 0, fontSize: 14, color: '#92400e', lineHeight: 1.6 }}>
-                Le tarif Solidaire (4,90€/mois) est réservé aux <strong>familles à revenus modestes</strong>. Il donne accès aux mêmes fonctionnalités que le tarif Individuel (9,90€/mois).
+              <p style={{ margin: '0 0 10px', fontSize: 14, color: '#92400e', lineHeight: 1.6 }}>
+                Le tarif Solidaire (4,90€/mois au lieu de 9,90€) est <strong>strictement réservé aux familles remplissant au moins un des critères suivants</strong> :
+              </p>
+              <ul style={{ margin: '0 0 0 16px', padding: 0, fontSize: 13, color: '#92400e', lineHeight: 1.8 }}>
+                <li><strong>Quotient familial CAF</strong> inférieur à 700</li>
+                <li>Bénéficiaire du <strong>RSA, ASS ou AAH</strong></li>
+                <li>Revenus du foyer inférieurs aux <strong>plafonds de la CMU-C / Complémentaire Santé Solidaire</strong></li>
+                <li>Famille prise en charge par une <strong>aide sociale départementale</strong></li>
+              </ul>
+            </div>
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: '12px 16px', marginBottom: 16 }}>
+              <p style={{ margin: 0, fontSize: 12, color: '#991b1b', lineHeight: 1.6, fontWeight: 600 }}>
+                ⚠️ Avertissement : Toute fausse déclaration sur l'honneur constitue un <strong>délit pénal</strong> (Art. 441-7 du Code pénal) passible d'une <strong>amende de 15 000€ et d'un an d'emprisonnement</strong>. Crazy Chrono se réserve le droit de procéder à des vérifications aléatoires, de résilier immédiatement l'abonnement et d'exiger le paiement rétroactif de la différence au tarif normal.
               </p>
             </div>
             <div style={{ background: '#f8fafc', border: '2px solid #e2e8f0', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
@@ -458,7 +469,7 @@ export default function Pricing() {
                   style={{ marginTop: 3, flexShrink: 0, width: 18, height: 18 }}
                 />
                 <span style={{ fontSize: 13, color: '#1e293b', lineHeight: 1.6 }}>
-                  <strong>Je déclare sur l'honneur</strong> que les revenus mensuels de mon foyer sont modestes et que je ne suis pas en mesure de souscrire au tarif normal. Je suis informé(e) qu'une fausse déclaration sur l'honneur est un délit passible de sanctions (Art. 441-7 du Code pénal) et peut entraîner le passage au tarif normal.
+                  <strong>Je déclare sur l'honneur</strong> que mon foyer remplit au moins un des critères d'éligibilité ci-dessus et que je ne suis pas en mesure de souscrire au tarif normal (9,90€/mois). Je reconnais avoir pris connaissance des sanctions encourues en cas de fausse déclaration (Art. 441-7 du Code pénal). J'accepte que Crazy Chrono puisse me demander un justificatif à tout moment et que, en l'absence de réponse sous 15 jours, mon abonnement sera basculé au tarif Individuel.
                 </span>
               </label>
             </div>
