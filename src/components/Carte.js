@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 import '../styles/Carte.css';
 import { pointToSvgCoords, polygonToPointsStr, segmentsToSvgPath, pointsToBezierPath } from './CarteUtils';
 import { getBackendUrl } from '../utils/subscription';
+import { getAuthHeaders } from '../utils/apiHelpers';
 import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck } from '../utils/elementsLoader';
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
 import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError } from '../utils/gameIncidentTracker';
@@ -2778,7 +2779,7 @@ useEffect(() => {
         const backendUrl = getBackendUrl();
         fetch(`${backendUrl}/api/training/sessions`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders(),
           body: JSON.stringify({
             matchId: `${mode}_${studentId}_${Date.now()}`,
             classId: null,

@@ -6,6 +6,8 @@
 const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
+const { requireAuth } = require('../middleware/auth');
+const { validateCreateGroup, validateCreateMatch, validateCleanup, validateUpdateGroup, validateParamClassId, validateParamStudentId } = require('../middleware/validate');
 const { createClient } = require('@supabase/supabase-js');
 const { sendGroupInvitations } = require('../utils/emailNotifications');
 const PDFDocument = require('pdfkit');
@@ -199,7 +201,7 @@ const PHASE_NAMES = {
  * PATCH /api/tournament/phases/:phaseId/close
  * Clôturer une phase → qualifie les gagnants pour la phase suivante
  */
-router.patch('/phases/:phaseId/close', requireSupabase, async (req, res) => {
+router.patch('/phases/:phaseId/close', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { phaseId } = req.params;
     
@@ -326,7 +328,7 @@ router.patch('/phases/:phaseId/close', requireSupabase, async (req, res) => {
  * PATCH /api/tournament/phases/:phaseId/activate
  * Activer une phase (la rendre jouable)
  */
-router.patch('/phases/:phaseId/activate', requireSupabase, async (req, res) => {
+router.patch('/phases/:phaseId/activate', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { phaseId } = req.params;
     
@@ -376,7 +378,7 @@ router.patch('/phases/:phaseId/activate', requireSupabase, async (req, res) => {
  * GET /api/tournament/classes/:classId/students
  * Liste des élèves d'une classe
  */
-router.get('/classes/:classId/students', requireSupabase, async (req, res) => {
+router.get('/classes/:classId/students', requireSupabase, requireAuth, ...validateParamClassId, async (req, res) => {
   try {
     const { classId } = req.params;
     
@@ -408,7 +410,7 @@ router.get('/classes/:classId/students', requireSupabase, async (req, res) => {
  * GET /api/tournament/classes/:classId/groups
  * Liste des groupes créés pour une classe
  */
-router.get('/classes/:classId/groups', requireSupabase, async (req, res) => {
+router.get('/classes/:classId/groups', requireSupabase, requireAuth, ...validateParamClassId, async (req, res) => {
   try {
     const { classId } = req.params;
     
@@ -431,7 +433,7 @@ router.get('/classes/:classId/groups', requireSupabase, async (req, res) => {
  * GET /api/tournament/students/:id
  * Profil d'un élève
  */
-router.get('/students/:id', requireSupabase, async (req, res) => {
+router.get('/students/:id', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -465,7 +467,7 @@ router.get('/students/:id', requireSupabase, async (req, res) => {
  * POST /api/tournament/groups
  * Créer un groupe de 4 élèves
  */
-router.post('/groups', requireSupabase, async (req, res) => {
+router.post('/groups', requireSupabase, requireAuth, ...validateCreateGroup, async (req, res) => {
   try {
     const { tournamentId, phaseLevel, classId, name, studentIds } = req.body;
     
@@ -502,7 +504,7 @@ router.post('/groups', requireSupabase, async (req, res) => {
  * PATCH /api/tournament/groups/:id
  * Mettre à jour un groupe (ex: définir le gagnant)
  */
-router.patch('/groups/:id', requireSupabase, async (req, res) => {
+router.patch('/groups/:id', requireSupabase, requireAuth, ...validateUpdateGroup, async (req, res) => {
   try {
     const { id } = req.params;
     const { winnerId, status, matchId } = req.body;
@@ -532,7 +534,7 @@ router.patch('/groups/:id', requireSupabase, async (req, res) => {
  * GET /api/tournament/groups/:id/match-history
  * Récupérer l'historique de TOUS les matchs d'un groupe (avec dates et résultats)
  */
-router.get('/groups/:id/match-history', requireSupabase, async (req, res) => {
+router.get('/groups/:id/match-history', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -693,7 +695,7 @@ router.get('/groups/:id/match-history', requireSupabase, async (req, res) => {
  * DELETE /api/tournament/groups/:id
  * Supprimer un groupe
  */
-router.delete('/groups/:id', requireSupabase, async (req, res) => {
+router.delete('/groups/:id', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -719,7 +721,7 @@ router.delete('/groups/:id', requireSupabase, async (req, res) => {
  * POST /api/tournament/matches
  * Créer un match Battle Royale pour un groupe de 4
  */
-router.post('/matches', requireSupabase, async (req, res) => {
+router.post('/matches', requireSupabase, requireAuth, ...validateCreateMatch, async (req, res) => {
   try {
     const { tournamentId, phaseId, groupId, config } = req.body;
     
@@ -842,7 +844,7 @@ router.post('/matches', requireSupabase, async (req, res) => {
  * GET /api/tournament/students/:studentId/invitations
  * Récupérer les invitations en attente pour un élève (matchs pending/playing)
  */
-router.get('/students/:studentId/invitations', requireSupabase, async (req, res) => {
+router.get('/students/:studentId/invitations', requireSupabase, requireAuth, ...validateParamStudentId, async (req, res) => {
   try {
     const { studentId } = req.params;
     
@@ -907,7 +909,7 @@ router.get('/students/:studentId/invitations', requireSupabase, async (req, res)
  * GET /api/tournament/students/:studentId/training-invitations
  * Récupérer les invitations training en attente pour un élève (matchs in-memory)
  */
-router.get('/students/:studentId/training-invitations', async (req, res) => {
+router.get('/students/:studentId/training-invitations', requireAuth, ...validateParamStudentId, async (req, res) => {
   try {
     const { studentId } = req.params;
     const invitations = [];
@@ -951,7 +953,7 @@ router.get('/students/:studentId/training-invitations', async (req, res) => {
  * Récupérer le matchId depuis un room code (pour les élèves qui rejoignent)
  * Cherche dans Arena (DB) ET Training (mémoire)
  */
-router.get('/match-by-code/:roomCode', requireSupabase, async (req, res) => {
+router.get('/match-by-code/:roomCode', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { roomCode } = req.params;
     
@@ -1003,7 +1005,7 @@ router.get('/match-by-code/:roomCode', requireSupabase, async (req, res) => {
  * GET /api/tournament/matches/:id
  * Détails d'un match
  */
-router.get('/matches/:id', requireSupabase, async (req, res) => {
+router.get('/matches/:id', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -1042,7 +1044,7 @@ router.get('/matches/:id', requireSupabase, async (req, res) => {
  * PATCH /api/tournament/matches/:id/finish
  * Terminer un match et enregistrer les résultats
  */
-router.patch('/matches/:id/finish', requireSupabase, async (req, res) => {
+router.patch('/matches/:id/finish', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { results } = req.body;
@@ -1147,7 +1149,7 @@ router.get('/leaderboard', requireSupabase, async (req, res) => {
  * POST /api/tournament/cleanup-old-matches
  * Nettoyer les anciens matchs (marquer comme finished les matchs de plus de 24h)
  */
-router.post('/cleanup-old-matches', requireSupabase, async (req, res) => {
+router.post('/cleanup-old-matches', requireSupabase, requireAuth, ...validateCleanup, async (req, res) => {
   try {
     const { studentId } = req.body;
     
@@ -1218,7 +1220,7 @@ router.post('/cleanup-old-matches', requireSupabase, async (req, res) => {
  * Filtre par teacherId pour ne montrer que les matchs créés par ce professeur
  * Inclut les matchs Arena (DB) ET les matchs Training (mémoire)
  */
-router.get('/active-matches', requireSupabase, async (req, res) => {
+router.get('/active-matches', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { teacherId, teacherEmail } = req.query;
     
@@ -1411,7 +1413,7 @@ router.get('/active-matches', requireSupabase, async (req, res) => {
  * Récupérer les résultats d'un match (Arena ou Training)
  * Cherche d'abord dans match_results (Arena), puis dans training_results (Training)
  */
-router.get('/matches/:matchId/results', requireSupabase, async (req, res) => {
+router.get('/matches/:matchId/results', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { matchId } = req.params;
     
@@ -1509,7 +1511,7 @@ router.get('/matches/:matchId/results', requireSupabase, async (req, res) => {
  * GET /api/tournament/classes/:classId/competition-results
  * Récupérer tous les groupes, matchs et résultats pour le dashboard compétition
  */
-router.get('/classes/:classId/competition-results', requireSupabase, async (req, res) => {
+router.get('/classes/:classId/competition-results', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { classId } = req.params;
     
@@ -1688,7 +1690,7 @@ function generateRoomCode() {
  * Récupérer les stats de performance de TOUS les élèves d'une classe
  * Utilisé par le prof pour constituer des groupes équilibrés
  */
-router.get('/classes/:classId/students-performance', requireSupabase, async (req, res) => {
+router.get('/classes/:classId/students-performance', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { classId } = req.params;
     
@@ -1858,7 +1860,7 @@ router.get('/classes/:classId/students-performance', requireSupabase, async (req
  * GET /api/tournament/students/:studentId/info
  * Retourne le nom d'un élève (pour la vue prof)
  */
-router.get('/students/:studentId/info', requireSupabase, async (req, res) => {
+router.get('/students/:studentId/info', requireSupabase, requireAuth, ...validateParamStudentId, async (req, res) => {
   try {
     const { studentId } = req.params;
     const { data } = await supabase
@@ -1890,7 +1892,7 @@ router.get('/students/:studentId/info', requireSupabase, async (req, res) => {
  * GET /api/tournament/students/:studentId/performance
  * Retourne l'historique complet et les stats agrégées d'un élève
  */
-router.get('/students/:studentId/performance', requireSupabase, async (req, res) => {
+router.get('/students/:studentId/performance', requireSupabase, requireAuth, ...validateParamStudentId, async (req, res) => {
   try {
     const { studentId } = req.params;
     console.log('[Performance API] Fetching performance for studentId:', studentId);
@@ -2288,7 +2290,7 @@ router.get('/students/:studentId/performance', requireSupabase, async (req, res)
  * Génère un PDF avec le classement de la phase et l'envoie par email
  * Body: { recipientEmail, recipientName? }
  */
-router.post('/phases/:phaseId/send-results', requireSupabase, async (req, res) => {
+router.post('/phases/:phaseId/send-results', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { phaseId } = req.params;
     const { recipientEmail, recipientName } = req.body;

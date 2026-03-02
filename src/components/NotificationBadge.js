@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
+import { getAuthHeaders } from '../utils/apiHelpers';
 
 const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
@@ -69,7 +70,7 @@ export default function NotificationBadge() {
   const loadTrainingInvitations = useCallback(async () => {
     if (!studentId) return;
     try {
-      const res = await fetch(`${getBackendUrl()}/api/tournament/students/${studentId}/training-invitations`);
+      const res = await fetch(`${getBackendUrl()}/api/tournament/students/${studentId}/training-invitations`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (data.success && data.invitations) {
         console.log('[NotificationBadge] Training invitations from API:', data.invitations.length);
@@ -103,7 +104,7 @@ export default function NotificationBadge() {
 
     try {
       console.log('[NotificationBadge] Chargement invitations pour studentId:', studentId);
-      const res = await fetch(`${getBackendUrl()}/api/tournament/students/${studentId}/invitations`);
+      const res = await fetch(`${getBackendUrl()}/api/tournament/students/${studentId}/invitations`, { headers: getAuthHeaders() });
       const data = await res.json();
       
       if (data.success) {
@@ -405,7 +406,7 @@ export default function NotificationBadge() {
                     try {
                       const res = await fetch(`${getBackendUrl()}/api/tournament/cleanup-old-matches`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: getAuthHeaders(),
                         body: JSON.stringify({ studentId })
                       });
 

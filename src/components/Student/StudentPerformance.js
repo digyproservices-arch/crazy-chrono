@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { getAuthHeaders } from '../../utils/apiHelpers';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Area, AreaChart, Legend, Cell
@@ -275,7 +276,7 @@ export default function StudentPerformance() {
   };
 
   const fetchPerformance = async (studentId) => {
-    const res = await fetch(`${getBackendUrl()}/api/tournament/students/${studentId}/performance`);
+    const res = await fetch(`${getBackendUrl()}/api/tournament/students/${studentId}/performance`, { headers: getAuthHeaders() });
     const data = await res.json();
     return data;
   };
@@ -284,7 +285,7 @@ export default function StudentPerformance() {
     // Si vue prof avec studentId URL, récupérer le nom de l'élève
     if (urlStudentId) {
       try {
-        const nameRes = await fetch(`${getBackendUrl()}/api/tournament/students/${urlStudentId}/info`);
+        const nameRes = await fetch(`${getBackendUrl()}/api/tournament/students/${urlStudentId}/info`, { headers: getAuthHeaders() });
         const nameData = await nameRes.json();
         if (nameData.success && nameData.name) setStudentName(nameData.name);
       } catch {}

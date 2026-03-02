@@ -5,6 +5,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const bodyParser = require('body-parser');
+const { validateStudentLogin } = require('./middleware/validate');
 const http = require('http');
 const { Server } = require('socket.io');
 const { generateRoundZones, createDeckState } = require('./utils/serverZoneGenerator');
@@ -1409,7 +1410,7 @@ app.post('/api/admin/onboarding/classes/merge', requireAdminAuth, express.json()
 // ==========================================
 
 // POST login by student access code
-app.post('/api/auth/student-login', async (req, res) => {
+app.post('/api/auth/student-login', ...validateStudentLogin, async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'Service non disponible' });
 

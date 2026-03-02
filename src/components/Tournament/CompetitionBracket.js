@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getAuthHeaders } from '../../utils/apiHelpers';
 
 const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
@@ -54,7 +55,7 @@ export default function CompetitionBracket() {
       const backendUrl = getBackendUrl();
       const resp = await fetch(`${backendUrl}/api/tournament/phases/${emailModal.phaseId}/send-results`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ recipientEmail: emailAddress, recipientName: recipientName || undefined })
       });
       const data = await resp.json();
@@ -82,7 +83,7 @@ export default function CompetitionBracket() {
       const backendUrl = getBackendUrl();
 
       // Charger résultats compétition
-      const resComp = await fetch(`${backendUrl}/api/tournament/classes/${classId}/competition-results`);
+      const resComp = await fetch(`${backendUrl}/api/tournament/classes/${classId}/competition-results`, { headers: getAuthHeaders() });
       const dataComp = await resComp.json();
 
       if (dataComp.success) {
@@ -93,12 +94,12 @@ export default function CompetitionBracket() {
 
       // Charger tournoi + phases
       try {
-        const resTour = await fetch(`${backendUrl}/api/tournament/tournaments/tour_2025_gp`);
+        const resTour = await fetch(`${backendUrl}/api/tournament/tournaments/tour_2025_gp`, { headers: getAuthHeaders() });
         const dataTour = await resTour.json();
         if (dataTour.tournament) {
           setTournament(dataTour.tournament);
 
-          const resPhases = await fetch(`${backendUrl}/api/tournament/${dataTour.tournament.id}/phases`);
+          const resPhases = await fetch(`${backendUrl}/api/tournament/${dataTour.tournament.id}/phases`, { headers: getAuthHeaders() });
           const dataPhases = await resPhases.json();
           if (dataPhases.success) {
             setPhases(dataPhases.phases || []);

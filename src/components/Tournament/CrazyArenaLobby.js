@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
+import { getAuthHeaders } from '../../utils/apiHelpers';
 
 const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
@@ -118,7 +119,7 @@ export default function CrazyArenaLobby() {
     // Fonction pour récupérer le matchId depuis le roomCode
     const getMatchIdFromRoomCode = async (roomCode) => {
       try {
-        const response = await fetch(`${getBackendUrl()}/api/tournament/match-by-code/${roomCode}`);
+        const response = await fetch(`${getBackendUrl()}/api/tournament/match-by-code/${roomCode}`, { headers: getAuthHeaders() });
         const data = await response.json();
         if (data.success && data.matchId) {
           return data.matchId;

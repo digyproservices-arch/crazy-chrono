@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { getAuthHeaders } from '../../utils/apiHelpers';
 
 const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
@@ -73,7 +74,7 @@ export default function GroupMatchHistory() {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await fetch(`${getBackendUrl()}/api/tournament/groups/${groupId}/match-history`);
+        const res = await fetch(`${getBackendUrl()}/api/tournament/groups/${groupId}/match-history`, { headers: getAuthHeaders() });
         const json = await res.json();
 
         if (json.success) {

@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getAuthHeaders } from '../../utils/apiHelpers';
 
 const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
@@ -95,7 +96,7 @@ export default function TrainingArenaSetup() {
       console.log('[TrainingArena] 🌐 Backend URL:', backendUrl);
       
       // 1. Récupérer le tournoi actif
-      const tournamentRes = await fetch(`${backendUrl}/api/tournament/tournaments/tour_2025_gp`);
+      const tournamentRes = await fetch(`${backendUrl}/api/tournament/tournaments/tour_2025_gp`, { headers: getAuthHeaders() });
       const tournamentData = await tournamentRes.json();
       console.log('[TrainingArena] 🏆 Tournament data:', tournamentData);
       setTournament(tournamentData.tournament);
@@ -110,14 +111,14 @@ export default function TrainingArenaSetup() {
         throw new Error('Classe non trouvée. Veuillez vous reconnecter.');
       }
       
-      const studentsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/students`);
+      const studentsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/students`, { headers: getAuthHeaders() });
       const studentsData = await studentsRes.json();
       console.log('[TrainingArena] 👥 Students data:', studentsData);
       console.log('[TrainingArena] 👥 Students count:', studentsData.students?.length || 0);
       setStudents(studentsData.students || []);
       
       // 3. Récupérer les groupes déjà créés
-      const groupsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/groups`);
+      const groupsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/groups`, { headers: getAuthHeaders() });
       const groupsData = await groupsRes.json();
       console.log('[TrainingArena] 👥 Groups data:', groupsData);
       console.log('[TrainingArena] 👥 Groups count:', groupsData.groups?.length || 0);
@@ -125,7 +126,7 @@ export default function TrainingArenaSetup() {
       
       // 4. Récupérer les performances des élèves
       try {
-        const perfRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/students-performance`);
+        const perfRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/students-performance`, { headers: getAuthHeaders() });
         const perfData = await perfRes.json();
         if (perfData.success && perfData.students) {
           const map = {};
@@ -186,7 +187,7 @@ export default function TrainingArenaSetup() {
       
       const res = await fetch(`${backendUrl}/api/tournament/groups`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           tournamentId: tournament.id,
           phaseLevel: tournament.current_phase,
@@ -247,7 +248,7 @@ export default function TrainingArenaSetup() {
       // ✅ FIX CRITIQUE: Appeler API Training (pas Arena)
       const res = await fetch(`${backendUrl}/api/training/matches`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           studentIds: parseStudentIds(group.student_ids),
           config: {
@@ -266,7 +267,7 @@ export default function TrainingArenaSetup() {
         try {
           await fetch(`${backendUrl}/api/tournament/groups/${group.id}`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ matchId: data.matchId, status: 'playing' })
           });
         } catch (patchErr) {
@@ -303,7 +304,8 @@ export default function TrainingArenaSetup() {
     try {
       const backendUrl = getBackendUrl();
       const res = await fetch(`${backendUrl}/api/tournament/groups/${groupId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders()
       });
       
       const data = await res.json();
@@ -553,7 +555,7 @@ export default function TrainingArenaSetup() {
                       const classId = localStorage.getItem('cc_class_id');
                       await fetch(`${getBackendUrl()}/api/tournament/groups`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: getAuthHeaders(),
                         body: JSON.stringify({
                           tournamentId: tournament.id,
                           phaseLevel: tournament.current_phase,

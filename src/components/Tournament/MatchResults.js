@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { getAuthHeaders } from '../../utils/apiHelpers';
 
 const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
@@ -25,7 +26,7 @@ export default function MatchResults() {
   useEffect(() => {
     const fetchResults = async () => {
       try {
-        const res = await fetch(`${getBackendUrl()}/api/tournament/matches/${matchId}/results`);
+        const res = await fetch(`${getBackendUrl()}/api/tournament/matches/${matchId}/results`, { headers: getAuthHeaders() });
         const data = await res.json();
 
         if (data.success) {

@@ -2,6 +2,30 @@
  * HELPERS pour les appels API
  * Fonctions utilitaires pour simplifier et sécuriser les appels backend
  */
+// Récupère le token d'authentification courant (Supabase session ou fallback localStorage)
+export function getAuthToken() {
+  try {
+    // Supabase stores the session synchronously in localStorage
+    const raw = localStorage.getItem('sb-' + (process.env.REACT_APP_SUPABASE_URL || '').replace(/https?:\/\//, '').split('.')[0] + '-auth-token');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.access_token) return parsed.access_token;
+    }
+  } catch {}
+  try {
+    const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+    if (auth.token) return auth.token;
+  } catch {}
+  return null;
+}
+
+// Retourne les headers avec token d'auth pour les appels fetch directs
+export function getAuthHeaders() {
+  const token = getAuthToken();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+}
 
 /**
  * Récupère l'URL du backend (local ou production)
@@ -69,9 +93,15 @@ export const apiCall = async (endpoint, options = {}) => {
     
     console.log(`[API] ${options.method || 'GET'} ${url}`);
     
+    // Auto-inject auth token if available
+    const authHeaders = {};
+    const token = getAuthToken();
+    if (token) authHeaders['Authorization'] = `Bearer ${token}`;
+    
     const response = await fetchWithTimeout(url, {
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders,
         ...options.headers
       },
       ...options

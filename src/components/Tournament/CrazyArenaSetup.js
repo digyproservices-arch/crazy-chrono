@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getAuthHeaders } from '../../utils/apiHelpers';
 
 const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
@@ -94,7 +95,7 @@ export default function CrazyArenaSetup() {
       console.log('[CrazyArena] 🌐 Backend URL:', backendUrl);
       
       // 1. Récupérer le tournoi actif
-      const tournamentRes = await fetch(`${backendUrl}/api/tournament/tournaments/tour_2025_gp`);
+      const tournamentRes = await fetch(`${backendUrl}/api/tournament/tournaments/tour_2025_gp`, { headers: getAuthHeaders() });
       const tournamentData = await tournamentRes.json();
       console.log('[CrazyArena] 🏆 Tournament data:', tournamentData);
       setTournament(tournamentData.tournament);
@@ -109,14 +110,14 @@ export default function CrazyArenaSetup() {
         throw new Error('Classe non trouvée. Veuillez vous reconnecter.');
       }
       
-      const studentsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/students`);
+      const studentsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/students`, { headers: getAuthHeaders() });
       const studentsData = await studentsRes.json();
       console.log('[CrazyArena] 👥 Students data:', studentsData);
       console.log('[CrazyArena] 👥 Students count:', studentsData.students?.length || 0);
       setStudents(studentsData.students || []);
       
       // 3. Récupérer les groupes déjà créés
-      const groupsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/groups`);
+      const groupsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/groups`, { headers: getAuthHeaders() });
       const groupsData = await groupsRes.json();
       console.log('[CrazyArena] 👥 Groups data:', groupsData);
       console.log('[CrazyArena] 👥 Groups count:', groupsData.groups?.length || 0);
@@ -171,7 +172,7 @@ export default function CrazyArenaSetup() {
       
       const res = await fetch(`${backendUrl}/api/tournament/groups`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           tournamentId: tournament.id,
           phaseLevel: tournament.current_phase,
@@ -231,7 +232,7 @@ export default function CrazyArenaSetup() {
       // Créer le match
       const res = await fetch(`${backendUrl}/api/tournament/matches`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           tournamentId: tournament.id,
           phaseId: phaseId,
@@ -273,7 +274,8 @@ export default function CrazyArenaSetup() {
     try {
       const backendUrl = getBackendUrl();
       const res = await fetch(`${backendUrl}/api/tournament/groups/${groupId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders()
       });
       
       const data = await res.json();

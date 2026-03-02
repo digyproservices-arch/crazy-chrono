@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getBackendUrl } from '../../utils/subscription';
+import { getAuthHeaders } from '../../utils/apiHelpers';
 import './TrainingSessionCreate.css';
 
 const TrainingSessionCreate = () => {
@@ -31,7 +32,7 @@ const TrainingSessionCreate = () => {
         return;
       }
 
-      const res = await fetch(`${getBackendUrl()}/api/tournament/classes/${classId}/students`);
+      const res = await fetch(`${getBackendUrl()}/api/tournament/classes/${classId}/students`, { headers: getAuthHeaders() });
       const data = await res.json();
 
       if (data.success) {

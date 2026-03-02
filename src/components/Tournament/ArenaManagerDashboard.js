@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
+import { getAuthHeaders } from '../../utils/apiHelpers';
 
 const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
@@ -27,7 +28,7 @@ export default function ArenaManagerDashboard() {
       const params = new URLSearchParams();
       if (teacherId) params.set('teacherId', teacherId);
       if (teacherEmail) params.set('teacherEmail', teacherEmail);
-      const response = await fetch(`${getBackendUrl()}/api/tournament/active-matches?${params.toString()}`);
+      const response = await fetch(`${getBackendUrl()}/api/tournament/active-matches?${params.toString()}`, { headers: getAuthHeaders() });
       const data = await response.json();
       
       if (data.success) {

@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
+const { requireAuth } = require('../middleware/auth');
+const { validateCreateTrainingMatch, validateTrainingSession, validateParamStudentId } = require('../middleware/validate');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -25,7 +27,7 @@ const requireSupabase = (req, res, next) => {
  * POST /api/training/matches
  * Créer un match Training (en mémoire, avec notifications Socket.IO)
  */
-router.post('/matches', async (req, res) => {
+router.post('/matches', requireAuth, ...validateCreateTrainingMatch, async (req, res) => {
   try {
     const { studentIds, config, classId, teacherId } = req.body;
     
@@ -56,7 +58,7 @@ router.post('/matches', async (req, res) => {
   }
 });
 
-router.post('/sessions', requireSupabase, async (req, res) => {
+router.post('/sessions', requireSupabase, requireAuth, ...validateTrainingSession, async (req, res) => {
   try {
     const { matchId, classId, teacherId, sessionName, results, config, completedAt } = req.body;
     
@@ -154,7 +156,7 @@ router.post('/sessions', requireSupabase, async (req, res) => {
   }
 });
 
-router.get('/sessions/class/:classId', requireSupabase, async (req, res) => {
+router.get('/sessions/class/:classId', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { classId } = req.params;
     const { limit = 20 } = req.query;
@@ -175,7 +177,7 @@ router.get('/sessions/class/:classId', requireSupabase, async (req, res) => {
   }
 });
 
-router.get('/sessions/:sessionId/results', requireSupabase, async (req, res) => {
+router.get('/sessions/:sessionId/results', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { sessionId } = req.params;
     
@@ -201,7 +203,7 @@ router.get('/sessions/:sessionId/results', requireSupabase, async (req, res) => 
   }
 });
 
-router.get('/stats/student/:studentId', requireSupabase, async (req, res) => {
+router.get('/stats/student/:studentId', requireSupabase, requireAuth, ...validateParamStudentId, async (req, res) => {
   try {
     const { studentId } = req.params;
     

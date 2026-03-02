@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getBackendUrl } from '../../utils/subscription';
+import { getAuthHeaders } from '../../utils/apiHelpers';
 import './RectoratDashboard.css';
 
 const RectoratDashboard = () => {
@@ -23,7 +24,7 @@ const RectoratDashboard = () => {
   const loadTournaments = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${getBackendUrl()}/api/tournament/list`);
+      const res = await fetch(`${getBackendUrl()}/api/tournament/list`, { headers: getAuthHeaders() });
       const data = await res.json();
 
       if (data.success) {
@@ -41,7 +42,7 @@ const RectoratDashboard = () => {
 
   const loadPhases = async (tournamentId) => {
     try {
-      const res = await fetch(`${getBackendUrl()}/api/tournament/${tournamentId}/phases`);
+      const res = await fetch(`${getBackendUrl()}/api/tournament/${tournamentId}/phases`, { headers: getAuthHeaders() });
       const data = await res.json();
 
       if (data.success) {
@@ -63,7 +64,7 @@ const RectoratDashboard = () => {
     try {
       const res = await fetch(`${getBackendUrl()}/api/tournament/phases/${phaseId}/close`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' }
+        headers: getAuthHeaders()
       });
 
       const data = await res.json();
@@ -91,7 +92,7 @@ const RectoratDashboard = () => {
     try {
       const res = await fetch(`${getBackendUrl()}/api/tournament/phases/${phaseId}/activate`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' }
+        headers: getAuthHeaders()
       });
 
       const data = await res.json();
@@ -110,7 +111,7 @@ const RectoratDashboard = () => {
 
   const exportRanking = async (tournamentId) => {
     try {
-      const res = await fetch(`${getBackendUrl()}/api/tournament/${tournamentId}/ranking/pdf`);
+      const res = await fetch(`${getBackendUrl()}/api/tournament/${tournamentId}/ranking/pdf`, { headers: getAuthHeaders() });
       const blob = await res.blob();
       
       const url = window.URL.createObjectURL(blob);
