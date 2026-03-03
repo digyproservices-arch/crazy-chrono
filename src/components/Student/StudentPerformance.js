@@ -15,9 +15,47 @@ const getBackendUrl = () => process.env.REACT_APP_BACKEND_URL || 'http://localho
 
 const MEDAL_EMOJIS = ['🥇', '🥈', '🥉'];
 
-function MasteryTab({ themeMastery }) {
+// Mapping nom de thème (table attempts) → clé catégorie (mastery_progress)
+const THEME_TO_CATEGORY = {
+  'Table de 2': 'table_2', 'Table de 3': 'table_3', 'Table de 4': 'table_4',
+  'Table de 5': 'table_5', 'Table de 6': 'table_6', 'Table de 7': 'table_7',
+  'Table de 8': 'table_8', 'Table de 9': 'table_9', 'Table de 15': 'table_15',
+  'Additions': 'addition', 'Soustractions': 'soustraction', 'Divisions': 'division',
+  'Multiplications avancées': 'multiplication_avancee', 'Équations': 'equation',
+  'Fractions': 'fraction', 'Numération': 'numeration',
+  'Fruits': 'fruit', 'Légumes': 'legume', 'Tubercules': 'tubercule',
+  'Fleurs': 'fleur', 'Plantes médicinales': 'plante_medicinale',
+  'Plantes aromatiques': 'plante_aromatique', 'Épices': 'epice',
+  'Légumineuses': 'legumineuse',
+};
+
+function MasteryTab({ themeMastery, masteryBadges }) {
   const [expandedThemes, setExpandedThemes] = React.useState({});
   const toggleTheme = (theme) => setExpandedThemes(prev => ({ ...prev, [theme]: !prev[theme] }));
+
+  // Helper: récupérer le badge pour un thème donné
+  const getBadgeForTheme = (themeName) => {
+    if (!masteryBadges) return null;
+    // Essayer le mapping direct
+    const key = THEME_TO_CATEGORY[themeName];
+    if (key && masteryBadges[key]) return masteryBadges[key];
+    // Fallback: normaliser le nom en clé snake_case
+    const normalized = themeName.toLowerCase().replace(/\s+/g, '_').replace(/[éè]/g, 'e').replace(/[à]/g, 'a');
+    if (masteryBadges[normalized]) return masteryBadges[normalized];
+    return null;
+  };
+
+  // Compter les badges globaux
+  const countBadges = () => {
+    if (!masteryBadges) return { gold: 0, silver: 0, bronze: 0 };
+    let gold = 0, silver = 0, bronze = 0;
+    for (const entry of Object.values(masteryBadges)) {
+      if (entry?.tiers?.gold) gold++;
+      if (entry?.tiers?.silver) silver++;
+      if (entry?.tiers?.bronze) bronze++;
+    }
+    return { gold, silver, bronze };
+  };
 
   if (!themeMastery || themeMastery.length === 0) {
     return (
@@ -141,6 +179,12 @@ function MasteryTab({ themeMastery }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {hasItems && <span style={{ fontSize: 12, color: '#64748b', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>}
             <span style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{t.theme}</span>
+            {(() => {
+              const badge = getBadgeForTheme(t.theme);
+              if (!badge) return null;
+              const icon = badge.tiers?.gold ? '🥇' : badge.tiers?.silver ? '🥈' : badge.tiers?.bronze ? '🥉' : null;
+              return icon ? <span style={{ fontSize: 16 }} title={badge.tiers?.gold ? 'Or' : badge.tiers?.silver ? 'Argent' : 'Bronze'}>{icon}</span> : null;
+            })()}
             <span style={{ fontSize: 12, color: '#64748b' }}>
               {t.correct}/{t.total} réussites{hasItems ? ` · ${displayItems.length} élément${displayItems.length > 1 ? 's' : ''} vu${displayItems.length > 1 ? 's' : ''}` : ''}
             </span>
@@ -187,6 +231,25 @@ function MasteryTab({ themeMastery }) {
     <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
       <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: '0 0 4px 0' }}>🧠 Maîtrise par thème</h3>
       <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px 0' }}>Analyse détaillée des points forts et axes d'amélioration — cliquez sur un thème pour voir le détail</p>
+
+      {/* Résumé badges Bronze/Argent/Or */}
+      {(() => {
+        const badges = countBadges();
+        const hasAny = badges.gold + badges.silver + badges.bronze > 0;
+        if (!hasAny) return null;
+        return (
+          <div style={{
+            display: 'flex', gap: 16, marginBottom: 20, padding: '14px 18px',
+            background: 'linear-gradient(135deg, #fefce8 0%, #fef3c7 50%, #fff7ed 100%)',
+            borderRadius: 12, border: '1px solid #fde68a', justifyContent: 'center', alignItems: 'center'
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#92400e' }}>Badges obtenus :</span>
+            {badges.gold > 0 && <span style={{ fontSize: 16 }}>🥇 <strong style={{ color: '#b45309' }}>{badges.gold}</strong></span>}
+            {badges.silver > 0 && <span style={{ fontSize: 16 }}>🥈 <strong style={{ color: '#6b7280' }}>{badges.silver}</strong></span>}
+            {badges.bronze > 0 && <span style={{ fontSize: 16 }}>🥉 <strong style={{ color: '#a16207' }}>{badges.bronze}</strong></span>}
+          </div>
+        );
+      })()}
 
       {/* Multiplication tables group */}
       {tables.length > 0 && (
@@ -256,6 +319,7 @@ export default function StudentPerformance() {
   const [progression, setProgression] = useState([]);
   const [streaks, setStreaks] = useState({ currentWin: 0, bestWin: 0 });
   const [themeMastery, setThemeMastery] = useState([]);
+  const [masteryBadges, setMasteryBadges] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
@@ -312,6 +376,7 @@ export default function StudentPerformance() {
             setProgression(data.progression || []);
             setStreaks(data.streaks || { currentWin: 0, bestWin: 0 });
             setThemeMastery(data.themeMastery || []);
+            setMasteryBadges(data.masteryBadges || null);
             setError(null);
             setLoading(false);
             return;
@@ -330,6 +395,7 @@ export default function StudentPerformance() {
           setProgression(data.progression || []);
           setStreaks(data.streaks || { currentWin: 0, bestWin: 0 });
           setThemeMastery(data.themeMastery || []);
+          setMasteryBadges(data.masteryBadges || null);
           setError(null);
         } else {
           setError(data.error || 'Erreur de chargement');
@@ -681,7 +747,7 @@ export default function StudentPerformance() {
 
           {/* ===== MASTERY TAB ===== */}
           {activeTab === 'mastery' && (
-            <MasteryTab themeMastery={themeMastery} />
+            <MasteryTab themeMastery={themeMastery} masteryBadges={masteryBadges} />
           )}
 
           {/* ===== HISTORY TAB ===== */}

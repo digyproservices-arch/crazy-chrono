@@ -2265,6 +2265,25 @@ router.get('/students/:studentId/performance', requireSupabase, requireAuth, ...
     // Ajouter sessions solo aux stats
     stats.soloSessions = soloSessionsCount;
 
+    // 8. Charger les badges de maîtrise (Bronze/Argent/Or) depuis mastery_progress
+    let masteryBadges = null;
+    try {
+      const possibleIds = [...new Set([userId || studentId, studentId].filter(Boolean))];
+      for (const uid of possibleIds) {
+        const { data: mp } = await supabase
+          .from('mastery_progress')
+          .select('progress, updated_at')
+          .eq('user_id', uid)
+          .single();
+        if (mp?.progress) {
+          masteryBadges = mp.progress;
+          break;
+        }
+      }
+    } catch (e) {
+      console.warn('[Tournament API] mastery_progress query failed:', e.message);
+    }
+
     res.json({
       success: true,
       studentId,
@@ -2272,7 +2291,8 @@ router.get('/students/:studentId/performance', requireSupabase, requireAuth, ...
       history,
       progression,
       streaks: { currentWin: currentWinStreak, bestWin: bestWinStreak },
-      themeMastery
+      themeMastery,
+      masteryBadges
     });
 
   } catch (error) {
