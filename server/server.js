@@ -226,6 +226,10 @@ app.use('/api/auth', authRoutes);
 const progressRoutes = require('./routes/progress');
 app.use('/api/progress', progressRoutes);
 
+// ===== Mastery Routes (progression maîtrise par thème) =====
+const masteryRoutes = require('./routes/mastery');
+app.use('/api/mastery', masteryRoutes);
+
 // ===== RGPD Routes (export données, suppression compte) =====
 const rgpdRoutes = require('./routes/rgpd');
 app.use('/api/rgpd', rgpdRoutes);

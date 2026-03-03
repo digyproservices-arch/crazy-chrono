@@ -295,3 +295,111 @@ function _saveProgress() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(_progress));
   } catch (e) { /* ignore */ }
 }
+
+// ── Server Sync ──────────────────────────────────────────
+
+let _syncDebounceTimer = null;
+
+/**
+ * Push current mastery progress to the server.
+ * Debounced: waits 2s after last call before actually sending.
+ * @param {string} backendUrl - Base URL of the backend
+ * @param {Object} authHeaders - Headers with Authorization token
+ */
+export function syncToServer(backendUrl, authHeaders) {
+  if (!_progress || !backendUrl) return;
+  if (_syncDebounceTimer) clearTimeout(_syncDebounceTimer);
+  _syncDebounceTimer = setTimeout(() => {
+    _syncDebounceTimer = null;
+    try {
+      fetch(`${backendUrl}/api/mastery`, {
+        method: 'POST',
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ progress: _progress }),
+      }).then(r => {
+        if (r.ok) {
+          console.log('[MasteryTracker] Synced to server');
+          try { window.ccAddDiag && window.ccAddDiag('mastery:sync:push', { ok: true }); } catch {}
+        } else {
+          console.warn('[MasteryTracker] Sync failed:', r.status);
+          try { window.ccAddDiag && window.ccAddDiag('mastery:sync:push', { ok: false, status: r.status }); } catch {}
+        }
+      }).catch(e => {
+        console.warn('[MasteryTracker] Sync error:', e.message);
+      });
+    } catch (e) { /* ignore */ }
+  }, 2000);
+}
+
+/**
+ * Load mastery progress from the server and merge with local.
+ * Server wins for tiers (earliest date kept), union for found pairs.
+ * @param {string} backendUrl - Base URL of the backend
+ * @param {Object} authHeaders - Headers with Authorization token
+ * @returns {Promise<boolean>} - true if merge changed local state
+ */
+export async function loadFromServer(backendUrl, authHeaders) {
+  if (!backendUrl) return false;
+  try {
+    const r = await fetch(`${backendUrl}/api/mastery`, {
+      method: 'GET',
+      headers: authHeaders,
+    });
+    if (!r.ok) {
+      console.warn('[MasteryTracker] Load from server failed:', r.status);
+      return false;
+    }
+    const data = await r.json();
+    if (!data.ok || !data.progress) return false;
+
+    const serverProgress = data.progress;
+    let changed = false;
+
+    // Ensure local progress is loaded
+    if (!_progress) _loadProgress();
+    if (!_progress) _progress = {};
+
+    // Merge: union of found pairs, earliest tier dates
+    for (const [key, serverEntry] of Object.entries(serverProgress)) {
+      if (!_progress[key]) {
+        _progress[key] = serverEntry;
+        changed = true;
+        continue;
+      }
+
+      const local = _progress[key];
+
+      // Merge found pairs (union)
+      const localFound = new Set(local.found || []);
+      const serverFound = new Set(serverEntry.found || []);
+      const merged = new Set([...localFound, ...serverFound]);
+      if (merged.size > localFound.size) {
+        local.found = [...merged];
+        changed = true;
+      }
+
+      // Merge tiers (keep earliest date)
+      for (const tier of ['bronze', 'silver', 'gold']) {
+        const localDate = local.tiers?.[tier];
+        const serverDate = serverEntry.tiers?.[tier];
+        if (serverDate && (!localDate || serverDate < localDate)) {
+          if (!local.tiers) local.tiers = {};
+          local.tiers[tier] = serverDate;
+          changed = true;
+        }
+      }
+    }
+
+    // Also check for local entries not on server (keep them)
+    if (changed) {
+      _saveProgress();
+      console.log('[MasteryTracker] Merged server progress');
+      try { window.ccAddDiag && window.ccAddDiag('mastery:sync:pull', { ok: true, changed: true }); } catch {}
+    }
+
+    return changed;
+  } catch (e) {
+    console.warn('[MasteryTracker] Load from server error:', e.message);
+    return false;
+  }
+}

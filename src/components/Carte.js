@@ -10,7 +10,7 @@ import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flush
 import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError } from '../utils/gameIncidentTracker';
 import { isFree, canStartSessionToday, incrementSessionCount } from '../utils/subscription';
 
-import { initMasteryTracker, resetMasterySession, recordPair as masteryRecordPair, getActiveSessionProgress, isMasteryReady } from '../utils/masteryTracker';
+import { initMasteryTracker, resetMasterySession, recordPair as masteryRecordPair, getActiveSessionProgress, getMasteryProgress, isMasteryReady, syncToServer as masterySyncToServer, loadFromServer as masteryLoadFromServer } from '../utils/masteryTracker';
 import MasteryBubble from './MasteryBubble';
 
 // Single shared AudioContext for smoother audio on low devices
@@ -2336,7 +2336,9 @@ const Carte = () => {
         mode: isMultiplayer ? 'multiplayer' : 'solo',
         ranking: isMultiplayer ? scores.sort((a, b) => (b.score || 0) - (a.score || 0)) : null,
         winner: summary?.winner || null,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        masterySession: getActiveSessionProgress(),
+        masteryAll: getMasteryProgress()
       });
 
       // Reset session start time
@@ -2766,7 +2768,9 @@ useEffect(() => {
           duration: sessionElapsedSec,
           errors: 0,
           mode,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          masterySession: getActiveSessionProgress(),
+          masteryAll: getMasteryProgress()
         });
 
         if (!studentId) {
@@ -3213,7 +3217,7 @@ function handleGameClick(zone) {
             round: Number(roundsPlayed) || 0, score: scoreRef.current
           });
         } catch {}
-        try { const mEvt = masteryRecordPair(pairKey, true, latency); if (mEvt) setMasteryEvent(mEvt); setMasteryProgress(getActiveSessionProgress()); } catch {}
+        try { const mEvt = masteryRecordPair(pairKey, true, latency); if (mEvt) setMasteryEvent(mEvt); setMasteryProgress(getActiveSessionProgress()); masterySyncToServer(getBackendUrl(), getAuthHeaders()); } catch {}
         // ✅ FIX DISPARITÉ: Activer verrou pendant traitement
         processingPairRef.current = true;
         setTimeout(() => { processingPairRef.current = false; }, 800);
@@ -4218,7 +4222,12 @@ setZones(dataWithRandomTexts);
         const respAssoc = await fetch(process.env.PUBLIC_URL + '/data/associations.json');
         assocData = await respAssoc.json();
         try { assocDataRef.current = assocData; } catch {}
-        try { if (!isMasteryReady()) initMasteryTracker(assocData, (evt) => { setMasteryEvent(evt); setMasteryProgress(getActiveSessionProgress()); }); } catch {}
+        try {
+          if (!isMasteryReady()) {
+            initMasteryTracker(assocData, (evt) => { setMasteryEvent(evt); setMasteryProgress(getActiveSessionProgress()); try { masterySyncToServer(getBackendUrl(), getAuthHeaders()); } catch {} });
+            try { masteryLoadFromServer(getBackendUrl(), getAuthHeaders()); } catch {}
+          }
+        } catch {}
       } catch (e) {
         console.warn('Impossible de charger associations.json pour l\'attribution:', e);
         if (deterministicSync) {
@@ -6325,6 +6334,25 @@ setZones(dataWithRandomTexts);
                   ))}
               </div>
             </div>
+            {/* Progression Maîtrise */}
+            {masteryProgress.length > 0 && (
+              <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <h3 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700, color: '#fff' }}>🎯 Maîtrise</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {masteryProgress.slice(0, 5).map(t => (
+                    <div key={t.key}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#cbd5e1', fontWeight: 600, marginBottom: 2 }}>
+                        <span>{t.tiers.gold ? '\u{1F947}' : t.tiers.silver ? '\u{1F948}' : t.tiers.bronze ? '\u{1F949}' : '\u{1F3AF}'} {t.label}</span>
+                        <span style={{ color: '#94a3b8' }}>{t.found}/{t.total}</span>
+                      </div>
+                      <div style={{ height: 5, background: 'rgba(255,255,255,0.1)', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${Math.round((t.found / t.total) * 100)}%`, background: t.found >= t.total ? '#22c55e' : t.found / t.total > 0.6 ? '#f59e0b' : '#3b82f6', borderRadius: 3, transition: 'width 0.5s ease' }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {/* Dernière paire validée */}
             <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 8 }} data-cc-vignette="last-pair" ref={mpLastPairRef}>
               <span style={{ width: 12, height: 12, borderRadius: 999, flexShrink: 0, background: lastWonPair?.color || 'rgba(255,255,255,0.3)', boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none', border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none' }} />
@@ -6604,21 +6632,6 @@ setZones(dataWithRandomTexts);
       )}
 
       <MasteryBubble event={masteryEvent} onDone={() => setMasteryEvent(null)} />
-      {masteryProgress.length > 0 && (
-        <div style={{ position: 'fixed', top: 10, right: 10, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 4, pointerEvents: 'none', maxWidth: 200 }}>
-          {masteryProgress.slice(0, 3).map(t => (
-            <div key={t.key} style={{ background: 'rgba(15,23,42,0.85)', borderRadius: 8, padding: '4px 10px', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#cbd5e1', fontWeight: 600, marginBottom: 2 }}>
-                <span>{t.tiers.gold ? '\u{1F947}' : t.tiers.silver ? '\u{1F948}' : t.tiers.bronze ? '\u{1F949}' : ''} {t.label}</span>
-                <span style={{ color: '#94a3b8' }}>{t.found}/{t.total}</span>
-              </div>
-              <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${Math.round((t.found / t.total) * 100)}%`, background: t.found >= t.total ? '#22c55e' : t.found / t.total > 0.6 ? '#f59e0b' : '#3b82f6', borderRadius: 2, transition: 'width 0.5s ease' }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
       <div className="carte" style={{ position: 'relative' }} ref={gameContainerRef}>
         {flashWrong && (
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(214,48,49,0.25)', pointerEvents: 'none', zIndex: 5 }} />
@@ -7776,6 +7789,44 @@ setZones(dataWithRandomTexts);
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Récapitulatif Maîtrise */}
+            {Array.isArray(ov.masterySession) && ov.masterySession.length > 0 && (
+              <div style={{
+                background: 'rgba(255,255,255,0.95)', borderRadius: 16, padding: isMobile ? '12px' : '20px',
+                maxWidth: isMobile ? '90vw' : '500px', width: '100%', marginBottom: 24,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+                animation: 'slideUp 0.6s ease-out 0.55s both'
+              }}>
+                <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 700, color: '#148A9C', marginBottom: 12, textAlign: 'center' }}>
+                  🎯 Maîtrise — Cette session
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {ov.masterySession.map(t => {
+                    const pct = t.total > 0 ? Math.round((t.found / t.total) * 100) : 0;
+                    const tierIcon = t.tiers.gold ? '🥇' : t.tiers.silver ? '🥈' : t.tiers.bronze ? '🥉' : '🎯';
+                    const tierLabel = t.tiers.gold ? 'Or' : t.tiers.silver ? 'Argent' : t.tiers.bronze ? 'Bronze' : null;
+                    const barColor = t.found >= t.total ? '#22c55e' : pct > 60 ? '#f59e0b' : '#3b82f6';
+                    return (
+                      <div key={t.key} style={{ padding: '8px 12px', borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{tierIcon} {t.label}</span>
+                          <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>{t.found}/{t.total} ({pct}%)</span>
+                        </div>
+                        <div style={{ height: 6, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: 3, transition: 'width 0.8s ease' }} />
+                        </div>
+                        {tierLabel && (
+                          <div style={{ marginTop: 4, fontSize: 11, fontWeight: 700, color: t.tiers.gold ? '#d97706' : t.tiers.silver ? '#6b7280' : '#b45309', textAlign: 'right' }}>
+                            Niveau {tierLabel} atteint !
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
