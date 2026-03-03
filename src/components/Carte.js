@@ -6604,7 +6604,7 @@ setZones(dataWithRandomTexts);
       )}
 
       <MasteryBubble event={masteryEvent} onDone={() => setMasteryEvent(null)} />
-      {masteryProgress.length > 0 && gameStarted && (
+      {masteryProgress.length > 0 && (
         <div style={{ position: 'fixed', top: 10, right: 10, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 4, pointerEvents: 'none', maxWidth: 200 }}>
           {masteryProgress.slice(0, 3).map(t => (
             <div key={t.key} style={{ background: 'rgba(15,23,42,0.85)', borderRadius: 8, padding: '4px 10px', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.1)' }}>
