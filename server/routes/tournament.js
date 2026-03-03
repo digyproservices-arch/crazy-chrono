@@ -2039,8 +2039,8 @@ router.get('/students/:studentId/performance', requireSupabase, requireAuth, ...
     const pairs = results.map(r => r.pairs_validated || 0);
     const errors = results.map(r => r.errors || 0);
 
-    // Vitesse = paires par minute (seuil minimum 10s pour éviter les valeurs aberrantes)
-    const MIN_TIME_MS = 10000; // 10 secondes minimum pour un calcul de vitesse fiable
+    // Vitesse = paires par minute (seuil minimum 30s pour éviter les valeurs aberrantes / abandons précoces)
+    const MIN_TIME_MS = 30000; // 30 secondes minimum pour un calcul de vitesse fiable
     const speeds = results.map(r => {
       if (!r.time_ms || r.time_ms < MIN_TIME_MS || !r.pairs_validated) return 0;
       return (r.pairs_validated / (r.time_ms / 60000));
