@@ -10,6 +10,9 @@ import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flush
 import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError } from '../utils/gameIncidentTracker';
 import { isFree, canStartSessionToday, incrementSessionCount } from '../utils/subscription';
 
+import { initMasteryTracker, resetMasterySession, recordPair as masteryRecordPair, getActiveSessionProgress, isMasteryReady } from '../utils/masteryTracker';
+import MasteryBubble from './MasteryBubble';
+
 // Single shared AudioContext for smoother audio on low devices
 let __audioCtx = null;
 function getAudioCtx() {
@@ -2598,6 +2601,8 @@ const Carte = () => {
   const [flashWrong, setFlashWrong] = useState(false);
   const [gameMsg, setGameMsg] = useState('');
   const [showBigCross, setShowBigCross] = useState(false);
+  const [masteryEvent, setMasteryEvent] = useState(null);
+  const [masteryProgress, setMasteryProgress] = useState([]);
   const gameContainerRef = useRef(null);
   // Timestamp du premier clic pour mesurer la latence d'une tentative
   const firstClickTsRef = useRef(0);
@@ -2935,6 +2940,7 @@ async function doStart() {
     // Réinitialiser les decks anti-répétition pour garantir la variété des éléments
     resetElementDecks(Date.now());
     try { window.ccAddDiag && window.ccAddDiag('session:reset:validatedPairs'); } catch {}
+    try { resetMasterySession(); setMasteryProgress([]); } catch {}
     // Si connecté au serveur, lancer une session SOLO via le backend
   if (socket && socket.connected) {
     try {
@@ -3207,6 +3213,7 @@ function handleGameClick(zone) {
             round: Number(roundsPlayed) || 0, score: scoreRef.current
           });
         } catch {}
+        try { const mEvt = masteryRecordPair(pairKey, true, latency); if (mEvt) setMasteryEvent(mEvt); setMasteryProgress(getActiveSessionProgress()); } catch {}
         // ✅ FIX DISPARITÉ: Activer verrou pendant traitement
         processingPairRef.current = true;
         setTimeout(() => { processingPairRef.current = false; }, 800);
@@ -3349,6 +3356,7 @@ function handleGameClick(zone) {
             round: Number(roundsPlayed) || 0, score: scoreRef.current
           });
         } catch {}
+        try { masteryRecordPair(p1 || p2 || '', false, latency); } catch {}
         setGameMsg('Mauvaise association');
         setShowBigCross(true);
         playWrongSound();
@@ -4210,6 +4218,7 @@ setZones(dataWithRandomTexts);
         const respAssoc = await fetch(process.env.PUBLIC_URL + '/data/associations.json');
         assocData = await respAssoc.json();
         try { assocDataRef.current = assocData; } catch {}
+        try { if (!isMasteryReady()) initMasteryTracker(assocData, (evt) => { setMasteryEvent(evt); setMasteryProgress(getActiveSessionProgress()); }); } catch {}
       } catch (e) {
         console.warn('Impossible de charger associations.json pour l\'attribution:', e);
         if (deterministicSync) {
@@ -6594,6 +6603,22 @@ setZones(dataWithRandomTexts);
         </div>
       )}
 
+      <MasteryBubble event={masteryEvent} onDone={() => setMasteryEvent(null)} />
+      {masteryProgress.length > 0 && gameStarted && (
+        <div style={{ position: 'fixed', top: 10, right: 10, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 4, pointerEvents: 'none', maxWidth: 200 }}>
+          {masteryProgress.slice(0, 3).map(t => (
+            <div key={t.key} style={{ background: 'rgba(15,23,42,0.85)', borderRadius: 8, padding: '4px 10px', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#cbd5e1', fontWeight: 600, marginBottom: 2 }}>
+                <span>{t.tiers.gold ? '\u{1F947}' : t.tiers.silver ? '\u{1F948}' : t.tiers.bronze ? '\u{1F949}' : ''} {t.label}</span>
+                <span style={{ color: '#94a3b8' }}>{t.found}/{t.total}</span>
+              </div>
+              <div style={{ height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${Math.round((t.found / t.total) * 100)}%`, background: t.found >= t.total ? '#22c55e' : t.found / t.total > 0.6 ? '#f59e0b' : '#3b82f6', borderRadius: 2, transition: 'width 0.5s ease' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="carte" style={{ position: 'relative' }} ref={gameContainerRef}>
         {flashWrong && (
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(214,48,49,0.25)', pointerEvents: 'none', zIndex: 5 }} />
