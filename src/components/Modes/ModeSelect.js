@@ -124,13 +124,27 @@ export default function ModeSelect({ auth: authProp }) {
             />
           </>
         )}
-        <Card 
-          title="Mes Performances" 
-          subtitle="Analyse ta progression, ta rapidité et ta précision match par match"
-          icon="📊"
-          gradient="linear-gradient(135deg, #0D6A7A 0%, #148A9C 100%)"
-          onClick={() => navigate('/my-performance')} 
-        />
+        {!isFree() ? (
+          <Card 
+            title="Mes Performances" 
+            subtitle="Analyse ta progression, ta rapidité et ta précision match par match"
+            icon="📊"
+            gradient="linear-gradient(135deg, #0D6A7A 0%, #148A9C 100%)"
+            onClick={() => navigate('/my-performance')} 
+          />
+        ) : (
+          <button onClick={() => navigate('/pricing')} style={{
+            width: '100%', textAlign: 'left', padding: 24, borderRadius: 16, border: 'none',
+            background: 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.15)', color: '#fff', cursor: 'pointer',
+            transition: 'all 0.3s ease', position: 'relative', overflow: 'hidden'
+          }}>
+            <div style={{ position: 'absolute', top: 12, right: 12, background: '#F5A623', color: '#fff', fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 20 }}>PRO</div>
+            <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.7 }}>🔒</div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Mes Performances</div>
+            <div style={{ opacity: 0.9, fontSize: 14, lineHeight: 1.5 }}>Abonnez-vous pour voir votre progression, badges et statistiques détaillées !</div>
+          </button>
+        )}
         {isFree() ? (
           <button onClick={() => navigate('/pricing')} style={{
             width: '100%', textAlign: 'left', padding: 24, borderRadius: 16, border: 'none',

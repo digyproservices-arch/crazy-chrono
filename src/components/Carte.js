@@ -1102,12 +1102,23 @@ const Carte = () => {
   }), []);
 
   // ===== Freemium helpers (Sprint A) =====
+  const FREE_MAX_ROUNDS = 3;
+  const FREE_MAX_DURATION = 120; // secondes
   const applyFreeLimits = (sock) => {
     try {
-      if (!isFree() || !sock) return;
-      // force 3 rounds per session for Free users
-      sock.emit && sock.emit('room:setRounds', 3);
-    } catch {}
+      if (!isFree()) return;
+      // Force manches et durée max pour les free (local + serveur)
+      setRoundsPerSession(prev => {
+        const v = Number.isFinite(prev) ? Math.min(prev, FREE_MAX_ROUNDS) : FREE_MAX_ROUNDS;
+        return v;
+      });
+      setGameDuration(prev => {
+        const v = Math.min(prev, FREE_MAX_DURATION);
+        setTimeLeft(v);
+        return v;
+      });
+      if (sock && sock.emit) sock.emit('room:setRounds', FREE_MAX_ROUNDS);
+    } catch {};
   };
 
   // Mini-sprint: server-side quota check

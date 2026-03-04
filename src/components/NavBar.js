@@ -157,7 +157,7 @@ const NavBar = () => {
             </NavDropdown>
           )}
 
-          <NavLink icon="📊" label="Performances" to="/my-performance" active={isActive('/my-performance')} navigate={navigate} />
+          {!isFree() && <NavLink icon="📊" label="Performances" to="/my-performance" active={isActive('/my-performance')} navigate={navigate} />}
           <NavLink icon="💰" label="Tarifs" to="/pricing" active={isActive('/pricing')} navigate={navigate} />
 
           {isAdmin && (
@@ -231,7 +231,7 @@ const NavBar = () => {
           {isTeacher && <MobileLink icon="🏆" label="Tournoi — Config" to="/teacher/tournament" navigate={navigate} active={isActive('/teacher/tournament')} />}
           {isTeacher && <MobileLink icon="📋" label="Tournoi — Matchs" to="/crazy-arena/manager" navigate={navigate} active={isActive('/crazy-arena/manager')} />}
           {isTeacher && <MobileLink icon="🏅" label="Compétition" to="/crazy-arena/competition" navigate={navigate} active={isActive('/crazy-arena/competition')} />}
-          <MobileLink icon="📊" label="Performances" to="/my-performance" navigate={navigate} active={isActive('/my-performance')} />
+          {!isFree() && <MobileLink icon="📊" label="Performances" to="/my-performance" navigate={navigate} active={isActive('/my-performance')} />}
           <MobileLink icon="💰" label="Tarifs" to="/pricing" navigate={navigate} active={isActive('/pricing')} />
           <MobileLink icon="🏪" label="Boutique" to="/pricing" navigate={navigate} active={false} />
           <MobileLink icon="🏟️" label="Grande Salle" to="/grande-salle" navigate={navigate} active={isActive('/grande-salle')} />

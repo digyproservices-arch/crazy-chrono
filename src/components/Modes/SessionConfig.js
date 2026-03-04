@@ -351,17 +351,22 @@ export default function SessionConfig() {
   };
 
   // Steppers for better UX (no focus issues on mobile)
+  const FREE_MAX_ROUNDS = 3;
+  const FREE_MAX_DURATION = 120;
+  const maxRounds = isFree() ? FREE_MAX_ROUNDS : 20;
+  const maxDuration = isFree() ? FREE_MAX_DURATION : 600;
+
   const stepRounds = (delta) => {
-    setRounds(prev => String(clampInt((parseInt(prev, 10) || 3) + delta, 1, 20, 3)));
+    setRounds(prev => String(clampInt((parseInt(prev, 10) || 3) + delta, 1, maxRounds, 3)));
   };
   const stepDuration = (delta) => {
-    setDuration(prev => String(clampInt((parseInt(prev, 10) || 60) + delta, 15, 600, 60)));
+    setDuration(prev => String(clampInt((parseInt(prev, 10) || 60) + delta, 15, maxDuration, 60)));
   };
 
   const onStart = () => {
     // Règle simple: si des thèmes sont sélectionnés, on ne garde QUE ceux-ci; sinon, tout est autorisé
-    const r = clampInt(rounds, 1, 20, 3);
-    const d = clampInt(duration, 15, 600, 60);
+    const r = clampInt(rounds, 1, maxRounds, 3);
+    const d = clampInt(duration, 15, maxDuration, 60);
     const payload = { mode, classes: selectedClasses, themes: selectedThemes, rounds: r, duration: d, allowEmptyMathWhenNoData: !!allowEmptyMath, playerZone: playerZone || '' };
     if (mode === 'online') {
       payload.playerName = playerName || 'Joueur';
@@ -587,7 +592,7 @@ export default function SessionConfig() {
               <div style={{ flex: 1, textAlign: 'center', padding: '8px 12px', border: '2px solid #e2e8f0', borderRadius: 10, background: '#f8fafc', fontWeight: 800, fontSize: 18, color: '#0D6A7A' }}>{rounds}</div>
               <button onClick={() => stepRounds(+1)} style={{ width: 40, height: 40, borderRadius: 10, border: '2px solid #e2e8f0', background: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>+</button>
             </div>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>1 à 20 manches</div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>1 à {maxRounds} manches{isFree() ? ' (Free)' : ''}</div>
           </div>
           <div>
             <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>⏱️ Durée par manche</label>
@@ -596,9 +601,15 @@ export default function SessionConfig() {
               <div style={{ flex: 1, textAlign: 'center', padding: '8px 12px', border: '2px solid #e2e8f0', borderRadius: 10, background: '#f8fafc', fontWeight: 800, fontSize: 18, color: '#0D6A7A' }}>{duration}<span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8' }}>s</span></div>
               <button onClick={() => stepDuration(+5)} style={{ width: 40, height: 40, borderRadius: 10, border: '2px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>+5</button>
             </div>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>15 à 600 secondes</div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>15 à {maxDuration} secondes{isFree() ? ' (Free)' : ''}</div>
           </div>
         </div>
+        {isFree() && (
+          <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a', fontSize: 13, color: '#92400e', lineHeight: 1.5 }}>
+            ⚠️ Plan gratuit : max {FREE_MAX_ROUNDS} manches et {FREE_MAX_DURATION}s par manche.
+            <a href="/pricing" style={{ color: '#0D6A7A', fontWeight: 700, marginLeft: 4 }}>Passer en Pro</a> pour débloquer toutes les options.
+          </div>
+        )}
       </div>
 
       {/* ===== 5. MODE-SPÉCIFIQUE: Multijoueur ===== */}

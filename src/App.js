@@ -57,6 +57,17 @@ const RequireAdmin = ({ children }) => {
   return <Navigate to="/modes" replace />;
 };
 
+const RequirePro = ({ children, auth }) => {
+  if (!auth) return <Navigate to="/login" replace />;
+  try {
+    const status = localStorage.getItem('cc_subscription_status');
+    if (status === 'pro') return children;
+    const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
+    if (a && (a.role === 'admin' || a.role === 'teacher')) return children;
+  } catch {}
+  return <Navigate to="/pricing" replace />;
+};
+
 function App() {
   const [gameMode, setGameMode] = useState(false);
   // Global Diagnostic UI state
@@ -440,7 +451,7 @@ function App() {
               <Route path="/tournament/match/:matchId/results" element={<RequireAuth auth={auth}><MatchResults /></RequireAuth>} />
               <Route path="/tournament/group/:groupId/history" element={<RequireAuth auth={auth}><GroupMatchHistory /></RequireAuth>} />
               {/* Dashboard Performance Élève */}
-              <Route path="/my-performance" element={<RequireAuth auth={auth}><StudentPerformance /></RequireAuth>} />
+              <Route path="/my-performance" element={<RequirePro auth={auth}><StudentPerformance /></RequirePro>} />
               <Route path="/student/:studentId/performance" element={<RequireAuth auth={auth}><StudentPerformance /></RequireAuth>} />
               {/* Training Arena (Mode Entraînement - identique à Crazy Arena) */}
               <Route path="/training-arena/setup" element={<RequireAuth auth={auth}><TrainingArenaSetup /></RequireAuth>} />
