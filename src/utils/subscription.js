@@ -46,7 +46,12 @@ export function incrementSessionCount() {
 }
 
 export function isPro() {
-  return getSubscriptionStatus() === 'pro';
+  if (getSubscriptionStatus() === 'pro') return true;
+  try {
+    const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
+    if (a && (a.role === 'admin' || a.role === 'teacher')) return true;
+  } catch {}
+  return false;
 }
 
 export function isFree() { return !isPro(); }
