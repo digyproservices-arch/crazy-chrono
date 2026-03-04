@@ -30,7 +30,6 @@ export default function LandingPage() {
           position: 'absolute', top: 20, left: 24, display: 'flex', alignItems: 'center', gap: 10,
         }}>
           <span style={{ fontSize: 28 }}>🕐</span>
-          <span style={{ fontSize: 22, fontWeight: 900, letterSpacing: -0.5 }}>Crazy Chrono</span>
         </div>
         <div style={{
           position: 'absolute', top: 20, right: 24, display: 'flex', gap: 10,
