@@ -44,6 +44,7 @@ import TournamentAdmin from './components/GrandeSalle/TournamentAdmin';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import LearnMode from './components/Modes/LearnMode';
 import LegalPages from './components/LegalPages';
+import LandingPage from './components/LandingPage';
 
 // ✅ AUTH WRAPPERS (outside App to prevent remount loops!)
 const RequireAuth = ({ children, auth }) => auth ? children : <Navigate to="/login" replace />;
@@ -408,7 +409,7 @@ function App() {
           {!gameMode && <NavBar />}
           <main>
             <Routes>
-              <Route path="/" element={<Navigate to={auth ? "/modes" : "/login"} replace />} />
+              <Route path="/" element={auth ? <Navigate to="/modes" replace /> : <LandingPage />} />
               <Route path="/login" element={<Login onLogin={(a) => { setAuth(a); try { localStorage.setItem('cc_auth', JSON.stringify(a)); } catch {}; }} />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
@@ -420,7 +421,7 @@ function App() {
               <Route path="/admin/roles" element={<RequireAdmin><AdminRoles /></RequireAdmin>} />
               <Route path="/admin/invite" element={<RequireAdmin><AdminInvite /></RequireAdmin>} />
               <Route path="/account" element={<RequireAuth auth={auth}><Account /></RequireAuth>} />
-              <Route path="/pricing" element={<RequireAuth auth={auth}><Pricing /></RequireAuth>} />
+              <Route path="/pricing" element={<Pricing />} />
               <Route path="/debug/progress" element={<RequireAuth auth={auth}><ProgressDebug /></RequireAuth>} />
               {/* Teacher - Dashboard + Mode Selector */}
               <Route path="/teacher/dashboard" element={<RequireAuth auth={auth}><TeacherDashboard /></RequireAuth>} />
