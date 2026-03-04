@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
+import { fetchAndSyncStatus, getSubscriptionStatus } from '../utils/subscription';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com';
 const supabase = (process.env.REACT_APP_SUPABASE_URL && process.env.REACT_APP_SUPABASE_ANON_KEY)
@@ -16,8 +18,12 @@ const writeAuth = (auth) => {
 };
 
 const Account = () => {
+  const [searchParams] = useSearchParams();
+  const checkoutSuccess = searchParams.get('checkout') === 'success';
   const [auth, setAuth] = useState(() => readAuth());
   const isAdmin = useMemo(() => !!(auth && (auth.isAdmin || auth.isEditor || auth.role === 'admin' || auth.role === 'editor')), [auth]);
+  const [subStatus, setSubStatus] = useState(() => getSubscriptionStatus());
+  const [portalLoading, setPortalLoading] = useState(false);
 
   const [name, setName] = useState(auth?.name || auth?.username || '');
   const [role, setRole] = useState(auth?.role || (auth?.isAdmin ? 'admin' : auth?.isEditor ? 'editor' : 'user'));
@@ -37,6 +43,40 @@ const Account = () => {
     window.addEventListener('cc:authChanged', onAuth);
     return () => window.removeEventListener('cc:authChanged', onAuth);
   }, []);
+
+  // Sync abonnement après retour Stripe ou au montage
+  useEffect(() => {
+    const uid = auth?.id;
+    if (!uid) return;
+    fetchAndSyncStatus(uid).then(() => {
+      setSubStatus(getSubscriptionStatus());
+    });
+  }, [auth?.id, checkoutSuccess]);
+
+  const handleManageSubscription = useCallback(async () => {
+    setPortalLoading(true);
+    try {
+      // Pour le portail Stripe, on a besoin du customer_id.
+      // Approche simplifiée: rediriger vers la page pricing avec info
+      const res = await fetch(`${BACKEND_URL}/me/subscription?user_id=${encodeURIComponent(auth?.id || '')}`);
+      const json = await res.json();
+      if (json?.customer_id) {
+        const portalRes = await fetch(`${BACKEND_URL}/stripe/create-portal-session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customer_id: json.customer_id }),
+        });
+        const portalJson = await portalRes.json();
+        if (portalJson?.url) { window.location.assign(portalJson.url); return; }
+      }
+      // Fallback: rediriger vers pricing
+      window.location.assign('/pricing');
+    } catch {
+      window.location.assign('/pricing');
+    } finally {
+      setPortalLoading(false);
+    }
+  }, [auth?.id]);
 
   // Detect if user is a school-linked student
   useEffect(() => {
@@ -155,6 +195,61 @@ const Account = () => {
   return (
     <div style={{ maxWidth: 720, margin: '18px auto', padding: '0 16px' }}>
       <h2>Mon compte</h2>
+
+      {/* Bannière post-checkout */}
+      {checkoutSuccess && (
+        <div style={{
+          padding: '16px 20px', borderRadius: 12, marginBottom: 20,
+          background: 'linear-gradient(135deg, #ecfdf5, #f0fdff)',
+          border: '2px solid #10b981', textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 36, marginBottom: 6 }}>🎉</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#065f46' }}>Paiement réussi !</div>
+          <div style={{ fontSize: 14, color: '#047857', marginTop: 4 }}>
+            Votre abonnement Pro est maintenant actif. Profitez de toutes les fonctionnalités !
+          </div>
+        </div>
+      )}
+
+      {/* Section abonnement */}
+      <div style={{
+        padding: '16px 20px', borderRadius: 12, marginBottom: 20,
+        background: subStatus === 'pro' ? '#f0fdff' : '#f9fafb',
+        border: subStatus === 'pro' ? '2px solid #1AACBE' : '2px solid #e2e8f0',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Abonnement</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: subStatus === 'pro' ? '#0D6A7A' : '#374151', marginTop: 2 }}>
+              {subStatus === 'pro' ? '⭐ Pro' : 'Gratuit'}
+            </div>
+          </div>
+          {subStatus === 'pro' ? (
+            <button
+              onClick={handleManageSubscription}
+              disabled={portalLoading}
+              style={{
+                padding: '10px 20px', borderRadius: 10, border: '2px solid #1AACBE',
+                background: '#fff', color: '#0D6A7A', fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              {portalLoading ? 'Chargement...' : 'Gérer mon abonnement'}
+            </button>
+          ) : (
+            <button
+              onClick={() => window.location.assign('/pricing')}
+              style={{
+                padding: '10px 20px', borderRadius: 10, border: 'none',
+                background: 'linear-gradient(135deg, #F5A623, #FFC940)',
+                color: '#4A3728', fontWeight: 800, cursor: 'pointer',
+                boxShadow: '0 3px 12px rgba(245,166,35,0.3)',
+              }}
+            >
+              Passer en Pro
+            </button>
+          )}
+        </div>
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 16, alignItems: 'start' }}>
         <div>
           <div style={{ width: 120, height: 120, borderRadius: '50%', overflow: 'hidden', background: '#e5e7eb', border: '1px solid #d1d5db', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
