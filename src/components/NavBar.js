@@ -416,8 +416,8 @@ const ProfileMenu = ({ auth, role, onLogout, navigate }) => {
   if (!name) name = 'Utilisateur';
   const initials = String(name).trim().split(/\s+/).map(s => s[0]).join('').slice(0, 2).toUpperCase() || 'U';
 
-  const ROLE_LABELS = { admin: 'Administrateur', teacher: 'Enseignant', student: 'Élève', guest: 'Invité' };
-  const ROLE_COLORS = { admin: '#e53e3e', teacher: CC.teal, student: CC.yellow, guest: '#a0aec0' };
+  const ROLE_LABELS = { admin: 'Administrateur', teacher: 'Enseignant', student: 'Élève', user: 'Joueur', guest: 'Invité' };
+  const ROLE_COLORS = { admin: '#e53e3e', teacher: CC.teal, student: CC.yellow, user: '#6366f1', guest: '#a0aec0' };
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
