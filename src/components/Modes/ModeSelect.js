@@ -2,12 +2,14 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import TeacherModeSelector from '../Teacher/TeacherModeSelector';
 import { isFree } from '../../utils/subscription';
+import Onboarding, { shouldShowOnboarding } from '../Onboarding';
 
 export default function ModeSelect({ auth: authProp }) {
   const navigate = useNavigate();
   const go = (mode) => navigate(`/config/${mode}`);
   const [history, setHistory] = React.useState([]);
   const [showAll, setShowAll] = React.useState(false);
+  const [showOnboarding, setShowOnboarding] = React.useState(() => shouldShowOnboarding());
   
   // Utiliser le prop auth (de App.js) avec fallback localStorage
   const auth = React.useMemo(() => {
@@ -62,6 +64,7 @@ export default function ModeSelect({ auth: authProp }) {
   );
   return (
     <div style={{ maxWidth: 980, margin: '40px auto', padding: '0 16px' }}>
+      {showOnboarding && <Onboarding onDone={() => setShowOnboarding(false)} />}
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
         <h1 style={{ 
           fontSize: 42, 
