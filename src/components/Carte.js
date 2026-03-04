@@ -8,7 +8,7 @@ import { getAuthHeaders } from '../utils/apiHelpers';
 import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck } from '../utils/elementsLoader';
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
 import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError } from '../utils/gameIncidentTracker';
-import { isFree, canStartSessionToday, incrementSessionCount } from '../utils/subscription';
+import { isFree, canStartSessionToday, incrementSessionCount, setSubscriptionStatus } from '../utils/subscription';
 
 import { initMasteryTracker, resetMasterySession, recordPair as masteryRecordPair, getActiveSessionProgress, getMasteryProgress, isMasteryReady, syncToServer as masterySyncToServer, loadFromServer as masteryLoadFromServer } from '../utils/masteryTracker';
 import MasteryBubble from './MasteryBubble';
@@ -1131,6 +1131,15 @@ const Carte = () => {
       }, 2500);
       const json = await resp.json().catch(() => ({}));
       if (!resp.ok) return { ok: false, allow: true }; // ne pas bloquer si erreur serveur
+      // Sync subscription status from server to localStorage (server = source of truth)
+      try {
+        const proReasons = ['pro_active', 'role_unlimited', 'student_licensed'];
+        if (json.reason && proReasons.includes(json.reason)) {
+          setSubscriptionStatus('pro');
+        } else if (json.ok && json.reason && !proReasons.includes(json.reason)) {
+          setSubscriptionStatus('free');
+        }
+      } catch {}
       return json;
     } catch { return { ok: false, allow: true }; }
   };
@@ -2898,35 +2907,37 @@ useEffect(() => {
 }, [gameDuration]);
 
 function startGame() {
-  // Freemium: check serveur si dispo (lié au user), puis fallback local
-  try {
-    if (isFree()) {
-      const uid = getLocalUserId();
-      // Vérif serveur (non bloquante si serveur non configuré)
-      // Note: startGame n'est pas async; on enchaîne via then()
-      serverAllowsStart(uid).then((res) => {
-        try {
-          if (res && res.ok && res.allow === false) {
-            alert("Limite quotidienne atteinte sur votre compte Free. Passez à la version Pro pour continuer.");
-            navigate('/pricing');
-            return;
-          }
-          // Après validation serveur, appliquer le fallback local
-          if (!canStartSessionToday(3)) {
-            alert('Limite quotidienne atteinte (3 sessions/jour en version gratuite). Passe à la version Pro pour continuer.');
-            navigate('/pricing');
-            return;
-          }
-          incrementSessionCount();
-          // Poursuivre le démarrage réel
-          doStart();
-        } catch { /* ignore */ }
-      });
-      return; // attendre la réponse asynchrone
+  // Sécurité: TOUJOURS vérifier côté serveur (source de vérité), pas localStorage
+  const uid = getLocalUserId();
+  serverAllowsStart(uid).then((res) => {
+    try {
+      // Serveur a répondu: vérifier autorisation
+      if (res && res.ok && res.allow === false) {
+        alert("Limite quotidienne atteinte sur votre compte Free. Passez à la version Pro pour continuer.");
+        navigate('/pricing');
+        return;
+      }
+      // Serveur OK ou injoignable: fallback local si utilisateur free
+      if (isFree()) {
+        if (!canStartSessionToday(3)) {
+          alert('Limite quotidienne atteinte (3 sessions/jour en version gratuite). Passe à la version Pro pour continuer.');
+          navigate('/pricing');
+          return;
+        }
+        incrementSessionCount();
+      }
+      doStart();
+    } catch { doStart(); }
+  }).catch(() => {
+    // Serveur injoignable: fallback local
+    if (isFree() && !canStartSessionToday(3)) {
+      alert('Limite quotidienne atteinte (3 sessions/jour en version gratuite). Passe à la version Pro pour continuer.');
+      navigate('/pricing');
+      return;
     }
-  } catch {}
-  // Pro: démarrage direct
-  doStart();
+    if (isFree()) incrementSessionCount();
+    doStart();
+  });
 }
 
 async function doStart() {
