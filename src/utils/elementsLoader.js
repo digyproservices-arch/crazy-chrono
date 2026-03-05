@@ -397,21 +397,142 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   const forbiddenCalculIds = new Set(goodPairIds?.calculId ? [goodPairIds.calculId] : []);
   const forbiddenChiffreIds = new Set(goodPairIds?.chiffreId ? [goodPairIds.chiffreId] : []);
 
-  // Remplir le reste des zones
+  // ===== ANTI-FAUSSE-PAIRE: tracking numérique des valeurs placées =====
+  // Évalue le résultat d'un calcul (ex: "15 - 6" → 9, "6 × 9" → 54)
+  const _evalCalc = (expr) => {
+    if (!expr) return NaN;
+    const raw = String(expr).trim();
+    // Format textuel (le double/moitié/tiers/quart/triple de X)
+    const tm = raw.match(/^l[ea]\s+(double|triple|tiers|quart|moiti[ée])\s+de\s+(.+)$/i);
+    if (tm) {
+      const k = tm[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const v = parseFloat(String(tm[2]).replace(/\s/g, '').replace(/,/g, '.'));
+      if (!Number.isFinite(v)) return NaN;
+      switch (k) { case 'double': return v*2; case 'triple': return v*3; case 'moitie': return v/2; case 'tiers': return v/3; case 'quart': return v/4; default: return NaN; }
+    }
+    // Format "A op ? = C"
+    const norm = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/');
+    const um = norm.match(/^(.+?)\s*([+\-*/])\s*\?\s*=\s*(.+)$/);
+    if (um) {
+      const a = parseFloat(um[1].replace(/\s/g, '').replace(/,/g, '.')), op = um[2], c = parseFloat(um[3].replace(/\s/g, '').replace(/,/g, '.'));
+      if (!Number.isFinite(a) || !Number.isFinite(c)) return NaN;
+      switch (op) { case '+': return c-a; case '-': return a-c; case '*': return a!==0?c/a:NaN; case '/': return c!==0?a/c:NaN; default: return NaN; }
+    }
+    // Format simple "A op B"
+    const stripped = norm.replace(/\s/g, '').replace(/,/g, '.');
+    const sm = stripped.match(/^(-?[\d.]+)([+\-*/])(-?[\d.]+)$/);
+    if (sm) {
+      const a = parseFloat(sm[1]), op = sm[2], b = parseFloat(sm[3]);
+      if (!Number.isFinite(a) || !Number.isFinite(b)) return NaN;
+      switch (op) { case '+': return a+b; case '-': return a-b; case '*': return a*b; case '/': return b!==0?a/b:NaN; default: return NaN; }
+    }
+    return NaN;
+  };
+  const _round8 = (v) => Math.round(v * 1e8) / 1e8;
+  const _parseNum = (s) => { const v = parseFloat(String(s).replace(/\s/g, '').replace(/,/g, '.')); return Number.isFinite(v) ? _round8(v) : NaN; };
+
+  // Track numeric values of all placed calculs/chiffres (good pair + distractors)
+  const placedCalcResults = new Set(); // numeric results of placed calcul zones
+  const placedChiffreValues = new Set(); // numeric values of placed chiffre zones
+
+  // Seed with good pair values if CC type
+  if (goodPairIds?.calculId) {
+    const r = _evalCalc(calculsById[goodPairIds.calculId]?.content);
+    if (Number.isFinite(r)) placedCalcResults.add(_round8(r));
+  }
+  if (goodPairIds?.chiffreId) {
+    const v = _parseNum(chiffresById[goodPairIds.chiffreId]?.content);
+    if (Number.isFinite(v)) placedChiffreValues.add(v);
+  }
+
+  // Remplir le reste des zones (avec mise à jour dynamique des interdits)
   for (const z of result) {
     const type = z.type || 'image';
     if (type === 'image' && !z.content) {
       const imgId = pickImageDistractor(forbiddenTextIds);
-      if (imgId) { z.content = encodedImageUrl(imagesById[imgId]?.url || ''); used.image.add(imgId); z.isDistractor = true; }
+      if (imgId) {
+        z.content = encodedImageUrl(imagesById[imgId]?.url || ''); used.image.add(imgId); z.isDistractor = true;
+        // Update forbidden: prevent associated textes from being placed
+        const assocT = imageToTextes.get(imgId);
+        if (assocT) assocT.forEach(tId => forbiddenTextIds.add(tId));
+      }
     } else if (type === 'texte' && !z.content) {
       const tId = pickTexteDistractor(forbiddenImageIds);
-      if (tId) { z.content = localizeText(textesById[tId]?.content || '', locMap); used.texte.add(tId); z.isDistractor = true; }
+      if (tId) {
+        z.content = localizeText(textesById[tId]?.content || '', locMap); used.texte.add(tId); z.isDistractor = true;
+        // Update forbidden: prevent associated images from being placed
+        const assocI = texteToImages.get(tId);
+        if (assocI) assocI.forEach(imgId => forbiddenImageIds.add(imgId));
+      }
     } else if (type === 'calcul' && !z.content) {
       const cId = pickCalculDistractor(forbiddenChiffreIds);
-      if (cId) { z.content = calculsById[cId]?.content || ''; used.calcul.add(cId); z.isDistractor = true; }
+      if (cId) {
+        const calcContent = calculsById[cId]?.content || '';
+        const calcResult = _evalCalc(calcContent);
+        const calcResultRounded = Number.isFinite(calcResult) ? _round8(calcResult) : NaN;
+        // VALUE CHECK: reject if result matches any already-placed chiffre value
+        if (Number.isFinite(calcResultRounded) && placedChiffreValues.has(calcResultRounded)) {
+          // This calcul would form a false pair — skip it, mark zone empty
+          z.isDistractor = true; z.content = '';
+          console.warn('[elementsLoader] Rejected distractor calcul "' + calcContent + '" (result=' + calcResultRounded + ') — matches placed chiffre');
+        } else {
+          z.content = calcContent; used.calcul.add(cId); z.isDistractor = true;
+          if (Number.isFinite(calcResultRounded)) placedCalcResults.add(calcResultRounded);
+          // Update forbidden: prevent associated chiffres from being placed
+          const assocN = calculToChiffres.get(cId);
+          if (assocN) assocN.forEach(nId => forbiddenChiffreIds.add(nId));
+        }
+      }
     } else if (type === 'chiffre' && !z.content) {
       const nId = pickChiffreDistractor(forbiddenCalculIds);
-      if (nId) { z.content = chiffresById[nId]?.content || ''; used.chiffre.add(nId); z.isDistractor = true; }
+      if (nId) {
+        const numContent = chiffresById[nId]?.content || '';
+        const numValue = _parseNum(numContent);
+        // VALUE CHECK: reject if value matches any already-placed calcul result
+        if (Number.isFinite(numValue) && placedCalcResults.has(numValue)) {
+          // This chiffre would form a false pair — skip it, mark zone empty
+          z.isDistractor = true; z.content = '';
+          console.warn('[elementsLoader] Rejected distractor chiffre "' + numContent + '" (value=' + numValue + ') — matches placed calcul result');
+        } else {
+          z.content = numContent; used.chiffre.add(nId); z.isDistractor = true;
+          if (Number.isFinite(numValue)) placedChiffreValues.add(numValue);
+          // Update forbidden: prevent associated calculs from being placed
+          const assocC = chiffreToCalculs.get(nId);
+          if (assocC) assocC.forEach(cId => forbiddenCalculIds.add(cId));
+        }
+      }
+    }
+  }
+
+  // ===== SECOND PASS: fill any zones left empty by false-pair rejection =====
+  for (const z of result) {
+    const type = z.type || 'image';
+    if (z.isDistractor && !z.content) {
+      if (type === 'calcul') {
+        const cId = _drawFromDeck('distCalc', calculIds, rng, (cId) => {
+          if (used.calcul.has(cId)) return false;
+          const r = _evalCalc(calculsById[cId]?.content);
+          return !Number.isFinite(r) || !placedChiffreValues.has(_round8(r));
+        });
+        if (cId) {
+          const calcContent = calculsById[cId]?.content || '';
+          z.content = calcContent; used.calcul.add(cId);
+          const r = _evalCalc(calcContent);
+          if (Number.isFinite(r)) placedCalcResults.add(_round8(r));
+        }
+      } else if (type === 'chiffre') {
+        const nId = _drawFromDeck('distNum', chiffreIds, rng, (nId) => {
+          if (used.chiffre.has(nId)) return false;
+          const v = _parseNum(chiffresById[nId]?.content);
+          return !Number.isFinite(v) || !placedCalcResults.has(v);
+        });
+        if (nId) {
+          const numContent = chiffresById[nId]?.content || '';
+          z.content = numContent; used.chiffre.add(nId);
+          const v = _parseNum(numContent);
+          if (Number.isFinite(v)) placedChiffreValues.add(v);
+        }
+      }
     }
   }
 

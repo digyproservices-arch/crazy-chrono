@@ -5,26 +5,43 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Évalue un calcul mathématique simple (multiplication uniquement)
- * @param {string} calcul - Ex: "3 × 4" ou "2 × 5"
+ * Évalue un calcul mathématique (toutes opérations: +, -, ×, ÷)
+ * Gère aussi: "le double/moitié/tiers/quart/triple de X" et "A op ? = C"
+ * @param {string} calcul - Ex: "3 × 4", "15 - 6", "le double de 8"
  * @returns {number|null} Résultat ou null si invalide
  */
 function evaluateCalcul(calcul) {
   if (!calcul || typeof calcul !== 'string') return null;
-  
-  // Nettoyer et normaliser (× ou x)
-  const normalized = calcul.trim().replace(/\s+/g, ' ').replace(/x/gi, '×');
-  
-  // Extraire les nombres autour du ×
-  const match = normalized.match(/^(\d+)\s*×\s*(\d+)$/);
-  if (!match) return null;
-  
-  const a = parseInt(match[1], 10);
-  const b = parseInt(match[2], 10);
-  
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
-  
-  return a * b;
+  const raw = calcul.trim();
+  const _pn = (t) => { const c = String(t).replace(/\s/g, '').replace(/,/g, '.'); const v = parseFloat(c); return Number.isFinite(v) ? v : NaN; };
+  const _r8 = (v) => Math.round(v * 1e8) / 1e8;
+  // Format textuel (le double/moitié/tiers/quart/triple de X)
+  const tm = raw.match(/^l[ea]\s+(double|triple|tiers|quart|moiti[ée])\s+de\s+(.+)$/i);
+  if (tm) {
+    const k = tm[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const v = _pn(tm[2]); if (Number.isNaN(v)) return null;
+    let r; switch (k) { case 'double': r = v*2; break; case 'triple': r = v*3; break; case 'moitie': r = v/2; break; case 'tiers': r = v/3; break; case 'quart': r = v/4; break; default: return null; }
+    return Number.isFinite(r) ? _r8(r) : null;
+  }
+  // Format "A op ? = C"
+  const norm = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/').replace(/x/gi, '*');
+  const um = norm.match(/^(.+?)\s*([+\-*/])\s*\?\s*=\s*(.+)$/);
+  if (um) {
+    const a = _pn(um[1]), op = um[2], c = _pn(um[3]);
+    if (Number.isNaN(a) || Number.isNaN(c)) return null;
+    let r; switch (op) { case '+': r = c-a; break; case '-': r = a-c; break; case '*': r = a!==0?c/a:NaN; break; case '/': r = c!==0?a/c:NaN; break; default: return null; }
+    return Number.isFinite(r) ? _r8(r) : null;
+  }
+  // Format simple "A op B"
+  const stripped = norm.replace(/\s/g, '').replace(/,/g, '.');
+  const sm = stripped.match(/^(-?[\d.]+)([+\-*/])(-?[\d.]+)$/);
+  if (sm) {
+    const a = parseFloat(sm[1]), op = sm[2], b = parseFloat(sm[3]);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+    let r; switch (op) { case '+': r = a+b; break; case '-': r = a-b; break; case '*': r = a*b; break; case '/': r = b!==0?a/b:NaN; break; default: return null; }
+    return Number.isFinite(r) ? _r8(r) : null;
+  }
+  return null;
 }
 
 /**
@@ -37,10 +54,11 @@ function isValidMathPair(calculContent, chiffreContent) {
   const result = evaluateCalcul(calculContent);
   if (result === null) return false;
   
-  const chiffre = parseInt(String(chiffreContent).trim(), 10);
+  const raw = String(chiffreContent).replace(/\s/g, '').replace(/,/g, '.');
+  const chiffre = parseFloat(raw);
   if (!Number.isFinite(chiffre)) return false;
   
-  return result === chiffre;
+  return Math.round(result * 1e8) === Math.round(chiffre * 1e8);
 }
 
 // ===== Anti-Repetition Deck System (server-side) =====
