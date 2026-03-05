@@ -63,9 +63,19 @@ export default function PWAInstallPrompt() {
     try { localStorage.setItem('cc_pwa_dismissed', String(Date.now())); } catch {}
   };
 
+  // Ajouter padding-bottom au body quand le bandeau est visible
+  const isVisible = !dismissed && (!!deferredPrompt || showIOSPrompt);
+  useEffect(() => {
+    if (isVisible) {
+      document.body.style.paddingBottom = '80px';
+    } else {
+      document.body.style.paddingBottom = '';
+    }
+    return () => { document.body.style.paddingBottom = ''; };
+  }, [isVisible]);
+
   // Rien à afficher
-  if (dismissed) return null;
-  if (!deferredPrompt && !showIOSPrompt) return null;
+  if (!isVisible) return null;
 
   return (
     <div style={{
