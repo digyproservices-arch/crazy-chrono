@@ -153,6 +153,10 @@ const SCENARIOS = [
   {
     pairA: '1752571661490', // dauphin image (bottom-right)
     pairB: '1752570391219', // "Dauphin" text (top-right inner)
+    contentOverrides: {
+      // Break héron-vert pair (image still shows but text no longer matches)
+      '1752570164541': { display: 'Iguane vert' },
+    },
     tooltips: [
       { text: '👀 Observe la carte...', time: 0 },
       { text: '🐬 Je reconnais un Dauphin !', time: 2000 },
@@ -163,6 +167,10 @@ const SCENARIOS = [
   {
     pairA: '1752571830304', // héron vert image (bottom-left)
     pairB: '1752570164541', // "Héron vert" text (top-left inner)
+    contentOverrides: {
+      // Break dauphin pair (image still shows but text no longer matches)
+      '1752570391219': { display: 'Tortue luth' },
+    },
     tooltips: [
       { text: '👀 Nouvelle manche !', time: 0 },
       { text: '🦅 Un Héron vert en bas à gauche !', time: 2000 },
@@ -175,6 +183,9 @@ const SCENARIOS = [
     pairB: '1752568799658', // chiffre top petal
     contentOverrides: {
       '1752568799658': { display: '100' },
+      // Break both image-text pairs
+      '1752570164541': { display: 'Iguane vert' },
+      '1752570391219': { display: 'Tortue luth' },
     },
     tooltips: [
       { text: '👀 Dernière manche !', time: 0 },

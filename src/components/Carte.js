@@ -4963,6 +4963,11 @@ setZones(dataWithRandomTexts);
                 const usedNumContents = new Set();
                 const presentCalcIds = new Set();
                 const presentCalcResults = new Set();
+                const _pcIB = (s) => { const v = parseFloat(String(s).replace(/\s/g, '').replace(/,/g, '.')); return Number.isFinite(v) ? Math.round(v * 1e8) / 1e8 : NaN; };
+                const numbersOnCardSetIB = new Set(
+                  post.filter(z => normType(z?.type) === 'chiffre').map(z => _pcIB(String(z.content ?? '').trim())).filter(n => Number.isFinite(n))
+                );
+                let filteredCalcsByResultIB = 0;
                 if (enableMathFill) for (const o of calculsIdx) {
                   if ((post[o.i]?.pairId || '').trim()) continue;
                   let pick = null;
@@ -4973,7 +4978,7 @@ setZones(dataWithRandomTexts);
                     if (usedCalcIds.has(idStr) || !contNorm || usedCalcContents.has(contNorm) || recentCalcs.has(contNorm)) return false;
                     const parsed = parseOperation(cand.content || '');
                     const res = parsed && Number.isFinite(parsed.result) ? parsed.result : null;
-                    if (res != null && presentCalcResults.has(res)) return false;
+                    if (res != null && (presentCalcResults.has(res) || numbersOnCardSetIB.has(res))) { filteredCalcsByResultIB++; return false; }
                     return true;
                   });
                   if (pool1.length) pick = pool1[Math.floor(rng() * pool1.length)];
@@ -4985,7 +4990,7 @@ setZones(dataWithRandomTexts);
                       if (usedCalcIds.has(idStr) || !contNorm || usedCalcContents.has(contNorm)) return false;
                       const parsed = parseOperation(cand.content || '');
                       const res = parsed && Number.isFinite(parsed.result) ? parsed.result : null;
-                      if (res != null && presentCalcResults.has(res)) return false;
+                      if (res != null && (presentCalcResults.has(res) || numbersOnCardSetIB.has(res))) { filteredCalcsByResultIB++; return false; }
                       return true;
                     });
                     if (pool2.length) pick = pool2[Math.floor(rng() * pool2.length)];
@@ -5001,6 +5006,7 @@ setZones(dataWithRandomTexts);
                     if (parsed && Number.isFinite(parsed.result)) presentCalcResults.add(parsed.result);
                   }
                 }
+                if (filteredCalcsByResultIB > 0 && window && typeof window.ccAddDiag === 'function') try { window.ccAddDiag('round:guard:imgtxt:filtered', { calcFilteredByResult: filteredCalcsByResultIB, numbersOnCard: Array.from(numbersOnCardSetIB) }); } catch {}
                 if (!enableMathFill) {
                   // Vider explicitement le contenu des zones calcul/chiffre
                   for (const o of calculsIdx) {
