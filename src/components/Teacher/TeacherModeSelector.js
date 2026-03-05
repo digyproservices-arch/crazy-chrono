@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import './TeacherModeSelector.css';
+import InteractiveDemo from '../InteractiveDemo';
 
 const TeacherModeSelector = () => {
   const navigate = useNavigate();
@@ -10,6 +11,17 @@ const TeacherModeSelector = () => {
       <div className="mode-selector-header">
         <h1>🎮 Choisissez un mode de jeu</h1>
         <p>Sélectionnez le type de session que vous souhaitez créer</p>
+      </div>
+
+      {/* --- Comment jouer ? Démo animée --- */}
+      <div style={{ marginBottom: 32, textAlign: 'center' }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0D6A7A', margin: '0 0 6px' }}>
+          🕐 Comment jouer ?
+        </h2>
+        <p style={{ color: '#6B5443', fontSize: 14, margin: '0 auto 20px', maxWidth: 440 }}>
+          Trouvez les paires image↔nom ou calcul↔résultat avant la fin du chrono !
+        </p>
+        <InteractiveDemo />
       </div>
 
       <div className="mode-cards">

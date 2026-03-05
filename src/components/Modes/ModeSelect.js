@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import TeacherModeSelector from '../Teacher/TeacherModeSelector';
 import { isFree } from '../../utils/subscription';
 import Onboarding, { shouldShowOnboarding } from '../Onboarding';
+import InteractiveDemo from '../InteractiveDemo';
 
 export default function ModeSelect({ auth: authProp }) {
   const navigate = useNavigate();
@@ -80,6 +81,18 @@ export default function ModeSelect({ auth: authProp }) {
           Sélectionnez un mode de jeu pour commencer à vous amuser !
         </p>
       </div>
+
+      {/* --- Comment jouer ? Démo animée --- */}
+      <div style={{ marginBottom: 40, textAlign: 'center' }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0D6A7A', margin: '0 0 6px' }}>
+          🕐 Comment jouer ?
+        </h2>
+        <p style={{ color: '#6B5443', fontSize: 14, margin: '0 auto 20px', maxWidth: 440 }}>
+          Trouvez les paires image↔nom ou calcul↔résultat avant la fin du chrono !
+        </p>
+        <InteractiveDemo />
+      </div>
+
       <div style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
