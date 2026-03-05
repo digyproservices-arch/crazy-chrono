@@ -412,6 +412,33 @@ function ArenaPauseOverlay({ disconnectedPlayer, gracePeriodMs }) {
   );
 }
 
+// ✨⭐💫 Particules emoji lors de la validation d'une paire (tous modes)
+function spawnEmojiParticles(sx, sy) {
+  const emojis = ['✨', '⭐', '💫', '🌟', '✨', '⭐', '💫', '🌟'];
+  for (let i = 0; i < 8; i++) {
+    const el = document.createElement('div');
+    el.textContent = emojis[i];
+    const angle = (i / 8) * Math.PI * 2;
+    const dist = 60 + Math.random() * 50;
+    const dx = Math.cos(angle) * dist;
+    const dy = Math.sin(angle) * dist - 30 - Math.random() * 30;
+    const size = 16 + Math.random() * 10;
+    Object.assign(el.style, {
+      position: 'fixed', left: `${sx}px`, top: `${sy}px`,
+      fontSize: `${size}px`, pointerEvents: 'none', zIndex: '4600',
+      willChange: 'transform, opacity',
+    });
+    document.body.appendChild(el);
+    const dur = 700 + Math.random() * 400;
+    const anim = el.animate([
+      { transform: 'translate(-50%,-50%) scale(0.3)', opacity: 1 },
+      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(1.1)`, opacity: 0.9, offset: 0.4 },
+      { transform: `translate(calc(-50% + ${dx * 1.3}px), calc(-50% + ${dy * 1.5}px)) scale(0.6)`, opacity: 0 },
+    ], { duration: dur, easing: 'cubic-bezier(.2,.8,.3,1)' });
+    anim.onfinish = () => { try { el.remove(); } catch {} };
+  }
+}
+
 let __lastBubbleSig = { sig: '', ts: 0 };
 
 export function animateBubblesFromZones(aId, bId, color = '#3b82f6', ZA = null, ZB = null, borderColor = null, label = '') {
@@ -441,6 +468,8 @@ export function animateBubblesFromZones(aId, bId, color = '#3b82f6', ZA = null, 
   setTimeout(() => pulseVignette(color), Math.max(200, BUBBLE_DURATION_MS - 260));
 
   for (const { x: sx, y: sy, Z } of origins) {
+    // ✨⭐💫 Spawn emoji particles at each matched zone
+    spawnEmojiParticles(sx, sy);
     try {
       const makeBubble = (sizePx, startOpacity) => {
         const el = document.createElement('div');

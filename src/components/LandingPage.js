@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import InteractiveDemo from './InteractiveDemo';
 
 const CC = {
   teal: '#1AACBE',
@@ -134,6 +135,17 @@ export default function LandingPage() {
             </div>
           ))}
         </div>
+
+        {/* --- Démo animée --- */}
+        <div style={{ marginTop: 56 }}>
+          <h3 style={{ fontSize: 22, fontWeight: 800, color: CC.tealDeep, margin: '0 0 8px', textAlign: 'center' }}>
+            Voyez le jeu en action !
+          </h3>
+          <p style={{ color: CC.brownLt, fontSize: 14, margin: '0 auto 24px', maxWidth: 420, textAlign: 'center' }}>
+            Trouvez les paires image↔nom ou calcul↔résultat avant la fin du chrono
+          </p>
+          <InteractiveDemo />
+        </div>
       </section>
 
       {/* ===== THÉMATIQUES ===== */}
@@ -228,6 +240,90 @@ export default function LandingPage() {
               <div style={{ fontSize: 48, marginBottom: 12 }}>{p.icon}</div>
               <h3 style={{ fontSize: 20, fontWeight: 800, color: CC.tealDeep, margin: '0 0 8px' }}>{p.title}</h3>
               <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.6, margin: 0 }}>{p.text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ===== PERFORMANCES & SUIVI ===== */}
+      <section style={{
+        padding: '80px 20px',
+        background: `linear-gradient(160deg, #f0fdff 0%, #e0f7fa 50%, ${CC.cream} 100%)`,
+        textAlign: 'center',
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>📊</div>
+        <h2 style={{ fontSize: 32, fontWeight: 800, color: CC.brown, margin: 0 }}>
+          Suivi des performances en temps réel
+        </h2>
+        <p style={{ color: CC.brownLt, fontSize: 16, marginTop: 10, maxWidth: 580, margin: '10px auto 0', lineHeight: 1.6 }}>
+          Les enseignants disposent d'un tableau de bord complet pour suivre chaque élève,
+          piloter les sessions et mesurer la progression.
+        </p>
+
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: 20, marginTop: 44, maxWidth: 960, margin: '44px auto 0',
+        }}>
+          {[
+            {
+              icon: '📈',
+              title: 'Page Performances',
+              text: 'Vue d\'ensemble par élève : scores, temps de réponse, taux de réussite, progression sur la durée. Tout est centralisé.',
+            },
+            {
+              icon: '🏅',
+              title: 'Badges Maîtrisés',
+              text: 'Les élèves débloquent des badges de maîtrise au fil du jeu. Chaque badge correspond à une compétence validée.',
+            },
+            {
+              icon: '🎮',
+              title: 'Contrôle des sessions',
+              text: 'Le professeur lance, supervise et gère les parties entre élèves. Salle privée, grande salle, arena — tout est sous contrôle.',
+            },
+            {
+              icon: '👁️',
+              title: 'Progression en direct',
+              text: 'Pendant une session, visualisez en temps réel qui trouve les paires, les classements et le niveau de chaque élève.',
+            },
+          ].map((feat, i) => (
+            <div key={i} style={{
+              background: CC.white, borderRadius: 20, padding: '28px 22px',
+              boxShadow: '0 4px 24px rgba(13,106,122,0.08)',
+              border: `2px solid ${i === 0 ? CC.teal : '#e2e8f0'}`,
+              position: 'relative', textAlign: 'left',
+            }}>
+              {i === 0 && (
+                <div style={{
+                  position: 'absolute', top: -12, left: 20,
+                  background: CC.teal, color: CC.white,
+                  fontSize: 11, fontWeight: 800, padding: '3px 12px', borderRadius: 20,
+                  boxShadow: '0 2px 8px rgba(26,172,190,0.3)',
+                }}>Clé enseignant</div>
+              )}
+              <div style={{ fontSize: 36, marginBottom: 10 }}>{feat.icon}</div>
+              <h3 style={{ fontSize: 17, fontWeight: 800, color: CC.tealDeep, margin: '0 0 6px' }}>{feat.title}</h3>
+              <p style={{ fontSize: 13.5, color: '#64748b', lineHeight: 1.6, margin: 0 }}>{feat.text}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Mini résumé visuel */}
+        <div style={{
+          marginTop: 40, display: 'flex', gap: 32, flexWrap: 'wrap',
+          justifyContent: 'center', maxWidth: 700, margin: '40px auto 0',
+        }}>
+          {[
+            { value: '📊', label: 'Scores détaillés' },
+            { value: '⏱️', label: 'Temps de réponse' },
+            { value: '🏅', label: 'Badges acquis' },
+            { value: '📉', label: 'Courbe de progression' },
+            { value: '🧑‍🎓', label: 'Par élève' },
+          ].map((s, i) => (
+            <div key={i} style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+            }}>
+              <span style={{ fontSize: 28 }}>{s.value}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: CC.brownLt }}>{s.label}</span>
             </div>
           ))}
         </div>
