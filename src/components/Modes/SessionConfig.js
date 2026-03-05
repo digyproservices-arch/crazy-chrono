@@ -123,6 +123,9 @@ export default function SessionConfig() {
   const [rounds, setRounds] = useState('3');
   const [duration, setDuration] = useState('60');
   const [allowEmptyMath, setAllowEmptyMath] = useState(true);
+  const [objectiveMode, setObjectiveMode] = useState(false);
+  const [objectiveTarget, setObjectiveTarget] = useState(10);
+  const [helpEnabled, setHelpEnabled] = useState(false);
   const [playerZone, setPlayerZone] = useState(() => {
     try { return localStorage.getItem('cc_player_zone') || ''; } catch { return ''; }
   });
@@ -329,6 +332,9 @@ export default function SessionConfig() {
         if (prev.rounds != null) setRounds(String(prev.rounds));
         if (prev.duration != null) setDuration(String(prev.duration));
         if (typeof prev.allowEmptyMathWhenNoData === 'boolean') setAllowEmptyMath(prev.allowEmptyMathWhenNoData);
+        if (typeof prev.objectiveMode === 'boolean') setObjectiveMode(prev.objectiveMode);
+        if (prev.objectiveTarget != null) setObjectiveTarget(clampInt(prev.objectiveTarget, 3, 50, 10));
+        if (typeof prev.helpEnabled === 'boolean') setHelpEnabled(prev.helpEnabled);
         if (prev.playerZone) setPlayerZone(prev.playerZone);
       }
     } catch {}
@@ -346,13 +352,16 @@ export default function SessionConfig() {
           duration,
           allowEmptyMathWhenNoData: !!allowEmptyMath,
           playerZone: playerZone || '',
+          objectiveMode: !!objectiveMode,
+          objectiveTarget: objectiveMode ? objectiveTarget : null,
+          helpEnabled: !!helpEnabled,
         };
         localStorage.setItem('cc_session_cfg', JSON.stringify(payload));
         if (playerZone) localStorage.setItem('cc_player_zone', playerZone);
       } catch {}
     }, 200);
     return () => clearTimeout(t);
-  }, [mode, selectedClasses, selectedThemes, rounds, duration, allowEmptyMath, playerZone]);
+  }, [mode, selectedClasses, selectedThemes, rounds, duration, allowEmptyMath, playerZone, objectiveMode, objectiveTarget, helpEnabled]);
 
   const clampInt = (val, lo, hi, fallback) => {
     const n = parseInt(String(val), 10);
@@ -377,7 +386,7 @@ export default function SessionConfig() {
     // Règle simple: si des thèmes sont sélectionnés, on ne garde QUE ceux-ci; sinon, tout est autorisé
     const r = clampInt(rounds, 1, maxRounds, 3);
     const d = clampInt(duration, 15, maxDuration, 60);
-    const payload = { mode, classes: selectedClasses, themes: selectedThemes, rounds: r, duration: d, allowEmptyMathWhenNoData: !!allowEmptyMath, playerZone: playerZone || '' };
+    const payload = { mode, classes: selectedClasses, themes: selectedThemes, rounds: r, duration: objectiveMode ? null : d, allowEmptyMathWhenNoData: !!allowEmptyMath, playerZone: playerZone || '', objectiveMode: !!objectiveMode, objectiveTarget: objectiveMode ? objectiveTarget : null, helpEnabled: !!helpEnabled };
     if (mode === 'online') {
       payload.playerName = playerName || 'Joueur';
       payload.room = { type: roomMode, code: (roomCode||'').toUpperCase() };
@@ -604,6 +613,7 @@ export default function SessionConfig() {
             </div>
             <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>1 à {maxRounds} manches{isFree() ? ' (Free)' : ''}</div>
           </div>
+          {!objectiveMode && (
           <div>
             <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>⏱️ Durée par manche</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -613,6 +623,44 @@ export default function SessionConfig() {
             </div>
             <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>15 à {maxDuration} secondes{isFree() ? ' (Free)' : ''}</div>
           </div>
+          )}
+        </div>
+
+        {/* Mode Objectif */}
+        <div style={{ marginTop: 16, padding: '14px 16px', borderRadius: 12, border: objectiveMode ? '2px solid #0D6A7A' : '2px solid #e2e8f0', background: objectiveMode ? '#f0fdfa' : '#fff', transition: 'all 0.2s' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: objectiveMode ? 12 : 0 }}>
+            <input type="checkbox" checked={objectiveMode} onChange={e => setObjectiveMode(e.target.checked)}
+              style={{ width: 18, height: 18, accentColor: '#0D6A7A' }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>🎯 Mode Objectif</div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Le chrono compte en montant. La partie se termine quand l'objectif est atteint.</div>
+            </div>
+          </label>
+          {objectiveMode && (
+            <div style={{ paddingLeft: 28 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>Nombre de paires à trouver</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={() => setObjectiveTarget(t => Math.max(3, t - 1))} style={{ width: 36, height: 36, borderRadius: 8, border: '2px solid #e2e8f0', background: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>−</button>
+                <div style={{ minWidth: 60, textAlign: 'center', padding: '6px 12px', border: '2px solid #0D6A7A', borderRadius: 8, background: '#fff', fontWeight: 800, fontSize: 18, color: '#0D6A7A' }}>{objectiveTarget}</div>
+                <button onClick={() => setObjectiveTarget(t => Math.min(50, t + 1))} style={{ width: 36, height: 36, borderRadius: 8, border: '2px solid #e2e8f0', background: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>+</button>
+              </div>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>3 à 50 paires · Le temps est mesuré (plus vite = meilleur score)</div>
+            </div>
+          )}
+        </div>
+
+        {/* Système d'aide */}
+        <div style={{ marginTop: 12, padding: '14px 16px', borderRadius: 12, border: helpEnabled ? '2px solid #f59e0b' : '2px solid #e2e8f0', background: helpEnabled ? '#fffbeb' : '#fff', transition: 'all 0.2s' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+            <input type="checkbox" checked={helpEnabled} onChange={e => setHelpEnabled(e.target.checked)}
+              style={{ width: 18, height: 18, accentColor: '#f59e0b' }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>💡 Système d'aide</div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2, lineHeight: 1.4 }}>
+                Bouton d'aide pendant la partie. Niveau 1 : indice subtil (+5s). Niveau 2 : réponse complète (+10s).
+              </div>
+            </div>
+          </label>
         </div>
         {isFree() && (
           <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a', fontSize: 13, color: '#92400e', lineHeight: 1.5 }}>

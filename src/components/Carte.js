@@ -12,6 +12,7 @@ import { isFree, canStartSessionToday, incrementSessionCount, setSubscriptionSta
 
 import { initMasteryTracker, resetMasterySession, recordPair as masteryRecordPair, getActiveSessionProgress, getMasteryProgress, isMasteryReady, syncToServer as masterySyncToServer, loadFromServer as masteryLoadFromServer } from '../utils/masteryTracker';
 import MasteryBubble from './MasteryBubble';
+import { generateHint, generateAnswer, findGoodPair, HINT_PENALTY, ANSWER_PENALTY } from '../utils/hintGenerator';
 
 // Single shared AudioContext for smoother audio on low devices
 let __audioCtx = null;
@@ -691,6 +692,17 @@ const Carte = () => {
   const [gameActive, setGameActive] = useState(false);
   const [timeLeft, setTimeLeft] = useState(60);
   const [score, setScore] = useState(0);
+  // --- MODE OBJECTIF & AIDE ---
+  const [objectiveMode, setObjectiveMode] = useState(false);
+  const [objectiveTarget, setObjectiveTarget] = useState(10);
+  const [timeElapsed, setTimeElapsed] = useState(0);
+  const [helpEnabled, setHelpEnabled] = useState(false);
+  const [helpLevel, setHelpLevel] = useState(0); // 0=rien, 1=indice demandé, 2=réponse demandée
+  const [helpBubble, setHelpBubble] = useState(null); // { text, icon, kind, explanation? }
+  const [helpPenalty, setHelpPenalty] = useState(0); // pénalité accumulée en secondes
+  const [highlightedZoneIds, setHighlightedZoneIds] = useState([]); // zones surlignées par la réponse
+  const helpStatsRef = useRef({ hintsUsed: 0, answersUsed: 0, totalPenalty: 0 });
+  const objectivePairsRef = useRef(0); // compteur de paires pour le mode objectif
   // Historique des sessions multi
   const [sessions, setSessions] = useState([]);
   // Verrou court pour éviter le double traitement d'une paire
@@ -2733,6 +2745,18 @@ useEffect(() => {
     return;
   }
   
+  // Mode Objectif: chrono monte (countup), pas de fin automatique
+  if (objectiveMode) {
+    setTimeElapsed(0);
+    const t0 = Date.now();
+    const id = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - t0) / 1000);
+      setTimeElapsed(elapsed);
+    }, 250);
+    return () => clearInterval(id);
+  }
+  
+  // Mode normal: countdown
   setTimeLeft(gameDuration);
   const t0 = Date.now();
   const id = setInterval(() => {
@@ -2745,7 +2769,7 @@ useEffect(() => {
     }
   }, 250);
   return () => clearInterval(id);
-}, [gameActive, gameDuration, arenaMatchId]);
+}, [gameActive, gameDuration, arenaMatchId, objectiveMode]);
 
 // 💾 PERSISTANCE: Sauvegarder les performances Solo/Multijoueur en DB quand la SESSION se termine
 // Utilise un debounce de 3s pour distinguer "fin de manche" (round:new relance gameActive) de "fin de session"
@@ -2983,6 +3007,26 @@ function startGame() {
 async function doStart() {
   try {
     try { window.ccAddDiag && window.ccAddDiag('doStart:called'); } catch {}
+    // Charger config objectif & aide depuis cc_session_cfg
+    try {
+      const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+      if (cfg && typeof cfg === 'object') {
+        setObjectiveMode(!!cfg.objectiveMode);
+        if (cfg.objectiveTarget) setObjectiveTarget(Math.max(3, Math.min(50, parseInt(cfg.objectiveTarget, 10) || 10)));
+        setHelpEnabled(!!cfg.helpEnabled);
+      } else {
+        setObjectiveMode(false);
+        setHelpEnabled(false);
+      }
+    } catch { setObjectiveMode(false); setHelpEnabled(false); }
+    // Reset état aide
+    setHelpLevel(0);
+    setHelpBubble(null);
+    setHelpPenalty(0);
+    setHighlightedZoneIds([]);
+    helpStatsRef.current = { hintsUsed: 0, answersUsed: 0, totalPenalty: 0 };
+    objectivePairsRef.current = 0;
+    setTimeElapsed(0);
     // Reset score pour nouvelle partie
     setScore(0);
     scoreRef.current = 0;
@@ -3375,8 +3419,38 @@ function handleGameClick(zone) {
             setScore(s => s + 1);
             lastScoreTsRef.current = nowTs;
           }
+          // Mode Objectif: incrémenter compteur et vérifier si objectif atteint
+          if (objectiveMode) {
+            objectivePairsRef.current += 1;
+            const pairsFound = objectivePairsRef.current;
+            if (pairsFound >= objectiveTarget) {
+              // Objectif atteint! Fin de partie
+              const finalTime = timeElapsed + helpPenalty;
+              try { window.ccAddDiag && window.ccAddDiag('objective:completed', { pairsFound, target: objectiveTarget, timeElapsed, penalty: helpPenalty, finalTime }); } catch {}
+              setTimeout(() => {
+                setGameActive(false);
+                setSoloGameEndOverlay({
+                  score: pairsFound,
+                  pairsValidated: pairsFound,
+                  duration: finalTime,
+                  errors: 0,
+                  mode: 'solo',
+                  timestamp: Date.now(),
+                  objectiveMode: true,
+                  objectiveTarget,
+                  helpStats: { ...helpStatsRef.current },
+                  masterySession: getActiveSessionProgress(),
+                  masteryAll: getMasteryProgress()
+                });
+              }, 600);
+            }
+          }
+          // Reset aide pour la prochaine carte
+          setHelpLevel(0);
+          setHelpBubble(null);
+          setHighlightedZoneIds([]);
           // Comptage de manches en mode solo (fallback)
-          if (!(socket && socket.connected)) {
+          if (!(socket && socket.connected) && !objectiveMode) {
             if (Number.isFinite(roundsPerSession)) {
               setRoundsPlayed(prev => {
                 const nxt = (typeof prev === 'number' ? prev : 0) + 1;
@@ -3389,6 +3463,9 @@ function handleGameClick(zone) {
             } else {
               setRoundsPlayed(prev => (typeof prev === 'number' ? prev + 1 : 1));
             }
+          }
+          if (objectiveMode && !socketConnected) {
+            setRoundsPlayed(prev => (typeof prev === 'number' ? prev + 1 : 1));
           }
           setTimeout(() => {
             setGameSelectedIds([]);
@@ -3426,6 +3503,39 @@ function handleGameClick(zone) {
     }
     return next;
   });
+
+}
+
+// --- SYSTÈME D'AIDE: Handlers ---
+function handleHintClick() {
+  if (!gameActive || !helpEnabled || helpLevel >= 1) return;
+  const hint = generateHint(zones);
+  if (!hint) return;
+  setHelpLevel(1);
+  setHelpBubble(hint);
+  setHelpPenalty(p => p + HINT_PENALTY);
+  helpStatsRef.current.hintsUsed += 1;
+  helpStatsRef.current.totalPenalty += HINT_PENALTY;
+  try { window.ccAddDiag && window.ccAddDiag('help:hint', { text: hint.text, kind: hint.kind, penalty: HINT_PENALTY }); } catch {}
+  // Auto-masquer après 6s
+  setTimeout(() => { setHelpBubble(prev => prev && prev.icon === '💡' ? null : prev); }, 6000);
+}
+
+function handleAnswerClick() {
+  if (!gameActive || !helpEnabled || helpLevel < 1 || helpLevel >= 2) return;
+  const answer = generateAnswer(zones);
+  if (!answer) return;
+  setHelpLevel(2);
+  setHelpBubble(answer);
+  setHelpPenalty(p => p + ANSWER_PENALTY);
+  helpStatsRef.current.answersUsed += 1;
+  helpStatsRef.current.totalPenalty += ANSWER_PENALTY;
+  if (answer.zoneAId && answer.zoneBId) {
+    setHighlightedZoneIds([answer.zoneAId, answer.zoneBId]);
+  }
+  try { window.ccAddDiag && window.ccAddDiag('help:answer', { text: answer.text, kind: answer.kind, penalty: ANSWER_PENALTY, zoneA: answer.zoneAId, zoneB: answer.zoneBId }); } catch {}
+  // Auto-masquer après 10s
+  setTimeout(() => { setHelpBubble(prev => prev && prev.icon === '🎯' ? null : prev); setHighlightedZoneIds([]); }, 10000);
 }
 
 useEffect(() => {
@@ -6299,13 +6409,32 @@ setZones(dataWithRandomTexts);
       {isMobile && isPortrait && (
         <div className="mobile-hud">
           <div className="hud-left">
-            {!isTiebreaker && <div className="hud-chip">⏱ {Math.max(0, timeLeft)}s</div>}
+            {!isTiebreaker && !objectiveMode && <div className="hud-chip">⏱ {Math.max(0, timeLeft)}s</div>}
+            {objectiveMode && <div className="hud-chip" style={{ background: 'rgba(13,106,122,0.85)' }}>⏱ {timeElapsed + helpPenalty}s</div>}
             <div className="hud-chip">⭐ {score}</div>
-            <div className="hud-chip">
-              {Number.isFinite(roundsPerSession)
-                ? `Manche: ${Math.max(0, roundsPlayed || 0)} / ${roundsPerSession}`
-                : `Manche: ${Math.max(0, roundsPlayed || 0)}`}
-            </div>
+            {objectiveMode ? (
+              <div className="hud-chip" style={{ background: 'rgba(13,106,122,0.7)' }}>
+                🎯 {objectivePairsRef.current}/{objectiveTarget}
+              </div>
+            ) : (
+              <div className="hud-chip">
+                {Number.isFinite(roundsPerSession)
+                  ? `Manche: ${Math.max(0, roundsPlayed || 0)} / ${roundsPerSession}`
+                  : `Manche: ${Math.max(0, roundsPlayed || 0)}`}
+              </div>
+            )}
+            {helpEnabled && gameActive && (
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button onClick={handleHintClick} disabled={helpLevel >= 1}
+                  style={{ padding: '4px 8px', borderRadius: 8, border: 'none', background: helpLevel >= 1 ? '#94a3b8' : '#f59e0b', color: '#fff', fontSize: 11, fontWeight: 700, cursor: helpLevel >= 1 ? 'default' : 'pointer', opacity: helpLevel >= 1 ? 0.5 : 1 }}>
+                  💡 +{HINT_PENALTY}s
+                </button>
+                <button onClick={handleAnswerClick} disabled={helpLevel < 1 || helpLevel >= 2}
+                  style={{ padding: '4px 8px', borderRadius: 8, border: 'none', background: helpLevel < 1 || helpLevel >= 2 ? '#94a3b8' : '#ef4444', color: '#fff', fontSize: 11, fontWeight: 700, cursor: (helpLevel < 1 || helpLevel >= 2) ? 'default' : 'pointer', opacity: (helpLevel < 1 || helpLevel >= 2) ? 0.5 : 1 }}>
+                  🎯 +{ANSWER_PENALTY}s
+                </button>
+              </div>
+            )}
           </div>
           <div className="hud-vignette" data-cc-vignette="last-pair" ref={mpLastPairRef} title={lastWonPair?.text || ''}>
             <span style={{ width: 12, height: 12, borderRadius: 999, display: 'inline-block', marginRight: 6, background: lastWonPair?.color || '#e5e7eb', boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e5e7eb')}55` : 'none', border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none' }} />
@@ -6343,7 +6472,7 @@ setZones(dataWithRandomTexts);
           <div className="sidebar-content">
             {/* HUD: Timer + Score + Manche */}
             <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              {!isTiebreaker && (
+              {!isTiebreaker && !objectiveMode && (
                 <div style={{
                   background: timeLeft < 10 ? 'rgba(220,38,38,0.85)' : 'rgba(0,0,0,0.3)',
                   borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)',
@@ -6354,16 +6483,59 @@ setZones(dataWithRandomTexts);
                   ⏱ {Math.max(0, timeLeft)}s
                 </div>
               )}
+              {objectiveMode && (
+                <div style={{
+                  background: 'rgba(13,106,122,0.85)',
+                  borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)',
+                  fontSize: 18, fontWeight: 900, color: '#7dd3fc',
+                  fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums'
+                }}>
+                  ⏱ {timeElapsed + helpPenalty}s
+                  {helpPenalty > 0 && <span style={{ fontSize: 11, color: '#fca5a5', marginLeft: 4 }}>(+{helpPenalty})</span>}
+                </div>
+              )}
               <div style={{ background: '#fff', borderRadius: 12, padding: '4px 12px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: 13, color: '#666' }}>⭐</span>
                 <span style={{ fontSize: 22, fontWeight: 900, color: '#22c55e', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{score}</span>
               </div>
-              <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)', fontSize: 13, fontWeight: 700, color: '#fff' }}>
-                {Number.isFinite(roundsPerSession)
-                  ? `Manche ${Math.max(0, roundsPlayed||0)} / ${roundsPerSession}`
-                  : `Manche ${Math.max(0, roundsPlayed||0)}`}
-              </div>
+              {objectiveMode ? (
+                <div style={{ background: 'rgba(13,106,122,0.7)', borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)', fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                  🎯 {objectivePairsRef.current}/{objectiveTarget}
+                </div>
+              ) : (
+                <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)', fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                  {Number.isFinite(roundsPerSession)
+                    ? `Manche ${Math.max(0, roundsPlayed||0)} / ${roundsPerSession}`
+                    : `Manche ${Math.max(0, roundsPlayed||0)}`}
+                </div>
+              )}
             </div>
+            {/* Barre de progression Objectif */}
+            {objectiveMode && gameActive && (
+              <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '8px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#cbd5e1', fontWeight: 600, marginBottom: 4 }}>
+                  <span>🎯 Objectif: {objectiveTarget} paires</span>
+                  <span>{Math.round((objectivePairsRef.current / objectiveTarget) * 100)}%</span>
+                </div>
+                <div style={{ height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.min(100, Math.round((objectivePairsRef.current / objectiveTarget) * 100))}%`, background: 'linear-gradient(90deg, #0d6a7a, #22d3ee)', borderRadius: 4, transition: 'width 0.5s ease' }} />
+                </div>
+              </div>
+            )}
+            {/* Boutons d'aide */}
+            {helpEnabled && gameActive && (
+              <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 600, marginRight: 4 }}>Aide:</span>
+                <button onClick={handleHintClick} disabled={helpLevel >= 1}
+                  style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: 'none', background: helpLevel >= 1 ? '#475569' : '#f59e0b', color: '#fff', fontSize: 12, fontWeight: 700, cursor: helpLevel >= 1 ? 'default' : 'pointer', opacity: helpLevel >= 1 ? 0.5 : 1, transition: 'all 0.2s' }}>
+                  💡 Indice (+{HINT_PENALTY}s)
+                </button>
+                <button onClick={handleAnswerClick} disabled={helpLevel < 1 || helpLevel >= 2}
+                  style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: 'none', background: (helpLevel < 1 || helpLevel >= 2) ? '#475569' : '#ef4444', color: '#fff', fontSize: 12, fontWeight: 700, cursor: (helpLevel < 1 || helpLevel >= 2) ? 'default' : 'pointer', opacity: (helpLevel < 1 || helpLevel >= 2) ? 0.5 : 1, transition: 'all 0.2s' }}>
+                  🎯 Réponse (+{ANSWER_PENALTY}s)
+                </button>
+              </div>
+            )}
             {/* Salle + Paramètres + Terminer */}
             <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
               <div>
@@ -6704,6 +6876,21 @@ setZones(dataWithRandomTexts);
             {gameMsg}
           </div>
         )}
+        {helpBubble && gameActive && (
+          <div style={{
+            position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
+            background: helpBubble.icon === '💡' ? 'rgba(245,158,11,0.95)' : 'rgba(239,68,68,0.95)',
+            color: '#fff', padding: '10px 18px', borderRadius: 12, fontWeight: 600, fontSize: 14,
+            zIndex: 8, maxWidth: '80%', textAlign: 'center',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.3)', animation: 'fadeInUp 0.3s ease',
+            display: 'flex', alignItems: 'center', gap: 8
+          }}>
+            <span style={{ fontSize: 22 }}>{helpBubble.icon}</span>
+            <span>{helpBubble.text}</span>
+            <button onClick={() => { setHelpBubble(null); if (helpBubble.icon === '🎯') setHighlightedZoneIds([]); }}
+              style={{ marginLeft: 8, background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontSize: 12 }}>✕</button>
+          </div>
+        )}
         {arenaPauseInfo && arenaPauseInfo.paused && (
           <ArenaPauseOverlay
             disconnectedPlayer={arenaPauseInfo.disconnectedPlayer}
@@ -6858,7 +7045,9 @@ setZones(dataWithRandomTexts);
                 fill={(() => {
                   const isHover = !gameActive && hoveredZoneId === zone.id;
                   const isSelected = gameActive && gameSelectedIds.includes(zone.id);
+                  const isHighlighted = gameActive && highlightedZoneIds.includes(zone.id);
                   const isEditorSelected = !gameActive && selectedZoneIds.includes(zone.id);
+                  if (isHighlighted) return 'rgba(239, 68, 68, 0.45)';
                   if (zone.type === 'image') {
                     if (isSelected) return 'rgba(255, 214, 0, 0.55)';
                     if (isEditorSelected || isHover) return 'rgba(255, 214, 0, 0.5)';
@@ -7767,7 +7956,7 @@ setZones(dataWithRandomTexts);
             }}
           >
             <div style={{ fontSize: isMobile ? 28 : 44, fontWeight: 900, color: '#fff', marginBottom: 24, textShadow: '0 4px 12px rgba(0,0,0,0.3)', animation: 'slideDown 0.6s ease-out' }}>
-              {ov.mode === 'solo' ? '🎯 Partie Solo terminée' : '🏆 Partie terminée'}
+              {ov.objectiveMode ? '🎯 Objectif atteint !' : ov.mode === 'solo' ? '🎯 Partie Solo terminée' : '🏆 Partie terminée'}
             </div>
 
             {/* Score principal + gagnant MP */}
@@ -7782,8 +7971,22 @@ setZones(dataWithRandomTexts);
                   Vainqueur : {ov.winner.name}
                 </div>
               )}
-              <div style={{ fontSize: isMobile ? 56 : 80, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{ov.score}</div>
-              <div style={{ fontSize: isMobile ? 16 : 20, color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>points</div>
+              {ov.objectiveMode ? (
+                <>
+                  <div style={{ fontSize: isMobile ? 56 : 80, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{ov.duration}s</div>
+                  <div style={{ fontSize: isMobile ? 16 : 20, color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>temps total</div>
+                  {ov.helpStats && ov.helpStats.totalPenalty > 0 && (
+                    <div style={{ fontSize: 13, color: '#fca5a5', fontWeight: 600, marginTop: 4 }}>
+                      dont +{ov.helpStats.totalPenalty}s de pénalité aide
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: isMobile ? 56 : 80, fontWeight: 900, color: '#fff', lineHeight: 1 }}>{ov.score}</div>
+                  <div style={{ fontSize: isMobile ? 16 : 20, color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>points</div>
+                </>
+              )}
             </div>
 
             {/* Stats */}
@@ -7792,8 +7995,14 @@ setZones(dataWithRandomTexts);
               animation: 'slideUp 0.6s ease-out 0.4s both'
             }}>
               {[
-                { icon: '🧩', label: 'Paires', value: ov.pairsValidated },
-                { icon: '❌', label: 'Erreurs', value: ov.errors || 0 },
+                { icon: '🧩', label: 'Paires', value: ov.objectiveMode ? `${ov.pairsValidated}/${ov.objectiveTarget}` : ov.pairsValidated },
+                ...(ov.objectiveMode && ov.helpStats ? [
+                  { icon: '💡', label: 'Indices', value: ov.helpStats.hintsUsed || 0 },
+                  { icon: '🎯', label: 'Réponses', value: ov.helpStats.answersUsed || 0 },
+                  { icon: '⏱️', label: 'Pénalité', value: `+${ov.helpStats.totalPenalty || 0}s` },
+                ] : [
+                  { icon: '❌', label: 'Erreurs', value: ov.errors || 0 },
+                ]),
                 { icon: '⏱️', label: 'Durée', value: `${ov.duration}s` },
                 { icon: '⚡', label: 'Pts/min', value: ppm },
               ].map((stat, i) => (
@@ -7934,6 +8143,10 @@ setZones(dataWithRandomTexts);
         @keyframes scaleIn {
           from { transform: scale(0.8); opacity: 0; }
           to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes fadeInUp {
+          from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+          to { transform: translateX(-50%) translateY(0); opacity: 1; }
         }
       `}</style>
       {/* Popup attribution zone en overlay, hors SVG */}
