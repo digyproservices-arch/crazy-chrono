@@ -8,20 +8,28 @@ const TeacherModeSelector = () => {
 
   return (
     <div className="mode-selector-container">
-      <div className="mode-selector-header">
-        <h1>🎮 Choisissez un mode de jeu</h1>
-        <p>Sélectionnez le type de session que vous souhaitez créer</p>
-      </div>
-
-      {/* --- Comment jouer ? Démo animée --- */}
+      {/* --- Vidéo explicative (AVANT le choix de mode) --- */}
       <div style={{ marginBottom: 32, textAlign: 'center' }}>
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          background: 'linear-gradient(135deg, #0D6A7A, #1AACBE)', color: '#fff',
+          padding: '6px 18px', borderRadius: 20, fontSize: 13, fontWeight: 700,
+          marginBottom: 12, letterSpacing: 0.5,
+        }}>
+          🎬 VIDÉO EXPLICATIVE
+        </div>
         <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0D6A7A', margin: '0 0 6px' }}>
-          🕐 Comment jouer ?
+          Découvrez comment jouer en quelques secondes
         </h2>
         <p style={{ color: '#6B5443', fontSize: 14, margin: '0 auto 20px', maxWidth: 440 }}>
           Trouvez les paires image↔nom ou calcul↔résultat avant la fin du chrono !
         </p>
         <InteractiveDemo />
+      </div>
+
+      <div className="mode-selector-header">
+        <h1>🎮 Choisissez un mode de jeu</h1>
+        <p>Sélectionnez le type de session que vous souhaitez créer</p>
       </div>
 
       <div className="mode-cards">

@@ -66,6 +66,26 @@ export default function ModeSelect({ auth: authProp }) {
   return (
     <div style={{ maxWidth: 980, margin: '40px auto', padding: '0 16px' }}>
       {showOnboarding && <Onboarding onDone={() => setShowOnboarding(false)} />}
+
+      {/* --- Vidéo explicative (AVANT le choix de mode) --- */}
+      <div style={{ marginBottom: 40, textAlign: 'center' }}>
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          background: 'linear-gradient(135deg, #0D6A7A, #1AACBE)', color: '#fff',
+          padding: '6px 18px', borderRadius: 20, fontSize: 13, fontWeight: 700,
+          marginBottom: 12, letterSpacing: 0.5,
+        }}>
+          � VIDÉO EXPLICATIVE
+        </div>
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0D6A7A', margin: '0 0 6px' }}>
+          Découvrez comment jouer en quelques secondes
+        </h2>
+        <p style={{ color: '#6B5443', fontSize: 14, margin: '0 auto 20px', maxWidth: 440 }}>
+          Trouvez les paires image↔nom ou calcul↔résultat avant la fin du chrono !
+        </p>
+        <InteractiveDemo />
+      </div>
+
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
         <h1 style={{ 
           fontSize: 42, 
@@ -80,17 +100,6 @@ export default function ModeSelect({ auth: authProp }) {
         <p style={{ fontSize: 16, color: '#6B5443', maxWidth: 500, margin: '0 auto' }}>
           Sélectionnez un mode de jeu pour commencer à vous amuser !
         </p>
-      </div>
-
-      {/* --- Comment jouer ? Démo animée --- */}
-      <div style={{ marginBottom: 40, textAlign: 'center' }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: '#0D6A7A', margin: '0 0 6px' }}>
-          🕐 Comment jouer ?
-        </h2>
-        <p style={{ color: '#6B5443', fontSize: 14, margin: '0 auto 20px', maxWidth: 440 }}>
-          Trouvez les paires image↔nom ou calcul↔résultat avant la fin du chrono !
-        </p>
-        <InteractiveDemo />
       </div>
 
       <div style={{ 
