@@ -292,17 +292,7 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     return `images/${encodeURIComponent(filename)}`;
   };
 
-  // === MODE OBJECTIF: reconvertir les zones image→calcul et texte→chiffre ===
-  // Opère sur `zones` AVANT la copie dans `result` pour que les filtres par type soient corrects
-  if (isObjectiveMode) {
-    for (const z of zones) {
-      if ((z.type || 'image') === 'image') { z.type = 'calcul'; z.content = ''; z.label = ''; z.pairId = ''; }
-      else if (z.type === 'texte') { z.type = 'chiffre'; z.content = ''; z.label = ''; z.pairId = ''; }
-    }
-    console.log('[elementsLoader] Objective mode: converted all zones to calcul/chiffre (' + zones.filter(z=>z.type==='calcul').length + ' calcul, ' + zones.filter(z=>z.type==='chiffre').length + ' chiffre)');
-  }
-
-  // Zones par type (après conversion éventuelle)
+  // Zones par type
   const imageZones = zones.filter(z => (z.type || 'image') === 'image');
   const texteZones = zones.filter(z => z.type === 'texte');
   const calculZones = zones.filter(z => z.type === 'calcul');
@@ -318,13 +308,10 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   const used = { image: new Set(), texte: new Set(), calcul: new Set(), chiffre: new Set() };
 
   // Sélectionne le type de paire à poser sans priorité: TI ou CC au hasard si les deux sont possibles
-  // En mode objectif: TOUJOURS CC (calcul-chiffre uniquement)
   let placedPairType = null;
-  const canTI = !isObjectiveMode && imageZones.length && texteZones.length && imageIds.length && texteIds.length;
+  const canTI = imageZones.length && texteZones.length && imageIds.length && texteIds.length;
   const canCC = calculZones.length && chiffreZones.length && calculIds.length && chiffreIds.length;
-  if (isObjectiveMode) {
-    placedPairType = canCC ? 'CC' : null;
-  } else if (canTI && canCC) {
+  if (canTI && canCC) {
     placedPairType = (typeof rng === 'function' ? (rng() < 0.5) : (Math.random() < 0.5)) ? 'TI' : 'CC';
   } else if (canTI) {
     placedPairType = 'TI';
