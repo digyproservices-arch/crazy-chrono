@@ -4526,6 +4526,20 @@ setZones(dataWithRandomTexts);
       function randomDistractorText(exclude = []) {
         const pool = TEXTES_RANDOM.filter(t => !exclude.includes(t));
         if (pool.length === 0) return '';
+        return pool[Math.floor(rng() * pool.length)];
+      }
+      // Helper anti-répétition: tire un élément du deck (garantit voir TOUS avant répéter)
+      // Remplace les boucles linéaires + mémoire courte (3 items) par le vrai deck system
+      const pickFromPool = (deckName, pool, filterFn) => {
+        const byId = new Map(pool.map(c => [String(c.id), c]));
+        const ids = [...byId.keys()];
+        if (!ids.length) return null;
+        const picked = drawFromDeck(deckName, ids, rng, (candidateId) => {
+          const cand = byId.get(candidateId);
+          return cand && (!filterFn || filterFn(cand));
+        });
+        return picked ? byId.get(picked) : null;
+      };
       // Identifie une image "principale" et garantit qu'au moins un texte partage son pairId
       let post = validated.map(z => ({ ...z }));
 
@@ -4552,16 +4566,6 @@ setZones(dataWithRandomTexts);
         return;
       }
 
-      // ... (code après)
-        const byId = new Map(pool.map(c => [String(c.id), c]));
-        const ids = [...byId.keys()];
-        if (!ids.length) return null;
-        const picked = drawFromDeck(deckName, ids, rng, (candidateId) => {
-          const cand = byId.get(candidateId);
-          return cand && (!filterFn || filterFn(cand));
-        });
-        return picked ? byId.get(picked) : null;
-      };
       const selectedCalcIdxs = new Set(); // protéger le calcul choisi si c'est une paire calc-chiffre
       let hadAnyAdminPairAssigned = false; // indique si on a pu poser 1 vraie paire Admin
       try {
