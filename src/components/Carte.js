@@ -4352,58 +4352,69 @@ setZones(dataWithRandomTexts);
           zonesData = await tryFetch(p1);
         }
       }
-      // --- RANDOMISATION DES TEXTES ---
-      const zonesTexte = zonesData.filter(z => z.type === 'texte');
-      let textesMelanges = shuffleArray(TEXTES_RANDOM, rng);
-      const dataWithRandomTexts = zonesData.map(z => {
-        if (z.type === 'texte') {
-          return { ...z, content: textesMelanges.pop() || '' };
-        }
-        return z;
-      });
-      console.log('ZONES CHARGED', dataWithRandomTexts.filter(z => z.id === 1752571493404 || z.id === 1752571661490));
-      console.log('DEBUG ZONES AVANT ATTRIB', dataWithRandomTexts.filter(z => z.id === 1752571493404 || z.id === 1752571661490));
+      // --- Détection mode objectif pour pipeline simplifié ---
+      const __objCfg = (() => { try { return JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch { return null; } })();
+      const __isObjectiveMode = !!(__objCfg && __objCfg.objectiveMode);
+
+      // --- RANDOMISATION DES TEXTES (sauf mode objectif: on laisse vide pour que assignElementsToZones remplisse avec du contenu thématique) ---
       const elementsData = await fetchElements();
-      let updatedZones = await assignElementsToZones(dataWithRandomTexts, elementsData, undefined, rng, validatedPairIdsRef.current);
-      // Éviter toute divergence en multi: ne pas faire de post-traitements dépendants du réseau
-      if (!deterministicSync) {
-        // Filtrer les images qui ne sont plus listées dans l'Admin (associations.json)
-        try {
-          const assocResp = await fetch(process.env.PUBLIC_URL + '/data/associations.json');
-          const assoc = await assocResp.json();
-          const knownImages = new Set((assoc?.images || []).map(i => i.url && i.url.toLowerCase().replace(/\\/g, '/')));
-          const norm = (p) => {
-            if (!p) return '';
-            try { p = decodeURIComponent(p); } catch {}
-            p = p.toLowerCase().replace(/\\/g, '/');
-            const pub = (process.env.PUBLIC_URL || '').toLowerCase();
-            if (pub && p.startsWith(pub)) p = p.slice(pub.length);
-            if (p.startsWith('/')) p = p.slice(1);
-            return p;
-          };
-          // Fallback pool: only images that are also known by Admin
-          const fallbackPool = (elementsData || [])
-            .filter(e => e?.type === 'image' && e?.content && knownImages.has(norm(e.content)))
-            .slice();
-          // Mélange le pool de fallback pour éviter de revoir toujours les mêmes
-          for (let i = fallbackPool.length - 1; i > 0; i--) {
-            const j = Math.floor(rng() * (i + 1));
-            [fallbackPool[i], fallbackPool[j]] = [fallbackPool[j], fallbackPool[i]];
+      let updatedZones;
+      if (__isObjectiveMode) {
+        // Mode objectif: vider le contenu de toutes les zones pour qu'assignElementsToZones les remplisse entièrement avec du contenu thématique
+        updatedZones = zonesData.map(z => ({ ...z, content: '', label: '', pairId: '' }));
+        console.log('[CC] Mode objectif: zones vidées, prêtes pour assignElementsToZones thématique');
+      } else {
+        const zonesTexte = zonesData.filter(z => z.type === 'texte');
+        let textesMelanges = shuffleArray(TEXTES_RANDOM, rng);
+        const dataWithRandomTexts = zonesData.map(z => {
+          if (z.type === 'texte') {
+            return { ...z, content: textesMelanges.pop() || '' };
           }
-          let fIdx = fallbackPool.length ? Math.floor(rng() * fallbackPool.length) : 0;
-          updatedZones = updatedZones.map(z => {
-            if (z?.type === 'image' && z?.content && !knownImages.has(norm(z.content))) {
-              if (fallbackPool.length) {
-                const e = fallbackPool[fIdx % fallbackPool.length];
-                fIdx++;
-                return { ...z, type: 'image', content: e.content, label: e.label || '', pairId: e.pairId || '' };
-              }
-              return { ...z, content: '', label: '', pairId: '' };
+          return z;
+        });
+        console.log('ZONES CHARGED', dataWithRandomTexts.filter(z => z.id === 1752571493404 || z.id === 1752571661490));
+        console.log('DEBUG ZONES AVANT ATTRIB', dataWithRandomTexts.filter(z => z.id === 1752571493404 || z.id === 1752571661490));
+        updatedZones = await assignElementsToZones(dataWithRandomTexts, elementsData, undefined, rng, validatedPairIdsRef.current);
+        // Éviter toute divergence en multi: ne pas faire de post-traitements dépendants du réseau
+        if (!deterministicSync) {
+          // Filtrer les images qui ne sont plus listées dans l'Admin (associations.json)
+          try {
+            const assocResp = await fetch(process.env.PUBLIC_URL + '/data/associations.json');
+            const assoc = await assocResp.json();
+            const knownImages = new Set((assoc?.images || []).map(i => i.url && i.url.toLowerCase().replace(/\\/g, '/')));
+            const norm = (p) => {
+              if (!p) return '';
+              try { p = decodeURIComponent(p); } catch {}
+              p = p.toLowerCase().replace(/\\/g, '/');
+              const pub = (process.env.PUBLIC_URL || '').toLowerCase();
+              if (pub && p.startsWith(pub)) p = p.slice(pub.length);
+              if (p.startsWith('/')) p = p.slice(1);
+              return p;
+            };
+            // Fallback pool: only images that are also known by Admin
+            const fallbackPool = (elementsData || [])
+              .filter(e => e?.type === 'image' && e?.content && knownImages.has(norm(e.content)))
+              .slice();
+            // Mélange le pool de fallback pour éviter de revoir toujours les mêmes
+            for (let i = fallbackPool.length - 1; i > 0; i--) {
+              const j = Math.floor(rng() * (i + 1));
+              [fallbackPool[i], fallbackPool[j]] = [fallbackPool[j], fallbackPool[i]];
             }
-            return z;
-          });
-        } catch (e) {
-          console.warn('Filtrage images inconnues ignoré:', e);
+            let fIdx = fallbackPool.length ? Math.floor(rng() * fallbackPool.length) : 0;
+            updatedZones = updatedZones.map(z => {
+              if (z?.type === 'image' && z?.content && !knownImages.has(norm(z.content))) {
+                if (fallbackPool.length) {
+                  const e = fallbackPool[fIdx % fallbackPool.length];
+                  fIdx++;
+                  return { ...z, type: 'image', content: e.content, label: e.label || '', pairId: e.pairId || '' };
+                }
+                return { ...z, content: '', label: '', pairId: '' };
+              }
+              return z;
+            });
+          } catch (e) {
+            console.warn('Filtrage images inconnues ignoré:', e);
+          }
         }
       }
       // Ne pas setter les zones ici pour éviter des états intermédiaires différents entre clients
@@ -4515,25 +4526,33 @@ setZones(dataWithRandomTexts);
       function randomDistractorText(exclude = []) {
         const pool = TEXTES_RANDOM.filter(t => !exclude.includes(t));
         if (pool.length === 0) return '';
-        return pool[Math.floor(rng() * pool.length)];
-      }
       // Identifie une image "principale" et garantit qu'au moins un texte partage son pairId
       let post = validated.map(z => ({ ...z }));
 
       // === MODE OBJECTIF: skip post-processing (assignElementsToZones gère déjà tout) ===
       const _isObjMode = (() => { try { return !!JSON.parse(localStorage.getItem('cc_session_cfg') || 'null')?.objectiveMode; } catch { return false; } })();
       if (_isObjMode) {
+        // Reconstruire newTextSettings depuis les zones finales (pas du 1er appel)
+        const objTextSettings = {};
+        post.forEach(zone => {
+          if (zone.type === 'texte') {
+            objTextSettings[zone.id] = {
+              ...defaultTextSettings,
+              text: zone.content || ''
+            };
+          }
+        });
         console.log('[CC] Objective mode: skipping Admin post-processing, using assignElementsToZones result directly');
+        const pairZones = post.filter(z => z.pairId);
+        console.log('[CC] Objective mode pairId zones:', pairZones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 40), pairId: z.pairId })));
         setZones(post);
-        setCustomTextSettings(newTextSettings);
+        setCustomTextSettings(objTextSettings);
         localStorage.setItem('zones', JSON.stringify(post));
         try { window.ccAddDiag && window.ccAddDiag('zones:assigned:objective', post); } catch {}
         return;
       }
 
-      // Helper anti-répétition: tire un élément du deck (garantit voir TOUS avant répéter)
-      // Remplace les boucles linéaires + mémoire courte (3 items) par le vrai deck system
-      const pickFromPool = (deckName, pool, filterFn) => {
+      // ... (code après)
         const byId = new Map(pool.map(c => [String(c.id), c]));
         const ids = [...byId.keys()];
         if (!ids.length) return null;
