@@ -345,9 +345,10 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     });
     const chosen = chosenKey ? tiLinkMap.get(chosenKey) : null;
     if (chosen) {
+      const pairKey = `assoc-img-${chosen.imgId}-txt-${chosen.tId}`;
       const rawText = textesById[chosen.tId]?.content || '';
-      const tzId = placeIntoZone(texteZones, () => ({ type: 'texte', content: localizeText(rawText, locMap) }));
-      const izId = placeIntoZone(imageZones, () => ({ type: 'image', content: encodedImageUrl(imagesById[chosen.imgId]?.url || ''), label: '', pairId: '' }));
+      const tzId = placeIntoZone(texteZones, () => ({ type: 'texte', content: localizeText(rawText, locMap), pairId: pairKey }));
+      const izId = placeIntoZone(imageZones, () => ({ type: 'image', content: encodedImageUrl(imagesById[chosen.imgId]?.url || ''), label: '', pairId: pairKey }));
       if (tzId && izId) {
         used.texte.add(chosen.tId); used.image.add(chosen.imgId);
         goodPairIds = { texteId: chosen.tId, imageId: chosen.imgId };
@@ -368,8 +369,9 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     });
     const chosen = chosenKey ? ccLinkMap.get(chosenKey) : null;
     if (chosen) {
-      const czId = placeIntoZone(calculZones, () => ({ type: 'calcul', content: calculsById[chosen.cId]?.content || '' }));
-      const nzId = placeIntoZone(chiffreZones, () => ({ type: 'chiffre', content: chiffresById[chosen.nId]?.content || '' }));
+      const pairKey = `assoc-calc-${chosen.cId}-num-${chosen.nId}`;
+      const czId = placeIntoZone(calculZones, () => ({ type: 'calcul', content: calculsById[chosen.cId]?.content || '', pairId: pairKey }));
+      const nzId = placeIntoZone(chiffreZones, () => ({ type: 'chiffre', content: chiffresById[chosen.nId]?.content || '', pairId: pairKey }));
       if (czId && nzId) {
         used.calcul.add(chosen.cId); used.chiffre.add(chosen.nId);
         goodPairIds = { calculId: chosen.cId, chiffreId: chosen.nId };
