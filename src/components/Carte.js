@@ -2289,7 +2289,6 @@ const Carte = () => {
         
         try { incidentValidateZones(payload.zones, { source: 'multiplayer:round-new' }); } catch {}
         
-        // Log détaillé des zones reçues avec pairId
         const zonesWithPairId = payload.zones.filter(z => z.pairId);
         addDiag('zones:received', {
           totalZones: payload.zones.length,
@@ -2312,29 +2311,35 @@ const Carte = () => {
         console.log('[CC][client] MULTIPLAYER MODE: Fallback to local generation with seed:', seed);
         safeHandleAutoAssign(seed, zonesFile);
       }
+      // Charger config objectif depuis cc_session_cfg (sinon objectiveMode reste false => countdown au lieu de countup)
+      try {
+        const cfgObj = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+        if (cfgObj && typeof cfgObj === 'object') {
+          setObjectiveMode(!!cfgObj.objectiveMode);
+          if (cfgObj.objectiveTarget) setObjectiveTarget(Math.max(3, Math.min(50, parseInt(cfgObj.objectiveTarget, 10) || 10)));
+          setObjectiveThemes(Array.isArray(cfgObj.objectiveThemes) ? cfgObj.objectiveThemes : []);
+          setHelpEnabled(!!cfgObj.helpEnabled);
+        }
+      } catch {}
       // Ensure game state is active
       setGameActive(true);
-      // Prendre la durée côté serveur et initialiser le timer d'affichage
+      // Prendre la duree cote serveur (sauf en mode objectif: pas de countdown)
       try {
+        const cfgDur = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+        const isObjMode = cfgDur && !!cfgDur.objectiveMode;
         const d = parseInt(payload?.duration, 10);
-        if (Number.isFinite(d) && d > 0) {
+        if (Number.isFinite(d) && d > 0 && !isObjMode) {
           setGameDuration(d);
           setTimeLeft(d);
         }
       } catch {}
-      // Synchroniser l'index de manche si fourni
-      try {
-        const idx = parseInt(payload?.roundIndex, 10);
-        if (Number.isFinite(idx) && idx >= 0) setRoundsPlayed(idx);
-      } catch {}
       setGameSelectedIds([]);
       setGameMsg('');
-      // Reset de la paire cible côté client en attendant round:target
+      // Reset de la paire cible cote client en attendant round:target
       setCurrentTargetPairKey(null);
-      // ✅ FIX ZONES VIDES MP: Réinitialiser validatedPairIds (comme Arena ligne 1415)
-      // Sans ce reset, les paires validées précédemment sont exclues de la génération
+      // FIX ZONES VIDES MP: Reinitialiser validatedPairIds
       setValidatedPairIds(new Set());
-      // Passer en plein écran jeu et replier le panneau multi
+      // Passer en plein ecran jeu et replier le panneau multi
       try { enterGameFullscreen(); } catch {}
       try { setPanelCollapsed(true); } catch {}
     });
