@@ -2579,7 +2579,7 @@ const Carte = () => {
       // En multijoueur: round:new remplace toutes les zones, mais pair:valid arrive APRÈS et marque
       // les zones avec les mêmes IDs comme validated=true, cachant le nouveau contenu
       // En solo: pas de round:new, donc on doit marquer validated pour masquer visuellement
-      if (!socketConnected) {
+      if (!socketConnected || objectiveMode) {
         setZones(prevZones => {
           return prevZones.map(z => {
             if (z.id === aId || z.id === bId) {
@@ -2690,8 +2690,8 @@ const Carte = () => {
   useEffect(() => {
     try {
       if (!Array.isArray(zones) || !zones.length) return;
-      // Si on est connecté et qu'on a déjà une clé, ne pas surcharger
-      if (socketConnected && currentTargetPairKey) return;
+      // Si on est connecté (hors mode objectif) et qu'on a déjà une clé, ne pas surcharger
+      if (socketConnected && !objectiveMode && currentTargetPairKey) return;
       // Scanner les zones pour trouver une clé apparaissant sur une paire valide autorisée
       const byKey = new Map(); // key -> [zones]
       for (const z of zones) {
@@ -2716,7 +2716,7 @@ const Carte = () => {
         }
         if (found) break;
       }
-      if (!socketConnected && found && found !== currentTargetPairKeyRef.current) {
+      if ((!socketConnected || objectiveMode) && found && found !== currentTargetPairKeyRef.current) {
         setCurrentTargetPairKey(found);
       }
     } catch {}
@@ -3498,15 +3498,15 @@ function handleGameClick(zone) {
               setRoundsPlayed(prev => (typeof prev === 'number' ? prev + 1 : 1));
             }
           }
-          if (objectiveMode && !socketConnected) {
+          if (objectiveMode) {
             setRoundsPlayed(prev => (typeof prev === 'number' ? prev + 1 : 1));
           }
           setTimeout(() => {
             setGameSelectedIds([]);
             setGameMsg('');
             // En mode multiplayer, le serveur gère la régénération après pair:valid
-            // En mode solo, on régénère localement
-            if (!socketConnected) {
+            // En mode solo ou objectif, on régénère localement (le serveur peut avoir terminé sa session en mode objectif)
+            if (!socketConnected || objectiveMode) {
               safeHandleAutoAssign();
             }
             // Sinon, attendre que le serveur envoie round:new avec les nouvelles zones
