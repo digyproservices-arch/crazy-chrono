@@ -464,6 +464,8 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
         // Update forbidden: prevent associated textes from being placed
         const assocT = imageToTextes.get(imgId);
         if (assocT) assocT.forEach(tId => forbiddenTextIds.add(tId));
+        // CROSS-PREVENT: prevent texts associated with this image from being placed
+        forbiddenImageIds.add(imgId);
       }
     } else if (type === 'texte' && !z.content) {
       const tId = pickTexteDistractor(forbiddenImageIds);
@@ -472,6 +474,8 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
         // Update forbidden: prevent associated images from being placed
         const assocI = texteToImages.get(tId);
         if (assocI) assocI.forEach(imgId => forbiddenImageIds.add(imgId));
+        // CROSS-PREVENT: prevent images associated with this text from being placed
+        forbiddenTextIds.add(tId);
       }
     } else if (type === 'calcul' && !z.content) {
       const cId = pickCalculDistractor(forbiddenChiffreIds);

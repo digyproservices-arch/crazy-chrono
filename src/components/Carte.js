@@ -4559,6 +4559,8 @@ setZones(dataWithRandomTexts);
         console.log('[CC] Objective mode: skipping Admin post-processing, using assignElementsToZones result directly');
         const pairZones = post.filter(z => z.pairId);
         console.log('[CC] Objective mode pairId zones:', pairZones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 40), pairId: z.pairId })));
+        // Monitoring: valider les zones en mode objectif aussi
+        try { incidentValidateZones(post, { source: 'objective:assignElements' }); } catch {}
         setZones(post);
         setCustomTextSettings(objTextSettings);
         localStorage.setItem('zones', JSON.stringify(post));
