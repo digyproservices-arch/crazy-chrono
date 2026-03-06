@@ -2373,6 +2373,14 @@ const Carte = () => {
     // Fin de session
     s.on('session:end', (summary) => {
       console.log('[CC] session:end received', summary);
+      // En mode objectif, ignorer la fin de session serveur (le client gere la fin quand tous les objectifs sont atteints)
+      try {
+        const cfgCheck = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+        if (cfgCheck && cfgCheck.objectiveMode) {
+          console.log('[CC] session:end IGNORED in objective mode (client manages game end)');
+          return;
+        }
+      } catch {}
       // Annuler le debounce timer pour ne pas écraser l'overlay
       if (sessionSaveTimerRef.current) { clearTimeout(sessionSaveTimerRef.current); sessionSaveTimerRef.current = null; }
 

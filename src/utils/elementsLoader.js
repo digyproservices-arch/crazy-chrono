@@ -157,12 +157,16 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   // Lecture configuration côté client (définie par SessionConfig)
   let cfg = null;
   try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
-  if (cfg && (Array.isArray(cfg.classes) || Array.isArray(cfg.themes))) {
+  if (cfg && (Array.isArray(cfg.classes) || Array.isArray(cfg.themes) || (cfg.objectiveMode && Array.isArray(cfg.objectiveThemes)))) {
     const selectedClasses = Array.isArray(cfg.classes) ? cfg.classes : null;
     const LEVEL_ORDER = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"];
     const lvlIdx = Object.fromEntries(LEVEL_ORDER.map((l, i) => [l, i]));
     const maxLvlIdx = selectedClasses ? Math.max(...selectedClasses.map(c => lvlIdx[c] ?? -1)) : 99;
-    const selectedThemes = Array.isArray(cfg.themes) ? cfg.themes.filter(Boolean) : [];
+    // En mode objectif thématique, filtrer par objectiveThemes pour que le plateau ne montre QUE les paires des objectifs
+    const rawThemes = (cfg.objectiveMode && Array.isArray(cfg.objectiveThemes) && cfg.objectiveThemes.length > 0)
+      ? cfg.objectiveThemes
+      : (Array.isArray(cfg.themes) ? cfg.themes : []);
+    const selectedThemes = rawThemes.filter(Boolean);
     const matchMode = cfg.themeMatch === 'all' ? 'all' : 'any';
     const includeUntagged = cfg.includeUntagged !== false; // par défaut true
 
