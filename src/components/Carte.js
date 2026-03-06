@@ -696,7 +696,7 @@ const Carte = () => {
   const [objectiveMode, setObjectiveMode] = useState(false);
   const [objectiveTarget, setObjectiveTarget] = useState(10);
   const [objectiveThemes, setObjectiveThemes] = useState([]); // ['category:table_7', ...]
-  const objectiveProgressRef = useRef({}); // { [theme]: { target: 10, current: 0 } }
+  const objectiveProgressRef = useRef([]); // [{ theme, key, label, sessionFound, total }]
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [helpEnabled, setHelpEnabled] = useState(false);
   const [helpLevel, setHelpLevel] = useState(0); // 0=rien, 1=indice demandé, 2=réponse demandée
@@ -3034,7 +3034,7 @@ async function doStart() {
     setHighlightedZoneIds([]);
     helpStatsRef.current = { hintsUsed: 0, answersUsed: 0, totalPenalty: 0 };
     objectivePairsRef.current = 0;
-    objectiveProgressRef.current = {};
+    objectiveProgressRef.current = [];
     setTimeElapsed(0);
     // Reset score pour nouvelle partie
     setScore(0);
@@ -6441,7 +6441,7 @@ setZones(dataWithRandomTexts);
             {objectiveMode ? (
               objectiveThemes.length > 0 ? (
                 <div className="hud-chip" style={{ background: 'rgba(13,106,122,0.7)', fontSize: 10, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  🎯 {(objectiveProgressRef.current || []).filter(p => p.sessionFound >= p.total && p.total > 0).length}/{objectiveThemes.length}
+                  🎯 {(Array.isArray(objectiveProgressRef.current) ? objectiveProgressRef.current : []).filter(p => p.sessionFound >= p.total && p.total > 0).length}/{objectiveThemes.length}
                 </div>
               ) : (
                 <div className="hud-chip" style={{ background: 'rgba(13,106,122,0.7)' }}>
@@ -6533,7 +6533,7 @@ setZones(dataWithRandomTexts);
               {objectiveMode ? (
                 objectiveThemes.length > 0 ? (
                   <div style={{ background: 'rgba(13,106,122,0.7)', borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)', fontSize: 13, fontWeight: 700, color: '#fff' }}>
-                    🎯 {(objectiveProgressRef.current || []).filter(p => p.sessionFound >= p.total && p.total > 0).length}/{objectiveThemes.length} thèmes
+                    🎯 {(Array.isArray(objectiveProgressRef.current) ? objectiveProgressRef.current : []).filter(p => p.sessionFound >= p.total && p.total > 0).length}/{objectiveThemes.length} thèmes
                   </div>
                 ) : (
                   <div style={{ background: 'rgba(13,106,122,0.7)', borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)', fontSize: 13, fontWeight: 700, color: '#fff' }}>
