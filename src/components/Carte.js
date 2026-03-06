@@ -695,6 +695,8 @@ const Carte = () => {
   // --- MODE OBJECTIF & AIDE ---
   const [objectiveMode, setObjectiveMode] = useState(false);
   const [objectiveTarget, setObjectiveTarget] = useState(10);
+  const [objectiveThemes, setObjectiveThemes] = useState([]); // ['category:table_7', ...]
+  const objectiveProgressRef = useRef({}); // { [theme]: { target: 10, current: 0 } }
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [helpEnabled, setHelpEnabled] = useState(false);
   const [helpLevel, setHelpLevel] = useState(0); // 0=rien, 1=indice demandé, 2=réponse demandée
@@ -3003,7 +3005,6 @@ function startGame() {
     doStart();
   });
 }
-
 async function doStart() {
   try {
     try { window.ccAddDiag && window.ccAddDiag('doStart:called'); } catch {}
@@ -3013,12 +3014,14 @@ async function doStart() {
       if (cfg && typeof cfg === 'object') {
         setObjectiveMode(!!cfg.objectiveMode);
         if (cfg.objectiveTarget) setObjectiveTarget(Math.max(3, Math.min(50, parseInt(cfg.objectiveTarget, 10) || 10)));
+        setObjectiveThemes(Array.isArray(cfg.objectiveThemes) ? cfg.objectiveThemes : []);
         setHelpEnabled(!!cfg.helpEnabled);
       } else {
         setObjectiveMode(false);
+        setObjectiveThemes([]);
         setHelpEnabled(false);
       }
-    } catch { setObjectiveMode(false); setHelpEnabled(false); }
+    } catch { setObjectiveMode(false); setObjectiveThemes([]); setHelpEnabled(false); }
     // Reset état aide
     setHelpLevel(0);
     setHelpBubble(null);
@@ -3026,6 +3029,7 @@ async function doStart() {
     setHighlightedZoneIds([]);
     helpStatsRef.current = { hintsUsed: 0, answersUsed: 0, totalPenalty: 0 };
     objectivePairsRef.current = 0;
+    objectiveProgressRef.current = {};
     setTimeElapsed(0);
     // Reset score pour nouvelle partie
     setScore(0);
@@ -3419,28 +3423,46 @@ function handleGameClick(zone) {
             setScore(s => s + 1);
             lastScoreTsRef.current = nowTs;
           }
-          // Mode Objectif: incrémenter compteur et vérifier si objectif atteint
+          // Mode Objectif: vérifier si objectif atteint
           if (objectiveMode) {
             objectivePairsRef.current += 1;
             const pairsFound = objectivePairsRef.current;
-            if (pairsFound >= objectiveTarget) {
-              // Objectif atteint! Fin de partie
+            // Mode thématique: vérifier progression par thème via mastery tracker
+            if (objectiveThemes.length > 0) {
+              const progress = getMasteryProgress();
+              const objProgress = objectiveThemes.map(t => {
+                const key = t.replace('category:', '');
+                const p = progress.find(x => x.key === key);
+                return { theme: t, key, label: p?.label || key, sessionFound: p?.sessionFound || 0, total: p?.total || 0 };
+              });
+              objectiveProgressRef.current = objProgress;
+              const allComplete = objProgress.every(p => p.total > 0 && p.sessionFound >= p.total);
+              try { window.ccAddDiag && window.ccAddDiag('objective:thematic:check', { objProgress, allComplete }); } catch {}
+              if (allComplete) {
+                const finalTime = timeElapsed + helpPenalty;
+                try { window.ccAddDiag && window.ccAddDiag('objective:thematic:completed', { objProgress, timeElapsed, penalty: helpPenalty, finalTime }); } catch {}
+                setTimeout(() => {
+                  setGameActive(false);
+                  setSoloGameEndOverlay({
+                    score: pairsFound, pairsValidated: pairsFound, duration: finalTime, errors: 0, mode: 'solo',
+                    timestamp: Date.now(), objectiveMode: true, objectiveTarget: pairsFound,
+                    objectiveThemes, objectiveProgress: objProgress,
+                    helpStats: { ...helpStatsRef.current },
+                    masterySession: getActiveSessionProgress(), masteryAll: getMasteryProgress()
+                  });
+                }, 600);
+              }
+            } else if (pairsFound >= objectiveTarget) {
+              // Fallback: mode simple (nombre de paires)
               const finalTime = timeElapsed + helpPenalty;
               try { window.ccAddDiag && window.ccAddDiag('objective:completed', { pairsFound, target: objectiveTarget, timeElapsed, penalty: helpPenalty, finalTime }); } catch {}
               setTimeout(() => {
                 setGameActive(false);
                 setSoloGameEndOverlay({
-                  score: pairsFound,
-                  pairsValidated: pairsFound,
-                  duration: finalTime,
-                  errors: 0,
-                  mode: 'solo',
-                  timestamp: Date.now(),
-                  objectiveMode: true,
-                  objectiveTarget,
+                  score: pairsFound, pairsValidated: pairsFound, duration: finalTime, errors: 0, mode: 'solo',
+                  timestamp: Date.now(), objectiveMode: true, objectiveTarget,
                   helpStats: { ...helpStatsRef.current },
-                  masterySession: getActiveSessionProgress(),
-                  masteryAll: getMasteryProgress()
+                  masterySession: getActiveSessionProgress(), masteryAll: getMasteryProgress()
                 });
               }, 600);
             }
@@ -3454,7 +3476,6 @@ function handleGameClick(zone) {
             if (Number.isFinite(roundsPerSession)) {
               setRoundsPlayed(prev => {
                 const nxt = (typeof prev === 'number' ? prev : 0) + 1;
-                // Arrêter la session si on a atteint le quota
                 if (nxt >= roundsPerSession) {
                   try { setGameActive(false); } catch {}
                 }
@@ -6413,9 +6434,15 @@ setZones(dataWithRandomTexts);
             {objectiveMode && <div className="hud-chip" style={{ background: 'rgba(13,106,122,0.85)' }}>⏱ {timeElapsed + helpPenalty}s</div>}
             <div className="hud-chip">⭐ {score}</div>
             {objectiveMode ? (
-              <div className="hud-chip" style={{ background: 'rgba(13,106,122,0.7)' }}>
-                🎯 {objectivePairsRef.current}/{objectiveTarget}
-              </div>
+              objectiveThemes.length > 0 ? (
+                <div className="hud-chip" style={{ background: 'rgba(13,106,122,0.7)', fontSize: 10, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  🎯 {(objectiveProgressRef.current || []).filter(p => p.sessionFound >= p.total && p.total > 0).length}/{objectiveThemes.length}
+                </div>
+              ) : (
+                <div className="hud-chip" style={{ background: 'rgba(13,106,122,0.7)' }}>
+                  🎯 {objectivePairsRef.current}/{objectiveTarget}
+                </div>
+              )
             ) : (
               <div className="hud-chip">
                 {Number.isFinite(roundsPerSession)
@@ -6499,9 +6526,15 @@ setZones(dataWithRandomTexts);
                 <span style={{ fontSize: 22, fontWeight: 900, color: '#22c55e', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>{score}</span>
               </div>
               {objectiveMode ? (
-                <div style={{ background: 'rgba(13,106,122,0.7)', borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)', fontSize: 13, fontWeight: 700, color: '#fff' }}>
-                  🎯 {objectivePairsRef.current}/{objectiveTarget}
-                </div>
+                objectiveThemes.length > 0 ? (
+                  <div style={{ background: 'rgba(13,106,122,0.7)', borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)', fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                    🎯 {(objectiveProgressRef.current || []).filter(p => p.sessionFound >= p.total && p.total > 0).length}/{objectiveThemes.length} thèmes
+                  </div>
+                ) : (
+                  <div style={{ background: 'rgba(13,106,122,0.7)', borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)', fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                    🎯 {objectivePairsRef.current}/{objectiveTarget}
+                  </div>
+                )
               ) : (
                 <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)', fontSize: 13, fontWeight: 700, color: '#fff' }}>
                   {Number.isFinite(roundsPerSession)
@@ -6510,17 +6543,38 @@ setZones(dataWithRandomTexts);
                 </div>
               )}
             </div>
-            {/* Barre de progression Objectif */}
+            {/* Barres de progression Objectif */}
             {objectiveMode && gameActive && (
-              <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '8px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#cbd5e1', fontWeight: 600, marginBottom: 4 }}>
-                  <span>🎯 Objectif: {objectiveTarget} paires</span>
-                  <span>{Math.round((objectivePairsRef.current / objectiveTarget) * 100)}%</span>
+              objectiveThemes.length > 0 ? (
+                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '8px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#7dd3fc', marginBottom: 2 }}>🎯 Objectifs thématiques</div>
+                  {(Array.isArray(objectiveProgressRef.current) ? objectiveProgressRef.current : []).map(p => {
+                    const pct = p.total > 0 ? Math.min(100, Math.round((p.sessionFound / p.total) * 100)) : 0;
+                    const done = p.total > 0 && p.sessionFound >= p.total;
+                    return (
+                      <div key={p.key}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: done ? '#86efac' : '#cbd5e1', fontWeight: 600, marginBottom: 2 }}>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{done ? '✅' : '🎯'} {p.label}</span>
+                          <span>{p.sessionFound}/{p.total}</span>
+                        </div>
+                        <div style={{ height: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${pct}%`, background: done ? '#22c55e' : 'linear-gradient(90deg, #0d6a7a, #22d3ee)', borderRadius: 3, transition: 'width 0.5s ease' }} />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div style={{ height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${Math.min(100, Math.round((objectivePairsRef.current / objectiveTarget) * 100))}%`, background: 'linear-gradient(90deg, #0d6a7a, #22d3ee)', borderRadius: 4, transition: 'width 0.5s ease' }} />
+              ) : (
+                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '8px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#cbd5e1', fontWeight: 600, marginBottom: 4 }}>
+                    <span>🎯 Objectif: {objectiveTarget} paires</span>
+                    <span>{Math.round((objectivePairsRef.current / objectiveTarget) * 100)}%</span>
+                  </div>
+                  <div style={{ height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${Math.min(100, Math.round((objectivePairsRef.current / objectiveTarget) * 100))}%`, background: 'linear-gradient(90deg, #0d6a7a, #22d3ee)', borderRadius: 4, transition: 'width 0.5s ease' }} />
+                  </div>
                 </div>
-              </div>
+              )
             )}
             {/* Boutons d'aide */}
             {helpEnabled && gameActive && (
@@ -8017,6 +8071,37 @@ setZones(dataWithRandomTexts);
                 </div>
               ))}
             </div>
+
+            {/* Progression Objectifs thématiques */}
+            {ov.objectiveMode && Array.isArray(ov.objectiveProgress) && ov.objectiveProgress.length > 0 && (
+              <div style={{
+                background: 'rgba(255,255,255,0.95)', borderRadius: 16, padding: isMobile ? '12px' : '20px',
+                maxWidth: isMobile ? '90vw' : '500px', width: '100%', marginBottom: 24,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+                animation: 'slideUp 0.6s ease-out 0.45s both'
+              }}>
+                <div style={{ fontSize: isMobile ? 16 : 20, fontWeight: 700, color: '#148A9C', marginBottom: 12, textAlign: 'center' }}>
+                  🎯 Objectifs thématiques
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {ov.objectiveProgress.map(p => {
+                    const pct = p.total > 0 ? Math.min(100, Math.round((p.sessionFound / p.total) * 100)) : 0;
+                    const done = p.total > 0 && p.sessionFound >= p.total;
+                    return (
+                      <div key={p.key} style={{ padding: '8px 12px', borderRadius: 10, background: done ? '#f0fdf4' : '#f8fafc', border: done ? '1px solid #86efac' : '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: done ? '#166534' : '#1e293b' }}>{done ? '✅' : '🎯'} {p.label}</span>
+                          <span style={{ fontSize: 12, color: done ? '#16a34a' : '#64748b', fontWeight: 600 }}>{p.sessionFound}/{p.total} ({pct}%)</span>
+                        </div>
+                        <div style={{ height: 6, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${pct}%`, background: done ? '#22c55e' : pct > 60 ? '#f59e0b' : '#3b82f6', borderRadius: 3, transition: 'width 0.8s ease' }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Classement MP */}
             {hasRanking && (
