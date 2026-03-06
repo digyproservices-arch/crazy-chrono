@@ -694,6 +694,7 @@ const Carte = () => {
   const [score, setScore] = useState(0);
   // --- MODE OBJECTIF & AIDE ---
   const [objectiveMode, setObjectiveMode] = useState(false);
+  const objectiveModeRef = useRef(false);
   const [objectiveTarget, setObjectiveTarget] = useState(10);
   const [objectiveThemes, setObjectiveThemes] = useState([]); // ['category:table_7', ...]
   const objectiveProgressRef = useRef([]); // [{ theme, key, label, sessionFound, total }]
@@ -705,6 +706,8 @@ const Carte = () => {
   const [highlightedZoneIds, setHighlightedZoneIds] = useState([]); // zones surlignées par la réponse
   const helpStatsRef = useRef({ hintsUsed: 0, answersUsed: 0, totalPenalty: 0 });
   const objectivePairsRef = useRef(0); // compteur de paires pour le mode objectif
+  // Sync objectiveModeRef with state (avoid stale closures in setTimeout/async)
+  useEffect(() => { objectiveModeRef.current = objectiveMode; }, [objectiveMode]);
   // Historique des sessions multi
   const [sessions, setSessions] = useState([]);
   // Verrou court pour éviter le double traitement d'une paire
@@ -2579,7 +2582,7 @@ const Carte = () => {
       // En multijoueur: round:new remplace toutes les zones, mais pair:valid arrive APRÈS et marque
       // les zones avec les mêmes IDs comme validated=true, cachant le nouveau contenu
       // En solo: pas de round:new, donc on doit marquer validated pour masquer visuellement
-      if (!socketConnected || objectiveMode) {
+      if (!socketConnected || objectiveModeRef.current) {
         setZones(prevZones => {
           return prevZones.map(z => {
             if (z.id === aId || z.id === bId) {
@@ -2691,7 +2694,7 @@ const Carte = () => {
     try {
       if (!Array.isArray(zones) || !zones.length) return;
       // Si on est connecté (hors mode objectif) et qu'on a déjà une clé, ne pas surcharger
-      if (socketConnected && !objectiveMode && currentTargetPairKey) return;
+      if (socketConnected && !objectiveModeRef.current && currentTargetPairKey) return;
       // Scanner les zones pour trouver une clé apparaissant sur une paire valide autorisée
       const byKey = new Map(); // key -> [zones]
       for (const z of zones) {
@@ -2716,7 +2719,7 @@ const Carte = () => {
         }
         if (found) break;
       }
-      if ((!socketConnected || objectiveMode) && found && found !== currentTargetPairKeyRef.current) {
+      if ((!socketConnected || objectiveModeRef.current) && found && found !== currentTargetPairKeyRef.current) {
         setCurrentTargetPairKey(found);
       }
     } catch {}
@@ -3498,7 +3501,7 @@ function handleGameClick(zone) {
               setRoundsPlayed(prev => (typeof prev === 'number' ? prev + 1 : 1));
             }
           }
-          if (objectiveMode) {
+          if (objectiveModeRef.current) {
             setRoundsPlayed(prev => (typeof prev === 'number' ? prev + 1 : 1));
           }
           setTimeout(() => {
@@ -3506,7 +3509,10 @@ function handleGameClick(zone) {
             setGameMsg('');
             // En mode multiplayer, le serveur gère la régénération après pair:valid
             // En mode solo ou objectif, on régénère localement (le serveur peut avoir terminé sa session en mode objectif)
-            if (!socketConnected || objectiveMode) {
+            const isObjMode = objectiveModeRef.current || (() => { try { return !!JSON.parse(localStorage.getItem('cc_session_cfg') || 'null')?.objectiveMode; } catch { return false; } })();
+            console.log('[CC] Post-pair regen check:', { socketConnected, objectiveMode: objectiveModeRef.current, isObjMode, willRegen: !socketConnected || isObjMode });
+            if (!socketConnected || isObjMode) {
+              console.log('[CC] Calling safeHandleAutoAssign for board regen');
               safeHandleAutoAssign();
             }
             // Sinon, attendre que le serveur envoie round:new avec les nouvelles zones
@@ -4572,7 +4578,10 @@ setZones(dataWithRandomTexts);
           let assocRoot = assocData.associations || [];
           try {
             const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
-            const selThemes = Array.isArray(cfg?.themes) ? cfg.themes.filter(Boolean).map(String) : [];
+            const selThemesRaw = (cfg?.objectiveMode && Array.isArray(cfg?.objectiveThemes) && cfg.objectiveThemes.length > 0)
+              ? cfg.objectiveThemes
+              : (Array.isArray(cfg?.themes) ? cfg.themes : []);
+            const selThemes = selThemesRaw.filter(Boolean).map(String);
             const selClasses = Array.isArray(cfg?.classes) ? cfg.classes.filter(Boolean).map(String) : [];
             const hasAny = (vals, selected) => {
               const ts = Array.isArray(vals) ? vals.map(String) : [];
