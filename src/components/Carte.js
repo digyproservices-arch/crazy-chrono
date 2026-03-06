@@ -4519,6 +4519,18 @@ setZones(dataWithRandomTexts);
       }
       // Identifie une image "principale" et garantit qu'au moins un texte partage son pairId
       let post = validated.map(z => ({ ...z }));
+
+      // === MODE OBJECTIF: skip post-processing (assignElementsToZones gère déjà tout) ===
+      const _isObjMode = (() => { try { return !!JSON.parse(localStorage.getItem('cc_session_cfg') || 'null')?.objectiveMode; } catch { return false; } })();
+      if (_isObjMode) {
+        console.log('[CC] Objective mode: skipping Admin post-processing, using assignElementsToZones result directly');
+        setZones(post);
+        setCustomTextSettings(newTextSettings);
+        localStorage.setItem('zones', JSON.stringify(post));
+        try { window.ccAddDiag && window.ccAddDiag('zones:assigned:objective', post); } catch {}
+        return;
+      }
+
       // Helper anti-répétition: tire un élément du deck (garantit voir TOUS avant répéter)
       // Remplace les boucles linéaires + mémoire courte (3 items) par le vrai deck system
       const pickFromPool = (deckName, pool, filterFn) => {

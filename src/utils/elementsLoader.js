@@ -157,18 +157,21 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   // Lecture configuration côté client (définie par SessionConfig)
   let cfg = null;
   try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
-  if (cfg && (Array.isArray(cfg.classes) || Array.isArray(cfg.themes) || (cfg.objectiveMode && Array.isArray(cfg.objectiveThemes)))) {
-    const selectedClasses = Array.isArray(cfg.classes) ? cfg.classes : null;
+  const isObjectiveMode = !!(cfg && cfg.objectiveMode && Array.isArray(cfg.objectiveThemes) && cfg.objectiveThemes.length > 0);
+  if (cfg && (Array.isArray(cfg.classes) || Array.isArray(cfg.themes) || isObjectiveMode)) {
+    // En mode objectif: ignorer le filtre de niveau (classes), filtrer UNIQUEMENT par objectiveThemes
+    const selectedClasses = isObjectiveMode ? null : (Array.isArray(cfg.classes) ? cfg.classes : null);
     const LEVEL_ORDER = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"];
     const lvlIdx = Object.fromEntries(LEVEL_ORDER.map((l, i) => [l, i]));
     const maxLvlIdx = selectedClasses ? Math.max(...selectedClasses.map(c => lvlIdx[c] ?? -1)) : 99;
     // En mode objectif thématique, filtrer par objectiveThemes pour que le plateau ne montre QUE les paires des objectifs
-    const rawThemes = (cfg.objectiveMode && Array.isArray(cfg.objectiveThemes) && cfg.objectiveThemes.length > 0)
+    const rawThemes = isObjectiveMode
       ? cfg.objectiveThemes
       : (Array.isArray(cfg.themes) ? cfg.themes : []);
     const selectedThemes = rawThemes.filter(Boolean);
     const matchMode = cfg.themeMatch === 'all' ? 'all' : 'any';
-    const includeUntagged = cfg.includeUntagged !== false; // par défaut true
+    // En mode objectif: pas d'éléments non taggés (on veut UNIQUEMENT les paires des tables choisies)
+    const includeUntagged = isObjectiveMode ? false : (cfg.includeUntagged !== false);
 
     const hasClass = (el) => !selectedClasses || !el?.levelClass || (lvlIdx[el.levelClass] ?? 99) <= maxLvlIdx;
     const hasThemes = (el) => {
@@ -289,7 +292,17 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     return `images/${encodeURIComponent(filename)}`;
   };
 
-  // Zones par type
+  // === MODE OBJECTIF: reconvertir les zones image→calcul et texte→chiffre ===
+  // Opère sur `zones` AVANT la copie dans `result` pour que les filtres par type soient corrects
+  if (isObjectiveMode) {
+    for (const z of zones) {
+      if ((z.type || 'image') === 'image') { z.type = 'calcul'; z.content = ''; z.label = ''; z.pairId = ''; }
+      else if (z.type === 'texte') { z.type = 'chiffre'; z.content = ''; z.label = ''; z.pairId = ''; }
+    }
+    console.log('[elementsLoader] Objective mode: converted all zones to calcul/chiffre (' + zones.filter(z=>z.type==='calcul').length + ' calcul, ' + zones.filter(z=>z.type==='chiffre').length + ' chiffre)');
+  }
+
+  // Zones par type (après conversion éventuelle)
   const imageZones = zones.filter(z => (z.type || 'image') === 'image');
   const texteZones = zones.filter(z => z.type === 'texte');
   const calculZones = zones.filter(z => z.type === 'calcul');
@@ -305,10 +318,13 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   const used = { image: new Set(), texte: new Set(), calcul: new Set(), chiffre: new Set() };
 
   // Sélectionne le type de paire à poser sans priorité: TI ou CC au hasard si les deux sont possibles
+  // En mode objectif: TOUJOURS CC (calcul-chiffre uniquement)
   let placedPairType = null;
-  const canTI = imageZones.length && texteZones.length && imageIds.length && texteIds.length;
+  const canTI = !isObjectiveMode && imageZones.length && texteZones.length && imageIds.length && texteIds.length;
   const canCC = calculZones.length && chiffreZones.length && calculIds.length && chiffreIds.length;
-  if (canTI && canCC) {
+  if (isObjectiveMode) {
+    placedPairType = canCC ? 'CC' : null;
+  } else if (canTI && canCC) {
     placedPairType = (typeof rng === 'function' ? (rng() < 0.5) : (Math.random() < 0.5)) ? 'TI' : 'CC';
   } else if (canTI) {
     placedPairType = 'TI';
