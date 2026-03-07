@@ -460,7 +460,7 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     if (type === 'image' && !z.content) {
       const imgId = pickImageDistractor(forbiddenTextIds);
       if (imgId) {
-        z.content = encodedImageUrl(imagesById[imgId]?.url || ''); used.image.add(imgId); z.isDistractor = true;
+        z.content = encodedImageUrl(imagesById[imgId]?.url || ''); used.image.add(imgId); z.isDistractor = true; z._distId = imgId;
         // Update forbidden: prevent associated textes from being placed
         const assocT = imageToTextes.get(imgId);
         if (assocT) assocT.forEach(tId => forbiddenTextIds.add(tId));
@@ -470,7 +470,7 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     } else if (type === 'texte' && !z.content) {
       const tId = pickTexteDistractor(forbiddenImageIds);
       if (tId) {
-        z.content = localizeText(textesById[tId]?.content || '', locMap); used.texte.add(tId); z.isDistractor = true;
+        z.content = localizeText(textesById[tId]?.content || '', locMap); used.texte.add(tId); z.isDistractor = true; z._distId = tId;
         // Update forbidden: prevent associated images from being placed
         const assocI = texteToImages.get(tId);
         if (assocI) assocI.forEach(imgId => forbiddenImageIds.add(imgId));
@@ -548,6 +548,45 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       }
     }
   }
+
+  // ===== POST-VALIDATION: détecter et corriger les fausses paires visuelles texte-image =====
+  try {
+    const distImages = result.filter(z => z.isDistractor && (z.type || 'image') === 'image' && z._distId);
+    const distTextes = result.filter(z => z.isDistractor && z.type === 'texte' && z._distId);
+    for (const imgZ of distImages) {
+      const assocTxtIds = imageToTextes.get(imgZ._distId);
+      if (!assocTxtIds) continue;
+      for (const txtZ of distTextes) {
+        if (assocTxtIds.has(txtZ._distId)) {
+          console.warn('[elementsLoader] POST-VALIDATION: fausse paire visuelle détectée — image', imgZ._distId, '+ texte', txtZ._distId, '— remplacement du texte');
+          const replacement = _drawFromDeck('distTxt', texteIds, rng, (candidateId) => {
+            if (used.texte.has(candidateId)) return false;
+            const ci = texteToImages.get(candidateId);
+            if (!ci) return true;
+            // Vérifier que ce candidat ne forme pas de fausse paire avec AUCUNE image placée
+            for (const dImg of distImages) {
+              if (dImg._distId && ci.has(dImg._distId)) return false;
+            }
+            // Vérifier aussi contre l'image de la bonne paire
+            if (goodPairIds?.imageId && ci.has(goodPairIds.imageId)) return false;
+            return true;
+          });
+          if (replacement) {
+            txtZ.content = localizeText(textesById[replacement]?.content || '', locMap);
+            used.texte.add(replacement);
+            txtZ._distId = replacement;
+          } else {
+            txtZ.content = '';
+            txtZ._distId = null;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[elementsLoader] POST-VALIDATION error:', e);
+  }
+  // Nettoyage: supprimer _distId temporaire des zones
+  for (const z of result) delete z._distId;
 
   // Increment round counter for logging (via monitoring pipeline)
   if (_deckState) {

@@ -20,6 +20,7 @@ export const INCIDENT_TYPES = {
   ZERO_VALID_PAIRS: 'zero_valid_pairs',   // Carte générée sans aucune paire valide
   MULTIPLE_TARGETS: 'multiple_targets',   // Plus d'une paire cible sur la carte
   FALSE_CALC_NUM_PAIR: 'false_calc_num_pair', // Distractor calcul dont le résultat = distractor chiffre
+  FALSE_TEXT_IMAGE_PAIR: 'false_text_image_pair', // Distractor texte + distractor image forment une association valide
 };
 
 const SEVERITY = {
@@ -33,6 +34,7 @@ const SEVERITY = {
   [INCIDENT_TYPES.ZERO_VALID_PAIRS]: 'critical',
   [INCIDENT_TYPES.MULTIPLE_TARGETS]: 'critical',
   [INCIDENT_TYPES.FALSE_CALC_NUM_PAIR]: 'critical',
+  [INCIDENT_TYPES.FALSE_TEXT_IMAGE_PAIR]: 'critical',
 };
 
 // ── Device info helper ─────────────────────────────────────

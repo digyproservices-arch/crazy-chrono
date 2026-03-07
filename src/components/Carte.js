@@ -7,7 +7,7 @@ import { getBackendUrl } from '../utils/subscription';
 import { getAuthHeaders } from '../utils/apiHelpers';
 import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck } from '../utils/elementsLoader';
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
-import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError } from '../utils/gameIncidentTracker';
+import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError, reportIncident as incidentReportIncident, INCIDENT_TYPES as INCIDENT_TYPES_TRACKER } from '../utils/gameIncidentTracker';
 import { isFree, canStartSessionToday, incrementSessionCount, setSubscriptionStatus } from '../utils/subscription';
 
 import { initMasteryTracker, resetMasterySession, recordPair as masteryRecordPair, getActiveSessionProgress, getMasteryProgress, isMasteryReady, syncToServer as masterySyncToServer, loadFromServer as masteryLoadFromServer } from '../utils/masteryTracker';
@@ -4561,6 +4561,33 @@ setZones(dataWithRandomTexts);
         console.log('[CC] Objective mode pairId zones:', pairZones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 40), pairId: z.pairId })));
         // Monitoring: valider les zones en mode objectif aussi
         try { incidentValidateZones(post, { source: 'objective:assignElements' }); } catch {}
+        // Détection fausses paires visuelles texte-image via associations
+        try {
+          if (assocData && assocData.associations) {
+            const _imgTxtSet = new Set((assocData.associations || []).filter(a => a.imageId && a.texteId).map(a => `${a.imageId}|${a.texteId}`));
+            const _normUrl = (p) => { if (!p) return ''; try { p = decodeURIComponent(p); } catch {} return p.toLowerCase().replace(/\\/g, '/').split('/').pop(); };
+            const _imgIdByFile = new Map((assocData.images || []).map(i => [_normUrl(i.url), String(i.id)]));
+            const _txtIdByCont = new Map((assocData.textes || []).map(t => [String(t.content || '').trim().toLowerCase(), String(t.id)]));
+            const _distImgs = post.filter(z => z.isDistractor && (z.type || 'image') === 'image' && z.content);
+            const _distTxts = post.filter(z => z.isDistractor && z.type === 'texte' && z.content);
+            for (const iz of _distImgs) {
+              const iId = _imgIdByFile.get(_normUrl(iz.content));
+              if (!iId) continue;
+              for (const tz of _distTxts) {
+                const tId = _txtIdByCont.get(String(tz.content || '').trim().toLowerCase());
+                if (tId && _imgTxtSet.has(`${iId}|${tId}`)) {
+                  incidentReportIncident(INCIDENT_TYPES_TRACKER.FALSE_TEXT_IMAGE_PAIR, {
+                    imageZoneId: iz.id, imageContent: String(iz.content || '').substring(0, 60),
+                    texteZoneId: tz.id, texteContent: String(tz.content || '').substring(0, 60),
+                    imageId: iId, texteId: tId,
+                    message: `Fausse paire visuelle: image "${_normUrl(iz.content)}" + texte "${String(tz.content || '').substring(0, 30)}" sont associés mais placés comme distracteurs`,
+                    source: 'objective:assignElements'
+                  });
+                }
+              }
+            }
+          }
+        } catch (e) { console.warn('[CC] Erreur détection fausse paire TI:', e); }
         setZones(post);
         setCustomTextSettings(objTextSettings);
         localStorage.setItem('zones', JSON.stringify(post));
@@ -6237,6 +6264,33 @@ setZones(dataWithRandomTexts);
       });
       // Vérifier les anomalies sur les zones générées
       try { incidentValidateZones(post, { source: 'solo:assignElements' }); } catch {}
+      // Détection fausses paires visuelles texte-image via associations (mode solo)
+      try {
+        if (assocData && assocData.associations) {
+          const _imgTxtSet = new Set((assocData.associations || []).filter(a => a.imageId && a.texteId).map(a => `${a.imageId}|${a.texteId}`));
+          const _normUrl = (p) => { if (!p) return ''; try { p = decodeURIComponent(p); } catch {} return p.toLowerCase().replace(/\\/g, '/').split('/').pop(); };
+          const _imgIdByFile = new Map((assocData.images || []).map(i => [_normUrl(i.url), String(i.id)]));
+          const _txtIdByCont = new Map((assocData.textes || []).map(t => [String(t.content || '').trim().toLowerCase(), String(t.id)]));
+          const _distImgs = post.filter(z => z.isDistractor && (z.type || 'image') === 'image' && z.content);
+          const _distTxts = post.filter(z => z.isDistractor && z.type === 'texte' && z.content);
+          for (const iz of _distImgs) {
+            const iId = _imgIdByFile.get(_normUrl(iz.content));
+            if (!iId) continue;
+            for (const tz of _distTxts) {
+              const tId = _txtIdByCont.get(String(tz.content || '').trim().toLowerCase());
+              if (tId && _imgTxtSet.has(`${iId}|${tId}`)) {
+                incidentReportIncident(INCIDENT_TYPES_TRACKER.FALSE_TEXT_IMAGE_PAIR, {
+                  imageZoneId: iz.id, imageContent: String(iz.content || '').substring(0, 60),
+                  texteZoneId: tz.id, texteContent: String(tz.content || '').substring(0, 60),
+                  imageId: iId, texteId: tId,
+                  message: `Fausse paire visuelle: image "${_normUrl(iz.content)}" + texte "${String(tz.content || '').substring(0, 30)}" sont associés mais placés comme distracteurs`,
+                  source: 'solo:assignElements'
+                });
+              }
+            }
+          }
+        }
+      } catch (e) { console.warn('[CC] Erreur détection fausse paire TI (solo):', e); }
       
       // Enregistrer dans le monitoring backend automatiquement
       try {
