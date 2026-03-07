@@ -98,22 +98,39 @@ function MonitoringDashboard() {
   const fetchIncidents = useCallback(async () => {
     try {
       setIncidentsLoading(true);
-      const token = getAuthToken();
-      const backendUrl = getBackendUrl();
-      const sevParam = incidentSeverityFilter !== 'all' ? `&severity=${incidentSeverityFilter}` : '';
-      const res = await fetch(`${backendUrl}/api/monitoring/incidents?limit=200${sevParam}`, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if (data.ok) setIncidents(data.incidents || []);
-    } catch (err) {
-      console.error('[Monitoring] Error fetching incidents:', err);
-      // Fallback: load from localStorage
+      let backendIncidents = [];
+      // 1) Tenter le backend
       try {
-        const local = JSON.parse(localStorage.getItem('cc_game_incidents') || '[]');
-        setIncidents(local);
+        const token = getAuthToken();
+        const backendUrl = getBackendUrl();
+        const sevParam = incidentSeverityFilter !== 'all' ? `&severity=${incidentSeverityFilter}` : '';
+        const res = await fetch(`${backendUrl}/api/monitoring/incidents?limit=200${sevParam}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok) backendIncidents = data.incidents || [];
+        }
+      } catch (err) {
+        console.warn('[Monitoring] Backend incidents fetch failed:', err.message);
+      }
+      // 2) Toujours charger localStorage (incidents générés hors auth, mode solo/objectif)
+      let localIncidents = [];
+      try {
+        localIncidents = JSON.parse(localStorage.getItem('cc_game_incidents') || '[]');
       } catch {}
+      // 3) Fusionner et dédupliquer par id, trier par date décroissante
+      const byId = new Map();
+      for (const inc of [...backendIncidents, ...localIncidents]) {
+        const key = inc.id || `${inc.type}_${inc.timestamp}`;
+        if (!byId.has(key)) byId.set(key, inc);
+      }
+      const merged = [...byId.values()].sort((a, b) => {
+        const ta = new Date(a.timestamp || 0).getTime();
+        const tb = new Date(b.timestamp || 0).getTime();
+        return tb - ta;
+      }).slice(0, 200);
+      setIncidents(merged);
     } finally {
       setIncidentsLoading(false);
     }
