@@ -4929,7 +4929,15 @@ setZones(dataWithRandomTexts);
           const canImgTxt = imagesIdx.length > 0 && textesIdx.length > 0 && textImageArr.length > 0;
           const canCalcNum = calculsIdx.length > 0 && chiffresIdx.length > 0 && calcNumArr.length > 0;
           console.debug('[ASSOC] Disponibilité', { canImgTxt, canCalcNum, zones: { images: imagesIdx.length, textes: textesIdx.length, calculs: calculsIdx.length, chiffres: chiffresIdx.length } });
-          const order = (canImgTxt && canCalcNum) ? (rng() < 0.5 ? ['imgtxt','calcnum'] : ['calcnum','imgtxt']) : (canImgTxt ? ['imgtxt'] : (canCalcNum ? ['calcnum'] : []));
+
+          // ── GUARD: si assignElementsToZones a déjà placé une paire, ne PAS en poser une deuxième ──
+          const _existingPairs = post.filter(z => (z.pairId || '').trim());
+          if (_existingPairs.length >= 2) {
+            hadAnyAdminPairAssigned = true;
+            console.log('[CC] assignElementsToZones already placed a pair — skipping Admin pair placement', _existingPairs.map(z => ({ id: z.id, type: z.type, pairId: z.pairId })));
+          }
+
+          const order = hadAnyAdminPairAssigned ? [] : ((canImgTxt && canCalcNum) ? (rng() < 0.5 ? ['imgtxt','calcnum'] : ['calcnum','imgtxt']) : (canImgTxt ? ['imgtxt'] : (canCalcNum ? ['calcnum'] : [])));
 
           for (const kind of order) {
             if (kind === 'imgtxt') {
@@ -6440,11 +6448,12 @@ setZones(dataWithRandomTexts);
         try {
           const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
           const allow = !!cfg?.allowEmptyMathWhenNoData;
+          const isObjMode = !!cfg?.objectiveMode;
           const hasMathAssoc = (() => {
             const d = window.__CC_LAST_FILTER_COUNTS__ || {};
             return Number(d?.calcNum) > 0;
           })();
-          if (allow && !hasMathAssoc) {
+          if (allow && !hasMathAssoc && !isObjMode) {
             return (
               <div style={{ position: 'fixed', top: 44, right: 8, zIndex: 8, background: 'rgba(245,158,11,0.95)', color: '#111827', padding: '6px 10px', borderRadius: 999, border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 6px 18px rgba(0,0,0,0.18)', fontSize: 12 }}>
                 Zones calcul/chiffre volontairement vides (pas de données pour cette configuration)
