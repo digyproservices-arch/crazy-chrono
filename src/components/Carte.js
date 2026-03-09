@@ -1442,6 +1442,16 @@ const Carte = () => {
             });
             setCalcAngles(initAngles);
             setMathOffsets({});
+            // FIX: Sync customTextSettings pour afficher le bon contenu texte
+            try { const _ts={}; trainingData.zones.forEach(z=>{if(z.type==='texte')_ts[z.id]={ fontSize:32, fontFamily:'Arial', color:'#fff', angle:0, text:z.content||'' };}); setCustomTextSettings(_ts); } catch(e){}
+            // FIX: Synchroniser customTextSettings pour l'initial training
+            const _newTxtSettings = {};
+            trainingData.zones.forEach(z => {
+              if (z.type === 'texte') {
+                _newTxtSettings[z.id] = { fontSize: 32, fontFamily: 'Arial', color: '#fff', angle: 0, text: z.content || '' };
+              }
+            });
+            setCustomTextSettings(_newTxtSettings);
             setTimeLeft(trainingData.duration || 60);
             
             // Démarrer le jeu automatiquement (comme Arena)
@@ -1509,6 +1519,8 @@ const Carte = () => {
           });
           setCalcAngles(serverAngles);
           setMathOffsets({});
+          // FIX: Sync customTextSettings pour afficher le bon contenu texte
+          try { const _ts={}; cleanZones.forEach(z=>{if(z.type==='texte')_ts[z.id]={ fontSize:32, fontFamily:'Arial', color:'#fff', angle:0, text:z.content||'' };}); setCustomTextSettings(_ts); } catch(e){}
           console.log('[TRAINING] ✅ Zones mises à jour:', cleanZones.length, 'angles synced:', Object.keys(serverAngles).length);
         }
 
@@ -1761,6 +1773,8 @@ const Carte = () => {
         });
         setCalcAngles(tbAngles);
         setMathOffsets({});
+        // FIX: Sync customTextSettings pour afficher le bon contenu texte
+        try { const _ts={}; cleanZones.forEach(z=>{if(z.type==='texte')_ts[z.id]={ fontSize:32, fontFamily:'Arial', color:'#fff', angle:0, text:z.content||'' };}); setCustomTextSettings(_ts); } catch(e){}
         // NE PAS mettre à jour gameDuration (pas de chrono pour tiebreaker)
         setGameActive(true);
         // setStartTime n'existe pas - pas nécessaire pour tiebreaker (pas de timer)
@@ -1825,6 +1839,8 @@ const Carte = () => {
           });
           setCalcAngles(serverAngles);
           setMathOffsets({});
+          // FIX: Sync customTextSettings pour afficher le bon contenu texte
+          try { const _ts={}; cleanZones.forEach(z=>{if(z.type==='texte')_ts[z.id]={ fontSize:32, fontFamily:'Arial', color:'#fff', angle:0, text:z.content||'' };}); setCustomTextSettings(_ts); } catch(e){}
           console.log('[ARENA] ✅ Zones mises à jour (validated=false forcé):', cleanZones.length, 'angles synced:', Object.keys(serverAngles).length);
         }
         
@@ -1987,6 +2003,8 @@ const Carte = () => {
           if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
             try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: payload.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: payload.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
             setZones(payload.zones);
+            // FIX: Sync customTextSettings pour afficher le bon contenu texte
+            try { const _ts={}; payload.zones.forEach(z=>{if(z.type==='texte')_ts[z.id]={ fontSize:32, fontFamily:'Arial', color:'#fff', angle:0, text:z.content||'' };}); setCustomTextSettings(_ts); } catch(e){}
             setPreparing(false);
           }
           setGameActive(true);
@@ -2312,6 +2330,8 @@ const Carte = () => {
         
         try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: payload.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: payload.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
         setZones(payload.zones);
+        // FIX: Sync customTextSettings pour afficher le bon contenu texte
+        try { const _ts={}; payload.zones.forEach(z=>{if(z.type==='texte')_ts[z.id]={ fontSize:32, fontFamily:'Arial', color:'#fff', angle:0, text:z.content||'' };}); setCustomTextSettings(_ts); } catch(e){}
         setPreparing(false);
       } else {
         // Fallback sur génération locale si le serveur n'envoie pas de zones
@@ -4546,9 +4566,20 @@ setZones(dataWithRandomTexts);
         });
         return picked ? byId.get(picked) : null;
       };
-      // Identifie une image "principale" et garantit qu'au moins un texte partage son pairId
       let post = validated.map(z => ({ ...z }));
 
+      // FIX CRITIQUE: Reconstruire newTextSettings depuis validated (2eme assignElementsToZones)
+      // Le 1er appel sans assocData produit des textes differents du 2eme avec assocData
+      post.forEach(zone => {
+        if (zone.type === 'texte') {
+          newTextSettings[zone.id] = {
+            ...defaultTextSettings,
+            text: zone.content || ''
+          };
+        }
+      });
+
+      // Identifie une image "principale" et garantit qu'au moins un texte partage son pairId
       // === MODE OBJECTIF: skip post-processing (assignElementsToZones gère déjà tout) ===
       const _isObjMode = (() => { try { return !!JSON.parse(localStorage.getItem('cc_session_cfg') || 'null')?.objectiveMode; } catch { return false; } })();
       if (_isObjMode) {
