@@ -23,6 +23,149 @@ function normText(t) {
 }
 
 /**
+ * Evaluate a calcul expression and return numeric result.
+ * Handles: "A + B", "A - B", "A × B", "A ÷ B", "A op ? = C", FR decimals,
+ * textual formats ("le double de X", "la moitié de X", etc.)
+ */
+function evalCalc(expr) {
+  if (!expr) return null;
+  let s = String(expr).trim();
+
+  // Textual: "le/la double/moitié/tiers/quart/triple de X"
+  const txtMatch = s.match(/(?:le|la)\s+(double|moiti[eé]|tiers|quart|triple)\s+de\s+([\d\s,.]+)/i);
+  if (txtMatch) {
+    const num = parseFloat(txtMatch[2].replace(/\s/g, '').replace(',', '.'));
+    if (isNaN(num)) return null;
+    switch (txtMatch[1].toLowerCase()) {
+      case 'double': return num * 2;
+      case 'triple': return num * 3;
+      case 'moitie': case 'moitié': return num / 2;
+      case 'tiers': return num / 3;
+      case 'quart': return num / 4;
+      default: return null;
+    }
+  }
+
+  // Unknown: "A op ? = C"
+  const unkMatch = s.match(/([\d\s,.]+)\s*([+\-×x*÷\/])\s*\?\s*=\s*([\d\s,.]+)/);
+  if (unkMatch) {
+    const c = parseFloat(unkMatch[3].replace(/\s/g, '').replace(',', '.'));
+    if (isNaN(c)) return null;
+    return Math.round(c * 1e8) / 1e8;
+  }
+
+  // Standard: "A op B"
+  const stdMatch = s.match(/([\d\s,.]+)\s*([+\-×x*÷\/])\s*([\d\s,.]+)/);
+  if (stdMatch) {
+    const a = parseFloat(stdMatch[1].replace(/\s/g, '').replace(',', '.'));
+    const op = stdMatch[2];
+    const b = parseFloat(stdMatch[3].replace(/\s/g, '').replace(',', '.'));
+    if (isNaN(a) || isNaN(b)) return null;
+    let result;
+    switch (op) {
+      case '+': result = a + b; break;
+      case '-': result = a - b; break;
+      case '×': case 'x': case '*': result = a * b; break;
+      case '÷': case '/': result = b !== 0 ? a / b : null; break;
+      default: return null;
+    }
+    return result !== null ? Math.round(result * 1e8) / 1e8 : null;
+  }
+
+  return null;
+}
+
+function parseChiffre(content) {
+  if (!content) return null;
+  const s = String(content).trim().replace(/\s/g, '').replace(',', '.');
+  const n = parseFloat(s);
+  return isNaN(n) ? null : Math.round(n * 1e8) / 1e8;
+}
+
+/**
+ * Detect false calc-chiffre pairs among distractors and verify official pair math.
+ */
+function analyzeCalcNumPairs(zones) {
+  const issues = [];
+  const calculZones = zones.filter(z => z.type === 'calcul');
+  const chiffreZones = zones.filter(z => z.type === 'chiffre');
+  if (calculZones.length === 0 || chiffreZones.length === 0) return issues;
+
+  const calculs = calculZones.map(z => ({
+    zone: z, value: evalCalc(z.content), isPaired: !!(z.pairId || '').trim()
+  }));
+  const chiffres = chiffreZones.map(z => ({
+    zone: z, value: parseChiffre(z.content), isPaired: !!(z.pairId || '').trim()
+  }));
+
+  // 1) Official pair math correctness
+  for (const calc of calculs) {
+    if (!calc.isPaired || calc.value === null) continue;
+    const pid = (calc.zone.pairId || '').trim();
+    const paired = chiffres.find(c => (c.zone.pairId || '').trim() === pid);
+    if (paired && paired.value !== null && calc.value !== paired.value) {
+      issues.push({
+        type: 'OFFICIAL_PAIR_MATH_ERROR', severity: 'critical',
+        calculZoneId: calc.zone.id, calculContent: String(calc.zone.content || '').substring(0, 50),
+        calculResult: calc.value, chiffreZoneId: paired.zone.id,
+        chiffreContent: String(paired.zone.content || '').substring(0, 20),
+        chiffreValue: paired.value, pairId: pid,
+        message: `Paire officielle incorrecte: "${calc.zone.content}" = ${calc.value}, mais chiffre = ${paired.value}`
+      });
+    }
+  }
+
+  // 2) Distractor calc x distractor chiffre false pairs
+  const dCalcs = calculs.filter(c => !c.isPaired && c.value !== null);
+  const dChiffres = chiffres.filter(c => !c.isPaired && c.value !== null);
+  for (const calc of dCalcs) {
+    for (const ch of dChiffres) {
+      if (calc.value === ch.value) {
+        issues.push({
+          type: 'FALSE_CALC_NUM_PAIR', severity: 'critical',
+          calculZoneId: calc.zone.id, calculContent: String(calc.zone.content || '').substring(0, 50),
+          calculResult: calc.value, chiffreZoneId: ch.zone.id,
+          chiffreContent: String(ch.zone.content || '').substring(0, 20), chiffreValue: ch.value,
+          message: `Fausse paire calcul-chiffre: "${calc.zone.content}" = ${calc.value} et chiffre "${ch.zone.content}" = ${ch.value}`
+        });
+      }
+    }
+  }
+
+  // 3) Cross-contamination: distractor matches paired value
+  const pChiffres = chiffres.filter(c => c.isPaired && c.value !== null);
+  const pCalcs = calculs.filter(c => c.isPaired && c.value !== null);
+  for (const calc of dCalcs) {
+    for (const ch of pChiffres) {
+      if (calc.value === ch.value) {
+        issues.push({
+          type: 'DISTRACTOR_MATCHES_PAIRED', severity: 'warning',
+          calculZoneId: calc.zone.id, calculContent: String(calc.zone.content || '').substring(0, 50),
+          calculResult: calc.value, chiffreZoneId: ch.zone.id,
+          chiffreContent: String(ch.zone.content || '').substring(0, 20), chiffreValue: ch.value,
+          message: `Distracteur calcul "${calc.zone.content}" = ${calc.value} matches paired chiffre "${ch.zone.content}"`
+        });
+      }
+    }
+  }
+  for (const ch of dChiffres) {
+    for (const calc of pCalcs) {
+      if (calc.value === ch.value) {
+        issues.push({
+          type: 'DISTRACTOR_MATCHES_PAIRED', severity: 'warning',
+          calculZoneId: calc.zone.id, calculContent: String(calc.zone.content || '').substring(0, 50),
+          calculResult: calc.value, chiffreZoneId: ch.zone.id,
+          chiffreContent: String(ch.zone.content || '').substring(0, 20), chiffreValue: ch.value,
+          message: `Distracteur chiffre "${ch.zone.content}" = ${ch.value} matches paired calcul "${calc.zone.content}"`
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+/**
  * Analyse les zones d'une manche pour détecter les doubles paires visuelles.
  * Utilise les IDs des éléments via assocData (fiable) ET un fallback par contenu.
  */
@@ -138,8 +281,12 @@ export function logRound(zones, options = {}) {
 
   const { mode, source, assocData, extra } = options;
 
-  // Analyse double paires
+  // Analyse double paires texte-image
   const doublePairIssues = analyzeDoublePairs(zones, assocData);
+
+  // Analyse fausses paires calcul-chiffre
+  const calcNumIssues = analyzeCalcNumPairs(zones);
+  doublePairIssues.push(...calcNumIssues);
 
   // Résumé zones
   const summary = summarizeZones(zones);

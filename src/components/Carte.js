@@ -5644,9 +5644,10 @@ setZones(dataWithRandomTexts);
       );
       post = post.map(z => {
         if (z?.type !== 'calcul' || !z?.content) return z;
-        // Ne pas casser le calcul sélectionné via Admin
+        // Ne pas casser le calcul sélectionné via Admin NI le calcul de la paire officielle
         const thisIdx = post.indexOf(z);
         if (selectedCalcIdxs.has(thisIdx)) return z;
+        if ((z.pairId || '').trim()) return z;
         let parsed = parseOperation(z.content);
         if (!parsed) return z;
         let { a, b, op, result } = parsed;
