@@ -2002,6 +2002,8 @@ const Carte = () => {
           try { if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } } catch {}
           if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
             try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: payload.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: payload.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
+            try { incidentValidateZones(payload.zones, { source: 'gs:round-new' }); } catch {}
+            try { logRound(payload.zones, { mode: 'gs', source: 'gs:round-new' }); } catch {}
             setZones(payload.zones);
             // FIX: Sync customTextSettings pour afficher le bon contenu texte
             try { const _ts={}; payload.zones.forEach(z=>{if(z.type==='texte')_ts[z.id]={ fontSize:32, fontFamily:'Arial', color:'#fff', angle:0, text:z.content||'' };}); setCustomTextSettings(_ts); } catch(e){}
@@ -4626,6 +4628,47 @@ setZones(dataWithRandomTexts);
             }
           }
         } catch (e) { console.warn('[CC] Erreur détection fausse paire TI:', e); }
+        // ANTI-FAUSSE-PAIRE IMAGE-TEXTE (mode objectif): remplacer les textes distracteurs formant paire avec une image présente
+        try {
+          if (assocData && assocData.associations) {
+            const _norm = (s) => String(s || '').trim().toLowerCase();
+            const _normUrl2 = (p) => { if (!p) return ''; let s = p; try { s = decodeURIComponent(s); } catch {} s = s.toLowerCase().replace(/\\/g, '/'); const pub = (process.env.PUBLIC_URL || '').toLowerCase(); if (pub && s.startsWith(pub)) s = s.slice(pub.length); if (s.startsWith('/')) s = s.slice(1); return s; };
+            const _allTextes = assocData.textes || [];
+            const _allImages = assocData.images || [];
+            const _imgTxtPairs2 = new Set((assocData.associations || []).filter(a => a.imageId && a.texteId).map(a => `${a.imageId}|${a.texteId}`));
+            const _imgIdByUrl2 = new Map(_allImages.map(it => [_normUrl2(it.url || it.path || it.src || ''), it.id]));
+            const _txtIdByCont2 = new Map(_allTextes.map(t => [_norm(t.content), String(t.id)]));
+            const _presentImgIds = new Set(post.filter(z => (z.type || 'image') === 'image').map(z => _imgIdByUrl2.get(_normUrl2(z.content || ''))).filter(Boolean).map(String));
+            const _usedSafe2 = new Set();
+            post = post.map(z => {
+              if (z.type !== 'texte') return z;
+              if ((z.pairId || '').trim()) return z;
+              const adminTxtId = _txtIdByCont2.get(_norm(z.content));
+              if (!adminTxtId) return z;
+              let wouldPair = false;
+              for (const imgId of _presentImgIds) {
+                if (_imgTxtPairs2.has(`${imgId}|${adminTxtId}`)) { wouldPair = true; break; }
+              }
+              if (!wouldPair) return z;
+              const safe = _allTextes.filter(t => {
+                if (_usedSafe2.has(String(t.id))) return false;
+                if (_norm(t.content) === _norm(z.content)) return false;
+                for (const imgId of _presentImgIds) {
+                  if (_imgTxtPairs2.has(`${imgId}|${t.id}`)) return false;
+                }
+                return true;
+              });
+              if (safe.length) {
+                const pick = safe[Math.floor(rng() * safe.length)];
+                _usedSafe2.add(String(pick.id));
+                console.warn('[CC][OBJ] ANTI-FAUSSE-PAIRE: texte "' + z.content + '" remplacé par "' + pick.content + '"');
+                objTextSettings[z.id] = { ...defaultTextSettings, ...(objTextSettings[z.id] || {}), text: pick.content || '' };
+                return { ...z, content: pick.content, label: pick.content };
+              }
+              return z;
+            });
+          }
+        } catch (e) { console.warn('[CC][OBJ] Erreur anti-fausse-paire:', e); }
         setZones(post);
         setCustomTextSettings(objTextSettings);
         localStorage.setItem('zones', JSON.stringify(post));

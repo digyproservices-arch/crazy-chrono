@@ -546,6 +546,7 @@ class CrazyArenaManager {
       }))
     });
     
+    try { validateZonesServer(zones, { source: 'training:game-start', matchId: matchId.slice(-8) }); } catch (e) { logger.warn('[CrazyArena][Training] Zone validation error:', e.message); }
     this.io.to(matchId).emit('training:game-start', gameStartPayload);
 
     // 💾 PERSISTENCE: Créer session + résultats initiaux en DB
@@ -594,6 +595,7 @@ class CrazyArenaManager {
           });
           
           // Émettre nouvelle carte à tous les joueurs
+          try { validateZonesServer(newZones, { source: 'training:round-new', matchId: matchId.slice(-8), roundIndex: match.roundsPlayed }); } catch (e) { logger.warn('[CrazyArena][Training] Zone validation error (round-new):', e.message); }
           this.io.to(matchId).emit('training:round-new', {
             zones: newZones,
             roundIndex: match.roundsPlayed,
@@ -1074,6 +1076,7 @@ class CrazyArenaManager {
               timestamp: Date.now()
             };
             
+            try { validateZonesServer(newZones, { source: 'training:tiebreaker-round', matchId: matchId.slice(-8) }); } catch (e) { logger.warn('[CrazyArena][Training] Zone validation error (tiebreaker):', e.message); }
             this.io.to(matchId).emit('training:round-new', payload);
             
             logger.info('[CrazyArena][Training] Événement training:round-new émis (tiebreaker)', { 
@@ -1216,6 +1219,7 @@ class CrazyArenaManager {
             timestamp: Date.now()
           };
           
+          try { validateZonesServer(newZones, { source: 'training:round-new-normal', matchId: matchId.slice(-8), roundIndex: match.roundsPlayed }); } catch (e) { logger.warn('[CrazyArena][Training] Zone validation error (normal):', e.message); }
           this.io.to(matchId).emit('training:round-new', roundPayload);
           
           logger.info('[CrazyArena][Training] Événement training:round-new émis (mode normal)', { 

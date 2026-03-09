@@ -4,6 +4,8 @@
 // (double PA, fausse paire calcul-chiffre, etc.)
 // ============================================================
 
+const fs = require('fs');
+const path = require('path');
 const winston = require('winston');
 const logger = winston.createLogger({
   level: 'info',
@@ -133,6 +135,49 @@ function validateZonesServer(zones, context = {}) {
     }
   } catch (e) {
     logger.warn(`${prefix} Erreur détection false calc-num pair:`, e.message);
+  }
+
+  // FALSE_TEXT_IMAGE_PAIR: distractor image + distractor texte formant une association valide
+  try {
+    // Charger associations.json (cache en mémoire)
+    if (!validateZonesServer._assocCache) {
+      try {
+        const assocPath = path.join(__dirname, '..', '..', 'public', 'data', 'associations.json');
+        validateZonesServer._assocCache = JSON.parse(fs.readFileSync(assocPath, 'utf-8'));
+      } catch { validateZonesServer._assocCache = {}; }
+    }
+    const assoc = validateZonesServer._assocCache;
+    if (assoc && assoc.associations && assoc.images && assoc.textes) {
+      const normUrl = (p) => { if (!p) return ''; let s = String(p); try { s = decodeURIComponent(s); } catch {} return s.toLowerCase().replace(/\\/g, '/').replace(/.*\/images\//, '').replace(/%20/g, ' '); };
+      const normTxt = (s) => String(s || '').trim().toLowerCase();
+      const imgTxtPairs = new Set((assoc.associations || []).filter(a => a.imageId && a.texteId).map(a => `${a.imageId}|${a.texteId}`));
+      const imgIdByUrl = new Map((assoc.images || []).map(i => [normUrl(i.url || i.path || i.src || ''), String(i.id)]));
+      const txtIdByCont = new Map((assoc.textes || []).map(t => [normTxt(t.content), String(t.id)]));
+      const distractorImgs = zones.filter(z => !z.validated && normalizeType(z.type) === 'image' && !(z.pairId || '').trim());
+      const distractorTxts = zones.filter(z => !z.validated && normalizeType(z.type) === 'texte' && !(z.pairId || '').trim());
+      for (const iz of distractorImgs) {
+        const iId = imgIdByUrl.get(normUrl(iz.content));
+        if (!iId) continue;
+        for (const tz of distractorTxts) {
+          const tId = txtIdByCont.get(normTxt(tz.content));
+          if (tId && imgTxtPairs.has(`${iId}|${tId}`)) {
+            const details = {
+              type: 'FALSE_TEXT_IMAGE_PAIR',
+              imageZoneId: iz.id,
+              imageContent: (iz.content || '').substring(0, 60),
+              texteZoneId: tz.id,
+              texteContent: (tz.content || '').substring(0, 60),
+              imageId: iId, texteId: tId,
+              ...context,
+            };
+            logger.error(`${prefix} CRITICAL: Fausse paire image-texte: "${normUrl(iz.content)}" + "${(tz.content || '').substring(0, 30)}"`, details);
+            anomalies.push(details);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    logger.warn(`${prefix} Erreur détection false text-image pair:`, e.message);
   }
 
   // ORPHAN_ZONE: pairId avec une seule zone
