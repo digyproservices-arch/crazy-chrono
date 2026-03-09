@@ -11,6 +11,7 @@ import { getBackendUrl } from '../../utils/subscription';
 import '../../styles/Carte.css';
 import { pointsToBezierPath } from '../CarteUtils';
 import { animateBubblesFromZones } from '../Carte';
+import { logRound } from '../../utils/roundLogger';
 
 // ✅ COPIE EXACTE Arena: Couleurs par joueur
 const PLAYER_PRIMARY_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899', '#0ea5e9'];
@@ -327,6 +328,7 @@ export default function TrainingArenaGame() {
     }))));
     
     setZones(zonesArray);
+    try { logRound(zonesArray, { mode: 'training-arena', source: 'training-arena:initial' }); } catch {}
     zonesRef.current = zonesArray; // ✅ COPIE EXACTE Arena: Synchro ref
     setPlayers(playersArray);
     setMyStudentId(gameInfo.myStudentId);  // ✅ FIX: Utiliser gameInfo.myStudentId (pas .studentId)
@@ -609,6 +611,7 @@ export default function TrainingArenaGame() {
       
       // Mettre à jour React directement (pas de reload)
       setZones(cleanZones);
+      try { logRound(cleanZones, { mode: 'training-arena', source: 'training-arena:tiebreaker' }); } catch {}
       setTimeLeft(duration);
       setGameActive(true); // ✅ CRUCIAL: Réactiver le jeu
       setGameEnded(false);
@@ -654,6 +657,7 @@ export default function TrainingArenaGame() {
         // ✅ CRITIQUE: Forcer validated=false pour éviter héritage entre manches
         const cleanZones = newZones.map(z => ({ ...z, validated: false }));
         setZones(cleanZones);
+        try { logRound(cleanZones, { mode: 'training-arena', source: 'training-arena:round-new' }); } catch {}
         console.log('[TrainingArena] ✅ Zones mises à jour (validated=false forcé):', cleanZones.length);
         
         // ✅ CRITIQUE: Réactiver le jeu AVEC setTimeout pour synchro React state

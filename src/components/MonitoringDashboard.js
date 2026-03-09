@@ -12,6 +12,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   Area, AreaChart
 } from 'recharts';
+import { getRoundLogs, clearRoundLogs } from '../utils/roundLogger';
 
 const COLORS = {
   bg: '#0f172a',
@@ -63,6 +64,7 @@ function MonitoringDashboard() {
   const [incidentsLoading, setIncidentsLoading] = useState(false);
   const [incidentSeverityFilter, setIncidentSeverityFilter] = useState('all');
   const [rumEvents, setRumEvents] = useState([]);
+  const [roundLogs, setRoundLogs] = useState([]);
 
   const copyToClipboard = async (text, source) => {
     try {
@@ -136,7 +138,19 @@ function MonitoringDashboard() {
     }
   }, [incidentSeverityFilter]);
 
-  const clearIncidents = async () => {
+  
+  const fetchRoundLogs = useCallback(() => {
+    try {
+      const logs = getRoundLogs();
+      // Sort newest first
+      logs.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+      setRoundLogs(logs);
+    } catch (e) {
+      console.warn('[Monitoring] Error loading round logs:', e);
+    }
+  }, []);
+
+const clearIncidents = async () => {
     try {
       const token = getAuthToken();
       const backendUrl = getBackendUrl();
@@ -228,8 +242,8 @@ function MonitoringDashboard() {
   }, [selectedRange, levelFilter]);
 
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    fetchStats(); fetchRoundLogs();
+  }, [fetchStats, fetchRoundLogs]);
 
   // Socket.IO connection for real-time performance monitoring
   useEffect(() => {
@@ -351,7 +365,7 @@ function MonitoringDashboard() {
               Auto-refresh 30s
             </label>
             <button
-              onClick={() => { fetchStats(); if (activeTab !== 'overview') fetchLogs(); }}
+              onClick={() => { fetchStats(); fetchRoundLogs(); if (activeTab !== 'overview') fetchLogs(); }}
               style={btnStyle(COLORS.info)}
             >
               🔄 Rafraîchir
@@ -396,6 +410,7 @@ function MonitoringDashboard() {
             { id: 'incidents', label: `⚠️ Incidents (${incidents.length})`, icon: '' },
             { id: 'performance', label: `🎯 Performance${perfConnected ? ' 🟢' : ''}`, icon: '' },
             { id: 'rum', label: `📱 RUM (${rumEvents.length})`, icon: '' },
+            { id: 'rounds', label: `🎮 Manches (${roundLogs.length}) ${roundLogs.some(r => r.doublePairIssues > 0) ? '🚨' : ''}`, icon: '' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -505,7 +520,32 @@ function MonitoringDashboard() {
                   sections.push('');
                 }
 
-                sections.push(`===== FIN DU RAPPORT =====`);
+                
+                // Round logs (manches jouées)
+                const recentRounds = roundLogs.slice(0, 20);
+                sections.push(`--- MANCHES JOUÉES (${recentRounds.length}/${roundLogs.length}) ---`);
+                if (recentRounds.length === 0) {
+                  sections.push('Aucune manche enregistrée.');
+                } else {
+                  recentRounds.forEach((r, i) => {
+                    const ts = r.timestamp ? new Date(r.timestamp).toLocaleString('fr-FR') : 'N/A';
+                    const issues = r.doublePairIssues > 0 ? ` 🚨 ${r.doublePairIssues} DOUBLE PAIRE(S)` : '';
+                    sections.push(`[${i+1}] ${ts} | mode: ${r.mode} | paires: ${r.validPairs} | zones: ${r.summary?.totalZones || '?'}${issues}`);
+                    if (r.issues && r.issues.length > 0) {
+                      r.issues.forEach(iss => {
+                        sections.push(`    ⚠️ ${iss.message || JSON.stringify(iss)}`);
+                      });
+                    }
+                    if (r.summary?.paired) {
+                      r.summary.paired.forEach(p => {
+                        sections.push(`    PA: [${p.type}] "${p.content}" pairId=${p.pairId}`);
+                      });
+                    }
+                  });
+                }
+                sections.push('');
+
+sections.push(`===== FIN DU RAPPORT =====`);
                 return sections.join('\n');
               };
 
@@ -521,7 +561,7 @@ function MonitoringDashboard() {
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button
-                        onClick={() => { fetchStats(); fetchLogs(); fetchIncidents(); }}
+                        onClick={() => { fetchStats(); fetchLogs(); fetchIncidents(); fetchRoundLogs(); }}
                         style={btnStyle(COLORS.info)}
                       >
                         🔄 Rafraîchir tout
@@ -554,6 +594,7 @@ function MonitoringDashboard() {
                     <KPICard title="Incidents" value={incidents.length} icon="🚨" color={COLORS.accent} highlight={incidents.length > 0} />
                     <KPICard title="Perf Events" value={perfEvents.length} icon="🎯" color={COLORS.success} />
                     <KPICard title="RUM" value={rumEvents.length} icon="📱" color="#8b5cf6" />
+                    <KPICard title="Manches" value={roundLogs.length} icon="🎮" color="#10b981" highlight={roundLogs.some(r => r.doublePairIssues > 0)} />
                   </div>
 
                   {/* Errors section */}
@@ -589,6 +630,60 @@ function MonitoringDashboard() {
                             <span style={{ color: COLORS.text }}>{typeof inc.details === 'string' ? inc.details.substring(0, 80) : JSON.stringify(inc.details || '').substring(0, 80)}</span>
                           </div>
                         ))}
+                      </div>
+                    )}
+                  </div>
+
+                  
+                  {/* Round Logs section (manches jouées) */}
+                  <div style={{ ...cardStyle, marginBottom: 16, borderLeft: roundLogs.some(r => r.doublePairIssues > 0) ? '4px solid #ef4444' : '4px solid #10b981' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <h3 style={{ ...cardTitleStyle, color: roundLogs.some(r => r.doublePairIssues > 0) ? '#ef4444' : '#10b981', margin: 0 }}>
+                        {roundLogs.some(r => r.doublePairIssues > 0)
+                          ? `🚨 ${roundLogs.filter(r => r.doublePairIssues > 0).length} manche(s) avec double paires sur ${roundLogs.length}`
+                          : `✅ ${roundLogs.length} manches jouées — aucune double paire`}
+                      </h3>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={() => fetchRoundLogs()} style={btnStyle(COLORS.info)}>🔄</button>
+                        <button onClick={() => { clearRoundLogs(); setRoundLogs([]); }} style={btnStyle('#dc2626')}>🗑️ Vider</button>
+                      </div>
+                    </div>
+                    {roundLogs.length > 0 ? (
+                      <div style={{ maxHeight: 250, overflowY: 'auto' }}>
+                        {roundLogs.slice(0, 15).map((r, i) => {
+                          const hasIssue = r.doublePairIssues > 0;
+                          const ts = r.timestamp ? new Date(r.timestamp).toLocaleString('fr-FR') : 'N/A';
+                          return (
+                            <div key={r.id || i} style={{
+                              padding: '6px 10px',
+                              borderLeft: `3px solid ${hasIssue ? '#ef4444' : '#10b981'}`,
+                              background: hasIssue ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.05)',
+                              marginBottom: 4, borderRadius: '0 6px 6px 0', fontSize: 12
+                            }}>
+                              <span style={{ color: COLORS.textMuted, fontSize: 11 }}>{ts} </span>
+                              <span style={{ padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: hasIssue ? '#ef4444' : '#10b981', color: '#fff', marginRight: 6 }}>
+                                {r.mode}
+                              </span>
+                              <span style={{ color: COLORS.text }}>
+                                {r.validPairs} paire(s) | {r.summary?.totalZones || '?'} zones
+                              </span>
+                              {hasIssue && (
+                                <span style={{ color: '#ef4444', fontWeight: 700, marginLeft: 8 }}>
+                                  🚨 {r.doublePairIssues} DOUBLE PAIRE(S)
+                                </span>
+                              )}
+                              {r.issues && r.issues.map((iss, j) => (
+                                <div key={j} style={{ marginLeft: 20, color: '#ef4444', fontSize: 11, marginTop: 2 }}>
+                                  ⚠️ {iss.message || JSON.stringify(iss)}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{ padding: 12, color: COLORS.textMuted, textAlign: 'center' }}>
+                        Aucune manche enregistrée. Jouez une partie pour voir les logs ici.
                       </div>
                     )}
                   </div>
@@ -1289,6 +1384,121 @@ function MonitoringDashboard() {
                 </div>
               </div>
             )}
+
+            {/* ====== ROUNDS TAB ====== */}
+            {activeTab === 'rounds' && (
+              <div>
+                <div style={{ ...cardStyle, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 'bold' }}>🎮 Historique des manches jouées ({roundLogs.length})</h3>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => fetchRoundLogs()} style={btnStyle(COLORS.info)}>🔄 Rafraîchir</button>
+                    <button onClick={() => { clearRoundLogs(); setRoundLogs([]); }} style={btnStyle('#dc2626')}>🗑️ Tout vider</button>
+                    <button onClick={() => {
+                      const text = roundLogs.map((r, i) => {
+                        const ts = r.timestamp ? new Date(r.timestamp).toLocaleString('fr-FR') : 'N/A';
+                        const lines = [`[${i+1}] ${ts} | mode: ${r.mode} | paires: ${r.validPairs} | zones: ${r.summary?.totalZones || '?'}`];
+                        if (r.doublePairIssues > 0) lines.push(`  🚨 ${r.doublePairIssues} DOUBLE PAIRE(S)`);
+                        if (r.issues) r.issues.forEach(iss => lines.push(`  ⚠️ ${iss.message || JSON.stringify(iss)}`));
+                        if (r.summary?.paired) r.summary.paired.forEach(p => lines.push(`  PA: [${p.type}] "${p.content}" pairId=${p.pairId}`));
+                        if (r.zonesSnapshot) lines.push(`  Zones: ${JSON.stringify(r.zonesSnapshot)}`);
+                        return lines.join('\n');
+                      }).join('\n\n');
+                      copyToClipboard(text, 'rounds');
+                    }} style={btnStyle(COLORS.success)}>📋 Copier tout</button>
+                  </div>
+                </div>
+                {copyFeedback === 'rounds' && <div style={{ padding: 8, color: '#10b981', fontWeight: 700, textAlign: 'center' }}>✅ Copié !</div>}
+
+                {/* Stats summary */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 16 }}>
+                  <KPICard title="Total manches" value={roundLogs.length} icon="🎮" color="#10b981" />
+                  <KPICard title="Avec double paires" value={roundLogs.filter(r => r.doublePairIssues > 0).length} icon="🚨" color="#ef4444" highlight={roundLogs.some(r => r.doublePairIssues > 0)} />
+                  <KPICard title="Mode solo" value={roundLogs.filter(r => r.mode === 'solo').length} icon="👤" color="#3b82f6" />
+                  <KPICard title="Mode objectif" value={roundLogs.filter(r => r.mode === 'objective').length} icon="🎯" color="#8b5cf6" />
+                  <KPICard title="Arena" value={roundLogs.filter(r => r.mode === 'arena' || r.mode === 'training-arena').length} icon="⚔️" color="#f59e0b" />
+                  <KPICard title="Multi" value={roundLogs.filter(r => r.mode === 'multiplayer' || r.mode === 'training').length} icon="👥" color="#06b6d4" />
+                </div>
+
+                {/* Detailed list */}
+                {roundLogs.length === 0 ? (
+                  <div style={{ ...cardStyle, textAlign: 'center', padding: 40, color: COLORS.textMuted }}>
+                    <div style={{ fontSize: 48, marginBottom: 16 }}>🎮</div>
+                    <p>Aucune manche enregistrée.</p>
+                    <p style={{ fontSize: 12 }}>Jouez une partie (solo, objectif, arena, multi) pour voir les données ici.</p>
+                  </div>
+                ) : (
+                  <div>
+                    {roundLogs.map((r, i) => {
+                      const hasIssue = r.doublePairIssues > 0;
+                      const ts = r.timestamp ? new Date(r.timestamp).toLocaleString('fr-FR') : 'N/A';
+                      return (
+                        <div key={r.id || i} style={{
+                          ...cardStyle,
+                          marginBottom: 8,
+                          borderLeft: `4px solid ${hasIssue ? '#ef4444' : '#10b981'}`,
+                          background: hasIssue ? 'rgba(239,68,68,0.05)' : COLORS.card,
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                            <div>
+                              <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: hasIssue ? '#ef4444' : '#10b981', color: '#fff', marginRight: 8 }}>
+                                {r.mode}
+                              </span>
+                              <span style={{ color: COLORS.textMuted, fontSize: 12 }}>{ts}</span>
+                              {hasIssue && <span style={{ color: '#ef4444', fontWeight: 700, marginLeft: 12, fontSize: 13 }}>🚨 {r.doublePairIssues} DOUBLE PAIRE(S)</span>}
+                            </div>
+                            <span style={{ color: COLORS.textMuted, fontSize: 11 }}>
+                              {r.validPairs} paire(s) | {r.summary?.totalZones || '?'} zones | {r.summary?.byType ? Object.entries(r.summary.byType).map(([k,v]) => `${k}:${v}`).join(' ') : ''}
+                            </span>
+                          </div>
+
+                          {/* Issues */}
+                          {r.issues && r.issues.length > 0 && (
+                            <div style={{ marginBottom: 6 }}>
+                              {r.issues.map((iss, j) => (
+                                <div key={j} style={{ padding: '4px 8px', background: 'rgba(239,68,68,0.1)', borderRadius: 4, marginBottom: 3, fontSize: 11, color: '#ef4444' }}>
+                                  ⚠️ {iss.message}
+                                  {iss.imageFile && <span style={{ color: COLORS.textMuted }}> | img: {iss.imageFile}</span>}
+                                  {iss.texteContent && <span style={{ color: COLORS.textMuted }}> | txt: {iss.texteContent}</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Paired zones */}
+                          {r.summary?.paired && r.summary.paired.length > 0 && (
+                            <div style={{ fontSize: 11, color: COLORS.textMuted }}>
+                              <strong>Paire(s) officielle(s) :</strong>{' '}
+                              {r.summary.paired.map((p, j) => (
+                                <span key={j} style={{ marginRight: 8 }}>
+                                  [{p.type}] "{p.content}" <span style={{ color: '#10b981' }}>{p.pairId.substring(0, 30)}</span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Zones snapshot (collapsible) */}
+                          {r.zonesSnapshot && (
+                            <details style={{ marginTop: 6 }}>
+                              <summary style={{ cursor: 'pointer', fontSize: 11, color: COLORS.textMuted }}>
+                                Voir toutes les zones ({r.zonesSnapshot.length})
+                              </summary>
+                              <div style={{ maxHeight: 150, overflowY: 'auto', fontSize: 10, fontFamily: 'monospace', marginTop: 4, background: 'rgba(0,0,0,0.2)', padding: 6, borderRadius: 4 }}>
+                                {r.zonesSnapshot.map((z, k) => (
+                                  <div key={k} style={{ color: z.pairId ? '#10b981' : (z.isDistractor ? COLORS.textMuted : '#f59e0b') }}>
+                                    {z.pairId ? '✅' : (z.isDistractor ? '⬜' : '⚠️')} [{z.type}] {z.content} {z.pairId ? `pairId=${z.pairId.substring(0,30)}` : ''}
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
 
             {/* ====== ERRORS TAB ====== */}
             {activeTab === 'errors' && (

@@ -8,6 +8,7 @@ import { getAuthHeaders } from '../utils/apiHelpers';
 import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck } from '../utils/elementsLoader';
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
 import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError, reportIncident as incidentReportIncident, INCIDENT_TYPES as INCIDENT_TYPES_TRACKER } from '../utils/gameIncidentTracker';
+import { logRound } from '../utils/roundLogger';
 import { isFree, canStartSessionToday, incrementSessionCount, setSubscriptionStatus } from '../utils/subscription';
 
 import { initMasteryTracker, resetMasterySession, recordPair as masteryRecordPair, getActiveSessionProgress, getMasteryProgress, isMasteryReady, syncToServer as masterySyncToServer, loadFromServer as masteryLoadFromServer } from '../utils/masteryTracker';
@@ -1429,6 +1430,7 @@ const Carte = () => {
           if (trainingData.zones && Array.isArray(trainingData.zones)) {
             console.log('[TRAINING] 🎮 Chargement zones:', trainingData.zones.length);
             try { incidentValidateZones(trainingData.zones, { source: 'training:initial' }); } catch {}
+            try { logRound(trainingData.zones, { mode: 'training', source: 'training:initial' }); } catch {}
             try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: trainingData.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: trainingData.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
             setZones(trainingData.zones);
             // ✅ FIX: Synchroniser calcAngles depuis les angles serveur dès le chargement initial
@@ -1495,6 +1497,7 @@ const Carte = () => {
 
         if (Array.isArray(zones)) {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
+          try { logRound(cleanZones, { mode: 'training', source: 'training:round-new' }); } catch {}
           try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: cleanZones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: cleanZones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
           setZones(cleanZones);
           // ✅ FIX: Synchroniser calcAngles depuis les angles serveur pour éviter que le localStorage ne les écrase
@@ -1745,10 +1748,11 @@ const Carte = () => {
         const cleanZones = Array.isArray(zones) ? zones.map(z => ({ ...z, validated: false })) : [];
         console.log('[ARENA] 🧹 Zones nettoyées (validated=false):', cleanZones.length);
         try { incidentValidateZones(cleanZones, { source: 'arena:tiebreaker' }); } catch {}
+        try { logRound(cleanZones, { mode: 'arena', source: 'arena:tiebreaker' }); } catch {}
         
         // Mettre à jour React directement (pas de reload)
         setZones(cleanZones);
-        // ✅ FIX: Synchroniser calcAngles depuis les angles serveur
+        // ✅ FIX: Synchroniser calcAngles depuis les angles serveur pour éviter que le localStorage ne les écrase
         const tbAngles = {};
         zones.forEach(z => {
           if ((z.type === 'calcul' || z.type === 'chiffre') && typeof z.angle === 'number') {
@@ -1809,6 +1813,7 @@ const Carte = () => {
         // Mettre à jour les zones - FORCER validated=false pour éviter héritage entre manches
         if (Array.isArray(zones)) {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
+          try { logRound(cleanZones, { mode: 'arena', source: 'arena:round-new' }); } catch {}
           try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: cleanZones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: cleanZones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
           setZones(cleanZones);
           // ✅ FIX: Synchroniser calcAngles depuis les angles serveur pour éviter que le localStorage ne les écrase
@@ -2291,6 +2296,7 @@ const Carte = () => {
         console.log('[CC][client] MULTIPLAYER MODE: Using server-generated zones:', payload.zones.length);
         
         try { incidentValidateZones(payload.zones, { source: 'multiplayer:round-new' }); } catch {}
+        try { logRound(payload.zones, { mode: 'multiplayer', source: 'multiplayer:round-new' }); } catch {}
         
         const zonesWithPairId = payload.zones.filter(z => z.pairId);
         addDiag('zones:received', {
@@ -4561,6 +4567,7 @@ setZones(dataWithRandomTexts);
         console.log('[CC] Objective mode pairId zones:', pairZones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 40), pairId: z.pairId })));
         // Monitoring: valider les zones en mode objectif aussi
         try { incidentValidateZones(post, { source: 'objective:assignElements' }); } catch {}
+        try { logRound(post, { mode: 'objective', source: 'objective:assignElements', assocData }); } catch {}
         // Détection fausses paires visuelles texte-image via associations
         try {
           if (assocData && assocData.associations) {
@@ -6264,6 +6271,7 @@ setZones(dataWithRandomTexts);
       });
       // Vérifier les anomalies sur les zones générées
       try { incidentValidateZones(post, { source: 'solo:assignElements' }); } catch {}
+      try { logRound(post, { mode: 'solo', source: 'solo:assignElements', assocData }); } catch {}
       // Détection fausses paires visuelles texte-image via associations (mode solo)
       try {
         if (assocData && assocData.associations) {
