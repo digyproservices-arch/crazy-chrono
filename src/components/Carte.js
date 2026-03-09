@@ -6072,6 +6072,40 @@ setZones(dataWithRandomTexts);
           });
         }
 
+        // ANTI-FAUSSE-PAIRE IMAGE-TEXTE: vérifie TOUS les textes distracteurs contre TOUTES les images présentes
+        // Nécessaire quand la paire officielle est calcul-chiffre (le bloc Assainissement image-texte ne couvre pas ce cas)
+        {
+          const _txtIdByContent = new Map((allTextes || []).map(t => [norm(t.content), String(t.id)]));
+          const _usedSafe = new Set();
+          post = post.map(z => {
+            if (normType(z?.type) !== 'texte') return z;
+            if ((z.pairId || '').trim()) return z;
+            const adminTxtId = _txtIdByContent.get(norm(z.content));
+            if (!adminTxtId) return z;
+            let wouldPair = false;
+            for (const imgId of presentImageIds) {
+              if (imgTxtPairs.has(`${imgId}|${adminTxtId}`)) { wouldPair = true; break; }
+            }
+            if (!wouldPair) return z;
+            const safe = (allTextes || []).filter(t => {
+              if (_usedSafe.has(String(t.id))) return false;
+              if (norm(t.content) === norm(z.content)) return false;
+              for (const imgId of presentImageIds) {
+                if (imgTxtPairs.has(`${imgId}|${t.id}`)) return false;
+              }
+              return true;
+            });
+            if (safe.length) {
+              const pick = safe[Math.floor(rng() * safe.length)];
+              _usedSafe.add(String(pick.id));
+              console.warn('[CC] ANTI-FAUSSE-PAIRE: texte "' + z.content + '" remplacé par "' + pick.content + '" (formait paire avec image présente)');
+              try { newTextSettings[z.id] = { ...defaultTextSettings, ...(newTextSettings[z.id] || {}), text: pick.content || '' }; } catch {}
+              return { ...z, content: pick.content, label: pick.content, pairId: '' };
+            }
+            return z;
+          });
+        }
+
         // Calculs: unicité par contenu normalisé (ne change pas le calcul apparié)
         {
           const usedCalcs = new Set();
