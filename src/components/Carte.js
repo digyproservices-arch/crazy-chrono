@@ -2894,6 +2894,22 @@ useEffect(() => {
           masteryAll: getMasteryProgress()
         });
 
+        // Update personal solo record if beaten
+        if (isSolo && (finalScore > 0 || pairsCount > 0)) {
+          try {
+            const currentPPM = sessionElapsedSec > 0 ? parseFloat(((pairsCount || finalScore) / sessionElapsedSec * 60).toFixed(1)) : 0;
+            const prev = JSON.parse(localStorage.getItem('cc_solo_best') || 'null') || { bestScore: 0, bestPPM: 0 };
+            const updated = {
+              bestScore: Math.max(prev.bestScore || 0, finalScore),
+              bestPPM: Math.max(prev.bestPPM || 0, currentPPM),
+            };
+            if (updated.bestScore > (prev.bestScore || 0) || updated.bestPPM > (prev.bestPPM || 0)) {
+              localStorage.setItem('cc_solo_best', JSON.stringify(updated));
+              setSoloPersonalBest(updated);
+            }
+          } catch {}
+        }
+
         if (!studentId) {
           emitMonitoringEvent('perf:save-skipped', { reason: 'cc_student_id et cc_auth.id manquants' });
           return;
@@ -3727,6 +3743,11 @@ const handleEditGreenZone = (zone) => {
   const [isSoloMode] = useState(() => {
     try { const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); return cfg && cfg.mode === 'solo'; } catch { return false; }
   });
+  // Solo records: personal best + global best
+  const [soloPersonalBest, setSoloPersonalBest] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cc_solo_best') || 'null') || { bestScore: 0, bestPPM: 0 }; } catch { return { bestScore: 0, bestPPM: 0 }; }
+  });
+  const [soloGlobalBest, setSoloGlobalBest] = useState({ bestScore: 0, bestPPM: 0 });
   // Lobby/ready state
   const [roomStatus, setRoomStatus] = useState('lobby'); // 'lobby'|'countdown'|'playing'
   const [roomPlayers, setRoomPlayers] = useState([]); // [{id,nickname,score,ready,isHost}]
@@ -3775,6 +3796,21 @@ const handleEditGreenZone = (zone) => {
       try { pgFlushAttempts(); } catch {}
     }
   }, [gameActive]);
+
+  // Fetch global solo records on mount
+  useEffect(() => {
+    if (!isSoloMode) return;
+    const fetchRecords = async () => {
+      try {
+        const res = await fetch(`${getBackendUrl()}/api/training/records`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) setSoloGlobalBest({ bestScore: data.bestScore || 0, bestPPM: data.bestPPM || 0 });
+        }
+      } catch {}
+    };
+    fetchRecords();
+  }, [isSoloMode]);
 
   // --- Edit mode and backend sync for positions/angles ---
   const [editMode, setEditMode] = useState(false);
@@ -6841,32 +6877,40 @@ setZones(dataWithRandomTexts);
             </div>
             {/* Classement joueurs (multi) ou Stats perso (solo) */}
             {isSoloMode ? (
-              <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <h3 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700, color: '#fff' }}>{'\u{1F4CA}'} Ma session</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                  <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Score</div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color: '#22c55e', fontVariantNumeric: 'tabular-nums' }}>{score}</div>
-                  </div>
-                  <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Manche</div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color: '#3b82f6', fontVariantNumeric: 'tabular-nums' }}>
-                      {Math.max(1, roundsPlayed || 1)}{Number.isFinite(roundsPerSession) ? `/${roundsPerSession}` : ''}
+              <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Mon record personnel */}
+                <div>
+                  <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#fbbf24' }}>🏅 Mon record</h3>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires</div>
+                      <div style={{ fontSize: 20, fontWeight: 900, color: score > soloPersonalBest.bestScore ? '#22c55e' : '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                        {soloPersonalBest.bestScore || '—'}
+                      </div>
+                    </div>
+                    <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires/min</div>
+                      <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                        {soloPersonalBest.bestPPM || '—'}
+                      </div>
                     </div>
                   </div>
-                  <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires/min</div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color: '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>
-                      {(() => {
-                        const elapsed = gameDuration - timeLeft;
-                        return elapsed > 0 ? ((score / elapsed) * 60).toFixed(1) : '0.0';
-                      })()}
+                </div>
+                {/* Record à battre (global) */}
+                <div>
+                  <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#f87171' }}>🔥 Record à battre</h3>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires</div>
+                      <div style={{ fontSize: 20, fontWeight: 900, color: soloGlobalBest.bestScore > 0 ? '#f87171' : '#64748b', fontVariantNumeric: 'tabular-nums' }}>
+                        {soloGlobalBest.bestScore || '—'}
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Temps</div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color: timeLeft <= 10 ? '#ef4444' : '#fff', fontVariantNumeric: 'tabular-nums' }}>
-                      {timeLeft}s
+                    <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires/min</div>
+                      <div style={{ fontSize: 20, fontWeight: 900, color: soloGlobalBest.bestPPM > 0 ? '#f87171' : '#64748b', fontVariantNumeric: 'tabular-nums' }}>
+                        {soloGlobalBest.bestPPM || '—'}
+                      </div>
                     </div>
                   </div>
                 </div>

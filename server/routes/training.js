@@ -231,4 +231,50 @@ router.get('/stats/student/:studentId', requireSupabase, requireAuth, ...validat
   }
 });
 
+// GET /api/training/records — Public: best solo score & paires/min across all users
+router.get('/records', requireSupabase, async (req, res) => {
+  try {
+    // Best score
+    const { data: bestRow } = await supabase
+      .from('training_results')
+      .select('student_id, score, pairs_validated, time_ms, created_at')
+      .order('score', { ascending: false })
+      .limit(1);
+
+    let bestScore = 0, bestPPM = 0, bestStudent = null;
+    if (bestRow && bestRow.length > 0) {
+      const r = bestRow[0];
+      bestScore = r.score || 0;
+      bestStudent = r.student_id;
+      const durationSec = (r.time_ms || 0) / 1000;
+      bestPPM = durationSec > 0 ? parseFloat(((r.pairs_validated || r.score || 0) / durationSec * 60).toFixed(1)) : 0;
+    }
+
+    // Best PPM (may be a different player)
+    const { data: allRows } = await supabase
+      .from('training_results')
+      .select('student_id, score, pairs_validated, time_ms')
+      .gt('time_ms', 0)
+      .order('score', { ascending: false })
+      .limit(50);
+
+    if (allRows && allRows.length > 0) {
+      for (const r of allRows) {
+        const dur = (r.time_ms || 0) / 1000;
+        if (dur > 0) {
+          const ppm = (r.pairs_validated || r.score || 0) / dur * 60;
+          if (ppm > bestPPM) {
+            bestPPM = parseFloat(ppm.toFixed(1));
+          }
+        }
+      }
+    }
+
+    return res.json({ success: true, bestScore, bestPPM, bestStudent });
+  } catch (error) {
+    console.error('[Training API] Error fetching records:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 module.exports = router;
