@@ -340,6 +340,8 @@ export default function Login({ onLogin }) {
           };
           saveAuth(profile);
           try { localStorage.setItem('cc_user_id', user.id); } catch {}
+          try { localStorage.setItem('cc_student_id', data.student.id); } catch {}
+          try { localStorage.setItem('cc_student_name', data.student.fullName || data.student.firstName || ''); } catch {}
           onLogin && onLogin(profile);
           navigate('/modes', { replace: true });
         }

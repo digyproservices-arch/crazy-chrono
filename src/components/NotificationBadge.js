@@ -44,8 +44,15 @@ export default function NotificationBadge() {
       return;
     }
     
-    // Priorité 2 : Essayer via API /me si token disponible
+    // Priorité 2 : Récupérer depuis cc_auth.studentId (set par Login.js)
     const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+    if (auth.studentId) {
+      setStudentId(auth.studentId);
+      localStorage.setItem('cc_student_id', auth.studentId);
+      return;
+    }
+
+    // Priorité 3 : Essayer via API /me si token disponible
     if (auth.token) {
       fetch(`${getBackendUrl()}/api/auth/me`, {
         headers: { 'Authorization': `Bearer ${auth.token}` }
