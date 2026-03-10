@@ -6839,25 +6839,58 @@ setZones(dataWithRandomTexts);
               </div>
               <button onClick={handleEndSessionNow} style={{ background: 'rgba(220,38,38,0.8)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '6px 12px', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Terminer</button>
             </div>
-            {/* Classement joueurs */}
-            <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <h3 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700, color: '#fff' }}>🏆 Classement</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                {((roomPlayers && roomPlayers.length) ? roomPlayers : (scoresMP || []).map(p => ({ id: p.id, nickname: p.name, score: p.score })))
-                  .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-                  .map((p, idx) => (
-                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)', transition: 'all 0.3s' }}>
-                      <div style={{ fontSize: idx === 0 ? 18 : 13, fontWeight: 900, minWidth: 24, textAlign: 'center' }}>
-                        {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`}
-                      </div>
-                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, fontWeight: 600, color: '#fff' }}>{p.nickname || p.name}</span>
-                      <div style={{ background: '#fff', borderRadius: 10, padding: '2px 10px', boxShadow: '0 2px 6px rgba(0,0,0,0.12)' }}>
-                        <span style={{ fontSize: 18, fontWeight: 900, color: '#22c55e', fontVariantNumeric: 'tabular-nums' }}>{(p.score ?? 0)}</span>
-                      </div>
+            {/* Classement joueurs (multi) ou Stats perso (solo) */}
+            {isSoloMode ? (
+              <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <h3 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700, color: '#fff' }}>{'\u{1F4CA}'} Ma session</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Score</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: '#22c55e', fontVariantNumeric: 'tabular-nums' }}>{score}</div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Manche</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: '#3b82f6', fontVariantNumeric: 'tabular-nums' }}>
+                      {Math.max(1, roundsPlayed || 1)}{Number.isFinite(roundsPerSession) ? `/${roundsPerSession}` : ''}
                     </div>
-                  ))}
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires/min</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: '#f59e0b', fontVariantNumeric: 'tabular-nums' }}>
+                      {(() => {
+                        const elapsed = gameDuration - timeLeft;
+                        return elapsed > 0 ? ((score / elapsed) * 60).toFixed(1) : '0.0';
+                      })()}
+                    </div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '8px 10px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Temps</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: timeLeft <= 10 ? '#ef4444' : '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                      {timeLeft}s
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <h3 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700, color: '#fff' }}>{'\u{1F3C6}'} Classement</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {((roomPlayers && roomPlayers.length) ? roomPlayers : (scoresMP || []).map(p => ({ id: p.id, nickname: p.name, score: p.score })))
+                    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+                    .map((p, idx) => (
+                      <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)', transition: 'all 0.3s' }}>
+                        <div style={{ fontSize: idx === 0 ? 18 : 13, fontWeight: 900, minWidth: 24, textAlign: 'center' }}>
+                          {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`}
+                        </div>
+                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, fontWeight: 600, color: '#fff' }}>{p.nickname || p.name}</span>
+                        <div style={{ background: '#fff', borderRadius: 10, padding: '2px 10px', boxShadow: '0 2px 6px rgba(0,0,0,0.12)' }}>
+                          <span style={{ fontSize: 18, fontWeight: 900, color: '#22c55e', fontVariantNumeric: 'tabular-nums' }}>{(p.score ?? 0)}</span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
             {/* Progression Maîtrise */}
             {masteryProgress.length > 0 && (
               <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
