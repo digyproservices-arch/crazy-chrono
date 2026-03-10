@@ -2173,9 +2173,11 @@ const Carte = () => {
         }
       } else {
         // Pas de config en ligne → comportement par défaut
-        try { const _sid = localStorage.getItem('cc_student_id') || null; s.emit('joinRoom', { roomId, name: playerName, studentId: _sid }); } catch {}
-        // Démarrage auto si mode=solo enregistré
+        // FIX: En mode solo, utiliser un roomId unique pour isoler chaque joueur
         let cfgSolo = null; try { cfgSolo = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
+        const soloRoomId = (cfgSolo && cfgSolo.mode === 'solo') ? `solo-${s.id}` : roomId;
+        try { const _sid = localStorage.getItem('cc_student_id') || null; s.emit('joinRoom', { roomId: soloRoomId, name: playerName, studentId: _sid }); } catch {}
+        // Démarrage auto si mode=solo enregistré
         if (cfgSolo && cfgSolo.mode === 'solo') {
           setTimeout(() => { try { s.emit('startGame'); } catch {} }, 200);
         }
