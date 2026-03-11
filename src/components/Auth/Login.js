@@ -50,11 +50,18 @@ export default function Login({ onLogin }) {
           if (data?.session?.user) {
             const user = data.session.user;
             const existingAuth = (() => { try { return JSON.parse(localStorage.getItem('cc_auth') || '{}'); } catch { return {}; } })();
+            // Charger pseudo depuis user_profiles
+            let dbPseudo = '';
+            try {
+              const { data: up } = await supabase.from('user_profiles').select('pseudo, first_name, last_name, role').eq('id', user.id).single();
+              dbPseudo = up?.pseudo || [up?.first_name, up?.last_name].filter(Boolean).join(' ').trim() || '';
+              if (up?.role) existingAuth.role = existingAuth.role || up.role;
+            } catch {}
             const profile = { 
               ...existingAuth, // Préserver préférences existantes (langue, avatar, etc.)
               id: user.id, 
               email: user.email, 
-              name: existingAuth.name || user.user_metadata?.name || user.email?.split('@')[0], 
+              name: existingAuth.name || dbPseudo || user.user_metadata?.name || user.email?.split('@')[0], 
               role: existingAuth.role || 'user',
               token: data.session.access_token // Ajouter le token pour les API calls
             };
@@ -171,7 +178,7 @@ export default function Login({ onLogin }) {
           ...existingAuth, // Préserver préférences existantes (langue, avatar, etc.)
           id: user.id,
           email: user.email,
-          name: existingAuth.name || fullDisplayName || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur',
+          name: existingAuth.name || userProfile?.pseudo || fullDisplayName || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur',
           firstName: firstName,
           lastName: lastName,
           role: userProfile?.role || 'user',

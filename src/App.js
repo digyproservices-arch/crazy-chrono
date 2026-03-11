@@ -349,6 +349,24 @@ function App() {
           const { data } = await supabase.auth.getSession();
           const token = data?.session?.access_token || null;
           if (token) {
+            // Charger les préférences profil TOUJOURS (pas soumis au throttle /me)
+            try {
+              const profRes = await fetch(`${getBackendUrl()}/api/auth/profile`, { headers: { Authorization: `Bearer ${token}` } });
+              const profJson = await profRes.json().catch(() => ({}));
+              if (profJson?.ok && profJson?.profile) {
+                const p = profJson.profile;
+                const cur = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+                let changed = false;
+                if (p.pseudo && cur.name !== p.pseudo) { cur.name = p.pseudo; changed = true; }
+                if (p.language && cur.language !== p.language) { cur.language = p.language; changed = true; }
+                if (p.avatar_url && cur.avatar !== p.avatar_url) { cur.avatar = p.avatar_url; changed = true; }
+                if (p.strict_elements_mode !== null && p.strict_elements_mode !== undefined && cur.strictElementsMode !== !!p.strict_elements_mode) { cur.strictElementsMode = !!p.strict_elements_mode; changed = true; }
+                if (changed) {
+                  localStorage.setItem('cc_auth', JSON.stringify(cur));
+                  try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
+                }
+              }
+            } catch {}
             try {
               // Throttle /me to avoid rapid loops
               const ME_THROTTLE_KEY = 'cc_last_me_fetch_ts';
@@ -357,7 +375,7 @@ function App() {
                 const last = parseInt(localStorage.getItem(ME_THROTTLE_KEY) || '0', 10);
                 if (Number.isFinite(last) && now - last < 30000) { 
                   try { window.ccAddDiag && window.ccAddDiag('me:throttled', { lastMs: now - last }); } catch {}
-                  return; // STOP: do not fetch
+                  return; // STOP: do not fetch /me
                 }
                 localStorage.setItem(ME_THROTTLE_KEY, String(now));
               } catch {}
@@ -367,9 +385,7 @@ function App() {
                 const role = json.role || 'user';
                 const isPro = (json.subscription === 'active' || json.subscription === 'trialing' || role === 'admin' || role === 'teacher');
                 try { localStorage.setItem('cc_subscription_status', isPro ? 'pro' : 'free'); } catch {}
-                // Stocker l'ID utilisateur pour filtrage matchs
                 try { localStorage.setItem('cc_user_id', json.user.id); } catch {}
-                // IMPORTANT: Préserver le token existant !
                 try { 
                   const existingAuth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
                   const merged = { 
@@ -381,20 +397,6 @@ function App() {
                     isEditor: role !== 'user' 
                   };
                   localStorage.setItem('cc_auth', JSON.stringify(merged)); 
-                } catch {}
-                // Charger les préférences profil depuis le serveur (restaure après logout)
-                try {
-                  const profRes = await fetch(`${getBackendUrl()}/api/auth/profile`, { headers: { Authorization: `Bearer ${token}` } });
-                  const profJson = await profRes.json().catch(() => ({}));
-                  if (profJson?.ok && profJson?.profile) {
-                    const p = profJson.profile;
-                    const cur = JSON.parse(localStorage.getItem('cc_auth') || '{}');
-                    if (p.pseudo) cur.name = p.pseudo;
-                    if (p.language) cur.language = p.language;
-                    if (p.avatar_url) cur.avatar = p.avatar_url;
-                    if (p.strict_elements_mode !== null && p.strict_elements_mode !== undefined) cur.strictElementsMode = !!p.strict_elements_mode;
-                    localStorage.setItem('cc_auth', JSON.stringify(cur));
-                  }
                 } catch {}
                 try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
                 syncedFromMe = true;
