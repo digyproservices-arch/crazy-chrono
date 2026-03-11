@@ -692,11 +692,18 @@ sections.push(`===== FIN DU RAPPORT =====`);
               const token = getAuthToken();
               const authHeaders = token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
 
+              const safeJson = async (res) => {
+                try {
+                  const text = await res.text();
+                  return JSON.parse(text);
+                } catch { return null; }
+              };
+
               const fetchE2eResults = async () => {
                 setE2eResultsLoading(true);
                 try {
                   const res = await fetch(`${backendUrl}/api/monitoring/e2e-results`, { headers: authHeaders });
-                  if (res.ok) { const d = await res.json(); if (d.ok) setE2eResults(d.results || []); }
+                  if (res.ok) { const d = await safeJson(res); if (d && d.ok) setE2eResults(d.results || []); }
                 } catch (err) { console.warn('[E2E] Fetch results failed:', err.message); }
                 setE2eResultsLoading(false);
               };
@@ -705,7 +712,7 @@ sections.push(`===== FIN DU RAPPORT =====`);
                 setE2eLoading(true);
                 try {
                   const res = await fetch(`${backendUrl}/api/monitoring/e2e-screenshots`, { headers: authHeaders });
-                  if (res.ok) { const d = await res.json(); if (d.ok) setE2eScreenshots(d.screenshots || []); }
+                  if (res.ok) { const d = await safeJson(res); if (d && d.ok) setE2eScreenshots(d.screenshots || []); }
                 } catch (err) { console.warn('[E2E] Fetch screenshots failed:', err.message); }
                 setE2eLoading(false);
               };
@@ -713,7 +720,7 @@ sections.push(`===== FIN DU RAPPORT =====`);
               const fetchGithubStatus = async () => {
                 try {
                   const res = await fetch(`${backendUrl}/api/monitoring/e2e-status`, { headers: authHeaders });
-                  if (res.ok) { const d = await res.json(); if (d.ok && d.runs) setE2eGithubRuns(d.runs); }
+                  if (res.ok) { const d = await safeJson(res); if (d && d.ok && d.runs) setE2eGithubRuns(d.runs); }
                 } catch (err) { console.warn('[E2E] Fetch GitHub status failed:', err.message); }
               };
 
@@ -721,12 +728,16 @@ sections.push(`===== FIN DU RAPPORT =====`);
                 setE2eTriggerMsg({ type: 'loading', text: '🚀 Lancement des tests...' });
                 try {
                   const res = await fetch(`${backendUrl}/api/monitoring/trigger-e2e`, { method: 'POST', headers: authHeaders });
-                  const d = await res.json();
-                  if (d.ok) {
-                    setE2eTriggerMsg({ type: 'success', text: '✅ ' + d.message });
-                    setTimeout(() => fetchGithubStatus(), 5000);
+                  if (!res.ok) {
+                    setE2eTriggerMsg({ type: 'error', text: `❌ Serveur a répondu HTTP ${res.status}. Le backend est peut-être en cours de redémarrage — réessayez dans 2 min.` });
                   } else {
-                    setE2eTriggerMsg({ type: 'error', text: '❌ ' + (d.error || 'Erreur inconnue'), help: d.help });
+                    const d = await safeJson(res);
+                    if (d && d.ok) {
+                      setE2eTriggerMsg({ type: 'success', text: '✅ ' + d.message });
+                      setTimeout(() => fetchGithubStatus(), 5000);
+                    } else {
+                      setE2eTriggerMsg({ type: 'error', text: '❌ ' + (d?.error || 'Réponse inattendue du serveur'), help: d?.help });
+                    }
                   }
                 } catch (err) { setE2eTriggerMsg({ type: 'error', text: '❌ ' + err.message }); }
                 setTimeout(() => setE2eTriggerMsg(null), 15000);
