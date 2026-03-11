@@ -46,3 +46,8 @@ logs/**/*.log
 
 # server uploads (ignore if not versioned intentionally)
 server/uploads/
+
+# Playwright E2E
+e2e-report/
+test-results/
+playwright-report/

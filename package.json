@@ -30,7 +30,11 @@
     "eject": "react-scripts eject",
     "normalize-images": "node scripts/normalize-images.js",
     "optimize-images": "node scripts/optimize-images.js",
-    "setup-new-pc": "node setup-new-pc.js"
+    "setup-new-pc": "node setup-new-pc.js",
+    "test:e2e": "npx playwright test --project=chromium",
+    "test:e2e:headed": "npx playwright test --project=chromium --headed",
+    "test:e2e:ui": "npx playwright test --ui",
+    "test:e2e:report": "npx playwright show-report e2e-report"
   },
   "eslintConfig": {
     "extends": [
@@ -51,6 +55,7 @@
     ]
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "sharp": "^0.34.5"
   }
 }
