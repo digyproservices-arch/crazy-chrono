@@ -396,4 +396,102 @@ router.get('/teacher-dashboard', async (req, res) => {
   }
 });
 
+/**
+ * PATCH /api/auth/profile
+ * Sauvegarder les préférences utilisateur (pseudo, langue, avatar, strictElementsMode)
+ */
+router.patch('/profile', async (req, res) => {
+  try {
+    const supabase = req.app.locals.supabaseAdmin;
+    if (!supabase) {
+      return res.status(500).json({ ok: false, error: 'supabase_not_configured' });
+    }
+
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ ok: false, error: 'missing_token' });
+    }
+
+    const token = authHeader.slice(7).trim();
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) {
+      return res.status(401).json({ ok: false, error: 'invalid_token' });
+    }
+
+    const { pseudo, language, avatar_url, strict_elements_mode } = req.body;
+
+    // Build update object with only provided fields
+    const updates = {};
+    if (pseudo !== undefined) updates.pseudo = String(pseudo).slice(0, 50);
+    if (language !== undefined) updates.language = ['fr', 'en'].includes(language) ? language : 'fr';
+    if (avatar_url !== undefined) updates.avatar_url = avatar_url ? String(avatar_url).slice(0, 500000) : null;
+    if (strict_elements_mode !== undefined) updates.strict_elements_mode = !!strict_elements_mode;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ ok: false, error: 'no_fields_to_update' });
+    }
+
+    const { error: updateError } = await supabase
+      .from('user_profiles')
+      .update(updates)
+      .eq('id', user.id);
+
+    if (updateError) {
+      console.error('[Auth] Error updating profile:', updateError);
+      return res.status(500).json({ ok: false, error: 'update_failed' });
+    }
+
+    console.log(`[Auth] Profile updated for ${user.email}:`, Object.keys(updates));
+    return res.json({ ok: true, updated: Object.keys(updates) });
+
+  } catch (error) {
+    console.error('[Auth] Error in /profile:', error);
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+/**
+ * GET /api/auth/profile
+ * Charger les préférences utilisateur depuis user_profiles
+ */
+router.get('/profile', async (req, res) => {
+  try {
+    const supabase = req.app.locals.supabaseAdmin;
+    if (!supabase) {
+      return res.status(500).json({ ok: false, error: 'supabase_not_configured' });
+    }
+
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ ok: false, error: 'missing_token' });
+    }
+
+    const token = authHeader.slice(7).trim();
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) {
+      return res.status(401).json({ ok: false, error: 'invalid_token' });
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('pseudo, language, avatar_url, strict_elements_mode, first_name, last_name, role')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error('[Auth] Error fetching profile:', profileError);
+      return res.status(500).json({ ok: false, error: 'fetch_failed' });
+    }
+
+    return res.json({
+      ok: true,
+      profile: profile || {}
+    });
+
+  } catch (error) {
+    console.error('[Auth] Error in GET /profile:', error);
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
 module.exports = router;

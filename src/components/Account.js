@@ -78,7 +78,7 @@ const Account = () => {
     }
   }, [auth?.id]);
 
-  // Detect if user is a school-linked student
+  // Detect if user is a school-linked student + load profile preferences from server
   useEffect(() => {
     (async () => {
       if (!supabase) return;
@@ -94,6 +94,34 @@ const Account = () => {
           setIsSchoolStudent(true);
         }
       } catch {}
+      // Charger les préférences depuis le serveur
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess?.session?.access_token;
+        if (!token) return;
+        const res = await fetch(`${BACKEND_URL}/api/auth/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json();
+        if (json?.ok && json?.profile) {
+          const p = json.profile;
+          if (p.pseudo) setName(p.pseudo);
+          if (p.language) setLanguage(p.language);
+          if (p.avatar_url) setAvatar(p.avatar_url);
+          if (p.strict_elements_mode !== null && p.strict_elements_mode !== undefined) setStrictElementsMode(!!p.strict_elements_mode);
+          // Synchroniser aussi localStorage
+          const currentAuth = readAuth() || {};
+          const updated = { ...currentAuth };
+          if (p.pseudo) updated.name = p.pseudo;
+          if (p.language) updated.language = p.language;
+          if (p.avatar_url) updated.avatar = p.avatar_url;
+          if (p.strict_elements_mode !== null && p.strict_elements_mode !== undefined) updated.strictElementsMode = !!p.strict_elements_mode;
+          writeAuth(updated);
+          setAuth(updated);
+        }
+      } catch (e) {
+        console.warn('[Account] Erreur chargement préférences serveur:', e.message);
+      }
     })();
   }, []);
 
@@ -173,7 +201,7 @@ const Account = () => {
     }
   }, [getToken]);
 
-  const onSave = () => {
+  const onSave = async () => {
     const next = {
       ...(auth || {}),
       name,
@@ -190,6 +218,29 @@ const Account = () => {
     writeAuth(next);
     setSaved(true);
     setTimeout(() => setSaved(false), 1600);
+
+    // Sauvegarder aussi côté serveur (persistance cross-device)
+    try {
+      if (!supabase) return;
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess?.session?.access_token;
+      if (!token) return;
+      await fetch(`${BACKEND_URL}/api/auth/profile`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          pseudo: name,
+          language,
+          avatar_url: avatar || null,
+          strict_elements_mode: strictElementsMode,
+        }),
+      });
+    } catch (e) {
+      console.warn('[Account] Erreur sauvegarde serveur:', e.message);
+    }
   };
 
   return (

@@ -49,11 +49,13 @@ export default function Login({ onLogin }) {
           const { data } = await supabase.auth.getSession();
           if (data?.session?.user) {
             const user = data.session.user;
+            const existingAuth = (() => { try { return JSON.parse(localStorage.getItem('cc_auth') || '{}'); } catch { return {}; } })();
             const profile = { 
+              ...existingAuth, // Préserver préférences existantes (langue, avatar, etc.)
               id: user.id, 
               email: user.email, 
-              name: user.user_metadata?.name || user.email?.split('@')[0], 
-              role: 'user',
+              name: existingAuth.name || user.user_metadata?.name || user.email?.split('@')[0], 
+              role: existingAuth.role || 'user',
               token: data.session.access_token // Ajouter le token pour les API calls
             };
             try { localStorage.setItem('cc_auth', JSON.stringify(profile)); } catch {}
@@ -164,10 +166,12 @@ export default function Login({ onLogin }) {
         const lastName = userProfile?.last_name || user.user_metadata?.last_name || '';
         const fullDisplayName = [firstName, lastName].filter(Boolean).join(' ').trim();
         
+        const existingAuth = (() => { try { return JSON.parse(localStorage.getItem('cc_auth') || '{}'); } catch { return {}; } })();
         const profile = {
+          ...existingAuth, // Préserver préférences existantes (langue, avatar, etc.)
           id: user.id,
           email: user.email,
-          name: fullDisplayName || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur',
+          name: existingAuth.name || fullDisplayName || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur',
           firstName: firstName,
           lastName: lastName,
           role: userProfile?.role || 'user',
@@ -330,10 +334,12 @@ export default function Login({ onLogin }) {
 
         const user = authData?.user || authData?.session?.user;
         if (user) {
+          const existingAuth = (() => { try { return JSON.parse(localStorage.getItem('cc_auth') || '{}'); } catch { return {}; } })();
           const profile = {
+            ...existingAuth, // Préserver préférences existantes (langue, avatar, etc.)
             id: user.id,
             email: user.email,
-            name: data.student.fullName || data.student.firstName,
+            name: existingAuth.name || data.student.fullName || data.student.firstName,
             role: 'student',
             token: authData?.session?.access_token,
             studentId: data.student.id,
