@@ -27,12 +27,15 @@ function MonitoringDashboard() {
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(null);
-  const [activeTab, setActiveTab] = useState('report'); // report | incidents | rounds
+  const [activeTab, setActiveTab] = useState('report'); // report | incidents | rounds | e2e
   const [copyFeedback, setCopyFeedback] = useState(null);
   const [incidents, setIncidents] = useState([]);
   const [incidentsLoading, setIncidentsLoading] = useState(false);
   const [incidentSeverityFilter, setIncidentSeverityFilter] = useState('all');
   const [roundLogs, setRoundLogs] = useState([]);
+  const [e2eScreenshots, setE2eScreenshots] = useState([]);
+  const [e2eLoading, setE2eLoading] = useState(false);
+  const [e2eSelectedImg, setE2eSelectedImg] = useState(null);
 
   const copyToClipboard = async (text, source) => {
     try {
@@ -229,6 +232,7 @@ const clearIncidents = async () => {
             { id: 'report', label: '📊 Rapport complet', icon: '' },
             { id: 'incidents', label: `⚠️ Incidents (${incidents.length})`, icon: '' },
             { id: 'rounds', label: `🎮 Manches (${roundLogs.length}) ${roundLogs.some(r => r.doublePairIssues > 0) ? '🚨' : ''}`, icon: '' },
+            { id: 'e2e', label: `📸 E2E Screenshots (${e2eScreenshots.length})`, icon: '' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -675,6 +679,104 @@ sections.push(`===== FIN DU RAPPORT =====`);
               </div>
             )}
 
+
+            {/* ====== E2E SCREENSHOTS TAB ====== */}
+            {activeTab === 'e2e' && (() => {
+              const fetchScreenshots = async () => {
+                setE2eLoading(true);
+                try {
+                  const token = getAuthToken();
+                  const backendUrl = getBackendUrl();
+                  const res = await fetch(`${backendUrl}/api/monitoring/e2e-screenshots`, {
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                  });
+                  if (res.ok) {
+                    const data = await res.json();
+                    if (data.ok) setE2eScreenshots(data.screenshots || []);
+                  }
+                } catch (err) {
+                  console.warn('[E2E] Fetch screenshots failed:', err.message);
+                }
+                setE2eLoading(false);
+              };
+              if (e2eScreenshots.length === 0 && !e2eLoading) fetchScreenshots();
+              const backendUrl = getBackendUrl();
+              const token = getAuthToken();
+              return (
+                <div>
+                  <div style={{ ...cardStyle, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 'bold' }}>📸 Screenshots des tests E2E automatiques</h3>
+                    <button onClick={fetchScreenshots} style={btnStyle(COLORS.info)} disabled={e2eLoading}>
+                      {e2eLoading ? '⏳ Chargement...' : '🔄 Rafraîchir'}
+                    </button>
+                  </div>
+
+                  {e2eScreenshots.length === 0 ? (
+                    <div style={{ ...cardStyle, textAlign: 'center', padding: 40, color: COLORS.textMuted }}>
+                      <div style={{ fontSize: 48, marginBottom: 16 }}>📸</div>
+                      <p>Aucun screenshot E2E disponible.</p>
+                      <p style={{ fontSize: 12 }}>Les screenshots seront capturés automatiquement lors des tests E2E nocturnes ou à chaque push.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Stats */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 16 }}>
+                        <KPICard title="Total captures" value={e2eScreenshots.length} icon="📸" color="#3b82f6" />
+                        <KPICard title="Avec anomalies" value={e2eScreenshots.filter(s => s.anomalies && s.anomalies.length > 0).length} icon="🚨" color="#ef4444" highlight={e2eScreenshots.some(s => s.anomalies && s.anomalies.length > 0)} />
+                        <KPICard title="OK" value={e2eScreenshots.filter(s => !s.anomalies || s.anomalies.length === 0).length} icon="✅" color="#10b981" />
+                      </div>
+
+                      {/* Gallery */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                        {e2eScreenshots.map((ss, i) => {
+                          const hasAnomaly = ss.anomalies && ss.anomalies.length > 0;
+                          const ts = ss.timestamp ? new Date(ss.timestamp).toLocaleString('fr-FR') : '';
+                          const imgUrl = `${backendUrl}/api/monitoring/e2e-screenshots/${ss.filename}`;
+                          return (
+                            <div key={i} style={{
+                              ...cardStyle,
+                              borderLeft: `4px solid ${hasAnomaly ? '#ef4444' : '#10b981'}`,
+                              cursor: 'pointer',
+                              transition: 'transform 0.15s',
+                            }} onClick={() => setE2eSelectedImg(imgUrl)}>
+                              <div style={{ marginBottom: 8 }}>
+                                <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: hasAnomaly ? '#ef4444' : '#10b981', color: '#fff', marginRight: 6 }}>
+                                  {hasAnomaly ? 'ANOMALIE' : 'OK'}
+                                </span>
+                                <span style={{ fontSize: 11, color: COLORS.textMuted }}>{ts}</span>
+                              </div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', marginBottom: 4 }}>{ss.scenarioName}</div>
+                              <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 8 }}>{ss.screenshotName} ({(ss.size / 1024).toFixed(0)} KB)</div>
+                              {hasAnomaly && (
+                                <div style={{ fontSize: 11, color: '#ef4444', marginBottom: 6 }}>
+                                  {ss.anomalies.join(', ')}
+                                </div>
+                              )}
+                              <img src={imgUrl} alt={ss.scenarioName}
+                                style={{ width: '100%', borderRadius: 6, border: `1px solid ${COLORS.border}` }}
+                                headers={token ? { 'Authorization': `Bearer ${token}` } : {}}
+                                onError={(e) => { e.target.style.display = 'none'; }}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Lightbox */}
+                  {e2eSelectedImg && (
+                    <div onClick={() => setE2eSelectedImg(null)} style={{
+                      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                      background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      zIndex: 9999, cursor: 'zoom-out', padding: 20,
+                    }}>
+                      <img src={e2eSelectedImg} alt="Screenshot E2E" style={{ maxWidth: '95vw', maxHeight: '90vh', borderRadius: 8, boxShadow: '0 4px 30px rgba(0,0,0,0.5)' }} />
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
           </>
         )}

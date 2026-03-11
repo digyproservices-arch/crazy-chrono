@@ -206,4 +206,99 @@ router.post('/client-diag', (req, res) => {
   }
 });
 
+// ── E2E Test Screenshots Storage ─────────────────────────
+const SCREENSHOTS_DIR = path.join(__dirname, '..', 'data', 'e2e-screenshots');
+const MAX_SCREENSHOTS = 50; // Keep last 50 screenshots
+
+function ensureScreenshotsDir() {
+  if (!fs.existsSync(SCREENSHOTS_DIR)) fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
+}
+
+/**
+ * POST /api/monitoring/e2e-screenshot
+ * Reçoit un screenshot E2E en base64 et le stocke
+ * Body: { scenarioName, screenshotName, imageBase64, timestamp, anomalies }
+ */
+router.post('/e2e-screenshot', async (req, res) => {
+  try {
+    const { scenarioName, screenshotName, imageBase64, timestamp, anomalies } = req.body;
+    if (!imageBase64 || !scenarioName) {
+      return res.status(400).json({ ok: false, error: 'missing scenarioName or imageBase64' });
+    }
+
+    ensureScreenshotsDir();
+
+    // Nom de fichier unique
+    const ts = (timestamp || new Date().toISOString()).replace(/[:.]/g, '-');
+    const safeName = (scenarioName + '_' + screenshotName).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80);
+    const filename = `${ts}_${safeName}.png`;
+    const filepath = path.join(SCREENSHOTS_DIR, filename);
+
+    // Sauvegarder l'image
+    const buffer = Buffer.from(imageBase64, 'base64');
+    fs.writeFileSync(filepath, buffer);
+
+    // Sauvegarder les métadonnées dans un index JSON
+    const indexFile = path.join(SCREENSHOTS_DIR, 'index.json');
+    let index = [];
+    try { index = JSON.parse(fs.readFileSync(indexFile, 'utf8')); } catch {}
+
+    index.push({
+      filename,
+      scenarioName,
+      screenshotName,
+      timestamp: timestamp || new Date().toISOString(),
+      anomalies: anomalies || [],
+      size: buffer.length,
+    });
+
+    // Garder les derniers MAX_SCREENSHOTS
+    if (index.length > MAX_SCREENSHOTS) {
+      const toDelete = index.splice(0, index.length - MAX_SCREENSHOTS);
+      for (const old of toDelete) {
+        try { fs.unlinkSync(path.join(SCREENSHOTS_DIR, old.filename)); } catch {}
+      }
+    }
+
+    fs.writeFileSync(indexFile, JSON.stringify(index, null, 2), 'utf8');
+    console.log(`[E2E] Screenshot saved: ${filename} (${(buffer.length / 1024).toFixed(1)}KB)`);
+    res.json({ ok: true, filename });
+  } catch (error) {
+    console.error('[E2E] Screenshot save error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/monitoring/e2e-screenshots
+ * Liste les screenshots E2E disponibles (admin only)
+ */
+router.get('/e2e-screenshots', requireAdminAuth, async (req, res) => {
+  try {
+    ensureScreenshotsDir();
+    const indexFile = path.join(SCREENSHOTS_DIR, 'index.json');
+    let index = [];
+    try { index = JSON.parse(fs.readFileSync(indexFile, 'utf8')); } catch {}
+    res.json({ ok: true, screenshots: index.reverse() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/monitoring/e2e-screenshots/:filename
+ * Sert un screenshot E2E (admin only)
+ */
+router.get('/e2e-screenshots/:filename', requireAdminAuth, async (req, res) => {
+  try {
+    const filename = req.params.filename.replace(/[^a-zA-Z0-9_.-]/g, '');
+    const filepath = path.join(SCREENSHOTS_DIR, filename);
+    if (!fs.existsSync(filepath)) return res.status(404).json({ ok: false, error: 'not found' });
+    res.setHeader('Content-Type', 'image/png');
+    res.sendFile(filepath);
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 module.exports = router;

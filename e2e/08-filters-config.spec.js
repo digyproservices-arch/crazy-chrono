@@ -17,47 +17,60 @@ const { TEST_ACCOUNTS, loginWithEmail } = require('./helpers');
  * 5. Détecte les anomalies (double paires, zones vides, crash)
  */
 
-// Combinaisons de filtres à tester
+// Un niveau supérieur englobe les catégories des niveaux inférieurs.
+// Donc on teste UN SEUL niveau par scénario (pas de cumul redondant).
 const FILTER_SCENARIOS = [
   {
-    name: 'CE1 uniquement — Toutes catégories',
-    classes: ['CE1'],
-    themes: [], // Vide = tout sélectionné
-    description: 'Niveau CE1 seul, contenu complet',
-  },
-  {
-    name: 'CE2 uniquement — Toutes catégories',
-    classes: ['CE2'],
-    themes: [],
-    description: 'Niveau CE2 seul, contenu complet',
-  },
-  {
-    name: 'CM1+CM2 — Toutes catégories',
-    classes: ['CM1', 'CM2'],
-    themes: [],
-    description: 'Niveaux CM1 et CM2 combinés',
-  },
-  {
-    name: 'CP uniquement — Toutes catégories',
+    name: 'CP — Toutes catégories',
     classes: ['CP'],
     themes: [],
-    description: 'Niveau CP seul (le plus basique)',
+    description: 'Niveau CP (le plus basique)',
   },
   {
-    name: 'Tous niveaux — Botanique seule',
-    classes: ['CP', 'CE1', 'CE2', 'CM1', 'CM2'],
+    name: 'CE1 — Toutes catégories',
+    classes: ['CE1'],
+    themes: [],
+    description: 'CE1 englobe CP',
+  },
+  {
+    name: 'CE2 — Toutes catégories',
+    classes: ['CE2'],
+    themes: [],
+    description: 'CE2 englobe CP→CE1',
+  },
+  {
+    name: 'CM1 — Toutes catégories',
+    classes: ['CM1'],
+    themes: [],
+    description: 'CM1 englobe CP→CE2',
+  },
+  {
+    name: 'CM2 — Toutes catégories',
+    classes: ['CM2'],
+    themes: [],
+    description: 'CM2 englobe CP→CM1 (contenu maximum primaire)',
+  },
+  {
+    name: '6e — Toutes catégories (collège)',
+    classes: ['6e'],
+    themes: [],
+    description: '6e englobe tout le primaire',
+  },
+  {
+    name: 'CM2 — Botanique seule',
+    classes: ['CM2'],
     themes: ['domain:botany'],
-    description: 'Filtrer uniquement la botanique',
+    description: 'Filtrer uniquement la botanique (tout primaire)',
   },
   {
-    name: 'Tous niveaux — Zoologie seule',
-    classes: ['CP', 'CE1', 'CE2', 'CM1', 'CM2'],
+    name: 'CM2 — Zoologie seule',
+    classes: ['CM2'],
     themes: ['domain:zoology'],
     description: 'Filtrer uniquement la zoologie',
   },
   {
-    name: 'Tous niveaux — Mathématiques seules',
-    classes: ['CP', 'CE1', 'CE2', 'CM1', 'CM2'],
+    name: 'CM2 — Mathématiques seules',
+    classes: ['CM2'],
     themes: ['domain:math'],
     description: 'Filtrer uniquement les mathématiques',
   },
@@ -65,37 +78,31 @@ const FILTER_SCENARIOS = [
     name: 'CE1 — Table de 2 uniquement',
     classes: ['CE1'],
     themes: ['category:table_2'],
-    description: 'Filtrer table de 2 pour CE1',
+    description: 'Catégorie très spécifique: table de 2',
   },
   {
     name: 'CE2 — Tables 2+3+4',
     classes: ['CE2'],
     themes: ['category:table_2', 'category:table_3', 'category:table_4'],
-    description: 'Filtrer tables 2,3,4 pour CE2',
+    description: 'Multi-catégories tables de multiplication',
   },
   {
     name: 'CM1 — Additions + Soustractions',
     classes: ['CM1'],
     themes: ['category:addition', 'category:soustraction'],
-    description: 'Filtrer opérations pour CM1',
+    description: 'Filtrer opérations arithmétiques',
   },
   {
-    name: 'Tous niveaux — Fruits uniquement',
-    classes: ['CP', 'CE1', 'CE2', 'CM1', 'CM2'],
+    name: 'CM2 — Fruits uniquement',
+    classes: ['CM2'],
     themes: ['category:fruit'],
-    description: 'Filtrer catégorie fruits',
+    description: 'Catégorie fruits (tout primaire)',
   },
   {
     name: 'CE1 — Botanique + Math (mixte)',
     classes: ['CE1'],
     themes: ['domain:botany', 'domain:math'],
-    description: 'Mix botanique et math CE1',
-  },
-  {
-    name: '6e — Toutes catégories (collège)',
-    classes: ['6e'],
-    themes: [],
-    description: 'Niveau collège 6e',
+    description: 'Mix deux domaines pour CE1',
   },
 ];
 
