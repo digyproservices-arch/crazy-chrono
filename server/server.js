@@ -33,8 +33,12 @@ app.use(cors(corsOptions));
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(express.json({ limit: '10mb' }));
 
-// Rate limiting — global
-const globalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { ok: false, error: 'too_many_requests' } });
+// Rate limiting — global (exempte /api/monitoring car déjà protégé par requireAdminAuth)
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false,
+  message: { ok: false, error: 'too_many_requests' },
+  skip: (req) => req.path.startsWith('/api/monitoring'),
+});
 app.use(globalLimiter);
 
 // Rate limiting — auth endpoints (stricter)
