@@ -164,7 +164,9 @@ export function validateZones(zones, context = {}) {
     const pid = z.pairId || z.pairID || z.pairid || z.pair || z.groupId || z.groupID || z.group || '';
     if (!pid) {
       // Les distracteurs (zones sans paire) n'ont légitimement pas de pairId — ne pas signaler
-      if (!z.isDistractor) {
+      // Les zones vides (pas de contenu) sont des placeholders non-remplis — implicitement distracteurs
+      const hasContent = !!(z.content || z.label || '').toString().trim();
+      if (!z.isDistractor && hasContent) {
         incidents.push(reportIncident(INCIDENT_TYPES.MISSING_PAIR, {
           zoneId: z.id,
           type: z.type,

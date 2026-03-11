@@ -1429,6 +1429,7 @@ const Carte = () => {
           // Charger zones et démarrer immédiatement
           if (trainingData.zones && Array.isArray(trainingData.zones)) {
             console.log('[TRAINING] 🎮 Chargement zones:', trainingData.zones.length);
+            trainingData.zones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
             try { incidentValidateZones(trainingData.zones, { source: 'training:initial' }); } catch {}
             try { logRound(trainingData.zones, { mode: 'training', source: 'training:initial' }); } catch {}
             try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: trainingData.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: trainingData.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
@@ -1507,6 +1508,7 @@ const Carte = () => {
 
         if (Array.isArray(zones)) {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
+          cleanZones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
           try { logRound(cleanZones, { mode: 'training', source: 'training:round-new' }); } catch {}
           try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: cleanZones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: cleanZones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
           setZones(cleanZones);
@@ -1758,7 +1760,7 @@ const Carte = () => {
         
         // ✅ FIX: Nettoyer validated=false pour rendre zones cliquables
         const cleanZones = Array.isArray(zones) ? zones.map(z => ({ ...z, validated: false })) : [];
-        console.log('[ARENA] 🧹 Zones nettoyées (validated=false):', cleanZones.length);
+        cleanZones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
         try { incidentValidateZones(cleanZones, { source: 'arena:tiebreaker' }); } catch {}
         try { logRound(cleanZones, { mode: 'arena', source: 'arena:tiebreaker' }); } catch {}
         
@@ -1827,6 +1829,7 @@ const Carte = () => {
         // Mettre à jour les zones - FORCER validated=false pour éviter héritage entre manches
         if (Array.isArray(zones)) {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
+          cleanZones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
           try { logRound(cleanZones, { mode: 'arena', source: 'arena:round-new' }); } catch {}
           try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: cleanZones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: cleanZones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
           setZones(cleanZones);
@@ -1973,6 +1976,7 @@ const Carte = () => {
                 const roundData = JSON.parse(localStorage.getItem('cc_gs_round') || 'null');
                 if (roundData && Array.isArray(roundData.zones) && roundData.zones.length > 0) {
                   console.log('[CC][GS] Loading zones from localStorage fallback', { count: roundData.zones.length });
+                  roundData.zones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
                   try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: roundData.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: roundData.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
                   setZones(roundData.zones);
                   setPreparing(false);
@@ -2001,9 +2005,10 @@ const Carte = () => {
           try { localStorage.removeItem('cc_gs_round'); } catch {}
           try { if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } } catch {}
           if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
-            try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: payload.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: payload.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
+            payload.zones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
             try { incidentValidateZones(payload.zones, { source: 'gs:round-new' }); } catch {}
             try { logRound(payload.zones, { mode: 'gs', source: 'gs:round-new' }); } catch {}
+            try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: payload.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: payload.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
             setZones(payload.zones);
             // FIX: Sync customTextSettings pour afficher le bon contenu texte
             try { const _ts={}; payload.zones.forEach(z=>{if(z.type==='texte')_ts[z.id]={ fontSize:32, fontFamily:'Arial', color:'#fff', angle:0, text:z.content||'' };}); setCustomTextSettings(_ts); } catch(e){}
@@ -2043,6 +2048,15 @@ const Carte = () => {
             const idx = Math.max(0, players.findIndex(x => x.id === winnerId));
             const { primary, border } = getPlayerColorComboByIndex(idx);
             const initials = getInitials(winnerName);
+
+            const textFor = (Z) => {
+              const t = (Z?.label || Z?.content || Z?.text || Z?.value || '').toString();
+              if (t && t.trim()) return t;
+              // fallback: pairId visible si contenu vide (ex: image sans label)
+              const pid = getPairId(Z);
+              return pid ? `[${pid}]` : '…';
+            };
+
             animateBubblesFromZones(aId, bId, primary, ZA, ZB, border, initials);
           } catch (e) { console.warn('[CC][GS] pair:valid animation error', e); }
         });
@@ -2316,7 +2330,7 @@ const Carte = () => {
       // MODE MULTIJOUEUR : Utiliser les zones serveur si disponibles
       else if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
         console.log('[CC][client] MULTIPLAYER MODE: Using server-generated zones:', payload.zones.length);
-        
+        payload.zones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
         try { incidentValidateZones(payload.zones, { source: 'multiplayer:round-new' }); } catch {}
         try { logRound(payload.zones, { mode: 'multiplayer', source: 'multiplayer:round-new' }); } catch {}
         

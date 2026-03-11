@@ -686,6 +686,25 @@ function generateRoundZones(seed, config = {}) {
           used.texte.add(tId);
           placedDistractorTextIds.add(tId);
           usedTextContents.add(content);
+        } else {
+          // FALLBACK: Prendre n'importe quel texte non utilisé
+          const availableTexts = textes.filter(t =>
+            !usedTextContents.has(t.content) && !used.texte.has(t.id)
+          );
+          if (availableTexts.length > 0) {
+            const fallbackTxt = choose(availableTexts, rng);
+            z.content = fallbackTxt.content || '';
+            z.label = z.content;
+            logFn('info', '[ZoneGen] FALLBACK: Using any available texte', {
+              zoneId: z.id, texteId: fallbackTxt.id, reason: 'No valid distractors found'
+            });
+            used.texte.add(fallbackTxt.id);
+            usedTextContents.add(z.content);
+          } else {
+            logFn('warn', '[ZoneGen] FALLBACK: No texte available at all', { zoneId: z.id });
+          }
+          z.pairId = '';
+          z.isDistractor = true;
         }
       } else if (type === 'calcul' && !hasValidContent) {
         // Interdire les chiffres de la paire correcte ET les chiffres des distracteurs déjà placés
