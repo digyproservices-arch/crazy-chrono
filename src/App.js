@@ -372,14 +372,29 @@ function App() {
                 // IMPORTANT: Préserver le token existant !
                 try { 
                   const existingAuth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
-                  localStorage.setItem('cc_auth', JSON.stringify({ 
-                    ...existingAuth, // Préserver toutes les propriétés existantes (dont le token)
+                  const merged = { 
+                    ...existingAuth,
                     id: json.user.id, 
                     email: json.user.email, 
                     role, 
                     isAdmin: role === 'admin', 
                     isEditor: role !== 'user' 
-                  })); 
+                  };
+                  localStorage.setItem('cc_auth', JSON.stringify(merged)); 
+                } catch {}
+                // Charger les préférences profil depuis le serveur (restaure après logout)
+                try {
+                  const profRes = await fetch(`${getBackendUrl()}/api/auth/profile`, { headers: { Authorization: `Bearer ${token}` } });
+                  const profJson = await profRes.json().catch(() => ({}));
+                  if (profJson?.ok && profJson?.profile) {
+                    const p = profJson.profile;
+                    const cur = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+                    if (p.pseudo) cur.name = p.pseudo;
+                    if (p.language) cur.language = p.language;
+                    if (p.avatar_url) cur.avatar = p.avatar_url;
+                    if (p.strict_elements_mode !== null && p.strict_elements_mode !== undefined) cur.strictElementsMode = !!p.strict_elements_mode;
+                    localStorage.setItem('cc_auth', JSON.stringify(cur));
+                  }
                 } catch {}
                 try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
                 syncedFromMe = true;
