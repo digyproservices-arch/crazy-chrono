@@ -24,6 +24,7 @@ module.exports = defineConfig({
     ['html', { open: 'never', outputFolder: 'e2e-report' }],
     ['json', { outputFile: 'e2e-report/results.json' }],
   ],
+  timeout: 600000, // 10 min max par test (test 25 élèves est long)
   use: {
     baseURL: process.env.E2E_BASE_URL || 'https://app.crazy-chrono.com',
     trace: 'on-first-retry',
