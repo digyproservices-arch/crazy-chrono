@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Tests automatiques chaque nuit à 3h UTC (minuit heure Guadeloupe)
+  schedule:
+    - cron: '0 3 * * *'
   # Possibilité de lancer manuellement depuis GitHub
   workflow_dispatch:
 
