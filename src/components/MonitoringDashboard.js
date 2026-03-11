@@ -160,6 +160,16 @@ const clearIncidents = async () => {
   };
 
   const getAuthToken = () => {
+    // 1) Token frais depuis session Supabase (prioritaire)
+    try {
+      const sbKey = 'sb-' + (process.env.REACT_APP_SUPABASE_URL || '').replace(/https?:\/\//, '').split('.')[0] + '-auth-token';
+      const raw = localStorage.getItem(sbKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.access_token) return parsed.access_token;
+      }
+    } catch {}
+    // 2) Fallback: token stocké au login dans cc_auth
     try {
       const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
       return auth.token;
