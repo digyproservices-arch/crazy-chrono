@@ -36,6 +36,12 @@ function MonitoringDashboard() {
   const [e2eScreenshots, setE2eScreenshots] = useState([]);
   const [e2eLoading, setE2eLoading] = useState(false);
   const [e2eSelectedImg, setE2eSelectedImg] = useState(null);
+  const [e2eResults, setE2eResults] = useState([]);
+  const [e2eResultsLoading, setE2eResultsLoading] = useState(false);
+  const [e2eTriggerMsg, setE2eTriggerMsg] = useState(null);
+  const [e2eGithubRuns, setE2eGithubRuns] = useState([]);
+  const [e2eExpandedRun, setE2eExpandedRun] = useState(null);
+  const [e2eSubTab, setE2eSubTab] = useState('results');
 
   const copyToClipboard = async (text, source) => {
     try {
@@ -232,7 +238,7 @@ const clearIncidents = async () => {
             { id: 'report', label: '📊 Rapport complet', icon: '' },
             { id: 'incidents', label: `⚠️ Incidents (${incidents.length})`, icon: '' },
             { id: 'rounds', label: `🎮 Manches (${roundLogs.length}) ${roundLogs.some(r => r.doublePairIssues > 0) ? '🚨' : ''}`, icon: '' },
-            { id: 'e2e', label: `📸 E2E Screenshots (${e2eScreenshots.length})`, icon: '' },
+            { id: 'e2e', label: `🧪 Tests E2E ${e2eResults.length > 0 ? (e2eResults[0]?.summary?.status === 'PASS' ? '✅' : '❌') : ''}`, icon: '' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -680,88 +686,271 @@ sections.push(`===== FIN DU RAPPORT =====`);
             )}
 
 
-            {/* ====== E2E SCREENSHOTS TAB ====== */}
+            {/* ====== E2E CENTRE DE CONTRÔLE ====== */}
             {activeTab === 'e2e' && (() => {
+              const backendUrl = getBackendUrl();
+              const token = getAuthToken();
+              const authHeaders = token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+
+              const fetchE2eResults = async () => {
+                setE2eResultsLoading(true);
+                try {
+                  const res = await fetch(`${backendUrl}/api/monitoring/e2e-results`, { headers: authHeaders });
+                  if (res.ok) { const d = await res.json(); if (d.ok) setE2eResults(d.results || []); }
+                } catch (err) { console.warn('[E2E] Fetch results failed:', err.message); }
+                setE2eResultsLoading(false);
+              };
+
               const fetchScreenshots = async () => {
                 setE2eLoading(true);
                 try {
-                  const token = getAuthToken();
-                  const backendUrl = getBackendUrl();
-                  const res = await fetch(`${backendUrl}/api/monitoring/e2e-screenshots`, {
-                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-                  });
-                  if (res.ok) {
-                    const data = await res.json();
-                    if (data.ok) setE2eScreenshots(data.screenshots || []);
-                  }
-                } catch (err) {
-                  console.warn('[E2E] Fetch screenshots failed:', err.message);
-                }
+                  const res = await fetch(`${backendUrl}/api/monitoring/e2e-screenshots`, { headers: authHeaders });
+                  if (res.ok) { const d = await res.json(); if (d.ok) setE2eScreenshots(d.screenshots || []); }
+                } catch (err) { console.warn('[E2E] Fetch screenshots failed:', err.message); }
                 setE2eLoading(false);
               };
-              if (e2eScreenshots.length === 0 && !e2eLoading) fetchScreenshots();
-              const backendUrl = getBackendUrl();
-              const token = getAuthToken();
+
+              const fetchGithubStatus = async () => {
+                try {
+                  const res = await fetch(`${backendUrl}/api/monitoring/e2e-status`, { headers: authHeaders });
+                  if (res.ok) { const d = await res.json(); if (d.ok && d.runs) setE2eGithubRuns(d.runs); }
+                } catch (err) { console.warn('[E2E] Fetch GitHub status failed:', err.message); }
+              };
+
+              const triggerTests = async () => {
+                setE2eTriggerMsg({ type: 'loading', text: '🚀 Lancement des tests...' });
+                try {
+                  const res = await fetch(`${backendUrl}/api/monitoring/trigger-e2e`, { method: 'POST', headers: authHeaders });
+                  const d = await res.json();
+                  if (d.ok) {
+                    setE2eTriggerMsg({ type: 'success', text: '✅ ' + d.message });
+                    setTimeout(() => fetchGithubStatus(), 5000);
+                  } else {
+                    setE2eTriggerMsg({ type: 'error', text: '❌ ' + (d.error || 'Erreur inconnue'), help: d.help });
+                  }
+                } catch (err) { setE2eTriggerMsg({ type: 'error', text: '❌ ' + err.message }); }
+                setTimeout(() => setE2eTriggerMsg(null), 15000);
+              };
+
+              const fetchAll = () => { fetchE2eResults(); fetchScreenshots(); fetchGithubStatus(); };
+              if (e2eResults.length === 0 && !e2eResultsLoading) fetchAll();
+
+              const lastRun = e2eResults[0] || null;
+              const lastSummary = lastRun?.summary || {};
+
               return (
                 <div>
+                  {/* Header + Bouton Lancer */}
                   <div style={{ ...cardStyle, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 'bold' }}>📸 Screenshots des tests E2E automatiques</h3>
-                    <button onClick={fetchScreenshots} style={btnStyle(COLORS.info)} disabled={e2eLoading}>
-                      {e2eLoading ? '⏳ Chargement...' : '🔄 Rafraîchir'}
-                    </button>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: 18, fontWeight: 'bold' }}>🧪 Centre de Contrôle E2E</h3>
+                      <p style={{ margin: '4px 0 0', fontSize: 12, color: COLORS.textMuted }}>
+                        Tests automatiques — résultats, screenshots, lancement
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={fetchAll} style={btnStyle(COLORS.info)}>🔄 Rafraîchir</button>
+                      <button onClick={triggerTests} style={{ ...btnStyle('#22c55e'), fontSize: 14, padding: '10px 20px' }}>
+                        🚀 Lancer les tests E2E
+                      </button>
+                    </div>
                   </div>
 
-                  {e2eScreenshots.length === 0 ? (
-                    <div style={{ ...cardStyle, textAlign: 'center', padding: 40, color: COLORS.textMuted }}>
-                      <div style={{ fontSize: 48, marginBottom: 16 }}>📸</div>
-                      <p>Aucun screenshot E2E disponible.</p>
-                      <p style={{ fontSize: 12 }}>Les screenshots seront capturés automatiquement lors des tests E2E nocturnes ou à chaque push.</p>
+                  {/* Trigger feedback */}
+                  {e2eTriggerMsg && (
+                    <div style={{
+                      ...cardStyle, marginBottom: 12, padding: '12px 16px',
+                      borderLeft: `4px solid ${e2eTriggerMsg.type === 'success' ? '#22c55e' : e2eTriggerMsg.type === 'error' ? '#ef4444' : '#3b82f6'}`,
+                      background: e2eTriggerMsg.type === 'error' ? 'rgba(239,68,68,0.1)' : e2eTriggerMsg.type === 'success' ? 'rgba(34,197,94,0.1)' : COLORS.card,
+                    }}>
+                      <div style={{ fontSize: 14, fontWeight: 600 }}>{e2eTriggerMsg.text}</div>
+                      {e2eTriggerMsg.help && <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 6 }}>{e2eTriggerMsg.help}</div>}
                     </div>
-                  ) : (
-                    <>
-                      {/* Stats */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 16 }}>
-                        <KPICard title="Total captures" value={e2eScreenshots.length} icon="📸" color="#3b82f6" />
-                        <KPICard title="Avec anomalies" value={e2eScreenshots.filter(s => s.anomalies && s.anomalies.length > 0).length} icon="🚨" color="#ef4444" highlight={e2eScreenshots.some(s => s.anomalies && s.anomalies.length > 0)} />
-                        <KPICard title="OK" value={e2eScreenshots.filter(s => !s.anomalies || s.anomalies.length === 0).length} icon="✅" color="#10b981" />
-                      </div>
+                  )}
 
-                      {/* Gallery */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-                        {e2eScreenshots.map((ss, i) => {
-                          const hasAnomaly = ss.anomalies && ss.anomalies.length > 0;
-                          const ts = ss.timestamp ? new Date(ss.timestamp).toLocaleString('fr-FR') : '';
-                          const imgUrl = `${backendUrl}/api/monitoring/e2e-screenshots/${ss.filename}`;
+                  {/* KPIs du dernier run */}
+                  {lastRun && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 16 }}>
+                      <KPICard title="Dernier run" value={lastSummary.status || '?'} icon={lastSummary.status === 'PASS' ? '✅' : '❌'} color={lastSummary.status === 'PASS' ? '#22c55e' : '#ef4444'} highlight={lastSummary.status !== 'PASS'} />
+                      <KPICard title="Tests passés" value={lastSummary.passed || 0} icon="✅" color="#22c55e" />
+                      <KPICard title="Échoués" value={lastSummary.failed || 0} icon="❌" color="#ef4444" highlight={(lastSummary.failed || 0) > 0} />
+                      <KPICard title="Skippés" value={lastSummary.skipped || 0} icon="⏭️" color="#f59e0b" />
+                      <KPICard title="Durée" value={lastSummary.duration ? `${(lastSummary.duration / 1000).toFixed(0)}s` : '?'} icon="⏱️" color="#3b82f6" />
+                      <KPICard title="Source" value={lastRun.source || '?'} icon="📍" color="#8b5cf6" />
+                    </div>
+                  )}
+
+                  {/* Sub-tabs */}
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: `1px solid ${COLORS.border}` }}>
+                    {[
+                      { id: 'results', label: `📋 Résultats (${e2eResults.length})` },
+                      { id: 'screenshots', label: `📸 Screenshots (${e2eScreenshots.length})` },
+                      { id: 'github', label: `🔗 GitHub Actions (${e2eGithubRuns.length})` },
+                    ].map(st => (
+                      <button key={st.id} onClick={() => setE2eSubTab(st.id)} style={{
+                        padding: '8px 16px', border: 'none',
+                        borderBottom: e2eSubTab === st.id ? `2px solid ${COLORS.info}` : '2px solid transparent',
+                        background: 'transparent', color: e2eSubTab === st.id ? '#fff' : COLORS.textMuted,
+                        cursor: 'pointer', fontWeight: e2eSubTab === st.id ? 700 : 500, fontSize: 13,
+                      }}>{st.label}</button>
+                    ))}
+                  </div>
+
+                  {/* ── SUB-TAB: Résultats ── */}
+                  {e2eSubTab === 'results' && (
+                    <div>
+                      {e2eResults.length === 0 ? (
+                        <div style={{ ...cardStyle, textAlign: 'center', padding: 40, color: COLORS.textMuted }}>
+                          <div style={{ fontSize: 48, marginBottom: 16 }}>🧪</div>
+                          <p>Aucun résultat E2E disponible.</p>
+                          <p style={{ fontSize: 12 }}>Cliquez sur "🚀 Lancer les tests E2E" pour démarrer, ou attendez l'exécution nocturne automatique.</p>
+                        </div>
+                      ) : (
+                        e2eResults.map((run, ri) => {
+                          const s = run.summary || {};
+                          const isExpanded = e2eExpandedRun === ri;
+                          const ts = run.timestamp ? new Date(run.timestamp).toLocaleString('fr-FR') : '';
+                          const failed = (run.failedTests || []);
                           return (
-                            <div key={i} style={{
-                              ...cardStyle,
-                              borderLeft: `4px solid ${hasAnomaly ? '#ef4444' : '#10b981'}`,
+                            <div key={ri} style={{
+                              ...cardStyle, marginBottom: 8,
+                              borderLeft: `4px solid ${s.status === 'PASS' ? '#22c55e' : '#ef4444'}`,
                               cursor: 'pointer',
-                              transition: 'transform 0.15s',
-                            }} onClick={() => setE2eSelectedImg(imgUrl)}>
-                              <div style={{ marginBottom: 8 }}>
-                                <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: hasAnomaly ? '#ef4444' : '#10b981', color: '#fff', marginRight: 6 }}>
-                                  {hasAnomaly ? 'ANOMALIE' : 'OK'}
-                                </span>
-                                <span style={{ fontSize: 11, color: COLORS.textMuted }}>{ts}</span>
+                            }} onClick={() => setE2eExpandedRun(isExpanded ? null : ri)}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div>
+                                  <span style={{ padding: '2px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: s.status === 'PASS' ? '#22c55e' : '#ef4444', color: '#fff', marginRight: 8 }}>
+                                    {s.status || '?'}
+                                  </span>
+                                  <span style={{ fontSize: 12, color: COLORS.textMuted }}>{ts}</span>
+                                  <span style={{ fontSize: 11, color: COLORS.textMuted, marginLeft: 12 }}>
+                                    {run.source === 'github-actions' ? '🔗 GitHub' : '💻 Local'} • {run.branch || ''} • {run.commit || ''}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
+                                  {s.passed}✅ {s.failed > 0 ? `${s.failed}❌` : ''} {s.skipped}⏭️ — {s.duration ? `${(s.duration / 1000).toFixed(0)}s` : ''}
+                                </div>
                               </div>
-                              <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', marginBottom: 4 }}>{ss.scenarioName}</div>
-                              <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 8 }}>{ss.screenshotName} ({(ss.size / 1024).toFixed(0)} KB)</div>
-                              {hasAnomaly && (
-                                <div style={{ fontSize: 11, color: '#ef4444', marginBottom: 6 }}>
-                                  {ss.anomalies.join(', ')}
+
+                              {/* Failed tests preview */}
+                              {failed.length > 0 && !isExpanded && (
+                                <div style={{ marginTop: 6, fontSize: 11, color: '#ef4444' }}>
+                                  ❌ {failed.map(f => f.title).join(' | ')}
                                 </div>
                               )}
-                              <img src={imgUrl} alt={ss.scenarioName}
-                                style={{ width: '100%', borderRadius: 6, border: `1px solid ${COLORS.border}` }}
-                                headers={token ? { 'Authorization': `Bearer ${token}` } : {}}
-                                onError={(e) => { e.target.style.display = 'none'; }}
-                              />
+
+                              {/* Expanded details */}
+                              {isExpanded && run.tests && (
+                                <div style={{ marginTop: 12, maxHeight: 400, overflowY: 'auto' }}>
+                                  {run.tests.map((t, ti) => (
+                                    <div key={ti} style={{
+                                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                      padding: '4px 8px', borderRadius: 4, marginBottom: 2,
+                                      background: t.status === 'failed' ? 'rgba(239,68,68,0.15)' : t.status === 'passed' ? 'rgba(34,197,94,0.05)' : 'transparent',
+                                      fontSize: 11,
+                                    }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span>{t.status === 'passed' ? '✅' : t.status === 'failed' ? '❌' : t.status === 'timedOut' ? '⏰' : '⏭️'}</span>
+                                        <span style={{ color: COLORS.textMuted }}>{t.file}</span>
+                                        <span style={{ color: '#fff' }}>{t.title}</span>
+                                      </div>
+                                      <span style={{ color: COLORS.textMuted }}>{t.duration}ms</span>
+                                    </div>
+                                  ))}
+                                  {/* Error details */}
+                                  {failed.length > 0 && (
+                                    <div style={{ marginTop: 8, padding: 8, background: 'rgba(239,68,68,0.1)', borderRadius: 6, fontSize: 10, fontFamily: 'monospace', color: '#ef4444' }}>
+                                      <strong>Erreurs détaillées :</strong>
+                                      {failed.map((f, fi) => (
+                                        <div key={fi} style={{ marginTop: 4 }}>
+                                          <strong>{f.file} › {f.title}</strong>: {f.error}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
-                        })}
-                      </div>
-                    </>
+                        })
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── SUB-TAB: Screenshots ── */}
+                  {e2eSubTab === 'screenshots' && (
+                    <div>
+                      {e2eScreenshots.length === 0 ? (
+                        <div style={{ ...cardStyle, textAlign: 'center', padding: 40, color: COLORS.textMuted }}>
+                          <div style={{ fontSize: 48, marginBottom: 16 }}>📸</div>
+                          <p>Aucun screenshot E2E disponible.</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 16 }}>
+                            <KPICard title="Total captures" value={e2eScreenshots.length} icon="📸" color="#3b82f6" />
+                            <KPICard title="Avec anomalies" value={e2eScreenshots.filter(s => s.anomalies && s.anomalies.length > 0).length} icon="🚨" color="#ef4444" highlight={e2eScreenshots.some(s => s.anomalies && s.anomalies.length > 0)} />
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                            {e2eScreenshots.map((ss, i) => {
+                              const hasAnomaly = ss.anomalies && ss.anomalies.length > 0;
+                              const ts = ss.timestamp ? new Date(ss.timestamp).toLocaleString('fr-FR') : '';
+                              const imgUrl = `${backendUrl}/api/monitoring/e2e-screenshots/${ss.filename}`;
+                              return (
+                                <div key={i} style={{ ...cardStyle, borderLeft: `4px solid ${hasAnomaly ? '#ef4444' : '#10b981'}`, cursor: 'pointer' }} onClick={() => setE2eSelectedImg(imgUrl)}>
+                                  <div style={{ marginBottom: 8 }}>
+                                    <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: hasAnomaly ? '#ef4444' : '#10b981', color: '#fff', marginRight: 6 }}>{hasAnomaly ? 'ANOMALIE' : 'OK'}</span>
+                                    <span style={{ fontSize: 11, color: COLORS.textMuted }}>{ts}</span>
+                                  </div>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', marginBottom: 4 }}>{ss.scenarioName}</div>
+                                  <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 8 }}>{ss.screenshotName} ({(ss.size / 1024).toFixed(0)} KB)</div>
+                                  {hasAnomaly && <div style={{ fontSize: 11, color: '#ef4444', marginBottom: 6 }}>{ss.anomalies.join(', ')}</div>}
+                                  <img src={imgUrl} alt={ss.scenarioName} style={{ width: '100%', borderRadius: 6, border: `1px solid ${COLORS.border}` }} onError={(e) => { e.target.style.display = 'none'; }} />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── SUB-TAB: GitHub Actions ── */}
+                  {e2eSubTab === 'github' && (
+                    <div>
+                      {e2eGithubRuns.length === 0 ? (
+                        <div style={{ ...cardStyle, textAlign: 'center', padding: 40, color: COLORS.textMuted }}>
+                          <div style={{ fontSize: 48, marginBottom: 16 }}>🔗</div>
+                          <p>Aucun workflow GitHub visible.</p>
+                          <p style={{ fontSize: 12 }}>Configurez GITHUB_TOKEN sur Render pour voir le statut des workflows ici.</p>
+                          <p style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 12 }}>
+                            1. Allez sur github.com/settings/tokens → créer un token "Fine-grained" avec scope "Actions: read+write"<br/>
+                            2. Ajoutez GITHUB_TOKEN dans Render → Environment Variables<br/>
+                            3. Le bouton "Lancer les tests" et le statut GitHub fonctionneront.
+                          </p>
+                        </div>
+                      ) : (
+                        e2eGithubRuns.map((run, i) => {
+                          const statusColor = run.conclusion === 'success' ? '#22c55e' : run.conclusion === 'failure' ? '#ef4444' : run.status === 'in_progress' ? '#3b82f6' : '#f59e0b';
+                          const statusIcon = run.conclusion === 'success' ? '✅' : run.conclusion === 'failure' ? '❌' : run.status === 'in_progress' ? '🔄' : '⏳';
+                          const ts = run.startedAt ? new Date(run.startedAt).toLocaleString('fr-FR') : '';
+                          return (
+                            <div key={i} style={{ ...cardStyle, marginBottom: 8, borderLeft: `4px solid ${statusColor}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div>
+                                <span style={{ padding: '2px 10px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: statusColor, color: '#fff', marginRight: 8 }}>
+                                  {statusIcon} {run.conclusion || run.status}
+                                </span>
+                                <span style={{ fontSize: 12, color: COLORS.textMuted }}>{ts}</span>
+                                <span style={{ fontSize: 11, color: COLORS.textMuted, marginLeft: 12 }}>{run.branch} • {run.commit}</span>
+                              </div>
+                              <a href={run.url} target="_blank" rel="noopener noreferrer" style={{ ...btnStyle('#334155'), fontSize: 11, textDecoration: 'none' }} onClick={e => e.stopPropagation()}>
+                                Voir sur GitHub ↗
+                              </a>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
                   )}
 
                   {/* Lightbox */}

@@ -301,4 +301,170 @@ router.get('/e2e-screenshots/:filename', requireAdminAuth, async (req, res) => {
   }
 });
 
+// ── E2E Test Results Storage ─────────────────────────
+const E2E_RESULTS_FILE = path.join(__dirname, '..', 'data', 'e2e-results.json');
+const MAX_E2E_RESULTS = 30; // Garder les 30 dernières exécutions
+
+function loadE2eResults() {
+  try {
+    ensureDataDir();
+    if (!fs.existsSync(E2E_RESULTS_FILE)) return [];
+    return JSON.parse(fs.readFileSync(E2E_RESULTS_FILE, 'utf8'));
+  } catch { return []; }
+}
+
+function saveE2eResults(results) {
+  try {
+    ensureDataDir();
+    const trimmed = results.slice(-MAX_E2E_RESULTS);
+    fs.writeFileSync(E2E_RESULTS_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
+  } catch (e) {
+    console.error('[E2E Results] Save error:', e.message);
+  }
+}
+
+/**
+ * POST /api/monitoring/e2e-results
+ * Reçoit le rapport complet d'exécution des tests E2E (envoyé par monitoring-reporter.js)
+ */
+router.post('/e2e-results', async (req, res) => {
+  try {
+    const report = req.body;
+    if (!report || !report.summary) {
+      return res.status(400).json({ ok: false, error: 'Invalid report format' });
+    }
+
+    const results = loadE2eResults();
+    results.push({
+      ...report,
+      receivedAt: new Date().toISOString(),
+    });
+    saveE2eResults(results);
+
+    const s = report.summary;
+    console.log(`[E2E Results] Rapport reçu: ${s.passed}✅ ${s.failed}❌ ${s.skipped}⏭️ (${s.source || 'unknown'})`);
+    res.json({ ok: true, message: 'Rapport enregistré' });
+  } catch (error) {
+    console.error('[E2E Results] POST error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/monitoring/e2e-results
+ * Liste les résultats E2E (admin only)
+ */
+router.get('/e2e-results', requireAdminAuth, async (req, res) => {
+  try {
+    const results = loadE2eResults();
+    res.json({ ok: true, results: results.reverse() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/monitoring/e2e-results
+ * Vider les résultats E2E (admin only)
+ */
+router.delete('/e2e-results', requireAdminAuth, async (req, res) => {
+  try {
+    saveE2eResults([]);
+    res.json({ ok: true, message: 'Résultats supprimés' });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/monitoring/trigger-e2e
+ * Déclenche les tests E2E via GitHub Actions (admin only)
+ * Nécessite GITHUB_TOKEN dans les variables d'environnement du serveur
+ */
+router.post('/trigger-e2e', requireAdminAuth, async (req, res) => {
+  try {
+    const githubToken = process.env.GITHUB_TOKEN;
+    const repo = process.env.GITHUB_REPO || 'digyproservices-arch/crazy-chrono';
+
+    if (!githubToken) {
+      return res.status(400).json({
+        ok: false,
+        error: 'GITHUB_TOKEN non configuré sur le serveur. Ajoutez-le dans les variables d\'environnement Render.',
+        help: 'Allez sur https://github.com/settings/tokens → créez un token avec scope "repo" → ajoutez GITHUB_TOKEN dans Render.',
+      });
+    }
+
+    // Déclencher le workflow via GitHub API
+    const response = await fetch(
+      `https://api.github.com/repos/${repo}/actions/workflows/e2e-tests.yml/dispatches`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ref: 'main' }),
+      }
+    );
+
+    if (response.status === 204) {
+      console.log('[E2E] GitHub Actions workflow déclenché avec succès');
+      res.json({ ok: true, message: 'Tests E2E lancés ! Les résultats apparaîtront dans quelques minutes.' });
+    } else {
+      const errorText = await response.text();
+      console.error('[E2E] GitHub trigger failed:', response.status, errorText);
+      res.status(response.status).json({ ok: false, error: `GitHub API: ${response.status} — ${errorText}` });
+    }
+  } catch (error) {
+    console.error('[E2E] Trigger error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/monitoring/e2e-status
+ * Récupère le statut du dernier workflow GitHub Actions (admin only)
+ */
+router.get('/e2e-status', requireAdminAuth, async (req, res) => {
+  try {
+    const githubToken = process.env.GITHUB_TOKEN;
+    const repo = process.env.GITHUB_REPO || 'digyproservices-arch/crazy-chrono';
+
+    if (!githubToken) {
+      return res.json({ ok: true, status: 'unknown', message: 'GITHUB_TOKEN non configuré' });
+    }
+
+    const response = await fetch(
+      `https://api.github.com/repos/${repo}/actions/workflows/e2e-tests.yml/runs?per_page=5`,
+      {
+        headers: {
+          'Authorization': `token ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      return res.json({ ok: true, status: 'unknown', message: 'Impossible de lire GitHub API' });
+    }
+
+    const data = await response.json();
+    const runs = (data.workflow_runs || []).map(r => ({
+      id: r.id,
+      status: r.status,           // queued, in_progress, completed
+      conclusion: r.conclusion,   // success, failure, cancelled
+      branch: r.head_branch,
+      commit: r.head_sha?.substring(0, 8),
+      startedAt: r.run_started_at,
+      updatedAt: r.updated_at,
+      url: r.html_url,
+    }));
+
+    res.json({ ok: true, runs });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 module.exports = router;

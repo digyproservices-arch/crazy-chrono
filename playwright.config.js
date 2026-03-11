@@ -23,6 +23,7 @@ module.exports = defineConfig({
     ['list'],
     ['html', { open: 'never', outputFolder: 'e2e-report' }],
     ['json', { outputFile: 'e2e-report/results.json' }],
+    ['./e2e/monitoring-reporter.js'],
   ],
   timeout: 600000, // 10 min max par test (test 25 élèves est long)
   use: {
