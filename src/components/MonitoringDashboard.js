@@ -7,6 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getBackendUrl } from '../utils/apiHelpers';
 import { getRoundLogs, clearRoundLogs } from '../utils/roundLogger';
+import { getAuthLogs, clearAuthLogs } from '../utils/authLogger';
 
 const COLORS = {
   bg: '#0f172a',
@@ -33,6 +34,7 @@ function MonitoringDashboard() {
   const [incidentsLoading, setIncidentsLoading] = useState(false);
   const [incidentSeverityFilter, setIncidentSeverityFilter] = useState('all');
   const [roundLogs, setRoundLogs] = useState([]);
+  const [authLogs, setAuthLogs] = useState([]);
   const [e2eScreenshots, setE2eScreenshots] = useState([]);
   const [e2eLoading, setE2eLoading] = useState(false);
   const [e2eSelectedImg, setE2eSelectedImg] = useState(null);
@@ -176,11 +178,15 @@ const clearIncidents = async () => {
     } catch { return null; }
   };
 
+  const fetchAuthLogs = useCallback(() => {
+    try { setAuthLogs(getAuthLogs()); } catch {}
+  }, []);
+
   useEffect(() => {
-    fetchIncidents(); fetchRoundLogs();
+    fetchIncidents(); fetchRoundLogs(); fetchAuthLogs();
     setLoading(false);
     setLastRefresh(new Date());
-  }, [fetchIncidents, fetchRoundLogs]);
+  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs]);
 
   useEffect(() => {
     if (activeTab === 'incidents' || activeTab === 'report') {
@@ -191,10 +197,10 @@ const clearIncidents = async () => {
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(() => {
-      fetchIncidents(); fetchRoundLogs();
+      fetchIncidents(); fetchRoundLogs(); fetchAuthLogs();
     }, 30000);
     return () => clearInterval(interval);
-  }, [autoRefresh, fetchIncidents, fetchRoundLogs, activeTab]);
+  }, [autoRefresh, fetchIncidents, fetchRoundLogs, fetchAuthLogs, activeTab]);
 
   const formatDateTime = (isoStr) => {
     try {
@@ -231,7 +237,7 @@ const clearIncidents = async () => {
               Auto-refresh 30s
             </label>
             <button
-              onClick={() => { fetchIncidents(); fetchRoundLogs(); }}
+              onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); }}
               style={btnStyle(COLORS.info)}
             >
               🔄 Rafraîchir
@@ -288,7 +294,7 @@ const clearIncidents = async () => {
 
                 // KPIs
                 sections.push(`--- KPIs ---`);
-                sections.push(`Incidents: ${incidents.length} | Manches: ${roundLogs.length}`);
+                sections.push(`Incidents: ${incidents.length} | Manches: ${roundLogs.length} | Auth: ${authLogs.length}`);
                 sections.push('');
 
                 // Incidents (max 20)
@@ -304,7 +310,32 @@ const clearIncidents = async () => {
                 }
                 sections.push('');
 
-                
+                // Auth logs (connexions, sauvegardes profil)
+                sections.push(`--- AUTHENTIFICATION (${Math.min(authLogs.length, 20)}/${authLogs.length}) ---`);
+                if (authLogs.length === 0) {
+                  sections.push('Aucun événement auth enregistré.');
+                } else {
+                  authLogs.slice(0, 20).forEach((a, i) => {
+                    const ts = a.timestamp ? new Date(a.timestamp).toLocaleString('fr-FR') : 'N/A';
+                    const icon = a.type === 'save_ok' ? '✅' : a.type === 'save_fail' ? '❌' : a.type === 'login' ? '🔑' : a.type === 'login_auto' ? '🔄' : a.type === 'logout' ? '🚪' : 'ℹ️';
+                    sections.push(`[${i+1}] ${icon} ${a.type} | ${ts}`);
+                    if (a.details) {
+                      const d = a.details;
+                      if (d.email) sections.push(`    Email: ${d.email}`);
+                      if (d.nom_final) sections.push(`    Nom final: ${d.nom_final}`);
+                      if (d.pseudo_db) sections.push(`    Pseudo DB: ${d.pseudo_db}`);
+                      if (d.pseudo) sections.push(`    Pseudo envoyé: ${d.pseudo}`);
+                      if (d.source) sections.push(`    Source du nom: ${d.source}`);
+                      if (d.saved_pseudo) sections.push(`    Pseudo confirmé serveur: ${d.saved_pseudo}`);
+                      if (d.existingAuth_name) sections.push(`    existingAuth.name: ${d.existingAuth_name}`);
+                      if (d.status) sections.push(`    HTTP status: ${d.status}`);
+                      if (d.error) sections.push(`    Erreur: ${d.error}`);
+                      if (d.server_response && !d.saved_pseudo) sections.push(`    Réponse serveur: ${JSON.stringify(d.server_response)}`);
+                    }
+                  });
+                }
+                sections.push('');
+
                 // Round logs (manches jouées)
                 const recentRounds = roundLogs.slice(0, 20);
                 sections.push(`--- MANCHES JOUÉES (${recentRounds.length}/${roundLogs.length}) ---`);

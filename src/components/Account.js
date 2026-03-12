@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 import { fetchAndSyncStatus, getSubscriptionStatus } from '../utils/subscription';
+import { logAuth } from '../utils/authLogger';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com';
 const supabase = (process.env.REACT_APP_SUPABASE_URL && process.env.REACT_APP_SUPABASE_ANON_KEY)
@@ -242,11 +243,14 @@ const Account = () => {
       const respJson = await resp.json().catch(() => ({}));
       if (resp.ok && respJson.ok) {
         console.log('[Account] ✅ Pseudo sauvegardé sur le serveur:', name, respJson);
+        logAuth('save_ok', { pseudo: name, server_response: respJson, saved_pseudo: respJson.saved_pseudo || '(non retourné)' });
       } else {
         console.error('[Account] ❌ Échec sauvegarde serveur:', resp.status, respJson);
+        logAuth('save_fail', { pseudo: name, status: resp.status, server_response: respJson });
       }
     } catch (e) {
       console.error('[Account] ❌ Erreur sauvegarde serveur:', e.message);
+      logAuth('save_fail', { pseudo: name, error: e.message });
     }
   };
 

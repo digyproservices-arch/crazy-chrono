@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { isFree, getDailyCounts } from '../utils/subscription';
 import supabase from '../utils/supabaseClient';
 import NetworkIndicator from './NetworkIndicator';
+import { logAuth } from '../utils/authLogger';
 
 // ==========================================
 // NAVBAR MODERNE — CRAZY CHRONO
@@ -75,6 +76,7 @@ const NavBar = () => {
   const isTeacher = role === 'teacher' || role === 'admin';
 
   const onLogout = async () => {
+    try { logAuth('logout', { email: auth?.email, nom: auth?.name || auth?.username }); } catch {}
     try { await supabase?.auth?.signOut?.(); } catch {}
     try { localStorage.removeItem('cc_auth'); } catch {}
     try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}

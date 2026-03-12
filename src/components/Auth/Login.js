@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import supabase from '../../utils/supabaseClient';
+import { logAuth } from '../../utils/authLogger';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com';
 
@@ -83,6 +84,15 @@ export default function Login({ onLogin }) {
               token: data.session.access_token // Ajouter le token pour les API calls
             };
             console.log('[Login:auto] 🔍 DIAGNOSTIC NOM:', { existingName: existingAuth.name || '(vide)', dbPseudo: dbPseudo || '(vide)', metadataName: user.user_metadata?.name || '(vide)', emailPrefix: user.email?.split('@')[0], NOM_FINAL: profile.name });
+            logAuth('login_auto', {
+              email: user.email,
+              nom_final: profile.name,
+              pseudo_db: dbPseudo || '(vide)',
+              existingAuth_name: existingAuth.name || '(vide)',
+              metadata_name: user.user_metadata?.name || '(vide)',
+              email_prefix: user.email?.split('@')[0],
+              source: dbPseudo ? (dbPseudo === profile.name ? 'db' : 'existingAuth') : 'email_prefix',
+            });
             try { localStorage.setItem('cc_auth', JSON.stringify(profile)); } catch {}
             onLogin && onLogin(profile);
             navigate('/modes', { replace: true });
@@ -225,18 +235,19 @@ export default function Login({ onLogin }) {
         };
         
         // DIAGNOSTIC: Trace complète de la résolution du nom
-        console.log('[Login] 🔍 DIAGNOSTIC NOM:', {
-          '1_existingAuth.name': existingAuth.name || '(vide)',
-          '2_userProfile_pseudo': userProfile?.pseudo || '(vide)',
-          '3_userProfile_firstName': userProfile?.first_name || '(vide)',
-          '4_userProfile_lastName': userProfile?.last_name || '(vide)',
-          '5_fullDisplayName': fullDisplayName || '(vide)',
-          '6_metadata_name': user.user_metadata?.name || '(vide)',
-          '7_email_prefix': user.email?.split('@')[0] || '(vide)',
-          '8_NOM_FINAL': profile.name,
-          '9_userProfile_existe': !!userProfile,
-          '10_userProfile_complet': userProfile,
-        });
+        const diagDetails = {
+          email: user.email,
+          nom_final: profile.name,
+          pseudo_db: userProfile?.pseudo || '(vide)',
+          existingAuth_name: existingAuth.name || '(vide)',
+          fullDisplayName: fullDisplayName || '(vide)',
+          metadata_name: user.user_metadata?.name || '(vide)',
+          email_prefix: user.email?.split('@')[0] || '(vide)',
+          userProfile_existe: !!userProfile,
+          source: userProfile?.pseudo ? 'db' : existingAuth.name ? 'localStorage' : fullDisplayName ? 'first+last' : 'email_prefix',
+        };
+        console.log('[Login] 🔍 DIAGNOSTIC NOM:', diagDetails);
+        logAuth('login', diagDetails);
         
         saveAuth(profile);
         // Stocker l'ID utilisateur pour filtrage matchs
