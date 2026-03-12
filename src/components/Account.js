@@ -220,37 +220,56 @@ const Account = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 1600);
 
-    // Sauvegarder aussi côté serveur (persistance cross-device)
-    try {
-      if (!supabase) { console.warn('[Account] Supabase non configuré, pas de sauvegarde serveur'); return; }
-      const { data: sess } = await supabase.auth.getSession();
-      const token = sess?.session?.access_token;
-      if (!token) { console.warn('[Account] Pas de token Supabase, pas de sauvegarde serveur'); return; }
-      console.log('[Account] Sauvegarde serveur...', { pseudo: name, language });
-      const resp = await fetch(`${BACKEND_URL}/api/auth/profile`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          pseudo: name,
-          language,
-          avatar_url: avatar || null,
-          strict_elements_mode: strictElementsMode,
-        }),
-      });
-      const respJson = await resp.json().catch(() => ({}));
-      if (resp.ok && respJson.ok) {
-        console.log('[Account] ✅ Pseudo sauvegardé sur le serveur:', name, respJson);
-        logAuth('save_ok', { pseudo: name, server_response: respJson, saved_pseudo: respJson.saved_pseudo || '(non retourné)' });
-      } else {
-        console.error('[Account] ❌ Échec sauvegarde serveur:', resp.status, respJson);
-        logAuth('save_fail', { pseudo: name, status: resp.status, server_response: respJson });
+    // Sauvegarder dans la base de données (persistance cross-device)
+    if (!supabase) { console.warn('[Account] Supabase non configuré'); return; }
+    const { data: sess } = await supabase.auth.getSession();
+    const userId = sess?.session?.user?.id;
+    const token = sess?.session?.access_token;
+    let serverOk = false;
+
+    // 1) Essayer via le serveur backend (Render)
+    if (token) {
+      try {
+        const ctrl = new AbortController();
+        const timeout = setTimeout(() => ctrl.abort(), 8000); // 8s max
+        const resp = await fetch(`${BACKEND_URL}/api/auth/profile`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ pseudo: name, language, avatar_url: avatar || null, strict_elements_mode: strictElementsMode }),
+          signal: ctrl.signal,
+        });
+        clearTimeout(timeout);
+        const respJson = await resp.json().catch(() => ({}));
+        if (resp.ok && respJson.ok) {
+          serverOk = true;
+          console.log('[Account] ✅ Sauvé via serveur:', name);
+          logAuth('save_ok', { pseudo: name, method: 'server', saved_pseudo: respJson.saved_pseudo });
+        }
+      } catch (e) {
+        console.warn('[Account] Serveur indisponible:', e.message);
       }
-    } catch (e) {
-      console.error('[Account] ❌ Erreur sauvegarde serveur:', e.message);
-      logAuth('save_fail', { pseudo: name, error: e.message });
+    }
+
+    // 2) FALLBACK: Sauvegarder directement via Supabase (fonctionne même si Render dort)
+    if (!serverOk && userId) {
+      try {
+        const updates = { id: userId, pseudo: name, language };
+        if (avatar) updates.avatar_url = avatar;
+        if (strictElementsMode !== undefined) updates.strict_elements_mode = strictElementsMode;
+        const { error: upErr } = await supabase.from('user_profiles').upsert(updates, { onConflict: 'id' });
+        if (upErr) {
+          console.error('[Account] ❌ Supabase upsert échoué:', upErr.message);
+          logAuth('save_fail', { pseudo: name, method: 'supabase_direct', error: upErr.message });
+        } else {
+          console.log('[Account] ✅ Sauvé via Supabase direct:', name);
+          logAuth('save_ok', { pseudo: name, method: 'supabase_direct' });
+        }
+      } catch (e) {
+        console.error('[Account] ❌ Erreur fallback Supabase:', e.message);
+        logAuth('save_fail', { pseudo: name, method: 'supabase_direct', error: e.message });
+      }
+    } else if (!serverOk) {
+      logAuth('save_fail', { pseudo: name, error: 'no_user_id_and_server_down' });
     }
   };
 

@@ -79,7 +79,7 @@ export default function Login({ onLogin }) {
               ...existingAuth, // Préserver préférences existantes (langue, avatar, etc.)
               id: user.id, 
               email: user.email, 
-              name: existingAuth.name || dbPseudo || user.user_metadata?.name || user.email?.split('@')[0], 
+              name: (!isGenericName(existingAuth.name) && existingAuth.name) || (!isGenericName(dbPseudo) && dbPseudo) || user.user_metadata?.name || user.email?.split('@')[0], 
               role: existingAuth.role || 'user',
               token: data.session.access_token // Ajouter le token pour les API calls
             };
@@ -168,6 +168,9 @@ export default function Login({ onLogin }) {
     }
   };
 
+  const GENERIC_NAMES = ['user', 'utilisateur', 'joueur', 'player', 'guest', 'invité'];
+  const isGenericName = (n) => !n || GENERIC_NAMES.includes((n || '').trim().toLowerCase());
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
@@ -227,7 +230,7 @@ export default function Login({ onLogin }) {
           ...existingAuth, // Préserver préférences existantes (langue, avatar, etc.)
           id: user.id,
           email: user.email,
-          name: existingAuth.name || userProfile?.pseudo || fullDisplayName || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur',
+          name: (!isGenericName(existingAuth.name) && existingAuth.name) || (!isGenericName(userProfile?.pseudo) && userProfile?.pseudo) || (!isGenericName(fullDisplayName) && fullDisplayName) || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur',
           firstName: firstName,
           lastName: lastName,
           role: userProfile?.role || 'user',
@@ -255,17 +258,21 @@ export default function Login({ onLogin }) {
 
         // Auto-sauvegarder le pseudo dans la DB s'il n'y est pas encore
         // (corrige la perte de nom après déconnexion pour les comptes anciens)
+        // ATTENTION: ne PAS sauvegarder des noms génériques (User, Utilisateur, etc.)
         try {
           const dbHasPseudo = !!(userProfile?.pseudo || '').trim();
           const resolvedName = (profile.name || '').trim();
           const isJustEmail = resolvedName === (user.email?.split('@')[0] || '');
-          if (!dbHasPseudo && resolvedName && !isJustEmail) {
+          const isGeneric = isGenericName(resolvedName);
+          if (!dbHasPseudo && resolvedName && !isJustEmail && !isGeneric) {
             await supabase.from('user_profiles').upsert({
               id: user.id, pseudo: resolvedName,
               first_name: firstName || userProfile?.first_name || null,
               last_name: lastName || userProfile?.last_name || null,
             }, { onConflict: 'id' });
             console.log('[Login] Auto-sauvegarde pseudo dans DB:', resolvedName);
+          } else if (isGeneric) {
+            console.log('[Login] ⚠️ Nom générique détecté, pas d\'auto-save:', resolvedName);
           }
         } catch (e) { console.warn('[Login] Auto-save pseudo failed:', e.message); }
 
