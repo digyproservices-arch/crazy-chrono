@@ -492,6 +492,18 @@ app.post('/webhooks/revenuecat', async (req, res) => {
     }
 
     console.log('[RevenueCat] webhook synced:', { type, env, userId, status, entitlement, productId });
+
+    // Log payment event for monitoring dashboard
+    try {
+      const { loadPaymentEvents, savePaymentEvents } = require('./routes/monitoringHelpers');
+      const events = loadPaymentEvents();
+      events.push({
+        source: 'revenuecat', type, userId, status, entitlement, productId,
+        environment: env, current_period_end, timestamp: new Date().toISOString(),
+      });
+      savePaymentEvents(events);
+    } catch (pe) { console.warn('[RevenueCat] payment event log failed:', pe.message); }
+
     return res.json({ ok: true });
   } catch (e) {
     console.error('[RevenueCat] webhook error', e);
@@ -1741,6 +1753,24 @@ app.post('/webhooks/stripe', rawParser, async (req, res) => {
         }
       }
     } catch (e) { console.error('[Stripe] webhook handling error', e); }
+
+    // Log payment event for monitoring dashboard
+    try {
+      const { loadPaymentEvents, savePaymentEvents } = require('./routes/monitoringHelpers');
+      const evts = loadPaymentEvents();
+      const s = event.data?.object || {};
+      evts.push({
+        source: 'stripe', type: event.type,
+        userId: s?.metadata?.user_id || null,
+        stripeCustomer: s?.customer || null,
+        status: s?.status || null,
+        amount: s?.amount_total ? (s.amount_total / 100) : null,
+        currency: s?.currency || null,
+        timestamp: new Date().toISOString(),
+      });
+      savePaymentEvents(evts);
+    } catch (pe) { console.warn('[Stripe] payment event log failed:', pe.message); }
+
     return res.json({ received: true });
   } catch (e) {
     console.error('[Stripe] webhook error', e);

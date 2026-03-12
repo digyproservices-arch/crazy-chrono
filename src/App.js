@@ -45,6 +45,7 @@ import PWAInstallPrompt from './components/PWAInstallPrompt';
 import LearnMode from './components/Modes/LearnMode';
 import LegalPages from './components/LegalPages';
 import LandingPage from './components/LandingPage';
+import { startHeartbeat, stopHeartbeat } from './utils/presenceHeartbeat';
 
 // ✅ AUTH WRAPPERS (outside App to prevent remount loops!)
 const RequireAuth = ({ children, auth }) => auth ? children : <Navigate to="/login" replace />;
@@ -426,6 +427,11 @@ function App() {
     window.addEventListener('cc:authChanged', onAuth);
     return () => window.removeEventListener('cc:authChanged', onAuth);
   }, []);
+  // Heartbeat: signal de présence pour le monitoring
+  useEffect(() => {
+    if (auth) { startHeartbeat(); } else { stopHeartbeat(); }
+    return () => stopHeartbeat();
+  }, [auth]);
   const carteVidePath = `${process.env.PUBLIC_URL}/images/carte-vide.png`;
   
   return (

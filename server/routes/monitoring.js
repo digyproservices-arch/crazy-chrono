@@ -467,4 +467,177 @@ router.get('/e2e-status', requireAdminAuth, async (req, res) => {
   }
 });
 
+// ── Player Presence (Heartbeat) ──────────────────────────
+const PRESENCE_TTL_MS = 90000; // 90s — considéré hors ligne après
+const onlinePlayers = new Map(); // userId -> { email, pseudo, mode, page, lastSeen }
+
+/**
+ * POST /api/monitoring/heartbeat
+ * Le client envoie un heartbeat toutes les 30s avec son état courant
+ * Body: { userId, email, pseudo, mode, page }
+ */
+router.post('/heartbeat', (req, res) => {
+  try {
+    const { userId, email, pseudo, mode, page } = req.body || {};
+    if (!userId) return res.status(400).json({ ok: false, error: 'missing_userId' });
+    onlinePlayers.set(userId, {
+      email: email || '',
+      pseudo: pseudo || '',
+      mode: mode || '',
+      page: page || '',
+      lastSeen: Date.now(),
+    });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /api/monitoring/online-players
+ * Liste les joueurs actuellement en ligne (admin only)
+ */
+router.get('/online-players', requireAdminAuth, (req, res) => {
+  try {
+    const now = Date.now();
+    const players = [];
+    for (const [userId, info] of onlinePlayers.entries()) {
+      if (now - info.lastSeen > PRESENCE_TTL_MS) {
+        onlinePlayers.delete(userId); // cleanup expired
+        continue;
+      }
+      players.push({
+        userId,
+        email: info.email,
+        pseudo: info.pseudo,
+        mode: info.mode,
+        page: info.page,
+        lastSeen: new Date(info.lastSeen).toISOString(),
+        idleSeconds: Math.round((now - info.lastSeen) / 1000),
+      });
+    }
+    // Trier par activité récente
+    players.sort((a, b) => a.idleSeconds - b.idleSeconds);
+    res.json({ ok: true, count: players.length, players });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Nettoyage périodique des joueurs expirés (toutes les 5 min)
+setInterval(() => {
+  const now = Date.now();
+  for (const [userId, info] of onlinePlayers.entries()) {
+    if (now - info.lastSeen > PRESENCE_TTL_MS) onlinePlayers.delete(userId);
+  }
+}, 300000);
+
+// ── Payment Events Storage (shared with server.js webhook handlers) ──
+const { loadPaymentEvents, savePaymentEvents } = require('./monitoringHelpers');
+
+/**
+ * POST /api/monitoring/payment-event
+ * Enregistre un événement de paiement (appelé par les webhook handlers)
+ * Body: { source, type, userId, email, status, details }
+ */
+router.post('/payment-event', (req, res) => {
+  try {
+    const evt = req.body || {};
+    if (!evt.source || !evt.type) return res.status(400).json({ ok: false, error: 'missing source/type' });
+    const events = loadPaymentEvents();
+    events.push({
+      ...evt,
+      timestamp: new Date().toISOString(),
+    });
+    savePaymentEvents(events);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /api/monitoring/payment-events
+ * Liste les événements de paiement (admin only)
+ */
+router.get('/payment-events', requireAdminAuth, (req, res) => {
+  try {
+    const events = loadPaymentEvents();
+    res.json({ ok: true, events: events.reverse() });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+/**
+ * GET /api/monitoring/usage-stats
+ * Statistiques d'utilisation agrégées depuis Supabase (admin only)
+ */
+router.get('/usage-stats', requireAdminAuth, async (req, res) => {
+  try {
+    const supabase = req.app.locals.supabaseAdmin;
+    if (!supabase) return res.json({ ok: true, stats: null, error: 'supabase_not_configured' });
+
+    // 1) Profils utilisateurs avec dernière activité
+    let profiles = [];
+    try {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('id, email, pseudo, role, created_at, updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(200);
+      profiles = data || [];
+    } catch {}
+
+    // 2) Subscriptions
+    let subscriptions = [];
+    try {
+      const { data } = await supabase
+        .from('subscriptions')
+        .select('user_id, status, current_period_end, updated_at')
+        .order('updated_at', { ascending: false });
+      subscriptions = data || [];
+    } catch {}
+
+    // 3) Agréger par utilisateur
+    const subsMap = {};
+    for (const s of subscriptions) { subsMap[s.user_id] = s; }
+
+    const users = profiles.map(p => ({
+      id: p.id,
+      email: p.email || '',
+      pseudo: p.pseudo || '',
+      role: p.role || 'user',
+      createdAt: p.created_at,
+      lastActive: p.updated_at,
+      subscription: subsMap[p.id]?.status || null,
+      subEnd: subsMap[p.id]?.current_period_end || null,
+    }));
+
+    // 4) KPIs globaux
+    const totalUsers = users.length;
+    const activeSubscribers = users.filter(u => ['active', 'trialing'].includes(u.subscription)).length;
+    const admins = users.filter(u => u.role === 'admin').length;
+    const teachers = users.filter(u => u.role === 'teacher').length;
+
+    // 5) Joueurs connectés maintenant
+    const now = Date.now();
+    let onlineCount = 0;
+    for (const [, info] of onlinePlayers.entries()) {
+      if (now - info.lastSeen <= PRESENCE_TTL_MS) onlineCount++;
+    }
+
+    res.json({
+      ok: true,
+      stats: {
+        totalUsers, activeSubscribers, admins, teachers, onlineCount,
+        users,
+      },
+    });
+  } catch (e) {
+    console.error('[UsageStats] Error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 module.exports = router;

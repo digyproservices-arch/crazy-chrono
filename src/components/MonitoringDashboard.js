@@ -28,7 +28,7 @@ function MonitoringDashboard() {
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(null);
-  const [activeTab, setActiveTab] = useState('report'); // report | incidents | rounds | e2e
+  const [activeTab, setActiveTab] = useState('report'); // report | incidents | rounds | e2e | players
   const [copyFeedback, setCopyFeedback] = useState(null);
   const [incidents, setIncidents] = useState([]);
   const [incidentsLoading, setIncidentsLoading] = useState(false);
@@ -49,6 +49,13 @@ function MonitoringDashboard() {
   const [e2eRunStartTime, setE2eRunStartTime] = useState(null);
   const [e2eRunElapsed, setE2eRunElapsed] = useState(0);
   const E2E_ESTIMATED_DURATION = 1800; // 30 min estimé (setup GH + tests)
+
+  // ── Players tab state ──
+  const [onlinePlayers, setOnlinePlayers] = useState([]);
+  const [paymentEvents, setPaymentEvents] = useState([]);
+  const [usageStats, setUsageStats] = useState(null);
+  const [playersLoading, setPlayersLoading] = useState(false);
+  const [playersSubTab, setPlayersSubTab] = useState('online'); // online | payments | usage
 
   const copyToClipboard = async (text, source) => {
     try {
@@ -187,6 +194,57 @@ const clearIncidents = async () => {
     try { setAuthLogs(getAuthLogs()); } catch {}
   }, []);
 
+  const fetchOnlinePlayers = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/monitoring/online-players`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) setOnlinePlayers(data.players || []);
+      }
+    } catch (err) {
+      console.warn('[Monitoring] Online players fetch failed:', err.message);
+    }
+  }, []);
+
+  const fetchPaymentEvents = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/monitoring/payment-events`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) setPaymentEvents(data.events || []);
+      }
+    } catch (err) {
+      console.warn('[Monitoring] Payment events fetch failed:', err.message);
+    }
+  }, []);
+
+  const fetchUsageStats = useCallback(async () => {
+    try {
+      setPlayersLoading(true);
+      const token = getAuthToken();
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/monitoring/usage-stats`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) setUsageStats(data.stats);
+      }
+    } catch (err) {
+      console.warn('[Monitoring] Usage stats fetch failed:', err.message);
+    } finally {
+      setPlayersLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchIncidents(); fetchRoundLogs(); fetchAuthLogs();
     setLoading(false);
@@ -197,15 +255,21 @@ const clearIncidents = async () => {
     if (activeTab === 'incidents' || activeTab === 'report') {
       fetchIncidents();
     }
-  }, [activeTab, fetchIncidents]);
+    if (activeTab === 'players') {
+      fetchOnlinePlayers();
+      fetchPaymentEvents();
+      fetchUsageStats();
+    }
+  }, [activeTab, fetchIncidents, fetchOnlinePlayers, fetchPaymentEvents, fetchUsageStats]);
 
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(() => {
       fetchIncidents(); fetchRoundLogs(); fetchAuthLogs();
+      if (activeTab === 'players') { fetchOnlinePlayers(); fetchPaymentEvents(); }
     }, 30000);
     return () => clearInterval(interval);
-  }, [autoRefresh, fetchIncidents, fetchRoundLogs, fetchAuthLogs, activeTab]);
+  }, [autoRefresh, fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchOnlinePlayers, fetchPaymentEvents, activeTab]);
 
   // Timer: mettre à jour le temps écoulé chaque seconde quand les tests tournent
   useEffect(() => {
@@ -336,6 +400,7 @@ const clearIncidents = async () => {
             { id: 'incidents', label: `⚠️ Incidents (${incidents.length})`, icon: '' },
             { id: 'rounds', label: `🎮 Manches (${roundLogs.length}) ${roundLogs.some(r => r.doublePairIssues > 0) ? '🚨' : ''}`, icon: '' },
             { id: 'e2e', label: `🧪 Tests E2E ${e2eResults.length > 0 ? (e2eResults[0]?.summary?.status === 'PASS' ? '✅' : '❌') : ''}`, icon: '' },
+            { id: 'players', label: `👥 Joueurs (${onlinePlayers.length} en ligne)`, icon: '' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -1182,6 +1247,263 @@ sections.push(`===== FIN DU RAPPORT =====`);
                 </div>
               );
             })()}
+
+            {/* ====== PLAYERS TAB ====== */}
+            {activeTab === 'players' && (
+              <div>
+                {/* Header */}
+                <div style={{ ...cardStyle, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 'bold' }}>👥 Joueurs & Utilisation</h3>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => { fetchOnlinePlayers(); fetchPaymentEvents(); fetchUsageStats(); }} style={btnStyle(COLORS.info)}>🔄 Rafraîchir</button>
+                  </div>
+                </div>
+
+                {/* KPIs */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 16 }}>
+                  <KPICard title="En ligne" value={onlinePlayers.length} icon="🟢" color="#22c55e" highlight={false} />
+                  <KPICard title="Utilisateurs" value={usageStats?.totalUsers || '—'} icon="👤" color="#3b82f6" />
+                  <KPICard title="Abonnés actifs" value={usageStats?.activeSubscribers || '—'} icon="⭐" color="#f59e0b" />
+                  <KPICard title="Enseignants" value={usageStats?.teachers || '—'} icon="🎓" color="#8b5cf6" />
+                  <KPICard title="Paiements" value={paymentEvents.length} icon="💳" color="#06b6d4" />
+                </div>
+
+                {/* Sub-tabs */}
+                <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: `1px solid ${COLORS.border}` }}>
+                  {[
+                    { id: 'online', label: `🟢 En ligne (${onlinePlayers.length})` },
+                    { id: 'payments', label: `💳 Paiements (${paymentEvents.length})` },
+                    { id: 'usage', label: '📈 Fréquence d\'utilisation' },
+                  ].map(st => (
+                    <button key={st.id} onClick={() => setPlayersSubTab(st.id)} style={{
+                      padding: '8px 16px', border: 'none',
+                      borderBottom: playersSubTab === st.id ? `2px solid ${COLORS.info}` : '2px solid transparent',
+                      background: 'transparent', color: playersSubTab === st.id ? '#fff' : COLORS.textMuted,
+                      cursor: 'pointer', fontWeight: playersSubTab === st.id ? 700 : 500, fontSize: 13,
+                    }}>{st.label}</button>
+                  ))}
+                </div>
+
+                {/* ── SUB-TAB: En ligne ── */}
+                {playersSubTab === 'online' && (
+                  <div>
+                    {onlinePlayers.length === 0 ? (
+                      <div style={{ ...cardStyle, textAlign: 'center', padding: 40, color: COLORS.textMuted }}>
+                        <div style={{ fontSize: 48, marginBottom: 16 }}>🌙</div>
+                        <p>Aucun joueur en ligne actuellement.</p>
+                        <p style={{ fontSize: 12 }}>Les joueurs connectés apparaîtront ici en temps réel (rafraîchissement auto toutes les 30s).</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {onlinePlayers.map((p, i) => {
+                          const modeColors = { solo: '#22c55e', arena: '#ef4444', training: '#8b5cf6', multiplayer: '#3b82f6', 'grande-salle': '#f59e0b', objectif: '#06b6d4', admin: '#64748b', monitoring: '#64748b', navigation: '#94a3b8', modes: '#94a3b8', account: '#94a3b8', pricing: '#94a3b8' };
+                          const modeIcons = { solo: '👤', arena: '⚔️', training: '📚', multiplayer: '👥', 'grande-salle': '🏟️', objectif: '🎯', admin: '⚙️', monitoring: '📊', navigation: '🧭', modes: '🎮', account: '👤', pricing: '💰' };
+                          const color = modeColors[p.mode] || '#94a3b8';
+                          const icon = modeIcons[p.mode] || '🎮';
+                          const isPlaying = ['solo', 'arena', 'training', 'multiplayer', 'grande-salle', 'objectif'].includes(p.mode);
+                          return (
+                            <div key={p.userId || i} style={{
+                              ...cardStyle,
+                              borderLeft: `4px solid ${color}`,
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                              padding: '12px 16px',
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <div style={{ width: 10, height: 10, borderRadius: '50%', background: p.idleSeconds < 15 ? '#22c55e' : p.idleSeconds < 60 ? '#f59e0b' : '#94a3b8' }} />
+                                <div>
+                                  <div style={{ fontWeight: 600, color: '#fff', fontSize: 14 }}>
+                                    {p.pseudo || p.email?.split('@')[0] || 'Anonyme'}
+                                  </div>
+                                  <div style={{ fontSize: 11, color: COLORS.textMuted }}>
+                                    {p.email || p.userId?.substring(0, 8)}
+                                  </div>
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <span style={{
+                                  padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+                                  background: isPlaying ? color : 'rgba(148,163,184,0.2)',
+                                  color: isPlaying ? '#fff' : COLORS.textMuted,
+                                }}>
+                                  {icon} {p.mode || '—'}
+                                </span>
+                                <span style={{ fontSize: 11, color: COLORS.textMuted, minWidth: 60, textAlign: 'right' }}>
+                                  {p.page || '/'}
+                                </span>
+                                <span style={{ fontSize: 11, color: p.idleSeconds < 15 ? '#22c55e' : COLORS.textMuted }}>
+                                  {p.idleSeconds < 5 ? 'actif' : `${p.idleSeconds}s`}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── SUB-TAB: Paiements ── */}
+                {playersSubTab === 'payments' && (
+                  <div>
+                    {paymentEvents.length === 0 ? (
+                      <div style={{ ...cardStyle, textAlign: 'center', padding: 40, color: COLORS.textMuted }}>
+                        <div style={{ fontSize: 48, marginBottom: 16 }}>💳</div>
+                        <p>Aucun événement de paiement enregistré.</p>
+                        <p style={{ fontSize: 12 }}>Les tentatives de paiement Stripe et les webhooks RevenueCat apparaîtront ici.</p>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {paymentEvents.map((evt, i) => {
+                          const isSuccess = ['active', 'checkout.session.completed', 'initial_purchase', 'renewal'].some(k => (evt.status || evt.type || '').includes(k));
+                          const isFail = ['past_due', 'expired', 'billing_issue', 'cancellation', 'failed'].some(k => (evt.status || evt.type || '').includes(k));
+                          const borderColor = isSuccess ? '#22c55e' : isFail ? '#ef4444' : '#f59e0b';
+                          const ts = evt.timestamp ? new Date(evt.timestamp).toLocaleString('fr-FR') : '';
+                          return (
+                            <div key={i} style={{
+                              ...cardStyle, borderLeft: `4px solid ${borderColor}`, padding: '12px 16px',
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                  <span style={{
+                                    padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700,
+                                    background: evt.source === 'stripe' ? '#6772e5' : '#ff6b6b',
+                                    color: '#fff',
+                                  }}>
+                                    {evt.source === 'stripe' ? '💳 Stripe' : '📱 RevenueCat'}
+                                  </span>
+                                  <span style={{
+                                    padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+                                    background: isSuccess ? 'rgba(34,197,94,0.2)' : isFail ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)',
+                                    color: isSuccess ? '#22c55e' : isFail ? '#ef4444' : '#f59e0b',
+                                  }}>
+                                    {evt.type}
+                                  </span>
+                                </div>
+                                <span style={{ fontSize: 12, color: COLORS.textMuted }}>{ts}</span>
+                              </div>
+                              <div style={{ fontSize: 12, color: COLORS.text }}>
+                                {evt.userId && <span style={{ marginRight: 12 }}>👤 {evt.userId.substring(0, 12)}...</span>}
+                                {evt.email && <span style={{ marginRight: 12 }}>📧 {evt.email}</span>}
+                                {evt.status && <span style={{ marginRight: 12 }}>État: <strong>{evt.status}</strong></span>}
+                                {evt.amount && <span style={{ marginRight: 12 }}>💰 {evt.amount} {(evt.currency || '').toUpperCase()}</span>}
+                                {evt.entitlement && <span>🏷️ {evt.entitlement}</span>}
+                              </div>
+                              {evt.stripeCustomer && (
+                                <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 4 }}>Customer: {evt.stripeCustomer}</div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── SUB-TAB: Fréquence d'utilisation ── */}
+                {playersSubTab === 'usage' && (
+                  <div>
+                    {playersLoading ? (
+                      <div style={{ textAlign: 'center', padding: 40, color: COLORS.textMuted }}>Chargement des statistiques...</div>
+                    ) : !usageStats || !usageStats.users ? (
+                      <div style={{ ...cardStyle, textAlign: 'center', padding: 40, color: COLORS.textMuted }}>
+                        <div style={{ fontSize: 48, marginBottom: 16 }}>📈</div>
+                        <p>Statistiques non disponibles.</p>
+                        <p style={{ fontSize: 12 }}>Vérifiez que Supabase est configuré sur le backend.</p>
+                      </div>
+                    ) : (() => {
+                      const users = usageStats.users || [];
+                      const now = new Date();
+                      const classify = (u) => {
+                        if (!u.lastActive) return 'inactive';
+                        const diff = (now - new Date(u.lastActive)) / (1000 * 60 * 60 * 24);
+                        if (diff < 1) return 'today';
+                        if (diff < 7) return 'week';
+                        if (diff < 30) return 'month';
+                        return 'inactive';
+                      };
+                      const today = users.filter(u => classify(u) === 'today');
+                      const week = users.filter(u => classify(u) === 'week');
+                      const month = users.filter(u => classify(u) === 'month');
+                      const inactive = users.filter(u => classify(u) === 'inactive');
+
+                      return (
+                        <div>
+                          {/* Frequency KPIs */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 16 }}>
+                            <KPICard title="Actif aujourd'hui" value={today.length} icon="🔥" color="#22c55e" />
+                            <KPICard title="Cette semaine" value={week.length} icon="📅" color="#3b82f6" />
+                            <KPICard title="Ce mois" value={month.length} icon="📆" color="#8b5cf6" />
+                            <KPICard title="Inactifs (>30j)" value={inactive.length} icon="💤" color="#94a3b8" />
+                          </div>
+
+                          {/* Users table */}
+                          <div style={cardStyle}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                              <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Détail par joueur ({users.length})</h4>
+                            </div>
+                            <div style={{ maxHeight: '50vh', overflowY: 'auto' }}>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                                <thead>
+                                  <tr style={{ borderBottom: `1px solid ${COLORS.border}`, color: COLORS.textMuted }}>
+                                    <th style={{ textAlign: 'left', padding: '6px 8px' }}>Joueur</th>
+                                    <th style={{ textAlign: 'left', padding: '6px 8px' }}>Email</th>
+                                    <th style={{ textAlign: 'center', padding: '6px 8px' }}>Rôle</th>
+                                    <th style={{ textAlign: 'center', padding: '6px 8px' }}>Abo</th>
+                                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Dernière activité</th>
+                                    <th style={{ textAlign: 'center', padding: '6px 8px' }}>Fréquence</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {users.map((u, i) => {
+                                    const freq = classify(u);
+                                    const freqColors = { today: '#22c55e', week: '#3b82f6', month: '#8b5cf6', inactive: '#64748b' };
+                                    const freqLabels = { today: "Aujourd'hui", week: 'Cette semaine', month: 'Ce mois', inactive: 'Inactif' };
+                                    const roleColors = { admin: '#ef4444', teacher: '#8b5cf6', user: '#94a3b8' };
+                                    const subColor = ['active', 'trialing'].includes(u.subscription) ? '#22c55e' : '#64748b';
+                                    const lastActive = u.lastActive ? new Date(u.lastActive).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+                                    return (
+                                      <tr key={u.id || i} style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
+                                        <td style={{ padding: '8px', fontWeight: 600, color: '#fff' }}>
+                                          {u.pseudo || '—'}
+                                        </td>
+                                        <td style={{ padding: '8px', color: COLORS.textMuted }}>
+                                          {u.email ? u.email.substring(0, 30) : '—'}
+                                        </td>
+                                        <td style={{ padding: '8px', textAlign: 'center' }}>
+                                          <span style={{
+                                            padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700,
+                                            background: roleColors[u.role] || '#64748b', color: '#fff',
+                                          }}>{u.role}</span>
+                                        </td>
+                                        <td style={{ padding: '8px', textAlign: 'center' }}>
+                                          <span style={{
+                                            padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600,
+                                            background: `${subColor}22`, color: subColor,
+                                          }}>{u.subscription || 'free'}</span>
+                                        </td>
+                                        <td style={{ padding: '8px', textAlign: 'right', color: COLORS.textMuted, fontSize: 11 }}>
+                                          {lastActive}
+                                        </td>
+                                        <td style={{ padding: '8px', textAlign: 'center' }}>
+                                          <span style={{
+                                            padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700,
+                                            background: `${freqColors[freq]}22`, color: freqColors[freq],
+                                          }}>{freqLabels[freq]}</span>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
 
           </>
         )}
