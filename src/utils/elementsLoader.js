@@ -410,7 +410,7 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   // Évalue le résultat d'un calcul (ex: "15 - 6" → 9, "6 × 9" → 54)
   const _evalCalc = (expr) => {
     if (!expr) return NaN;
-    const raw = String(expr).trim();
+    const raw = String(expr).trim().normalize('NFC');
     // Format textuel (le double/moitié/tiers/quart/triple de X)
     const tm = raw.match(/^l[ea]\s+(double|triple|tiers|quart|moiti[ée])\s+de\s+(.+)$/i);
     if (tm) {
@@ -585,6 +585,52 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   } catch (e) {
     console.warn('[elementsLoader] POST-VALIDATION error:', e);
   }
+  // ===== POST-VALIDATION: détecter et corriger les fausses paires calcul-chiffre =====
+  try {
+    const distCalcZones = result.filter(z => z.isDistractor && z.type === 'calcul' && z.content);
+    const distChiffreZones = result.filter(z => z.isDistractor && z.type === 'chiffre' && z.content);
+    if (distCalcZones.length > 0 && distChiffreZones.length > 0) {
+      for (const cz of distCalcZones) {
+        const cr = _evalCalc(cz.content);
+        if (!Number.isFinite(cr)) continue;
+        const crRounded = _round8(cr);
+        for (const nz of distChiffreZones) {
+          if (!nz.content) continue; // already replaced
+          const nv = _parseNum(nz.content);
+          if (!Number.isFinite(nv)) continue;
+          if (crRounded === nv) {
+            console.warn(`[elementsLoader] POST-VALIDATION calc-num: fausse paire "${cz.content}" = ${crRounded} ↔ "${nz.content}" — remplacement du chiffre`);
+            const safeNId = _drawFromDeck('distNum', chiffreIds, rng, (nId) => {
+              if (used.chiffre.has(nId)) return false;
+              const v = _parseNum(chiffresById[nId]?.content);
+              if (!Number.isFinite(v)) return true;
+              if (placedCalcResults.has(v)) return false;
+              // Vérifier aussi contre TOUS les calculs distracteurs placés
+              for (const dcz of distCalcZones) {
+                if (!dcz.content) continue;
+                const dr = _evalCalc(dcz.content);
+                if (Number.isFinite(dr) && _round8(dr) === v) return false;
+              }
+              return true;
+            });
+            if (safeNId) {
+              nz.content = chiffresById[safeNId]?.content || '';
+              used.chiffre.add(safeNId);
+              const v = _parseNum(nz.content);
+              if (Number.isFinite(v)) placedChiffreValues.add(v);
+              console.log(`[elementsLoader] POST-VALIDATION calc-num: chiffre remplacé par "${nz.content}"`);
+            } else {
+              nz.content = '';
+              console.warn('[elementsLoader] POST-VALIDATION calc-num: aucun remplacement sûr trouvé');
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[elementsLoader] POST-VALIDATION calc-num error:', e);
+  }
+
   // Nettoyage: supprimer _distId temporaire des zones
   for (const z of result) delete z._distId;
 
