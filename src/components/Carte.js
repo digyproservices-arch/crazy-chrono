@@ -9,7 +9,7 @@ import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck }
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
 import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError, reportIncident as incidentReportIncident, INCIDENT_TYPES as INCIDENT_TYPES_TRACKER } from '../utils/gameIncidentTracker';
 import { logRound } from '../utils/roundLogger';
-import { isFree, canStartSessionToday, incrementSessionCount, setSubscriptionStatus } from '../utils/subscription';
+import { isFree, canStartSessionToday, incrementSessionCount, setSubscriptionStatus, getDailyCounts } from '../utils/subscription';
 
 import { initMasteryTracker, resetMasterySession, recordPair as masteryRecordPair, getActiveSessionProgress, getMasteryProgress, isMasteryReady, syncToServer as masterySyncToServer, loadFromServer as masteryLoadFromServer } from '../utils/masteryTracker';
 import MasteryBubble from './MasteryBubble';
@@ -3051,33 +3051,43 @@ useEffect(() => {
 function startGame() {
   // Sécurité: TOUJOURS vérifier côté serveur (source de vérité), pas localStorage
   const uid = getLocalUserId();
+  // Helper: vérifier la limite locale (free seulement) — retourne true si bloqué
+  const checkLocalLimit = (source) => {
+    if (isFree()) {
+      console.log('[CC][quota]', source, '| isFree=true, localSessions=', getDailyCounts().sessions);
+      if (!canStartSessionToday(3)) {
+        alert('Limite quotidienne atteinte (3 sessions/jour en version gratuite). Passe à la version Pro pour continuer.');
+        try { navigate('/pricing'); } catch {}
+        return true;
+      }
+      incrementSessionCount();
+    } else {
+      console.log('[CC][quota]', source, '| isFree=false (pro/admin/teacher), skip local limit');
+    }
+    return false;
+  };
   serverAllowsStart(uid).then((res) => {
     try {
+      console.log('[CC][quota] serverAllowsStart response:', JSON.stringify(res));
       // Serveur a répondu: vérifier autorisation
       if (res && res.ok && res.allow === false) {
         alert("Limite quotidienne atteinte sur votre compte Free. Passez à la version Pro pour continuer.");
-        navigate('/pricing');
+        try { navigate('/pricing'); } catch {}
         return;
       }
       // Serveur OK ou injoignable: fallback local si utilisateur free
-      if (isFree()) {
-        if (!canStartSessionToday(3)) {
-          alert('Limite quotidienne atteinte (3 sessions/jour en version gratuite). Passe à la version Pro pour continuer.');
-          navigate('/pricing');
-          return;
-        }
-        incrementSessionCount();
-      }
+      if (checkLocalLimit('server-ok')) return;
       doStart();
-    } catch { doStart(); }
-  }).catch(() => {
-    // Serveur injoignable: fallback local
-    if (isFree() && !canStartSessionToday(3)) {
-      alert('Limite quotidienne atteinte (3 sessions/jour en version gratuite). Passe à la version Pro pour continuer.');
-      navigate('/pricing');
-      return;
+    } catch (e) {
+      // FIX: ne PAS ignorer les limites en cas d'erreur — appliquer le fallback local
+      console.warn('[CC][quota] startGame try/catch error:', e?.message || e);
+      if (checkLocalLimit('catch-fallback')) return;
+      doStart();
     }
-    if (isFree()) incrementSessionCount();
+  }).catch((err) => {
+    // Serveur injoignable: fallback local
+    console.warn('[CC][quota] serverAllowsStart unreachable:', err?.message || err);
+    if (checkLocalLimit('server-unreachable')) return;
     doStart();
   });
 }

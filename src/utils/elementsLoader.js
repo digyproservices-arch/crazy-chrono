@@ -467,7 +467,7 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
         // CROSS-PREVENT: prevent texts associated with this image from being placed
         forbiddenImageIds.add(imgId);
       }
-    } else if (type === 'texte' && !z.content) {
+    } else if (type === 'texte' && !z.pairId) {
       const tId = pickTexteDistractor(forbiddenImageIds);
       if (tId) {
         z.content = localizeText(textesById[tId]?.content || '', locMap); used.texte.add(tId); z.isDistractor = true; z._distId = tId;
