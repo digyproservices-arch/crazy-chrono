@@ -216,43 +216,72 @@ const clearIncidents = async () => {
     return () => clearInterval(timer);
   }, [e2eRunning, e2eRunStartTime]);
 
-  // Polling: vérifier l'état GitHub Actions toutes les 30s pendant le run
+  // Polling: vérifier la fin des tests toutes les 20s (résultats E2E + GitHub Actions)
   useEffect(() => {
-    if (!e2eRunning) return;
+    if (!e2eRunning || !e2eRunStartTime) return;
     const poll = setInterval(async () => {
       try {
         const backendUrl = getBackendUrl();
         const token = getAuthToken();
         const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-        const res = await fetch(`${backendUrl}/api/monitoring/e2e-status`, { headers });
-        if (res.ok) {
-          const d = await res.json();
-          if (d.ok && d.runs && d.runs.length > 0) {
-            setE2eGithubRuns(d.runs);
-            const latest = d.runs[0];
-            if (latest.conclusion) {
-              setE2eRunning(false);
-              setE2eTriggerMsg({
-                type: latest.conclusion === 'success' ? 'success' : 'error',
-                text: latest.conclusion === 'success'
-                  ? '✅ Tests terminés avec succès !'
-                  : `❌ Tests terminés — ${latest.conclusion}`,
-              });
-              // Rafraîchir les résultats
-              try {
-                const resR = await fetch(`${backendUrl}/api/monitoring/e2e-results`, {
-                  headers: { ...headers, 'Content-Type': 'application/json' },
+
+        // 1) Vérifier si de nouveaux résultats E2E sont apparus depuis le lancement
+        try {
+          const resR = await fetch(`${backendUrl}/api/monitoring/e2e-results`, { headers });
+          if (resR.ok) {
+            const dr = await resR.json();
+            if (dr.ok && dr.results && dr.results.length > 0) {
+              const latest = dr.results[0];
+              const resultTime = new Date(latest.timestamp).getTime();
+              // Si le résultat est postérieur au lancement → tests terminés
+              if (resultTime > e2eRunStartTime - 60000) {
+                setE2eResults(dr.results);
+                setE2eRunning(false);
+                const s = latest.summary || {};
+                setE2eTriggerMsg({
+                  type: (s.failed || 0) === 0 ? 'success' : 'error',
+                  text: (s.failed || 0) === 0
+                    ? `✅ Tests terminés — ${s.passed || 0} passés en ${((s.duration || 0) / 1000).toFixed(0)}s`
+                    : `❌ Tests terminés — ${s.passed || 0} ✅ ${s.failed || 0} ❌ en ${((s.duration || 0) / 1000).toFixed(0)}s`,
                 });
-                if (resR.ok) { const dr = await resR.json(); if (dr.ok) setE2eResults(dr.results || []); }
-              } catch {}
+                return;
+              }
             }
           }
-        }
+        } catch {}
+
+        // 2) Vérifier aussi le statut GitHub Actions
+        try {
+          const res = await fetch(`${backendUrl}/api/monitoring/e2e-status`, { headers });
+          if (res.ok) {
+            const d = await res.json();
+            if (d.ok && d.runs && d.runs.length > 0) {
+              setE2eGithubRuns(d.runs);
+              const latest = d.runs[0];
+              if (latest.conclusion) {
+                setE2eRunning(false);
+                setE2eTriggerMsg({
+                  type: latest.conclusion === 'success' ? 'success' : 'error',
+                  text: latest.conclusion === 'success'
+                    ? '✅ Tests terminés avec succès !'
+                    : `❌ Tests terminés — ${latest.conclusion}`,
+                });
+              }
+            }
+          }
+        } catch {}
       } catch {}
-    }, 30000);
+
+      // 3) Failsafe: si > 2× la durée estimée, arrêter la barre (quelque chose a mal tourné)
+      const elapsed = (Date.now() - e2eRunStartTime) / 1000;
+      if (elapsed > E2E_ESTIMATED_DURATION * 2) {
+        setE2eRunning(false);
+        setE2eTriggerMsg({ type: 'error', text: '⚠️ Délai dépassé — les tests ont peut-être échoué silencieusement. Cliquez sur Rafraîchir.' });
+      }
+    }, 20000);
     return () => clearInterval(poll);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [e2eRunning]);
+  }, [e2eRunning, e2eRunStartTime]);
 
   const formatDateTime = (isoStr) => {
     try {
