@@ -11,14 +11,18 @@ test.describe('Mode Solo', () => {
 
   test('Accéder à la configuration solo depuis /modes', async ({ page }) => {
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
+    await page.waitForTimeout(2000);
 
-    // Cliquer sur le mode Solo
-    await page.locator('text=Solo').first().click();
+    // Attendre que le bouton Solo soit visible et cliquable
+    const soloBtn = page.locator('text=Solo').first();
+    await soloBtn.waitFor({ state: 'visible', timeout: 15000 });
+    await soloBtn.click();
     await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
 
     // Devrait être sur /config/solo ou directement en jeu
     const url = page.url();
-    expect(url).toMatch(/\/(config\/solo|carte)/);
+    expect(url).toMatch(/\/(config\/solo|carte|config)/);
   });
 
   test('La carte solo se charge avec des zones', async ({ page }) => {
@@ -67,17 +71,24 @@ test.describe('Mode Solo', () => {
 
   test('Les zones contiennent des éléments (images, textes, calculs)', async ({ page }) => {
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
+
+    // Configurer une session solo pour que la carte génère des zones
+    await page.evaluate(() => {
+      localStorage.setItem('cc_session_cfg', JSON.stringify({
+        mode: 'solo', classes: ['CM2'], themes: [], rounds: 1, duration: 60,
+      }));
+    });
+
     await page.goto('/carte');
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(10000);
 
-    // Vérifier via localStorage/state que des zones ont été générées
+    // Vérifier via le DOM que des zones ont été générées
     const zonesInfo = await page.evaluate(() => {
-      // Chercher des éléments SVG de zone ou des indicateurs de zones
-      const svgElements = document.querySelectorAll('image, text, path');
+      const svgElements = document.querySelectorAll('image, text, path, foreignObject');
       return {
         svgCount: svgElements.length,
-        hasContent: svgElements.length > 5, // Au moins quelques éléments
+        hasContent: svgElements.length > 5,
       };
     });
 

@@ -46,37 +46,56 @@ async function globalSetup() {
     return;
   }
 
-  // Pré-charger les ressources critiques pour qu'elles soient en cache côté serveur
-  console.log('   📦 Pré-chargement des ressources...');
+  // Vérifier que le backend répond VITE (pas juste qu'il est réveillé)
+  console.log('   🔥 Vérification réponse rapide...');
+  for (let i = 0; i < 3; i++) {
+    try {
+      const start = Date.now();
+      const res = await fetch(`${BACKEND_URL}/health`, { signal: AbortSignal.timeout(8000) });
+      const ms = Date.now() - start;
+      if (res.ok && ms < 5000) {
+        console.log(`   ✅ Réponse rapide: ${ms}ms`);
+        break;
+      }
+      console.log(`   ⏳ Réponse lente: ${ms}ms, re-ping...`);
+    } catch { /* retry */ }
+    await new Promise(r => setTimeout(r, 3000));
+  }
+
+  // Pré-charger les ressources ET endpoints critiques pour les mettre en cache
+  console.log('   📦 Pré-chargement des ressources et endpoints...');
   const resources = [
     '/associations.json',
     '/math-positions',
+    '/me',
+    '/api/training/records',
+    '/api/auth/profile',
   ];
 
   for (const path of resources) {
     try {
       const res = await fetch(`${BACKEND_URL}${path}`, { signal: AbortSignal.timeout(10000) });
-      console.log(`   ${res.ok ? '✅' : '⚠️'} ${path} (${res.status})`);
+      console.log(`   ${res.ok || res.status === 401 ? '✅' : '⚠️'} ${path} (${res.status})`);
     } catch (err) {
       console.log(`   ⚠️ ${path} — ${err.message}`);
     }
   }
 
-  // Keep-alive: ping le backend toutes les 5 min pour éviter qu'il se rendorme
-  // pendant le run E2E (~24 min)
+  // Keep-alive: ping le backend toutes les 3 min pour éviter qu'il se rendorme
+  // pendant le run E2E (~20 min)
   const keepAliveInterval = setInterval(async () => {
     try {
       await fetch(`${BACKEND_URL}/health`, { signal: AbortSignal.timeout(10000) });
-      console.log('   � [KeepAlive] Ping backend OK');
+      console.log('   🏓 [KeepAlive] Ping backend OK');
     } catch {
       console.log('   ⚠️ [KeepAlive] Ping backend échoué');
     }
-  }, 5 * 60 * 1000); // 5 minutes
+  }, 3 * 60 * 1000); // 3 minutes (plus fréquent pour Render)
 
   // Stocker l'intervalle pour le teardown
   globalThis.__CC_KEEPALIVE_INTERVAL__ = keepAliveInterval;
 
-  console.log('   �🏁 GlobalSetup terminé (keep-alive actif toutes les 5 min)\n');
+  console.log('   🏁 GlobalSetup terminé (keep-alive actif toutes les 3 min)\n');
 }
 
 module.exports = globalSetup;

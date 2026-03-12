@@ -8,8 +8,16 @@ const { BACKEND_URL } = require('./helpers');
 test.describe('API Backend - Endpoints critiques', () => {
 
   test('GET /health répond 200', async ({ request }) => {
-    const response = await request.get(`${BACKEND_URL}/health`, { timeout: 30000 });
-    expect(response.ok()).toBeTruthy();
+    let response;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        response = await request.get(`${BACKEND_URL}/health`, { timeout: 30000 });
+        if (response.ok()) break;
+      } catch {
+        if (attempt < 3) await new Promise(r => setTimeout(r, 5000));
+      }
+    }
+    expect(response?.ok()).toBeTruthy();
   });
 
   test('GET /me répond (même sans auth)', async ({ request }) => {

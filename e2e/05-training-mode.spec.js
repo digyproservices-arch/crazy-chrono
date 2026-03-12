@@ -40,9 +40,16 @@ test.describe('Mode Training (côté professeur)', () => {
   });
 
   test('API training records répond', async ({ request }) => {
-    const response = await request.get(`${BACKEND_URL}/api/training/records`, { timeout: 15000 });
-    // L'API doit répondre (même sans données)
-    expect(response.status()).toBeLessThan(500);
+    let response;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        response = await request.get(`${BACKEND_URL}/api/training/records`, { timeout: 30000 });
+        if (response.status() < 500) break;
+      } catch {
+        if (attempt < 3) await new Promise(r => setTimeout(r, 3000));
+      }
+    }
+    expect(response?.status()).toBeLessThan(500);
   });
 });
 
@@ -51,30 +58,41 @@ test.describe('Mode Training (côté élève)', () => {
   test.skip(!TEST_ACCOUNTS.student.code, 'E2E_STUDENT_CODE non défini — skip tests élève');
 
   test('API training-invitations répond pour un élève', async ({ page }) => {
-    // Ce test vérifie que l'endpoint existe et répond
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1000);
 
     // Login élève
     const studentToggle = page.locator('text=Je suis élève').first();
-    if (await studentToggle.isVisible()) {
+    if (await studentToggle.isVisible({ timeout: 5000 }).catch(() => false)) {
       await studentToggle.click();
+      await page.waitForTimeout(1000);
     }
-    await page.locator('input[type="text"]').first().fill(TEST_ACCOUNTS.student.code);
+    const codeInput = page.locator('input[type="text"], input[placeholder*="code" i], input[placeholder*="accès" i]').first();
+    await codeInput.waitFor({ state: 'visible', timeout: 10000 });
+    await codeInput.fill(TEST_ACCOUNTS.student.code);
     await page.click('button[type="submit"]');
-    await page.waitForURL('**/modes', { timeout: 30000 });
+    await page.waitForURL('**/modes', { timeout: 45000 });
 
     // Récupérer studentId
     const studentId = await page.evaluate(() => localStorage.getItem('cc_student_id'));
     expect(studentId).toBeTruthy();
 
-    // Vérifier que l'API invitations répond
+    // Vérifier que l'API invitations répond (avec retry)
     const ccAuth = await page.evaluate(() => localStorage.getItem('cc_auth'));
     const auth = JSON.parse(ccAuth || '{}');
-    const response = await page.request.get(
-      `${BACKEND_URL}/api/tournament/students/${studentId}/training-invitations`,
-      { headers: { Authorization: `Bearer ${auth.token}` } }
-    );
-    expect(response.status()).toBeLessThan(500);
+    let response;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        response = await page.request.get(
+          `${BACKEND_URL}/api/tournament/students/${studentId}/training-invitations`,
+          { headers: { Authorization: `Bearer ${auth.token}` }, timeout: 30000 }
+        );
+        if (response.status() < 500) break;
+      } catch {
+        if (attempt < 3) await page.waitForTimeout(3000);
+      }
+    }
+    expect(response?.status()).toBeLessThan(500);
   });
 });
