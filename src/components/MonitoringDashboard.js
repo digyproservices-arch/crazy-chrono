@@ -45,6 +45,10 @@ function MonitoringDashboard() {
   const [e2eGithubRuns, setE2eGithubRuns] = useState([]);
   const [e2eExpandedRun, setE2eExpandedRun] = useState(null);
   const [e2eSubTab, setE2eSubTab] = useState('results');
+  const [e2eRunning, setE2eRunning] = useState(false);
+  const [e2eRunStartTime, setE2eRunStartTime] = useState(null);
+  const [e2eRunElapsed, setE2eRunElapsed] = useState(0);
+  const E2E_ESTIMATED_DURATION = 1800; // 30 min estimé (setup GH + tests)
 
   const copyToClipboard = async (text, source) => {
     try {
@@ -202,6 +206,53 @@ const clearIncidents = async () => {
     }, 30000);
     return () => clearInterval(interval);
   }, [autoRefresh, fetchIncidents, fetchRoundLogs, fetchAuthLogs, activeTab]);
+
+  // Timer: mettre à jour le temps écoulé chaque seconde quand les tests tournent
+  useEffect(() => {
+    if (!e2eRunning || !e2eRunStartTime) return;
+    const timer = setInterval(() => {
+      setE2eRunElapsed(Math.floor((Date.now() - e2eRunStartTime) / 1000));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [e2eRunning, e2eRunStartTime]);
+
+  // Polling: vérifier l'état GitHub Actions toutes les 30s pendant le run
+  useEffect(() => {
+    if (!e2eRunning) return;
+    const poll = setInterval(async () => {
+      try {
+        const backendUrl = getBackendUrl();
+        const token = getAuthToken();
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        const res = await fetch(`${backendUrl}/api/monitoring/e2e-status`, { headers });
+        if (res.ok) {
+          const d = await res.json();
+          if (d.ok && d.runs && d.runs.length > 0) {
+            setE2eGithubRuns(d.runs);
+            const latest = d.runs[0];
+            if (latest.conclusion) {
+              setE2eRunning(false);
+              setE2eTriggerMsg({
+                type: latest.conclusion === 'success' ? 'success' : 'error',
+                text: latest.conclusion === 'success'
+                  ? '✅ Tests terminés avec succès !'
+                  : `❌ Tests terminés — ${latest.conclusion}`,
+              });
+              // Rafraîchir les résultats
+              try {
+                const resR = await fetch(`${backendUrl}/api/monitoring/e2e-results`, {
+                  headers: { ...headers, 'Content-Type': 'application/json' },
+                });
+                if (resR.ok) { const dr = await resR.json(); if (dr.ok) setE2eResults(dr.results || []); }
+              } catch {}
+            }
+          }
+        }
+      } catch {}
+    }, 30000);
+    return () => clearInterval(poll);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [e2eRunning]);
 
   const formatDateTime = (isoStr) => {
     try {
@@ -773,22 +824,26 @@ sections.push(`===== FIN DU RAPPORT =====`);
               };
 
               const triggerTests = async () => {
-                setE2eTriggerMsg({ type: 'loading', text: '🚀 Lancement des tests...' });
+                setE2eTriggerMsg({ type: 'loading', text: '🚀 Lancement des tests en cours...' });
                 try {
                   const res = await fetch(`${backendUrl}/api/monitoring/trigger-e2e`, { method: 'POST', headers: authHeaders });
                   if (!res.ok) {
                     setE2eTriggerMsg({ type: 'error', text: `❌ Serveur a répondu HTTP ${res.status}. Le backend est peut-être en cours de redémarrage — réessayez dans 2 min.` });
-                  } else {
-                    const d = await safeJson(res);
-                    if (d && d.ok) {
-                      setE2eTriggerMsg({ type: 'success', text: '✅ ' + d.message });
-                      setTimeout(() => fetchGithubStatus(), 5000);
-                    } else {
-                      setE2eTriggerMsg({ type: 'error', text: '❌ ' + (d?.error || 'Réponse inattendue du serveur'), help: d?.help });
-                    }
+                    return;
                   }
-                } catch (err) { setE2eTriggerMsg({ type: 'error', text: '❌ ' + err.message }); }
-                setTimeout(() => setE2eTriggerMsg(null), 15000);
+                  const d = await safeJson(res);
+                  if (d && d.ok) {
+                    setE2eRunning(true);
+                    setE2eRunStartTime(Date.now());
+                    setE2eRunElapsed(0);
+                    setE2eTriggerMsg({ type: 'running', text: '🚀 Tests lancés ! Le workflow GitHub Actions est en cours d\'exécution.' });
+                    setTimeout(() => fetchGithubStatus(), 5000);
+                  } else {
+                    setE2eTriggerMsg({ type: 'error', text: '❌ ' + (d?.error || 'Réponse inattendue du serveur'), help: d?.help });
+                  }
+                } catch (err) {
+                  setE2eTriggerMsg({ type: 'error', text: '❌ ' + err.message });
+                }
               };
 
               const fetchAll = () => { fetchE2eResults(); fetchScreenshots(); fetchGithubStatus(); };
@@ -809,14 +864,78 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={fetchAll} style={btnStyle(COLORS.info)}>🔄 Rafraîchir</button>
-                      <button onClick={triggerTests} style={{ ...btnStyle('#22c55e'), fontSize: 14, padding: '10px 20px' }}>
-                        🚀 Lancer les tests E2E
+                      <button
+                        onClick={triggerTests}
+                        disabled={e2eRunning}
+                        style={{
+                          ...btnStyle(e2eRunning ? '#6b7280' : '#22c55e'),
+                          fontSize: 14, padding: '10px 20px',
+                          cursor: e2eRunning ? 'not-allowed' : 'pointer',
+                          opacity: e2eRunning ? 0.6 : 1,
+                        }}
+                      >
+                        {e2eRunning ? '⏳ Tests en cours...' : '🚀 Lancer les tests E2E'}
                       </button>
                     </div>
                   </div>
 
-                  {/* Trigger feedback */}
-                  {e2eTriggerMsg && (
+                  {/* Panneau de progression des tests */}
+                  {e2eRunning && (() => {
+                    const progress = Math.min(e2eRunElapsed / E2E_ESTIMATED_DURATION, 0.99);
+                    const pct = Math.round(progress * 100);
+                    const remainingSec = Math.max(E2E_ESTIMATED_DURATION - e2eRunElapsed, 0);
+                    const remainingMin = Math.floor(remainingSec / 60);
+                    const remainingS = remainingSec % 60;
+                    const elapsedMin = Math.floor(e2eRunElapsed / 60);
+                    const elapsedS = e2eRunElapsed % 60;
+                    let phase = 'Installation des dépendances...';
+                    if (e2eRunElapsed > 30) phase = 'Installation du navigateur Playwright...';
+                    if (e2eRunElapsed > 90) phase = 'Réveil du backend Render...';
+                    if (e2eRunElapsed > 180) phase = 'Exécution des tests E2E...';
+                    if (e2eRunElapsed > 1400) phase = 'Fin des tests, envoi du rapport...';
+                    if (e2eRunElapsed > 1600) phase = 'Presque terminé...';
+                    return (
+                      <div style={{
+                        ...cardStyle, marginBottom: 16, padding: '20px 24px',
+                        borderLeft: '4px solid #3b82f6',
+                        background: 'linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(59,130,246,0.02) 100%)',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>
+                            🔄 Tests E2E en cours d'exécution
+                          </div>
+                          <div style={{ fontSize: 13, color: '#3b82f6', fontWeight: 600 }}>
+                            {elapsedMin}:{String(elapsedS).padStart(2, '0')} écoulé
+                          </div>
+                        </div>
+                        {/* Barre de progression */}
+                        <div style={{
+                          width: '100%', height: 12, background: 'rgba(255,255,255,0.1)',
+                          borderRadius: 6, overflow: 'hidden', marginBottom: 10,
+                        }}>
+                          <div style={{
+                            width: `${pct}%`, height: '100%',
+                            background: 'linear-gradient(90deg, #3b82f6 0%, #22c55e 100%)',
+                            borderRadius: 6, transition: 'width 1s linear',
+                          }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ fontSize: 12, color: COLORS.textMuted }}>
+                            <span style={{ marginRight: 12 }}>📋 {phase}</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: COLORS.textMuted }}>
+                            ~{remainingMin}:{String(remainingS).padStart(2, '0')} restant ({pct}%)
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 8 }}>
+                          Les résultats s'afficheront automatiquement à la fin. Vous pouvez quitter cette page et revenir — le statut sera vérifié au prochain rafraîchissement.
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Message de feedback (succès/erreur) */}
+                  {e2eTriggerMsg && !e2eRunning && (
                     <div style={{
                       ...cardStyle, marginBottom: 12, padding: '12px 16px',
                       borderLeft: `4px solid ${e2eTriggerMsg.type === 'success' ? '#22c55e' : e2eTriggerMsg.type === 'error' ? '#ef4444' : '#3b82f6'}`,
