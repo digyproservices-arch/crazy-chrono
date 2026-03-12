@@ -202,6 +202,8 @@ const Account = () => {
     }
   }, [getToken]);
 
+  const [saveError, setSaveError] = useState(null);
+
   const onSave = async () => {
     const next = {
       ...(auth || {}),
@@ -217,59 +219,89 @@ const Account = () => {
     };
     setAuth(next);
     writeAuth(next);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1600);
+    setSaveError(null);
 
     // Sauvegarder dans la base de données (persistance cross-device)
-    if (!supabase) { console.warn('[Account] Supabase non configuré'); return; }
+    if (!supabase) { console.warn('[Account] Supabase non configuré'); setSaved(true); setTimeout(() => setSaved(false), 1600); return; }
     const { data: sess } = await supabase.auth.getSession();
     const userId = sess?.session?.user?.id;
     const token = sess?.session?.access_token;
     let serverOk = false;
 
-    // 1) Essayer via le serveur backend (Render)
+    // 1) Essayer via le serveur backend (Render) — avec retry
     if (token) {
-      try {
-        const ctrl = new AbortController();
-        const timeout = setTimeout(() => ctrl.abort(), 8000); // 8s max
-        const resp = await fetch(`${BACKEND_URL}/api/auth/profile`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ pseudo: name, language, avatar_url: avatar || null, strict_elements_mode: strictElementsMode }),
-          signal: ctrl.signal,
-        });
-        clearTimeout(timeout);
-        const respJson = await resp.json().catch(() => ({}));
-        if (resp.ok && respJson.ok) {
-          serverOk = true;
-          console.log('[Account] ✅ Sauvé via serveur:', name);
-          logAuth('save_ok', { pseudo: name, method: 'server', saved_pseudo: respJson.saved_pseudo });
+      for (let attempt = 1; attempt <= 2 && !serverOk; attempt++) {
+        try {
+          console.log(`[Account] 📤 PATCH /profile tentative ${attempt}/2...`);
+          const ctrl = new AbortController();
+          const timeout = setTimeout(() => ctrl.abort(), 15000); // 15s max (Render cold start)
+          const resp = await fetch(`${BACKEND_URL}/api/auth/profile`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ pseudo: name, language, avatar_url: avatar || null, strict_elements_mode: strictElementsMode }),
+            signal: ctrl.signal,
+          });
+          clearTimeout(timeout);
+          const respJson = await resp.json().catch(() => ({}));
+          if (resp.ok && respJson.ok) {
+            serverOk = true;
+            console.log('[Account] ✅ Sauvé via serveur:', name);
+            logAuth('save_ok', { pseudo: name, method: 'server', saved_pseudo: respJson.saved_pseudo });
+          } else {
+            // Serveur a répondu mais avec erreur — logger le détail
+            console.warn(`[Account] ⚠️ Serveur répondu HTTP ${resp.status}:`, respJson);
+            logAuth('save_server_error', { pseudo: name, status: resp.status, error: respJson.error || respJson.details || 'unknown', attempt });
+          }
+        } catch (e) {
+          console.warn(`[Account] ⚠️ Serveur indisponible (tentative ${attempt}):`, e.message);
+          logAuth('save_server_error', { pseudo: name, error: e.message, attempt });
+          if (attempt < 2) await new Promise(r => setTimeout(r, 3000)); // Attendre 3s avant retry
         }
-      } catch (e) {
-        console.warn('[Account] Serveur indisponible:', e.message);
       }
+    } else {
+      console.warn('[Account] ⚠️ Pas de token Supabase — impossible de sauvegarder via serveur');
+      logAuth('save_server_error', { pseudo: name, error: 'no_token' });
     }
 
-    // 2) FALLBACK: Sauvegarder directement via Supabase (fonctionne même si Render dort)
+    // 2) FALLBACK: Sauvegarder directement via Supabase (si serveur a échoué)
     if (!serverOk && userId) {
       try {
-        const updates = { id: userId, pseudo: name, language };
-        if (avatar) updates.avatar_url = avatar;
-        if (strictElementsMode !== undefined) updates.strict_elements_mode = strictElementsMode;
-        const { error: upErr } = await supabase.from('user_profiles').upsert(updates, { onConflict: 'id' });
-        if (upErr) {
-          console.error('[Account] ❌ Supabase upsert échoué:', upErr.message);
-          logAuth('save_fail', { pseudo: name, method: 'supabase_direct', error: upErr.message });
+        // Essayer UPDATE d'abord (moins susceptible de déclencher RLS INSERT)
+        const updateFields = { pseudo: name, language };
+        if (avatar) updateFields.avatar_url = avatar;
+        if (strictElementsMode !== undefined) updateFields.strict_elements_mode = strictElementsMode;
+        const { error: updateErr } = await supabase.from('user_profiles').update(updateFields).eq('id', userId);
+        if (!updateErr) {
+          console.log('[Account] ✅ Sauvé via Supabase UPDATE:', name);
+          logAuth('save_ok', { pseudo: name, method: 'supabase_update' });
+          serverOk = true;
         } else {
-          console.log('[Account] ✅ Sauvé via Supabase direct:', name);
-          logAuth('save_ok', { pseudo: name, method: 'supabase_direct' });
+          // UPDATE a échoué (probablement pas de ligne) — essayer UPSERT
+          console.warn('[Account] UPDATE échoué, tentative UPSERT:', updateErr.message);
+          const { error: upErr } = await supabase.from('user_profiles').upsert({ id: userId, pseudo: name, language, ...updateFields }, { onConflict: 'id' });
+          if (upErr) {
+            console.error('[Account] ❌ Supabase upsert échoué:', upErr.message);
+            logAuth('save_fail', { pseudo: name, method: 'supabase_direct', error: upErr.message });
+          } else {
+            console.log('[Account] ✅ Sauvé via Supabase UPSERT:', name);
+            logAuth('save_ok', { pseudo: name, method: 'supabase_upsert' });
+            serverOk = true;
+          }
         }
       } catch (e) {
         console.error('[Account] ❌ Erreur fallback Supabase:', e.message);
         logAuth('save_fail', { pseudo: name, method: 'supabase_direct', error: e.message });
       }
-    } else if (!serverOk) {
+    } else if (!serverOk && !userId) {
       logAuth('save_fail', { pseudo: name, error: 'no_user_id_and_server_down' });
+    }
+
+    // Feedback utilisateur
+    if (serverOk) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1600);
+    } else {
+      setSaveError('La sauvegarde du pseudo a échoué. Le serveur est peut-être en redémarrage. Réessaie dans 30 secondes.');
     }
   };
 
@@ -389,6 +421,7 @@ const Account = () => {
           <div>
             <button onClick={onSave} style={{ padding: '10px 18px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #1AACBE, #148A9C)', color: '#fff', fontWeight: 700, cursor: 'pointer', boxShadow: '0 3px 10px rgba(26,172,190,0.3)' }}>Enregistrer</button>
             {saved && <span style={{ marginLeft: 10, color: '#1AACBE', fontWeight: 600 }}>Enregistré ✓</span>}
+            {saveError && <div style={{ marginTop: 8, padding: '10px 14px', borderRadius: 8, background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', fontSize: 13 }}>⚠️ {saveError}</div>}
           </div>
         </div>
       </div>
