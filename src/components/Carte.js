@@ -6416,6 +6416,29 @@ setZones(dataWithRandomTexts);
           console.warn('[ASSIGN][STRICT][FINAL] images nettoyées:', cleaned, 'allowedImgIds:', allowedImgIds.size);
         }
       } catch {}
+      // FILET DE SÉCURITÉ: éliminer toute fausse paire calcul-chiffre résiduelle
+      try {
+        const _sfEval = (expr) => {
+          if (!expr) return NaN;
+          const n = String(expr).replace(/×/g, '*').replace(/÷/g, '/').replace(/\s/g, '').replace(/,/g, '.');
+          const m = n.match(/^(-?[\d.]+)([+\-*/])(-?[\d.]+)$/);
+          if (m) { const a = parseFloat(m[1]), b = parseFloat(m[3]); switch(m[2]) { case '+': return a+b; case '-': return a-b; case '*': return a*b; case '/': return b?a/b:NaN; } }
+          return NaN;
+        };
+        const _sfR = (v) => Math.round(v * 1e8) / 1e8;
+        const sfDistCalcs = post.filter(z => normType(z?.type) === 'calcul' && !(z.pairId || '').trim() && z.content);
+        const sfDistNums = post.filter(z => normType(z?.type) === 'chiffre' && !(z.pairId || '').trim() && z.content);
+        const sfNumVals = new Set(sfDistNums.map(z => _sfR(parseFloat(String(z.content).replace(/\s/g, '').replace(/,/g, '.')))).filter(Number.isFinite));
+        let sfCleaned = 0;
+        for (const cz of sfDistCalcs) {
+          const res = _sfEval(cz.content);
+          if (Number.isFinite(res) && sfNumVals.has(_sfR(res))) {
+            console.warn('[SAFETY] Fausse paire calcul-chiffre détectée: "' + cz.content + '" = ' + res + ' → contenu vidé');
+            cz.content = ''; cz.label = ''; sfCleaned++;
+          }
+        }
+        if (sfCleaned) console.warn('[SAFETY] ' + sfCleaned + ' fausse(s) paire(s) calcul-chiffre éliminée(s)');
+      } catch (sfErr) { console.warn('[SAFETY] Erreur filet de sécurité:', sfErr); }
       setZones(post);
       setCustomTextSettings(newTextSettings);
       localStorage.setItem('zones', JSON.stringify(post));
