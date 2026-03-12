@@ -81,21 +81,20 @@ async function globalSetup() {
     }
   }
 
-  // Keep-alive: ping le backend toutes les 3 min pour éviter qu'il se rendorme
-  // pendant le run E2E (~20 min)
+  // Keep-alive: ping le backend toutes les 60s pour éviter qu'il se rendorme
+  // Render free tier peut dormir en < 2 min d'inactivité
   const keepAliveInterval = setInterval(async () => {
     try {
       await fetch(`${BACKEND_URL}/health`, { signal: AbortSignal.timeout(10000) });
-      console.log('   🏓 [KeepAlive] Ping backend OK');
     } catch {
       console.log('   ⚠️ [KeepAlive] Ping backend échoué');
     }
-  }, 3 * 60 * 1000); // 3 minutes (plus fréquent pour Render)
+  }, 60 * 1000); // 60 secondes
 
   // Stocker l'intervalle pour le teardown
   globalThis.__CC_KEEPALIVE_INTERVAL__ = keepAliveInterval;
 
-  console.log('   🏁 GlobalSetup terminé (keep-alive actif toutes les 3 min)\n');
+  console.log('   🏁 GlobalSetup terminé (keep-alive actif toutes les 60s)\n');
 }
 
 module.exports = globalSetup;

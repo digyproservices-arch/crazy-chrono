@@ -49,21 +49,25 @@ async function loginWithEmail(page, email, password) {
 async function loginWithStudentCode(page, code) {
   await page.goto('/login');
   await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(1000);
 
   // Basculer en mode "Je suis élève"
-  const studentToggle = page.locator('text=Je suis élève');
-  if (await studentToggle.isVisible()) {
+  const studentToggle = page.locator('text=Je suis élève').first();
+  if (await studentToggle.isVisible({ timeout: 5000 }).catch(() => false)) {
     await studentToggle.click();
+    await page.waitForTimeout(1000);
   }
 
   // Remplir le code d'accès
-  await page.fill('input[placeholder*="code" i], input[placeholder*="accès" i], input[type="text"]', code);
+  const codeInput = page.locator('input[placeholder*="ALICE" i], input[type="text"]').first();
+  await codeInput.waitFor({ state: 'visible', timeout: 10000 });
+  await codeInput.fill(code);
 
-  // Soumettre
-  await page.click('button[type="submit"]');
+  // Le bouton élève est type="button" avec texte "Jouer" (PAS type="submit")
+  await page.locator('button:has-text("Jouer")').first().click();
 
   // Attendre la redirection
-  await page.waitForURL('**/modes', { timeout: 30000 });
+  await page.waitForURL('**/modes', { timeout: 45000 });
 }
 
 /**
@@ -136,6 +140,36 @@ function collectConsoleErrors(page) {
   return errors;
 }
 
+/**
+ * S'assurer que le backend Render est réveillé et répond rapidement.
+ * Appeler avant tout test qui dépend du backend.
+ */
+async function ensureBackendAwake(requestOrPage) {
+  const doFetch = async (url, opts) => {
+    if (requestOrPage.get) {
+      // Playwright request context
+      return requestOrPage.get(url, opts);
+    }
+    // page.request
+    return requestOrPage.request.get(url, opts);
+  };
+
+  for (let i = 0; i < 5; i++) {
+    try {
+      const start = Date.now();
+      const res = await doFetch(`${BACKEND_URL}/health`, { timeout: 15000 });
+      const ms = Date.now() - start;
+      if (res.ok() && ms < 5000) return true; // Backend chaud
+      console.log(`[warmup] Attempt ${i + 1}: ${ms}ms (status ${res.status()})`);
+    } catch (e) {
+      console.log(`[warmup] Attempt ${i + 1} failed: ${e.message}`);
+    }
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  console.warn('[warmup] Backend toujours lent après 5 tentatives');
+  return false;
+}
+
 module.exports = {
   TEST_ACCOUNTS,
   BACKEND_URL,
@@ -145,5 +179,6 @@ module.exports = {
   checkNoReactCrash,
   checkBackendHealth,
   waitForBackend,
+  ensureBackendAwake,
   collectConsoleErrors,
 };

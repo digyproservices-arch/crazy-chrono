@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { TEST_ACCOUNTS, loginWithEmail, BACKEND_URL } = require('./helpers');
+const { TEST_ACCOUNTS, loginWithEmail, BACKEND_URL, ensureBackendAwake } = require('./helpers');
 
 /**
  * Tests Mode Training — vérifie les pages prof et le flux de création de match
@@ -68,10 +68,11 @@ test.describe('Mode Training (côté élève)', () => {
       await studentToggle.click();
       await page.waitForTimeout(1000);
     }
-    const codeInput = page.locator('input[type="text"], input[placeholder*="code" i], input[placeholder*="accès" i]').first();
+    const codeInput = page.locator('input[placeholder*="ALICE" i], input[type="text"]').first();
     await codeInput.waitFor({ state: 'visible', timeout: 10000 });
     await codeInput.fill(TEST_ACCOUNTS.student.code);
-    await page.click('button[type="submit"]');
+    // Le bouton élève est type="button" avec texte "Jouer" (PAS type="submit")
+    await page.locator('button:has-text("Jouer")').first().click();
     await page.waitForURL('**/modes', { timeout: 45000 });
 
     // Récupérer studentId

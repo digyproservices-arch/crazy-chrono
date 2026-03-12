@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { TEST_ACCOUNTS, loginWithEmail, collectConsoleErrors } = require('./helpers');
+const { TEST_ACCOUNTS, BACKEND_URL, loginWithEmail, ensureBackendAwake, collectConsoleErrors } = require('./helpers');
 
 /**
  * Tests d'authentification — login, logout, persistance profil
@@ -39,6 +39,8 @@ test.describe('Authentification', () => {
   });
 
   test('Sauvegarde du pseudo persiste après refresh', async ({ page }) => {
+    // Réveiller le backend AVANT de tenter le save
+    await ensureBackendAwake(page);
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
     await page.goto('/account');
     await page.waitForLoadState('networkidle');
@@ -80,6 +82,8 @@ test.describe('Authentification', () => {
   });
 
   test('Sauvegarde du pseudo persiste après logout + login', async ({ page }) => {
+    // Réveiller le backend AVANT de tenter le save
+    await ensureBackendAwake(page);
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
     await page.goto('/account');
     await page.waitForLoadState('networkidle');
@@ -169,11 +173,12 @@ test.describe('Authentification élève', () => {
       await page.waitForTimeout(1000);
     }
 
-    // Remplir le code — essayer plusieurs sélecteurs
-    const codeInput = page.locator('input[type="text"], input[placeholder*="code" i], input[placeholder*="accès" i]').first();
+    // Remplir le code — le placeholder est "ALICE-CE1A-4823"
+    const codeInput = page.locator('input[placeholder*="ALICE" i], input[type="text"]').first();
     await codeInput.waitFor({ state: 'visible', timeout: 10000 });
     await codeInput.fill(TEST_ACCOUNTS.student.code);
-    await page.click('button[type="submit"]');
+    // Le bouton élève est type="button" avec texte "Jouer" (PAS type="submit")
+    await page.locator('button:has-text("Jouer")').first().click();
 
     // Attendre la redirection
     await page.waitForURL('**/modes', { timeout: 45000 });

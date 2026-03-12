@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { TEST_ACCOUNTS, loginWithEmail } = require('./helpers');
+const { TEST_ACCOUNTS, loginWithEmail, ensureBackendAwake } = require('./helpers');
 
 /**
  * Tests Mode Solo — vérifie le lancement et le fonctionnement du jeu solo
@@ -13,8 +13,9 @@ test.describe('Mode Solo', () => {
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
     await page.waitForTimeout(2000);
 
-    // Attendre que le bouton Solo soit visible et cliquable
-    const soloBtn = page.locator('text=Solo').first();
+    // Admin voit TeacherModeSelector (bouton "JOUER SOLO")
+    // User voit ModeSelect (carte "Mode Solo" qui est un <button>)
+    const soloBtn = page.locator('button:has-text("JOUER SOLO"), button:has-text("Mode Solo")').first();
     await soloBtn.waitFor({ state: 'visible', timeout: 15000 });
     await soloBtn.click();
     await page.waitForLoadState('networkidle');
@@ -22,7 +23,7 @@ test.describe('Mode Solo', () => {
 
     // Devrait être sur /config/solo ou directement en jeu
     const url = page.url();
-    expect(url).toMatch(/\/(config\/solo|carte|config)/);
+    expect(url).toMatch(/\/(config|carte)/);
   });
 
   test('La carte solo se charge avec des zones', async ({ page }) => {
