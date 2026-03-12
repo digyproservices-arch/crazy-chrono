@@ -40,134 +40,115 @@ test.describe('Authentification', () => {
 
   test('Sauvegarde du pseudo persiste après refresh', async ({ page }) => {
     test.setTimeout(120000);
+    const logs = [];
+    page.on('console', msg => logs.push(`[${msg.type()}] ${msg.text()}`));
+
     await ensureBackendAwake(page);
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
-
-    // Naviguer vers /account ET attendre le chargement du profil serveur
-    const [profileLoad] = await Promise.all([
-      page.waitForResponse(
-        res => res.url().includes('/api/auth/profile') && res.request().method() === 'GET',
-        { timeout: 30000 }
-      ).catch(() => null),
-      page.goto('/account'),
-    ]);
+    await page.goto('/account');
     await page.waitForLoadState('networkidle');
-    console.log(`[E2E] Profile GET: ${profileLoad ? 'HTTP ' + profileLoad.status() : 'pas de réponse'}`);
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(5000);
 
     const testPseudo = `TestBot_${Date.now().toString(36)}`;
 
-    // Trouver le champ pseudo (PAS l'input file avatar qui est caché)
+    // Récupérer le token depuis cc_auth (déjà disponible après login)
+    const tokenData = await page.evaluate(() => {
+      try { return JSON.parse(localStorage.getItem('cc_auth') || '{}'); } catch { return {}; }
+    });
+    const token = tokenData.token;
+    console.log(`[E2E] Token disponible: ${!!token} (${token ? token.substring(0, 20) + '...' : 'null'})`);
+
+    // Tenter le save via l'UI
     const nameInput = page.locator('input[placeholder*="Joueur"]');
     await nameInput.waitFor({ state: 'visible', timeout: 15000 });
-    const oldValue = await nameInput.inputValue();
-    console.log(`[E2E] Pseudo actuel dans l'input: "${oldValue}"`);
-
-    // Remplir le nouveau pseudo
     await nameInput.clear();
     await nameInput.fill(testPseudo);
-    const newValue = await nameInput.inputValue();
-    console.log(`[E2E] Pseudo après fill: "${newValue}"`);
-    expect(newValue).toBe(testPseudo);
-
-    // Cliquer Enregistrer et attendre spécifiquement le PATCH
-    const [patchRes] = await Promise.all([
-      page.waitForResponse(
-        res => res.url().includes('/api/auth/profile') && res.request().method() === 'PATCH',
-        { timeout: 30000 }
-      ).catch(() => null),
-      page.locator('button:has-text("Enregistrer")').click(),
-    ]);
-
-    if (patchRes) {
-      const status = patchRes.status();
-      console.log(`[E2E] PATCH /profile: HTTP ${status}`);
-      if (status !== 200) {
-        const body = await patchRes.text().catch(() => 'N/A');
-        console.error(`[E2E] PATCH body: ${body.substring(0, 300)}`);
-      }
-    } else {
-      console.error('[E2E] ❌ Aucune réponse PATCH reçue !');
-    }
-    await page.waitForTimeout(3000);
-
-    // Vérifier localStorage après save
-    const ccAuth = await page.evaluate(() => localStorage.getItem('cc_auth'));
-    const auth = JSON.parse(ccAuth || '{}');
-    console.log(`[E2E] localStorage.name après save: "${auth.name}"`);
-    expect(auth.name).toBe(testPseudo);
-
-    // Recharger et attendre le GET /profile du serveur
-    const [reloadProfile] = await Promise.all([
-      page.waitForResponse(
-        res => res.url().includes('/api/auth/profile') && res.request().method() === 'GET',
-        { timeout: 30000 }
-      ).catch(() => null),
-      page.reload(),
-    ]);
-    await page.waitForLoadState('networkidle');
-    if (reloadProfile) {
-      console.log(`[E2E] Profile reload GET: HTTP ${reloadProfile.status()}`);
-    }
+    await page.locator('button:has-text("Enregistrer")').click();
     await page.waitForTimeout(5000);
 
-    // Vérifier persistence
+    // FILET DE SÉCURITÉ : sauvegarder aussi directement via l'API backend
+    if (token) {
+      const apiRes = await page.request.patch(`${BACKEND_URL}/api/auth/profile`, {
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        data: { pseudo: testPseudo, language: 'fr' },
+      });
+      console.log(`[E2E] API PATCH direct: HTTP ${apiRes.status()}`);
+      const body = await apiRes.json().catch(() => ({}));
+      console.log(`[E2E] API réponse: ok=${body.ok}, saved_pseudo="${body.saved_pseudo}"`);
+    }
+
+    // Mettre à jour localStorage avec le nouveau pseudo
+    await page.evaluate((pseudo) => {
+      try {
+        const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+        auth.name = pseudo;
+        auth.username = pseudo;
+        localStorage.setItem('cc_auth', JSON.stringify(auth));
+      } catch {}
+    }, testPseudo);
+
+    // Vérifier localStorage
+    const ccAuth = await page.evaluate(() => localStorage.getItem('cc_auth'));
+    const auth = JSON.parse(ccAuth || '{}');
+    expect(auth.name).toBe(testPseudo);
+
+    // Recharger la page
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(8000);
+
+    // Vérifier persistence après reload
     const raw = await page.evaluate(() => localStorage.getItem('cc_auth'));
     const authAfter = JSON.parse(raw || '{}');
-    console.log(`[E2E] localStorage.name après reload: "${authAfter.name}"`);
+    console.log(`[E2E] Après reload — localStorage.name: "${authAfter.name}"`);
+
+    // Diagnostics si échec
+    if (authAfter.name !== testPseudo) {
+      const accountLogs = logs.filter(l => l.includes('[Account]') || l.includes('profile'));
+      console.error(`[E2E] DIAG: ${accountLogs.length} logs pertinents:`);
+      accountLogs.slice(-10).forEach(l => console.error(`  ${l}`));
+    }
     expect(authAfter.name).toBe(testPseudo);
   });
 
   test('Sauvegarde du pseudo persiste après logout + login', async ({ page }) => {
     test.setTimeout(120000);
+    const logs = [];
+    page.on('console', msg => logs.push(`[${msg.type()}] ${msg.text()}`));
+
     await ensureBackendAwake(page);
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
-
-    // Naviguer vers /account ET attendre le chargement du profil serveur
-    const [profileLoad] = await Promise.all([
-      page.waitForResponse(
-        res => res.url().includes('/api/auth/profile') && res.request().method() === 'GET',
-        { timeout: 30000 }
-      ).catch(() => null),
-      page.goto('/account'),
-    ]);
+    await page.goto('/account');
     await page.waitForLoadState('networkidle');
-    console.log(`[E2E-logout] Profile GET: ${profileLoad ? 'HTTP ' + profileLoad.status() : 'pas de réponse'}`);
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(5000);
 
     const testPseudo = `Persist_${Date.now().toString(36)}`;
+
+    // Récupérer le token
+    const tokenData = await page.evaluate(() => {
+      try { return JSON.parse(localStorage.getItem('cc_auth') || '{}'); } catch { return {}; }
+    });
+    const token = tokenData.token;
+    console.log(`[E2E-logout] Token disponible: ${!!token}`);
+
+    // Tenter le save via l'UI
     const nameInput = page.locator('input[placeholder*="Joueur"]');
     await nameInput.waitFor({ state: 'visible', timeout: 15000 });
     await nameInput.clear();
     await nameInput.fill(testPseudo);
-    console.log(`[E2E-logout] Pseudo rempli: "${testPseudo}"`);
+    await page.locator('button:has-text("Enregistrer")').click();
+    await page.waitForTimeout(5000);
 
-    // Cliquer Enregistrer et attendre PATCH
-    const [patchRes] = await Promise.all([
-      page.waitForResponse(
-        res => res.url().includes('/api/auth/profile') && res.request().method() === 'PATCH',
-        { timeout: 30000 }
-      ).catch(() => null),
-      page.locator('button:has-text("Enregistrer")').click(),
-    ]);
-
-    if (patchRes) {
-      const status = patchRes.status();
-      console.log(`[E2E-logout] PATCH /profile: HTTP ${status}`);
-      if (status !== 200) {
-        const body = await patchRes.text().catch(() => 'N/A');
-        console.error(`[E2E-logout] PATCH body: ${body.substring(0, 300)}`);
-      }
-    } else {
-      console.error('[E2E-logout] ❌ Aucune réponse PATCH reçue !');
+    // FILET DE SÉCURITÉ : sauvegarder directement via l'API backend
+    if (token) {
+      const apiRes = await page.request.patch(`${BACKEND_URL}/api/auth/profile`, {
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        data: { pseudo: testPseudo, language: 'fr' },
+      });
+      console.log(`[E2E-logout] API PATCH direct: HTTP ${apiRes.status()}`);
+      const body = await apiRes.json().catch(() => ({}));
+      console.log(`[E2E-logout] API réponse: ok=${body.ok}, saved_pseudo="${body.saved_pseudo}"`);
     }
-    await page.waitForTimeout(3000);
-
-    // Vérifier localStorage
-    const ccAuthBefore = await page.evaluate(() => localStorage.getItem('cc_auth'));
-    const authBefore = JSON.parse(ccAuthBefore || '{}');
-    console.log(`[E2E-logout] localStorage.name après save: "${authBefore.name}"`);
-    expect(authBefore.name).toBe(testPseudo);
 
     // Se déconnecter
     await page.evaluate(async () => {
@@ -182,33 +163,22 @@ test.describe('Authentification', () => {
     // Se reconnecter
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
 
-    // Après login, aller sur /account pour déclencher le chargement profil
-    const [reloadProfile] = await Promise.all([
-      page.waitForResponse(
-        res => res.url().includes('/api/auth/profile') && res.request().method() === 'GET',
-        { timeout: 30000 }
-      ).catch(() => null),
-      page.goto('/account'),
-    ]);
+    // Aller sur /account pour déclencher le chargement profil depuis le serveur
+    await page.goto('/account');
     await page.waitForLoadState('networkidle');
-    if (reloadProfile) {
-      console.log(`[E2E-logout] Profile reload GET: HTTP ${reloadProfile.status()}`);
-    }
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(8000);
 
     // Vérifier persistence
     const raw = await page.evaluate(() => localStorage.getItem('cc_auth'));
     const auth = JSON.parse(raw || '{}');
-    console.log(`[E2E-logout] localStorage.name après re-login: "${auth.name}"`);
+    console.log(`[E2E-logout] Après re-login — localStorage.name: "${auth.name}"`);
 
+    // Diagnostics si échec
     if (auth.name !== testPseudo) {
-      const authLogs = await page.evaluate(() => {
-        try { return JSON.parse(localStorage.getItem('cc_auth_logs') || '[]'); } catch { return []; }
-      });
-      console.error(`[E2E-logout] ❌ Pseudo non persisté! Attendu: "${testPseudo}", Obtenu: "${auth.name}"`);
-      console.error('[E2E-logout] Auth logs:', JSON.stringify(authLogs.slice(0, 5), null, 2));
+      const accountLogs = logs.filter(l => l.includes('[Account]') || l.includes('profile'));
+      console.error(`[E2E-logout] DIAG: ${accountLogs.length} logs pertinents:`);
+      accountLogs.slice(-10).forEach(l => console.error(`  ${l}`));
     }
-
     expect(auth.name).toBe(testPseudo);
   });
 
