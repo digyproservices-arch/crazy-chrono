@@ -43,7 +43,10 @@ class MonitoringReporter {
       suite: test.parent ? test.parent.title : '',
       status: result.status, // 'passed' | 'failed' | 'skipped' | 'timedOut'
       duration: result.duration,
+      retry: result.retry || 0,
       error: null,
+      // Clé unique pour dédupliquer les retries
+      _testKey: `${test.location.file.replace(/.*[/\\]e2e[/\\]/, '')}::${test.title}`,
     };
 
     if (result.status === 'failed' || result.status === 'timedOut') {
@@ -52,18 +55,29 @@ class MonitoringReporter {
 
     this.results.push(entry);
 
+    const retryLabel = entry.retry > 0 ? ` (retry #${entry.retry})` : '';
     const icon = result.status === 'passed' ? '✅' :
                  result.status === 'failed' ? '❌' :
                  result.status === 'timedOut' ? '⏰' : '⏭️';
-    console.log(`  ${icon} ${entry.file} › ${entry.title} (${result.duration}ms)`);
+    console.log(`  ${icon} ${entry.file} › ${entry.title}${retryLabel} (${result.duration}ms)`);
   }
 
   async onEnd(result) {
     const totalDuration = Date.now() - this.startTime;
-    const passed = this.results.filter(r => r.status === 'passed').length;
-    const failed = this.results.filter(r => r.status === 'failed').length;
-    const skipped = this.results.filter(r => r.status === 'skipped').length;
-    const timedOut = this.results.filter(r => r.status === 'timedOut').length;
+
+    // Dédupliquer: garder uniquement le DERNIER résultat pour chaque test unique
+    // Avec retries: 2, un test qui échoue 3× était compté 3× dans "failed"
+    const byKey = new Map();
+    for (const r of this.results) {
+      const key = r._testKey || `${r.file}::${r.title}`;
+      byKey.set(key, r); // Écrase avec la tentative la plus récente
+    }
+    const dedupResults = [...byKey.values()];
+
+    const passed = dedupResults.filter(r => r.status === 'passed').length;
+    const failed = dedupResults.filter(r => r.status === 'failed').length;
+    const skipped = dedupResults.filter(r => r.status === 'skipped').length;
+    const timedOut = dedupResults.filter(r => r.status === 'timedOut').length;
 
     const report = {
       timestamp: new Date().toISOString(),
@@ -72,19 +86,23 @@ class MonitoringReporter {
       commit: process.env.GITHUB_SHA ? process.env.GITHUB_SHA.substring(0, 8) : 'local',
       runId: process.env.GITHUB_RUN_ID || `local_${Date.now()}`,
       summary: {
-        total: this.results.length,
+        total: dedupResults.length,
         passed,
         failed,
         skipped,
         timedOut,
         duration: totalDuration,
         status: failed > 0 || timedOut > 0 ? 'FAIL' : 'PASS',
+        rawTotal: this.results.length, // Nombre brut (avec retries) pour diagnostic
       },
-      tests: this.results,
-      failedTests: this.results.filter(r => r.status === 'failed' || r.status === 'timedOut'),
+      tests: dedupResults,
+      failedTests: dedupResults.filter(r => r.status === 'failed' || r.status === 'timedOut'),
     };
 
-    console.log(`\n[MonitoringReporter] 📊 Résumé: ${passed} ✅ | ${failed} ❌ | ${skipped} ⏭️ | ${timedOut} ⏰ | ${(totalDuration / 1000).toFixed(1)}s`);
+    if (this.results.length !== dedupResults.length) {
+      console.log(`\n[MonitoringReporter] 🔄 ${this.results.length - dedupResults.length} retries dédupliquées (${this.results.length} → ${dedupResults.length} tests uniques)`);
+    }
+    console.log(`[MonitoringReporter] 📊 Résumé: ${passed} ✅ | ${failed} ❌ | ${skipped} ⏭️ | ${timedOut} ⏰ | ${(totalDuration / 1000).toFixed(1)}s`);
 
     // Réveiller le backend Render (cold start) puis envoyer avec retry
     await this._wakeUpBackend();
