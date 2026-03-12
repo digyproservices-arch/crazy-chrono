@@ -33,6 +33,16 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
 
+      - name: Wake up Render backend
+        run: |
+          echo "🏓 Waking up Render backend..."
+          for i in 1 2 3 4 5 6; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 https://crazy-chrono-backend.onrender.com/health || echo "000")
+            echo "  Attempt $i: HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then echo "✅ Backend is awake"; break; fi
+            if [ "$i" -lt 6 ]; then sleep 10; fi
+          done
+
       - name: Run E2E tests
         run: npx playwright test --project=chromium
         env:

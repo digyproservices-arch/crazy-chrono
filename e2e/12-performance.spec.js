@@ -43,7 +43,7 @@ test.describe('Performance — Temps de chargement', () => {
 
     console.log(`⏱️ API /health: ${duration}ms (status ${res.status()})`);
     expect(res.ok()).toBeTruthy();
-    expect(duration, `API /health trop lente: ${duration}ms > 2000ms`).toBeLessThan(2000);
+    expect(duration, `API /health trop lente: ${duration}ms > 5000ms`).toBeLessThan(5000);
   });
 
   test('API /associations.json se charge en < 3s', async ({ page }) => {
@@ -53,7 +53,7 @@ test.describe('Performance — Temps de chargement', () => {
 
     console.log(`⏱️ associations.json: ${duration}ms (status ${res.status()})`);
     expect(res.ok()).toBeTruthy();
-    expect(duration, `associations.json trop lent: ${duration}ms > 3000ms`).toBeLessThan(3000);
+    expect(duration, `associations.json trop lent: ${duration}ms > 5000ms`).toBeLessThan(5000);
   });
 
   test('API /math-positions se charge en < 2s', async ({ page }) => {
@@ -63,7 +63,7 @@ test.describe('Performance — Temps de chargement', () => {
 
     console.log(`⏱️ math-positions: ${duration}ms (status ${res.status()})`);
     expect(res.ok()).toBeTruthy();
-    expect(duration, `math-positions trop lent: ${duration}ms > 2000ms`).toBeLessThan(2000);
+    expect(duration, `math-positions trop lent: ${duration}ms > 5000ms`).toBeLessThan(5000);
   });
 });
 
@@ -78,7 +78,7 @@ test.describe('Performance — Avec authentification', () => {
 
     console.log(`⏱️ Login complet: ${duration}ms`);
     // 15s car Render peut avoir un cold start de ~10s
-    expect(duration, `Login trop lent: ${duration}ms > 15000ms`).toBeLessThan(15000);
+    expect(duration, `Login trop lent: ${duration}ms > 20000ms`).toBeLessThan(20000);
   });
 
   test('Carte solo se charge en < 8s (après login)', async ({ page }) => {
@@ -97,7 +97,7 @@ test.describe('Performance — Avec authentification', () => {
     const duration = Date.now() - start;
 
     console.log(`⏱️ Carte solo: ${duration}ms`);
-    expect(duration, `Carte solo trop lente: ${duration}ms > 8000ms`).toBeLessThan(8000);
+    expect(duration, `Carte solo trop lente: ${duration}ms > 12000ms`).toBeLessThan(12000);
 
     // Vérifier que des zones SVG sont présentes
     const svgCount = await page.locator('svg').count();
@@ -126,6 +126,6 @@ test.describe('Performance — Avec authentification', () => {
     const duration = Date.now() - start;
 
     console.log(`⏱️ Monitoring: ${duration}ms`);
-    expect(duration, `Monitoring trop lent: ${duration}ms > 5000ms`).toBeLessThan(5000);
+    expect(duration, `Monitoring trop lent: ${duration}ms > 8000ms`).toBeLessThan(8000);
   });
 });

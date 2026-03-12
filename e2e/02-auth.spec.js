@@ -52,7 +52,7 @@ test.describe('Authentification', () => {
 
     // Cliquer sur Enregistrer
     await page.click('text=Enregistrer');
-    await page.waitForTimeout(2000); // Attendre la sauvegarde serveur
+    await page.waitForTimeout(4000); // Attendre la sauvegarde (serveur + fallback Supabase)
 
     // Vérifier dans localStorage
     const ccAuth = await page.evaluate(() => localStorage.getItem('cc_auth'));
@@ -62,7 +62,7 @@ test.describe('Authentification', () => {
     // Rafraîchir la page
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000); // Attendre le chargement profil serveur
+    await page.waitForTimeout(5000); // Attendre le chargement profil serveur + auto-login
 
     // Vérifier que le pseudo est toujours là
     const ccAuthAfter = await page.evaluate(() => localStorage.getItem('cc_auth'));
