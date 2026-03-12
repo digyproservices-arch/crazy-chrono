@@ -3,6 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import supabase from '../../utils/supabaseClient';
 
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com';
+
 export default function Login({ onLogin }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -50,13 +52,28 @@ export default function Login({ onLogin }) {
           if (data?.session?.user) {
             const user = data.session.user;
             const existingAuth = (() => { try { return JSON.parse(localStorage.getItem('cc_auth') || '{}'); } catch { return {}; } })();
-            // Charger pseudo depuis user_profiles
+            // Charger pseudo depuis user_profiles (client Supabase)
             let dbPseudo = '';
+            let dbRole = '';
             try {
-              const { data: up } = await supabase.from('user_profiles').select('pseudo, first_name, last_name, role').eq('id', user.id).single();
+              const { data: up, error: upErr } = await supabase.from('user_profiles').select('pseudo, first_name, last_name, role').eq('id', user.id).single();
+              if (upErr) console.warn('[Login:auto] ⚠️ Erreur lecture user_profiles (client):', upErr.message);
               dbPseudo = up?.pseudo || [up?.first_name, up?.last_name].filter(Boolean).join(' ').trim() || '';
-              if (up?.role) existingAuth.role = existingAuth.role || up.role;
-            } catch {}
+              dbRole = up?.role || '';
+            } catch (e) { console.warn('[Login:auto] ⚠️ Exception lecture user_profiles:', e.message); }
+            // FALLBACK: Si pas de pseudo via client, essayer via API serveur (bypass RLS)
+            if (!dbPseudo) {
+              try {
+                const profRes = await fetch(`${BACKEND_URL}/api/auth/profile`, { headers: { Authorization: `Bearer ${data.session.access_token}` } });
+                const profJson = await profRes.json().catch(() => ({}));
+                if (profJson?.ok && profJson?.profile) {
+                  dbPseudo = profJson.profile.pseudo || [profJson.profile.first_name, profJson.profile.last_name].filter(Boolean).join(' ').trim() || '';
+                  if (profJson.profile.role) dbRole = dbRole || profJson.profile.role;
+                  console.log('[Login:auto] Pseudo récupéré via API serveur:', dbPseudo);
+                }
+              } catch (e) { console.warn('[Login:auto] API /profile fallback failed:', e.message); }
+            }
+            if (dbRole) existingAuth.role = existingAuth.role || dbRole;
             const profile = { 
               ...existingAuth, // Préserver préférences existantes (langue, avatar, etc.)
               id: user.id, 
@@ -65,6 +82,7 @@ export default function Login({ onLogin }) {
               role: existingAuth.role || 'user',
               token: data.session.access_token // Ajouter le token pour les API calls
             };
+            console.log('[Login:auto] 🔍 DIAGNOSTIC NOM:', { existingName: existingAuth.name || '(vide)', dbPseudo: dbPseudo || '(vide)', metadataName: user.user_metadata?.name || '(vide)', emailPrefix: user.email?.split('@')[0], NOM_FINAL: profile.name });
             try { localStorage.setItem('cc_auth', JSON.stringify(profile)); } catch {}
             onLogin && onLogin(profile);
             navigate('/modes', { replace: true });
@@ -162,11 +180,32 @@ export default function Login({ onLogin }) {
       const user = data?.user || data?.session?.user;
       if (user) {
         // Charger le profil depuis user_profiles
-        const { data: userProfile } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
+        let userProfile = null;
+        try {
+          const { data: up, error: upErr } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+          if (upErr) console.warn('[Login] ⚠️ Erreur lecture user_profiles (client):', upErr.message);
+          userProfile = up;
+        } catch (e) { console.warn('[Login] ⚠️ Exception lecture user_profiles:', e.message); }
+        // FALLBACK: Si pas de pseudo via client, essayer via API serveur (bypass RLS)
+        if (!userProfile?.pseudo) {
+          try {
+            const profRes = await fetch(`${BACKEND_URL}/api/auth/profile`, { headers: { Authorization: `Bearer ${data?.session?.access_token}` } });
+            const profJson = await profRes.json().catch(() => ({}));
+            if (profJson?.ok && profJson?.profile) {
+              const sp = profJson.profile;
+              userProfile = userProfile || {};
+              if (!userProfile.pseudo && sp.pseudo) userProfile.pseudo = sp.pseudo;
+              if (!userProfile.first_name && sp.first_name) userProfile.first_name = sp.first_name;
+              if (!userProfile.last_name && sp.last_name) userProfile.last_name = sp.last_name;
+              if (!userProfile.role && sp.role) userProfile.role = sp.role;
+              console.log('[Login] Pseudo récupéré via API serveur:', sp.pseudo);
+            }
+          } catch (e) { console.warn('[Login] API /profile fallback failed:', e.message); }
+        }
         
         // Construire un nom d'affichage complet
         const firstName = userProfile?.first_name || user.user_metadata?.first_name || '';
@@ -185,11 +224,18 @@ export default function Login({ onLogin }) {
           token: data?.session?.access_token
         };
         
-        // DEBUG: Vérifier le profil avant sauvegarde
-        console.log('[Login DEBUG] profile created:', {
-          hasToken: !!profile.token,
-          tokenPreview: profile.token ? profile.token.substring(0, 20) + '...' : 'UNDEFINED',
-          email: profile.email
+        // DIAGNOSTIC: Trace complète de la résolution du nom
+        console.log('[Login] 🔍 DIAGNOSTIC NOM:', {
+          '1_existingAuth.name': existingAuth.name || '(vide)',
+          '2_userProfile_pseudo': userProfile?.pseudo || '(vide)',
+          '3_userProfile_firstName': userProfile?.first_name || '(vide)',
+          '4_userProfile_lastName': userProfile?.last_name || '(vide)',
+          '5_fullDisplayName': fullDisplayName || '(vide)',
+          '6_metadata_name': user.user_metadata?.name || '(vide)',
+          '7_email_prefix': user.email?.split('@')[0] || '(vide)',
+          '8_NOM_FINAL': profile.name,
+          '9_userProfile_existe': !!userProfile,
+          '10_userProfile_complet': userProfile,
         });
         
         saveAuth(profile);

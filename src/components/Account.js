@@ -221,11 +221,12 @@ const Account = () => {
 
     // Sauvegarder aussi côté serveur (persistance cross-device)
     try {
-      if (!supabase) return;
+      if (!supabase) { console.warn('[Account] Supabase non configuré, pas de sauvegarde serveur'); return; }
       const { data: sess } = await supabase.auth.getSession();
       const token = sess?.session?.access_token;
-      if (!token) return;
-      await fetch(`${BACKEND_URL}/api/auth/profile`, {
+      if (!token) { console.warn('[Account] Pas de token Supabase, pas de sauvegarde serveur'); return; }
+      console.log('[Account] Sauvegarde serveur...', { pseudo: name, language });
+      const resp = await fetch(`${BACKEND_URL}/api/auth/profile`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -238,8 +239,14 @@ const Account = () => {
           strict_elements_mode: strictElementsMode,
         }),
       });
+      const respJson = await resp.json().catch(() => ({}));
+      if (resp.ok && respJson.ok) {
+        console.log('[Account] ✅ Pseudo sauvegardé sur le serveur:', name, respJson);
+      } else {
+        console.error('[Account] ❌ Échec sauvegarde serveur:', resp.status, respJson);
+      }
     } catch (e) {
-      console.warn('[Account] Erreur sauvegarde serveur:', e.message);
+      console.error('[Account] ❌ Erreur sauvegarde serveur:', e.message);
     }
   };
 

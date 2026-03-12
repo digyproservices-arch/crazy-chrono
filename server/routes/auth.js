@@ -419,6 +419,7 @@ router.patch('/profile', async (req, res) => {
     }
 
     const { pseudo, language, avatar_url, strict_elements_mode } = req.body;
+    console.log(`[Auth] PATCH /profile reçu pour ${user.email}:`, { pseudo, language, avatar_url: avatar_url ? '(avatar data)' : null, strict_elements_mode });
 
     // Build update object with only provided fields
     const updates = {};
@@ -438,12 +439,18 @@ router.patch('/profile', async (req, res) => {
       .upsert({ id: user.id, email: user.email, ...updates }, { onConflict: 'id' });
 
     if (updateError) {
-      console.error('[Auth] Error updating profile:', updateError);
-      return res.status(500).json({ ok: false, error: 'update_failed' });
+      console.error('[Auth] ❌ Error upserting profile:', updateError);
+      return res.status(500).json({ ok: false, error: 'update_failed', details: updateError.message });
     }
 
-    console.log(`[Auth] Profile upserted for ${user.email}:`, Object.keys(updates));
-    return res.json({ ok: true, updated: Object.keys(updates) });
+    // Vérifier que la donnée est bien écrite en relisant
+    const { data: verify, error: verifyErr } = await supabase
+      .from('user_profiles')
+      .select('id, pseudo, email, first_name, last_name')
+      .eq('id', user.id)
+      .single();
+    console.log(`[Auth] ✅ Profile upserted for ${user.email}:`, { updates: Object.keys(updates), verify, verifyErr: verifyErr?.message });
+    return res.json({ ok: true, updated: Object.keys(updates), saved_pseudo: verify?.pseudo || null });
 
   } catch (error) {
     console.error('[Auth] Error in /profile:', error);
