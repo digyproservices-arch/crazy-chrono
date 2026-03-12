@@ -52,7 +52,12 @@ test.describe('Authentification', () => {
 
     // Cliquer sur Enregistrer
     await page.click('text=Enregistrer');
-    await page.waitForTimeout(4000); // Attendre la sauvegarde (serveur + fallback Supabase)
+    // Attendre le signal visuel de succès OU erreur (max 25s pour couvrir Render cold start + fallback)
+    try {
+      await page.locator('text=Enregistré').or(page.locator('text=échoué')).first().waitFor({ timeout: 25000 });
+    } catch { /* timeout: on continue quand même */ }
+    // Attendre un peu plus pour que le save async finisse
+    await page.waitForTimeout(3000);
 
     // Vérifier dans localStorage
     const ccAuth = await page.evaluate(() => localStorage.getItem('cc_auth'));
@@ -62,7 +67,7 @@ test.describe('Authentification', () => {
     // Rafraîchir la page
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(5000); // Attendre le chargement profil serveur + auto-login
+    await page.waitForTimeout(8000); // Attendre le chargement profil serveur + auto-login
 
     // Vérifier que le pseudo est toujours là
     const ccAuthAfter = await page.evaluate(() => localStorage.getItem('cc_auth'));
@@ -80,8 +85,11 @@ test.describe('Authentification', () => {
     const nameInput = page.locator('input').first();
     await nameInput.fill(testPseudo);
     await page.click('text=Enregistrer');
-    // Attendre que la sauvegarde arrive (serveur OU Supabase direct fallback)
-    await page.waitForTimeout(4000);
+    // Attendre le signal visuel de succès OU erreur (max 25s pour couvrir Render cold start + fallback)
+    try {
+      await page.locator('text=Enregistré').or(page.locator('text=échoué')).first().waitFor({ timeout: 25000 });
+    } catch { /* timeout: on continue quand même */ }
+    await page.waitForTimeout(3000);
 
     // Vérifier que le pseudo est bien dans localStorage après sauvegarde
     const ccAuthBefore = await page.evaluate(() => localStorage.getItem('cc_auth'));
@@ -110,7 +118,7 @@ test.describe('Authentification', () => {
 
     // Se reconnecter
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
-    await page.waitForTimeout(5000); // Attendre le sync profil serveur + fallback
+    await page.waitForTimeout(8000); // Attendre le sync profil serveur + fallback Supabase
 
     // Vérifier que le pseudo a été restauré depuis le serveur/DB
     const ccAuth = await page.evaluate(() => localStorage.getItem('cc_auth'));
