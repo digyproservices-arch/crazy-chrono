@@ -39,89 +39,137 @@ test.describe('Authentification', () => {
   });
 
   test('Sauvegarde du pseudo persiste après refresh', async ({ page }) => {
-    // Réveiller le backend AVANT de tenter le save
+    test.setTimeout(120000);
     await ensureBackendAwake(page);
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
-    await page.goto('/account');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
 
-    // Générer un pseudo unique pour ce test
+    // Naviguer vers /account ET attendre le chargement du profil serveur
+    const [profileLoad] = await Promise.all([
+      page.waitForResponse(
+        res => res.url().includes('/api/auth/profile') && res.request().method() === 'GET',
+        { timeout: 30000 }
+      ).catch(() => null),
+      page.goto('/account'),
+    ]);
+    await page.waitForLoadState('networkidle');
+    console.log(`[E2E] Profile GET: ${profileLoad ? 'HTTP ' + profileLoad.status() : 'pas de réponse'}`);
+    await page.waitForTimeout(3000);
+
     const testPseudo = `TestBot_${Date.now().toString(36)}`;
 
-    // Trouver et remplir le champ pseudo (PAS l'input file avatar qui est caché)
+    // Trouver le champ pseudo (PAS l'input file avatar qui est caché)
     const nameInput = page.locator('input[placeholder*="Joueur"]');
-    await nameInput.waitFor({ state: 'visible', timeout: 10000 });
-    await nameInput.fill(testPseudo);
+    await nameInput.waitFor({ state: 'visible', timeout: 15000 });
+    const oldValue = await nameInput.inputValue();
+    console.log(`[E2E] Pseudo actuel dans l'input: "${oldValue}"`);
 
-    // Cliquer sur Enregistrer et attendre la réponse réseau
-    const [saveResponse] = await Promise.all([
-      page.waitForResponse(res => res.url().includes('/profile') || res.url().includes('/user'), { timeout: 30000 }).catch(() => null),
+    // Remplir le nouveau pseudo
+    await nameInput.clear();
+    await nameInput.fill(testPseudo);
+    const newValue = await nameInput.inputValue();
+    console.log(`[E2E] Pseudo après fill: "${newValue}"`);
+    expect(newValue).toBe(testPseudo);
+
+    // Cliquer Enregistrer et attendre spécifiquement le PATCH
+    const [patchRes] = await Promise.all([
+      page.waitForResponse(
+        res => res.url().includes('/api/auth/profile') && res.request().method() === 'PATCH',
+        { timeout: 30000 }
+      ).catch(() => null),
       page.locator('button:has-text("Enregistrer")').click(),
     ]);
-    // Attendre que le save local + serveur finisse
-    await page.waitForTimeout(5000);
 
-    // Vérifier que le serveur a bien répondu OK
-    if (saveResponse) {
-      console.log(`[E2E] Save response: HTTP ${saveResponse.status()}`);
+    if (patchRes) {
+      const status = patchRes.status();
+      console.log(`[E2E] PATCH /profile: HTTP ${status}`);
+      if (status !== 200) {
+        const body = await patchRes.text().catch(() => 'N/A');
+        console.error(`[E2E] PATCH body: ${body.substring(0, 300)}`);
+      }
     } else {
-      console.warn('[E2E] ⚠️ Pas de réponse réseau pour le save — le serveur est peut-être lent');
+      console.error('[E2E] ❌ Aucune réponse PATCH reçue !');
     }
+    await page.waitForTimeout(3000);
 
-    // Vérifier dans localStorage
+    // Vérifier localStorage après save
     const ccAuth = await page.evaluate(() => localStorage.getItem('cc_auth'));
-    const auth = JSON.parse(ccAuth);
+    const auth = JSON.parse(ccAuth || '{}');
+    console.log(`[E2E] localStorage.name après save: "${auth.name}"`);
     expect(auth.name).toBe(testPseudo);
 
-    // Rafraîchir la page
-    await page.reload();
+    // Recharger et attendre le GET /profile du serveur
+    const [reloadProfile] = await Promise.all([
+      page.waitForResponse(
+        res => res.url().includes('/api/auth/profile') && res.request().method() === 'GET',
+        { timeout: 30000 }
+      ).catch(() => null),
+      page.reload(),
+    ]);
     await page.waitForLoadState('networkidle');
-
-    // Polling: attendre que le pseudo soit restauré (max 20s)
-    let authAfter;
-    for (let i = 0; i < 10; i++) {
-      await page.waitForTimeout(2000);
-      const raw = await page.evaluate(() => localStorage.getItem('cc_auth'));
-      authAfter = JSON.parse(raw || '{}');
-      if (authAfter.name === testPseudo) break;
+    if (reloadProfile) {
+      console.log(`[E2E] Profile reload GET: HTTP ${reloadProfile.status()}`);
     }
+    await page.waitForTimeout(5000);
+
+    // Vérifier persistence
+    const raw = await page.evaluate(() => localStorage.getItem('cc_auth'));
+    const authAfter = JSON.parse(raw || '{}');
+    console.log(`[E2E] localStorage.name après reload: "${authAfter.name}"`);
     expect(authAfter.name).toBe(testPseudo);
   });
 
   test('Sauvegarde du pseudo persiste après logout + login', async ({ page }) => {
-    // Réveiller le backend AVANT de tenter le save
+    test.setTimeout(120000);
     await ensureBackendAwake(page);
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
-    await page.goto('/account');
-    await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
 
-    // Sauvegarder un pseudo unique
+    // Naviguer vers /account ET attendre le chargement du profil serveur
+    const [profileLoad] = await Promise.all([
+      page.waitForResponse(
+        res => res.url().includes('/api/auth/profile') && res.request().method() === 'GET',
+        { timeout: 30000 }
+      ).catch(() => null),
+      page.goto('/account'),
+    ]);
+    await page.waitForLoadState('networkidle');
+    console.log(`[E2E-logout] Profile GET: ${profileLoad ? 'HTTP ' + profileLoad.status() : 'pas de réponse'}`);
+    await page.waitForTimeout(3000);
+
     const testPseudo = `Persist_${Date.now().toString(36)}`;
     const nameInput = page.locator('input[placeholder*="Joueur"]');
-    await nameInput.waitFor({ state: 'visible', timeout: 10000 });
+    await nameInput.waitFor({ state: 'visible', timeout: 15000 });
+    await nameInput.clear();
     await nameInput.fill(testPseudo);
+    console.log(`[E2E-logout] Pseudo rempli: "${testPseudo}"`);
 
-    // Cliquer et attendre la réponse réseau
-    const [saveResponse] = await Promise.all([
-      page.waitForResponse(res => res.url().includes('/profile') || res.url().includes('/user'), { timeout: 30000 }).catch(() => null),
+    // Cliquer Enregistrer et attendre PATCH
+    const [patchRes] = await Promise.all([
+      page.waitForResponse(
+        res => res.url().includes('/api/auth/profile') && res.request().method() === 'PATCH',
+        { timeout: 30000 }
+      ).catch(() => null),
       page.locator('button:has-text("Enregistrer")').click(),
     ]);
-    await page.waitForTimeout(5000);
 
-    if (saveResponse) {
-      console.log(`[E2E] Save response: HTTP ${saveResponse.status()}`);
+    if (patchRes) {
+      const status = patchRes.status();
+      console.log(`[E2E-logout] PATCH /profile: HTTP ${status}`);
+      if (status !== 200) {
+        const body = await patchRes.text().catch(() => 'N/A');
+        console.error(`[E2E-logout] PATCH body: ${body.substring(0, 300)}`);
+      }
     } else {
-      console.warn('[E2E] ⚠️ Pas de réponse réseau pour le save');
+      console.error('[E2E-logout] ❌ Aucune réponse PATCH reçue !');
     }
+    await page.waitForTimeout(3000);
 
-    // Vérifier que le pseudo est bien dans localStorage après sauvegarde
+    // Vérifier localStorage
     const ccAuthBefore = await page.evaluate(() => localStorage.getItem('cc_auth'));
-    const authBefore = JSON.parse(ccAuthBefore);
+    const authBefore = JSON.parse(ccAuthBefore || '{}');
+    console.log(`[E2E-logout] localStorage.name après save: "${authBefore.name}"`);
     expect(authBefore.name).toBe(testPseudo);
 
-    // Se déconnecter via le VRAI flux Supabase (pas juste localStorage)
+    // Se déconnecter
     await page.evaluate(async () => {
       const sbKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
       if (sbKey) localStorage.removeItem(sbKey);
@@ -134,22 +182,31 @@ test.describe('Authentification', () => {
     // Se reconnecter
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
 
-    // Polling: attendre que le pseudo soit restauré (max 20s)
-    let auth;
-    for (let i = 0; i < 10; i++) {
-      await page.waitForTimeout(2000);
-      const raw = await page.evaluate(() => localStorage.getItem('cc_auth'));
-      auth = JSON.parse(raw || '{}');
-      if (auth.name === testPseudo) break;
+    // Après login, aller sur /account pour déclencher le chargement profil
+    const [reloadProfile] = await Promise.all([
+      page.waitForResponse(
+        res => res.url().includes('/api/auth/profile') && res.request().method() === 'GET',
+        { timeout: 30000 }
+      ).catch(() => null),
+      page.goto('/account'),
+    ]);
+    await page.waitForLoadState('networkidle');
+    if (reloadProfile) {
+      console.log(`[E2E-logout] Profile reload GET: HTTP ${reloadProfile.status()}`);
     }
+    await page.waitForTimeout(5000);
 
-    // Log détaillé en cas d'échec
+    // Vérifier persistence
+    const raw = await page.evaluate(() => localStorage.getItem('cc_auth'));
+    const auth = JSON.parse(raw || '{}');
+    console.log(`[E2E-logout] localStorage.name après re-login: "${auth.name}"`);
+
     if (auth.name !== testPseudo) {
       const authLogs = await page.evaluate(() => {
         try { return JSON.parse(localStorage.getItem('cc_auth_logs') || '[]'); } catch { return []; }
       });
-      console.error(`[E2E] ❌ Pseudo non persisté! Attendu: "${testPseudo}", Obtenu: "${auth.name}"`);
-      console.error('[E2E] Auth logs:', JSON.stringify(authLogs.slice(0, 5), null, 2));
+      console.error(`[E2E-logout] ❌ Pseudo non persisté! Attendu: "${testPseudo}", Obtenu: "${auth.name}"`);
+      console.error('[E2E-logout] Auth logs:', JSON.stringify(authLogs.slice(0, 5), null, 2));
     }
 
     expect(auth.name).toBe(testPseudo);
