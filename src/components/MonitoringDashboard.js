@@ -40,6 +40,7 @@ function MonitoringDashboard() {
   const [e2eSelectedImg, setE2eSelectedImg] = useState(null);
   const [e2eResults, setE2eResults] = useState([]);
   const [e2eResultsLoading, setE2eResultsLoading] = useState(false);
+  const [e2eError, setE2eError] = useState(null);
   const [e2eTriggerMsg, setE2eTriggerMsg] = useState(null);
   const [e2eGithubRuns, setE2eGithubRuns] = useState([]);
   const [e2eExpandedRun, setE2eExpandedRun] = useState(null);
@@ -742,10 +743,16 @@ sections.push(`===== FIN DU RAPPORT =====`);
 
               const fetchE2eResults = async () => {
                 setE2eResultsLoading(true);
+                setE2eError(null);
                 try {
                   const res = await fetch(`${backendUrl}/api/monitoring/e2e-results`, { headers: authHeaders });
                   if (res.ok) { const d = await safeJson(res); if (d && d.ok) setE2eResults(d.results || []); }
-                } catch (err) { console.warn('[E2E] Fetch results failed:', err.message); }
+                  else if (res.status === 401 || res.status === 403) setE2eError('Token expiré ou droits insuffisants. Reconnecte-toi.');
+                  else setE2eError(`Serveur a répondu HTTP ${res.status}`);
+                } catch (err) {
+                  console.warn('[E2E] Fetch results failed:', err.message);
+                  setE2eError('Backend Render injoignable (serveur endormi?). Clique sur Rafraîchir pour réessayer.');
+                }
                 setE2eResultsLoading(false);
               };
 
@@ -853,9 +860,18 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     <div>
                       {e2eResults.length === 0 ? (
                         <div style={{ ...cardStyle, textAlign: 'center', padding: 40, color: COLORS.textMuted }}>
-                          <div style={{ fontSize: 48, marginBottom: 16 }}>🧪</div>
-                          <p>Aucun résultat E2E disponible.</p>
-                          <p style={{ fontSize: 12 }}>Cliquez sur "🚀 Lancer les tests E2E" pour démarrer, ou attendez l'exécution nocturne automatique.</p>
+                          <div style={{ fontSize: 48, marginBottom: 16 }}>{e2eError ? '⚠️' : '🧪'}</div>
+                          {e2eError ? (
+                            <>
+                              <p style={{ color: COLORS.warn, fontWeight: 600 }}>{e2eError}</p>
+                              <p style={{ fontSize: 12 }}>Le serveur Render (plan gratuit) s'endort après inactivité. Le premier clic sur Rafraîchir le réveille (~30s).</p>
+                            </>
+                          ) : (
+                            <>
+                              <p>Aucun résultat E2E disponible.</p>
+                              <p style={{ fontSize: 12 }}>Cliquez sur "🚀 Lancer les tests E2E" pour démarrer, ou attendez l'exécution nocturne automatique.</p>
+                            </>
+                          )}
                         </div>
                       ) : (
                         e2eResults.map((run, ri) => {

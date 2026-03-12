@@ -80,10 +80,28 @@ test.describe('Authentification', () => {
     const nameInput = page.locator('input').first();
     await nameInput.fill(testPseudo);
     await page.click('text=Enregistrer');
-    await page.waitForTimeout(2000);
+    // Attendre que la sauvegarde arrive (serveur OU Supabase direct fallback)
+    await page.waitForTimeout(4000);
 
-    // Se déconnecter (via navigation directe pour fiabilité)
-    await page.evaluate(() => {
+    // Vérifier que le pseudo est bien dans localStorage après sauvegarde
+    const ccAuthBefore = await page.evaluate(() => localStorage.getItem('cc_auth'));
+    const authBefore = JSON.parse(ccAuthBefore);
+    expect(authBefore.name).toBe(testPseudo);
+
+    // Vérifier les logs auth pour confirmer la sauvegarde
+    const authLogsBefore = await page.evaluate(() => {
+      try { return JSON.parse(localStorage.getItem('cc_auth_logs') || '[]'); } catch { return []; }
+    });
+    const saveEvent = authLogsBefore.find(l => l.type === 'save_ok' || l.type === 'save_fail');
+    if (saveEvent?.type === 'save_fail') {
+      console.warn('[E2E] ⚠️ Sauvegarde pseudo échouée:', saveEvent.details);
+    }
+
+    // Se déconnecter via le VRAI flux Supabase (pas juste localStorage)
+    await page.evaluate(async () => {
+      // Simuler le vrai onLogout: signOut Supabase + clear localStorage
+      const sbKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+      if (sbKey) localStorage.removeItem(sbKey);
       localStorage.removeItem('cc_auth');
       window.dispatchEvent(new Event('cc:authChanged'));
     });
@@ -92,11 +110,21 @@ test.describe('Authentification', () => {
 
     // Se reconnecter
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
-    await page.waitForTimeout(3000); // Attendre le sync profil serveur
+    await page.waitForTimeout(5000); // Attendre le sync profil serveur + fallback
 
-    // Vérifier que le pseudo a été restauré depuis le serveur
+    // Vérifier que le pseudo a été restauré depuis le serveur/DB
     const ccAuth = await page.evaluate(() => localStorage.getItem('cc_auth'));
     const auth = JSON.parse(ccAuth);
+
+    // Log détaillé en cas d'échec
+    if (auth.name !== testPseudo) {
+      const authLogs = await page.evaluate(() => {
+        try { return JSON.parse(localStorage.getItem('cc_auth_logs') || '[]'); } catch { return []; }
+      });
+      console.error(`[E2E] ❌ Pseudo non persisté! Attendu: "${testPseudo}", Obtenu: "${auth.name}"`);
+      console.error('[E2E] Auth logs:', JSON.stringify(authLogs.slice(0, 5), null, 2));
+    }
+
     expect(auth.name).toBe(testPseudo);
   });
 

@@ -17,6 +17,20 @@ class MonitoringReporter {
     this.suiteName = '';
   }
 
+  /** Wake up Render backend (cold start ~30s) before POSTing results */
+  async _wakeUpBackend() {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`[MonitoringReporter] 🏓 Wake-up ping #${attempt}...`);
+        const res = await fetch(`${BACKEND_URL}/health`, { signal: AbortSignal.timeout(15000) });
+        if (res.ok) { console.log('[MonitoringReporter] ✅ Backend is awake'); return true; }
+      } catch { /* retry */ }
+      if (attempt < 3) await new Promise(r => setTimeout(r, 10000));
+    }
+    console.warn('[MonitoringReporter] ⚠️ Backend did not wake up after 3 pings');
+    return false;
+  }
+
   onBegin(config, suite) {
     this.startTime = Date.now();
     console.log(`\n[MonitoringReporter] 🚀 Début des tests E2E — ${suite.allTests().length} tests`);
@@ -72,22 +86,32 @@ class MonitoringReporter {
 
     console.log(`\n[MonitoringReporter] 📊 Résumé: ${passed} ✅ | ${failed} ❌ | ${skipped} ⏭️ | ${timedOut} ⏰ | ${(totalDuration / 1000).toFixed(1)}s`);
 
-    // Envoyer au backend
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/monitoring/e2e-results`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(report),
-      });
+    // Réveiller le backend Render (cold start) puis envoyer avec retry
+    await this._wakeUpBackend();
 
-      if (res.ok) {
-        console.log(`[MonitoringReporter] ✅ Rapport envoyé au monitoring (${BACKEND_URL})`);
-      } else {
-        console.warn(`[MonitoringReporter] ⚠️ Envoi échoué: HTTP ${res.status}`);
+    let sent = false;
+    for (let attempt = 1; attempt <= 3 && !sent; attempt++) {
+      try {
+        console.log(`[MonitoringReporter] 📤 POST résultats (tentative ${attempt}/3)...`);
+        const res = await fetch(`${BACKEND_URL}/api/monitoring/e2e-results`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(report),
+          signal: AbortSignal.timeout(15000),
+        });
+
+        if (res.ok) {
+          console.log(`[MonitoringReporter] ✅ Rapport envoyé au monitoring (${BACKEND_URL})`);
+          sent = true;
+        } else {
+          console.warn(`[MonitoringReporter] ⚠️ Envoi échoué: HTTP ${res.status}`);
+        }
+      } catch (err) {
+        console.warn(`[MonitoringReporter] ⚠️ Tentative ${attempt} échouée:`, err.message);
+        if (attempt < 3) await new Promise(r => setTimeout(r, 5000));
       }
-    } catch (err) {
-      console.warn(`[MonitoringReporter] ⚠️ Impossible d'envoyer au monitoring:`, err.message);
     }
+    if (!sent) console.error('[MonitoringReporter] ❌ Impossible d\'envoyer les résultats après 3 tentatives');
   }
 }
 
