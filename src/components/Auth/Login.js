@@ -195,7 +195,23 @@ export default function Login({ onLogin }) {
         saveAuth(profile);
         // Stocker l'ID utilisateur pour filtrage matchs
         try { localStorage.setItem('cc_user_id', user.id); } catch {}
-        
+
+        // Auto-sauvegarder le pseudo dans la DB s'il n'y est pas encore
+        // (corrige la perte de nom après déconnexion pour les comptes anciens)
+        try {
+          const dbHasPseudo = !!(userProfile?.pseudo || '').trim();
+          const resolvedName = (profile.name || '').trim();
+          const isJustEmail = resolvedName === (user.email?.split('@')[0] || '');
+          if (!dbHasPseudo && resolvedName && !isJustEmail) {
+            await supabase.from('user_profiles').upsert({
+              id: user.id, pseudo: resolvedName,
+              first_name: firstName || userProfile?.first_name || null,
+              last_name: lastName || userProfile?.last_name || null,
+            }, { onConflict: 'id' });
+            console.log('[Login] Auto-sauvegarde pseudo dans DB:', resolvedName);
+          }
+        } catch (e) { console.warn('[Login] Auto-save pseudo failed:', e.message); }
+
         // Si c'est un professeur, récupérer sa classe
         try {
           const classRes = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com'}/api/auth/teacher-class`, {
