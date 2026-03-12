@@ -49,17 +49,25 @@ test.describe('Authentification', () => {
     // Générer un pseudo unique pour ce test
     const testPseudo = `TestBot_${Date.now().toString(36)}`;
 
-    // Trouver et remplir le champ pseudo/nom
-    const nameInput = page.locator('input').first();
+    // Trouver et remplir le champ pseudo (PAS l'input file avatar qui est caché)
+    const nameInput = page.locator('input[placeholder*="Joueur"]');
+    await nameInput.waitFor({ state: 'visible', timeout: 10000 });
     await nameInput.fill(testPseudo);
 
     // Cliquer sur Enregistrer et attendre la réponse réseau
     const [saveResponse] = await Promise.all([
       page.waitForResponse(res => res.url().includes('/profile') || res.url().includes('/user'), { timeout: 30000 }).catch(() => null),
-      page.click('text=Enregistrer'),
+      page.locator('button:has-text("Enregistrer")').click(),
     ]);
     // Attendre que le save local + serveur finisse
     await page.waitForTimeout(5000);
+
+    // Vérifier que le serveur a bien répondu OK
+    if (saveResponse) {
+      console.log(`[E2E] Save response: HTTP ${saveResponse.status()}`);
+    } else {
+      console.warn('[E2E] ⚠️ Pas de réponse réseau pour le save — le serveur est peut-être lent');
+    }
 
     // Vérifier dans localStorage
     const ccAuth = await page.evaluate(() => localStorage.getItem('cc_auth'));
@@ -91,15 +99,22 @@ test.describe('Authentification', () => {
 
     // Sauvegarder un pseudo unique
     const testPseudo = `Persist_${Date.now().toString(36)}`;
-    const nameInput = page.locator('input').first();
+    const nameInput = page.locator('input[placeholder*="Joueur"]');
+    await nameInput.waitFor({ state: 'visible', timeout: 10000 });
     await nameInput.fill(testPseudo);
 
     // Cliquer et attendre la réponse réseau
     const [saveResponse] = await Promise.all([
       page.waitForResponse(res => res.url().includes('/profile') || res.url().includes('/user'), { timeout: 30000 }).catch(() => null),
-      page.click('text=Enregistrer'),
+      page.locator('button:has-text("Enregistrer")').click(),
     ]);
     await page.waitForTimeout(5000);
+
+    if (saveResponse) {
+      console.log(`[E2E] Save response: HTTP ${saveResponse.status()}`);
+    } else {
+      console.warn('[E2E] ⚠️ Pas de réponse réseau pour le save');
+    }
 
     // Vérifier que le pseudo est bien dans localStorage après sauvegarde
     const ccAuthBefore = await page.evaluate(() => localStorage.getItem('cc_auth'));

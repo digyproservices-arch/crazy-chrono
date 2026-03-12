@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { TEST_ACCOUNTS, BACKEND_URL, loginWithEmail, loginWithStudentCode } = require('./helpers');
+const { TEST_ACCOUNTS, BACKEND_URL, loginWithEmail, loginWithStudentCode, ensureBackendAwake } = require('./helpers');
 
 /**
  * Tests multi-contexte pour TOUS les modes de jeu :
@@ -23,6 +23,9 @@ const { TEST_ACCOUNTS, BACKEND_URL, loginWithEmail, loginWithStudentCode } = req
  * @returns {Promise<{token: string, students: Array<{id: string, access_code: string, first_name: string, full_name: string}>}>}
  */
 async function getAdminTokenAndStudents(request) {
+  // S'assurer que le backend est réveillé avant les appels API
+  await ensureBackendAwake(request);
+
   // 1. Login admin via Supabase REST (obtenir un token)
   const loginRes = await request.post('https://dfrwoabuftlbrhqxnrbl.supabase.co/auth/v1/token?grant_type=password', {
     data: {

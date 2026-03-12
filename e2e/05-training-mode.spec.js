@@ -40,6 +40,7 @@ test.describe('Mode Training (côté professeur)', () => {
   });
 
   test('API training records répond', async ({ request }) => {
+    await ensureBackendAwake(request);
     let response;
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
@@ -58,6 +59,7 @@ test.describe('Mode Training (côté élève)', () => {
   test.skip(!TEST_ACCOUNTS.student.code, 'E2E_STUDENT_CODE non défini — skip tests élève');
 
   test('API training-invitations répond pour un élève', async ({ page }) => {
+    await ensureBackendAwake(page);
     await page.goto('/login');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
