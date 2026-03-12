@@ -431,17 +431,18 @@ router.patch('/profile', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'no_fields_to_update' });
     }
 
+    // Utiliser upsert pour créer la ligne si elle n'existe pas encore
+    // (corrige les comptes anciens sans ligne user_profiles)
     const { error: updateError } = await supabase
       .from('user_profiles')
-      .update(updates)
-      .eq('id', user.id);
+      .upsert({ id: user.id, email: user.email, ...updates }, { onConflict: 'id' });
 
     if (updateError) {
       console.error('[Auth] Error updating profile:', updateError);
       return res.status(500).json({ ok: false, error: 'update_failed' });
     }
 
-    console.log(`[Auth] Profile updated for ${user.email}:`, Object.keys(updates));
+    console.log(`[Auth] Profile upserted for ${user.email}:`, Object.keys(updates));
     return res.json({ ok: true, updated: Object.keys(updates) });
 
   } catch (error) {
