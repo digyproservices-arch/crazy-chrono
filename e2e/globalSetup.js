@@ -62,7 +62,21 @@ async function globalSetup() {
     }
   }
 
-  console.log('   🏁 GlobalSetup terminé\n');
+  // Keep-alive: ping le backend toutes les 5 min pour éviter qu'il se rendorme
+  // pendant le run E2E (~24 min)
+  const keepAliveInterval = setInterval(async () => {
+    try {
+      await fetch(`${BACKEND_URL}/health`, { signal: AbortSignal.timeout(10000) });
+      console.log('   � [KeepAlive] Ping backend OK');
+    } catch {
+      console.log('   ⚠️ [KeepAlive] Ping backend échoué');
+    }
+  }, 5 * 60 * 1000); // 5 minutes
+
+  // Stocker l'intervalle pour le teardown
+  globalThis.__CC_KEEPALIVE_INTERVAL__ = keepAliveInterval;
+
+  console.log('   �🏁 GlobalSetup terminé (keep-alive actif toutes les 5 min)\n');
 }
 
 module.exports = globalSetup;
