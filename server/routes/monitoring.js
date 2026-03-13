@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const path = require('path');
-const { requireAdminAuth } = require('../middleware/auth');
+const { requireAuth, requireAdminAuth } = require('../middleware/auth');
 const { recordImageUsage, analyzeImageUsage, sendEmailReport } = require('../imageMonitoring');
 
 // ── Game Incidents Storage ─────────────────────────────────
@@ -495,9 +495,9 @@ router.post('/heartbeat', (req, res) => {
 
 /**
  * GET /api/monitoring/online-players
- * Liste les joueurs actuellement en ligne (admin only)
+ * Liste les joueurs actuellement en ligne (any authenticated user)
  */
-router.get('/online-players', requireAdminAuth, (req, res) => {
+router.get('/online-players', requireAuth, (req, res) => {
   try {
     const now = Date.now();
     const players = [];
