@@ -6391,6 +6391,68 @@ setZones(dataWithRandomTexts);
         setCorrectImageZoneId(null);
       }
       setGameSelectedIds([]);
+      // POST-ENFORCE: Anti-fausse-paire image-texte
+      // Quand enforce choisit calcul-chiffre, il casse la paire image-texte → les deux deviennent distracteurs
+      // → fausse paire visuelle. On remplace le texte distracteur par un texte sûr.
+      try {
+        const _peNorm = (s) => String(s || '').trim().toLowerCase();
+        const _peNormUrl = (p) => {
+          if (!p) return '';
+          let s = p; try { s = decodeURIComponent(s); } catch {}
+          s = s.toLowerCase().replace(/\\/g, '/');
+          const pub = (process.env.PUBLIC_URL || '').toLowerCase();
+          if (pub && s.startsWith(pub)) s = s.slice(pub.length);
+          if (s.startsWith('/')) s = s.slice(1);
+          return s;
+        };
+        const _peAllImages = (assocData && assocData.images) || [];
+        const _peAllTextes = (assocData && assocData.textes) || [];
+        const _peImgIdByUrl = new Map(_peAllImages.map(it => [_peNormUrl(it.url || it.path || it.src || ''), String(it.id)]));
+        const _peImgTxtPairs = new Set(((assocData && assocData.associations) || [])
+          .filter(a => a.imageId && a.texteId)
+          .map(a => `${a.imageId}|${a.texteId}`));
+        const _peTxtIdByContent = new Map(_peAllTextes.map(t => [_peNorm(t.content), String(t.id)]));
+        const _pePresentImgIds = new Set(
+          post.filter(z => normType(z?.type) === 'image')
+              .map(z => _peImgIdByUrl.get(_peNormUrl(z.content || z.url || z.path || z.src || '')))
+              .filter(id => id != null)
+        );
+        const _peUsedTexts = new Set(post.filter(z => normType(z?.type) === 'texte').map(z => _peNorm(z.content)));
+        const _peUsedSafe = new Set();
+        let _peFixed = 0;
+        post = post.map(z => {
+          if (normType(z?.type) !== 'texte') return z;
+          const pid = (z.pairId || '').trim();
+          if (pid && !pid.startsWith('x_')) return z;
+          const adminTxtId = _peTxtIdByContent.get(_peNorm(z.content));
+          if (!adminTxtId) return z;
+          let wouldPair = false;
+          for (const imgId of _pePresentImgIds) {
+            if (_peImgTxtPairs.has(`${imgId}|${adminTxtId}`)) { wouldPair = true; break; }
+          }
+          if (!wouldPair) return z;
+          const safe = _peAllTextes.filter(t => {
+            if (_peUsedSafe.has(String(t.id))) return false;
+            if (_peNorm(t.content) === _peNorm(z.content)) return false;
+            if (_peUsedTexts.has(_peNorm(t.content))) return false;
+            for (const imgId of _pePresentImgIds) {
+              if (_peImgTxtPairs.has(`${imgId}|${t.id}`)) return false;
+            }
+            return true;
+          });
+          if (safe.length) {
+            const pick = safe[Math.floor(rng() * safe.length)];
+            _peUsedSafe.add(String(pick.id));
+            _peUsedTexts.add(_peNorm(pick.content));
+            _peFixed++;
+            console.warn('[CC] POST-ENFORCE ANTI-FAUSSE-PAIRE: texte "' + z.content + '" remplacé par "' + pick.content + '"');
+            try { newTextSettings[z.id] = { ...defaultTextSettings, ...(newTextSettings[z.id] || {}), text: pick.content || '' }; } catch {}
+            return { ...z, content: pick.content, label: pick.content, pairId: '' };
+          }
+          return z;
+        });
+        if (_peFixed) console.warn('[CC] POST-ENFORCE: ' + _peFixed + ' fausse(s) paire(s) image-texte corrigée(s)');
+      } catch (peErr) { console.warn('[CC] POST-ENFORCE anti-fausse-paire erreur:', peErr); }
       // Sécurité finale: si l'option est activée et qu'il n'existe aucune association calc↔chiffre,
       // vider systématiquement toutes les zones calcul/chiffre avant d'appliquer le nouvel état.
       try {
