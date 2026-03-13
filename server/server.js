@@ -385,26 +385,30 @@ app.get('/me', async (req, res) => {
     } catch {}
 
     // 5) Business rules: Admins, teachers, and licensed students are PRO
+    let student = null; // Will be set for student accounts
     try {
       if (['admin', 'teacher'].includes(role) && !['active','trialing'].includes(String(subscription || '').toLowerCase())) {
         subscription = 'active';
       }
       // Licensed students get active subscription status (via email pattern match)
-      if (!['active','trialing'].includes(String(subscription || '').toLowerCase()) && user.email?.endsWith('@eleve.crazychrono.app')) {
+      if (user.email?.endsWith('@eleve.crazychrono.app')) {
         const emailPrefix = user.email.replace('@eleve.crazychrono.app', '');
         const { data: allStu } = await supabaseAdmin
           .from('students')
-          .select('id, access_code, licensed')
+          .select('id, access_code, licensed, full_name, avatar_url')
           .eq('licensed', true);
         const matched = (allStu || []).find(s => {
           if (!s.access_code) return false;
           return s.access_code.toLowerCase().replace(/[^a-z0-9]/g, '') === emailPrefix;
         });
-        if (matched) subscription = 'active';
+        if (matched) {
+          subscription = 'active';
+          student = { id: matched.id, fullName: matched.full_name, avatarUrl: matched.avatar_url };
+        }
       }
     } catch {}
 
-    return res.json({ ok: true, user, role, subscription });
+    return res.json({ ok: true, user, role, subscription, student });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'server_error' });
   }

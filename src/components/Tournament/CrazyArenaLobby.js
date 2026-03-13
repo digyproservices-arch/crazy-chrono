@@ -99,6 +99,16 @@ export default function CrazyArenaLobby() {
           setLoading(false);
           return { studentId: 'teacher-' + (data.user?.id || auth.id || 'unknown'), studentName: teacherName };
         } else {
+          // Fallback: utiliser cc_student_id de localStorage (set au login élève)
+          const fallbackId = localStorage.getItem('cc_student_id');
+          const fallbackName = localStorage.getItem('cc_student_name');
+          if (fallbackId) {
+            console.warn('[CrazyArena] ⚠️ /me sans student mais cc_student_id trouvé:', fallbackId);
+            setMyStudentId(fallbackId);
+            setStudentName(fallbackName || 'Joueur');
+            setLoading(false);
+            return { studentId: fallbackId, studentName: fallbackName || 'Joueur' };
+          }
           console.error('[CrazyArena] ❌ Aucun élève lié à ce compte');
           setError('Votre compte n\'est pas lié à un élève. Contactez l\'administrateur.');
           setLoading(false);
