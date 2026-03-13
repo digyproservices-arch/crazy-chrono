@@ -3,9 +3,10 @@
 // Interface enseignant pour créer des groupes et lancer les matchs
 // ==========================================
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAuthHeaders } from '../../utils/apiHelpers';
+import { DataContext } from '../../context/DataContext';
 
 const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
@@ -40,9 +41,68 @@ const CACHE_KEY_TOURNAMENT = 'tr_cache_tournament';
 const CACHE_KEY_STUDENTS = 'tr_cache_students';
 const CACHE_KEY_GROUPS = 'tr_cache_groups';
 
+// ===== Constantes pédagogiques (partagées avec SessionConfig) =====
+const CLASS_LEVELS = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"];
+const LEVEL_INDEX = Object.fromEntries(CLASS_LEVELS.map((l, i) => [l, i]));
+const NORM_LEVEL = (s) => {
+  const x = String(s || '').toLowerCase();
+  if (/\bcp\b/.test(x)) return 'CP';
+  if (/\bce1\b/.test(x)) return 'CE1';
+  if (/\bce2\b/.test(x)) return 'CE2';
+  if (/\bcm1\b/.test(x)) return 'CM1';
+  if (/\bcm2\b/.test(x)) return 'CM2';
+  if (/\b6e\b|\bsixieme\b/.test(x)) return '6e';
+  if (/\b5e\b|\bcinquieme\b/.test(x)) return '5e';
+  if (/\b4e\b|\bquatrieme\b/.test(x)) return '4e';
+  if (/\b3e\b|\btroisieme\b/.test(x)) return '3e';
+  return '';
+};
+
+const DOMAIN_LABELS = {
+  'domain:botany': { label: 'Botanique', icon: '🌿', color: '#16a34a', bg: '#f0fdf4' },
+  'domain:zoology': { label: 'Zoologie', icon: '🐾', color: '#ea580c', bg: '#fff7ed' },
+  'domain:math': { label: 'Mathématiques', icon: '🔢', color: '#2563eb', bg: '#eff6ff' },
+  'domain:language': { label: 'Langue', icon: '📝', color: '#7c3aed', bg: '#f5f3ff' },
+  'domain:science': { label: 'Sciences', icon: '🔬', color: '#0891b2', bg: '#ecfeff' },
+  'domain:geography': { label: 'Géographie', icon: '🌍', color: '#ca8a04', bg: '#fefce8' },
+  'domain:history_civics': { label: 'Histoire & EMC', icon: '📜', color: '#b45309', bg: '#fffbeb' },
+  'domain:arts': { label: 'Arts', icon: '🎨', color: '#db2777', bg: '#fdf2f8' },
+  'domain:culture': { label: 'Culture', icon: '🎭', color: '#9333ea', bg: '#faf5ff' },
+  'domain:environment': { label: 'Environnement', icon: '♻️', color: '#059669', bg: '#ecfdf5' },
+  'domain:sports': { label: 'Sports', icon: '⚽', color: '#dc2626', bg: '#fef2f2' },
+};
+const CATEGORY_LABELS = {
+  'category:fruit': '🍎 Fruits', 'category:epice': '🌶️ Épices',
+  'category:plante_medicinale': '🌿 Plantes médicinales', 'category:plante_aromatique': '🌱 Plantes aromatiques',
+  'category:fleur': '🌺 Fleurs', 'category:tubercule': '🥔 Tubercules',
+  'category:arbre': '🌳 Arbres', 'category:legumineuse': '🫘 Légumineuses',
+  'category:legume': '🥬 Légumes', 'category:cereale': '🌾 Céréales', 'category:palmier': '🌴 Palmiers',
+  'category:table_2': '×2', 'category:table_3': '×3', 'category:table_4': '×4',
+  'category:table_5': '×5', 'category:table_6': '×6', 'category:table_7': '×7',
+  'category:table_8': '×8', 'category:table_9': '×9', 'category:table_10': '×10',
+  'category:table_11': '×11', 'category:table_12': '×12',
+  'category:addition': '➕ Additions', 'category:soustraction': '➖ Soustractions',
+};
+function themeDisplayLabel(t) {
+  if (DOMAIN_LABELS[t]) return DOMAIN_LABELS[t].icon + ' ' + DOMAIN_LABELS[t].label;
+  if (CATEGORY_LABELS[t]) return CATEGORY_LABELS[t];
+  if (t.startsWith('region:')) return '🌍 ' + t.slice(7).charAt(0).toUpperCase() + t.slice(8);
+  if (t.startsWith('group:')) return '📦 ' + t.slice(6);
+  return t;
+}
+
+const CARD = { background: '#fff', borderRadius: 16, padding: '20px 24px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0', marginBottom: 16 };
+const SECTION_TITLE = { fontSize: 15, fontWeight: 800, color: '#0D6A7A', marginTop: 0, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 };
+const PILL = (sel) => ({
+  padding: '7px 14px', borderRadius: 10, border: sel ? '2px solid #0D6A7A' : '2px solid #e2e8f0',
+  background: sel ? '#0D6A7A' : '#fff', color: sel ? '#fff' : '#475569',
+  fontWeight: 700, fontSize: 13, cursor: 'pointer', transition: 'all 0.15s',
+});
+
 export default function TrainingArenaSetup() {
   const navigate = useNavigate();
   const loadedRef = useRef(false);
+  const { data } = useContext(DataContext);
   
   // État
   const [students, setStudents] = useState([]); // Liste des élèves de la classe
@@ -52,6 +112,114 @@ export default function TrainingArenaSetup() {
   const [loading, setLoading] = useState(true);
   const [tournament, setTournament] = useState(null);
   const [perfMap, setPerfMap] = useState({}); // studentId → performance stats
+  const [configOpen, setConfigOpen] = useState(false); // Toggle panneau config
+
+  // ===== Configuration pédagogique (avec persistance localStorage) =====
+  const [selClasses, setSelClasses] = useState(() => {
+    try { const c = JSON.parse(localStorage.getItem('cc_training_cfg'))?.classes; return Array.isArray(c) && c.length ? c : ["CP","CE1","CE2","CM1","CM2"]; } catch { return ["CP","CE1","CE2","CM1","CM2"]; }
+  });
+  const [selThemes, setSelThemes] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cc_training_cfg'))?.themes || []; } catch { return []; }
+  });
+  const [objectiveMode, setObjectiveMode] = useState(() => {
+    try { return !!JSON.parse(localStorage.getItem('cc_training_cfg'))?.objectiveMode; } catch { return false; }
+  });
+  const [matchRounds, setMatchRounds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cc_training_cfg'))?.rounds || 3; } catch { return 3; }
+  });
+  const [matchDuration, setMatchDuration] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cc_training_cfg'))?.duration || 60; } catch { return 60; }
+  });
+  const [helpEnabled, setHelpEnabled] = useState(() => {
+    try { return !!JSON.parse(localStorage.getItem('cc_training_cfg'))?.helpEnabled; } catch { return false; }
+  });
+  const userToggledThemes = useRef((() => {
+    try { const t = JSON.parse(localStorage.getItem('cc_training_cfg'))?.themes; return Array.isArray(t) && t.length > 0; } catch { return false; }
+  })());
+
+  // Persister la config pédagogique (debounce 300ms)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem('cc_training_cfg', JSON.stringify({
+          classes: selClasses, themes: selThemes, objectiveMode, rounds: matchRounds, duration: matchDuration, helpEnabled
+        }));
+      } catch {}
+    }, 300);
+    return () => clearTimeout(t);
+  }, [selClasses, selThemes, objectiveMode, matchRounds, matchDuration, helpEnabled]);
+
+  // Thèmes disponibles filtrés par niveaux sélectionnés
+  const allThemes = useMemo(() => {
+    if (!data) return [];
+    const maxIdx = Math.max(...selClasses.map(c => LEVEL_INDEX[NORM_LEVEL(c)] ?? -1));
+    const matchesLevel = (obj) => {
+      if (selClasses.length === 0) return true;
+      const lc = obj?.levelClass ? [String(obj.levelClass)] : [];
+      const arr = obj?.levels || obj?.classes || obj?.classLevels || [];
+      const vals = [...lc, ...arr].map(NORM_LEVEL).filter(Boolean);
+      return vals.length === 0 || vals.some(v => (LEVEL_INDEX[v] ?? 99) <= maxIdx);
+    };
+    const bag = new Set();
+    (data?.associations || []).forEach(a => {
+      if (!matchesLevel(a)) return;
+      (a?.themes || []).forEach(t => bag.add(String(t)));
+    });
+    if (bag.size === 0) {
+      const push = (arr) => (arr || []).forEach(x => { if (matchesLevel(x)) (x?.themes || []).forEach(t => bag.add(String(t))); });
+      push(data?.textes); push(data?.images); push(data?.calculs); push(data?.chiffres);
+    }
+    return Array.from(bag).sort();
+  }, [data, selClasses]);
+
+  // Découper en domaines / catégories / autres
+  const themeFacets = useMemo(() => {
+    const d = [], c = [], o = [];
+    for (const t of allThemes) {
+      if (/^domain:/.test(t)) d.push(t);
+      else if (/^category:/.test(t)) c.push(t);
+      else o.push(t);
+    }
+    return { domains: d, categories: c, others: o };
+  }, [allThemes]);
+
+  // Auto-sélectionner tous les thèmes quand les niveaux changent (sauf si modifié manuellement)
+  useEffect(() => {
+    if (!userToggledThemes.current && allThemes.length > 0) {
+      setSelThemes(allThemes);
+    }
+  }, [allThemes]);
+
+  // Stats données pour la config courante
+  const dataStats = useMemo(() => {
+    if (!data) return { textImage: 0, calcNum: 0 };
+    const maxIdx = Math.max(...selClasses.map(c => LEVEL_INDEX[NORM_LEVEL(c)] ?? -1));
+    const themeSet = new Set(selThemes);
+    const matchLevel = (obj) => {
+      if (selClasses.length === 0) return true;
+      const lc = obj?.levelClass ? [String(obj.levelClass)] : [];
+      const arr = obj?.levels || obj?.classes || obj?.classLevels || [];
+      const vals = [...lc, ...arr].map(NORM_LEVEL).filter(Boolean);
+      return vals.length === 0 || vals.some(v => (LEVEL_INDEX[v] ?? 99) <= maxIdx);
+    };
+    const matchTheme = (obj) => {
+      const ts = (obj?.themes || []).map(String);
+      return themeSet.size === 0 || ts.some(t => themeSet.has(t));
+    };
+    const assoc = (data?.associations || []);
+    const ti = assoc.filter(a => a.texteId && a.imageId && matchLevel(a) && matchTheme(a)).length;
+    const cn = assoc.filter(a => a.calculId && a.chiffreId && matchLevel(a) && matchTheme(a)).length;
+    return { textImage: ti, calcNum: cn };
+  }, [data, selClasses, selThemes]);
+
+  const toggleClass = (lv) => {
+    userToggledThemes.current = false;
+    setSelClasses(prev => prev.includes(lv) ? prev.filter(x => x !== lv) : [...prev, lv]);
+  };
+  const toggleTheme = (t) => {
+    userToggledThemes.current = true;
+    setSelThemes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
+  };
   
   // Charger les données au montage (CACHE DÉSACTIVÉ pour stabilité)
   useEffect(() => {
@@ -232,13 +400,16 @@ export default function TrainingArenaSetup() {
       };
       const phaseId = phaseNames[tournament.current_phase] || 'phase_1_classe';
       
-      // FORCER classes et themes en dur pour mode tournoi
-      // Ne pas utiliser localStorage qui peut être vide ou mal configuré
+      // Utiliser la config pédagogique définie par le professeur
       const matchConfig = {
-        rounds: 3,
-        duration: 60,
-        classes: ['CP', 'CE1', 'CE2', 'CM1', 'CM2', '6e', '5e', '4e', '3e'],
-        themes: ['botanique', 'multiplication']
+        rounds: objectiveMode ? 99 : matchRounds,
+        duration: objectiveMode ? 9999 : matchDuration,
+        classes: selClasses,
+        themes: selThemes,
+        objectiveMode: objectiveMode,
+        objectiveTarget: objectiveMode ? selThemes.length : null,
+        objectiveThemes: objectiveMode ? selThemes : [],
+        helpEnabled: helpEnabled,
       };
       
       console.log('[TrainingArena] 🚀 Lancement match Training');
@@ -397,6 +568,188 @@ export default function TrainingArenaSetup() {
         </div>
       )}
       
+      {/* ===== CONFIGURATION PÉDAGOGIQUE ===== */}
+      <div style={CARD}>
+        <div
+          onClick={() => setConfigOpen(p => !p)}
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+        >
+          <h3 style={{ ...SECTION_TITLE, marginBottom: 0 }}>
+            <span>📚</span> Configuration pédagogique
+          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 8, fontSize: 12 }}>
+              <span style={{ padding: '3px 10px', borderRadius: 8, background: '#f0fdfa', color: '#0D6A7A', fontWeight: 700 }}>
+                🖼️ {dataStats.textImage} paires
+              </span>
+              <span style={{ padding: '3px 10px', borderRadius: 8, background: '#eff6ff', color: '#2563eb', fontWeight: 700 }}>
+                🔢 {dataStats.calcNum} calculs
+              </span>
+              {objectiveMode && (
+                <span style={{ padding: '3px 10px', borderRadius: 8, background: '#fef3c7', color: '#92400e', fontWeight: 700 }}>
+                  🎯 Objectif
+                </span>
+              )}
+            </div>
+            <span style={{ fontSize: 18, color: '#94a3b8', transition: 'transform 0.2s', transform: configOpen ? 'rotate(180deg)' : 'rotate(0)' }}>▼</span>
+          </div>
+        </div>
+
+        {configOpen && (
+          <div style={{ marginTop: 16 }}>
+            {/* Niveaux scolaires */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 8 }}>Niveaux scolaires</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', width: 60 }}>Primaire</span>
+                {["CP","CE1","CE2","CM1","CM2"].map(lv => (
+                  <button key={lv} onClick={() => toggleClass(lv)} style={PILL(selClasses.includes(lv))}>{lv}</button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', width: 60 }}>Collège</span>
+                {["6e","5e","4e","3e"].map(lv => (
+                  <button key={lv} onClick={() => toggleClass(lv)} style={PILL(selClasses.includes(lv))}>{lv}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Thèmes — Domaines */}
+            {themeFacets.domains.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Domaines</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {themeFacets.domains.map(t => {
+                    const sel = selThemes.includes(t);
+                    const dl = DOMAIN_LABELS[t];
+                    return (
+                      <button key={t} onClick={() => toggleTheme(t)}
+                        style={{ padding: '6px 12px', borderRadius: 10, border: sel ? '2px solid #0D6A7A' : `2px solid ${dl ? dl.color + '44' : '#e2e8f0'}`, background: sel ? '#0D6A7A' : (dl?.bg || '#fff'), color: sel ? '#fff' : (dl?.color || '#475569'), fontWeight: 600, fontSize: 12, cursor: 'pointer', transition: 'all 0.15s' }}>
+                        {themeDisplayLabel(t)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Thèmes — Catégories */}
+            {themeFacets.categories.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Catégories</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {themeFacets.categories.map(t => {
+                    const sel = selThemes.includes(t);
+                    return (
+                      <button key={t} onClick={() => toggleTheme(t)}
+                        style={{ padding: '6px 12px', borderRadius: 10, border: sel ? '2px solid #0D6A7A' : '2px solid #e2e8f0', background: sel ? '#0D6A7A' : '#fff', color: sel ? '#fff' : '#475569', fontWeight: 600, fontSize: 12, cursor: 'pointer', transition: 'all 0.15s' }}>
+                        {themeDisplayLabel(t)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Thèmes — Autres */}
+            {themeFacets.others.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Autres filtres</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {themeFacets.others.map(t => {
+                    const sel = selThemes.includes(t);
+                    return (
+                      <button key={t} onClick={() => toggleTheme(t)}
+                        style={{ padding: '6px 12px', borderRadius: 10, border: sel ? '2px solid #0D6A7A' : '2px solid #e2e8f0', background: sel ? '#0D6A7A' : '#fff', color: sel ? '#fff' : '#475569', fontWeight: 600, fontSize: 12, cursor: 'pointer', transition: 'all 0.15s' }}>
+                        {themeDisplayLabel(t)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Résumé données */}
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', padding: '10px 14px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 18 }}>🖼️</span>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: dataStats.textImage > 0 ? '#0D6A7A' : '#dc2626' }}>{dataStats.textImage}</div>
+                  <div style={{ fontSize: 10, color: '#64748b' }}>Image / Texte</div>
+                </div>
+              </div>
+              <div style={{ width: 1, background: '#e2e8f0' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 18 }}>🔢</span>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: dataStats.calcNum > 0 ? '#0D6A7A' : '#dc2626' }}>{dataStats.calcNum}</div>
+                  <div style={{ fontSize: 10, color: '#64748b' }}>Calcul / Chiffre</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Mode Objectif + Paramètres */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
+              {/* Mode Objectif */}
+              <div style={{ padding: 14, borderRadius: 12, border: objectiveMode ? '2px solid #0D6A7A' : '2px solid #e2e8f0', background: objectiveMode ? '#f0fdfa' : '#fff', transition: 'all 0.2s' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                  <div
+                    onClick={() => setObjectiveMode(p => !p)}
+                    style={{ position: 'relative', width: 44, height: 24, borderRadius: 12, background: objectiveMode ? '#0D6A7A' : '#cbd5e1', transition: 'background 0.2s', cursor: 'pointer', flexShrink: 0 }}>
+                    <div style={{ position: 'absolute', top: 2, left: objectiveMode ? 22 : 2, width: 20, height: 20, borderRadius: 10, background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>🎯 Mode Objectif</div>
+                    <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.4, marginTop: 2 }}>
+                      {objectiveMode
+                        ? 'Sans limite de temps. Les élèves jouent jusqu\'à trouver toutes les paires.'
+                        : 'Chrono classique avec manches chronométrées.'}
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              {/* Paramètres manches/durée */}
+              {!objectiveMode && (
+                <div style={{ padding: 14, borderRadius: 12, border: '2px solid #e2e8f0', background: '#fff' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#334155', marginBottom: 8 }}>⚙️ Paramètres</div>
+                  <div style={{ display: 'flex', gap: 16 }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>Manches</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <button onClick={() => setMatchRounds(p => Math.max(1, p - 1))} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', fontSize: 14, cursor: 'pointer' }}>−</button>
+                        <span style={{ width: 30, textAlign: 'center', fontWeight: 800, fontSize: 16, color: '#0D6A7A' }}>{matchRounds}</span>
+                        <button onClick={() => setMatchRounds(p => Math.min(10, p + 1))} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', fontSize: 14, cursor: 'pointer' }}>+</button>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>Durée</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <button onClick={() => setMatchDuration(p => Math.max(15, p - 15))} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', fontSize: 12, cursor: 'pointer' }}>−</button>
+                        <span style={{ width: 40, textAlign: 'center', fontWeight: 800, fontSize: 16, color: '#0D6A7A' }}>{matchDuration}<span style={{ fontSize: 10, color: '#94a3b8' }}>s</span></span>
+                        <button onClick={() => setMatchDuration(p => Math.min(300, p + 15))} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', fontSize: 12, cursor: 'pointer' }}>+</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Aide */}
+              <div style={{ padding: 14, borderRadius: 12, border: helpEnabled ? '2px solid #f59e0b' : '2px solid #e2e8f0', background: helpEnabled ? '#fffbeb' : '#fff', transition: 'all 0.2s' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={helpEnabled} onChange={e => setHelpEnabled(e.target.checked)}
+                    style={{ width: 18, height: 18, accentColor: '#f59e0b' }} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>💡 Système d'aide</div>
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Indices et réponses disponibles pendant le jeu</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Formulaire création groupe */}
       <section style={{ marginBottom: 24, padding: 16, background: '#f9fafb', borderRadius: 12, border: '1px solid #e5e7eb' }}>
         <h3>Créer un nouveau groupe</h3>

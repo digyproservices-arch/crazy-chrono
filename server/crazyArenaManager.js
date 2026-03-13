@@ -176,11 +176,15 @@ class CrazyArenaManager {
       roomCode: matchId,
       config: {
         rounds: config.rounds || 3,
-        duration: config.durationPerRound || 60,
+        duration: config.duration || config.durationPerRound || 60,
         classes: config.classes || ['CP', 'CE1', 'CE2', 'CM1', 'CM2', '6e', '5e', '4e', '3e'],
         themes: config.themes || [],
         level: config.level || 'CE1',
-        sessionName: config.sessionName || 'Session Entraînement'
+        sessionName: config.sessionName || 'Session Entraînement',
+        objectiveMode: !!config.objectiveMode,
+        objectiveTarget: config.objectiveTarget || null,
+        objectiveThemes: config.objectiveThemes || [],
+        helpEnabled: !!config.helpEnabled,
       },
       players: [],
       status: 'waiting',
@@ -195,17 +199,14 @@ class CrazyArenaManager {
       gameTimeout: null
     });
 
-    // Notifier chaque élève via Socket.IO
+    // Notifier chaque élève via Socket.IO (config complète)
+    const storedConfig = this.matches.get(matchId).config;
     studentIds.forEach(studentId => {
       this.io.emit(`training:invite:${studentId}`, {
         matchId,
-        sessionName: config.sessionName || 'Session Entraînement',
+        sessionName: storedConfig.sessionName,
         groupSize: studentIds.length,
-        config: {
-          rounds: config.rounds || 3,
-          duration: config.durationPerRound || 60,
-          level: config.level || 'CE1'
-        }
+        config: storedConfig
       });
       console.log(`[CrazyArena][Training] Notification envoyée à l'élève ${studentId}`);
     });
