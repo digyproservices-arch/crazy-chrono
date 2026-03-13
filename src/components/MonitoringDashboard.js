@@ -52,6 +52,7 @@ function MonitoringDashboard() {
 
   // ── Players tab state ──
   const [onlinePlayers, setOnlinePlayers] = useState([]);
+  const [onlinePlayersError, setOnlinePlayersError] = useState(null);
   const [paymentEvents, setPaymentEvents] = useState([]);
   const [usageStats, setUsageStats] = useState(null);
   const [playersLoading, setPlayersLoading] = useState(false);
@@ -196,6 +197,7 @@ const clearIncidents = async () => {
 
   const fetchOnlinePlayers = useCallback(async () => {
     try {
+      setOnlinePlayersError(null);
       const token = getAuthToken();
       const backendUrl = getBackendUrl();
       const res = await fetch(`${backendUrl}/api/monitoring/online-players`, {
@@ -204,8 +206,11 @@ const clearIncidents = async () => {
       if (res.ok) {
         const data = await res.json();
         if (data.ok) setOnlinePlayers(data.players || []);
+      } else {
+        setOnlinePlayersError(`HTTP ${res.status} — ${res.status === 401 ? 'Token invalide' : res.status === 403 ? 'Accès refusé (rôle insuffisant)' : res.status === 503 ? 'Backend indisponible' : 'Erreur serveur'}`);
       }
     } catch (err) {
+      setOnlinePlayersError(`Réseau: ${err.message || 'Backend injoignable (cold start?)'}`);
       console.warn('[Monitoring] Online players fetch failed:', err.message);
     }
   }, []);
@@ -1287,7 +1292,12 @@ sections.push(`===== FIN DU RAPPORT =====`);
                 {/* ── SUB-TAB: En ligne ── */}
                 {playersSubTab === 'online' && (
                   <div>
-                    {onlinePlayers.length === 0 ? (
+                    {onlinePlayersError && (
+                      <div style={{ ...cardStyle, marginBottom: 12, padding: '12px 16px', background: '#7f1d1d', border: '1px solid #dc2626', borderRadius: 8, fontSize: 13 }}>
+                        <strong>Erreur fetch joueurs:</strong> {onlinePlayersError}
+                      </div>
+                    )}
+                    {onlinePlayers.length === 0 && !onlinePlayersError ? (
                       <div style={{ ...cardStyle, textAlign: 'center', padding: 40, color: COLORS.textMuted }}>
                         <div style={{ fontSize: 48, marginBottom: 16 }}>🌙</div>
                         <p>Aucun joueur en ligne actuellement.</p>

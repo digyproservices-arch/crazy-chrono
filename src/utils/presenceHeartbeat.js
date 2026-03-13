@@ -48,13 +48,19 @@ function detectCurrentPage() {
   return path.length > 50 ? path.substring(0, 50) : path;
 }
 
+let _lastOk = false;
+let _failCount = 0;
+
 async function sendHeartbeat() {
   const auth = getAuthInfo();
-  if (!auth || !auth.userId) return; // pas connecté
+  if (!auth || !auth.userId) {
+    if (!_lastOk) console.warn('[Heartbeat] Skipped: no userId in cc_auth');
+    return;
+  }
 
   try {
     const backendUrl = getBackendUrl();
-    await fetch(`${backendUrl}/api/monitoring/heartbeat`, {
+    const res = await fetch(`${backendUrl}/api/monitoring/heartbeat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -65,8 +71,21 @@ async function sendHeartbeat() {
         page: detectCurrentPage(),
       }),
     });
-  } catch {
-    // Silently fail — heartbeat is non-critical
+    if (res.ok) {
+      if (!_lastOk || _failCount > 0) {
+        console.log(`[Heartbeat] OK — ${auth.pseudo || auth.email || auth.userId} (après ${_failCount} échec(s))`);
+      }
+      _lastOk = true;
+      _failCount = 0;
+    } else {
+      _failCount++;
+      if (_failCount <= 3) console.warn(`[Heartbeat] Échec HTTP ${res.status} pour ${auth.pseudo || auth.userId}`);
+      _lastOk = false;
+    }
+  } catch (err) {
+    _failCount++;
+    if (_failCount <= 3) console.warn('[Heartbeat] Erreur réseau:', err.message);
+    _lastOk = false;
   }
 }
 

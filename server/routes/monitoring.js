@@ -469,7 +469,32 @@ router.get('/e2e-status', requireAdminAuth, async (req, res) => {
 
 // ── Player Presence (Heartbeat) ──────────────────────────
 const PRESENCE_TTL_MS = 90000; // 90s — considéré hors ligne après
+const PRESENCE_FILE = path.join(__dirname, '..', 'data', 'online_players.json');
 const onlinePlayers = new Map(); // userId -> { email, pseudo, mode, page, lastSeen }
+
+// Charger depuis fichier au démarrage (survit aux redémarrages process)
+try {
+  if (fs.existsSync(PRESENCE_FILE)) {
+    const raw = JSON.parse(fs.readFileSync(PRESENCE_FILE, 'utf8'));
+    const now = Date.now();
+    for (const [uid, info] of Object.entries(raw)) {
+      if (now - (info.lastSeen || 0) <= PRESENCE_TTL_MS) {
+        onlinePlayers.set(uid, info);
+      }
+    }
+    console.log(`[Presence] Chargé ${onlinePlayers.size} joueur(s) depuis fichier`);
+  }
+} catch (e) { console.warn('[Presence] Erreur chargement fichier:', e.message); }
+
+function savePresenceFile() {
+  try {
+    const dir = path.dirname(PRESENCE_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const obj = {};
+    for (const [uid, info] of onlinePlayers.entries()) obj[uid] = info;
+    fs.writeFileSync(PRESENCE_FILE, JSON.stringify(obj, null, 2), 'utf8');
+  } catch {}
+}
 
 /**
  * POST /api/monitoring/heartbeat
@@ -480,6 +505,7 @@ router.post('/heartbeat', (req, res) => {
   try {
     const { userId, email, pseudo, mode, page } = req.body || {};
     if (!userId) return res.status(400).json({ ok: false, error: 'missing_userId' });
+    const isNew = !onlinePlayers.has(userId);
     onlinePlayers.set(userId, {
       email: email || '',
       pseudo: pseudo || '',
@@ -487,6 +513,10 @@ router.post('/heartbeat', (req, res) => {
       page: page || '',
       lastSeen: Date.now(),
     });
+    if (isNew) {
+      console.log(`[Presence] Nouveau joueur: ${pseudo || email || userId} (mode: ${mode || '?'})`);
+    }
+    savePresenceFile();
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -524,12 +554,14 @@ router.get('/online-players', requireAuth, (req, res) => {
   }
 });
 
-// Nettoyage périodique des joueurs expirés (toutes les 5 min)
+// Nettoyage périodique des joueurs expirés (toutes les 5 min) + sauvegarde
 setInterval(() => {
   const now = Date.now();
+  let cleaned = 0;
   for (const [userId, info] of onlinePlayers.entries()) {
-    if (now - info.lastSeen > PRESENCE_TTL_MS) onlinePlayers.delete(userId);
+    if (now - info.lastSeen > PRESENCE_TTL_MS) { onlinePlayers.delete(userId); cleaned++; }
   }
+  if (cleaned) savePresenceFile();
 }, 300000);
 
 // ── Payment Events Storage (shared with server.js webhook handlers) ──
