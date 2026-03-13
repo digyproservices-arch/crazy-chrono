@@ -4661,7 +4661,7 @@ setZones(dataWithRandomTexts);
         const pairZones = post.filter(z => z.pairId);
         console.log('[CC] Objective mode pairId zones:', pairZones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 40), pairId: z.pairId })));
         // Monitoring: valider les zones en mode objectif aussi
-        try { incidentValidateZones(post, { source: 'objective:assignElements' }); } catch {}
+        try { incidentValidateZones(post, { source: 'objective:assignElements', assocData: assocData?.associations }); } catch {}
         try { logRound(post, { mode: 'objective', source: 'objective:assignElements', assocData }); } catch {}
         // Détection fausses paires visuelles texte-image via associations
         try {
@@ -6464,7 +6464,7 @@ setZones(dataWithRandomTexts);
         return z;
       });
       // Vérifier les anomalies sur les zones générées
-      try { incidentValidateZones(post, { source: 'solo:assignElements' }); } catch {}
+      try { incidentValidateZones(post, { source: 'solo:assignElements', assocData: assocData?.associations }); } catch {}
       try { logRound(post, { mode: 'solo', source: 'solo:assignElements', assocData }); } catch {}
       // Détection fausses paires visuelles texte-image via associations (mode solo)
       try {

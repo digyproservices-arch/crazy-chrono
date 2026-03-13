@@ -21,6 +21,9 @@ export const INCIDENT_TYPES = {
   MULTIPLE_TARGETS: 'multiple_targets',   // Plus d'une paire cible sur la carte
   FALSE_CALC_NUM_PAIR: 'false_calc_num_pair', // Distractor calcul dont le résultat = distractor chiffre
   FALSE_TEXT_IMAGE_PAIR: 'false_text_image_pair', // Distractor texte + distractor image forment une association valide
+  ORPHAN_ELEMENT: 'orphan_element',             // Élément texte/image sans aucune association dans la base
+  SLOW_CARD_GENERATION: 'slow_card_generation', // Génération de carte > seuil de temps acceptable
+  QUOTA_BYPASS: 'quota_bypass',                 // Limite de sessions contournée ou non appliquée
 };
 
 const SEVERITY = {
@@ -35,6 +38,9 @@ const SEVERITY = {
   [INCIDENT_TYPES.MULTIPLE_TARGETS]: 'critical',
   [INCIDENT_TYPES.FALSE_CALC_NUM_PAIR]: 'critical',
   [INCIDENT_TYPES.FALSE_TEXT_IMAGE_PAIR]: 'critical',
+  [INCIDENT_TYPES.ORPHAN_ELEMENT]: 'warning',
+  [INCIDENT_TYPES.SLOW_CARD_GENERATION]: 'warning',
+  [INCIDENT_TYPES.QUOTA_BYPASS]: 'error',
 };
 
 // ── Device info helper ─────────────────────────────────────
@@ -289,6 +295,50 @@ export function validateZones(zones, context = {}) {
     }
   } catch (e) {
     console.warn('[IncidentTracker] Erreur détection false calc-num pair:', e);
+  }
+
+  // ORPHAN_ELEMENT: éléments texte/image sans aucune association dans la base
+  // Nécessite assocData dans context (optionnel — fourni depuis Carte.js quand disponible)
+  try {
+    const assocData = context.assocData;
+    if (assocData && Array.isArray(assocData)) {
+      // Construire les lookups: texteId → [imageIds], imageId → [texteIds]
+      const texteHasAssoc = new Set();
+      const imageHasAssoc = new Set();
+      for (const a of assocData) {
+        if (a.texteId) texteHasAssoc.add(String(a.texteId));
+        if (a.imageId) imageHasAssoc.add(String(a.imageId));
+      }
+      // Vérifier chaque zone distractor texte/image
+      for (const z of zones) {
+        if (z.validated) continue;
+        const type = normalizeType(z.type);
+        const content = (z.content || z.label || '').toString().trim();
+        if (!content) continue;
+        // Zones avec pairId = bonne paire, on ne les vérifie pas ici
+        if ((z.pairId || '').trim()) continue;
+        if (type === 'texte' && z._distId && !texteHasAssoc.has(String(z._distId))) {
+          incidents.push(reportIncident(INCIDENT_TYPES.ORPHAN_ELEMENT, {
+            zoneId: z.id,
+            type: 'texte',
+            distId: z._distId,
+            content: content.substring(0, 60),
+            message: `Texte orphelin "${content.substring(0, 40)}" (id=${z._distId}) — aucune association image dans la base`,
+          }, minimalSnapshot(zones)));
+        }
+        if (type === 'image' && z._distId && !imageHasAssoc.has(String(z._distId))) {
+          incidents.push(reportIncident(INCIDENT_TYPES.ORPHAN_ELEMENT, {
+            zoneId: z.id,
+            type: 'image',
+            distId: z._distId,
+            content: content.substring(0, 80),
+            message: `Image orpheline (id=${z._distId}) — aucune association texte dans la base`,
+          }, minimalSnapshot(zones)));
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[IncidentTracker] Erreur détection orphan elements:', e);
   }
 
   if (incidents.length > 0) {
