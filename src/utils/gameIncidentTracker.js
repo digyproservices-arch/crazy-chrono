@@ -24,6 +24,7 @@ export const INCIDENT_TYPES = {
   ORPHAN_ELEMENT: 'orphan_element',             // Élément texte/image sans aucune association dans la base
   SLOW_CARD_GENERATION: 'slow_card_generation', // Génération de carte > seuil de temps acceptable
   QUOTA_BYPASS: 'quota_bypass',                 // Limite de sessions contournée ou non appliquée
+  WRONG_CALC_RESULT: 'wrong_calc_result',         // Paire calcul-chiffre officielle où le résultat du calcul ≠ contenu du chiffre
 };
 
 const SEVERITY = {
@@ -41,6 +42,7 @@ const SEVERITY = {
   [INCIDENT_TYPES.ORPHAN_ELEMENT]: 'warning',
   [INCIDENT_TYPES.SLOW_CARD_GENERATION]: 'warning',
   [INCIDENT_TYPES.QUOTA_BYPASS]: 'error',
+  [INCIDENT_TYPES.WRONG_CALC_RESULT]: 'critical',
 };
 
 // ── Device info helper ─────────────────────────────────────
@@ -339,6 +341,35 @@ export function validateZones(zones, context = {}) {
     }
   } catch (e) {
     console.warn('[IncidentTracker] Erreur détection orphan elements:', e);
+  }
+
+  // WRONG_CALC_RESULT: paire calcul-chiffre officielle où le résultat du calcul ≠ contenu du chiffre
+  try {
+    const pairedCalcs = zones.filter(z => normalizeType(z.type) === 'calcul' && (z.pairId || '').trim());
+    for (const calcZ of pairedCalcs) {
+      const pid = (calcZ.pairId || '').trim();
+      const pairedNum = zones.find(z => normalizeType(z.type) === 'chiffre' && (z.pairId || '').trim() === pid);
+      if (!pairedNum) continue;
+      const parsed = _parseOperationForMonitoring(calcZ.content);
+      if (!parsed || !Number.isFinite(parsed.result)) continue;
+      const numVal = parseFloat(String(pairedNum.content || '').replace(/\s/g, '').replace(/,/g, '.'));
+      if (!Number.isFinite(numVal)) continue;
+      const r8 = (v) => Math.round(v * 1e8) / 1e8;
+      if (r8(parsed.result) !== r8(numVal)) {
+        incidents.push(reportIncident(INCIDENT_TYPES.WRONG_CALC_RESULT, {
+          calculZoneId: calcZ.id,
+          calculContent: (calcZ.content || '').substring(0, 50),
+          expectedResult: parsed.result,
+          chiffreZoneId: pairedNum.id,
+          chiffreContent: (pairedNum.content || '').substring(0, 20),
+          actualValue: numVal,
+          pairId: pid,
+          message: `Paire officielle incorrecte: "${(calcZ.content || '').substring(0, 40)}" = ${parsed.result}, mais chiffre = ${numVal}`,
+        }, minimalSnapshot(zones)));
+      }
+    }
+  } catch (e) {
+    console.warn('[IncidentTracker] Erreur détection wrong calc result:', e);
   }
 
   if (incidents.length > 0) {

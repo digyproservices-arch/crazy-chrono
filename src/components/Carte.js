@@ -4731,6 +4731,61 @@ setZones(dataWithRandomTexts);
             });
           }
         } catch (e) { console.warn('[CC][OBJ] Erreur anti-fausse-paire:', e); }
+        // SAFETY NET CRITIQUE (mode objectif): Vérifier et corriger la paire calcul-chiffre officielle
+        try {
+          const _objEval = (expr) => {
+            if (!expr) return NaN;
+            const raw = String(expr).trim();
+            const tm = raw.match(/^l[ea]\s+(double|triple|tiers|quart|moiti[ée])\s+de\s+(.+)$/i);
+            if (tm) {
+              const k = tm[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              const v = parseFloat(String(tm[2]).replace(/\s/g, '').replace(/,/g, '.'));
+              if (!Number.isFinite(v)) return NaN;
+              switch (k) { case 'double': return v*2; case 'triple': return v*3; case 'moitie': return v/2; case 'tiers': return v/3; case 'quart': return v/4; default: return NaN; }
+            }
+            const n = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/');
+            const um = n.match(/^(.+?)\s*([+\-*/])\s*\?\s*=\s*(.+)$/);
+            if (um) {
+              const a = parseFloat(um[1].replace(/\s/g, '').replace(/,/g, '.')), op = um[2], c = parseFloat(um[3].replace(/\s/g, '').replace(/,/g, '.'));
+              if (!Number.isFinite(a) || !Number.isFinite(c)) return NaN;
+              switch (op) { case '+': return c-a; case '-': return a-c; case '*': return a!==0?c/a:NaN; case '/': return c!==0?a/c:NaN; default: return NaN; }
+            }
+            const stripped = n.replace(/\s/g, '').replace(/,/g, '.');
+            const sm = stripped.match(/^(-?[\d.]+)([+\-*/])(-?[\d.]+)$/);
+            if (sm) {
+              const a = parseFloat(sm[1]), op = sm[2], b = parseFloat(sm[3]);
+              if (!Number.isFinite(a) || !Number.isFinite(b)) return NaN;
+              switch (op) { case '+': return a+b; case '-': return a-b; case '*': return a*b; case '/': return b!==0?a/b:NaN; default: return NaN; }
+            }
+            return NaN;
+          };
+          const _objR = (v) => Math.round(v * 1e8) / 1e8;
+          const _objPN = (s) => { const v = parseFloat(String(s).replace(/\s/g, '').replace(/,/g, '.')); return Number.isFinite(v) ? _objR(v) : NaN; };
+          const objPairedCalcs = post.filter(z => normType(z?.type) === 'calcul' && (z.pairId || '').trim());
+          for (const calcZ of objPairedCalcs) {
+            const pid = (calcZ.pairId || '').trim();
+            const calcResult = _objEval(calcZ.content);
+            if (!Number.isFinite(calcResult)) continue;
+            const pairedNum = post.find(z => normType(z?.type) === 'chiffre' && (z.pairId || '').trim() === pid);
+            if (!pairedNum) continue;
+            const numValue = _objPN(pairedNum.content);
+            if (_objR(calcResult) !== _objR(numValue)) {
+              const correctStr = Number.isInteger(calcResult) ? String(calcResult) : String(_objR(calcResult));
+              console.error('[SAFETY-NET][OBJ] ⚠️ PAIRE CALCUL-CHIFFRE INCORRECTE DÉTECTÉE ET CORRIGÉE!',
+                { calcul: calcZ.content, expectedResult: calcResult, actualChiffre: pairedNum.content, correctedTo: correctStr, pairId: pid });
+              try {
+                incidentReportIncident('WRONG_CALC_RESULT', {
+                  calculContent: calcZ.content, expectedResult: calcResult,
+                  actualChiffre: pairedNum.content, correctedTo: correctStr, pairId: pid,
+                  severity: 'critical', source: 'objective:safetyNet'
+                });
+              } catch {}
+              pairedNum.content = correctStr;
+              pairedNum.label = correctStr;
+              objTextSettings[pairedNum.id] = { ...defaultTextSettings, ...(objTextSettings[pairedNum.id] || {}), text: correctStr };
+            }
+          }
+        } catch (snErr) { console.warn('[SAFETY-NET][OBJ] Erreur:', snErr); }
         setZones(post);
         setCustomTextSettings(objTextSettings);
         localStorage.setItem('zones', JSON.stringify(post));
@@ -6179,7 +6234,14 @@ setZones(dataWithRandomTexts);
 
         // ANTI-FAUSSE-PAIRE IMAGE-TEXTE: vérifie TOUS les textes distracteurs contre TOUTES les images présentes
         // Nécessaire quand la paire officielle est calcul-chiffre (le bloc Assainissement image-texte ne couvre pas ce cas)
+        // FIX: Recomputer presentImageIds APRÈS le dedup images (sinon images ajoutées par dedup ne sont pas détectées)
         {
+          const _freshPresentImageIds = new Set(
+            post.filter(z => normType(z?.type) === 'image')
+                .map(z => imgIdByUrl.get(normUrl(z.content || z.url || z.path || z.src || '')))
+                .filter(id => id != null)
+                .map(id => String(id))
+          );
           const _txtIdByContent = new Map((allTextes || []).map(t => [norm(t.content), String(t.id)]));
           const _usedSafe = new Set();
           post = post.map(z => {
@@ -6188,14 +6250,14 @@ setZones(dataWithRandomTexts);
             const adminTxtId = _txtIdByContent.get(norm(z.content));
             if (!adminTxtId) return z;
             let wouldPair = false;
-            for (const imgId of presentImageIds) {
+            for (const imgId of _freshPresentImageIds) {
               if (imgTxtPairs.has(`${imgId}|${adminTxtId}`)) { wouldPair = true; break; }
             }
             if (!wouldPair) return z;
             const safe = (allTextes || []).filter(t => {
               if (_usedSafe.has(String(t.id))) return false;
               if (norm(t.content) === norm(z.content)) return false;
-              for (const imgId of presentImageIds) {
+              for (const imgId of _freshPresentImageIds) {
                 if (imgTxtPairs.has(`${imgId}|${t.id}`)) return false;
               }
               return true;
@@ -6449,6 +6511,61 @@ setZones(dataWithRandomTexts);
         }
         if (sfCleaned) console.warn('[SAFETY] ' + sfCleaned + ' fausse(s) paire(s) calcul-chiffre éliminée(s)');
       } catch (sfErr) { console.warn('[SAFETY] Erreur filet de sécurité:', sfErr); }
+      // SAFETY NET CRITIQUE: Vérifier et corriger le contenu de la paire calcul-chiffre officielle
+      // Si le résultat du calcul ne correspond PAS au contenu du chiffre, forcer le bon résultat
+      try {
+        const _snEval = (expr) => {
+          if (!expr) return NaN;
+          const raw = String(expr).trim();
+          const tm = raw.match(/^l[ea]\s+(double|triple|tiers|quart|moiti[ée])\s+de\s+(.+)$/i);
+          if (tm) {
+            const k = tm[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const v = parseFloat(String(tm[2]).replace(/\s/g, '').replace(/,/g, '.'));
+            if (!Number.isFinite(v)) return NaN;
+            switch (k) { case 'double': return v*2; case 'triple': return v*3; case 'moitie': return v/2; case 'tiers': return v/3; case 'quart': return v/4; default: return NaN; }
+          }
+          const n = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/');
+          const um = n.match(/^(.+?)\s*([+\-*/])\s*\?\s*=\s*(.+)$/);
+          if (um) {
+            const a = parseFloat(um[1].replace(/\s/g, '').replace(/,/g, '.')), op = um[2], c = parseFloat(um[3].replace(/\s/g, '').replace(/,/g, '.'));
+            if (!Number.isFinite(a) || !Number.isFinite(c)) return NaN;
+            switch (op) { case '+': return c-a; case '-': return a-c; case '*': return a!==0?c/a:NaN; case '/': return c!==0?a/c:NaN; default: return NaN; }
+          }
+          const stripped = n.replace(/\s/g, '').replace(/,/g, '.');
+          const sm = stripped.match(/^(-?[\d.]+)([+\-*/])(-?[\d.]+)$/);
+          if (sm) {
+            const a = parseFloat(sm[1]), op = sm[2], b = parseFloat(sm[3]);
+            if (!Number.isFinite(a) || !Number.isFinite(b)) return NaN;
+            switch (op) { case '+': return a+b; case '-': return a-b; case '*': return a*b; case '/': return b!==0?a/b:NaN; default: return NaN; }
+          }
+          return NaN;
+        };
+        const _snParseNum = (s) => { const v = parseFloat(String(s).replace(/\s/g, '').replace(/,/g, '.')); return Number.isFinite(v) ? Math.round(v * 1e8) / 1e8 : NaN; };
+        const _snR = (v) => Math.round(v * 1e8) / 1e8;
+        const pairedCalcs = post.filter(z => normType(z?.type) === 'calcul' && (z.pairId || '').trim());
+        for (const calcZ of pairedCalcs) {
+          const pid = (calcZ.pairId || '').trim();
+          const calcResult = _snEval(calcZ.content);
+          if (!Number.isFinite(calcResult)) continue;
+          const pairedNum = post.find(z => normType(z?.type) === 'chiffre' && (z.pairId || '').trim() === pid);
+          if (!pairedNum) continue;
+          const numValue = _snParseNum(pairedNum.content);
+          if (_snR(calcResult) !== _snR(numValue)) {
+            const correctStr = Number.isInteger(calcResult) ? String(calcResult) : String(_snR(calcResult));
+            console.error('[SAFETY-NET] ⚠️ PAIRE CALCUL-CHIFFRE INCORRECTE DÉTECTÉE ET CORRIGÉE!',
+              { calcul: calcZ.content, expectedResult: calcResult, actualChiffre: pairedNum.content, correctedTo: correctStr, pairId: pid });
+            try {
+              incidentReportIncident('WRONG_CALC_RESULT', {
+                calculContent: calcZ.content, expectedResult: calcResult,
+                actualChiffre: pairedNum.content, correctedTo: correctStr, pairId: pid,
+                severity: 'critical', source: 'solo:safetyNet'
+              });
+            } catch {}
+            pairedNum.content = correctStr;
+            pairedNum.label = correctStr;
+          }
+        }
+      } catch (snErr) { console.warn('[SAFETY-NET] Erreur:', snErr); }
       setZones(post);
       setCustomTextSettings(newTextSettings);
       localStorage.setItem('zones', JSON.stringify(post));
