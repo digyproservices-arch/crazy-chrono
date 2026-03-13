@@ -2305,12 +2305,16 @@ const Carte = () => {
       addDiag('round:new', { duration: payload?.duration, roundIndex: payload?.roundIndex, roundsTotal: payload?.roundsTotal, hasZones: !!payload?.zones, zonesCount: payload?.zones?.length || 0 });
       // Clear waiting timer, if any
       try { if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } } catch {}
-      // Détecter le mode (solo vs multijoueur)
+      // Détecter le mode: si le serveur envoie des zones, c'est multijoueur
+      // ✅ FIX: Ne PAS se fier à cc_session_cfg qui peut être stale (ex: mode:solo d'une partie précédente)
+      const hasServerZones = Array.isArray(payload?.zones) && payload.zones.length > 0;
       let isSoloMode = false;
-      try {
-        const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
-        isSoloMode = cfg && cfg.mode === 'solo';
-      } catch {}
+      if (!hasServerZones) {
+        try {
+          const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+          isSoloMode = cfg && cfg.mode === 'solo';
+        } catch {}
+      }
       // Show preload overlay seulement pour la première manche (roundIndex=0), pas lors des changements de carte
       const isFirstRound = (payload?.roundIndex || 0) === 0;
       if (!isSoloMode && isFirstRound) {
@@ -2320,15 +2324,9 @@ const Carte = () => {
       setPrepProgress(0);
       if (typeof setMpMsg === 'function') setMpMsg('Nouvelle manche');
       
-      // MODE SOLO : Toujours générer localement (ne jamais utiliser les zones serveur)
-      if (isSoloMode) {
-        console.log('[CC][client] SOLO MODE: Generating zones locally');
-        const seed = Number.isFinite(payload?.seed) ? payload.seed : undefined;
-        const zonesFile = payload?.zonesFile || 'zones2';
-        safeHandleAutoAssign(seed, zonesFile);
-      }
-      // MODE MULTIJOUEUR : Utiliser les zones serveur si disponibles
-      else if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
+      // MODE MULTIJOUEUR : Toujours utiliser les zones serveur quand elles sont fournies
+      // (priorité absolue sur cc_session_cfg pour éviter la désync entre joueurs)
+      if (hasServerZones) {
         console.log('[CC][client] MULTIPLAYER MODE: Using server-generated zones:', payload.zones.length);
         payload.zones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
         try { incidentValidateZones(payload.zones, { source: 'multiplayer:round-new' }); } catch {}
@@ -6628,13 +6626,6 @@ setZones(dataWithRandomTexts);
           }
         }
       } catch (snErr) { console.warn('[SAFETY-NET] Erreur:', snErr); }
-      setZones(post);
-      setCustomTextSettings(newTextSettings);
-      localStorage.setItem('zones', JSON.stringify(post));
-      console.log('Zones après attribution automatique (post-traitées) :', post);
-      // Enregistrer dans le diagnostic global pour analyse
-      try { window.ccAddDiag && window.ccAddDiag('zones:assigned', post); } catch {}
-      
       // Marquer explicitement les zones sans pairId comme distracteurs
       // (le post-traitement Carte.js remplace le contenu sans préserver isDistractor d'elementsLoader)
       post = post.map(z => {
@@ -6642,6 +6633,56 @@ setZones(dataWithRandomTexts);
         if (!pid && !z.isDistractor) return { ...z, isDistractor: true };
         return z;
       });
+      // ANTI-FAUSSE-PAIRE IMAGE-TEXTE (mode solo): remplacer les textes distracteurs formant paire avec une image présente
+      try {
+        if (assocData && assocData.associations) {
+          const _norm3 = (s) => String(s || '').trim().toLowerCase();
+          const _normUrl3 = (p) => { if (!p) return ''; let s = p; try { s = decodeURIComponent(s); } catch {} s = s.toLowerCase().replace(/\\/g, '/'); const pub = (process.env.PUBLIC_URL || '').toLowerCase(); if (pub && s.startsWith(pub)) s = s.slice(pub.length); if (s.startsWith('/')) s = s.slice(1); return s; };
+          const _allTextes3 = assocData.textes || [];
+          const _allImages3 = assocData.images || [];
+          const _imgTxtPairs3 = new Set((assocData.associations || []).filter(a => a.imageId && a.texteId).map(a => `${a.imageId}|${a.texteId}`));
+          const _imgIdByUrl3 = new Map(_allImages3.map(it => [_normUrl3(it.url || it.path || it.src || ''), String(it.id)]));
+          const _txtIdByCont3 = new Map(_allTextes3.map(t => [_norm3(t.content), String(t.id)]));
+          const _presentImgIds3 = new Set(post.filter(z => (z.type || 'image') === 'image' && z.content).map(z => _imgIdByUrl3.get(_normUrl3(z.content))).filter(Boolean));
+          const _usedSafe3 = new Set();
+          let _fixCount3 = 0;
+          post = post.map(z => {
+            if (z.type !== 'texte') return z;
+            if ((z.pairId || '').trim()) return z;
+            const adminTxtId = _txtIdByCont3.get(_norm3(z.content));
+            if (!adminTxtId) return z;
+            let wouldPair = false;
+            for (const imgId of _presentImgIds3) {
+              if (_imgTxtPairs3.has(`${imgId}|${adminTxtId}`)) { wouldPair = true; break; }
+            }
+            if (!wouldPair) return z;
+            const safe = _allTextes3.filter(t => {
+              if (_usedSafe3.has(String(t.id))) return false;
+              if (_norm3(t.content) === _norm3(z.content)) return false;
+              for (const imgId of _presentImgIds3) {
+                if (_imgTxtPairs3.has(`${imgId}|${t.id}`)) return false;
+              }
+              return true;
+            });
+            if (safe.length) {
+              const pick = safe[Math.floor(Math.random() * safe.length)];
+              _usedSafe3.add(String(pick.id));
+              _fixCount3++;
+              console.warn('[CC][SOLO] ANTI-FAUSSE-PAIRE: texte "' + z.content + '" remplacé par "' + pick.content + '"');
+              newTextSettings[z.id] = { fontSize: 32, fontFamily: 'Arial', color: '#fff', angle: 0, ...(newTextSettings[z.id] || {}), text: pick.content || '' };
+              return { ...z, content: pick.content, label: pick.content };
+            }
+            return z;
+          });
+          if (_fixCount3) console.log('[CC][SOLO] ANTI-FAUSSE-PAIRE: ' + _fixCount3 + ' texte(s) remplacé(s)');
+        }
+      } catch (e) { console.warn('[CC][SOLO] Erreur anti-fausse-paire:', e); }
+      setZones(post);
+      setCustomTextSettings(newTextSettings);
+      localStorage.setItem('zones', JSON.stringify(post));
+      console.log('Zones après attribution automatique (post-traitées) :', post);
+      // Enregistrer dans le diagnostic global pour analyse
+      try { window.ccAddDiag && window.ccAddDiag('zones:assigned', post); } catch {}
       // Vérifier les anomalies sur les zones générées
       try { incidentValidateZones(post, { source: 'solo:assignElements', assocData: assocData?.associations }); } catch {}
       try { logRound(post, { mode: 'solo', source: 'solo:assignElements', assocData }); } catch {}

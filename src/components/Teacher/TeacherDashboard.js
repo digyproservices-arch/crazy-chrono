@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getBackendUrl } from '../../utils/subscription';
+import { getAuthToken } from '../../utils/apiHelpers';
 
 export default function TeacherDashboard() {
   const navigate = useNavigate();
@@ -20,8 +21,7 @@ export default function TeacherDashboard() {
       setLoading(true);
       setError(null);
       const backendUrl = getBackendUrl();
-      const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
-      const token = auth.token;
+      const token = getAuthToken();
 
       if (!token) {
         setError('Non connecté. Veuillez vous reconnecter.');

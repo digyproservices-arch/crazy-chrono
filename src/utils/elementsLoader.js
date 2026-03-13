@@ -365,7 +365,25 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     const ccKeys = [...ccLinkMap.keys()];
     const chosenKey = _drawFromDeck('assocCC', ccKeys, rng, (key) => {
       const l = ccLinkMap.get(key);
-      return l && calculIds.includes(l.cId) && chiffreIds.includes(l.nId);
+      if (!l || !calculIds.includes(l.cId) || !chiffreIds.includes(l.nId)) return false;
+      // ✅ FIX: Valider que le résultat du calcul correspond bien au chiffre (éviter WRONG_CALC_RESULT)
+      try {
+        const cContent = String(calculsById[l.cId]?.content || '').trim();
+        const nContent = String(chiffresById[l.nId]?.content || '').trim();
+        const cn = cContent.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/').replace(/\s/g, '').replace(/,/g, '.');
+        const cm = cn.match(/^(-?[\d.]+)([+\-*/])(-?[\d.]+)$/);
+        if (cm) {
+          const a = parseFloat(cm[1]), op = cm[2], b = parseFloat(cm[3]);
+          let r = NaN;
+          switch(op) { case '+': r=a+b; break; case '-': r=a-b; break; case '*': r=a*b; break; case '/': r=b?a/b:NaN; break; }
+          const nv = parseFloat(nContent.replace(/\s/g, '').replace(/,/g, '.'));
+          if (Number.isFinite(r) && Number.isFinite(nv) && Math.round(r*1e8)/1e8 !== Math.round(nv*1e8)/1e8) {
+            console.warn('[elementsLoader] Skipping CC pair: calc "' + cContent + '" = ' + r + ' ≠ chiffre "' + nContent + '"');
+            return false;
+          }
+        }
+      } catch {}
+      return true;
     });
     const chosen = chosenKey ? ccLinkMap.get(chosenKey) : null;
     if (chosen) {

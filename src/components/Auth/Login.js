@@ -435,6 +435,8 @@ export default function Login({ onLogin }) {
           try { localStorage.setItem('cc_user_id', user.id); } catch {}
           try { localStorage.setItem('cc_student_id', data.student.id); } catch {}
           try { localStorage.setItem('cc_student_name', data.student.fullName || data.student.firstName || ''); } catch {}
+          // ✅ FIX: Un élève qui se connecte avec succès est forcément licencié (le backend rejette les non-licenciés)
+          try { localStorage.setItem('cc_subscription_status', 'pro'); } catch {}
           onLogin && onLogin(profile);
           navigate('/modes', { replace: true });
         }

@@ -49,14 +49,15 @@ test.describe('Authentification', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(5000);
 
-    const testPseudo = `TestBot_${Date.now().toString(36)}`;
-
-    // Récupérer le token depuis cc_auth (déjà disponible après login)
-    const tokenData = await page.evaluate(() => {
+    // Sauvegarder le pseudo original pour le restaurer en fin de test
+    const originalData = await page.evaluate(() => {
       try { return JSON.parse(localStorage.getItem('cc_auth') || '{}'); } catch { return {}; }
     });
-    const token = tokenData.token;
-    console.log(`[E2E] Token disponible: ${!!token} (${token ? token.substring(0, 20) + '...' : 'null'})`);
+    const originalPseudo = originalData.name || '';
+    const token = originalData.token;
+    console.log(`[E2E] Token disponible: ${!!token} — Pseudo original: "${originalPseudo}"`);
+
+    const testPseudo = `TestBot_${Date.now().toString(36)}`;
 
     // Tenter le save via l'UI
     const nameInput = page.locator('input[placeholder*="Joueur"]');
@@ -109,6 +110,17 @@ test.describe('Authentification', () => {
       accountLogs.slice(-10).forEach(l => console.error(`  ${l}`));
     }
     expect(authAfter.name).toBe(testPseudo);
+
+    // CLEANUP: restaurer le pseudo original dans la DB
+    if (token && originalPseudo) {
+      try {
+        await page.request.patch(`${BACKEND_URL}/api/auth/profile`, {
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          data: { pseudo: originalPseudo },
+        });
+        console.log(`[E2E] ✅ Pseudo restauré: "${originalPseudo}"`);
+      } catch (e) { console.warn(`[E2E] ⚠️ Échec restauration pseudo: ${e.message}`); }
+    }
   });
 
   test('Sauvegarde du pseudo persiste après logout + login', async ({ page }) => {
@@ -122,14 +134,15 @@ test.describe('Authentification', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(5000);
 
-    const testPseudo = `Persist_${Date.now().toString(36)}`;
-
-    // Récupérer le token
-    const tokenData = await page.evaluate(() => {
+    // Sauvegarder le pseudo original pour le restaurer en fin de test
+    const originalData = await page.evaluate(() => {
       try { return JSON.parse(localStorage.getItem('cc_auth') || '{}'); } catch { return {}; }
     });
-    const token = tokenData.token;
-    console.log(`[E2E-logout] Token disponible: ${!!token}`);
+    const originalPseudo = originalData.name || '';
+    const token = originalData.token;
+    console.log(`[E2E-logout] Token disponible: ${!!token} — Pseudo original: "${originalPseudo}"`);
+
+    const testPseudo = `Persist_${Date.now().toString(36)}`;
 
     // Tenter le save via l'UI
     const nameInput = page.locator('input[placeholder*="Joueur"]');
@@ -180,6 +193,18 @@ test.describe('Authentification', () => {
       accountLogs.slice(-10).forEach(l => console.error(`  ${l}`));
     }
     expect(auth.name).toBe(testPseudo);
+
+    // CLEANUP: restaurer le pseudo original dans la DB
+    const freshToken = auth.token || token;
+    if (freshToken && originalPseudo) {
+      try {
+        await page.request.patch(`${BACKEND_URL}/api/auth/profile`, {
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${freshToken}` },
+          data: { pseudo: originalPseudo },
+        });
+        console.log(`[E2E-logout] ✅ Pseudo restauré: "${originalPseudo}"`);
+      } catch (e) { console.warn(`[E2E-logout] ⚠️ Échec restauration pseudo: ${e.message}`); }
+    }
   });
 
   test('Le token est présent dans cc_auth après login', async ({ page }) => {
