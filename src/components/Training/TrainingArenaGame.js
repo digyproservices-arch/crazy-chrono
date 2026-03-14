@@ -304,7 +304,8 @@ export default function TrainingArenaGame() {
     
     if (!gameInfo.matchId || !gameInfo.zones) {
       console.error('[TrainingArena] Données manquantes, redirection');
-      navigate('/training-arena/setup');
+      const isStudent = !!localStorage.getItem('cc_student_id');
+      navigate(isStudent ? '/modes' : '/training-arena/setup');
       return;
     }
     
@@ -1011,7 +1012,9 @@ export default function TrainingArenaGame() {
         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
         if (fsEl) (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen)?.call(document);
       } catch {}
-      navigate('/training-arena/setup');
+      // ✅ FIX: Élève → /modes, Prof → /training-arena/setup
+      const isStudent = !!localStorage.getItem('cc_student_id');
+      navigate(isStudent ? '/modes' : '/training-arena/setup');
     });
   };
   
