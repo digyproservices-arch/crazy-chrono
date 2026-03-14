@@ -45,7 +45,11 @@ import PWAInstallPrompt from './components/PWAInstallPrompt';
 import LearnMode from './components/Modes/LearnMode';
 import LegalPages from './components/LegalPages';
 import LandingPage from './components/LandingPage';
+import MaintenancePage, { hasMaintenanceBypass } from './components/MaintenancePage';
 import { startHeartbeat, stopHeartbeat } from './utils/presenceHeartbeat';
+
+// ⚠️ MAINTENANCE MODE: mettre à true pour bloquer l'accès public
+const MAINTENANCE_MODE = true;
 
 // ✅ AUTH WRAPPERS (outside App to prevent remount loops!)
 const RequireAuth = ({ children, auth }) => auth ? children : <Navigate to="/login" replace />;
@@ -434,6 +438,11 @@ function App() {
   }, [auth]);
   const carteVidePath = `${process.env.PUBLIC_URL}/images/carte-vide.png`;
   
+  // Maintenance gate: bloquer tout accès si MAINTENANCE_MODE=true sauf bypass
+  if (MAINTENANCE_MODE && !hasMaintenanceBypass()) {
+    return <MaintenancePage />;
+  }
+
   return (
     <DataProvider>
       <Router>

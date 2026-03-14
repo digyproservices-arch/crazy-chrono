@@ -274,7 +274,14 @@ export function validateZones(zones, context = {}) {
     const distractorCalcs = zones.filter(z => !z.validated && normalizeType(z.type) === 'calcul' && !(z.pairId || '').trim());
     const distractorNums = zones.filter(z => !z.validated && normalizeType(z.type) === 'chiffre' && !(z.pairId || '').trim());
     if (distractorCalcs.length > 0 && distractorNums.length > 0) {
-      const parseNum = (s) => { const v = parseFloat(String(s).replace(/\s/g, '').replace(/,/g, '.')); return Number.isFinite(v) ? Math.round(v * 1e8) / 1e8 : NaN; };
+      const parseNum = (s) => {
+        const raw = String(s).replace(/\s/g, '').replace(/,/g, '.');
+        const v = parseFloat(raw);
+        if (Number.isFinite(v) && /^-?[\d.]+$/.test(raw)) return Math.round(v * 1e8) / 1e8;
+        const expr = _parseOperationForMonitoring(s);
+        if (expr && Number.isFinite(expr.result)) return Math.round(expr.result * 1e8) / 1e8;
+        return Number.isFinite(v) ? Math.round(v * 1e8) / 1e8 : NaN;
+      };
       const numValues = new Map();
       for (const n of distractorNums) {
         const v = parseNum(n.content);
@@ -352,7 +359,13 @@ export function validateZones(zones, context = {}) {
       if (!pairedNum) continue;
       const parsed = _parseOperationForMonitoring(calcZ.content);
       if (!parsed || !Number.isFinite(parsed.result)) continue;
-      const numVal = parseFloat(String(pairedNum.content || '').replace(/\s/g, '').replace(/,/g, '.'));
+      // Parse chiffre: try simple float first, then expression fallback (for "1/4 + 1/4", "1/2")
+      const _numRaw = String(pairedNum.content || '').replace(/\s/g, '').replace(/,/g, '.');
+      let numVal = parseFloat(_numRaw);
+      if (!Number.isFinite(numVal) || !/^-?[\d.]+$/.test(_numRaw)) {
+        const _expr = _parseOperationForMonitoring(pairedNum.content);
+        if (_expr && Number.isFinite(_expr.result)) numVal = _expr.result;
+      }
       if (!Number.isFinite(numVal)) continue;
       const r8 = (v) => Math.round(v * 1e8) / 1e8;
       if (r8(parsed.result) !== r8(numVal)) {
@@ -502,7 +515,7 @@ function _parseOperationForMonitoring(s) {
     return Number.isFinite(r) ? { result: _r8(r) } : null;
   }
   // Format "A op ? = C"
-  const norm = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/');
+  const norm = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/').replace(/−/g, '-');
   const um = norm.match(/^(.+?)\s*([+\-*/])\s*\?\s*=\s*(.+)$/);
   if (um) {
     const a = _pn(um[1]), op = um[2], c = _pn(um[3]);

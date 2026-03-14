@@ -438,7 +438,7 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       switch (k) { case 'double': return v*2; case 'triple': return v*3; case 'moitie': return v/2; case 'tiers': return v/3; case 'quart': return v/4; default: return NaN; }
     }
     // Format "A op ? = C"
-    const norm = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/');
+    const norm = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/').replace(/−/g, '-');
     const um = norm.match(/^(.+?)\s*([+\-*/])\s*\?\s*=\s*(.+)$/);
     if (um) {
       const a = parseFloat(um[1].replace(/\s/g, '').replace(/,/g, '.')), op = um[2], c = parseFloat(um[3].replace(/\s/g, '').replace(/,/g, '.'));
@@ -456,7 +456,17 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     return NaN;
   };
   const _round8 = (v) => Math.round(v * 1e8) / 1e8;
-  const _parseNum = (s) => { const v = parseFloat(String(s).replace(/\s/g, '').replace(/,/g, '.')); return Number.isFinite(v) ? _round8(v) : NaN; };
+  const _parseNum = (s) => {
+    const raw = String(s).replace(/\s/g, '').replace(/,/g, '.');
+    // Try simple float first
+    const v = parseFloat(raw);
+    if (Number.isFinite(v) && /^-?[\d.]+$/.test(raw)) return _round8(v);
+    // Fallback: evaluate as expression (handles fractions like "1/2", "1/4 + 1/4")
+    const exprResult = _evalCalc(s);
+    if (Number.isFinite(exprResult)) return _round8(exprResult);
+    // Last resort: return parseFloat result if valid
+    return Number.isFinite(v) ? _round8(v) : NaN;
+  };
 
   // Track numeric values of all placed calculs/chiffres (good pair + distractors)
   const placedCalcResults = new Set(); // numeric results of placed calcul zones

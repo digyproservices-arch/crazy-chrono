@@ -29,7 +29,7 @@ function normText(t) {
  */
 function evalCalc(expr) {
   if (!expr) return null;
-  let s = String(expr).trim();
+  let s = String(expr).trim().replace(/\u2212/g, '-');
 
   // Textual: "le/la double/moitié/tiers/quart/triple de X"
   const txtMatch = s.match(/(?:le|la)\s+(double|moiti[eé]|tiers|quart|triple)\s+de\s+([\d\s,.]+)/i);
@@ -79,6 +79,12 @@ function parseChiffre(content) {
   if (!content) return null;
   const s = String(content).trim().replace(/\s/g, '').replace(',', '.');
   const n = parseFloat(s);
+  // If simple number, return it
+  if (!isNaN(n) && /^-?[\d.]+$/.test(s)) return Math.round(n * 1e8) / 1e8;
+  // Fallback: evaluate as expression (handles fractions like "1/2", "1/4 + 1/4")
+  const exprResult = evalCalc(content);
+  if (exprResult !== null) return exprResult;
+  // Last resort
   return isNaN(n) ? null : Math.round(n * 1e8) / 1e8;
 }
 

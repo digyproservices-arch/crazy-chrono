@@ -4592,7 +4592,7 @@ setZones(dataWithRandomTexts);
           return Number.isFinite(r) ? { a: v, b: null, op: k, result: _r8(r) } : null;
         }
         // Format "A op ? = C" (trouver l'inconnu)
-        const norm = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/');
+        const norm = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/').replace(/−/g, '-');
         const um = norm.match(/^(.+?)\s*([+\-*/])\s*\?\s*=\s*(.+)$/);
         if (um) {
           const a = _pn(um[1]), op = um[2], c = _pn(um[3]);
@@ -4737,11 +4737,11 @@ setZones(dataWithRandomTexts);
             const tm = raw.match(/^l[ea]\s+(double|triple|tiers|quart|moiti[ée])\s+de\s+(.+)$/i);
             if (tm) {
               const k = tm[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-              const v = parseFloat(String(tm[2]).replace(/\s/g, '').replace(/,/g, '.'));
+              const v = parseFloat(String(tm[2]).replace(/\s/g, '').replace(/,/g, '.').replace(/−/g, '-'));
               if (!Number.isFinite(v)) return NaN;
               switch (k) { case 'double': return v*2; case 'triple': return v*3; case 'moitie': return v/2; case 'tiers': return v/3; case 'quart': return v/4; default: return NaN; }
             }
-            const n = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/');
+            const n = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/').replace(/−/g, '-');
             const um = n.match(/^(.+?)\s*([+\-*/])\s*\?\s*=\s*(.+)$/);
             if (um) {
               const a = parseFloat(um[1].replace(/\s/g, '').replace(/,/g, '.')), op = um[2], c = parseFloat(um[3].replace(/\s/g, '').replace(/,/g, '.'));
@@ -4758,7 +4758,7 @@ setZones(dataWithRandomTexts);
             return NaN;
           };
           const _objR = (v) => Math.round(v * 1e8) / 1e8;
-          const _objPN = (s) => { const v = parseFloat(String(s).replace(/\s/g, '').replace(/,/g, '.')); return Number.isFinite(v) ? _objR(v) : NaN; };
+          const _objPN = (s) => { const raw = String(s).replace(/\s/g, '').replace(/,/g, '.'); const v = parseFloat(raw); if (Number.isFinite(v) && /^-?[\d.]+$/.test(raw)) return _objR(v); const er = _objEval(s); return Number.isFinite(er) ? _objR(er) : (Number.isFinite(v) ? _objR(v) : NaN); };
           const objPairedCalcs = post.filter(z => normType(z?.type) === 'calcul' && (z.pairId || '').trim());
           for (const calcZ of objPairedCalcs) {
             const pid = (calcZ.pairId || '').trim();
@@ -6584,7 +6584,7 @@ setZones(dataWithRandomTexts);
             if (!Number.isFinite(v)) return NaN;
             switch (k) { case 'double': return v*2; case 'triple': return v*3; case 'moitie': return v/2; case 'tiers': return v/3; case 'quart': return v/4; default: return NaN; }
           }
-          const n = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/');
+          const n = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/').replace(/−/g, '-');
           const um = n.match(/^(.+?)\s*([+\-*/])\s*\?\s*=\s*(.+)$/);
           if (um) {
             const a = parseFloat(um[1].replace(/\s/g, '').replace(/,/g, '.')), op = um[2], c = parseFloat(um[3].replace(/\s/g, '').replace(/,/g, '.'));
@@ -6600,7 +6600,7 @@ setZones(dataWithRandomTexts);
           }
           return NaN;
         };
-        const _snParseNum = (s) => { const v = parseFloat(String(s).replace(/\s/g, '').replace(/,/g, '.')); return Number.isFinite(v) ? Math.round(v * 1e8) / 1e8 : NaN; };
+        const _snParseNum = (s) => { const raw = String(s).replace(/\s/g, '').replace(/,/g, '.'); const v = parseFloat(raw); if (Number.isFinite(v) && /^-?[\d.]+$/.test(raw)) return Math.round(v * 1e8) / 1e8; const er = _snEval(s); return Number.isFinite(er) ? Math.round(er * 1e8) / 1e8 : (Number.isFinite(v) ? Math.round(v * 1e8) / 1e8 : NaN); };
         const _snR = (v) => Math.round(v * 1e8) / 1e8;
         const pairedCalcs = post.filter(z => normType(z?.type) === 'calcul' && (z.pairId || '').trim());
         for (const calcZ of pairedCalcs) {

@@ -20,7 +20,7 @@ function _evalCalc(raw) {
     return Number.isFinite(r) ? _r8(r) : null;
   }
   // Format "A op ? = C"
-  const norm = s.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/').replace(/x/gi, '*');
+  const norm = s.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/').replace(/x/gi, '*').replace(/−/g, '-');
   const um = norm.match(/^(.+?)\s*([+\-*/])\s*\?\s*=\s*(.+)$/);
   if (um) {
     const a = _pn(um[1]), op = um[2], c = _pn(um[3]);
