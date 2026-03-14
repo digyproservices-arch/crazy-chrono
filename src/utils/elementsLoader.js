@@ -613,6 +613,77 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   } catch (e) {
     console.warn('[elementsLoader] POST-VALIDATION error:', e);
   }
+  // ===== POST-VALIDATION BIS: fausses paires par CONTENU (IDs différents, même texte/image) =====
+  try {
+    const distImgZones = result.filter(z => z.isDistractor && (z.type || 'image') === 'image' && z.content);
+    const distTxtZones = result.filter(z => z.isDistractor && z.type === 'texte' && z.content);
+    if (distImgZones.length > 0 && distTxtZones.length > 0) {
+      const _nFile = (url) => {
+        if (!url) return '';
+        let s = url;
+        try { s = decodeURIComponent(s); } catch {}
+        return s.toLowerCase().replace(/\\/g, '/').split('/').pop() || '';
+      };
+      const _nTxt = (t) => String(t || '').trim().toLowerCase();
+      // Map: normalized image filename → Set of normalized associated text contents
+      const imgFileToTxtContents = new Map();
+      const imgIdToFile = new Map();
+      for (const img of images) {
+        const f = _nFile(img.url || img.path || img.src || '');
+        if (f) imgIdToFile.set(String(img.id), f);
+      }
+      for (const a of associations) {
+        if (!a.imageId || !a.texteId) continue;
+        const f = imgIdToFile.get(String(a.imageId));
+        const tObj = textesById[a.texteId];
+        if (f && tObj) {
+          const c = _nTxt(tObj.content);
+          if (c) {
+            if (!imgFileToTxtContents.has(f)) imgFileToTxtContents.set(f, new Set());
+            imgFileToTxtContents.get(f).add(c);
+          }
+        }
+      }
+      // Collecter tous les contenus texte interdits (associés à toute image distracteur ou bonne paire)
+      const allForbiddenTxtContents = new Set();
+      for (const imgZ of distImgZones) {
+        const f = _nFile(imgZ.content);
+        const assocC = imgFileToTxtContents.get(f);
+        if (assocC) assocC.forEach(c => allForbiddenTxtContents.add(c));
+      }
+      if (goodPairIds?.imageId) {
+        const gpFile = imgIdToFile.get(String(goodPairIds.imageId));
+        if (gpFile) {
+          const gpTexts = imgFileToTxtContents.get(gpFile);
+          if (gpTexts) gpTexts.forEach(c => allForbiddenTxtContents.add(c));
+        }
+      }
+      // Remplacer les textes distracteurs dont le contenu est interdit
+      for (const txtZ of distTxtZones) {
+        if (!txtZ.content) continue;
+        const txtContent = _nTxt(txtZ.content);
+        if (allForbiddenTxtContents.has(txtContent)) {
+          console.warn('[elementsLoader] POST-VALIDATION CONTENT: fausse paire par contenu — texte "' + txtContent + '" associé à une image présente — remplacement');
+          const replacement = _drawFromDeck('distTxt', texteIds, rng, (candidateId) => {
+            if (used.texte.has(candidateId)) return false;
+            const candContent = _nTxt(textesById[candidateId]?.content);
+            if (allForbiddenTxtContents.has(candContent)) return false;
+            return true;
+          });
+          if (replacement) {
+            txtZ.content = localizeText(textesById[replacement]?.content || '', locMap);
+            used.texte.add(replacement);
+            txtZ._distId = replacement;
+          } else {
+            txtZ.content = '';
+            txtZ._distId = null;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[elementsLoader] POST-VALIDATION CONTENT error:', e);
+  }
   // ===== POST-VALIDATION: détecter et corriger les fausses paires calcul-chiffre =====
   try {
     const distCalcZones = result.filter(z => z.isDistractor && z.type === 'calcul' && z.content);

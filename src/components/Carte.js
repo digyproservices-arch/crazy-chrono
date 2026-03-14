@@ -5943,6 +5943,79 @@ setZones(dataWithRandomTexts);
       } catch (e) {
         console.warn('Sanitisation unique image-texte ignorée:', e);
       }
+      // ===== ANTI-FAUSSE-PAIRE UNIVERSELLE: vérifie TOUJOURS (même si bonne paire = calcul-chiffre) =====
+      try {
+        if (assocData && assocData.associations) {
+          const _afpNorm = (s) => String(s || '').trim().toLowerCase();
+          const _afpNormUrl = (p) => {
+            if (!p) return '';
+            let s = p; try { s = decodeURIComponent(s); } catch {}
+            s = s.toLowerCase().replace(/\\/g, '/');
+            const pub = (process.env.PUBLIC_URL || '').toLowerCase();
+            if (pub && s.startsWith(pub)) s = s.slice(pub.length);
+            if (s.startsWith('/')) s = s.slice(1);
+            return s;
+          };
+          const _afpImgIdByUrl = new Map(((assocData.images || []).map(it => [_afpNormUrl(it.url || it.path || it.src || ''), String(it.id)])));
+          const _afpImgTxtPairs = new Set(((assocData.associations || []).filter(a => a.imageId && a.texteId).map(a => `${a.imageId}|${a.texteId}`)));
+          const _afpAllTextes = assocData.textes || [];
+          const _afpTxtIdByCont = new Map(_afpAllTextes.map(t => [_afpNorm(t.content), String(t.id)]));
+          const _afpPresentImgIds = new Set(
+            post.filter(z => (normType(z?.type) || 'image') === 'image')
+                .map(z => _afpImgIdByUrl.get(_afpNormUrl(z.content || z.url || z.path || z.src || '')))
+                .filter(id => id != null).map(id => String(id))
+          );
+          if (_afpPresentImgIds.size > 0) {
+            const _afpUsedTxtIds = new Set();
+            const _afpUsedTxtContents = new Set();
+            // Marquer les textes déjà appariés
+            for (const z of post) {
+              if (normType(z?.type) === 'texte' && (z.pairId || '').trim()) {
+                _afpUsedTxtContents.add(_afpNorm(z.content));
+                const tid = _afpTxtIdByCont.get(_afpNorm(z.content));
+                if (tid) _afpUsedTxtIds.add(tid);
+              }
+            }
+            const _afpPickSafe = () => {
+              const pool = _afpAllTextes.filter(t => !_afpUsedTxtIds.has(String(t.id)) && !_afpUsedTxtContents.has(_afpNorm(t.content)));
+              const safe = pool.filter(t => {
+                for (const imgId of _afpPresentImgIds) {
+                  if (_afpImgTxtPairs.has(`${imgId}|${t.id}`)) return false;
+                }
+                return true;
+              });
+              if (!safe.length) return null;
+              return safe[Math.floor(rng() * safe.length)];
+            };
+            let _afpReplacements = 0;
+            post = post.map(z => {
+              if (normType(z?.type) !== 'texte') return z;
+              if ((z.pairId || '').trim()) return z; // garder les textes appariés
+              const adminTxtId = _afpTxtIdByCont.get(_afpNorm(z.content));
+              if (!adminTxtId) return z;
+              let wouldPair = false;
+              for (const imgId of _afpPresentImgIds) {
+                if (_afpImgTxtPairs.has(`${imgId}|${adminTxtId}`)) { wouldPair = true; break; }
+              }
+              if (!wouldPair) return z;
+              const pick = _afpPickSafe();
+              if (pick) {
+                _afpUsedTxtIds.add(String(pick.id));
+                _afpUsedTxtContents.add(_afpNorm(pick.content));
+                _afpReplacements++;
+                try { newTextSettings[z.id] = { ...defaultTextSettings, ...(newTextSettings[z.id] || {}), text: pick.content || '' }; } catch {}
+                return { ...z, content: pick.content, label: pick.content, pairId: '' };
+              }
+              return z;
+            });
+            if (_afpReplacements > 0) {
+              console.warn('[CC] ANTI-FAUSSE-PAIRE UNIVERSELLE: ' + _afpReplacements + ' texte(s) remplacé(s)');
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[CC] Erreur anti-fausse-paire universelle:', e);
+      }
       // Assainissement final: garantir EXACTEMENT UNE paire calcul-chiffre valide
       try {
         // Détecter la première paire calcul-chiffre existante (via pairId partagé)
