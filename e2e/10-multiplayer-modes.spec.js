@@ -79,7 +79,7 @@ test.describe('Mode Training — Multi-contexte', () => {
       token = result.token;
       students = result.students;
     } catch (err) {
-      console.log('⚠️ Impossible de récupérer les élèves:', err.message);
+      console.log('⚠️ Impossible de récupérer les élèves:', /** @type {Error} */ (err).message);
       test.skip();
       return;
     }

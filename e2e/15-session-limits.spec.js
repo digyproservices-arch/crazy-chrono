@@ -31,6 +31,7 @@ test.describe('Session Limits — Limite quotidienne joueurs free', () => {
     });
 
     // Collecter les logs console pour vérifier [CC][quota]
+    /** @type {string[]} */
     const quotaLogs = [];
     page.on('console', msg => {
       const text = msg.text();
@@ -133,7 +134,7 @@ test.describe('Session Limits — Limite quotidienne joueurs free', () => {
         console.log(`  ✅ Serveur: allow=${body.allow}, reason=${body.reason}, sessionsToday=${body.sessionsToday || '?'}`);
       }
     } catch (err) {
-      console.log('  ⚠️ Appel /usage/can-start échoué:', err.message);
+      console.log('  ⚠️ Appel /usage/can-start échoué:', /** @type {Error} */ (err).message);
     }
   });
 
@@ -150,6 +151,7 @@ test.describe('Session Limits — Limite quotidienne joueurs free', () => {
     });
 
     // Collecter les logs
+    /** @type {string[]} */
     const quotaLogs = [];
     page.on('console', msg => {
       const text = msg.text();

@@ -130,6 +130,7 @@ test.describe('Tests filtres de configuration', () => {
   // Test chaque scénario de filtres
   for (const scenario of FILTER_SCENARIOS) {
     test(`Filtres: ${scenario.name}`, async ({ page }) => {
+      /** @type {string[]} */
       const jsErrors = [];
       page.on('pageerror', err => jsErrors.push(err.message));
 
@@ -222,6 +223,7 @@ test.describe('Tests contenu carte par filtre (vérification données)', () => {
   test.skip(!TEST_ACCOUNTS.admin.password, 'E2E_ADMIN_PASSWORD non défini');
 
   test('Mode strict éléments — la carte se charge', async ({ page }) => {
+    /** @type {string[]} */
     const jsErrors = [];
     page.on('pageerror', err => jsErrors.push(err.message));
 
@@ -297,6 +299,7 @@ test.describe('Tests contenu carte par filtre (vérification données)', () => {
 
     // Vérifier les textes visibles sur la carte
     const pageTexts = await page.evaluate(() => {
+      /** @type {string[]} */
       const texts = [];
       document.querySelectorAll('text').forEach(t => {
         if (t.textContent && t.textContent.trim()) texts.push(t.textContent.trim());
@@ -316,6 +319,7 @@ test.describe('Tests contenu carte par filtre (vérification données)', () => {
   });
 
   test('Zone géographique Guadeloupe — la carte se charge', async ({ page }) => {
+    /** @type {string[]} */
     const jsErrors = [];
     page.on('pageerror', err => jsErrors.push(err.message));
 
@@ -352,6 +356,7 @@ test.describe('Tests contenu carte par filtre (vérification données)', () => {
   });
 
   test('Mode Objectif — la carte se charge sans chrono', async ({ page }) => {
+    /** @type {string[]} */
     const jsErrors = [];
     page.on('pageerror', err => jsErrors.push(err.message));
 

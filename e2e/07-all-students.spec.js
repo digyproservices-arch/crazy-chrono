@@ -67,7 +67,7 @@ test.describe('Phase 1 — Préparation', () => {
     expect(body.students).toBeTruthy();
 
     // Filtrer les élèves qui ont un code d'accès
-    ALL_STUDENTS = body.students.filter(s => s.access_code && s.licensed);
+    ALL_STUDENTS = body.students.filter((/** @type {any} */ s) => s.access_code && s.licensed);
     testResults.totalStudents = ALL_STUDENTS.length;
 
     console.log(`\n📋 ${ALL_STUDENTS.length} élèves trouvés avec code d'accès :`);
@@ -89,6 +89,7 @@ test.describe('Phase 2 — Login de chaque élève', () => {
     test.skip(ALL_STUDENTS.length === 0, 'Aucun élève trouvé');
 
     for (const student of ALL_STUDENTS) {
+      /** @type {{name: string, code: string, loginOk: boolean, soloOk: boolean, anomalies: string[], jsErrors: string[]}} */
       const result = {
         name: student.full_name || `${student.first_name} ${student.last_name}`,
         code: student.access_code,
@@ -255,6 +256,7 @@ test.describe('Phase 3 — Mode Solo par élève (détection anomalies)', () => 
 
         // 3. Analyser les zones et paires depuis le DOM/JS
         const zoneAnalysis = await page.evaluate(() => {
+          /** @type {{svgElementCount: number, imageCount: number, textCount: number, pairIds: string[], duplicatePairs: Array<{pairId: string, count: any}>, emptyZones: number, totalZones: number}} */
           const result = {
             svgElementCount: 0,
             imageCount: 0,
@@ -280,11 +282,11 @@ test.describe('Phase 3 — Mode Solo par élève (détection anomalies)', () => 
           // Aussi chercher dans le window/state (Carte.js stocke parfois dans window)
           try {
             // Vérifier window.__ZONES__ ou équivalent
-            if (window.__CC_DIAG__) {
-              const diag = window.__CC_DIAG__;
+            if (/** @type {any} */ (window).__CC_DIAG__) {
+              const diag = /** @type {any} */ (window).__CC_DIAG__;
               if (diag.zones) {
                 result.totalZones = diag.zones.length || 0;
-                diag.zones.forEach(z => {
+                diag.zones.forEach((/** @type {any} */ z) => {
                   if (z.pairId) result.pairIds.push(z.pairId);
                   if (!z.content && !z.text && !z.image && !z.calcul) result.emptyZones++;
                 });
@@ -293,6 +295,7 @@ test.describe('Phase 3 — Mode Solo par élève (détection anomalies)', () => 
           } catch {}
 
           // Détecter les pairIds en double (= DOUBLE PAIRE = BUG)
+          /** @type {Record<string, number>} */
           const pairCount = {};
           result.pairIds.forEach(pid => {
             pairCount[pid] = (pairCount[pid] || 0) + 1;

@@ -33,7 +33,7 @@ const CARDS_PER_CONFIG = 3;
 /**
  * Évalue un calcul textuel
  */
-function evaluateCalc(content) {
+function evaluateCalc(/** @type {any} */ content) {
   if (!content || typeof content !== 'string') return null;
   const s = content.trim();
   // "A op B"
@@ -81,6 +81,7 @@ test.describe('Card Integrity — Vérification qualité cartes', () => {
       await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
 
       for (let cardIdx = 0; cardIdx < CARDS_PER_CONFIG; cardIdx++) {
+        /** @type {{config: string, card: number, anomalies: string[], zones: number, validPairs: number, genTimeMs: number}} */
         const result = {
           config: config.name,
           card: cardIdx + 1,
@@ -126,6 +127,7 @@ test.describe('Card Integrity — Vérification qualité cartes', () => {
 
         // Extraire les zones et associations depuis le contexte React
         const cardData = await page.evaluate(() => {
+          /** @type {{zones: any[], associations: any[], hasAssocData: boolean, localIncidents?: any[], domInfo?: {svgPaths: number, images: number, texts: number}}} */
           const data = {
             zones: [],
             associations: [],
@@ -337,7 +339,7 @@ test.describe('Card Integrity — Vérification qualité cartes', () => {
       });
       console.log(`📤 Rapport envoyé: HTTP ${res.status()}`);
     } catch (err) {
-      console.log('⚠️ Envoi monitoring échoué:', err.message);
+      console.log('⚠️ Envoi monitoring échoué:', /** @type {Error} */ (err).message);
     }
   });
 });

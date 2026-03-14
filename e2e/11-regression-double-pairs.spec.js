@@ -78,6 +78,7 @@ function evaluateCalc(content) {
  * @returns {{doublePairs: Array<{pair1: any, pair2: any, reason: string}>, officialPairs: number}}
  */
 function detectDoublePairs(zones) {
+  /** @type {Array<{pair1: any, pair2: any, reason: string}>} */
   const doublePairs = [];
 
   // 1. Paires officielles (avec pairId)
@@ -188,6 +189,7 @@ test.describe('Régression Double Paires — Détection automatique', () => {
 
       // Extraire les zones depuis le DOM
       const zones = await page.evaluate(() => {
+        /** @type {Array<{id: string, type: string, content: string, pairId: string}>} */
         const results = [];
         // Chercher dans window.__ZONES__ ou dans le state React
         // @ts-ignore
