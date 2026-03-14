@@ -10,7 +10,7 @@ test.describe('Santé générale', () => {
   test('La page d\'accueil se charge sans erreur', async ({ page }) => {
     const errors = collectConsoleErrors(page);
     const response = await page.goto('/');
-    expect(response.status()).toBeLessThan(400);
+    expect(response?.status()).toBeLessThan(400);
     // Pas de page blanche : au moins un élément visible
     await expect(page.locator('body')).not.toBeEmpty();
     // Pas d'erreur React critique
@@ -66,6 +66,7 @@ test.describe('Santé générale', () => {
   });
 
   test('Pas d\'erreurs JS critiques sur la page d\'accueil', async ({ page }) => {
+    /** @type {string[]} */
     const errors = [];
     page.on('pageerror', err => errors.push(err.message));
     await page.goto('/');

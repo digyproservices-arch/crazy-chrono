@@ -27,6 +27,7 @@ test.describe('Mode Solo', () => {
   });
 
   test('La carte solo se charge avec des zones', async ({ page }) => {
+    /** @type {string[]} */
     const errors = [];
     page.on('pageerror', err => errors.push(err.message));
 

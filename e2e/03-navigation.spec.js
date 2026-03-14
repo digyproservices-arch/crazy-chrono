@@ -68,6 +68,7 @@ test.describe('Navigation (pages protégées)', () => {
   });
 
   test('Page /carte se charge sans erreur JS critique', async ({ page }) => {
+    /** @type {string[]} */
     const errors = [];
     page.on('pageerror', err => errors.push(err.message));
 

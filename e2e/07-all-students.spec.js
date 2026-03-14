@@ -16,6 +16,7 @@ const { TEST_ACCOUNTS, BACKEND_URL } = require('./helpers');
  */
 
 // Résultats globaux pour le rapport
+/** @type {{ startTime: string | null, endTime: string | null, totalStudents: number, loginSuccess: number, loginFailed: number, soloSuccess: number, soloFailed: number, anomalies: Array<{type: string, student: any, code: any, error?: any, details?: any, errors?: any, count?: number}>, details: Array<{name: string, code: string, loginOk: boolean, soloOk: boolean, anomalies: string[], jsErrors: string[], [key: string]: any}> }} */
 const testResults = {
   startTime: null,
   endTime: null,
@@ -28,6 +29,7 @@ const testResults = {
   details: [],
 };
 
+/** @type {Array<{full_name?: string, first_name?: string, last_name?: string, access_code: string, licensed?: boolean, [key: string]: any}>} */
 let ALL_STUDENTS = [];
 let ADMIN_TOKEN = '';
 
@@ -154,15 +156,16 @@ test.describe('Phase 2 — Login de chaque élève', () => {
         await page.waitForLoadState('networkidle');
 
       } catch (err) {
-        result.anomalies.push(`EXCEPTION: ${err.message}`);
+        const _err = /** @type {Error} */ (err);
+        result.anomalies.push(`EXCEPTION: ${_err.message}`);
         testResults.loginFailed++;
         testResults.anomalies.push({
           type: 'LOGIN_EXCEPTION',
           student: result.name,
           code: result.code,
-          error: err.message,
+          error: _err.message,
         });
-        console.log(`  ❌ ${result.name} — ${err.message}`);
+        console.log(`  ❌ ${result.name} — ${_err.message}`);
 
         // Reset pour continuer
         try {
@@ -196,7 +199,9 @@ test.describe('Phase 3 — Mode Solo par élève (détection anomalies)', () => 
       const detail = testResults.details.find(d => d.code === student.access_code);
       if (!detail || !detail.loginOk) continue; // Skip si login a échoué
 
+      /** @type {string[]} */
       const jsErrors = [];
+      /** @type {string[]} */
       const consoleErrors = [];
 
       try {
@@ -370,15 +375,16 @@ test.describe('Phase 3 — Mode Solo par élève (détection anomalies)', () => 
         await page.evaluate(() => localStorage.clear());
 
       } catch (err) {
-        detail.anomalies.push(`SOLO_EXCEPTION: ${err.message}`);
+        const _err = /** @type {Error} */ (err);
+        detail.anomalies.push(`SOLO_EXCEPTION: ${_err.message}`);
         testResults.soloFailed++;
         testResults.anomalies.push({
           type: 'SOLO_EXCEPTION',
           student: detail.name,
           code: detail.code,
-          error: err.message,
+          error: _err.message,
         });
-        console.log(`  ❌ ${detail.name} — ${err.message}`);
+        console.log(`  ❌ ${detail.name} — ${_err.message}`);
 
         page.removeAllListeners('pageerror');
         page.removeAllListeners('console');
@@ -452,7 +458,7 @@ test.describe('Phase 4 — Rapport monitoring', () => {
       });
       console.log(`📤 Rapport envoyé au monitoring: HTTP ${response.status()}`);
     } catch (err) {
-      console.log(`⚠️ Impossible d'envoyer au monitoring: ${err.message}`);
+      console.log(`⚠️ Impossible d'envoyer au monitoring: ${/** @type {Error} */ (err).message}`);
     }
 
     // Écrire aussi dans un fichier JSON local pour le rapport Playwright

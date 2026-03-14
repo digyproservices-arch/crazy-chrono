@@ -18,7 +18,7 @@ test.describe('Authentification', () => {
     // Vérifier que cc_auth est dans localStorage
     const ccAuth = await page.evaluate(() => localStorage.getItem('cc_auth'));
     expect(ccAuth).toBeTruthy();
-    const auth = JSON.parse(ccAuth);
+    const auth = JSON.parse(ccAuth || '{}');
     expect(auth.id).toBeTruthy();
     expect(auth.email).toBe(TEST_ACCOUNTS.admin.email);
     expect(auth.token).toBeTruthy();
@@ -40,6 +40,7 @@ test.describe('Authentification', () => {
 
   test('Sauvegarde du pseudo persiste après refresh', async ({ page }) => {
     test.setTimeout(120000);
+    /** @type {string[]} */
     const logs = [];
     page.on('console', msg => logs.push(`[${msg.type()}] ${msg.text()}`));
 
@@ -119,12 +120,13 @@ test.describe('Authentification', () => {
           data: { pseudo: originalPseudo },
         });
         console.log(`[E2E] ✅ Pseudo restauré: "${originalPseudo}"`);
-      } catch (e) { console.warn(`[E2E] ⚠️ Échec restauration pseudo: ${e.message}`); }
+      } catch (e) { console.warn(`[E2E] ⚠️ Échec restauration pseudo: ${/** @type {Error} */ (e).message}`); }
     }
   });
 
   test('Sauvegarde du pseudo persiste après logout + login', async ({ page }) => {
     test.setTimeout(120000);
+    /** @type {string[]} */
     const logs = [];
     page.on('console', msg => logs.push(`[${msg.type()}] ${msg.text()}`));
 
@@ -203,14 +205,14 @@ test.describe('Authentification', () => {
           data: { pseudo: originalPseudo },
         });
         console.log(`[E2E-logout] ✅ Pseudo restauré: "${originalPseudo}"`);
-      } catch (e) { console.warn(`[E2E-logout] ⚠️ Échec restauration pseudo: ${e.message}`); }
+      } catch (e) { console.warn(`[E2E-logout] ⚠️ Échec restauration pseudo: ${/** @type {Error} */ (e).message}`); }
     }
   });
 
   test('Le token est présent dans cc_auth après login', async ({ page }) => {
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
     const ccAuth = await page.evaluate(() => localStorage.getItem('cc_auth'));
-    const auth = JSON.parse(ccAuth);
+    const auth = JSON.parse(ccAuth || '{}');
     expect(auth.token).toBeTruthy();
     expect(auth.token.length).toBeGreaterThan(20);
   });
@@ -218,7 +220,7 @@ test.describe('Authentification', () => {
   test('Le rôle est correctement défini après login', async ({ page }) => {
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
     const ccAuth = await page.evaluate(() => localStorage.getItem('cc_auth'));
-    const auth = JSON.parse(ccAuth);
+    const auth = JSON.parse(ccAuth || '{}');
     // Le compte verinmarius971 est admin
     expect(['admin', 'teacher', 'user']).toContain(auth.role);
   });
