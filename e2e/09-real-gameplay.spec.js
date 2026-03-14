@@ -17,6 +17,7 @@ const { TEST_ACCOUNTS, loginWithEmail, BACKEND_URL } = require('./helpers');
  */
 
 // Résultats pour le monitoring
+/** @type {{ timestamp: string | null, scenarios: Array<{name: string, loginOk: boolean, gameStarted: boolean, zonesLoaded: number, validPairsFound: number, pairsClicked: number, pairsValidated: number, duplicatePairs: string[], emptyZones: number, jsErrors: string[], screenshots: Array<{name: string, data: string}>, anomalies: string[]}> }} */
 const gameplayResults = {
   timestamp: null,
   scenarios: [],
@@ -67,6 +68,7 @@ test.describe('Simulation de vraies parties', () => {
 
   for (const config of GAME_CONFIGS) {
     test(`${config.name}`, async ({ page }) => {
+      /** @type {{name: string, loginOk: boolean, gameStarted: boolean, zonesLoaded: number, validPairsFound: number, pairsClicked: number, pairsValidated: number, duplicatePairs: string[], emptyZones: number, jsErrors: string[], screenshots: Array<{name: string, data: string}>, anomalies: string[]}} */
       const scenario = {
         name: config.name,
         loginOk: false,
@@ -82,6 +84,7 @@ test.describe('Simulation de vraies parties', () => {
         anomalies: [],
       };
 
+      /** @type {string[]} */
       const jsErrors = [];
       page.on('pageerror', err => jsErrors.push(err.message));
 
@@ -186,7 +189,7 @@ test.describe('Simulation de vraies parties', () => {
         if (paths.length < 2) return results;
 
         // Simuler un clic sur une zone
-        const clickZone = (path) => {
+        const clickZone = (/** @type {Element} */ path) => {
           const event = new MouseEvent('click', {
             bubbles: true,
             cancelable: true,
