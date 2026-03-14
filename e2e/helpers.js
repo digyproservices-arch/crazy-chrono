@@ -20,9 +20,20 @@ const TEST_ACCOUNTS = {
 const BACKEND_URL = process.env.E2E_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com';
 
 /**
+ * Bypass la page maintenance (Coming Soon) en injectant le token dans localStorage.
+ * Doit être appelé AVANT la première navigation vers l'app.
+ */
+async function bypassMaintenance(page) {
+  // Naviguer avec le param secret pour déclencher le bypass
+  await page.goto('/?access=crazychrono2026');
+  await page.waitForLoadState('domcontentloaded');
+}
+
+/**
  * Login via email/password et attendre la redirection vers /modes
  */
 async function loginWithEmail(page, email, password) {
+  await bypassMaintenance(page);
   await page.goto('/login');
   await page.waitForLoadState('networkidle');
 
@@ -47,6 +58,7 @@ async function loginWithEmail(page, email, password) {
  * Login via code élève
  */
 async function loginWithStudentCode(page, code) {
+  await bypassMaintenance(page);
   await page.goto('/login');
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(1000);
@@ -173,6 +185,7 @@ async function ensureBackendAwake(requestOrPage) {
 module.exports = {
   TEST_ACCOUNTS,
   BACKEND_URL,
+  bypassMaintenance,
   loginWithEmail,
   loginWithStudentCode,
   logout,

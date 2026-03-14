@@ -11,6 +11,11 @@ const SECRET_CODE = 'crazychrono2026';
  * 3. Être connecté en tant qu'admin
  */
 export function hasMaintenanceBypass() {
+  // Localhost / dev: toujours autoriser (tests e2e locaux, développement)
+  try {
+    const h = window.location.hostname;
+    if (h === 'localhost' || h === '127.0.0.1') return true;
+  } catch {}
   // Check URL param
   try {
     const params = new URLSearchParams(window.location.search);
