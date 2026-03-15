@@ -170,6 +170,8 @@ const NavBar = () => {
               <DropdownItem icon="" label="Monitoring" to="/admin/monitoring" navigate={navigate} active={isActive('/admin/monitoring')} />
               <DropdownItem icon="🏛️" label="Contenu" to="/admin" navigate={navigate} active={location.pathname === '/admin'} />
               <DropdownSeparator />
+              <DropdownItem icon="🤖" label="Testeur Robots" onClick={() => window.open('/bot-tester.html', '_blank')} />
+              <DropdownSeparator />
               <DropdownItem icon="✏️" label="Mode édition" onClick={() => window.dispatchEvent(new Event('cc:toggleEditMode'))} />
               <DropdownItem icon="💾" label="Sauvegarder carte" onClick={() => window.dispatchEvent(new Event('cc:saveMathPositions'))} />
             </NavDropdown>
@@ -243,6 +245,7 @@ const NavBar = () => {
           {isAdmin && <MobileLink icon="✉️" label="Invitations" to="/admin/invite" navigate={navigate} active={isActive('/admin/invite')} />}
           {isAdmin && <MobileLink icon="�" label="Monitoring" to="/admin/monitoring" navigate={navigate} active={isActive('/admin/monitoring')} />}
           {isAdmin && <MobileLink icon="🏛️" label="Contenu" to="/admin" navigate={navigate} active={location.pathname === '/admin'} />}
+          {isAdmin && <div style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, color: '#fff', fontSize: 14 }} onClick={() => { setMobileOpen(false); window.open('/bot-tester.html', '_blank'); }}>🤖 Testeur Robots</div>}
         </div>
       )}
 

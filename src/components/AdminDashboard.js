@@ -90,6 +90,20 @@ function AdminDashboard() {
           </h1>
           <div style={{ display: 'flex', gap: 10 }}>
             <button
+              onClick={() => window.open('/bot-tester.html', '_blank')}
+              style={{ 
+                padding: '10px 20px', 
+                background: '#10b981', 
+                border: 'none', 
+                borderRadius: '8px',
+                color: '#fff',
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+            >
+              🤖 Testeur Robots
+            </button>
+            <button
               onClick={() => navigate('/admin')}
               style={{ 
                 padding: '10px 20px', 
