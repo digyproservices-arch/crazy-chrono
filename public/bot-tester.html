@@ -74,6 +74,7 @@
             <option value="mp">Multijoueur (salle privee)</option>
             <option value="arena">Arena (Crazy Arena)</option>
             <option value="training">Entrainement (Training)</option>
+            <option value="gs">Grande Salle (tournoi)</option>
           </select>
           <div id="mpFields">
             <label>Code de la salle</label>
@@ -83,8 +84,14 @@
             <label>Match ID</label>
             <input type="text" id="matchId" placeholder="ID du match Arena/Training" />
           </div>
+          <div id="gsFields" style="display:none">
+            <label>ID de la salle (laisser vide = salle publique)</label>
+            <input type="text" id="gsId" placeholder="grande-salle-publique" />
+            <label>Tournament ID (optionnel)</label>
+            <input type="text" id="gsTournamentId" placeholder="Laisser vide si pas de tournoi" />
+          </div>
           <label>Nombre de robots</label>
-          <input type="range" id="botCount" min="1" max="20" value="2" oninput="document.getElementById('botCountVal').textContent=this.value" />
+          <input type="range" id="botCount" min="1" max="50" value="2" oninput="document.getElementById('botCountVal').textContent=this.value" />
           <div style="text-align:center;margin-top:-8px;margin-bottom:12px">
             <span id="botCountVal" style="font-weight:700;color:#fbbf24;font-size:1.2rem">2</span> robot(s)
           </div>
@@ -122,9 +129,10 @@
             <li>Ouvrez le jeu normalement dans un <strong>autre onglet</strong></li>
             <li><strong>Mode Multijoueur</strong> : Creez une salle, notez le code, et entrez-le ici</li>
             <li><strong>Mode Arena/Training</strong> : Lancez un match depuis le dashboard professeur, notez le Match ID</li>
+            <li><strong>Mode Grande Salle</strong> : Laissez l'ID vide pour la salle publique, ou entrez un Tournament ID pour un tournoi specifique. Jusqu'a <strong>50 robots</strong> !</li>
             <li>Choisissez le nombre de robots et leur vitesse</li>
             <li>Cliquez <strong>Lancer les robots</strong> — ils rejoignent et jouent automatiquement</li>
-            <li>Jouez contre eux dans votre onglet de jeu !</li>
+            <li>Jouez contre eux ou observez en tant que professeur !</li>
           </ol>
         </div>
       </div>
@@ -137,7 +145,13 @@ const BOT_NAMES = [
   'Alice-Bot', 'Bob-Bot', 'Charlie-Bot', 'Diana-Bot', 'Emma-Bot',
   'Felix-Bot', 'Gabi-Bot', 'Hugo-Bot', 'Iris-Bot', 'Jules-Bot',
   'Kira-Bot', 'Leo-Bot', 'Maya-Bot', 'Noel-Bot', 'Olivia-Bot',
-  'Paul-Bot', 'Rosa-Bot', 'Sam-Bot', 'Theo-Bot', 'Zoe-Bot'
+  'Paul-Bot', 'Rosa-Bot', 'Sam-Bot', 'Theo-Bot', 'Zoe-Bot',
+  'Adam-Bot', 'Bella-Bot', 'Chloe-Bot', 'David-Bot', 'Elsa-Bot',
+  'Finn-Bot', 'Grace-Bot', 'Henri-Bot', 'Inès-Bot', 'Jason-Bot',
+  'Karim-Bot', 'Lina-Bot', 'Marc-Bot', 'Nina-Bot', 'Oscar-Bot',
+  'Perla-Bot', 'Quentin-Bot', 'Rita-Bot', 'Simon-Bot', 'Tina-Bot',
+  'Ugo-Bot', 'Vera-Bot', 'Will-Bot', 'Xena-Bot', 'Yann-Bot',
+  'Zara-Bot', 'Axel-Bot', 'Bianca-Bot', 'Cyril-Bot', 'Dina-Bot'
 ];
 const SPEED_RANGES = {
   slow: [5000, 8000],
@@ -155,7 +169,8 @@ const modeSelect = document.getElementById('gameMode');
 modeSelect.addEventListener('change', () => {
   const mode = modeSelect.value;
   document.getElementById('mpFields').style.display = mode === 'mp' ? '' : 'none';
-  document.getElementById('arenaFields').style.display = mode !== 'mp' ? '' : 'none';
+  document.getElementById('arenaFields').style.display = (mode === 'arena' || mode === 'training') ? '' : 'none';
+  document.getElementById('gsFields').style.display = mode === 'gs' ? '' : 'none';
 });
 
 function log(msg, level = 'info') {
@@ -301,6 +316,23 @@ function createBot(index, serverUrl, mode, roomCode, matchId) {
           log(`${bot.name} est pret (Training)`, 'info');
           renderBotCard(bot);
         }, 800 + Math.random() * 1200);
+      } else if (mode === 'gs') {
+        const gsId = (document.getElementById('gsId').value.trim()) || 'grande-salle-publique';
+        const gsTournamentId = document.getElementById('gsTournamentId').value.trim() || undefined;
+        socket.emit('gs:join', {
+          name: bot.name,
+          salleId: gsId,
+          tournamentId: gsTournamentId
+        }, (resp) => {
+          if (resp && resp.ok) {
+            bot.statusText = `Grande Salle rejoint (${resp.playerCount || '?'} joueurs)`;
+            log(`${bot.name} a rejoint la Grande Salle "${resp.salleId}" (${resp.playerCount} joueurs)`, 'success');
+          } else {
+            bot.statusText = `Erreur GS: ${resp?.error || 'inconnue'}`;
+            log(`${bot.name} erreur GS: ${resp?.error || 'inconnue'}`, 'err');
+          }
+          renderBotCard(bot);
+        });
       }
     });
 
@@ -480,7 +512,98 @@ function createBot(index, serverUrl, mode, roomCode, matchId) {
       log(`${bot.name} — Training termine (score: ${bot.score})`, 'warn');
     });
 
-    // ===== ERROR HANDLING =====
+    // ===== GRANDE SALLE EVENTS =====
+    socket.on('gs:state', (data) => {
+      if (!bot.playing) {
+        bot.statusText = `Grande Salle: ${data.status || 'lobby'} — ${data.playerCount || '?'} joueurs`;
+        renderBotCard(bot);
+      }
+    });
+
+    socket.on('gs:countdown', (data) => {
+      bot.statusText = `Grande Salle: ${data.t}...`;
+      renderBotCard(bot);
+    });
+
+    socket.on('gs:round:new', (data) => {
+      bot.playing = true;
+      const zones = data.zones || [];
+      bot.currentZones = zones;
+      bot.statusText = `GS Manche ${data.roundIndex || '?'} — ${zones.length} zones — recherche...`;
+      log(`${bot.name} GS recoit ${zones.length} zones (manche ${data.roundIndex || '?'})`, 'info');
+      if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
+      renderBotCard(bot);
+      if (zones.length > 0) {
+        schedulePairAttempt(bot, mode, matchId);
+      }
+    });
+
+    socket.on('gs:pair:valid', (data) => {
+      if (data.by === socket.id) {
+        bot.score = data.score || (bot.score + 1);
+        bot.pairs++;
+        totalPairs++;
+        bot.statusText = `GS Paire validee ! Score: ${bot.score} (rang ${data.rank || '?'})`;
+        log(`${bot.name} GS paire validee ! Score: ${bot.score}`, 'success');
+      } else {
+        bot.statusText = `${data.playerName || 'Quelqu\'un'} a trouve la paire`;
+      }
+      if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
+      renderBotCard(bot);
+      updateStats();
+    });
+
+    socket.on('gs:pair:invalid', (data) => {
+      bot.errors++;
+      totalErrors++;
+      bot.statusText = 'GS Mauvaise paire !';
+      log(`${bot.name} GS mauvaise paire`, 'warn');
+      renderBotCard(bot);
+      updateStats();
+    });
+
+    socket.on('gs:round:result', (data) => {
+      const me = (data.leaderboard || []).find(p => p.name === bot.name);
+      if (me) {
+        bot.score = me.score || bot.score;
+        bot.statusText = `GS Fin de manche — Rang: ${me.rank || '?'} — Score: ${bot.score}`;
+        log(`${bot.name} GS fin manche — rang ${me.rank}, score ${bot.score}`, 'info');
+      }
+      renderBotCard(bot);
+    });
+
+    socket.on('gs:elimination', (data) => {
+      const eliminated = data.eliminated || [];
+      if (eliminated.includes(bot.name)) {
+        bot.playing = false;
+        bot.error = true;
+        bot.statusText = `ELIMINE (vague ${data.wave}) ! ${data.remainingCount} restants`;
+        log(`${bot.name} ELIMINE a la vague ${data.wave} !`, 'err');
+        if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
+      } else {
+        bot.statusText = `Survit a la vague ${data.wave} ! ${data.remainingCount} restants`;
+        log(`${bot.name} survit (vague ${data.wave}, ${data.remainingCount} restants)`, 'success');
+      }
+      renderBotCard(bot);
+    });
+
+    socket.on('gs:finish', (data) => {
+      bot.playing = false;
+      const me = (data.fullRanking || []).find(p => p.name === bot.name);
+      const rank = me ? me.rank : '?';
+      bot.statusText = `GS Terminee — Rang final: ${rank}/${data.totalPlayers || '?'}`;
+      log(`${bot.name} GS terminee — rang ${rank}/${data.totalPlayers} — score ${bot.score}`, 'warn');
+      if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
+      renderBotCard(bot);
+    });
+
+    socket.on('gs:joined-as-spectator', (data) => {
+      bot.statusText = 'Rejoint comme spectateur (partie en cours)';
+      log(`${bot.name} est spectateur dans la Grande Salle`, 'warn');
+      renderBotCard(bot);
+    });
+
+    // ===== ERROR HANDLING ======
     socket.on('connect_error', (err) => {
       bot.error = true;
       bot.statusText = `Erreur: ${err.message}`;
@@ -543,6 +666,9 @@ function schedulePairAttempt(bot, mode, matchId) {
     if (mode === 'mp') {
       bot.socket.emit('attemptPair', { a: pair.a.id, b: pair.b.id });
       log(`${bot.name} tente paire: ${pair.a.type || '?'} + ${pair.b.type || '?'}`, 'info');
+    } else if (mode === 'gs') {
+      bot.socket.emit('gs:attemptPair', { a: pair.a.id, b: pair.b.id });
+      log(`${bot.name} GS tente paire: ${pair.a.type || '?'} + ${pair.b.type || '?'}`, 'info');
     } else if (mode === 'arena') {
       bot.socket.emit('arena:pair-validated', {
         matchId: matchId,
@@ -581,7 +707,7 @@ function startBots() {
 
   if (!serverUrl) { alert('Entrez l\'URL du serveur'); return; }
   if (mode === 'mp' && !roomCode) { alert('Entrez le code de la salle'); return; }
-  if (mode !== 'mp' && !matchId) { alert('Entrez le Match ID'); return; }
+  if ((mode === 'arena' || mode === 'training') && !matchId) { alert('Entrez le Match ID'); return; }
 
   log(`Lancement de ${count} robot(s) en mode ${mode.toUpperCase()}...`, 'info');
   document.getElementById('btnStart').disabled = true;
