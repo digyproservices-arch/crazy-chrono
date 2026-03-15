@@ -2576,7 +2576,9 @@ io.on('connection', (socket) => {
   // Créer une salle et renvoyer le code au client (ack)
   socket.on('room:create', (cb) => {
     const code = genRoomCode();
-    getRoom(code); // initialise
+    const room = getRoom(code); // initialise
+    room.hostId = socket.id;
+    room._creatorId = socket.id; // le créateur est toujours prioritaire comme hôte
     if (typeof cb === 'function') cb({ ok: true, roomCode: code });
   });
 
@@ -2606,7 +2608,10 @@ io.on('connection', (socket) => {
     const room = getRoom(currentRoom);
     const existing = room.players.get(socket.id) || {};
     room.players.set(socket.id, { name: playerName, score: existing.score || 0, errors: existing.errors || 0, ready: false, studentId: playerStudentId || existing.studentId || null });
-    if (!room.hostId || !room.players.has(room.hostId)) {
+    // Le créateur de la salle récupère toujours le statut d'hôte quand il rejoint
+    if (room._creatorId && room.players.has(room._creatorId)) {
+      room.hostId = room._creatorId;
+    } else if (!room.hostId || !room.players.has(room.hostId)) {
       room.hostId = socket.id; // premier connecté devient hôte
     }
     // Ne réinitialiser le statut à 'lobby' que si aucune session n'est active
