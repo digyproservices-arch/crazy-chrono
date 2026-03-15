@@ -33,6 +33,10 @@
       "dest": "/robots.txt"
     },
     {
+      "src": "/bot-tester\\.html",
+      "dest": "/bot-tester.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
