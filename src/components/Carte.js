@@ -3283,15 +3283,34 @@ function handleMouseUp() {
 }
 
 function handleGameClick(zone) {
+  // 🔍 DIAGNOSTIC: Log every call with all guard states
+  console.log('[CLICK-DIAG] handleGameClick CALLED', {
+    zoneId: zone?.id, zoneType: zone?.type,
+    content: String(zone?.content || zone?.label || '').substring(0, 40),
+    gameActive, assignBusy,
+    assignInFlight: assignInFlightRef.current,
+    processingPair: processingPairRef.current,
+    validated: zone?.validated,
+    gameSelectedIds: [...gameSelectedIds]
+  });
   // Ignore clicks during assignment transition to avoid race conditions
-  if (assignInFlightRef.current || assignBusy) return;
-  if (!gameActive || !zone) return;
-  // ✅ FIX DISPARITÉ: Ignorer zones déjà validées (masquées)
-  if (zone.validated) {
-    console.log('[GAME] Zone déjà validée, clic ignoré:', zone.id);
+  if (assignInFlightRef.current || assignBusy) {
+    console.warn('[CLICK-DIAG] ❌ REJECTED: assignInFlight or assignBusy', { assignInFlight: assignInFlightRef.current, assignBusy });
     return;
   }
-  if (processingPairRef.current) return; // verrou anti-double-clic
+  if (!gameActive || !zone) {
+    console.warn('[CLICK-DIAG] ❌ REJECTED: gameActive=' + gameActive + ' zone=' + !!zone);
+    return;
+  }
+  // ✅ FIX DISPARITÉ: Ignorer zones déjà validées (masquées)
+  if (zone.validated) {
+    console.warn('[CLICK-DIAG] ❌ REJECTED: zone.validated=true', zone.id);
+    return;
+  }
+  if (processingPairRef.current) {
+    console.warn('[CLICK-DIAG] ❌ REJECTED: processingPairRef=true');
+    return;
+  }
   // Déselection: clic sur une zone déjà sélectionnée = la retirer
   if (gameSelectedIds.includes(zone.id)) {
     setGameSelectedIds(prev => prev.filter(id => id !== zone.id));
@@ -7674,7 +7693,13 @@ setZones(dataWithRandomTexts);
               strokeWidth={2}
             />
           )}
-          {zones.filter(z => z && typeof z === 'object').map((zone, idx) => (
+          {[...zones.filter(z => z && typeof z === 'object')].sort((a, b) => {
+            // Render image zones first (behind), then text/calcul/chiffre on top
+            // Prevents image loupes from blocking text zone clicks
+            const aOrder = a.type === 'image' ? 0 : 1;
+            const bOrder = b.type === 'image' ? 0 : 1;
+            return aOrder - bOrder;
+          }).map((zone, idx) => (
             <g
               key={zone.id}
               data-zone-id={zone.id}
@@ -7775,9 +7800,12 @@ setZones(dataWithRandomTexts);
                 stroke={'none'}
                 pointerEvents="all"
                 onClick={(e) => {
+                  console.log('[CLICK-DIAG] <path> onClick', { zoneId: zone.id, type: zone.type, content: String(zone.content || '').substring(0, 30), gameActive });
                   if (gameActive && (zone.type === 'image' || zone.type === 'texte' || zone.type === 'chiffre' || zone.type === 'calcul')) {
                     e.stopPropagation();
                     handleGameClick(zone);
+                  } else {
+                    console.warn('[CLICK-DIAG] <path> onClick NOT forwarded to handleGameClick', { gameActive, type: zone.type });
                   }
                 }}
               />
@@ -7869,7 +7897,8 @@ setZones(dataWithRandomTexts);
       fontWeight="bold"
       pointerEvents="auto"
       style={{ cursor: 'pointer' }}
-      onClick={() => {
+      onClick={(e) => {
+        console.log('[CLICK-DIAG] <text> onClick', { zoneId: zone.id, type: zone.type, content: String(zone.content || '').substring(0, 30), gameActive, target: e?.target?.tagName });
         if (gameActive) {
           handleGameClick(zone);
         } else {
@@ -8653,7 +8682,7 @@ setZones(dataWithRandomTexts);
         const ov = soloGameEndOverlay;
         const ppm = ov.duration > 0 ? ((ov.score / ov.duration) * 60).toFixed(1) : '0';
         const hasRanking = Array.isArray(ov.ranking) && ov.ranking.length > 1;
-        const medals = ['🥇', '🥈', '🥉'];
+        const medals = ['', '', ''];
         return (
           <div
             style={{
@@ -8661,14 +8690,14 @@ setZones(dataWithRandomTexts);
               background: ov.mode === 'multiplayer'
                 ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.95) 0%, rgba(99, 102, 241, 0.95) 100%)'
                 : 'linear-gradient(135deg, rgba(20, 138, 156, 0.95) 0%, rgba(26, 172, 190, 0.95) 100%)',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              padding: isMobile ? '16px' : '32px',
+              display: 'flex',
               animation: 'fadeIn 0.5s ease-out',
               overflowY: 'auto'
             }}
           >
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: 'auto', width: '100%', padding: isMobile ? '16px' : '32px' }}>
             <div style={{ fontSize: isMobile ? 28 : 44, fontWeight: 900, color: '#fff', marginBottom: 24, textShadow: '0 4px 12px rgba(0,0,0,0.3)', animation: 'slideDown 0.6s ease-out' }}>
-              {ov.objectiveMode ? '🎯 Objectif atteint !' : ov.mode === 'solo' ? '🎯 Partie Solo terminée' : '🏆 Partie terminée'}
+              {ov.objectiveMode ? ' Objectif atteint !' : ov.mode === 'solo' ? ' Partie Solo terminée' : ' Partie terminée'}
             </div>
 
             {/* Score principal + gagnant MP */}
@@ -8861,6 +8890,7 @@ setZones(dataWithRandomTexts);
               >
                 Quitter
               </button>
+            </div>
             </div>
           </div>
         );
