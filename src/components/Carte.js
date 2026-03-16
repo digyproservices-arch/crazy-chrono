@@ -3284,31 +3284,31 @@ function handleMouseUp() {
 
 function handleGameClick(zone) {
   // 🔍 DIAGNOSTIC: Log every call with all guard states
-  console.log('[CLICK-DIAG] handleGameClick CALLED', {
+  try { addDiag('click:handleGameClick', {
     zoneId: zone?.id, zoneType: zone?.type,
     content: String(zone?.content || zone?.label || '').substring(0, 40),
     gameActive, assignBusy,
     assignInFlight: assignInFlightRef.current,
     processingPair: processingPairRef.current,
     validated: zone?.validated,
-    gameSelectedIds: [...gameSelectedIds]
-  });
+    selectedIds: [...gameSelectedIds]
+  }); } catch {}
   // Ignore clicks during assignment transition to avoid race conditions
   if (assignInFlightRef.current || assignBusy) {
-    console.warn('[CLICK-DIAG] ❌ REJECTED: assignInFlight or assignBusy', { assignInFlight: assignInFlightRef.current, assignBusy });
+    try { addDiag('click:REJECTED:assignBusy', { assignInFlight: assignInFlightRef.current, assignBusy, zoneId: zone?.id }); } catch {}
     return;
   }
   if (!gameActive || !zone) {
-    console.warn('[CLICK-DIAG] ❌ REJECTED: gameActive=' + gameActive + ' zone=' + !!zone);
+    try { addDiag('click:REJECTED:inactive', { gameActive, hasZone: !!zone }); } catch {}
     return;
   }
   // ✅ FIX DISPARITÉ: Ignorer zones déjà validées (masquées)
   if (zone.validated) {
-    console.warn('[CLICK-DIAG] ❌ REJECTED: zone.validated=true', zone.id);
+    try { addDiag('click:REJECTED:validated', { zoneId: zone.id }); } catch {}
     return;
   }
   if (processingPairRef.current) {
-    console.warn('[CLICK-DIAG] ❌ REJECTED: processingPairRef=true');
+    try { addDiag('click:REJECTED:processingPair', { zoneId: zone?.id }); } catch {}
     return;
   }
   // Déselection: clic sur une zone déjà sélectionnée = la retirer
@@ -7800,12 +7800,12 @@ setZones(dataWithRandomTexts);
                 stroke={'none'}
                 pointerEvents="all"
                 onClick={(e) => {
-                  console.log('[CLICK-DIAG] <path> onClick', { zoneId: zone.id, type: zone.type, content: String(zone.content || '').substring(0, 30), gameActive });
+                  try { addDiag('click:path', { zoneId: zone.id, type: zone.type, content: String(zone.content || '').substring(0, 30), gameActive }); } catch {}
                   if (gameActive && (zone.type === 'image' || zone.type === 'texte' || zone.type === 'chiffre' || zone.type === 'calcul')) {
                     e.stopPropagation();
                     handleGameClick(zone);
                   } else {
-                    console.warn('[CLICK-DIAG] <path> onClick NOT forwarded to handleGameClick', { gameActive, type: zone.type });
+                    try { addDiag('click:path:SKIPPED', { gameActive, type: zone.type, zoneId: zone.id }); } catch {}
                   }
                 }}
               />
@@ -7898,7 +7898,7 @@ setZones(dataWithRandomTexts);
       pointerEvents="auto"
       style={{ cursor: 'pointer' }}
       onClick={(e) => {
-        console.log('[CLICK-DIAG] <text> onClick', { zoneId: zone.id, type: zone.type, content: String(zone.content || '').substring(0, 30), gameActive, target: e?.target?.tagName });
+        try { addDiag('click:text', { zoneId: zone.id, type: zone.type, content: String(zone.content || '').substring(0, 30), gameActive }); } catch {}
         if (gameActive) {
           handleGameClick(zone);
         } else {
