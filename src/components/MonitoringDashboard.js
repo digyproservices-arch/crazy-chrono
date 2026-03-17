@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { getBackendUrl } from '../utils/apiHelpers';
 import { getRoundLogs, clearRoundLogs } from '../utils/roundLogger';
 import { getAuthLogs, clearAuthLogs } from '../utils/authLogger';
+import { getAllScreenshotMetas, getScreenshot } from '../utils/cardScreenshot';
 
 const COLORS = {
   bg: '#0f172a',
@@ -38,6 +39,9 @@ function MonitoringDashboard() {
   const [e2eScreenshots, setE2eScreenshots] = useState([]);
   const [e2eLoading, setE2eLoading] = useState(false);
   const [e2eSelectedImg, setE2eSelectedImg] = useState(null);
+  const [screenshotMetas, setScreenshotMetas] = useState([]);
+  const [screenshotViewImg, setScreenshotViewImg] = useState(null); // data URL for lightbox
+  const [screenshotLoading, setScreenshotLoading] = useState(false);
   const [e2eResults, setE2eResults] = useState([]);
   const [e2eResultsLoading, setE2eResultsLoading] = useState(false);
   const [e2eError, setE2eError] = useState(null);
@@ -250,11 +254,29 @@ const clearIncidents = async () => {
     }
   }, []);
 
+  const fetchScreenshotMetas = useCallback(() => {
+    try { setScreenshotMetas(getAllScreenshotMetas()); } catch {}
+  }, []);
+
+  const viewScreenshot = useCallback(async (roundId) => {
+    if (!roundId) return;
+    setScreenshotLoading(true);
+    try {
+      const dataUrl = await getScreenshot(roundId);
+      if (dataUrl) setScreenshotViewImg(dataUrl);
+      else alert('Screenshot non trouvé pour cette manche.');
+    } catch (e) {
+      console.warn('[Monitoring] Screenshot load failed:', e);
+    } finally {
+      setScreenshotLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    fetchIncidents(); fetchRoundLogs(); fetchAuthLogs();
+    fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas();
     setLoading(false);
     setLastRefresh(new Date());
-  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs]);
+  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas]);
 
   useEffect(() => {
     if (activeTab === 'incidents' || activeTab === 'report') {
@@ -594,9 +616,10 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     </div>
                     {roundLogs.length > 0 ? (
                       <div style={{ maxHeight: 250, overflowY: 'auto' }}>
-                        {roundLogs.slice(0, 15).map((r, i) => {
+                        {(() => { const _ssIds = new Set(screenshotMetas.map(m => m.roundId)); return roundLogs.slice(0, 15).map((r, i) => {
                           const hasIssue = r.doublePairIssues > 0;
                           const ts = r.timestamp ? new Date(r.timestamp).toLocaleString('fr-FR') : 'N/A';
+                          const hasSS = _ssIds.has(r.id);
                           return (
                             <div key={r.id || i} style={{
                               padding: '6px 10px',
@@ -616,6 +639,9 @@ sections.push(`===== FIN DU RAPPORT =====`);
                                   🚨 {r.doublePairIssues} DOUBLE PAIRE(S)
                                 </span>
                               )}
+                              {hasSS && (
+                                <button onClick={() => viewScreenshot(r.id)} disabled={screenshotLoading} title="Voir screenshot" style={{ marginLeft: 8, padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: '#3b82f6', color: '#fff', border: 'none', cursor: 'pointer' }}>📷</button>
+                              )}
                               {r.issues && r.issues.map((iss, j) => (
                                 <div key={j} style={{ marginLeft: 20, color: '#ef4444', fontSize: 11, marginTop: 2 }}>
                                   ⚠️ {iss.message || JSON.stringify(iss)}
@@ -623,7 +649,7 @@ sections.push(`===== FIN DU RAPPORT =====`);
                               ))}
                             </div>
                           );
-                        })}
+                        }); })()}
                       </div>
                     ) : (
                       <div style={{ padding: 12, color: COLORS.textMuted, textAlign: 'center' }}>
@@ -764,7 +790,9 @@ sections.push(`===== FIN DU RAPPORT =====`);
 
 
             {/* ====== ROUNDS TAB ====== */}
-            {activeTab === 'rounds' && (
+            {activeTab === 'rounds' && (() => {
+              const ssRoundIds = new Set(screenshotMetas.map(m => m.roundId));
+              return (
               <div>
                 <div style={{ ...cardStyle, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                   <h3 style={{ margin: 0, fontSize: 16, fontWeight: 'bold' }}>🎮 Historique des manches jouées ({roundLogs.length})</h3>
@@ -809,6 +837,7 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     {roundLogs.map((r, i) => {
                       const hasIssue = r.doublePairIssues > 0;
                       const ts = r.timestamp ? new Date(r.timestamp).toLocaleString('fr-FR') : 'N/A';
+                      const hasSS = ssRoundIds.has(r.id);
                       return (
                         <div key={r.id || i} style={{
                           ...cardStyle,
@@ -817,12 +846,22 @@ sections.push(`===== FIN DU RAPPORT =====`);
                           background: hasIssue ? 'rgba(239,68,68,0.05)' : COLORS.card,
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                            <div>
-                              <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: hasIssue ? '#ef4444' : '#10b981', color: '#fff', marginRight: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: hasIssue ? '#ef4444' : '#10b981', color: '#fff' }}>
                                 {r.mode}
                               </span>
                               <span style={{ color: COLORS.textMuted, fontSize: 12 }}>{ts}</span>
-                              {hasIssue && <span style={{ color: '#ef4444', fontWeight: 700, marginLeft: 12, fontSize: 13 }}>🚨 {r.doublePairIssues} DOUBLE PAIRE(S)</span>}
+                              {hasIssue && <span style={{ color: '#ef4444', fontWeight: 700, fontSize: 13 }}>🚨 {r.doublePairIssues} DOUBLE PAIRE(S)</span>}
+                              {hasSS && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); viewScreenshot(r.id); }}
+                                  disabled={screenshotLoading}
+                                  title="Voir le screenshot de la carte"
+                                  style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: '#3b82f6', color: '#fff', border: 'none', cursor: 'pointer', opacity: screenshotLoading ? 0.5 : 1 }}
+                                >
+                                  {screenshotLoading ? '...' : '📷 Voir'}
+                                </button>
+                              )}
                             </div>
                             <span style={{ color: COLORS.textMuted, fontSize: 11 }}>
                               {r.validPairs} paire(s) | {r.summary?.totalZones || '?'} zones | {r.summary?.byType ? Object.entries(r.summary.byType).map(([k,v]) => `${k}:${v}`).join(' ') : ''}
@@ -875,7 +914,7 @@ sections.push(`===== FIN DU RAPPORT =====`);
                   </div>
                 )}
               </div>
-            )}
+            );})()}
 
 
             {/* ====== E2E CENTRE DE CONTRÔLE ====== */}
@@ -1516,6 +1555,18 @@ sections.push(`===== FIN DU RAPPORT =====`);
             )}
 
           </>
+        )}
+
+        {/* 📷 Screenshot Lightbox */}
+        {screenshotViewImg && (
+          <div onClick={() => setScreenshotViewImg(null)} style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 10000, cursor: 'zoom-out', padding: 20, flexDirection: 'column', gap: 16,
+          }}>
+            <div style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>📷 Screenshot de la carte — cliquez pour fermer</div>
+            <img src={screenshotViewImg} alt="Screenshot carte" style={{ maxWidth: '95vw', maxHeight: '85vh', borderRadius: 8, boxShadow: '0 4px 30px rgba(0,0,0,0.5)' }} />
+          </div>
         )}
       </div>
     </div>

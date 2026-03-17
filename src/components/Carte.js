@@ -9,6 +9,7 @@ import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck }
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
 import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError, reportIncident as incidentReportIncident, INCIDENT_TYPES as INCIDENT_TYPES_TRACKER } from '../utils/gameIncidentTracker';
 import { logRound } from '../utils/roundLogger';
+import { captureCardScreenshot } from '../utils/cardScreenshot';
 import { isFree, canStartSessionToday, incrementSessionCount, setSubscriptionStatus, getDailyCounts } from '../utils/subscription';
 
 import { initMasteryTracker, resetMasterySession, recordPair as masteryRecordPair, getActiveSessionProgress, getMasteryProgress, isMasteryReady, syncToServer as masterySyncToServer, loadFromServer as masteryLoadFromServer } from '../utils/masteryTracker';
@@ -1431,7 +1432,7 @@ const Carte = () => {
             console.log('[TRAINING] 🎮 Chargement zones:', trainingData.zones.length);
             trainingData.zones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
             try { incidentValidateZones(trainingData.zones, { source: 'training:initial' }); } catch {}
-            try { logRound(trainingData.zones, { mode: 'training', source: 'training:initial' }); } catch {}
+            try { const _rl = logRound(trainingData.zones, { mode: 'training', source: 'training:initial' }); if (_rl && _rl.doublePairIssues > 0) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues, mode: 'training' }; } catch {}
             try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: trainingData.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: trainingData.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
             setZones(trainingData.zones);
             // ✅ FIX: Synchroniser calcAngles depuis les angles serveur dès le chargement initial
@@ -1509,7 +1510,7 @@ const Carte = () => {
         if (Array.isArray(zones)) {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
           cleanZones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
-          try { logRound(cleanZones, { mode: 'training', source: 'training:round-new' }); } catch {}
+          try { const _rl = logRound(cleanZones, { mode: 'training', source: 'training:round-new' }); if (_rl && _rl.doublePairIssues > 0) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues, mode: 'training' }; } catch {}
           try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: cleanZones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: cleanZones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
           setZones(cleanZones);
           // ✅ FIX: Synchroniser calcAngles depuis les angles serveur pour éviter que le localStorage ne les écrase
@@ -1762,7 +1763,7 @@ const Carte = () => {
         const cleanZones = Array.isArray(zones) ? zones.map(z => ({ ...z, validated: false })) : [];
         cleanZones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
         try { incidentValidateZones(cleanZones, { source: 'arena:tiebreaker' }); } catch {}
-        try { logRound(cleanZones, { mode: 'arena', source: 'arena:tiebreaker' }); } catch {}
+        try { const _rl = logRound(cleanZones, { mode: 'arena', source: 'arena:tiebreaker' }); if (_rl && _rl.doublePairIssues > 0) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues, mode: 'arena' }; } catch {}
         
         // Mettre à jour React directement (pas de reload)
         setZones(cleanZones);
@@ -1830,7 +1831,7 @@ const Carte = () => {
         if (Array.isArray(zones)) {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
           cleanZones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
-          try { logRound(cleanZones, { mode: 'arena', source: 'arena:round-new' }); } catch {}
+          try { const _rl = logRound(cleanZones, { mode: 'arena', source: 'arena:round-new' }); if (_rl && _rl.doublePairIssues > 0) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues, mode: 'arena' }; } catch {}
           try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: cleanZones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: cleanZones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
           setZones(cleanZones);
           // ✅ FIX: Synchroniser calcAngles depuis les angles serveur pour éviter que le localStorage ne les écrase
@@ -2007,7 +2008,7 @@ const Carte = () => {
           if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
             payload.zones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
             try { incidentValidateZones(payload.zones, { source: 'gs:round-new' }); } catch {}
-            try { logRound(payload.zones, { mode: 'gs', source: 'gs:round-new' }); } catch {}
+            try { const _rl = logRound(payload.zones, { mode: 'gs', source: 'gs:round-new' }); if (_rl && _rl.doublePairIssues > 0) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues, mode: 'gs' }; } catch {}
             try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: payload.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: payload.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
             setZones(payload.zones);
             // FIX: Sync customTextSettings pour afficher le bon contenu texte
@@ -2330,7 +2331,7 @@ const Carte = () => {
         console.log('[CC][client] MULTIPLAYER MODE: Using server-generated zones:', payload.zones.length);
         payload.zones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
         try { incidentValidateZones(payload.zones, { source: 'multiplayer:round-new' }); } catch {}
-        try { logRound(payload.zones, { mode: 'multiplayer', source: 'multiplayer:round-new' }); } catch {}
+        try { const _rl = logRound(payload.zones, { mode: 'multiplayer', source: 'multiplayer:round-new' }); if (_rl && _rl.doublePairIssues > 0) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues, mode: 'multiplayer' }; } catch {}
         
         const zonesWithPairId = payload.zones.filter(z => z.pairId);
         addDiag('zones:received', {
@@ -2670,6 +2671,17 @@ const Carte = () => {
   // ✅ CRITIQUE: Ref mutable pour zones (évite stale closure dans Socket handlers)
   const zonesRef = useRef([]);
   useEffect(() => { zonesRef.current = zones; }, [zones]);
+  // 📷 Screenshot automatique après rendu quand un incident a été détecté
+  useEffect(() => {
+    if (!pendingScreenshotRef.current || !gameContainerRef.current) return;
+    const { roundId, issues, mode } = pendingScreenshotRef.current;
+    pendingScreenshotRef.current = null;
+    // Délai pour laisser React rendre + images charger
+    const timer = setTimeout(() => {
+      try { captureCardScreenshot(gameContainerRef.current, roundId, { issues, mode }); } catch (e) { console.warn('[Screenshot] capture failed:', e); }
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [zones]);
   // ✅ CRITIQUE: Ref pour setTimeout de setGameActive (clearTimeout si double arena:round-new)
   const gameActiveTimeoutRef = useRef(null);
   // Map rapide id -> zone pour récupérer les textes même après reshuffle
@@ -2727,6 +2739,7 @@ const Carte = () => {
   const [masteryEvent, setMasteryEvent] = useState(null);
   const [masteryProgress, setMasteryProgress] = useState([]);
   const gameContainerRef = useRef(null);
+  const pendingScreenshotRef = useRef(null);
   // Timestamp du premier clic pour mesurer la latence d'une tentative
   const firstClickTsRef = useRef(0);
   // Timer pour détecter l'absence de 'round:new' après un démarrage multi (déclaré plus haut)
@@ -4679,7 +4692,7 @@ setZones(dataWithRandomTexts);
         console.log('[CC] Objective mode pairId zones:', pairZones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 40), pairId: z.pairId })));
         // Monitoring: valider les zones en mode objectif aussi
         try { incidentValidateZones(post, { source: 'objective:assignElements', assocData: assocData?.associations }); } catch {}
-        try { logRound(post, { mode: 'objective', source: 'objective:assignElements', assocData }); } catch {}
+        try { const _rl = logRound(post, { mode: 'objective', source: 'objective:assignElements', assocData }); if (_rl && _rl.doublePairIssues > 0) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues, mode: 'objective' }; } catch {}
         // Détection fausses paires visuelles texte-image via associations
         try {
           if (assocData && assocData.associations) {
@@ -6777,7 +6790,7 @@ setZones(dataWithRandomTexts);
       try { window.ccAddDiag && window.ccAddDiag('zones:assigned', post); } catch {}
       // Vérifier les anomalies sur les zones générées
       try { incidentValidateZones(post, { source: 'solo:assignElements', assocData: assocData?.associations }); } catch {}
-      try { logRound(post, { mode: 'solo', source: 'solo:assignElements', assocData }); } catch {}
+      try { const _rl = logRound(post, { mode: 'solo', source: 'solo:assignElements', assocData }); if (_rl && _rl.doublePairIssues > 0) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues, mode: 'solo' }; } catch {}
       // Détection fausses paires visuelles texte-image via associations (mode solo)
       try {
         if (assocData && assocData.associations) {
