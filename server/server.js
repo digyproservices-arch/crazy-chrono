@@ -2162,10 +2162,13 @@ function gsEndRound(salleId) {
   const shouldEliminate = (salle.roundsPlayed % salle.config.roundsPerElimination) === 0;
   const activePlayers = Array.from(salle.players.values()).filter(p => !p.eliminated);
   
-  if (shouldEliminate && activePlayers.length > 2) {
-    gsEliminationWave(salleId);
-  } else if (activePlayers.length <= 1) {
+  if (activePlayers.length <= 1) {
     gsFinish(salleId);
+  } else if (activePlayers.length === 2 && shouldEliminate) {
+    // Final duel: eliminate the lower scorer, game ends
+    gsEliminationWave(salleId);
+  } else if (shouldEliminate && activePlayers.length > 2) {
+    gsEliminationWave(salleId);
   } else {
     // Next round after short pause
     setTimeout(() => {

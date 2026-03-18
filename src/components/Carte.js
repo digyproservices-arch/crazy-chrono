@@ -1431,8 +1431,8 @@ const Carte = () => {
           if (trainingData.zones && Array.isArray(trainingData.zones)) {
             console.log('[TRAINING] 🎮 Chargement zones:', trainingData.zones.length);
             trainingData.zones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
-            try { incidentValidateZones(trainingData.zones, { source: 'training:initial' }); } catch {}
-            try { const _rl = logRound(trainingData.zones, { mode: 'training', source: 'training:initial' }); if (_rl && _rl.doublePairIssues > 0) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues, mode: 'training' }; } catch {}
+            let _trInc = []; try { _trInc = incidentValidateZones(trainingData.zones, { source: 'training:initial' }) || []; } catch {}
+            try { const _rl = logRound(trainingData.zones, { mode: 'training', source: 'training:initial' }); if (_rl && (_rl.doublePairIssues > 0 || _trInc.length > 0)) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues.length > 0 ? _rl.issues : _trInc, mode: 'training' }; } catch {}
             try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: trainingData.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: trainingData.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
             setZones(trainingData.zones);
             // ✅ FIX: Synchroniser calcAngles depuis les angles serveur dès le chargement initial
@@ -1510,7 +1510,8 @@ const Carte = () => {
         if (Array.isArray(zones)) {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
           cleanZones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
-          try { const _rl = logRound(cleanZones, { mode: 'training', source: 'training:round-new' }); if (_rl && _rl.doublePairIssues > 0) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues, mode: 'training' }; } catch {}
+          let _trInc2 = []; try { _trInc2 = incidentValidateZones(cleanZones, { source: 'training:round-new' }) || []; } catch {}
+          try { const _rl = logRound(cleanZones, { mode: 'training', source: 'training:round-new' }); if (_rl && (_rl.doublePairIssues > 0 || _trInc2.length > 0)) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues.length > 0 ? _rl.issues : _trInc2, mode: 'training' }; } catch {}
           try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: cleanZones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: cleanZones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
           setZones(cleanZones);
           // ✅ FIX: Synchroniser calcAngles depuis les angles serveur pour éviter que le localStorage ne les écrase
@@ -1762,8 +1763,8 @@ const Carte = () => {
         // ✅ FIX: Nettoyer validated=false pour rendre zones cliquables
         const cleanZones = Array.isArray(zones) ? zones.map(z => ({ ...z, validated: false })) : [];
         cleanZones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
-        try { incidentValidateZones(cleanZones, { source: 'arena:tiebreaker' }); } catch {}
-        try { const _rl = logRound(cleanZones, { mode: 'arena', source: 'arena:tiebreaker' }); if (_rl && _rl.doublePairIssues > 0) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues, mode: 'arena' }; } catch {}
+        let _arInc = []; try { _arInc = incidentValidateZones(cleanZones, { source: 'arena:tiebreaker' }) || []; } catch {}
+        try { const _rl = logRound(cleanZones, { mode: 'arena', source: 'arena:tiebreaker' }); if (_rl && (_rl.doublePairIssues > 0 || _arInc.length > 0)) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues.length > 0 ? _rl.issues : _arInc, mode: 'arena' }; } catch {}
         
         // Mettre à jour React directement (pas de reload)
         setZones(cleanZones);
@@ -1831,7 +1832,8 @@ const Carte = () => {
         if (Array.isArray(zones)) {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
           cleanZones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
-          try { const _rl = logRound(cleanZones, { mode: 'arena', source: 'arena:round-new' }); if (_rl && _rl.doublePairIssues > 0) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues, mode: 'arena' }; } catch {}
+          let _arInc2 = []; try { _arInc2 = incidentValidateZones(cleanZones, { source: 'arena:round-new' }) || []; } catch {}
+          try { const _rl = logRound(cleanZones, { mode: 'arena', source: 'arena:round-new' }); if (_rl && (_rl.doublePairIssues > 0 || _arInc2.length > 0)) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues.length > 0 ? _rl.issues : _arInc2, mode: 'arena' }; } catch {}
           try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: cleanZones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: cleanZones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
           setZones(cleanZones);
           // ✅ FIX: Synchroniser calcAngles depuis les angles serveur pour éviter que le localStorage ne les écrase
@@ -2007,8 +2009,8 @@ const Carte = () => {
           try { if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } } catch {}
           if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
             payload.zones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
-            try { incidentValidateZones(payload.zones, { source: 'gs:round-new' }); } catch {}
-            try { const _rl = logRound(payload.zones, { mode: 'gs', source: 'gs:round-new' }); if (_rl && _rl.doublePairIssues > 0) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues, mode: 'gs' }; } catch {}
+            let _gsIncidents = []; try { _gsIncidents = incidentValidateZones(payload.zones, { source: 'gs:round-new' }) || []; } catch {}
+            try { const _rl = logRound(payload.zones, { mode: 'gs', source: 'gs:round-new' }); if (_rl && (_rl.doublePairIssues > 0 || _gsIncidents.length > 0)) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues.length > 0 ? _rl.issues : _gsIncidents, mode: 'gs' }; } catch {}
             try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: payload.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: payload.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
             setZones(payload.zones);
             // FIX: Sync customTextSettings pour afficher le bon contenu texte
@@ -2335,8 +2337,8 @@ const Carte = () => {
       if (hasServerZones) {
         console.log('[CC][client] MULTIPLAYER MODE: Using server-generated zones:', payload.zones.length);
         payload.zones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
-        try { incidentValidateZones(payload.zones, { source: 'multiplayer:round-new' }); } catch {}
-        try { const _rl = logRound(payload.zones, { mode: 'multiplayer', source: 'multiplayer:round-new' }); if (_rl && _rl.doublePairIssues > 0) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues, mode: 'multiplayer' }; } catch {}
+        let _mpInc = []; try { _mpInc = incidentValidateZones(payload.zones, { source: 'multiplayer:round-new' }) || []; } catch {}
+        try { const _rl = logRound(payload.zones, { mode: 'multiplayer', source: 'multiplayer:round-new' }); if (_rl && (_rl.doublePairIssues > 0 || _mpInc.length > 0)) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues.length > 0 ? _rl.issues : _mpInc, mode: 'multiplayer' }; } catch {}
         
         const zonesWithPairId = payload.zones.filter(z => z.pairId);
         addDiag('zones:received', {
@@ -4696,8 +4698,8 @@ setZones(dataWithRandomTexts);
         const pairZones = post.filter(z => z.pairId);
         console.log('[CC] Objective mode pairId zones:', pairZones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 40), pairId: z.pairId })));
         // Monitoring: valider les zones en mode objectif aussi
-        try { incidentValidateZones(post, { source: 'objective:assignElements', assocData: assocData?.associations }); } catch {}
-        try { const _rl = logRound(post, { mode: 'objective', source: 'objective:assignElements', assocData }); if (_rl && _rl.doublePairIssues > 0) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues, mode: 'objective' }; } catch {}
+        let _objInc = []; try { _objInc = incidentValidateZones(post, { source: 'objective:assignElements', assocData: assocData?.associations }) || []; } catch {}
+        try { const _rl = logRound(post, { mode: 'objective', source: 'objective:assignElements', assocData }); if (_rl && (_rl.doublePairIssues > 0 || _objInc.length > 0)) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues.length > 0 ? _rl.issues : _objInc, mode: 'objective' }; } catch {}
         // Détection fausses paires visuelles texte-image via associations
         try {
           if (assocData && assocData.associations) {
@@ -6789,18 +6791,14 @@ setZones(dataWithRandomTexts);
       } catch (e) { console.warn('[CC][SOLO] Erreur anti-fausse-paire:', e); }
       setZones(post);
       setCustomTextSettings(newTextSettings);
-      localStorage.setItem('zones', JSON.stringify(post));
-      console.log('Zones après attribution automatique (post-traitées) :', post);
       // Enregistrer dans le diagnostic global pour analyse
       try { window.ccAddDiag && window.ccAddDiag('zones:assigned', post); } catch {}
       // Vérifier les anomalies sur les zones générées
-      try { incidentValidateZones(post, { source: 'solo:assignElements', assocData: assocData?.associations }); } catch {}
-      try { const _rl = logRound(post, { mode: 'solo', source: 'solo:assignElements', assocData }); if (_rl && _rl.doublePairIssues > 0) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues, mode: 'solo' }; } catch {}
+      let _soloInc = []; try { _soloInc = incidentValidateZones(post, { source: 'solo:assignElements', assocData: assocData?.associations }) || []; } catch {}
+      try { const _rl = logRound(post, { mode: 'solo', source: 'solo:assignElements', assocData }); if (_rl && (_rl.doublePairIssues > 0 || _soloInc.length > 0)) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues.length > 0 ? _rl.issues : _soloInc, mode: 'solo' }; } catch {}
       // Détection fausses paires visuelles texte-image via associations (mode solo)
       try {
         if (assocData && assocData.associations) {
-          const _imgTxtSet = new Set((assocData.associations || []).filter(a => a.imageId && a.texteId).map(a => `${a.imageId}|${a.texteId}`));
-          const _normUrl = (p) => { if (!p) return ''; try { p = decodeURIComponent(p); } catch {} return p.toLowerCase().replace(/\\/g, '/').split('/').pop(); };
           const _imgIdByFile = new Map((assocData.images || []).map(i => [_normUrl(i.url), String(i.id)]));
           const _txtIdByCont = new Map((assocData.textes || []).map(t => [String(t.content || '').trim().toLowerCase(), String(t.id)]));
           const _distImgs = post.filter(z => z.isDistractor && (z.type || 'image') === 'image' && z.content);
