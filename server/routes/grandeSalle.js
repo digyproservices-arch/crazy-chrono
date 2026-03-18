@@ -37,6 +37,25 @@ async function requireAdmin(req, res, next) {
   }
 }
 
+// ===== GET /api/gs/status — État de la Grande Salle publique (pour bannière /modes) =====
+router.get('/status', (req, res) => {
+  try {
+    const grandeSalles = req.app.locals.grandeSalles;
+    const salle = grandeSalles?.get('grande-salle-publique');
+    if (!salle) return res.json({ ok: true, playerCount: 0, status: 'empty', autoStartCountdown: null });
+    res.json({
+      ok: true,
+      playerCount: salle.players.size,
+      status: salle.status,
+      activePlayers: Array.from(salle.players.values()).filter(p => !p.eliminated).length,
+      autoStartCountdown: salle.autoStartCountdown || null,
+      sessionActive: salle.sessionActive,
+    });
+  } catch (e) {
+    res.json({ ok: true, playerCount: 0, status: 'error' });
+  }
+});
+
 // ===== GET /api/gs/tournaments — Liste des tournois (public) =====
 router.get('/tournaments', async (req, res) => {
   const supabaseAdmin = req.app.locals.supabaseAdmin;

@@ -2072,8 +2072,13 @@ const Carte = () => {
           console.log('[CC][GS] gs:elimination', data);
           const amEliminated = data?.eliminated?.some(e => e.id === s.id);
           if (amEliminated) {
+            // Navigate back to GrandeSalle for elimination screen with score/rank + spectator choice
             setGameActive(false);
-            setMpMsg('Vous avez été éliminé ! Mode spectateur...');
+            try { localStorage.setItem('cc_gs_elimination', JSON.stringify(data)); } catch {}
+            try { localStorage.removeItem('cc_gs_round'); } catch {}
+            try { s.disconnect(); } catch {}
+            try { navigate('/grande-salle'); } catch {}
+            return;
           } else {
             setMpMsg(`Vague ${data?.wave || '?'} — ${data?.eliminated?.length || 0} joueurs éliminés. ${data?.remainingCount || '?'} restants.`);
           }

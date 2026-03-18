@@ -220,7 +220,7 @@ app.use('/api/gs', grandeSalleRoutes);
 // ===== Auth Routes (Licences professionnelles) =====
 const authRoutes = require('./routes/auth');
 
-// Exposer supabaseAdmin pour les routes
+// Exposer supabaseAdmin et grandeSalles pour les routes
 app.locals.supabaseAdmin = supabaseAdmin;
 
 // Monter les routes auth (après création de supabaseAdmin)
@@ -1956,6 +1956,7 @@ const rooms = new Map();
 // Pas de limite de joueurs, course éliminatoire
 // ==========================================
 const grandeSalles = new Map(); // Map<salleId, GrandeSalleState>
+app.locals.grandeSalles = grandeSalles; // Expose for /api/gs/status route
 
 function createGrandeSalle(id, config = {}) {
   const salle = {
@@ -1975,6 +1976,8 @@ function createGrandeSalle(id, config = {}) {
     eliminationWave: 0,
     roundTimer: null,
     countdownTimer: null,
+    autoStartTimer: null,      // Auto-start: interval that ticks every second
+    autoStartCountdown: null,  // Auto-start: seconds remaining before auto-start
     sessionActive: false,
     currentZones: null,
     roundSeed: null,
@@ -1988,6 +1991,60 @@ function createGrandeSalle(id, config = {}) {
   grandeSalles.set(id, salle);
   console.log(`[GS] Grande Salle "${id}" created`);
   return salle;
+}
+
+const GS_AUTO_START_DELAY = 60; // seconds before auto-start when >= minPlayers
+
+function gsCheckAutoStart(salleId) {
+  const salle = grandeSalles.get(salleId);
+  if (!salle || salle.sessionActive || salle.status !== 'lobby') return;
+  
+  const playerCount = salle.players.size;
+  const minPlayers = salle.config.minPlayersToStart || 3;
+  
+  if (playerCount >= minPlayers && !salle.autoStartTimer) {
+    // Start the auto-start countdown
+    salle.autoStartCountdown = GS_AUTO_START_DELAY;
+    console.log(`[GS] Auto-start countdown started for "${salleId}" (${playerCount} players, ${GS_AUTO_START_DELAY}s)`);
+    io.to(`gs:${salleId}`).emit('gs:lobby-countdown', { t: salle.autoStartCountdown, total: GS_AUTO_START_DELAY });
+    
+    salle.autoStartTimer = setInterval(() => {
+      const s = grandeSalles.get(salleId);
+      if (!s || s.sessionActive || s.status !== 'lobby') {
+        clearInterval(s?.autoStartTimer); if (s) { s.autoStartTimer = null; s.autoStartCountdown = null; }
+        return;
+      }
+      s.autoStartCountdown--;
+      io.to(`gs:${salleId}`).emit('gs:lobby-countdown', { t: s.autoStartCountdown, total: GS_AUTO_START_DELAY });
+      
+      if (s.autoStartCountdown <= 0) {
+        clearInterval(s.autoStartTimer); s.autoStartTimer = null; s.autoStartCountdown = null;
+        // Auto-start the game
+        const count = s.players.size;
+        if (count >= (s.config.minPlayersToStart || 3)) {
+          console.log(`[GS] Auto-starting Grande Salle "${salleId}" with ${count} players`);
+          s.sessionActive = true;
+          s.startedAt = Date.now();
+          s.status = 'countdown';
+          for (const [, p] of s.players.entries()) { p.score = 0; p.errors = 0; p.rank = 0; p.eliminated = false; }
+          s.roundsPlayed = 0; s.eliminationWave = 0; s.validatedPairIds = new Set();
+          gsEmitState(salleId);
+          let t = 5;
+          io.to(`gs:${salleId}`).emit('gs:countdown', { t });
+          const intv = setInterval(() => {
+            t -= 1;
+            if (t > 0) { io.to(`gs:${salleId}`).emit('gs:countdown', { t }); }
+            else { clearInterval(intv); gsStartRound(salleId); }
+          }, 1000);
+        }
+      }
+    }, 1000);
+  } else if (playerCount < minPlayers && salle.autoStartTimer) {
+    // Cancel auto-start if not enough players anymore
+    clearInterval(salle.autoStartTimer); salle.autoStartTimer = null; salle.autoStartCountdown = null;
+    io.to(`gs:${salleId}`).emit('gs:lobby-countdown', { t: null, total: GS_AUTO_START_DELAY });
+    console.log(`[GS] Auto-start cancelled for "${salleId}" (only ${playerCount} players)`);
+  }
 }
 
 function getOrCreateDefaultGrandeSalle() {
@@ -2129,7 +2186,14 @@ function gsEliminationWave(salleId) {
     .filter(([, p]) => !p.eliminated)
     .sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
   
-  const eliminateCount = Math.max(1, Math.floor(activePlayers.length * salle.config.eliminationPercent / 100));
+  // Adaptive elimination: higher % when many players, lower when few remain
+  const n = activePlayers.length;
+  let elimPct;
+  if (n >= 30)      elimPct = 40;  // 30+ players: eliminate 40%
+  else if (n >= 15)  elimPct = 33;  // 15-29: eliminate 33%
+  else if (n >= 8)   elimPct = 30;  // 8-14: eliminate 30%
+  else               elimPct = salle.config.eliminationPercent || 25; // <8: default 25%
+  const eliminateCount = Math.max(1, Math.floor(n * elimPct / 100));
   const toEliminate = activePlayers.slice(-eliminateCount); // lowest scorers
   
   const eliminatedNames = [];
@@ -2137,7 +2201,7 @@ function gsEliminationWave(salleId) {
     p.eliminated = true;
     p.eliminatedWave = salle.eliminationWave;
     p.finalRank = activePlayers.length - eliminatedNames.length;
-    eliminatedNames.push({ id, name: p.name, score: p.score || 0 });
+    eliminatedNames.push({ id, name: p.name, score: p.score || 0, finalRank: p.finalRank });
     // Move to spectators
     salle.spectators.add(id);
   }
@@ -2151,6 +2215,7 @@ function gsEliminationWave(salleId) {
     eliminated: eliminatedNames,
     remainingCount: remaining,
     totalPlayers: salle.players.size,
+    elimPct,
   });
   
   gsEmitState(salleId);
@@ -3242,10 +3307,12 @@ io.on('connection', (socket) => {
         joinedAt: Date.now(),
       });
       console.log(`[GS] ${playerName} joined "${id}" (${salle.players.size} players)`);
+      // Check auto-start when a new player joins the lobby
+      gsCheckAutoStart(id);
     }
     
     gsEmitState(id);
-    if (typeof cb === 'function') cb({ ok: true, salleId: id, status: salle.status, playerCount: salle.players.size, tournamentTitle: salle.tournamentTitle || null });
+    if (typeof cb === 'function') cb({ ok: true, salleId: id, status: salle.status, playerCount: salle.players.size, tournamentTitle: salle.tournamentTitle || null, autoStartCountdown: salle.autoStartCountdown });
   });
 
   socket.on('gs:leave', () => {
@@ -3264,6 +3331,8 @@ io.on('connection', (socket) => {
         salle.players.delete(socket.id);
         salle.spectators.delete(socket.id);
         console.log(`[GS] Player left "${currentGS}" (${salle.players.size} remaining)`);
+        // Re-check auto-start (might cancel if below minimum)
+        gsCheckAutoStart(currentGS);
       }
       socket.leave(`gs:${currentGS}`);
       gsEmitState(currentGS);
@@ -3282,6 +3351,9 @@ io.on('connection', (socket) => {
       if (typeof cb === 'function') cb({ ok: false, error: `Minimum ${salle.config.minPlayersToStart} joueurs requis (${playerCount} actuellement)` });
       return;
     }
+    
+    // Cancel auto-start timer if manual start
+    if (salle.autoStartTimer) { clearInterval(salle.autoStartTimer); salle.autoStartTimer = null; salle.autoStartCountdown = null; }
     
     console.log(`[GS] Starting Grande Salle "${id}" with ${playerCount} players`);
     salle.sessionActive = true;

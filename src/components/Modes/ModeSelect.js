@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import TeacherModeSelector from '../Teacher/TeacherModeSelector';
 import { isFree } from '../../utils/subscription';
+import { getBackendUrl } from '../../utils/subscription';
 import Onboarding, { shouldShowOnboarding } from '../Onboarding';
 import InteractiveDemo from '../InteractiveDemo';
 
@@ -11,6 +12,7 @@ export default function ModeSelect({ auth: authProp }) {
   const [history, setHistory] = React.useState([]);
   const [showAll, setShowAll] = React.useState(false);
   const [showOnboarding, setShowOnboarding] = React.useState(() => shouldShowOnboarding());
+  const [gsStatus, setGsStatus] = React.useState(null); // { playerCount, status, autoStartCountdown }
   
   // Utiliser le prop auth (de App.js) avec fallback localStorage
   const auth = React.useMemo(() => {
@@ -28,6 +30,20 @@ export default function ModeSelect({ auth: authProp }) {
       const h = JSON.parse(localStorage.getItem('cc_history') || '[]');
       setHistory(Array.isArray(h) ? h : []);
     } catch { setHistory([]); }
+  }, []);
+
+  // Poll Grande Salle player count every 10s
+  React.useEffect(() => {
+    if (isFree()) return;
+    const fetchGS = () => {
+      fetch(`${getBackendUrl()}/api/gs/status`)
+        .then(r => r.json())
+        .then(d => { if (d.ok) setGsStatus(d); })
+        .catch(() => {});
+    };
+    fetchGS();
+    const intv = setInterval(fetchGS, 10000);
+    return () => clearInterval(intv);
   }, []);
 
   // Si professeur/admin, afficher TeacherModeSelector (Training/Arena)
@@ -137,13 +153,29 @@ export default function ModeSelect({ auth: authProp }) {
               gradient="linear-gradient(135deg, #F5A623 0%, #d4900e 100%)"
               onClick={() => go('online')} 
             />
-            <Card 
-              title="Grande Salle" 
-              subtitle="Course éliminatoire ouverte à tous les abonnés !"
-              icon="🏟️"
-              gradient="linear-gradient(135deg, #ff6b35 0%, #F5A623 100%)"
-              onClick={() => navigate('/grande-salle')} 
-            />
+            <div style={{ position: 'relative' }}>
+              {gsStatus && gsStatus.playerCount > 0 && (
+                <div onClick={() => navigate('/grande-salle')} style={{
+                  position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', zIndex: 2,
+                  background: 'linear-gradient(135deg, #ef4444, #f97316)', color: '#fff',
+                  padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 800,
+                  cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(239,68,68,0.4)',
+                  animation: 'pulse 2s ease-in-out infinite',
+                }}>
+                  🔴 {gsStatus.playerCount} joueur{gsStatus.playerCount > 1 ? 's' : ''} en attente
+                  {gsStatus.autoStartCountdown > 0 && ` — ${gsStatus.autoStartCountdown}s`}
+                </div>
+              )}
+              <Card 
+                title="Grande Salle" 
+                subtitle={gsStatus && gsStatus.playerCount > 0 
+                  ? `${gsStatus.playerCount} joueur${gsStatus.playerCount > 1 ? 's' : ''} en attente — rejoignez vite !`
+                  : "Course éliminatoire ouverte à tous les abonnés !"}
+                icon="🏟️"
+                gradient="linear-gradient(135deg, #ff6b35 0%, #F5A623 100%)"
+                onClick={() => navigate('/grande-salle')} 
+              />
+            </div>
           </>
         )}
         {!isFree() ? (
@@ -217,6 +249,7 @@ export default function ModeSelect({ auth: authProp }) {
           </div>
         </section>
       )}
+      <style>{`@keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.8; } }`}</style>
     </div>
   );
 }

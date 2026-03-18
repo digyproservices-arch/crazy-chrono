@@ -29,6 +29,8 @@ export default function GrandeSalle() {
   const [roundTimeLeft, setRoundTimeLeft] = useState(null);
   const [tournamentTitle, setTournamentTitle] = useState(null);
   const [upcomingTournaments, setUpcomingTournaments] = useState([]);
+  const [lobbyCountdown, setLobbyCountdown] = useState(null);
+  const [eliminatedData, setEliminatedData] = useState(null);
   const roundTimerRef = useRef(null);
 
   useEffect(() => { if (isFree()) navigate('/pricing', { replace: true }); }, [navigate]);
@@ -43,6 +45,17 @@ export default function GrandeSalle() {
         setFinish(data);
         setStatus('finished');
         if (data.leaderboard) setLeaderboard(data.leaderboard);
+      }
+    } catch {}
+    // Check if returning from /carte after elimination
+    try {
+      const elimRaw = localStorage.getItem('cc_gs_elimination');
+      if (elimRaw) {
+        const elimData = JSON.parse(elimRaw);
+        localStorage.removeItem('cc_gs_elimination');
+        setLastElimination(elimData);
+        setEliminatedData(elimData);
+        setStatus('elimination');
       }
     } catch {}
   }, []);
@@ -79,6 +92,7 @@ export default function GrandeSalle() {
       else joinPayload.salleId = 'grande-salle-publique';
       socket.emit('gs:join', joinPayload, (res) => {
         if (res?.tournamentTitle) setTournamentTitle(res.tournamentTitle);
+        if (res?.autoStartCountdown != null) setLobbyCountdown(res.autoStartCountdown);
       });
     });
     socket.on('disconnect', () => setConnected(false));
@@ -87,7 +101,13 @@ export default function GrandeSalle() {
       setActivePlayers(d.activePlayers||0); setEliminationWave(d.eliminationWave||0); setRoundsPlayed(d.roundsPlayed||0);
     });
     socket.on('gs:joined-as-spectator', (d) => { setIsSpectator(true); if (d?.tournamentTitle) setTournamentTitle(d.tournamentTitle); });
-    socket.on('gs:countdown', ({ t }) => { setCountdown(t); setStatus('countdown'); });
+    socket.on('gs:lobby-countdown', ({ t }) => setLobbyCountdown(t));
+    socket.on('gs:countdown', ({ t }) => { setLobbyCountdown(null); setCountdown(t); setStatus('countdown'); });
+    socket.on('gs:elimination', (d) => {
+      setLastElimination(d);
+      setEliminatedData(d);
+      setStatus('elimination');
+    });
     socket.on('gs:round:new', (payload) => {
       // Store GS session config and navigate to /carte for the real card rendering
       const salleId = tournamentId ? `tournament:${tournamentId}` : 'grande-salle-publique';
@@ -148,6 +168,18 @@ export default function GrandeSalle() {
         <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 8 }}>Joueurs dans la salle</div>
         <div style={{ fontSize: 72, fontWeight: 900, color: '#F5A623', lineHeight: 1 }}>{totalPlayers}</div>
         <div style={{ fontSize: 13, color: '#64748b', marginTop: 8 }}>{connected ? <span style={BADGE('#10b981')}>Connecté</span> : <span style={BADGE('#ef4444')}>Déconnecté</span>}</div>
+        {lobbyCountdown != null && lobbyCountdown > 0 && (
+          <div style={{ marginTop: 16, padding: '12px 20px', borderRadius: 12, background: 'rgba(245,166,35,0.15)', border: '1px solid rgba(245,166,35,0.4)' }}>
+            <div style={{ fontSize: 13, color: '#F5A623', fontWeight: 600, marginBottom: 4 }}>La course commence dans</div>
+            <div style={{ fontSize: 42, fontWeight: 900, color: '#F5A623' }}>{lobbyCountdown}s</div>
+            <div style={{ width: '100%', height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.1)', marginTop: 8 }}>
+              <div style={{ width: `${Math.max(0, (lobbyCountdown / 60) * 100)}%`, height: '100%', borderRadius: 3, background: 'linear-gradient(90deg, #F5A623, #ff6b35)', transition: 'width 1s linear' }} />
+            </div>
+          </div>
+        )}
+        {totalPlayers < 3 && totalPlayers > 0 && (
+          <div style={{ marginTop: 12, fontSize: 13, color: '#94a3b8' }}>En attente de {3 - totalPlayers} joueur(s) de plus pour lancer...</div>
+        )}
       </div>
       {players.length > 0 && <div style={{ ...CARD, marginBottom: 24 }}>
         <h3 style={{ margin: '0 0 12px', fontSize: 15, color: '#e2e8f0' }}>Joueurs en attente</h3>
@@ -160,15 +192,15 @@ export default function GrandeSalle() {
         <h3 style={{ margin: '0 0 8px', fontSize: 15, color: '#F5A623' }}>Comment ça marche ?</h3>
         <div style={{ fontSize: 13, color: '#cbd5e1', lineHeight: 1.8 }}>
           <div><strong>1.</strong> Tous les abonnés rejoignent la salle</div>
-          <div><strong>2.</strong> La partie démarre quand l'organisateur lance le jeu</div>
+          <div><strong>2.</strong> La partie démarre automatiquement 60s après 3 joueurs</div>
           <div><strong>3.</strong> Trouvez les paires le plus vite possible !</div>
-          <div><strong>4.</strong> Les 25% derniers sont éliminés à chaque vague</div>
+          <div><strong>4.</strong> Les derniers du classement sont éliminés à chaque vague</div>
           <div><strong>5.</strong> Le dernier survivant remporte la victoire !</div>
         </div>
       </div>
       {totalPlayers >= 3 && <div style={{ textAlign: 'center', marginTop: 24 }}>
-        <button onClick={handleStart} style={{ padding: '16px 40px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg, #F5A623, #ff6b35)', color: '#fff', fontWeight: 800, fontSize: 18, cursor: 'pointer', boxShadow: '0 6px 20px rgba(245,166,35,0.4)' }}>Lancer la Course !</button>
-        <div style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>Minimum 3 joueurs requis</div>
+        <button onClick={handleStart} style={{ padding: '16px 40px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg, #F5A623, #ff6b35)', color: '#fff', fontWeight: 800, fontSize: 18, cursor: 'pointer', boxShadow: '0 6px 20px rgba(245,166,35,0.4)' }}>Lancer maintenant !</button>
+        <div style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>{lobbyCountdown > 0 ? `Démarrage auto dans ${lobbyCountdown}s — ou lancez maintenant` : 'Minimum 3 joueurs requis'}</div>
       </div>}
 
       {/* Upcoming tournaments */}
@@ -217,17 +249,62 @@ export default function GrandeSalle() {
   );
 
   // ========== ELIMINATION ==========
+  const gsKeyframes = <style>{`@keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.8; } }`}</style>;
   if (status === 'elimination' && lastElimination) {
     const wasMe = lastElimination.eliminated?.some(e => e.id === myId);
+    const myElimData = wasMe ? lastElimination.eliminated.find(e => e.id === myId) : null;
     return (
       <div style={{ ...PAGE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ maxWidth: 500, textAlign: 'center' }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>{wasMe ? '💀' : '🔥'}</div>
-          <h1 style={{ fontSize: 28, fontWeight: 900, color: wasMe ? '#ef4444' : '#F5A623', margin: '0 0 12px' }}>{wasMe ? 'Vous êtes éliminé !' : `Vague d'élimination ${lastElimination.wave}`}</h1>
-          <div style={{ fontSize: 16, color: '#94a3b8', marginBottom: 20 }}>{lastElimination.eliminated?.length} éliminé(s) — {lastElimination.remainingCount} restent</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
-            {lastElimination.eliminated?.map((e, i) => <span key={i} style={{ ...BADGE(e.id===myId?'#ef4444':'rgba(239,68,68,0.2)'), color: e.id===myId?'#fff':'#fca5a5' }}>{e.name} ({e.score})</span>)}
-          </div>
+        {gsKeyframes}
+        <div style={{ maxWidth: 550, textAlign: 'center' }}>
+          {wasMe ? (
+            <>
+              <div style={{ fontSize: 80, marginBottom: 12, animation: 'pulse 1s ease-in-out infinite' }}>💀</div>
+              <h1 style={{ fontSize: 32, fontWeight: 900, color: '#ef4444', margin: '0 0 8px' }}>Vous êtes éliminé !</h1>
+              <div style={{ fontSize: 15, color: '#94a3b8', marginBottom: 24 }}>Vague {lastElimination.wave} — {lastElimination.elimPct || 25}% éliminés</div>
+
+              {/* Personal stats card */}
+              <div style={{ ...CARD, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', marginBottom: 24, padding: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 32 }}>
+                  <div>
+                    <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 4 }}>Votre score</div>
+                    <div style={{ fontSize: 36, fontWeight: 900, color: '#F5A623' }}>{myElimData?.score || 0}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 4 }}>Position finale</div>
+                    <div style={{ fontSize: 36, fontWeight: 900, color: '#e2e8f0' }}>#{myElimData?.finalRank || '?'}<span style={{ fontSize: 14, fontWeight: 400, color: '#64748b' }}>/{lastElimination.totalPlayers}</span></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Eliminated list */}
+              <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>Éliminés dans cette vague :</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginBottom: 28 }}>
+                {lastElimination.eliminated?.map((e, i) => <span key={i} style={{ ...BADGE(e.id===myId?'#ef4444':'rgba(239,68,68,0.2)'), color: e.id===myId?'#fff':'#fca5a5' }}>{e.name} ({e.score})</span>)}
+              </div>
+
+              {/* Choice buttons */}
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button onClick={() => { setIsSpectator(true); setStatus('playing'); }} style={{ padding: '14px 28px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: '0 4px 15px rgba(99,102,241,0.4)' }}>
+                  👁️ Rester spectateur
+                </button>
+                <button onClick={() => navigate('/modes')} style={{ padding: '14px 28px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#94a3b8', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
+                  ← Quitter
+                </button>
+              </div>
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 10 }}>En tant que spectateur, vous pouvez regarder la fin du match sans interagir.</div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 64, marginBottom: 16 }}>🔥</div>
+              <h1 style={{ fontSize: 28, fontWeight: 900, color: '#F5A623', margin: '0 0 12px' }}>Vague d'élimination {lastElimination.wave}</h1>
+              <div style={{ fontSize: 16, color: '#94a3b8', marginBottom: 16 }}>{lastElimination.eliminated?.length} éliminé(s) — {lastElimination.remainingCount} restent en course</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginBottom: 20 }}>
+                {lastElimination.eliminated?.map((e, i) => <span key={i} style={{ ...BADGE('rgba(239,68,68,0.2)'), color: '#fca5a5' }}>{e.name} ({e.score})</span>)}
+              </div>
+              <div style={{ fontSize: 15, color: '#10b981', fontWeight: 700 }}>✅ Vous êtes toujours en course ! Prochaine manche dans quelques secondes...</div>
+            </>
+          )}
         </div>
       </div>
     );
