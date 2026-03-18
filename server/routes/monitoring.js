@@ -206,6 +206,133 @@ router.post('/client-diag', (req, res) => {
   }
 });
 
+// ── Game Incident Screenshots Storage ────────────────────
+const GAME_SS_DIR = path.join(__dirname, '..', 'data', 'game-screenshots');
+const MAX_GAME_SS = 200;
+
+function ensureGameSSDir() {
+  if (!fs.existsSync(GAME_SS_DIR)) fs.mkdirSync(GAME_SS_DIR, { recursive: true });
+}
+
+function loadGameSSIndex() {
+  try {
+    const f = path.join(GAME_SS_DIR, 'index.json');
+    if (!fs.existsSync(f)) return [];
+    return JSON.parse(fs.readFileSync(f, 'utf8'));
+  } catch { return []; }
+}
+
+function saveGameSSIndex(index) {
+  try {
+    ensureGameSSDir();
+    fs.writeFileSync(path.join(GAME_SS_DIR, 'index.json'), JSON.stringify(index, null, 2), 'utf8');
+  } catch {}
+}
+
+/**
+ * POST /api/monitoring/game-screenshots
+ * Reçoit un screenshot d'incident de jeu (base64 JPEG)
+ * Body: { roundId, imageBase64, mode, issues, userId, email, timestamp }
+ */
+router.post('/game-screenshots', async (req, res) => {
+  try {
+    const { roundId, imageBase64, mode, issues, userId, email, timestamp } = req.body;
+    if (!imageBase64 || !roundId) {
+      return res.status(400).json({ ok: false, error: 'missing roundId or imageBase64' });
+    }
+
+    ensureGameSSDir();
+
+    const ts = (timestamp || new Date().toISOString()).replace(/[:.]/g, '-');
+    const safeName = (roundId).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80);
+    const filename = `${ts}_${safeName}.jpg`;
+    const filepath = path.join(GAME_SS_DIR, filename);
+
+    const buffer = Buffer.from(imageBase64, 'base64');
+    fs.writeFileSync(filepath, buffer);
+
+    let index = loadGameSSIndex();
+
+    // Éviter doublons par roundId
+    if (!index.some(e => e.roundId === roundId)) {
+      index.push({
+        roundId,
+        filename,
+        mode: mode || 'unknown',
+        issues: issues || [],
+        issueCount: Array.isArray(issues) ? issues.length : 0,
+        userId: userId || '',
+        email: email || '',
+        timestamp: timestamp || new Date().toISOString(),
+        size: buffer.length,
+      });
+    }
+
+    // Trim old
+    if (index.length > MAX_GAME_SS) {
+      const toDelete = index.splice(0, index.length - MAX_GAME_SS);
+      for (const old of toDelete) {
+        try { fs.unlinkSync(path.join(GAME_SS_DIR, old.filename)); } catch {}
+      }
+    }
+
+    saveGameSSIndex(index);
+    console.log(`[GameSS] Screenshot saved: ${filename} (${(buffer.length / 1024).toFixed(1)}KB) mode=${mode} round=${roundId}`);
+    res.json({ ok: true, filename });
+  } catch (error) {
+    console.error('[GameSS] Save error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/monitoring/game-screenshots
+ * Liste les screenshots d'incidents de jeu (admin only)
+ */
+router.get('/game-screenshots', requireAdminAuth, async (req, res) => {
+  try {
+    let index = loadGameSSIndex();
+    // Filtrer par mode si demandé
+    if (req.query.mode) index = index.filter(e => e.mode === req.query.mode);
+    res.json({ ok: true, screenshots: index.reverse() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/monitoring/game-screenshots/:filename
+ * Sert un screenshot d'incident (admin only)
+ */
+router.get('/game-screenshots/:filename', requireAdminAuth, async (req, res) => {
+  try {
+    const filename = req.params.filename.replace(/[^a-zA-Z0-9_.-]/g, '');
+    const filepath = path.join(GAME_SS_DIR, filename);
+    if (!fs.existsSync(filepath)) return res.status(404).json({ ok: false, error: 'not found' });
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.sendFile(filepath);
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/monitoring/game-screenshots
+ * Supprimer tous les screenshots de jeu (admin only)
+ */
+router.delete('/game-screenshots', requireAdminAuth, async (req, res) => {
+  try {
+    const index = loadGameSSIndex();
+    for (const entry of index) {
+      try { fs.unlinkSync(path.join(GAME_SS_DIR, entry.filename)); } catch {}
+    }
+    saveGameSSIndex([]);
+    res.json({ ok: true, message: 'Game screenshots cleared' });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 // ── E2E Test Screenshots Storage ─────────────────────────
 const SCREENSHOTS_DIR = path.join(__dirname, '..', 'data', 'e2e-screenshots');
 const MAX_SCREENSHOTS = 50; // Keep last 50 screenshots

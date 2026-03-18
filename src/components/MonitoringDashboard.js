@@ -254,7 +254,25 @@ const clearIncidents = async () => {
     }
   }, []);
 
-  const fetchScreenshotMetas = useCallback(() => {
+  const fetchScreenshotMetas = useCallback(async () => {
+    // 1) Server screenshots (centralisé, visible par tout admin)
+    try {
+      const token = getAuthToken();
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/monitoring/game-screenshots`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.screenshots)) {
+          setScreenshotMetas(data.screenshots);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('[Monitoring] Server screenshots fetch failed:', err.message);
+    }
+    // 2) Fallback: local IndexedDB metas
     try { setScreenshotMetas(getAllScreenshotMetas()); } catch {}
   }, []);
 
@@ -262,6 +280,22 @@ const clearIncidents = async () => {
     if (!roundId) return;
     setScreenshotLoading(true);
     try {
+      // 1) Try server (centralisé)
+      const meta = screenshotMetas.find(m => m.roundId === roundId);
+      if (meta && meta.filename) {
+        const token = getAuthToken();
+        const backendUrl = getBackendUrl();
+        const res = await fetch(`${backendUrl}/api/monitoring/game-screenshots/${meta.filename}`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          setScreenshotViewImg(url);
+          return;
+        }
+      }
+      // 2) Fallback: local IndexedDB
       const dataUrl = await getScreenshot(roundId);
       if (dataUrl) setScreenshotViewImg(dataUrl);
       else alert('Screenshot non trouvé pour cette manche.');
@@ -270,7 +304,7 @@ const clearIncidents = async () => {
     } finally {
       setScreenshotLoading(false);
     }
-  }, []);
+  }, [screenshotMetas]);
 
   useEffect(() => {
     fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas();
@@ -913,6 +947,60 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     })}
                   </div>
                 )}
+              {/* ── Server Screenshots Gallery ── */}
+              {screenshotMetas.length > 0 && screenshotMetas[0]?.filename && (
+                <div style={{ ...cardStyle, marginTop: 20, borderLeft: '4px solid #3b82f6' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 'bold', color: '#3b82f6' }}>📷 Screenshots serveur ({screenshotMetas.length})</h3>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => fetchScreenshotMetas()} style={btnStyle(COLORS.info)}>🔄</button>
+                      <button onClick={async () => {
+                        if (!window.confirm('Supprimer tous les screenshots serveur ?')) return;
+                        try {
+                          const token = getAuthToken();
+                          const backendUrl = getBackendUrl();
+                          await fetch(`${backendUrl}/api/monitoring/game-screenshots`, {
+                            method: 'DELETE',
+                            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                          });
+                          setScreenshotMetas([]);
+                        } catch {}
+                      }} style={btnStyle('#dc2626')}>🗑️</button>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+                    {screenshotMetas.map((ss, i) => {
+                      const ts = ss.timestamp ? new Date(ss.timestamp).toLocaleString('fr-FR') : 'N/A';
+                      return (
+                        <div key={ss.roundId || i} style={{ background: 'rgba(59,130,246,0.06)', border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: 10, fontSize: 12 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                            <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: '#3b82f6', color: '#fff' }}>{ss.mode}</span>
+                            <span style={{ color: COLORS.textMuted, fontSize: 10 }}>{ts}</span>
+                          </div>
+                          {ss.email && <div style={{ color: COLORS.textMuted, fontSize: 10, marginBottom: 4 }}>👤 {ss.email}</div>}
+                          {ss.issueCount > 0 && <div style={{ color: '#ef4444', fontWeight: 700, fontSize: 11, marginBottom: 4 }}>🚨 {ss.issueCount} incident(s)</div>}
+                          {Array.isArray(ss.issues) && ss.issues.length > 0 && (
+                            <div style={{ marginBottom: 6 }}>
+                              {ss.issues.slice(0, 3).map((iss, j) => (
+                                <div key={j} style={{ fontSize: 10, color: '#f59e0b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  ⚠️ {typeof iss === 'string' ? iss : (iss.message || iss.type || JSON.stringify(iss)).substring(0, 60)}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <button
+                            onClick={() => viewScreenshot(ss.roundId)}
+                            disabled={screenshotLoading}
+                            style={{ width: '100%', padding: '6px 0', borderRadius: 6, fontSize: 12, fontWeight: 700, background: '#3b82f6', color: '#fff', border: 'none', cursor: 'pointer', opacity: screenshotLoading ? 0.5 : 1 }}
+                          >
+                            {screenshotLoading ? '...' : '📷 Voir le screenshot'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               </div>
             );})()}
 
