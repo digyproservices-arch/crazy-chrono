@@ -692,6 +692,47 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     )}
                   </div>
 
+                  {/* Server Screenshots section */}
+                  <div style={{ ...cardStyle, marginBottom: 16, borderLeft: '4px solid #3b82f6' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <h3 style={{ ...cardTitleStyle, color: '#3b82f6', margin: 0 }}>
+                        📷 Screenshots serveur ({screenshotMetas.length})
+                      </h3>
+                      <button onClick={() => fetchScreenshotMetas()} style={btnStyle(COLORS.info)}>🔄</button>
+                    </div>
+                    {screenshotMetas.length > 0 ? (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
+                        {screenshotMetas.slice(0, 12).map((ss, i) => {
+                          const ts = ss.timestamp ? new Date(ss.timestamp).toLocaleString('fr-FR') : 'N/A';
+                          return (
+                            <div key={ss.roundId || i} style={{ background: 'rgba(59,130,246,0.06)', border: `1px solid ${COLORS.border}`, borderRadius: 6, padding: 8, fontSize: 11 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                <span style={{ padding: '1px 6px', borderRadius: 4, fontSize: 9, fontWeight: 700, background: '#3b82f6', color: '#fff' }}>{ss.mode}</span>
+                                <span style={{ color: COLORS.textMuted, fontSize: 9 }}>{ts}</span>
+                              </div>
+                              {ss.email && <div style={{ color: COLORS.textMuted, fontSize: 9 }}>👤 {ss.email}</div>}
+                              {ss.issueCount > 0 && <div style={{ color: '#ef4444', fontWeight: 700, fontSize: 10 }}>🚨 {ss.issueCount} incident(s)</div>}
+                              <button
+                                onClick={() => viewScreenshot(ss.roundId)}
+                                disabled={screenshotLoading}
+                                style={{ width: '100%', marginTop: 4, padding: '4px 0', borderRadius: 4, fontSize: 10, fontWeight: 700, background: '#3b82f6', color: '#fff', border: 'none', cursor: 'pointer', opacity: screenshotLoading ? 0.5 : 1 }}
+                              >
+                                {screenshotLoading ? '...' : '📷 Voir'}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{ padding: 12, color: COLORS.textMuted, textAlign: 'center', fontSize: 12 }}>
+                        Aucun screenshot serveur. Les captures s'effectuent automatiquement lors des incidents de jeu.
+                        <div style={{ marginTop: 8, fontSize: 11, color: '#64748b' }}>
+                          Vérifiez dans la console du navigateur (F12) les messages [Screenshot] pour diagnostiquer.
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Full text preview */}
                   <div style={cardStyle}>
                     <h3 style={cardTitleStyle}>📄 Aperçu du rapport complet (texte brut)</h3>

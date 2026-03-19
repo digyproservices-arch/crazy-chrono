@@ -94,32 +94,40 @@ async function uploadToServer(roundId, dataUrl, meta = {}) {
   try {
     // Extraire le base64 brut (retirer le préfixe data:image/jpeg;base64,)
     const base64 = dataUrl.split(',')[1];
-    if (!base64) return;
+    if (!base64) {
+      console.error('[Screenshot] ❌ uploadToServer: pas de base64 dans dataUrl');
+      return;
+    }
 
     const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+    const backendUrl = getBackendUrl();
     const body = {
       roundId,
       imageBase64: base64,
       mode: meta.mode || 'unknown',
       issues: meta.issues || [],
-      userId: auth.userId || '',
+      userId: auth.id || auth.userId || '',
       email: auth.email || '',
       timestamp: new Date().toISOString(),
     };
 
-    const res = await fetch(`${getBackendUrl()}/api/monitoring/game-screenshots`, {
+    console.warn(`[Screenshot] ☁️ Upload vers ${backendUrl}/api/monitoring/game-screenshots (${Math.round(base64.length / 1024)}KB)...`);
+
+    const res = await fetch(`${backendUrl}/api/monitoring/game-screenshots`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
 
     if (res.ok) {
-      console.log(`[Screenshot] ☁️ Uploaded to server for round ${roundId}`);
+      const data = await res.json();
+      console.warn(`[Screenshot] ✅ Upload réussi: ${data.filename || 'ok'}`);
     } else {
-      console.warn(`[Screenshot] Server upload failed: ${res.status}`);
+      const errText = await res.text().catch(() => '');
+      console.error(`[Screenshot] ❌ Upload échoué: HTTP ${res.status} — ${errText.substring(0, 200)}`);
     }
   } catch (e) {
-    console.warn('[Screenshot] Server upload error:', e.message);
+    console.error('[Screenshot] ❌ Upload error:', e.message);
   }
 }
 
@@ -133,8 +141,12 @@ async function uploadToServer(roundId, dataUrl, meta = {}) {
  * @returns {Promise<string|null>} The data URL of the captured image, or null on failure
  */
 export async function captureCardScreenshot(containerEl, roundId, meta = {}) {
-  if (!containerEl || !roundId) return null;
+  if (!containerEl || !roundId) {
+    console.error(`[Screenshot] ❌ captureCardScreenshot appelé avec containerEl=${!!containerEl}, roundId=${roundId}`);
+    return null;
+  }
   try {
+    console.warn(`[Screenshot] 📷 html2canvas démarré pour round=${roundId}, element=${containerEl.tagName}.${containerEl.className}`);
     const canvas = await html2canvas(containerEl, {
       useCORS: true,
       allowTaint: true,
@@ -146,6 +158,7 @@ export async function captureCardScreenshot(containerEl, roundId, meta = {}) {
 
     // Convert to JPEG with low quality for compact storage
     const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+    console.warn(`[Screenshot] 📷 Canvas → JPEG: ${Math.round(dataUrl.length / 1024)}KB`);
 
     // Save to IndexedDB
     await saveToIDB(roundId, dataUrl);
@@ -169,10 +182,10 @@ export async function captureCardScreenshot(containerEl, roundId, meta = {}) {
     // Upload to server (fire-and-forget, ne bloque pas le jeu)
     uploadToServer(roundId, dataUrl, meta).catch(() => {});
 
-    console.log(`[Screenshot] 📷 Carte capturée pour manche ${roundId} (${Math.round(dataUrl.length / 1024)}KB)`);
+    console.warn(`[Screenshot] ✅ Carte capturée + upload lancé pour manche ${roundId}`);
     return dataUrl;
   } catch (e) {
-    console.warn('[Screenshot] Erreur capture:', e);
+    console.error('[Screenshot] ❌ Erreur capture:', e);
     return null;
   }
 }

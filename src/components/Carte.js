@@ -2680,15 +2680,28 @@ const Carte = () => {
   useEffect(() => { zonesRef.current = zones; }, [zones]);
   // 📷 Screenshot automatique après rendu quand un incident a été détecté
   useEffect(() => {
-    if (!pendingScreenshotRef.current || !gameContainerRef.current) return;
+    if (!pendingScreenshotRef.current) return;
+    if (!gameContainerRef.current) {
+      console.warn('[Screenshot] ⚠️ pendingScreenshot set but gameContainerRef is null — skipping');
+      return;
+    }
     const { roundId, issues, mode } = pendingScreenshotRef.current;
     pendingScreenshotRef.current = null;
+    console.warn(`[Screenshot] 🎯 Capture programmée: round=${roundId}, mode=${mode}, issues=${issues?.length || 0}`);
     // Capturer la ref DOM immédiatement (avant que zones ne change à nouveau)
     const el = gameContainerRef.current;
     // Délai pour laisser React rendre + images charger
     // PAS de cleanup: on veut que le screenshot se fasse même si zones change entre-temps
-    setTimeout(() => {
-      try { captureCardScreenshot(el, roundId, { issues, mode }); } catch (e) { console.warn('[Screenshot] capture failed:', e); }
+    setTimeout(async () => {
+      try {
+        console.warn(`[Screenshot] 📷 Exécution capture pour round=${roundId}...`);
+        const result = await captureCardScreenshot(el, roundId, { issues, mode });
+        if (result) {
+          console.warn(`[Screenshot] ✅ Capture réussie: ${Math.round(result.length / 1024)}KB`);
+        } else {
+          console.error('[Screenshot] ❌ captureCardScreenshot a retourné null');
+        }
+      } catch (e) { console.error('[Screenshot] ❌ capture failed:', e); }
     }, 1500);
   }, [zones]);
   // ✅ CRITIQUE: Ref pour setTimeout de setGameActive (clearTimeout si double arena:round-new)
