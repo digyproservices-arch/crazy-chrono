@@ -1966,6 +1966,7 @@ function createGrandeSalle(id, config = {}) {
     spectators: new Set(), // socketIds of eliminated players watching
     config: {
       duration: config.duration || 90, // seconds per round
+      maxRounds: config.maxRounds || 3, // total rounds before finish (default: 3 = panneau)
       roundsPerElimination: config.roundsPerElimination || 1, // rounds before an elimination
       eliminationPercent: config.eliminationPercent || 25, // % eliminated each wave
       minPlayersToStart: config.minPlayersToStart || 3,
@@ -2158,13 +2159,25 @@ function gsEndRound(salleId) {
     leaderboard: deltas.map((d, i) => ({ ...d, rank: i + 1 })),
   });
   
-  // Check if it's elimination time
-  const shouldEliminate = (salle.roundsPlayed % salle.config.roundsPerElimination) === 0;
+  // Check if maxRounds reached (panneau mode: default 3 manches)
+  const maxRounds = salle.config.maxRounds || 3;
   const activePlayers = Array.from(salle.players.values()).filter(p => !p.eliminated);
-  
+
   if (activePlayers.length <= 1) {
     gsFinish(salleId);
-  } else if (activePlayers.length === 2 && shouldEliminate) {
+    return;
+  }
+
+  if (salle.roundsPlayed >= maxRounds) {
+    console.log(`[GS] maxRounds reached (${salle.roundsPlayed}/${maxRounds}) in "${salleId}" — finishing`);
+    gsFinish(salleId);
+    return;
+  }
+
+  // Check if it's elimination time
+  const shouldEliminate = (salle.roundsPlayed % salle.config.roundsPerElimination) === 0;
+
+  if (activePlayers.length === 2 && shouldEliminate) {
     // Final duel: eliminate the lower scorer, game ends
     gsEliminationWave(salleId);
   } else if (shouldEliminate && activePlayers.length > 2) {

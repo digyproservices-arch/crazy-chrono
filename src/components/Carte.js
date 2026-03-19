@@ -2683,11 +2683,13 @@ const Carte = () => {
     if (!pendingScreenshotRef.current || !gameContainerRef.current) return;
     const { roundId, issues, mode } = pendingScreenshotRef.current;
     pendingScreenshotRef.current = null;
+    // Capturer la ref DOM immédiatement (avant que zones ne change à nouveau)
+    const el = gameContainerRef.current;
     // Délai pour laisser React rendre + images charger
-    const timer = setTimeout(() => {
-      try { captureCardScreenshot(gameContainerRef.current, roundId, { issues, mode }); } catch (e) { console.warn('[Screenshot] capture failed:', e); }
-    }, 2500);
-    return () => clearTimeout(timer);
+    // PAS de cleanup: on veut que le screenshot se fasse même si zones change entre-temps
+    setTimeout(() => {
+      try { captureCardScreenshot(el, roundId, { issues, mode }); } catch (e) { console.warn('[Screenshot] capture failed:', e); }
+    }, 1500);
   }, [zones]);
   // ✅ CRITIQUE: Ref pour setTimeout de setGameActive (clearTimeout si double arena:round-new)
   const gameActiveTimeoutRef = useRef(null);
