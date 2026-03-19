@@ -88,6 +88,52 @@ async function trimOldScreenshots() {
   }
 }
 
+// ── SVG image inlining for html2canvas ───────────────────
+
+/**
+ * html2canvas ne capture pas les SVG <image> elements.
+ * Cette fonction convertit chaque <image href="..."> en data URL inline
+ * dans le DOM cloné AVANT que html2canvas ne le rende.
+ */
+async function inlineSvgImages(clonedDoc) {
+  const images = clonedDoc.querySelectorAll('image[href], image[xlink\\:href]');
+  if (!images.length) return;
+
+  const promises = Array.from(images).map(imgEl => {
+    return new Promise(resolve => {
+      const src = imgEl.getAttribute('href') || imgEl.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
+      if (!src || src.startsWith('data:')) { resolve(); return; }
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth || 200;
+          c.height = img.naturalHeight || 200;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0, c.width, c.height);
+          const dataUrl = c.toDataURL('image/jpeg', 0.7);
+          imgEl.setAttribute('href', dataUrl);
+          imgEl.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', dataUrl);
+        } catch (e) {
+          console.warn('[Screenshot] Inline image failed (tainted?):', src, e.message);
+        }
+        resolve();
+      };
+      img.onerror = () => {
+        console.warn('[Screenshot] Could not load image for inline:', src);
+        resolve();
+      };
+      // Timeout: don't block capture for slow images
+      setTimeout(resolve, 3000);
+      img.src = src;
+    });
+  });
+
+  await Promise.all(promises);
+}
+
 // ── Server upload ─────────────────────────────────────────
 
 async function uploadToServer(roundId, dataUrl, meta = {}) {
@@ -153,7 +199,11 @@ export async function captureCardScreenshot(containerEl, roundId, meta = {}) {
       scale: 0.6,           // Lower resolution to save space (~360x360 for a 600x600 card)
       backgroundColor: '#1a1a2e',
       logging: false,
-      imageTimeout: 3000,
+      imageTimeout: 5000,
+      onclone: async (clonedDoc) => {
+        // Convertir les SVG <image> en data URLs inline (html2canvas ne les capture pas)
+        await inlineSvgImages(clonedDoc);
+      },
     });
 
     // Convert to JPEG with low quality for compact storage
