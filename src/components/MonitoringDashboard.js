@@ -326,7 +326,7 @@ const clearIncidents = async () => {
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(() => {
-      fetchIncidents(); fetchRoundLogs(); fetchAuthLogs();
+      fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas();
       if (activeTab === 'players') { fetchOnlinePlayers(); fetchPaymentEvents(); }
     }, 30000);
     return () => clearInterval(interval);
@@ -582,7 +582,7 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button
-                        onClick={() => { fetchIncidents(); fetchRoundLogs(); }}
+                        onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchScreenshotMetas(); }}
                         style={btnStyle(COLORS.info)}
                       >
                         🔄 Rafraîchir tout
