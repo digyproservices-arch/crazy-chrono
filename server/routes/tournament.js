@@ -72,6 +72,78 @@ const requireSupabase = (req, res, next) => {
 // ==========================================
 
 /**
+ * POST /api/tournament/tournaments
+ * Créer un nouveau tournoi
+ */
+router.post('/tournaments', requireSupabase, requireAuth, async (req, res) => {
+  try {
+    const { name, description, level, academyId } = req.body;
+    const tournamentId = `tournament_${uuidv4()}`;
+
+    const { data, error } = await supabase
+      .from('tournaments')
+      .insert({
+        id: tournamentId,
+        name: name || 'Tournoi Crazy Chrono',
+        description: description || '',
+        level: level || 'CE1',
+        academy_id: academyId || null,
+        status: 'active',
+        current_phase: 1,
+        created_by: req.authUser.id
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(`[Tournament API] Tournoi créé: ${tournamentId} par ${req.authUser.email}`);
+    res.json({ success: true, tournament: data });
+  } catch (error) {
+    console.error('[Tournament API] Error creating tournament:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/tournament/phases
+ * Créer une phase pour un tournoi
+ */
+router.post('/phases', requireSupabase, requireAuth, async (req, res) => {
+  try {
+    const { tournamentId, level, status } = req.body;
+
+    if (!tournamentId || !level) {
+      return res.status(400).json({ success: false, error: 'tournamentId et level requis' });
+    }
+
+    const phaseId = `phase_${level}_${tournamentId}`;
+    const phaseName = PHASE_NAMES[level] || `Phase ${level}`;
+
+    const { data, error } = await supabase
+      .from('tournament_phases')
+      .insert({
+        id: phaseId,
+        tournament_id: tournamentId,
+        level: level,
+        name: phaseName,
+        status: status || 'pending',
+        started_at: status === 'active' ? new Date().toISOString() : null
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(`[Tournament API] Phase ${level} (${phaseName}) créée pour tournoi ${tournamentId}`);
+    res.json({ success: true, phase: data });
+  } catch (error) {
+    console.error('[Tournament API] Error creating phase:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * GET /api/tournament/tournaments
  * Liste tous les tournois
  */

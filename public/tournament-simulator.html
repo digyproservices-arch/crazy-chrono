@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulateur de Tournoi - Crazy Chrono</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0a0e27; color: #e0e0e0; min-height: 100vh; }
+
+    .header { background: linear-gradient(135deg, #1a1f4e 0%, #2d1b69 100%); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #7c3aed; }
+    .header h1 { font-size: 1.4em; color: #a78bfa; }
+    .header .stats { display: flex; gap: 20px; font-size: 0.85em; }
+    .header .stats span { color: #94a3b8; }
+    .header .stats strong { color: #22d3ee; }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+    /* Auth + Config */
+    .config-panel { background: #111538; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid #2d2f6b; }
+    .config-panel h2 { color: #a78bfa; margin-bottom: 12px; font-size: 1.1em; }
+    .config-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
+    .config-field { display: flex; flex-direction: column; gap: 4px; }
+    .config-field label { font-size: 0.75em; color: #94a3b8; text-transform: uppercase; }
+    .config-field input, .config-field select { background: #1e2048; border: 1px solid #3b3f7a; color: #e0e0e0; padding: 8px 12px; border-radius: 6px; font-size: 0.9em; min-width: 160px; }
+    .config-field input:focus, .config-field select:focus { outline: none; border-color: #7c3aed; }
+
+    .btn { padding: 8px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s; }
+    .btn-primary { background: #7c3aed; color: white; }
+    .btn-primary:hover { background: #6d28d9; }
+    .btn-primary:disabled { background: #4a4a6a; cursor: not-allowed; }
+    .btn-danger { background: #dc2626; color: white; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-success { background: #059669; color: white; }
+    .btn-success:hover { background: #047857; }
+    .btn-warning { background: #d97706; color: white; }
+
+    /* Phase columns */
+    .phases-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+    @media (max-width: 1200px) { .phases-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .phase-card { background: #111538; border-radius: 12px; border: 1px solid #2d2f6b; overflow: hidden; }
+    .phase-card.active { border-color: #7c3aed; box-shadow: 0 0 20px rgba(124, 58, 237, 0.2); }
+    .phase-card.finished { border-color: #059669; }
+    .phase-card.current { border-color: #22d3ee; box-shadow: 0 0 20px rgba(34, 211, 238, 0.2); }
+
+    .phase-header { padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; }
+    .phase-header h3 { font-size: 0.95em; color: #a78bfa; }
+    .phase-badge { font-size: 0.7em; padding: 3px 8px; border-radius: 10px; font-weight: 600; }
+    .phase-badge.pending { background: #374151; color: #9ca3af; }
+    .phase-badge.active { background: #1e3a5f; color: #60a5fa; }
+    .phase-badge.playing { background: #7c3aed33; color: #a78bfa; animation: pulse 2s infinite; }
+    .phase-badge.finished { background: #064e3b; color: #34d399; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+    .phase-body { padding: 0 16px 16px; }
+    .phase-progress { height: 6px; background: #1e2048; border-radius: 3px; margin-bottom: 10px; overflow: hidden; }
+    .phase-progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; background: linear-gradient(90deg, #7c3aed, #22d3ee); }
+
+    .phase-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.8em; margin-bottom: 10px; }
+    .phase-stat { display: flex; justify-content: space-between; padding: 4px 8px; background: #1a1d4a; border-radius: 4px; }
+    .phase-stat .label { color: #94a3b8; }
+    .phase-stat .value { color: #22d3ee; font-weight: 600; }
+
+    /* Groups list inside phase */
+    .groups-list { max-height: 300px; overflow-y: auto; }
+    .group-item { background: #1a1d4a; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; font-size: 0.8em; }
+    .group-item .group-name { color: #c4b5fd; font-weight: 600; margin-bottom: 4px; }
+    .group-item .group-status { display: flex; justify-content: space-between; }
+    .group-item .group-status .winner { color: #34d399; font-weight: 600; }
+    .group-item .group-status .waiting { color: #94a3b8; }
+    .group-item .group-status .playing { color: #a78bfa; }
+    .group-item.finished { border-left: 3px solid #059669; }
+    .group-item.playing { border-left: 3px solid #7c3aed; }
+
+    /* Log */
+    .log-panel { background: #111538; border-radius: 12px; border: 1px solid #2d2f6b; padding: 16px; }
+    .log-panel h3 { color: #a78bfa; margin-bottom: 10px; font-size: 0.95em; }
+    .log-area { background: #0a0c1a; border-radius: 8px; padding: 12px; height: 250px; overflow-y: auto; font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.75em; line-height: 1.6; }
+    .log-area .log-entry { margin-bottom: 2px; }
+    .log-area .time { color: #6366f1; }
+    .log-area .info { color: #60a5fa; }
+    .log-area .success { color: #34d399; }
+    .log-area .warn { color: #fbbf24; }
+    .log-area .error { color: #f87171; }
+    .log-area .phase-log { color: #c084fc; font-weight: 600; }
+
+    /* Winner banner */
+    .winner-banner { background: linear-gradient(135deg, #064e3b, #059669); border-radius: 8px; padding: 12px; text-align: center; margin-top: 10px; }
+    .winner-banner .trophy { font-size: 1.5em; }
+    .winner-banner .winner-name { font-size: 1.1em; font-weight: 700; color: #ecfdf5; }
+
+    /* Mode selector */
+    .mode-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+    .mode-tab { padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85em; border: 1px solid #3b3f7a; background: transparent; color: #94a3b8; }
+    .mode-tab.active { background: #7c3aed; color: white; border-color: #7c3aed; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>🏆 Simulateur de Tournoi Complet</h1>
+    <span style="font-size:0.8em;color:#94a3b8">Test automatisé des 4 phases Arena</span>
+  </div>
+  <div class="stats">
+    <span>Phases: <strong id="stat-phases">0/4</strong></span>
+    <span>Groupes: <strong id="stat-groups">0</strong></span>
+    <span>Matchs: <strong id="stat-matches">0</strong></span>
+    <span>Joueurs: <strong id="stat-players">0</strong></span>
+    <span>Durée: <strong id="stat-duration">0s</strong></span>
+  </div>
+</div>
+
+<div class="container">
+  <!-- Configuration -->
+  <div class="config-panel">
+    <h2>⚙️ Configuration de la simulation</h2>
+
+    <div class="config-row">
+      <div class="config-field">
+        <label>URL Serveur</label>
+        <input type="text" id="serverUrl" value="https://crazy-chrono-backend.onrender.com" style="min-width:320px">
+      </div>
+      <div class="config-field">
+        <label>Email Professeur</label>
+        <input type="email" id="authEmail" placeholder="prof@ecole.fr">
+      </div>
+      <div class="config-field">
+        <label>Mot de passe</label>
+        <input type="password" id="authPassword" placeholder="••••••••">
+      </div>
+      <div class="config-field">
+        <label>&nbsp;</label>
+        <button class="btn btn-primary" id="btnLogin" onclick="doLogin()">🔑 Connexion</button>
+      </div>
+      <div id="authStatus" style="font-size:0.8em;color:#94a3b8;align-self:center"></div>
+    </div>
+
+    <div class="config-row">
+      <div class="config-field">
+        <label>Groupes Phase 1 (classes)</label>
+        <select id="initialGroups">
+          <option value="4">4 groupes (16 joueurs) — Test rapide</option>
+          <option value="8" selected>8 groupes (32 joueurs) — 3 phases</option>
+          <option value="16">16 groupes (64 joueurs) — 3 phases</option>
+          <option value="32">32 groupes (128 joueurs) — 4 phases complètes</option>
+        </select>
+      </div>
+      <div class="config-field">
+        <label>Joueurs par groupe</label>
+        <select id="playersPerGroup">
+          <option value="2">2 joueurs</option>
+          <option value="3">3 joueurs</option>
+          <option value="4" selected>4 joueurs</option>
+        </select>
+      </div>
+      <div class="config-field">
+        <label>Mode</label>
+        <div class="mode-tabs">
+          <button class="mode-tab active" onclick="setMode('rapid', this)">⚡ Rapide (API)</button>
+          <button class="mode-tab" onclick="setMode('real', this)">🤖 Réel (Bots)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="config-row" style="margin-top:8px">
+      <button class="btn btn-success" id="btnStart" onclick="startSimulation()" disabled>🚀 Lancer la simulation</button>
+      <button class="btn btn-danger" id="btnStop" onclick="stopSimulation()" disabled>⏹ Arrêter</button>
+      <button class="btn btn-warning" id="btnCleanup" onclick="cleanupSimulation()" disabled>🧹 Nettoyer (supprimer tournoi test)</button>
+    </div>
+  </div>
+
+  <!-- 4 Phase columns -->
+  <div class="phases-grid">
+    <div class="phase-card" id="phase-1">
+      <div class="phase-header">
+        <h3>🏫 Phase 1 — CLASSE</h3>
+        <span class="phase-badge pending" id="badge-1">En attente</span>
+      </div>
+      <div class="phase-body">
+        <div class="phase-progress"><div class="phase-progress-fill" id="progress-1" style="width:0%"></div></div>
+        <div class="phase-stats">
+          <div class="phase-stat"><span class="label">Groupes</span><span class="value" id="groups-1">0</span></div>
+          <div class="phase-stat"><span class="label">Terminés</span><span class="value" id="finished-1">0</span></div>
+          <div class="phase-stat"><span class="label">Gagnants</span><span class="value" id="winners-1">0</span></div>
+          <div class="phase-stat"><span class="label">Joueurs</span><span class="value" id="players-1">0</span></div>
+        </div>
+        <div class="groups-list" id="groupsList-1"></div>
+      </div>
+    </div>
+
+    <div class="phase-card" id="phase-2">
+      <div class="phase-header">
+        <h3>🏫 Phase 2 — ÉCOLE</h3>
+        <span class="phase-badge pending" id="badge-2">En attente</span>
+      </div>
+      <div class="phase-body">
+        <div class="phase-progress"><div class="phase-progress-fill" id="progress-2" style="width:0%"></div></div>
+        <div class="phase-stats">
+          <div class="phase-stat"><span class="label">Groupes</span><span class="value" id="groups-2">0</span></div>
+          <div class="phase-stat"><span class="label">Terminés</span><span class="value" id="finished-2">0</span></div>
+          <div class="phase-stat"><span class="label">Gagnants</span><span class="value" id="winners-2">0</span></div>
+          <div class="phase-stat"><span class="label">Joueurs</span><span class="value" id="players-2">0</span></div>
+        </div>
+        <div class="groups-list" id="groupsList-2"></div>
+      </div>
+    </div>
+
+    <div class="phase-card" id="phase-3">
+      <div class="phase-header">
+        <h3>🏛️ Phase 3 — CIRCONSCRIPTION</h3>
+        <span class="phase-badge pending" id="badge-3">En attente</span>
+      </div>
+      <div class="phase-body">
+        <div class="phase-progress"><div class="phase-progress-fill" id="progress-3" style="width:0%"></div></div>
+        <div class="phase-stats">
+          <div class="phase-stat"><span class="label">Groupes</span><span class="value" id="groups-3">0</span></div>
+          <div class="phase-stat"><span class="label">Terminés</span><span class="value" id="finished-3">0</span></div>
+          <div class="phase-stat"><span class="label">Gagnants</span><span class="value" id="winners-3">0</span></div>
+          <div class="phase-stat"><span class="label">Joueurs</span><span class="value" id="players-3">0</span></div>
+        </div>
+        <div class="groups-list" id="groupsList-3"></div>
+      </div>
+    </div>
+
+    <div class="phase-card" id="phase-4">
+      <div class="phase-header">
+        <h3>🏆 Phase 4 — ACADÉMIQUE</h3>
+        <span class="phase-badge pending" id="badge-4">En attente</span>
+      </div>
+      <div class="phase-body">
+        <div class="phase-progress"><div class="phase-progress-fill" id="progress-4" style="width:0%"></div></div>
+        <div class="phase-stats">
+          <div class="phase-stat"><span class="label">Groupes</span><span class="value" id="groups-4">0</span></div>
+          <div class="phase-stat"><span class="label">Terminés</span><span class="value" id="finished-4">0</span></div>
+          <div class="phase-stat"><span class="label">Gagnants</span><span class="value" id="winners-4">0</span></div>
+          <div class="phase-stat"><span class="label">Joueurs</span><span class="value" id="players-4">0</span></div>
+        </div>
+        <div class="groups-list" id="groupsList-4"></div>
+        <div id="finalWinner"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="log-panel">
+    <h3>📋 Journal de simulation</h3>
+    <div class="log-area" id="logArea"></div>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// STATE
+// ==========================================
+let authToken = null;
+let serverUrl = '';
+let simulationMode = 'rapid';
+let running = false;
+let startTime = null;
+let durationTimer = null;
+let tournamentId = null;
+let phaseIds = {};
+let allGroups = {}; // { phaseLevel: [ {id, name, studentIds, winnerId, matchId, roomCode, status} ] }
+let totalStats = { phases: 0, groups: 0, matches: 0, players: 0 };
+
+const BOT_NAMES = [
+  'Emma', 'Lucas', 'Mia', 'Hugo', 'Jade', 'Noah', 'Lea', 'Tom', 'Alice', 'Adam',
+  'Sofia', 'Raphael', 'Chloe', 'Leo', 'Ines', 'Sacha', 'Lina', 'Nathan', 'Manon', 'Louis',
+  'Camille', 'Gabriel', 'Louise', 'Arthur', 'Zoe', 'Jules', 'Rose', 'Ethan', 'Anna', 'Paul',
+  'Clara', 'Theo', 'Eva', 'Maxime', 'Lola', 'Victor', 'Sarah', 'Oscar', 'Nora', 'Axel',
+  'Luna', 'Robin', 'Agathe', 'Nolan', 'Margot', 'Elias', 'Juliette', 'Mael', 'Ambre', 'Aaron',
+  'Iris', 'Gaspard', 'Lou', 'Bastien', 'Celia', 'Dylan', 'Elise', 'Felix', 'Hana', 'Ivan',
+  'Jasmine', 'Karl', 'Lily', 'Martin', 'Noemie', 'Olivier', 'Pauline', 'Quentin', 'Romane', 'Simon',
+  'Tina', 'Ugo', 'Valerie', 'William', 'Xena', 'Yann', 'Zara', 'Antoine', 'Berenice', 'Clement',
+  'Diane', 'Emile', 'Fanny', 'Gregoire', 'Helene', 'Igor', 'Julie', 'Kevin', 'Laure', 'Marc',
+  'Nina', 'Omar', 'Prune', 'Remi', 'Salome', 'Tristan', 'Ursule', 'Vivien', 'Wendy', 'Xavier',
+  'Yael', 'Zacharie', 'Adrienne', 'Benoit', 'Colette', 'Damien', 'Eleonore', 'Fabien', 'Gaelle', 'Henri',
+  'Isabelle', 'Jacques', 'Karine', 'Laurent', 'Mathilde', 'Nicolas'
+];
+
+// ==========================================
+// LOGGING
+// ==========================================
+function log(msg, type = 'info') {
+  const area = document.getElementById('logArea');
+  const time = new Date().toLocaleTimeString('fr-FR');
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  div.innerHTML = `<span class="time">[${time}]</span> <span class="${type}">${msg}</span>`;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+// ==========================================
+// AUTH
+// ==========================================
+async function doLogin() {
+  const email = document.getElementById('authEmail').value;
+  const password = document.getElementById('authPassword').value;
+  serverUrl = document.getElementById('serverUrl').value.replace(/\/$/, '');
+  const statusEl = document.getElementById('authStatus');
+
+  if (!email || !password) {
+    statusEl.textContent = '❌ Email et mot de passe requis';
+    statusEl.style.color = '#f87171';
+    return;
+  }
+
+  statusEl.textContent = '⏳ Connexion...';
+  statusEl.style.color = '#fbbf24';
+
+  try {
+    // Use Supabase auth directly
+    const res = await fetch(`${getSupabaseUrl()}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': getSupabaseAnonKey()
+      },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+    if (data.access_token) {
+      authToken = data.access_token;
+      statusEl.textContent = `✅ Connecté: ${data.user?.email || email}`;
+      statusEl.style.color = '#34d399';
+      document.getElementById('btnStart').disabled = false;
+      document.getElementById('btnCleanup').disabled = false;
+      log(`Authentifié en tant que ${email}`, 'success');
+    } else {
+      statusEl.textContent = `❌ ${data.error_description || data.msg || 'Erreur auth'}`;
+      statusEl.style.color = '#f87171';
+      log(`Erreur auth: ${data.error_description || JSON.stringify(data)}`, 'error');
+    }
+  } catch (err) {
+    // Fallback: try server-side login
+    try {
+      const res2 = await fetch(`${serverUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data2 = await res2.json();
+      if (data2.token || data2.access_token) {
+        authToken = data2.token || data2.access_token;
+        statusEl.textContent = `✅ Connecté: ${email}`;
+        statusEl.style.color = '#34d399';
+        document.getElementById('btnStart').disabled = false;
+        document.getElementById('btnCleanup').disabled = false;
+        log(`Authentifié en tant que ${email}`, 'success');
+      } else {
+        throw new Error(data2.error || 'Login failed');
+      }
+    } catch (err2) {
+      statusEl.textContent = `❌ ${err2.message}`;
+      statusEl.style.color = '#f87171';
+      log(`Erreur connexion: ${err2.message}`, 'error');
+    }
+  }
+}
+
+// Try to extract Supabase config from the server
+function getSupabaseUrl() {
+  // Common Supabase project URL pattern
+  return localStorage.getItem('supabaseUrl') || 'https://cjwyqxfgnjyynovsqwkf.supabase.co';
+}
+function getSupabaseAnonKey() {
+  return localStorage.getItem('supabaseAnonKey') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqd3lxeGZnbmp5eW5vdnNxd2tmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzIwMjc0ODksImV4cCI6MjA0NzYwMzQ4OX0.gFjxsatRGQqMnfh4rcH9Rn8Fym0rc7NXD0MjNUiuMbk';
+}
+
+function authHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${authToken}`
+  };
+}
+
+// ==========================================
+// API HELPERS
+// ==========================================
+async function apiPost(path, body) {
+  const res = await fetch(`${serverUrl}${path}`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+async function apiPatch(path, body) {
+  const res = await fetch(`${serverUrl}${path}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: body ? JSON.stringify(body) : undefined
+  });
+  return res.json();
+}
+
+async function apiGet(path) {
+  const res = await fetch(`${serverUrl}${path}`, { headers: authHeaders() });
+  return res.json();
+}
+
+async function apiDelete(path) {
+  const res = await fetch(`${serverUrl}${path}`, { method: 'DELETE', headers: authHeaders() });
+  return res.json();
+}
+
+// ==========================================
+// MODE
+// ==========================================
+function setMode(mode, btn) {
+  simulationMode = mode;
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ==========================================
+// UI UPDATE
+// ==========================================
+function updatePhaseUI(level, data) {
+  const groups = allGroups[level] || [];
+  const total = groups.length;
+  const finished = groups.filter(g => g.status === 'finished').length;
+  const winners = groups.filter(g => g.winnerId).length;
+  const players = groups.reduce((sum, g) => sum + (g.studentIds?.length || 0), 0);
+  const progress = total > 0 ? Math.round((finished / total) * 100) : 0;
+
+  document.getElementById(`groups-${level}`).textContent = total;
+  document.getElementById(`finished-${level}`).textContent = finished;
+  document.getElementById(`winners-${level}`).textContent = winners;
+  document.getElementById(`players-${level}`).textContent = players;
+  document.getElementById(`progress-${level}`).style.width = `${progress}%`;
+
+  // Badge
+  const badge = document.getElementById(`badge-${level}`);
+  if (data?.status === 'finished') {
+    badge.textContent = 'Terminée'; badge.className = 'phase-badge finished';
+    document.getElementById(`phase-${level}`).className = 'phase-card finished';
+  } else if (data?.status === 'active' || data?.status === 'playing') {
+    badge.textContent = 'En cours'; badge.className = 'phase-badge playing';
+    document.getElementById(`phase-${level}`).className = 'phase-card current';
+  } else if (data?.status === 'pending') {
+    badge.textContent = 'En attente'; badge.className = 'phase-badge pending';
+  }
+
+  // Groups list
+  const listEl = document.getElementById(`groupsList-${level}`);
+  listEl.innerHTML = groups.map(g => {
+    const statusClass = g.status === 'finished' ? 'finished' : g.status === 'playing' ? 'playing' : '';
+    const statusText = g.winnerId
+      ? `<span class="winner">🏆 ${g.winnerName || g.winnerId}</span>`
+      : g.status === 'playing'
+        ? `<span class="playing">⏳ En cours...</span>`
+        : `<span class="waiting">⏸ En attente</span>`;
+    const playersText = (g.studentNames || []).join(', ') || `${g.studentIds?.length || 0} joueurs`;
+    return `<div class="group-item ${statusClass}">
+      <div class="group-name">${g.name}</div>
+      <div style="font-size:0.85em;color:#64748b;margin-bottom:3px">${playersText}</div>
+      <div class="group-status">${statusText}${g.roomCode ? `<span style="color:#64748b">Code: ${g.roomCode}</span>` : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+function updateGlobalStats() {
+  let phases = 0, groups = 0, matches = 0, players = 0;
+  for (let l = 1; l <= 4; l++) {
+    const gs = allGroups[l] || [];
+    if (gs.length > 0) phases++;
+    groups += gs.length;
+    matches += gs.filter(g => g.matchId).length;
+    players += gs.reduce((sum, g) => sum + (g.studentIds?.length || 0), 0);
+  }
+  document.getElementById('stat-phases').textContent = `${phases}/4`;
+  document.getElementById('stat-groups').textContent = groups;
+  document.getElementById('stat-matches').textContent = matches;
+  document.getElementById('stat-players').textContent = players;
+}
+
+function updateDuration() {
+  if (!startTime) return;
+  const elapsed = Math.round((Date.now() - startTime) / 1000);
+  const m = Math.floor(elapsed / 60);
+  const s = elapsed % 60;
+  document.getElementById('stat-duration').textContent = m > 0 ? `${m}m${s}s` : `${s}s`;
+}
+
+// ==========================================
+// SIMULATION — RAPID MODE
+// ==========================================
+async function startSimulation() {
+  if (!authToken) { log('Non authentifié!', 'error'); return; }
+  running = true;
+  startTime = Date.now();
+  durationTimer = setInterval(updateDuration, 1000);
+  document.getElementById('btnStart').disabled = true;
+  document.getElementById('btnStop').disabled = false;
+
+  const numGroups = parseInt(document.getElementById('initialGroups').value);
+  const playersPerGroup = parseInt(document.getElementById('playersPerGroup').value);
+
+  allGroups = { 1: [], 2: [], 3: [], 4: [] };
+  for (let l = 1; l <= 4; l++) updatePhaseUI(l, { status: 'pending' });
+
+  log('═══════════════════════════════════════════', 'phase-log');
+  log('🏆 DÉMARRAGE DE LA SIMULATION DU TOURNOI', 'phase-log');
+  log(`Mode: ${simulationMode === 'rapid' ? 'Rapide (API)' : 'Réel (Bots)'}`, 'info');
+  log(`Groupes Phase 1: ${numGroups} × ${playersPerGroup} joueurs = ${numGroups * playersPerGroup} joueurs`, 'info');
+  log('═══════════════════════════════════════════', 'phase-log');
+
+  try {
+    // 1. Create tournament
+    log('📋 Création du tournoi...', 'info');
+    const tRes = await apiPost('/api/tournament/tournaments', {
+      name: `Tournoi Simulation ${new Date().toLocaleDateString('fr-FR')}`,
+      description: 'Tournoi de test automatisé',
+      level: 'CE1'
+    });
+    if (!tRes.success) throw new Error(`Création tournoi: ${tRes.error}`);
+    tournamentId = tRes.tournament.id;
+    log(`✅ Tournoi créé: ${tournamentId.slice(-12)}`, 'success');
+
+    // 2. Run Phase 1
+    await runPhase(1, numGroups, playersPerGroup, null);
+    if (!running) return;
+
+    // 3. Run remaining phases automatically
+    for (let level = 2; level <= 4; level++) {
+      if (!running) return;
+      // Refresh phases from server to get auto-created groups
+      const phasesRes = await apiGet(`/api/tournament/${tournamentId}/phases`);
+      const nextPhase = (phasesRes.phases || []).find(p => p.level === level);
+
+      if (!nextPhase) {
+        log(`ℹ️ Phase ${level} non créée (pas assez de gagnants)`, 'warn');
+        break;
+      }
+
+      // Get auto-created groups for this phase
+      const nextGroups = nextPhase.groups || [];
+      if (nextGroups.length === 0) {
+        log(`ℹ️ Phase ${level}: aucun groupe créé`, 'warn');
+        break;
+      }
+
+      // Activate phase
+      log(`\n🔓 Activation Phase ${level}...`, 'phase-log');
+      const actRes = await apiPatch(`/api/tournament/phases/${nextPhase.id}/activate`);
+      if (!actRes.success) { log(`❌ Activation phase ${level}: ${actRes.error}`, 'error'); break; }
+      phaseIds[level] = nextPhase.id;
+
+      // Load groups (they were auto-created by close of previous phase)
+      allGroups[level] = nextGroups.map(g => {
+        const sids = Array.isArray(g.student_ids) ? g.student_ids : JSON.parse(g.student_ids || '[]');
+        return {
+          id: g.id,
+          name: g.name,
+          studentIds: sids,
+          studentNames: sids.map(id => findBotName(id)),
+          winnerId: null,
+          winnerName: null,
+          matchId: null,
+          roomCode: null,
+          status: 'pending'
+        };
+      });
+
+      updatePhaseUI(level, { status: 'active' });
+      updateGlobalStats();
+
+      // Create matches and play them
+      await playPhaseMatches(level);
+      if (!running) return;
+
+      // Close phase (if not last or if there's a next)
+      if (level < 4 || allGroups[level].filter(g => g.winnerId).length > 1) {
+        log(`🔒 Clôture Phase ${level}...`, 'phase-log');
+        const closeRes = await apiPatch(`/api/tournament/phases/${nextPhase.id}/close`);
+        if (closeRes.success) {
+          log(`✅ Phase ${level} clôturée. ${closeRes.qualifiedCount} qualifié(s)`, 'success');
+          updatePhaseUI(level, { status: 'finished' });
+        } else {
+          log(`❌ Clôture phase ${level}: ${closeRes.error}`, 'error');
+        }
+      } else {
+        // Final phase - just mark finished
+        updatePhaseUI(level, { status: 'finished' });
+      }
+    }
+
+    // Show final winner
+    showFinalResults();
+
+  } catch (err) {
+    log(`❌ ERREUR: ${err.message}`, 'error');
+    console.error(err);
+  } finally {
+    running = false;
+    clearInterval(durationTimer);
+    updateDuration();
+    document.getElementById('btnStart').disabled = false;
+    document.getElementById('btnStop').disabled = true;
+    log('═══════════════════════════════════════════', 'phase-log');
+    log('🏁 SIMULATION TERMINÉE', 'phase-log');
+    log('═══════════════════════════════════════════', 'phase-log');
+  }
+}
+
+// Bot name from student ID
+const botNameMap = {};
+let botNameCounter = 0;
+function findBotName(studentId) {
+  if (botNameMap[studentId]) return botNameMap[studentId];
+  return studentId.slice(0, 8);
+}
+
+async function runPhase(level, numGroups, playersPerGroup, existingGroups) {
+  const PHASE_LABELS = { 1: 'CLASSE', 2: 'ÉCOLE', 3: 'CIRCONSCRIPTION', 4: 'ACADÉMIQUE' };
+  log(`\n${'═'.repeat(50)}`, 'phase-log');
+  log(`📌 PHASE ${level} — ${PHASE_LABELS[level]}`, 'phase-log');
+  log(`${'═'.repeat(50)}`, 'phase-log');
+
+  // Create phase
+  log(`📋 Création Phase ${level}...`, 'info');
+  const phRes = await apiPost('/api/tournament/phases', {
+    tournamentId, level, status: 'active'
+  });
+  if (!phRes.success) throw new Error(`Création phase ${level}: ${phRes.error}`);
+  phaseIds[level] = phRes.phase.id;
+  log(`✅ Phase ${level} créée et activée`, 'success');
+  updatePhaseUI(level, { status: 'active' });
+
+  // Create groups with fake students
+  log(`👥 Création de ${numGroups} groupes de ${playersPerGroup} joueurs...`, 'info');
+  for (let i = 0; i < numGroups; i++) {
+    if (!running) return;
+    const studentIds = [];
+    const studentNames = [];
+    for (let j = 0; j < playersPerGroup; j++) {
+      const idx = botNameCounter++;
+      const name = BOT_NAMES[idx % BOT_NAMES.length] + (idx >= BOT_NAMES.length ? `-${Math.floor(idx / BOT_NAMES.length)}` : '');
+      const sid = `sim-student-${level}-${i}-${j}-${Date.now()}`;
+      studentIds.push(sid);
+      studentNames.push(name);
+      botNameMap[sid] = name;
+    }
+
+    const gRes = await apiPost('/api/tournament/groups', {
+      tournamentId,
+      phaseLevel: level,
+      classId: tournamentId,
+      name: `Classe ${String.fromCharCode(65 + i)} (Phase ${level})`,
+      studentIds
+    });
+
+    if (!gRes.success) { log(`❌ Groupe ${i+1}: ${gRes.error}`, 'error'); continue; }
+
+    allGroups[level].push({
+      id: gRes.groupId,
+      name: `Classe ${String.fromCharCode(65 + i)}`,
+      studentIds,
+      studentNames,
+      winnerId: null,
+      winnerName: null,
+      matchId: null,
+      roomCode: null,
+      status: 'pending'
+    });
+  }
+
+  log(`✅ ${allGroups[level].length} groupes créés`, 'success');
+  updatePhaseUI(level, { status: 'active' });
+  updateGlobalStats();
+
+  // Play all matches
+  await playPhaseMatches(level);
+  if (!running) return;
+
+  // Close phase
+  log(`🔒 Clôture Phase ${level}...`, 'phase-log');
+  const closeRes = await apiPatch(`/api/tournament/phases/${phaseIds[level]}/close`);
+  if (closeRes.success) {
+    log(`✅ Phase ${level} clôturée. ${closeRes.qualifiedCount} qualifié(s) pour Phase ${level + 1}`, 'success');
+    updatePhaseUI(level, { status: 'finished' });
+  } else {
+    log(`❌ Clôture Phase ${level}: ${closeRes.error}`, 'error');
+  }
+  updateGlobalStats();
+}
+
+async function playPhaseMatches(level) {
+  const groups = allGroups[level] || [];
+  log(`⚔️ Lancement de ${groups.length} matchs...`, 'info');
+
+  for (let i = 0; i < groups.length; i++) {
+    if (!running) return;
+    const group = groups[i];
+
+    // Create match
+    const mRes = await apiPost('/api/tournament/matches', {
+      tournamentId,
+      phaseId: phaseIds[level],
+      groupId: group.id,
+      config: { rounds: 3, duration: 60, classes: ['CE1'], themes: ['Table de 2'] }
+    });
+
+    if (!mRes.success) { log(`❌ Match ${group.name}: ${mRes.error}`, 'error'); continue; }
+    group.matchId = mRes.matchId;
+    group.roomCode = mRes.roomCode;
+    group.status = 'playing';
+    log(`🎮 Match ${group.name}: code ${mRes.roomCode}`, 'info');
+    updatePhaseUI(level, { status: 'active' });
+
+    if (simulationMode === 'rapid') {
+      // Simulate results instantly
+      await simulateMatchResults(level, group);
+    } else {
+      // Real bot mode - TODO: implement with Socket.IO bots
+      log(`🤖 Mode réel non implémenté — utilisation mode rapide`, 'warn');
+      await simulateMatchResults(level, group);
+    }
+
+    updateGlobalStats();
+  }
+}
+
+async function simulateMatchResults(level, group) {
+  // Generate random results for each player
+  const results = group.studentIds.map((sid, idx) => {
+    const baseScore = Math.floor(Math.random() * 600) + 200;
+    const timeMs = Math.floor(Math.random() * 40000) + 20000;
+    const pairs = Math.floor(baseScore / 100);
+    const errors = Math.floor(Math.random() * 5);
+    return {
+      studentId: sid,
+      score: baseScore,
+      timeMs,
+      pairsValidated: pairs,
+      errors
+    };
+  });
+
+  // Sort by score desc
+  results.sort((a, b) => b.score - a.score);
+
+  // Finish match via API
+  const finRes = await apiPatch(`/api/tournament/matches/${group.matchId}/finish`, { results });
+
+  if (finRes.success) {
+    const winnerSid = results[0].studentId;
+    const winnerName = botNameMap[winnerSid] || winnerSid;
+    group.winnerId = winnerSid;
+    group.winnerName = winnerName;
+    group.status = 'finished';
+    log(`  🏆 ${group.name}: ${winnerName} gagne (${results[0].score}pts)`, 'success');
+  } else {
+    log(`  ❌ Finish match ${group.name}: ${finRes.error}`, 'error');
+    // Mark finished anyway for progression
+    group.status = 'finished';
+    group.winnerId = group.studentIds[0];
+    group.winnerName = botNameMap[group.studentIds[0]] || 'Inconnu';
+  }
+
+  updatePhaseUI(level, { status: 'active' });
+  // Small delay for visual effect
+  await sleep(200);
+}
+
+function showFinalResults() {
+  log('\n🏆 RÉSULTATS FINAUX DU TOURNOI', 'phase-log');
+  log('═══════════════════════════════════════════', 'phase-log');
+
+  for (let l = 1; l <= 4; l++) {
+    const groups = allGroups[l] || [];
+    if (groups.length === 0) continue;
+    const winners = groups.filter(g => g.winnerId);
+    log(`Phase ${l}: ${winners.length} gagnant(s) — ${winners.map(g => g.winnerName).join(', ')}`, 'success');
+  }
+
+  // Find ultimate winner
+  const lastPhase = [4, 3, 2, 1].find(l => (allGroups[l] || []).some(g => g.winnerId));
+  if (lastPhase) {
+    const ultimateWinner = allGroups[lastPhase].find(g => g.winnerId);
+    if (ultimateWinner) {
+      log(`\n🥇 GRAND VAINQUEUR: ${ultimateWinner.winnerName}`, 'phase-log');
+      document.getElementById('finalWinner').innerHTML = `
+        <div class="winner-banner">
+          <div class="trophy">🏆</div>
+          <div class="winner-name">${ultimateWinner.winnerName}</div>
+          <div style="font-size:0.85em;color:#d1fae5;margin-top:4px">CRAZY WINNER ACADÉMIQUE</div>
+        </div>
+      `;
+    }
+  }
+}
+
+// ==========================================
+// CLEANUP
+// ==========================================
+async function cleanupSimulation() {
+  if (!authToken) return;
+  if (!confirm('Supprimer le tournoi de simulation et toutes ses données ?')) return;
+
+  log('🧹 Nettoyage en cours...', 'warn');
+
+  // Delete all groups
+  for (let l = 1; l <= 4; l++) {
+    for (const g of (allGroups[l] || [])) {
+      try { await apiDelete(`/api/tournament/groups/${g.id}`); } catch {}
+    }
+  }
+
+  log('✅ Nettoyage terminé', 'success');
+  allGroups = { 1: [], 2: [], 3: [], 4: [] };
+  for (let l = 1; l <= 4; l++) updatePhaseUI(l, { status: 'pending' });
+  updateGlobalStats();
+  document.getElementById('finalWinner').innerHTML = '';
+}
+
+function stopSimulation() {
+  running = false;
+  log('⏹ Simulation arrêtée par l\'utilisateur', 'warn');
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnStop').disabled = true;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Try to load auth from localStorage on page load
+window.addEventListener('load', () => {
+  try {
+    const stored = localStorage.getItem('sb-cjwyqxfgnjyynovsqwkf-auth-token');
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed.access_token) {
+        authToken = parsed.access_token;
+        document.getElementById('authStatus').textContent = `✅ Token chargé depuis session`;
+        document.getElementById('authStatus').style.color = '#34d399';
+        document.getElementById('btnStart').disabled = false;
+        document.getElementById('btnCleanup').disabled = false;
+        log('Token de session Supabase détecté automatiquement', 'success');
+      }
+    }
+  } catch {}
+});
+</script>
+</body>
+</html>
