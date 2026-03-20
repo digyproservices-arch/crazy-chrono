@@ -177,6 +177,12 @@ const RectoratDashboard = () => {
           <p>Gestion des phases tournois officiels</p>
         </div>
         <div className="header-actions">
+          <a href="/tournament-simulator.html" target="_blank" rel="noopener noreferrer" className="btn-simulator" style={{padding:'8px 16px',borderRadius:'8px',background:'#7c3aed',color:'white',textDecoration:'none',fontWeight:600,fontSize:'0.85rem',marginRight:'8px'}}>
+            🏆 Simulateur Tournoi
+          </a>
+          <a href="/bot-tester.html" target="_blank" rel="noopener noreferrer" className="btn-bots" style={{padding:'8px 16px',borderRadius:'8px',background:'#0d6a7a',color:'white',textDecoration:'none',fontWeight:600,fontSize:'0.85rem',marginRight:'8px'}}>
+            🤖 Testeur Robots
+          </a>
           <button className="btn-secondary" onClick={() => navigate('/admin')}>
             ← Retour Admin
           </button>
