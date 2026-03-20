@@ -24,12 +24,20 @@ function normText(t) {
 
 /**
  * Evaluate a calcul expression and return numeric result.
- * Handles: "A + B", "A - B", "A × B", "A ÷ B", "A op ? = C", FR decimals,
- * textual formats ("le double de X", "la moitié de X", etc.)
+ * Recursive descent parser — handles chained ops (4×2×8=64), fractions (1/4+1/4=0.5),
+ * parentheses, "X fois Y", "le double de X", "A op ? = C", FR decimals.
  */
 function evalCalc(expr) {
   if (!expr) return null;
   let s = String(expr).trim().replace(/\u2212/g, '-');
+
+  // Textual: "X fois Y centièmes" → X * Y/100
+  const foisCent = s.match(/^([\d\s,.]+)\s*fois\s+([\d\s,.]+)\s*centi[eè]mes?$/i);
+  if (foisCent) {
+    const a = parseFloat(foisCent[1].replace(/\s/g, '').replace(',', '.'));
+    const b = parseFloat(foisCent[2].replace(/\s/g, '').replace(',', '.'));
+    if (!isNaN(a) && !isNaN(b)) return Math.round(a * b / 100 * 1e8) / 1e8;
+  }
 
   // Textual: "le/la double/moitié/tiers/quart/triple de X"
   const txtMatch = s.match(/(?:le|la)\s+(double|moiti[eé]|tiers|quart|triple)\s+de\s+([\d\s,.]+)/i);
@@ -54,25 +62,60 @@ function evalCalc(expr) {
     return Math.round(c * 1e8) / 1e8;
   }
 
-  // Standard: "A op B"
-  const stdMatch = s.match(/([\d\s,.]+)\s*([+\-×x*÷\/])\s*([\d\s,.]+)/);
-  if (stdMatch) {
-    const a = parseFloat(stdMatch[1].replace(/\s/g, '').replace(',', '.'));
-    const op = stdMatch[2];
-    const b = parseFloat(stdMatch[3].replace(/\s/g, '').replace(',', '.'));
-    if (isNaN(a) || isNaN(b)) return null;
-    let result;
-    switch (op) {
-      case '+': result = a + b; break;
-      case '-': result = a - b; break;
-      case '×': case 'x': case '*': result = a * b; break;
-      case '÷': case '/': result = b !== 0 ? a / b : null; break;
-      default: return null;
-    }
-    return result !== null ? Math.round(result * 1e8) / 1e8 : null;
+  // Normalize: replace unicode ops, "fois" → *, FR decimals, thousand separators
+  let norm = s.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/').replace(/−/g, '-');
+  norm = norm.replace(/\bfois\b/gi, '*');
+  norm = norm.replace(/,/g, '.');
+  norm = norm.replace(/(\d)\s+(\d{3})(?!\d)/g, '$1$2');
+  norm = norm.replace(/\s/g, '');
+  if (!/^[\d.+\-*/()]+$/.test(norm)) return null;
+
+  // Tokenize
+  const tokens = [];
+  let i = 0;
+  while (i < norm.length) {
+    if (norm[i] === '(' || norm[i] === ')') { tokens.push(norm[i]); i++; }
+    else if ('+-*/'.includes(norm[i])) {
+      if (norm[i] === '-' && (tokens.length === 0 || tokens[tokens.length - 1] === '(' || typeof tokens[tokens.length - 1] === 'string' && '+-*/'.includes(tokens[tokens.length - 1]))) {
+        let num = '-'; i++;
+        while (i < norm.length && (norm[i] >= '0' && norm[i] <= '9' || norm[i] === '.')) { num += norm[i]; i++; }
+        if (num === '-') return null;
+        tokens.push(parseFloat(num));
+      } else { tokens.push(norm[i]); i++; }
+    } else if (norm[i] >= '0' && norm[i] <= '9' || norm[i] === '.') {
+      let num = '';
+      while (i < norm.length && (norm[i] >= '0' && norm[i] <= '9' || norm[i] === '.')) { num += norm[i]; i++; }
+      tokens.push(parseFloat(num));
+    } else { return null; }
   }
 
-  return null;
+  // Recursive descent parser with correct precedence
+  let pos = 0;
+  function parseExpr() {
+    let left = parseTerm();
+    while (pos < tokens.length && (tokens[pos] === '+' || tokens[pos] === '-')) {
+      const op = tokens[pos++]; const right = parseTerm();
+      left = op === '+' ? left + right : left - right;
+    }
+    return left;
+  }
+  function parseTerm() {
+    let left = parseFactor();
+    while (pos < tokens.length && (tokens[pos] === '*' || tokens[pos] === '/')) {
+      const op = tokens[pos++]; const right = parseFactor();
+      if (op === '*') left *= right;
+      else { if (right === 0) return NaN; left /= right; }
+    }
+    return left;
+  }
+  function parseFactor() {
+    if (tokens[pos] === '(') { pos++; const val = parseExpr(); if (tokens[pos] === ')') pos++; return val; }
+    if (typeof tokens[pos] === 'number') return tokens[pos++];
+    return NaN;
+  }
+  const result = parseExpr();
+  if (pos !== tokens.length) return null;
+  return Number.isFinite(result) ? Math.round(result * 1e8) / 1e8 : null;
 }
 
 function parseChiffre(content) {

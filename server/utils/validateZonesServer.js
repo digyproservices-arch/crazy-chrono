@@ -27,8 +27,15 @@ function parseOperation(s) {
     let r; switch (k) { case 'double': r = v * 2; break; case 'triple': r = v * 3; break; case 'moitie': r = v / 2; break; case 'tiers': r = v / 3; break; case 'quart': r = v / 4; break; default: return null; }
     return Number.isFinite(r) ? { result: _r8(r) } : null;
   }
+  // Textual: "X fois Y centièmes" → X * Y/100
+  const foisCent = raw.match(/^([\d\s,.]+)\s*fois\s+([\d\s,.]+)\s*centi[eè]mes?$/i);
+  if (foisCent) {
+    const a = parseFloat(foisCent[1].replace(/\s/g, '').replace(/,/g, '.'));
+    const b = parseFloat(foisCent[2].replace(/\s/g, '').replace(/,/g, '.'));
+    if (Number.isFinite(a) && Number.isFinite(b)) return { result: _r8(a * b / 100) };
+  }
   // Format "A op ? = C"
-  const norm = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/').replace(/−/g, '-');
+  const norm = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/').replace(/−/g, '-').replace(/\bfois\b/gi, '*');
   const um = norm.match(/^(.+?)\s*([+\-*/])\s*\?\s*=\s*(.+)$/);
   if (um) {
     const a = _pn(um[1]), op = um[2], c = _pn(um[3]);
