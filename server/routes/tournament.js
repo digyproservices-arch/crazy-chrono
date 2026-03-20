@@ -1186,6 +1186,198 @@ router.patch('/matches/:id/finish', requireSupabase, requireAuth, async (req, re
 });
 
 // ==========================================
+// SUPERVISEUR (RECTORAT)
+// ==========================================
+
+/**
+ * GET /api/tournament/:tournamentId/supervisor
+ * Vue complète superviseur: phases, groupes, matchs, résultats, timeline
+ */
+router.get('/:tournamentId/supervisor', requireSupabase, requireAuth, async (req, res) => {
+  try {
+    const { tournamentId } = req.params;
+
+    // 1. Tournoi
+    const { data: tournament, error: tErr } = await supabase
+      .from('tournaments')
+      .select('*')
+      .eq('id', tournamentId)
+      .single();
+    if (tErr || !tournament) return res.status(404).json({ success: false, error: 'Tournoi introuvable' });
+
+    // 2. Phases
+    const { data: phases } = await supabase
+      .from('tournament_phases')
+      .select('*')
+      .eq('tournament_id', tournamentId)
+      .order('level', { ascending: true });
+
+    // 3. Groupes
+    const { data: groups } = await supabase
+      .from('tournament_groups')
+      .select('*')
+      .eq('tournament_id', tournamentId)
+      .order('created_at', { ascending: true });
+
+    // 4. Matchs
+    const groupIds = (groups || []).map(g => g.id);
+    let matches = [];
+    if (groupIds.length > 0) {
+      const { data: matchData } = await supabase
+        .from('tournament_matches')
+        .select('*')
+        .eq('tournament_id', tournamentId)
+        .order('created_at', { ascending: true });
+      matches = matchData || [];
+    }
+
+    // 5. Résultats
+    const matchIds = matches.map(m => m.id);
+    let results = [];
+    if (matchIds.length > 0) {
+      const { data: resultData } = await supabase
+        .from('match_results')
+        .select('*')
+        .in('match_id', matchIds)
+        .order('position', { ascending: true });
+      results = resultData || [];
+    }
+
+    // 6. Construire la vue enrichie par phase
+    const phasesView = (phases || []).map(phase => {
+      const phaseGroups = (groups || []).filter(g => g.phase_level === phase.level);
+      const phaseMatches = matches.filter(m => m.phase_id === phase.id);
+      const finishedGroups = phaseGroups.filter(g => g.status === 'finished');
+      const winners = phaseGroups.filter(g => g.winner_id).map(g => g.winner_id);
+
+      const groupsView = phaseGroups.map(g => {
+        const studentIds = Array.isArray(g.student_ids) ? g.student_ids : JSON.parse(g.student_ids || '[]');
+        const match = matches.find(m => m.id === g.match_id);
+        const matchResults = match ? results.filter(r => r.match_id === match.id) : [];
+
+        return {
+          id: g.id,
+          name: g.name,
+          status: g.status,
+          studentIds,
+          winnerId: g.winner_id,
+          match: match ? {
+            id: match.id,
+            roomCode: match.room_code,
+            status: match.status,
+            createdAt: match.created_at,
+            finishedAt: match.finished_at,
+            results: matchResults.map(r => ({
+              studentId: r.student_id,
+              position: r.position,
+              score: r.score,
+              timeMs: r.time_ms,
+              pairs: r.pairs_validated,
+              errors: r.errors
+            }))
+          } : null
+        };
+      });
+
+      return {
+        id: phase.id,
+        level: phase.level,
+        name: phase.name || PHASE_NAMES[phase.level],
+        status: phase.status,
+        startedAt: phase.started_at,
+        finishedAt: phase.finished_at,
+        totalGroups: phaseGroups.length,
+        finishedGroups: finishedGroups.length,
+        totalMatches: phaseMatches.length,
+        finishedMatches: phaseMatches.filter(m => m.status === 'finished').length,
+        winnersCount: winners.length,
+        groups: groupsView
+      };
+    });
+
+    // 7. Timeline chronologique (Replay Niveau A)
+    const timeline = matches
+      .filter(m => m.status === 'finished' && m.finished_at)
+      .map(m => {
+        const group = (groups || []).find(g => g.match_id === m.id);
+        const phase = (phases || []).find(p => p.id === m.phase_id);
+        const matchResults = results.filter(r => r.match_id === m.id);
+        const winner = matchResults.find(r => r.position === 1);
+
+        return {
+          type: 'match_finished',
+          timestamp: m.finished_at,
+          phaseLevel: phase?.level,
+          phaseName: phase?.name || PHASE_NAMES[phase?.level],
+          groupName: group?.name,
+          matchId: m.id,
+          roomCode: m.room_code,
+          winnerId: winner?.student_id,
+          winnerScore: winner?.score,
+          playerCount: matchResults.length,
+          results: matchResults.map(r => ({
+            studentId: r.student_id,
+            position: r.position,
+            score: r.score,
+            timeMs: r.time_ms,
+            pairs: r.pairs_validated,
+            errors: r.errors
+          }))
+        };
+      })
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    // Add phase events to timeline
+    for (const phase of (phases || [])) {
+      if (phase.started_at) {
+        timeline.push({
+          type: 'phase_started',
+          timestamp: phase.started_at,
+          phaseLevel: phase.level,
+          phaseName: phase.name || PHASE_NAMES[phase.level]
+        });
+      }
+      if (phase.finished_at) {
+        timeline.push({
+          type: 'phase_finished',
+          timestamp: phase.finished_at,
+          phaseLevel: phase.level,
+          phaseName: phase.name || PHASE_NAMES[phase.level]
+        });
+      }
+    }
+    timeline.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    // 8. Stats globales
+    const globalStats = {
+      totalPhases: (phases || []).length,
+      activePhases: (phases || []).filter(p => p.status === 'active').length,
+      finishedPhases: (phases || []).filter(p => p.status === 'finished').length,
+      totalGroups: (groups || []).length,
+      totalMatches: matches.length,
+      finishedMatches: matches.filter(m => m.status === 'finished').length,
+      playingMatches: matches.filter(m => m.status === 'playing').length,
+      totalPlayers: new Set((groups || []).flatMap(g => {
+        const sids = Array.isArray(g.student_ids) ? g.student_ids : JSON.parse(g.student_ids || '[]');
+        return sids;
+      })).size,
+      totalResults: results.length
+    };
+
+    res.json({
+      success: true,
+      tournament,
+      stats: globalStats,
+      phases: phasesView,
+      timeline
+    });
+  } catch (error) {
+    console.error('[Tournament API] Error supervisor view:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
 // LEADERBOARD
 // ==========================================
 
