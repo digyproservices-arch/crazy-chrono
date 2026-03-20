@@ -310,19 +310,28 @@ async function doLogin() {
     return;
   }
 
-  statusEl.textContent = '⏳ Connexion...';
+  statusEl.textContent = '⏳ Connexion Supabase...';
   statusEl.style.color = '#fbbf24';
 
+  const supabaseUrl = getSupabaseUrl();
+  const supabaseKey = getSupabaseAnonKey();
+  log(`Auth Supabase: ${supabaseUrl}/auth/v1/token`, 'info');
+
   try {
-    // Use Supabase auth directly
-    const res = await fetch(`${getSupabaseUrl()}/auth/v1/token?grant_type=password`, {
+    const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': getSupabaseAnonKey()
+        'apikey': supabaseKey
       },
       body: JSON.stringify({ email, password })
     });
+
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await res.text();
+      throw new Error(`Supabase a renvoyé du ${contentType || 'HTML'} (status ${res.status}) au lieu de JSON. Vérifiez l'URL Supabase.`);
+    }
 
     const data = await res.json();
     if (data.access_token) {
@@ -333,34 +342,15 @@ async function doLogin() {
       document.getElementById('btnCleanup').disabled = false;
       log(`Authentifié en tant que ${email}`, 'success');
     } else {
-      statusEl.textContent = `❌ ${data.error_description || data.msg || 'Erreur auth'}`;
+      statusEl.textContent = `❌ ${data.error_description || data.msg || 'Identifiants invalides'}`;
       statusEl.style.color = '#f87171';
       log(`Erreur auth: ${data.error_description || JSON.stringify(data)}`, 'error');
     }
   } catch (err) {
-    // Fallback: try server-side login
-    try {
-      const res2 = await fetch(`${serverUrl}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data2 = await res2.json();
-      if (data2.token || data2.access_token) {
-        authToken = data2.token || data2.access_token;
-        statusEl.textContent = `✅ Connecté: ${email}`;
-        statusEl.style.color = '#34d399';
-        document.getElementById('btnStart').disabled = false;
-        document.getElementById('btnCleanup').disabled = false;
-        log(`Authentifié en tant que ${email}`, 'success');
-      } else {
-        throw new Error(data2.error || 'Login failed');
-      }
-    } catch (err2) {
-      statusEl.textContent = `❌ ${err2.message}`;
-      statusEl.style.color = '#f87171';
-      log(`Erreur connexion: ${err2.message}`, 'error');
-    }
+    statusEl.textContent = `❌ ${err.message}`;
+    statusEl.style.color = '#f87171';
+    log(`Erreur connexion: ${err.message}`, 'error');
+    log(`Vérifiez: 1) URL Supabase correcte 2) Email/mot de passe valides 3) Connexion internet`, 'warn');
   }
 }
 
@@ -833,18 +823,40 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // Try to load auth from localStorage on page load
 window.addEventListener('load', () => {
+  serverUrl = document.getElementById('serverUrl').value.replace(/\/$/, '');
   try {
-    const stored = localStorage.getItem('sb-cjwyqxfgnjyynovsqwkf-auth-token');
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (parsed.access_token) {
-        authToken = parsed.access_token;
-        document.getElementById('authStatus').textContent = `✅ Token chargé depuis session`;
-        document.getElementById('authStatus').style.color = '#34d399';
-        document.getElementById('btnStart').disabled = false;
-        document.getElementById('btnCleanup').disabled = false;
-        log('Token de session Supabase détecté automatiquement', 'success');
-      }
+    // Try multiple possible storage keys for the Supabase session
+    const keys = [
+      'sb-cjwyqxfgnjyynovsqwkf-auth-token',
+      'supabase_token',
+      'token'
+    ];
+    for (const key of keys) {
+      const stored = localStorage.getItem(key);
+      if (!stored) continue;
+      try {
+        const parsed = JSON.parse(stored);
+        const tok = parsed.access_token || parsed.token || (typeof parsed === 'string' ? parsed : null);
+        if (tok) {
+          authToken = tok;
+          document.getElementById('authStatus').textContent = `✅ Token chargé (${key})`;
+          document.getElementById('authStatus').style.color = '#34d399';
+          document.getElementById('btnStart').disabled = false;
+          document.getElementById('btnCleanup').disabled = false;
+          log(`Token de session détecté depuis localStorage[${key}]`, 'success');
+          return;
+        }
+      } catch {}
+    }
+    // Also try raw token string
+    const rawToken = localStorage.getItem('supabase_token') || localStorage.getItem('token');
+    if (rawToken && rawToken.startsWith('ey')) {
+      authToken = rawToken;
+      document.getElementById('authStatus').textContent = `✅ Token chargé depuis session`;
+      document.getElementById('authStatus').style.color = '#34d399';
+      document.getElementById('btnStart').disabled = false;
+      document.getElementById('btnCleanup').disabled = false;
+      log('Token brut détecté depuis localStorage', 'success');
     }
   } catch {}
 });
