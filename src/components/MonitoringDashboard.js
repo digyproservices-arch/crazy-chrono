@@ -151,6 +151,32 @@ const clearIncidents = async () => {
     }
   };
 
+  const purgeAll = async () => {
+    if (!window.confirm('⚠️ Supprimer TOUS les incidents, manches, screenshots et logs auth ? Cette action est irréversible.')) return;
+    try {
+      const token = getAuthToken();
+      const backendUrl = getBackendUrl();
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+      // Purge server-side data in parallel
+      await Promise.allSettled([
+        fetch(`${backendUrl}/api/monitoring/incidents`, { method: 'DELETE', headers }),
+        fetch(`${backendUrl}/api/monitoring/game-screenshots`, { method: 'DELETE', headers }),
+      ]);
+      // Purge local data
+      try { localStorage.removeItem('cc_game_incidents'); } catch {}
+      clearRoundLogs();
+      clearAuthLogs();
+      setIncidents([]);
+      setRoundLogs([]);
+      setAuthLogs([]);
+      setScreenshotMetas([]);
+      alert('✅ Tout a été purgé. Vous repartez à zéro.');
+    } catch (err) {
+      console.error('[Monitoring] Purge error:', err);
+      alert('Erreur lors de la purge: ' + err.message);
+    }
+  };
+
   const formatIncidentsForCopy = (arr) => {
     if (!arr || !arr.length) return 'Aucun incident.';
     return arr.map((inc, i) => {
@@ -586,6 +612,12 @@ sections.push(`===== FIN DU RAPPORT =====`);
                         style={btnStyle(COLORS.info)}
                       >
                         🔄 Rafraîchir tout
+                      </button>
+                      <button
+                        onClick={purgeAll}
+                        style={btnStyle('#dc2626')}
+                      >
+                        🗑️ Purger tout
                       </button>
                       <button
                         onClick={() => copyToClipboard(reportText, 'report')}

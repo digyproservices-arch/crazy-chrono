@@ -498,8 +498,8 @@ export function formatIncidentsForCopy(incidents) {
 // ── Helpers ────────────────────────────────────────────────
 
 /**
- * Mini-parseur d'opérations pour le monitoring (copie autonome de Carte.js parseOperation).
- * Gère: "A op B", "A op ? = C", "le double/moitié/tiers/quart/triple de X"
+ * Mini-parseur d'opérations pour le monitoring.
+ * Recursive descent parser — handles chained ops (4×2×8), fractions (1/4+1/4), parentheses.
  */
 function _parseOperationForMonitoring(s) {
   if (!s) return null;
@@ -523,16 +523,60 @@ function _parseOperationForMonitoring(s) {
     let r; switch (op) { case '+': r = c - a; break; case '-': r = a - c; break; case '*': r = a !== 0 ? c / a : NaN; break; case '/': r = c !== 0 ? a / c : NaN; break; default: return null; }
     return Number.isFinite(r) ? { result: _r8(r) } : null;
   }
-  // Format simple "A op B"
-  const stripped = norm.replace(/\s/g, '').replace(/,/g, '.');
-  const sm = stripped.match(/^(-?[\d.]+)([+\-*/])(-?[\d.]+)$/);
-  if (sm) {
-    const a = parseFloat(sm[1]), op = sm[2], b = parseFloat(sm[3]);
-    if (Number.isNaN(a) || Number.isNaN(b)) return null;
-    let r; switch (op) { case '+': r = a + b; break; case '-': r = a - b; break; case '*': r = a * b; break; case '/': r = b !== 0 ? a / b : NaN; break; default: return null; }
-    return Number.isFinite(r) ? { result: _r8(r) } : null;
+  // Expression générale (recursive descent parser)
+  const result = _safeEvalMathClient(norm);
+  return result !== null ? { result } : null;
+}
+
+function _safeEvalMathClient(expr) {
+  if (!expr) return null;
+  let s = String(expr).replace(/,/g, '.');
+  s = s.replace(/(\d)\s+(\d{3})(?!\d)/g, '$1$2');
+  s = s.replace(/\s/g, '');
+  if (!/^[\d.+\-*/()]+$/.test(s)) return null;
+  const tokens = [];
+  let i = 0;
+  while (i < s.length) {
+    if (s[i] === '(' || s[i] === ')') { tokens.push(s[i]); i++; }
+    else if ('+-*/'.includes(s[i])) {
+      if (s[i] === '-' && (tokens.length === 0 || tokens[tokens.length - 1] === '(' || typeof tokens[tokens.length - 1] === 'string' && '+-*/'.includes(tokens[tokens.length - 1]))) {
+        let num = '-'; i++;
+        while (i < s.length && (s[i] >= '0' && s[i] <= '9' || s[i] === '.')) { num += s[i]; i++; }
+        if (num === '-') return null;
+        tokens.push(parseFloat(num));
+      } else { tokens.push(s[i]); i++; }
+    } else if (s[i] >= '0' && s[i] <= '9' || s[i] === '.') {
+      let num = '';
+      while (i < s.length && (s[i] >= '0' && s[i] <= '9' || s[i] === '.')) { num += s[i]; i++; }
+      tokens.push(parseFloat(num));
+    } else { return null; }
   }
-  return null;
+  let pos = 0;
+  function parseExpr() {
+    let left = parseTerm();
+    while (pos < tokens.length && (tokens[pos] === '+' || tokens[pos] === '-')) {
+      const op = tokens[pos++]; const right = parseTerm();
+      left = op === '+' ? left + right : left - right;
+    }
+    return left;
+  }
+  function parseTerm() {
+    let left = parseFactor();
+    while (pos < tokens.length && (tokens[pos] === '*' || tokens[pos] === '/')) {
+      const op = tokens[pos++]; const right = parseFactor();
+      if (op === '*') left *= right;
+      else { if (right === 0) return NaN; left /= right; }
+    }
+    return left;
+  }
+  function parseFactor() {
+    if (tokens[pos] === '(') { pos++; const val = parseExpr(); if (tokens[pos] === ')') pos++; return val; }
+    if (typeof tokens[pos] === 'number') return tokens[pos++];
+    return NaN;
+  }
+  const result = parseExpr();
+  if (pos !== tokens.length) return null;
+  return Number.isFinite(result) ? Math.round(result * 1e8) / 1e8 : null;
 }
 
 function normalizeType(t) {

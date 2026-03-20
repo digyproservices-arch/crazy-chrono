@@ -5,9 +5,14 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Évalue un calcul mathématique (toutes opérations: +, -, ×, ÷)
- * Gère aussi: "le double/moitié/tiers/quart/triple de X" et "A op ? = C"
- * @param {string} calcul - Ex: "3 × 4", "15 - 6", "le double de 8"
+ * Évalue une expression mathématique complète avec support:
+ * - Opérations chaînées: "4 × 2 × 8" → 64, "5 × 8 × 50" → 2000
+ * - Fractions: "1/4" → 0.25, "3/2" → 1.5
+ * - Fractions composées: "1/4 + 1/4" → 0.5
+ * - Parenthèses: "2 × (1/4)" → 0.5
+ * - Format textuel: "le double de 8" → 16
+ * - Format "A op ? = C"
+ * @param {string} calcul - Expression mathématique
  * @returns {number|null} Résultat ou null si invalide
  */
 function evaluateCalcul(calcul) {
@@ -24,7 +29,7 @@ function evaluateCalcul(calcul) {
     return Number.isFinite(r) ? _r8(r) : null;
   }
   // Format "A op ? = C"
-  const norm = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/').replace(/x/gi, '*');
+  const norm = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/').replace(/x/gi, '*').replace(/−/g, '-');
   const um = norm.match(/^(.+?)\s*([+\-*/])\s*\?\s*=\s*(.+)$/);
   if (um) {
     const a = _pn(um[1]), op = um[2], c = _pn(um[3]);
@@ -32,16 +37,69 @@ function evaluateCalcul(calcul) {
     let r; switch (op) { case '+': r = c-a; break; case '-': r = a-c; break; case '*': r = a!==0?c/a:NaN; break; case '/': r = c!==0?a/c:NaN; break; default: return null; }
     return Number.isFinite(r) ? _r8(r) : null;
   }
-  // Format simple "A op B"
-  const stripped = norm.replace(/\s/g, '').replace(/,/g, '.');
-  const sm = stripped.match(/^(-?[\d.]+)([+\-*/])(-?[\d.]+)$/);
-  if (sm) {
-    const a = parseFloat(sm[1]), op = sm[2], b = parseFloat(sm[3]);
-    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
-    let r; switch (op) { case '+': r = a+b; break; case '-': r = a-b; break; case '*': r = a*b; break; case '/': r = b!==0?a/b:NaN; break; default: return null; }
-    return Number.isFinite(r) ? _r8(r) : null;
+  // Expression générale avec opérations chaînées, fractions et parenthèses
+  const result = _safeEvalMath(norm);
+  return result;
+}
+
+/**
+ * Évaluateur mathématique sécurisé (recursive descent parser).
+ * Gère +, -, *, / avec bonne priorité et parenthèses.
+ */
+function _safeEvalMath(expr) {
+  if (!expr) return null;
+  // Normalize: remove spaces around operators but handle "1 000" thousand separators
+  let s = String(expr).replace(/,/g, '.');
+  // Handle thousand separators: "1 000" → "1000", "33 000" → "33000"
+  s = s.replace(/(\d)\s+(\d{3})(?!\d)/g, '$1$2');
+  s = s.replace(/\s/g, '');
+  // Validate: only digits, dots, operators, parentheses
+  if (!/^[\d.+\-*/()]+$/.test(s)) return null;
+  // Tokenize
+  const tokens = [];
+  let i = 0;
+  while (i < s.length) {
+    if (s[i] === '(' || s[i] === ')') { tokens.push(s[i]); i++; }
+    else if ('+-*/'.includes(s[i])) {
+      // Unary minus: at start, after '(' or after operator
+      if (s[i] === '-' && (tokens.length === 0 || tokens[tokens.length - 1] === '(' || typeof tokens[tokens.length - 1] === 'string' && '+-*/'.includes(tokens[tokens.length - 1]))) {
+        let num = '-'; i++;
+        while (i < s.length && (s[i] >= '0' && s[i] <= '9' || s[i] === '.')) { num += s[i]; i++; }
+        if (num === '-') return null;
+        tokens.push(parseFloat(num));
+      } else { tokens.push(s[i]); i++; }
+    } else if (s[i] >= '0' && s[i] <= '9' || s[i] === '.') {
+      let num = '';
+      while (i < s.length && (s[i] >= '0' && s[i] <= '9' || s[i] === '.')) { num += s[i]; i++; }
+      tokens.push(parseFloat(num));
+    } else { return null; }
   }
-  return null;
+  let pos = 0;
+  function parseExpr() {
+    let left = parseTerm();
+    while (pos < tokens.length && (tokens[pos] === '+' || tokens[pos] === '-')) {
+      const op = tokens[pos++]; const right = parseTerm();
+      left = op === '+' ? left + right : left - right;
+    }
+    return left;
+  }
+  function parseTerm() {
+    let left = parseFactor();
+    while (pos < tokens.length && (tokens[pos] === '*' || tokens[pos] === '/')) {
+      const op = tokens[pos++]; const right = parseFactor();
+      if (op === '*') left *= right;
+      else { if (right === 0) return NaN; left /= right; }
+    }
+    return left;
+  }
+  function parseFactor() {
+    if (tokens[pos] === '(') { pos++; const val = parseExpr(); if (tokens[pos] === ')') pos++; return val; }
+    if (typeof tokens[pos] === 'number') return tokens[pos++];
+    return NaN;
+  }
+  const result = parseExpr();
+  if (pos !== tokens.length) return null;
+  return Number.isFinite(result) ? Math.round(result * 1e8) / 1e8 : null;
 }
 
 /**
