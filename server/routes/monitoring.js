@@ -799,4 +799,71 @@ router.get('/usage-stats', requireAdminAuth, async (req, res) => {
   }
 });
 
+// ── Audit Parser — Vérifie toutes les expressions calcul de la bibliothèque ──
+router.get('/audit-parser', requireAdminAuth, (req, res) => {
+  try {
+    const { evaluateCalcul } = require('../utils/serverZoneGenerator');
+    const dataPath = path.join(__dirname, '..', 'data', 'associations.json');
+    const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+
+    const calculs = data.calculs || [];
+    const chiffres = data.chiffres || [];
+    const associations = data.associations || [];
+
+    const calculMap = new Map(calculs.map(c => [c.id, c]));
+    const chiffreMap = new Map(chiffres.map(c => [c.id, c]));
+    const calcAssocs = associations.filter(a => a.calculId && a.chiffreId);
+
+    // Test 1: standalone parsing
+    const failedCalcs = [];
+    const passedCount = { total: calculs.length, passed: 0 };
+    for (const calc of calculs) {
+      const result = evaluateCalcul(calc.content);
+      if (result === null) {
+        failedCalcs.push({ id: calc.id, content: calc.content, levelClass: calc.levelClass || '?', themes: (calc.themes || []).join(', ') });
+      } else {
+        passedCount.passed++;
+      }
+    }
+
+    // Test 2: paired verification
+    const mismatchPairs = [];
+    const unparsedPairs = [];
+    let okPairsCount = 0;
+
+    for (const assoc of calcAssocs) {
+      const calc = calculMap.get(assoc.calculId);
+      const chiffre = chiffreMap.get(assoc.chiffreId);
+      if (!calc || !chiffre) continue;
+
+      const parsedResult = evaluateCalcul(calc.content);
+      const chiffreRaw = String(chiffre.content).replace(/\s/g, '').replace(',', '.');
+      let chiffreValue = parseFloat(chiffreRaw);
+      if (isNaN(chiffreValue) || !/^-?[\d.]+$/.test(chiffreRaw)) {
+        const exprVal = evaluateCalcul(chiffre.content);
+        if (exprVal !== null) chiffreValue = exprVal;
+      }
+
+      if (parsedResult === null) {
+        unparsedPairs.push({ calcId: calc.id, calcContent: calc.content, chiffreContent: chiffre.content, levelClass: assoc.levelClass });
+      } else if (Math.abs(parsedResult - chiffreValue) > 1e-6) {
+        mismatchPairs.push({ calcId: calc.id, calcContent: calc.content, parsedResult, chiffreContent: chiffre.content, chiffreValue, levelClass: assoc.levelClass });
+      } else {
+        okPairsCount++;
+      }
+    }
+
+    res.json({
+      ok: true,
+      timestamp: new Date().toISOString(),
+      standalone: { total: calculs.length, passed: passedCount.passed, failed: failedCalcs.length, failures: failedCalcs },
+      pairs: { total: calcAssocs.length, correct: okPairsCount, unparsed: unparsedPairs.length, mismatch: mismatchPairs.length, unparsedList: unparsedPairs, mismatchList: mismatchPairs },
+      counts: { calculs: calculs.length, chiffres: chiffres.length, associations: calcAssocs.length }
+    });
+  } catch (e) {
+    console.error('[AuditParser] Error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 module.exports = router;

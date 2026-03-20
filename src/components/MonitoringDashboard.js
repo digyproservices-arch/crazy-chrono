@@ -61,6 +61,8 @@ function MonitoringDashboard() {
   const [usageStats, setUsageStats] = useState(null);
   const [playersLoading, setPlayersLoading] = useState(false);
   const [playersSubTab, setPlayersSubTab] = useState('online'); // online | payments | usage
+  const [auditResult, setAuditResult] = useState(null);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   const copyToClipboard = async (text, source) => {
     try {
@@ -300,6 +302,25 @@ const clearIncidents = async () => {
     }
     // 2) Fallback: local IndexedDB metas
     try { setScreenshotMetas(getAllScreenshotMetas()); } catch {}
+  }, []);
+
+  const fetchAuditParser = useCallback(async () => {
+    try {
+      setAuditLoading(true);
+      const token = getAuthToken();
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/monitoring/audit-parser`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) setAuditResult(data);
+      }
+    } catch (err) {
+      console.warn('[Monitoring] Audit parser fetch failed:', err.message);
+    } finally {
+      setAuditLoading(false);
+    }
   }, []);
 
   const viewScreenshot = useCallback(async (roundId) => {
@@ -644,6 +665,55 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     <KPICard title="Incidents" value={incidents.length} icon="🚨" color={COLORS.accent} highlight={incidents.length > 0} />
                     <KPICard title="Manches" value={roundLogs.length} icon="🎮" color="#10b981" highlight={roundLogs.some(r => r.doublePairIssues > 0)} />
                     <KPICard title="Double paires" value={roundLogs.filter(r => r.doublePairIssues > 0).length} icon="🚨" color={COLORS.error} highlight={roundLogs.some(r => r.doublePairIssues > 0)} />
+                  </div>
+
+                  {/* Audit Parser section */}
+                  <div style={{ ...cardStyle, marginBottom: 16, borderLeft: `4px solid ${auditResult ? (auditResult.standalone.failed === 0 && auditResult.pairs.mismatch === 0 ? '#10b981' : '#ef4444') : COLORS.info}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <h3 style={{ ...cardTitleStyle, margin: 0, color: auditResult ? (auditResult.standalone.failed === 0 && auditResult.pairs.mismatch === 0 ? '#10b981' : '#ef4444') : COLORS.text }}>
+                        {auditResult
+                          ? (auditResult.standalone.failed === 0 && auditResult.pairs.mismatch === 0
+                            ? `✅ Audit Parser — ${auditResult.standalone.passed}/${auditResult.standalone.total} expressions OK, ${auditResult.pairs.correct}/${auditResult.pairs.total} paires OK`
+                            : `❌ Audit Parser — ${auditResult.standalone.failed} non parsées, ${auditResult.pairs.mismatch} mismatch`)
+                          : '🔍 Audit Parser'}
+                      </h3>
+                      <button
+                        onClick={fetchAuditParser}
+                        disabled={auditLoading}
+                        style={{ ...btnStyle(COLORS.info), opacity: auditLoading ? 0.6 : 1, fontSize: 13, padding: '6px 16px' }}
+                      >
+                        {auditLoading ? '⏳ Analyse...' : '🔍 Lancer l\'audit'}
+                      </button>
+                    </div>
+                    {!auditResult && <p style={{ color: COLORS.textMuted, fontSize: 13, margin: 0 }}>Teste toutes les expressions de calcul de la bibliothèque contre le parser.</p>}
+                    {auditResult && auditResult.standalone.failed > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        <div style={{ fontWeight: 700, color: '#ef4444', fontSize: 13, marginBottom: 4 }}>Expressions non parsées :</div>
+                        {auditResult.standalone.failures.map((f, i) => (
+                          <div key={i} style={{ padding: '4px 8px', background: 'rgba(239,68,68,0.1)', borderRadius: 4, marginBottom: 2, fontSize: 12, color: COLORS.text }}>
+                            ❌ <code>{f.content}</code> <span style={{ color: COLORS.textMuted }}>({f.levelClass}, {f.themes})</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {auditResult && auditResult.pairs.mismatch > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        <div style={{ fontWeight: 700, color: '#f59e0b', fontSize: 13, marginBottom: 4 }}>Paires avec mauvais résultat :</div>
+                        {auditResult.pairs.mismatchList.map((m, i) => (
+                          <div key={i} style={{ padding: '4px 8px', background: 'rgba(245,158,11,0.1)', borderRadius: 4, marginBottom: 2, fontSize: 12, color: COLORS.text }}>
+                            ⚠️ <code>{m.calcContent}</code> → parser: {m.parsedResult}, chiffre: <code>{m.chiffreContent}</code> ({m.chiffreValue}) <span style={{ color: COLORS.textMuted }}>({m.levelClass})</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {auditResult && auditResult.standalone.failed === 0 && auditResult.pairs.mismatch === 0 && (
+                      <p style={{ color: '#10b981', fontSize: 13, margin: '8px 0 0' }}>Toutes les expressions sont correctement parsées et toutes les paires correspondent.</p>
+                    )}
+                    {auditResult && (
+                      <div style={{ marginTop: 8, fontSize: 11, color: COLORS.textMuted }}>
+                        Audit le {new Date(auditResult.timestamp).toLocaleString('fr-FR')} — {auditResult.counts.calculs} calculs, {auditResult.counts.chiffres} chiffres, {auditResult.counts.associations} associations
+                      </div>
+                    )}
                   </div>
 
                   {/* Incidents section */}

@@ -1035,4 +1035,4 @@ function generateRoundZones(seed, config = {}) {
   }
 }
 
-module.exports = { generateRoundZones, createDeckState };
+module.exports = { generateRoundZones, createDeckState, evaluateCalcul };
