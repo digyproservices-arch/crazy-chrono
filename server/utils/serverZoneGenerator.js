@@ -20,13 +20,23 @@ function evaluateCalcul(calcul) {
   const raw = calcul.trim();
   const _pn = (t) => { const c = String(t).replace(/\s/g, '').replace(/,/g, '.'); const v = parseFloat(c); return Number.isFinite(v) ? v : NaN; };
   const _r8 = (v) => Math.round(v * 1e8) / 1e8;
-  // Format textuel (le double/moitié/tiers/quart/triple de X)
-  const tm = raw.match(/^l[ea]\s+(double|triple|tiers|quart|moiti[ée])\s+de\s+(.+)$/i);
+  // Format textuel (le/la double/moitié/tiers/quart/triple de X) — "le" optional
+  const tm = raw.match(/^(?:l[ea]\s+)?(double|triple|tiers|quart|moiti[ée])\s+de\s+(.+)$/i);
   if (tm) {
     const k = tm[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const v = _pn(tm[2]); if (Number.isNaN(v)) return null;
     let r; switch (k) { case 'double': r = v*2; break; case 'triple': r = v*3; break; case 'moitie': r = v/2; break; case 'tiers': r = v/3; break; case 'quart': r = v/4; break; default: return null; }
     return Number.isFinite(r) ? _r8(r) : null;
+  }
+  // Numération: "X dizaines" → X*10, "X dixièmes" → X*0.1, "X centièmes" → X*0.01, "X quarts" → X*0.25
+  const numMatch = raw.match(/^([\d\s,.]+)\s*(dizaines?|dixi[eè]mes?|centi[eè]mes?|quarts?)$/i);
+  if (numMatch) {
+    const v = _pn(numMatch[1]); if (Number.isNaN(v)) return null;
+    const u = numMatch[2].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (u.startsWith('dizaine')) return _r8(v * 10);
+    if (u.startsWith('dixieme')) return _r8(v * 0.1);
+    if (u.startsWith('centieme')) return _r8(v * 0.01);
+    if (u.startsWith('quart')) return _r8(v * 0.25);
   }
   // Textual: "X fois Y centièmes" → X * Y/100
   const foisCent = raw.match(/^([\d\s,.]+)\s*fois\s+([\d\s,.]+)\s*centi[eè]mes?$/i);
@@ -35,13 +45,27 @@ function evaluateCalcul(calcul) {
     const b = parseFloat(foisCent[2].replace(/\s/g, '').replace(/,/g, '.'));
     if (Number.isFinite(a) && Number.isFinite(b)) return _r8(a * b / 100);
   }
-  // Format "A op ? = C"
+  // Format "A = ?/B" → A * B
+  const eqSlash = raw.match(/^([\d\s,.]+)\s*=\s*\?\s*[\/÷]\s*([\d\s,.]+)$/);
+  if (eqSlash) {
+    const a = _pn(eqSlash[1]), b = _pn(eqSlash[2]);
+    if (!Number.isNaN(a) && !Number.isNaN(b)) return _r8(a * b);
+  }
+  // Format "A op ? = C" and "? op B = C"
   const norm = raw.replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/').replace(/x/gi, '*').replace(/−/g, '-').replace(/\bfois\b/gi, '*');
   const um = norm.match(/^(.+?)\s*([+\-*/])\s*\?\s*=\s*(.+)$/);
   if (um) {
     const a = _pn(um[1]), op = um[2], c = _pn(um[3]);
     if (Number.isNaN(a) || Number.isNaN(c)) return null;
     let r; switch (op) { case '+': r = c-a; break; case '-': r = a-c; break; case '*': r = a!==0?c/a:NaN; break; case '/': r = c!==0?a/c:NaN; break; default: return null; }
+    return Number.isFinite(r) ? _r8(r) : null;
+  }
+  // Format "? op B = C"
+  const um2 = norm.match(/^\?\s*([+\-*/])\s*(.+?)\s*=\s*(.+)$/);
+  if (um2) {
+    const op = um2[1], b = _pn(um2[2]), c = _pn(um2[3]);
+    if (Number.isNaN(b) || Number.isNaN(c)) return null;
+    let r; switch (op) { case '+': r = c-b; break; case '-': r = c+b; break; case '*': r = b!==0?c/b:NaN; break; case '/': r = c!==0?c*b:NaN; break; default: return null; }
     return Number.isFinite(r) ? _r8(r) : null;
   }
   // Expression générale avec opérations chaînées, fractions et parenthèses

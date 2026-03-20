@@ -31,16 +31,19 @@ function evalCalc(expr) {
   if (!expr) return null;
   let s = String(expr).trim().replace(/\u2212/g, '-');
 
+  const _pn = (t) => { const c = String(t).replace(/\s/g, '').replace(/,/g, '.'); const v = parseFloat(c); return Number.isFinite(v) ? v : NaN; };
+  const _r8 = (v) => Math.round(v * 1e8) / 1e8;
+
   // Textual: "X fois Y centièmes" → X * Y/100
   const foisCent = s.match(/^([\d\s,.]+)\s*fois\s+([\d\s,.]+)\s*centi[eè]mes?$/i);
   if (foisCent) {
     const a = parseFloat(foisCent[1].replace(/\s/g, '').replace(',', '.'));
     const b = parseFloat(foisCent[2].replace(/\s/g, '').replace(',', '.'));
-    if (!isNaN(a) && !isNaN(b)) return Math.round(a * b / 100 * 1e8) / 1e8;
+    if (!isNaN(a) && !isNaN(b)) return _r8(a * b / 100);
   }
 
-  // Textual: "le/la double/moitié/tiers/quart/triple de X"
-  const txtMatch = s.match(/(?:le|la)\s+(double|moiti[eé]|tiers|quart|triple)\s+de\s+([\d\s,.]+)/i);
+  // Textual: "le/la double/moitié/tiers/quart/triple de X" — "le/la" optional
+  const txtMatch = s.match(/^(?:l[ea]\s+)?(double|moiti[eé]|tiers|quart|triple)\s+de\s+([\d\s,.]+)/i);
   if (txtMatch) {
     const num = parseFloat(txtMatch[2].replace(/\s/g, '').replace(',', '.'));
     if (isNaN(num)) return null;
@@ -54,12 +57,41 @@ function evalCalc(expr) {
     }
   }
 
-  // Unknown: "A op ? = C"
+  // Numération: "X dizaines/dixièmes/centièmes/quarts"
+  const numMatch = s.match(/^([\d\s,.]+)\s*(dizaines?|dixi[eè]mes?|centi[eè]mes?|quarts?)$/i);
+  if (numMatch) {
+    const v = _pn(numMatch[1]); if (Number.isNaN(v)) return null;
+    const u = numMatch[2].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (u.startsWith('dizaine')) return _r8(v * 10);
+    if (u.startsWith('dixieme')) return _r8(v * 0.1);
+    if (u.startsWith('centieme')) return _r8(v * 0.01);
+    if (u.startsWith('quart')) return _r8(v * 0.25);
+  }
+
+  // Format "A = ?/B" → A * B
+  const eqSlash = s.match(/^([\d\s,.]+)\s*=\s*\?\s*[\/÷]\s*([\d\s,.]+)$/);
+  if (eqSlash) {
+    const a = _pn(eqSlash[1]), b = _pn(eqSlash[2]);
+    if (!Number.isNaN(a) && !Number.isNaN(b)) return _r8(a * b);
+  }
+
+  // "A op ? = C"
   const unkMatch = s.match(/([\d\s,.]+)\s*([+\-×x*÷\/])\s*\?\s*=\s*([\d\s,.]+)/);
   if (unkMatch) {
     const c = parseFloat(unkMatch[3].replace(/\s/g, '').replace(',', '.'));
     if (isNaN(c)) return null;
-    return Math.round(c * 1e8) / 1e8;
+    return _r8(c);
+  }
+
+  // "? op B = C"
+  const unkMatch2 = s.match(/\?\s*([+\-×x*÷\/])\s*([\d\s,.]+)\s*=\s*([\d\s,.]+)/);
+  if (unkMatch2) {
+    const op = unkMatch2[1], b = _pn(unkMatch2[2]), c = _pn(unkMatch2[3]);
+    if (Number.isNaN(b) || Number.isNaN(c)) return null;
+    let r;
+    const opN = op === '×' || op === 'x' ? '*' : op === '÷' ? '/' : op;
+    switch (opN) { case '+': r = c-b; break; case '-': r = c+b; break; case '*': r = b!==0?c/b:NaN; break; case '/': r = c!==0?c*b:NaN; break; default: return null; }
+    return Number.isFinite(r) ? _r8(r) : null;
   }
 
   // Normalize: replace unicode ops, "fois" → *, FR decimals, thousand separators
