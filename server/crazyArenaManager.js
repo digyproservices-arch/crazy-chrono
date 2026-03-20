@@ -1409,10 +1409,7 @@ class CrazyArenaManager {
       return false;
     }
 
-    if (match.players.length >= 4) {
-      socket.emit('arena:error', { message: 'Match complet (4/4)' });
-      return false;
-    }
+    // Pas de limite de joueurs — le professeur décide de la taille du groupe
 
     // Ajouter le joueur
     const player = {

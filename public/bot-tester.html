@@ -3,48 +3,71 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Crazy Chrono — Testeur de Robots</title>
+  <title>Crazy Chrono — Testeur de Robots Multi-Groupes</title>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
-    .header { background: linear-gradient(135deg, #0d6a7a 0%, #0e4a5a 100%); padding: 20px 30px; display: flex; align-items: center; gap: 15px; }
+    .header { background: linear-gradient(135deg, #0d6a7a 0%, #0e4a5a 100%); padding: 20px 30px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
     .header h1 { font-size: 1.5rem; font-weight: 700; }
     .header .badge { background: #fbbf24; color: #0f172a; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; }
-    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-    .grid { display: grid; grid-template-columns: 350px 1fr; gap: 20px; margin-top: 20px; }
-    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
-    .panel { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
-    .panel h2 { font-size: 1.1rem; margin-bottom: 15px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem; }
+    .header .global-stats { margin-left: auto; display: flex; gap: 12px; flex-wrap: wrap; }
+    .header .gstat { background: rgba(0,0,0,0.3); padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; }
+    .header .gstat .gval { font-weight: 700; color: #fbbf24; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    .top-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+    .top-bar label { margin: 0; font-size: 0.85rem; }
+    .top-bar input { width: auto; margin: 0; padding: 8px 12px; }
+    .top-bar select { width: auto; margin: 0; padding: 8px 12px; }
+    .panel { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; margin-bottom: 16px; }
+    .panel h2 { font-size: 0.8rem; margin-bottom: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
     label { display: block; margin-bottom: 4px; font-size: 0.85rem; color: #94a3b8; }
     input, select { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 0.95rem; margin-bottom: 12px; }
     input:focus, select:focus { outline: none; border-color: #0d6a7a; box-shadow: 0 0 0 2px rgba(13,106,122,0.3); }
-    .btn { padding: 12px 24px; border-radius: 8px; border: none; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s; width: 100%; }
+    .btn { padding: 10px 20px; border-radius: 8px; border: none; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-add { background: #6366f1; color: white; }
+    .btn-add:hover { background: #4f46e5; }
     .btn-start { background: #10b981; color: white; }
     .btn-start:hover { background: #059669; }
     .btn-stop { background: #ef4444; color: white; }
     .btn-stop:hover { background: #dc2626; }
+    .btn-remove { background: #64748b; color: white; font-size: 0.75rem; padding: 6px 12px; }
+    .btn-remove:hover { background: #475569; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-group { display: flex; gap: 10px; margin-top: 5px; }
-    .btn-group .btn { flex: 1; }
-    .status-bar { display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap; }
-    .stat { background: #0f172a; padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; }
-    .stat .val { font-weight: 700; color: #fbbf24; }
-    .bot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-    .bot-card { background: #0f172a; border-radius: 10px; padding: 14px; border: 1px solid #334155; transition: border-color 0.3s; }
-    .bot-card.connected { border-color: #10b981; }
-    .bot-card.playing { border-color: #fbbf24; }
-    .bot-card.error { border-color: #ef4444; }
-    .bot-card .name { font-weight: 700; font-size: 1rem; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
-    .bot-card .name .dot { width: 8px; height: 8px; border-radius: 50%; background: #475569; }
-    .bot-card.connected .dot { background: #10b981; }
-    .bot-card.playing .dot { background: #fbbf24; animation: pulse 1s infinite; }
-    .bot-card.error .dot { background: #ef4444; }
+    .group-card { background: #1e293b; border-radius: 12px; padding: 16px; border: 2px solid #334155; margin-bottom: 16px; transition: border-color 0.3s; }
+    .group-card.active { border-color: #10b981; }
+    .group-card.playing { border-color: #fbbf24; }
+    .group-card.finished { border-color: #6366f1; }
+    .group-card.error { border-color: #ef4444; }
+    .group-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .group-header h3 { font-size: 1rem; font-weight: 700; flex: 1; min-width: 200px; }
+    .group-header .phase-badge { padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+    .phase-1 { background: #3b82f6; color: white; }
+    .phase-2 { background: #8b5cf6; color: white; }
+    .phase-3 { background: #f59e0b; color: #0f172a; }
+    .phase-4 { background: #ef4444; color: white; }
+    .group-config { display: grid; grid-template-columns: 1fr 80px 120px; gap: 8px; align-items: end; margin-bottom: 10px; }
+    .group-config input, .group-config select { margin-bottom: 0; font-size: 0.85rem; padding: 8px; }
+    .group-config label { font-size: 0.75rem; margin-bottom: 2px; }
+    .group-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+    .group-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+    .group-stats .stat { background: #0f172a; padding: 4px 10px; border-radius: 6px; font-size: 0.78rem; }
+    .group-stats .stat .val { font-weight: 700; color: #fbbf24; }
+    .bot-mini-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; max-height: 200px; overflow-y: auto; }
+    .bot-mini { background: #0f172a; border-radius: 6px; padding: 8px 10px; border: 1px solid #334155; font-size: 0.78rem; }
+    .bot-mini.connected { border-color: #10b981; }
+    .bot-mini.playing { border-color: #fbbf24; }
+    .bot-mini.error { border-color: #ef4444; }
+    .bot-mini .bname { font-weight: 600; display: flex; align-items: center; gap: 5px; }
+    .bot-mini .bname .dot { width: 6px; height: 6px; border-radius: 50%; background: #475569; display: inline-block; }
+    .bot-mini.connected .dot { background: #10b981; }
+    .bot-mini.playing .dot { background: #fbbf24; animation: pulse 1s infinite; }
+    .bot-mini.error .dot { background: #ef4444; }
+    .bot-mini .bstatus { color: #94a3b8; font-size: 0.7rem; margin-top: 2px; }
+    .bot-mini .bscore { color: #fbbf24; font-weight: 600; font-size: 0.72rem; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-    .bot-card .status { font-size: 0.8rem; color: #94a3b8; margin-bottom: 4px; }
-    .bot-card .score { font-size: 0.85rem; color: #fbbf24; font-weight: 600; }
-    .log-area { background: #0f172a; border-radius: 8px; padding: 12px; max-height: 250px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 0.78rem; line-height: 1.6; margin-top: 15px; border: 1px solid #334155; }
-    .log-area .log-line { border-bottom: 1px solid #1e293b; padding: 2px 0; }
+    .log-area { background: #0f172a; border-radius: 8px; padding: 10px; max-height: 180px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 0.72rem; line-height: 1.5; border: 1px solid #334155; }
+    .log-area .log-line { border-bottom: 1px solid #1e293b; padding: 1px 0; }
     .log-area .time { color: #64748b; }
     .log-area .info { color: #38bdf8; }
     .log-area .success { color: #10b981; }
@@ -54,88 +77,54 @@
     .help h3 { color: #e2e8f0; margin-bottom: 8px; }
     .help ol { padding-left: 20px; }
     .help strong { color: #fbbf24; }
+    .help .phase-list { list-style: none; padding: 0; margin: 8px 0; }
+    .help .phase-list li { padding: 4px 0; }
+    .collapsible { cursor: pointer; user-select: none; }
+    .collapsible::before { content: '▸ '; }
+    .collapsible.open::before { content: '▾ '; }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>🤖 Testeur de Robots</h1>
+    <h1>🤖 Testeur de Robots Multi-Groupes</h1>
     <span class="badge">ADMIN</span>
+    <div class="global-stats">
+      <div class="gstat">Groupes: <span class="gval" id="gStatGroups">0</span></div>
+      <div class="gstat">Robots: <span class="gval" id="gStatBots">0</span></div>
+      <div class="gstat">Paires: <span class="gval" id="gStatPairs">0</span></div>
+      <div class="gstat">Erreurs: <span class="gval" id="gStatErrors">0</span></div>
+    </div>
   </div>
   <div class="container">
-    <div class="grid">
-      <!-- Config Panel -->
-      <div>
-        <div class="panel">
-          <h2>Configuration</h2>
-          <label>URL du serveur</label>
-          <input type="text" id="serverUrl" value="https://crazy-chrono-backend.onrender.com" />
-          <label>Mode de jeu</label>
-          <select id="gameMode">
-            <option value="mp">Multijoueur (salle privee)</option>
-            <option value="arena">Arena (Crazy Arena)</option>
-            <option value="training">Entrainement (Training)</option>
-            <option value="gs">Grande Salle (tournoi)</option>
-          </select>
-          <div id="mpFields">
-            <label>Code de la salle</label>
-            <input type="text" id="roomCode" placeholder="Ex: AB12" maxlength="6" style="text-transform:uppercase" />
-          </div>
-          <div id="arenaFields" style="display:none">
-            <label>Match ID</label>
-            <input type="text" id="matchId" placeholder="ID du match Arena/Training" />
-          </div>
-          <div id="gsFields" style="display:none">
-            <label>ID de la salle (laisser vide = salle publique)</label>
-            <input type="text" id="gsId" placeholder="grande-salle-publique" />
-            <label>Tournament ID (optionnel)</label>
-            <input type="text" id="gsTournamentId" placeholder="Laisser vide si pas de tournoi" />
-          </div>
-          <label>Nombre de robots</label>
-          <input type="range" id="botCount" min="1" max="50" value="2" oninput="document.getElementById('botCountVal').textContent=this.value" />
-          <div style="text-align:center;margin-top:-8px;margin-bottom:12px">
-            <span id="botCountVal" style="font-weight:700;color:#fbbf24;font-size:1.2rem">2</span> robot(s)
-          </div>
-          <label>Vitesse des robots</label>
-          <select id="botSpeed">
-            <option value="slow">Lent (5-8 sec)</option>
-            <option value="normal" selected>Normal (2-4 sec)</option>
-            <option value="fast">Rapide (0.5-1.5 sec)</option>
-            <option value="instant">Instantane (0.1 sec)</option>
-          </select>
-          <div class="btn-group">
-            <button class="btn btn-start" id="btnStart" onclick="startBots()">Lancer les robots</button>
-            <button class="btn btn-stop" id="btnStop" onclick="stopBots()" disabled>Arreter</button>
-          </div>
-        </div>
-        <div class="panel" style="margin-top:15px">
-          <h2>Journal</h2>
-          <div class="log-area" id="logArea"></div>
-        </div>
-      </div>
-      <!-- Bots Panel -->
-      <div>
-        <div class="panel">
-          <h2>Robots actifs</h2>
-          <div class="status-bar">
-            <div class="stat">Connectes: <span class="val" id="statConnected">0</span></div>
-            <div class="stat">Paires trouvees: <span class="val" id="statPairs">0</span></div>
-            <div class="stat">Erreurs: <span class="val" id="statErrors">0</span></div>
-          </div>
-          <div class="bot-grid" id="botGrid" style="margin-top:15px"></div>
-        </div>
-        <div class="help">
-          <h3>Comment utiliser</h3>
-          <ol>
-            <li>Ouvrez le jeu normalement dans un <strong>autre onglet</strong></li>
-            <li><strong>Mode Multijoueur</strong> : Creez une salle, notez le code, et entrez-le ici</li>
-            <li><strong>Mode Arena/Training</strong> : Lancez un match depuis le dashboard professeur, notez le Match ID</li>
-            <li><strong>Mode Grande Salle</strong> : Laissez l'ID vide pour la salle publique, ou entrez un Tournament ID pour un tournoi specifique. Jusqu'a <strong>50 robots</strong> !</li>
-            <li>Choisissez le nombre de robots et leur vitesse</li>
-            <li>Cliquez <strong>Lancer les robots</strong> — ils rejoignent et jouent automatiquement</li>
-            <li>Jouez contre eux ou observez en tant que professeur !</li>
-          </ol>
-        </div>
-      </div>
+    <!-- Top bar: server URL + add group -->
+    <div class="top-bar">
+      <label>Serveur:</label>
+      <input type="text" id="serverUrl" value="https://crazy-chrono-backend.onrender.com" style="width:350px" />
+      <button class="btn btn-add" onclick="addGroup()">+ Ajouter un groupe</button>
+      <button class="btn btn-start" onclick="startAllGroups()">▶ Tout lancer</button>
+      <button class="btn btn-stop" onclick="stopAllGroups()">■ Tout arreter</button>
+    </div>
+
+    <!-- Groups container -->
+    <div id="groupsContainer"></div>
+
+    <!-- Help -->
+    <div class="help">
+      <h3>Comment utiliser — Multi-Groupes</h3>
+      <ol>
+        <li>Cliquez <strong>+ Ajouter un groupe</strong> pour creer un groupe de robots</li>
+        <li>Entrez le <strong>code du match</strong> (affiche sur la page professeur, ex: 6ADEUP)</li>
+        <li>Choisissez le nombre de robots et la vitesse</li>
+        <li>Cliquez <strong>Lancer</strong> sur le groupe — les robots rejoignent le match</li>
+        <li>Repetez pour chaque match/phase que vous voulez tester</li>
+      </ol>
+      <h3 style="margin-top:12px">Les 4 phases du tournoi</h3>
+      <ul class="phase-list">
+        <li><span class="phase-badge phase-1">Phase 1</span> <strong>CRAZY WINNER CLASSE</strong> — Matchs intra-classe</li>
+        <li><span class="phase-badge phase-2">Phase 2</span> <strong>CRAZY WINNER ECOLE</strong> — Gagnants de chaque classe</li>
+        <li><span class="phase-badge phase-3">Phase 3</span> <strong>CRAZY WINNER CIRCONSCRIPTION</strong> — Gagnants de chaque ecole</li>
+        <li><span class="phase-badge phase-4">Phase 4</span> <strong>CRAZY WINNER ACADEMIQUE</strong> — Finale regionale</li>
+      </ul>
     </div>
   </div>
 
@@ -147,7 +136,7 @@ const BOT_NAMES = [
   'Kira-Bot', 'Leo-Bot', 'Maya-Bot', 'Noel-Bot', 'Olivia-Bot',
   'Paul-Bot', 'Rosa-Bot', 'Sam-Bot', 'Theo-Bot', 'Zoe-Bot',
   'Adam-Bot', 'Bella-Bot', 'Chloe-Bot', 'David-Bot', 'Elsa-Bot',
-  'Finn-Bot', 'Grace-Bot', 'Henri-Bot', 'Inès-Bot', 'Jason-Bot',
+  'Finn-Bot', 'Grace-Bot', 'Henri-Bot', 'Ines-Bot', 'Jason-Bot',
   'Karim-Bot', 'Lina-Bot', 'Marc-Bot', 'Nina-Bot', 'Oscar-Bot',
   'Perla-Bot', 'Quentin-Bot', 'Rita-Bot', 'Simon-Bot', 'Tina-Bot',
   'Ugo-Bot', 'Vera-Bot', 'Will-Bot', 'Xena-Bot', 'Yann-Bot',
@@ -160,81 +149,191 @@ const SPEED_RANGES = {
   instant: [80, 150]
 };
 
-let bots = [];
-let totalPairs = 0;
-let totalErrors = 0;
+// ========== MULTI-GROUP STATE ==========
+let groups = [];
+let groupIdCounter = 0;
 
-// ========== UI ==========
-const modeSelect = document.getElementById('gameMode');
-modeSelect.addEventListener('change', () => {
-  const mode = modeSelect.value;
-  document.getElementById('mpFields').style.display = mode === 'mp' ? '' : 'none';
-  document.getElementById('arenaFields').style.display = (mode === 'arena' || mode === 'training') ? '' : 'none';
-  document.getElementById('gsFields').style.display = mode === 'gs' ? '' : 'none';
-});
+function getServerUrl() {
+  return document.getElementById('serverUrl').value.trim();
+}
 
-function log(msg, level = 'info') {
-  const area = document.getElementById('logArea');
+// ========== GLOBAL STATS ==========
+function updateGlobalStats() {
+  let totalBots = 0, totalPairs = 0, totalErrors = 0;
+  for (const g of groups) {
+    totalBots += g.bots.length;
+    for (const b of g.bots) {
+      totalPairs += b.pairs;
+      totalErrors += b.errors;
+    }
+  }
+  document.getElementById('gStatGroups').textContent = groups.length;
+  document.getElementById('gStatBots').textContent = totalBots;
+  document.getElementById('gStatPairs').textContent = totalPairs;
+  document.getElementById('gStatErrors').textContent = totalErrors;
+}
+
+// ========== GROUP MANAGEMENT ==========
+function addGroup() {
+  const gid = ++groupIdCounter;
+  const group = {
+    id: gid,
+    matchCode: '',
+    mode: 'arena',
+    botCount: 4,
+    speed: 'normal',
+    bots: [],
+    running: false,
+    phase: null,
+    status: 'idle'
+  };
+  groups.push(group);
+  renderGroup(group);
+  updateGlobalStats();
+}
+
+function removeGroup(gid) {
+  const g = groups.find(g => g.id === gid);
+  if (g) {
+    stopGroup(gid);
+    groups = groups.filter(g => g.id !== gid);
+  }
+  const el = document.getElementById(`group-${gid}`);
+  if (el) el.remove();
+  updateGlobalStats();
+}
+
+function renderGroup(group) {
+  let card = document.getElementById(`group-${group.id}`);
+  if (!card) {
+    card = document.createElement('div');
+    card.id = `group-${group.id}`;
+    card.className = 'group-card';
+    document.getElementById('groupsContainer').appendChild(card);
+  }
+
+  const statusClass = group.status === 'playing' ? 'playing' : group.status === 'active' ? 'active' : group.status === 'finished' ? 'finished' : group.status === 'error' ? 'error' : '';
+  card.className = `group-card ${statusClass}`;
+
+  const connected = group.bots.filter(b => b.connected).length;
+  const playing = group.bots.filter(b => b.playing).length;
+  const pairs = group.bots.reduce((s, b) => s + b.pairs, 0);
+  const errors = group.bots.reduce((s, b) => s + b.errors, 0);
+
+  const phaseLabel = group.phase ? `<span class="phase-badge phase-${group.phase}">Phase ${group.phase}</span>` : '';
+
+  card.innerHTML = `
+    <div class="group-header">
+      <h3>Groupe #${group.id} ${phaseLabel}</h3>
+      <span style="font-size:0.8rem;color:#94a3b8">${group.matchCode ? 'Code: ' + group.matchCode : 'Non configure'}</span>
+      <button class="btn btn-remove" onclick="removeGroup(${group.id})">Supprimer</button>
+    </div>
+    <div class="group-config">
+      <div>
+        <label>Code du match / Room Code</label>
+        <input type="text" value="${group.matchCode}" placeholder="Ex: 6ADEUP" maxlength="10" style="text-transform:uppercase"
+               onchange="updateGroupConfig(${group.id}, 'matchCode', this.value.toUpperCase())" ${group.running ? 'disabled' : ''} />
+      </div>
+      <div>
+        <label>Robots</label>
+        <input type="number" value="${group.botCount}" min="1" max="50"
+               onchange="updateGroupConfig(${group.id}, 'botCount', parseInt(this.value))" ${group.running ? 'disabled' : ''} />
+      </div>
+      <div>
+        <label>Vitesse</label>
+        <select onchange="updateGroupConfig(${group.id}, 'speed', this.value)" ${group.running ? 'disabled' : ''}>
+          <option value="slow" ${group.speed === 'slow' ? 'selected' : ''}>Lent</option>
+          <option value="normal" ${group.speed === 'normal' ? 'selected' : ''}>Normal</option>
+          <option value="fast" ${group.speed === 'fast' ? 'selected' : ''}>Rapide</option>
+          <option value="instant" ${group.speed === 'instant' ? 'selected' : ''}>Instant</option>
+        </select>
+      </div>
+    </div>
+    <div class="group-config" style="grid-template-columns: 1fr 1fr;">
+      <div>
+        <label>Mode</label>
+        <select onchange="updateGroupConfig(${group.id}, 'mode', this.value)" ${group.running ? 'disabled' : ''}>
+          <option value="arena" ${group.mode === 'arena' ? 'selected' : ''}>Arena (Crazy Arena)</option>
+          <option value="training" ${group.mode === 'training' ? 'selected' : ''}>Entrainement</option>
+          <option value="mp" ${group.mode === 'mp' ? 'selected' : ''}>Multijoueur prive</option>
+          <option value="gs" ${group.mode === 'gs' ? 'selected' : ''}>Grande Salle</option>
+        </select>
+      </div>
+      <div>
+        <label>Phase tournoi (optionnel)</label>
+        <select onchange="updateGroupConfig(${group.id}, 'phase', this.value || null)" ${group.running ? 'disabled' : ''}>
+          <option value="" ${!group.phase ? 'selected' : ''}>— Aucune —</option>
+          <option value="1" ${group.phase == 1 ? 'selected' : ''}>Phase 1: Classe</option>
+          <option value="2" ${group.phase == 2 ? 'selected' : ''}>Phase 2: Ecole</option>
+          <option value="3" ${group.phase == 3 ? 'selected' : ''}>Phase 3: Circonscription</option>
+          <option value="4" ${group.phase == 4 ? 'selected' : ''}>Phase 4: Academique</option>
+        </select>
+      </div>
+    </div>
+    <div class="group-actions">
+      <button class="btn btn-start" onclick="startGroup(${group.id})" ${group.running ? 'disabled' : ''}>▶ Lancer</button>
+      <button class="btn btn-stop" onclick="stopGroup(${group.id})" ${!group.running ? 'disabled' : ''}>■ Arreter</button>
+    </div>
+    <div class="group-stats">
+      <div class="stat">Connectes: <span class="val">${connected}</span></div>
+      <div class="stat">En jeu: <span class="val">${playing}</span></div>
+      <div class="stat">Paires: <span class="val">${pairs}</span></div>
+      <div class="stat">Erreurs: <span class="val">${errors}</span></div>
+    </div>
+    <div class="bot-mini-grid" id="group-bots-${group.id}">
+      ${group.bots.map(b => {
+        const st = b.error ? 'error' : b.playing ? 'playing' : b.connected ? 'connected' : '';
+        return `<div class="bot-mini ${st}">
+          <div class="bname"><span class="dot"></span> ${b.name}</div>
+          <div class="bstatus">${b.statusText || 'En attente...'}</div>
+          <div class="bscore">Score: ${b.score} | P: ${b.pairs} | E: ${b.errors}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="log-area" id="group-log-${group.id}" style="margin-top:8px"></div>
+  `;
+}
+
+function updateGroupConfig(gid, key, value) {
+  const g = groups.find(g => g.id === gid);
+  if (g) g[key] = value;
+}
+
+function groupLog(gid, msg, level = 'info') {
+  const area = document.getElementById(`group-log-${gid}`);
+  if (!area) return;
   const time = new Date().toLocaleTimeString('fr-FR');
   const div = document.createElement('div');
   div.className = 'log-line';
   div.innerHTML = `<span class="time">[${time}]</span> <span class="${level}">${msg}</span>`;
   area.appendChild(div);
   area.scrollTop = area.scrollHeight;
-  // Limit to 200 lines
-  while (area.children.length > 200) area.removeChild(area.firstChild);
-}
-
-function updateStats() {
-  const connected = bots.filter(b => b.connected).length;
-  document.getElementById('statConnected').textContent = connected;
-  document.getElementById('statPairs').textContent = totalPairs;
-  document.getElementById('statErrors').textContent = totalErrors;
-}
-
-function renderBotCard(bot) {
-  let card = document.getElementById(`bot-${bot.id}`);
-  if (!card) {
-    card = document.createElement('div');
-    card.id = `bot-${bot.id}`;
-    card.className = 'bot-card';
-    document.getElementById('botGrid').appendChild(card);
-  }
-  const state = bot.error ? 'error' : bot.playing ? 'playing' : bot.connected ? 'connected' : '';
-  card.className = `bot-card ${state}`;
-  card.innerHTML = `
-    <div class="name"><span class="dot"></span>${bot.name}</div>
-    <div class="status">${bot.statusText || 'En attente...'}</div>
-    <div class="score">Score: ${bot.score} | Paires: ${bot.pairs} | Erreurs: ${bot.errors}</div>
-  `;
+  while (area.children.length > 100) area.removeChild(area.firstChild);
 }
 
 // ========== BOT LOGIC ==========
-function getDelay() {
-  const speed = document.getElementById('botSpeed').value;
+function getDelay(speed) {
   const [min, max] = SPEED_RANGES[speed] || SPEED_RANGES.normal;
   return min + Math.random() * (max - min);
 }
 
 function findCorrectPair(zones) {
-  // Find two zones with the same non-empty pairId
   const pairMap = {};
   for (const z of zones) {
     const pid = (z.pairId || '').trim();
     if (!pid) continue;
-    if (pairMap[pid]) {
-      return { a: pairMap[pid], b: z };
-    }
+    if (pairMap[pid]) return { a: pairMap[pid], b: z };
     pairMap[pid] = z;
   }
   return null;
 }
 
-function createBot(index, serverUrl, mode, roomCode, matchId) {
+function createGroupBot(group, index) {
+  const globalIndex = (group.id - 1) * 50 + index;
   const bot = {
-    id: index,
-    name: BOT_NAMES[index] || `Bot-${index + 1}`,
-    studentId: `bot-student-${index}-${Date.now()}`,
+    id: `g${group.id}-b${index}`,
+    name: BOT_NAMES[index] || `Bot-G${group.id}-${index + 1}`,
+    studentId: `bot-g${group.id}-s${index}-${Date.now()}`,
     connected: false,
     playing: false,
     error: false,
@@ -247,7 +346,9 @@ function createBot(index, serverUrl, mode, roomCode, matchId) {
     pairTimer: null
   };
 
-  renderBotCard(bot);
+  const serverUrl = getServerUrl();
+  const mode = group.mode;
+  const matchCode = group.matchCode;
 
   try {
     const socket = io(serverUrl, {
@@ -261,392 +362,177 @@ function createBot(index, serverUrl, mode, roomCode, matchId) {
     socket.on('connect', () => {
       bot.connected = true;
       bot.error = false;
-      bot.statusText = 'Connecte — rejoindre la salle...';
-      log(`${bot.name} connecte (${socket.id})`, 'success');
-      renderBotCard(bot);
-      updateStats();
+      bot.statusText = 'Connecte — rejoindre...';
+      groupLog(group.id, `${bot.name} connecte`, 'success');
 
-      // Join based on mode
       if (mode === 'mp') {
-        socket.emit('joinRoom', {
-          roomId: roomCode.toUpperCase(),
-          name: bot.name,
-          studentId: bot.studentId
-        });
-        // Auto-ready after short delay
+        socket.emit('joinRoom', { roomId: matchCode.toUpperCase(), name: bot.name, studentId: bot.studentId });
         setTimeout(() => {
           socket.emit('ready:toggle', { ready: true });
-          bot.statusText = 'Pret — en attente du lancement...';
-          log(`${bot.name} est pret`, 'info');
-          renderBotCard(bot);
+          bot.statusText = 'Pret — en attente...';
+          groupLog(group.id, `${bot.name} pret`, 'info');
+          renderGroup(group);
         }, 800 + Math.random() * 1200);
-      } else if (mode === 'arena') {
-        socket.emit('arena:join', {
-          matchId: matchId,
-          studentData: {
-            studentId: bot.studentId,
-            authId: `bot-auth-${index}`,
-            name: bot.name,
-            avatar: '/avatars/default.png'
-          }
-        });
-        setTimeout(() => {
-          socket.emit('arena:ready', { studentId: bot.studentId });
-          bot.statusText = 'Pret — en attente du professeur...';
-          log(`${bot.name} est pret (Arena)`, 'info');
-          renderBotCard(bot);
-        }, 800 + Math.random() * 1200);
-      } else if (mode === 'training') {
-        socket.emit('training:join', {
-          matchId: matchId,
-          studentData: {
-            studentId: bot.studentId,
-            authId: `bot-auth-${index}`,
-            name: bot.name,
-            avatar: '/avatars/default.png'
-          }
+      } else if (mode === 'arena' || mode === 'training') {
+        const joinEvent = mode === 'arena' ? 'arena:join' : 'training:join';
+        socket.emit(joinEvent, {
+          matchId: matchCode,
+          studentData: { studentId: bot.studentId, authId: `bot-auth-g${group.id}-${index}`, name: bot.name, avatar: '/avatars/default.png' }
         }, (resp) => {
-          if (resp && resp.ok) {
-            log(`${bot.name} a rejoint le training`, 'success');
-          }
+          if (resp && resp.ok) groupLog(group.id, `${bot.name} a rejoint (${mode})`, 'success');
         });
         setTimeout(() => {
-          socket.emit('training:ready', { matchId: matchId, studentId: bot.studentId });
+          const readyEvent = mode === 'arena' ? 'arena:ready' : 'training:ready';
+          const readyPayload = mode === 'arena' ? { studentId: bot.studentId } : { matchId: matchCode, studentId: bot.studentId };
+          socket.emit(readyEvent, readyPayload);
           bot.statusText = 'Pret — en attente du professeur...';
-          log(`${bot.name} est pret (Training)`, 'info');
-          renderBotCard(bot);
+          groupLog(group.id, `${bot.name} pret (${mode})`, 'info');
+          renderGroup(group);
         }, 800 + Math.random() * 1200);
       } else if (mode === 'gs') {
-        const gsId = (document.getElementById('gsId').value.trim()) || 'grande-salle-publique';
-        const gsTournamentId = document.getElementById('gsTournamentId').value.trim() || undefined;
-        socket.emit('gs:join', {
-          name: bot.name,
-          salleId: gsId,
-          tournamentId: gsTournamentId
-        }, (resp) => {
+        socket.emit('gs:join', { name: bot.name, salleId: matchCode || 'grande-salle-publique' }, (resp) => {
           if (resp && resp.ok) {
-            bot.statusText = `Grande Salle rejoint (${resp.playerCount || '?'} joueurs)`;
-            log(`${bot.name} a rejoint la Grande Salle "${resp.salleId}" (${resp.playerCount} joueurs)`, 'success');
+            bot.statusText = `GS rejoint (${resp.playerCount || '?'} joueurs)`;
+            groupLog(group.id, `${bot.name} GS rejoint`, 'success');
           } else {
-            bot.statusText = `Erreur GS: ${resp?.error || 'inconnue'}`;
-            log(`${bot.name} erreur GS: ${resp?.error || 'inconnue'}`, 'err');
+            bot.statusText = `Erreur GS: ${resp?.error || '?'}`;
+            groupLog(group.id, `${bot.name} erreur GS: ${resp?.error}`, 'err');
           }
-          renderBotCard(bot);
+          renderGroup(group);
         });
       }
+      renderGroup(group);
+      updateGlobalStats();
     });
 
-    // ===== MULTIPLAYER EVENTS =====
-    socket.on('round:new', (data) => {
+    // ===== COMMON PAIR SCHEDULING =====
+    function onNewZones(zones, label) {
       bot.playing = true;
-      const zones = data.zones || [];
       bot.currentZones = zones;
-      bot.statusText = `Manche ${data.roundIndex || '?'} — ${zones.length} zones — recherche...`;
-      log(`${bot.name} recoit ${zones.length} zones (manche ${data.roundIndex || '?'})`, 'info');
-      renderBotCard(bot);
-      if (zones.length > 0) {
-        schedulePairAttempt(bot, mode, matchId);
-      }
-    });
-
-    socket.on('pair:valid', (data) => {
-      if (data.by === socket.id || (data.winners && data.winners.includes(socket.id))) {
-        bot.score++;
-        bot.pairs++;
-        totalPairs++;
-        bot.statusText = 'Paire validee ! En attente de la prochaine carte...';
-        log(`${bot.name} a trouve une paire !`, 'success');
-      } else {
-        bot.statusText = 'Un autre joueur a trouve la paire';
-      }
-      // Clear any pending attempt
+      bot.statusText = `${label} — ${zones.length} zones`;
+      groupLog(group.id, `${bot.name} ${label} (${zones.length} zones)`, 'info');
       if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
-      renderBotCard(bot);
-      updateStats();
-    });
+      renderGroup(group);
+      if (zones.length > 0) scheduleBotPair(bot, group);
+      updateGlobalStats();
+    }
 
-    socket.on('room:state', (data) => {
-      const me = (data.players || []).find(p => p.id === socket.id);
-      if (me) {
-        bot.score = me.score || 0;
-        renderBotCard(bot);
-      }
-    });
+    function onPairSuccess(label) {
+      bot.pairs++;
+      bot.statusText = `Paire validee (${label})`;
+      groupLog(group.id, `${bot.name} paire OK (${label})`, 'success');
+      if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
+      renderGroup(group);
+      updateGlobalStats();
+    }
 
-    socket.on('score:update', (data) => {
-      const me = (data.scores || []).find(s => s.id === socket.id);
-      if (me) {
-        bot.score = me.score || 0;
-        renderBotCard(bot);
-        updateStats();
-      }
-    });
+    function onScoreUpdate(scores, idField) {
+      const me = (scores || []).find(s => s[idField] === (idField === 'id' ? socket.id : bot.studentId));
+      if (me) { bot.score = me.score || 0; renderGroup(group); updateGlobalStats(); }
+    }
 
-    socket.on('room:countdown', (data) => {
-      bot.statusText = `Compte a rebours: ${data.t}...`;
-      renderBotCard(bot);
-    });
-
-    socket.on('session:end', () => {
+    function onGameEnd(label) {
       bot.playing = false;
-      bot.statusText = 'Session terminee';
+      bot.statusText = `${label} terminee`;
       if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
-      renderBotCard(bot);
-      log(`${bot.name} — session terminee (score: ${bot.score})`, 'warn');
+      group.status = 'finished';
+      groupLog(group.id, `${bot.name} — ${label} terminee (score: ${bot.score})`, 'warn');
+      renderGroup(group);
+      updateGlobalStats();
+    }
+
+    // ===== MP EVENTS =====
+    socket.on('round:new', (d) => onNewZones(d.zones || [], `Manche ${d.roundIndex || '?'}`));
+    socket.on('pair:valid', (d) => {
+      if (d.by === socket.id || (d.winners && d.winners.includes(socket.id))) onPairSuccess('MP');
+      else { bot.statusText = 'Autre joueur a trouve'; renderGroup(group); }
+      if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
     });
+    socket.on('score:update', (d) => onScoreUpdate(d.scores, 'id'));
+    socket.on('room:countdown', (d) => { bot.statusText = `Countdown: ${d.t}...`; renderGroup(group); });
+    socket.on('session:end', () => onGameEnd('Session'));
 
     // ===== ARENA EVENTS =====
-    socket.on('arena:game-start', (data) => {
-      bot.playing = true;
-      const zones = data.zones || [];
-      bot.currentZones = zones;
-      bot.statusText = `Arena demarre — ${zones.length} zones — recherche...`;
-      log(`${bot.name} Arena demarre avec ${zones.length} zones`, 'info');
-      renderBotCard(bot);
-      if (zones.length > 0) {
-        schedulePairAttempt(bot, mode, matchId);
-      }
-    });
-
-    socket.on('arena:round-new', (data) => {
-      const zones = data.zones || [];
-      bot.currentZones = zones;
-      bot.statusText = `Nouvelle carte — ${zones.length} zones — recherche...`;
-      log(`${bot.name} nouvelle carte Arena (${zones.length} zones)`, 'info');
-      if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
-      renderBotCard(bot);
-      if (zones.length > 0) {
-        schedulePairAttempt(bot, mode, matchId);
-      }
-    });
-
-    socket.on('arena:pair-validated', (data) => {
-      if (data.studentId === bot.studentId) {
-        bot.pairs++;
-        totalPairs++;
-        bot.statusText = 'Paire validee ! Nouvelle carte...';
-        log(`${bot.name} paire validee (Arena)`, 'success');
-        updateStats();
-      }
-      renderBotCard(bot);
-    });
-
-    socket.on('arena:scores-update', (data) => {
-      const me = (data.scores || []).find(s => s.studentId === bot.studentId);
-      if (me) {
-        bot.score = me.score || 0;
-        renderBotCard(bot);
-        updateStats();
-      }
-    });
-
-    socket.on('arena:countdown', (data) => {
-      bot.statusText = `Arena: ${data.count}...`;
-      renderBotCard(bot);
-    });
-
-    socket.on('arena:game-end', () => {
-      bot.playing = false;
-      bot.statusText = 'Arena terminee';
-      if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
-      renderBotCard(bot);
-      log(`${bot.name} — Arena terminee (score: ${bot.score})`, 'warn');
-    });
-
-    socket.on('arena:timer-tick', (data) => {
-      if (bot.playing && !bot.pairTimer) {
-        bot.statusText = `Temps restant: ${data.timeLeft}s (manche ${data.currentRound}/${data.totalRounds})`;
-        renderBotCard(bot);
-      }
+    socket.on('arena:game-start', (d) => { group.status = 'playing'; onNewZones(d.zones || [], 'Arena demarre'); });
+    socket.on('arena:round-new', (d) => onNewZones(d.zones || [], `Arena carte ${d.roundIndex || '?'}`));
+    socket.on('arena:pair-validated', (d) => { if (d.studentId === bot.studentId) onPairSuccess('Arena'); });
+    socket.on('arena:scores-update', (d) => onScoreUpdate(d.scores, 'studentId'));
+    socket.on('arena:countdown', (d) => { bot.statusText = `Arena: ${d.count}...`; renderGroup(group); });
+    socket.on('arena:game-end', () => onGameEnd('Arena'));
+    socket.on('arena:timer-tick', (d) => {
+      if (bot.playing && !bot.pairTimer) { bot.statusText = `Timer: ${d.timeLeft}s (${d.currentRound}/${d.totalRounds})`; renderGroup(group); }
     });
 
     // ===== TRAINING EVENTS =====
-    socket.on('training:game-start', (data) => {
-      bot.playing = true;
-      const zones = data.zones || [];
-      bot.currentZones = zones;
-      bot.statusText = `Training demarre — ${zones.length} zones`;
-      log(`${bot.name} Training demarre avec ${zones.length} zones`, 'info');
-      renderBotCard(bot);
-      if (zones.length > 0) {
-        schedulePairAttempt(bot, mode, matchId);
-      }
-    });
+    socket.on('training:game-start', (d) => { group.status = 'playing'; onNewZones(d.zones || [], 'Training demarre'); });
+    socket.on('training:round-new', (d) => onNewZones(d.zones || [], 'Training nouvelle carte'));
+    socket.on('training:pair-validated', (d) => { if (d.studentId === bot.studentId) onPairSuccess('Training'); });
+    socket.on('training:scores-update', (d) => onScoreUpdate(d.scores, 'studentId'));
+    socket.on('training:game-end', () => onGameEnd('Training'));
 
-    socket.on('training:round-new', (data) => {
-      const zones = data.zones || [];
-      bot.currentZones = zones;
-      bot.statusText = `Nouvelle carte Training — ${zones.length} zones`;
+    // ===== GS EVENTS =====
+    socket.on('gs:state', (d) => { if (!bot.playing) { bot.statusText = `GS: ${d.status || 'lobby'} (${d.playerCount || '?'})`; renderGroup(group); } });
+    socket.on('gs:countdown', (d) => { bot.statusText = `GS: ${d.t}...`; renderGroup(group); });
+    socket.on('gs:round:new', (d) => onNewZones(d.zones || [], `GS manche ${d.roundIndex || '?'}`));
+    socket.on('gs:pair:valid', (d) => {
+      if (d.by === socket.id) { bot.score = d.score || (bot.score + 1); onPairSuccess('GS'); }
       if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
-      renderBotCard(bot);
-      if (zones.length > 0) {
-        schedulePairAttempt(bot, mode, matchId);
-      }
     });
-
-    socket.on('training:pair-validated', (data) => {
-      if (data.studentId === bot.studentId) {
-        bot.pairs++;
-        totalPairs++;
-        bot.statusText = 'Paire validee (Training)';
-        log(`${bot.name} paire validee (Training)`, 'success');
-        updateStats();
-      }
-      renderBotCard(bot);
-    });
-
-    socket.on('training:scores-update', (data) => {
-      const me = (data.scores || []).find(s => s.studentId === bot.studentId);
-      if (me) {
-        bot.score = me.score || 0;
-        renderBotCard(bot);
-        updateStats();
-      }
-    });
-
-    socket.on('training:game-end', () => {
-      bot.playing = false;
-      bot.statusText = 'Training termine';
-      if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
-      renderBotCard(bot);
-      log(`${bot.name} — Training termine (score: ${bot.score})`, 'warn');
-    });
-
-    // ===== GRANDE SALLE EVENTS =====
-    socket.on('gs:state', (data) => {
-      if (!bot.playing) {
-        bot.statusText = `Grande Salle: ${data.status || 'lobby'} — ${data.playerCount || '?'} joueurs`;
-        renderBotCard(bot);
-      }
-    });
-
-    socket.on('gs:countdown', (data) => {
-      bot.statusText = `Grande Salle: ${data.t}...`;
-      renderBotCard(bot);
-    });
-
-    socket.on('gs:round:new', (data) => {
-      bot.playing = true;
-      const zones = data.zones || [];
-      bot.currentZones = zones;
-      bot.statusText = `GS Manche ${data.roundIndex || '?'} — ${zones.length} zones — recherche...`;
-      log(`${bot.name} GS recoit ${zones.length} zones (manche ${data.roundIndex || '?'})`, 'info');
-      if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
-      renderBotCard(bot);
-      if (zones.length > 0) {
-        schedulePairAttempt(bot, mode, matchId);
-      }
-    });
-
-    socket.on('gs:pair:valid', (data) => {
-      if (data.by === socket.id) {
-        bot.score = data.score || (bot.score + 1);
-        bot.pairs++;
-        totalPairs++;
-        bot.statusText = `GS Paire validee ! Score: ${bot.score} (rang ${data.rank || '?'})`;
-        log(`${bot.name} GS paire validee ! Score: ${bot.score}`, 'success');
-      } else {
-        bot.statusText = `${data.playerName || 'Quelqu\'un'} a trouve la paire`;
-      }
-      if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
-      renderBotCard(bot);
-      updateStats();
-    });
-
-    socket.on('gs:pair:invalid', (data) => {
-      bot.errors++;
-      totalErrors++;
-      bot.statusText = 'GS Mauvaise paire !';
-      log(`${bot.name} GS mauvaise paire`, 'warn');
-      renderBotCard(bot);
-      updateStats();
-    });
-
-    socket.on('gs:round:result', (data) => {
-      const me = (data.leaderboard || []).find(p => p.name === bot.name);
-      if (me) {
-        bot.score = me.score || bot.score;
-        bot.statusText = `GS Fin de manche — Rang: ${me.rank || '?'} — Score: ${bot.score}`;
-        log(`${bot.name} GS fin manche — rang ${me.rank}, score ${bot.score}`, 'info');
-      }
-      renderBotCard(bot);
-    });
-
-    socket.on('gs:elimination', (data) => {
-      const eliminated = data.eliminated || [];
-      if (eliminated.includes(bot.name)) {
-        bot.playing = false;
-        bot.error = true;
-        bot.statusText = `ELIMINE (vague ${data.wave}) ! ${data.remainingCount} restants`;
-        log(`${bot.name} ELIMINE a la vague ${data.wave} !`, 'err');
+    socket.on('gs:pair:invalid', () => { bot.errors++; groupLog(group.id, `${bot.name} GS mauvaise paire`, 'warn'); renderGroup(group); updateGlobalStats(); });
+    socket.on('gs:elimination', (d) => {
+      if ((d.eliminated || []).includes(bot.name)) {
+        bot.playing = false; bot.error = true;
+        bot.statusText = `ELIMINE (vague ${d.wave})`;
+        groupLog(group.id, `${bot.name} ELIMINE vague ${d.wave}`, 'err');
         if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
       } else {
-        bot.statusText = `Survit a la vague ${data.wave} ! ${data.remainingCount} restants`;
-        log(`${bot.name} survit (vague ${data.wave}, ${data.remainingCount} restants)`, 'success');
+        bot.statusText = `Survit vague ${d.wave} (${d.remainingCount} restants)`;
+        groupLog(group.id, `${bot.name} survit vague ${d.wave}`, 'success');
       }
-      renderBotCard(bot);
+      renderGroup(group); updateGlobalStats();
+    });
+    socket.on('gs:finish', (d) => {
+      const me = (d.fullRanking || []).find(p => p.name === bot.name);
+      bot.statusText = `GS Rang: ${me ? me.rank : '?'}/${d.totalPlayers || '?'}`;
+      onGameEnd('GS');
     });
 
-    socket.on('gs:finish', (data) => {
-      bot.playing = false;
-      const me = (data.fullRanking || []).find(p => p.name === bot.name);
-      const rank = me ? me.rank : '?';
-      bot.statusText = `GS Terminee — Rang final: ${rank}/${data.totalPlayers || '?'}`;
-      log(`${bot.name} GS terminee — rang ${rank}/${data.totalPlayers} — score ${bot.score}`, 'warn');
-      if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
-      renderBotCard(bot);
-    });
-
-    socket.on('gs:joined-as-spectator', (data) => {
-      bot.statusText = 'Rejoint comme spectateur (partie en cours)';
-      log(`${bot.name} est spectateur dans la Grande Salle`, 'warn');
-      renderBotCard(bot);
-    });
-
-    // ===== ERROR HANDLING ======
+    // ===== ERRORS =====
     socket.on('connect_error', (err) => {
-      bot.error = true;
-      bot.statusText = `Erreur: ${err.message}`;
-      log(`${bot.name} erreur connexion: ${err.message}`, 'err');
-      renderBotCard(bot);
-      updateStats();
+      bot.error = true; bot.statusText = `Erreur: ${err.message}`;
+      groupLog(group.id, `${bot.name} erreur: ${err.message}`, 'err');
+      renderGroup(group); updateGlobalStats();
     });
-
     socket.on('disconnect', (reason) => {
-      bot.connected = false;
-      bot.playing = false;
-      bot.statusText = `Deconnecte: ${reason}`;
+      bot.connected = false; bot.playing = false; bot.statusText = `Deconnecte: ${reason}`;
       if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
-      log(`${bot.name} deconnecte: ${reason}`, 'warn');
-      renderBotCard(bot);
-      updateStats();
+      groupLog(group.id, `${bot.name} deconnecte: ${reason}`, 'warn');
+      renderGroup(group); updateGlobalStats();
     });
-
-    socket.on('arena:error', (data) => {
-      bot.error = true;
-      bot.statusText = `Erreur Arena: ${data.message}`;
-      log(`${bot.name} erreur Arena: ${data.message}`, 'err');
-      totalErrors++;
-      bot.errors++;
-      renderBotCard(bot);
-      updateStats();
+    socket.on('arena:error', (d) => {
+      bot.error = true; bot.errors++; bot.statusText = `Erreur: ${d.message}`;
+      groupLog(group.id, `${bot.name} erreur Arena: ${d.message}`, 'err');
+      renderGroup(group); updateGlobalStats();
+    });
+    socket.on('training:error', (d) => {
+      bot.error = true; bot.errors++; bot.statusText = `Erreur: ${d.message || d}`;
+      groupLog(group.id, `${bot.name} erreur Training: ${d.message || d}`, 'err');
+      renderGroup(group); updateGlobalStats();
     });
 
   } catch (err) {
-    bot.error = true;
-    bot.statusText = `Erreur creation: ${err.message}`;
-    log(`${bot.name} erreur: ${err.message}`, 'err');
-    renderBotCard(bot);
+    bot.error = true; bot.statusText = `Erreur: ${err.message}`;
+    groupLog(group.id, `${bot.name} erreur: ${err.message}`, 'err');
   }
 
   return bot;
 }
 
-function schedulePairAttempt(bot, mode, matchId) {
+function scheduleBotPair(bot, group) {
   if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
-  const delay = getDelay();
-  bot.statusText = `Recherche de la paire... (${(delay / 1000).toFixed(1)}s)`;
-  renderBotCard(bot);
+  const delay = getDelay(group.speed);
+  bot.statusText = `Recherche... (${(delay / 1000).toFixed(1)}s)`;
+  renderGroup(group);
 
   bot.pairTimer = setTimeout(() => {
     bot.pairTimer = null;
@@ -654,94 +540,91 @@ function schedulePairAttempt(bot, mode, matchId) {
 
     const pair = findCorrectPair(bot.currentZones);
     if (!pair) {
-      bot.statusText = 'Aucune paire trouvee sur cette carte';
-      log(`${bot.name} n'a pas trouve de paire`, 'warn');
-      renderBotCard(bot);
+      bot.statusText = 'Aucune paire trouvee';
+      groupLog(group.id, `${bot.name} pas de paire`, 'warn');
+      renderGroup(group);
       return;
     }
 
-    bot.statusText = `Tentative: zone ${String(pair.a.id).slice(-6)} + ${String(pair.b.id).slice(-6)}`;
-    renderBotCard(bot);
+    const mode = group.mode;
+    const matchCode = group.matchCode;
 
     if (mode === 'mp') {
       bot.socket.emit('attemptPair', { a: pair.a.id, b: pair.b.id });
-      log(`${bot.name} tente paire: ${pair.a.type || '?'} + ${pair.b.type || '?'}`, 'info');
     } else if (mode === 'gs') {
       bot.socket.emit('gs:attemptPair', { a: pair.a.id, b: pair.b.id });
-      log(`${bot.name} GS tente paire: ${pair.a.type || '?'} + ${pair.b.type || '?'}`, 'info');
     } else if (mode === 'arena') {
       bot.socket.emit('arena:pair-validated', {
-        matchId: matchId,
-        studentId: bot.studentId,
-        isCorrect: true,
-        timeMs: Math.round(delay),
-        pairId: pair.a.pairId,
-        zoneAId: pair.a.id,
-        zoneBId: pair.b.id
+        matchId: matchCode, studentId: bot.studentId, isCorrect: true,
+        timeMs: Math.round(delay), pairId: pair.a.pairId, zoneAId: pair.a.id, zoneBId: pair.b.id
       });
-      log(`${bot.name} valide paire Arena: ${pair.a.pairId}`, 'info');
     } else if (mode === 'training') {
       bot.socket.emit('training:pair-validated', {
-        matchId: matchId,
-        studentId: bot.studentId,
-        isCorrect: true,
-        timeMs: Math.round(delay),
-        pairId: pair.a.pairId,
-        zoneAId: pair.a.id,
-        zoneBId: pair.b.id
+        matchId: matchCode, studentId: bot.studentId, isCorrect: true,
+        timeMs: Math.round(delay), pairId: pair.a.pairId, zoneAId: pair.a.id, zoneBId: pair.b.id
       });
-      log(`${bot.name} valide paire Training: ${pair.a.pairId}`, 'info');
     }
+    groupLog(group.id, `${bot.name} tente paire (${mode})`, 'info');
+    renderGroup(group);
   }, delay);
 }
 
 // ========== START / STOP ==========
-function startBots() {
-  stopBots(); // Clean up first
+function startGroup(gid) {
+  const g = groups.find(g => g.id === gid);
+  if (!g || g.running) return;
 
-  const serverUrl = document.getElementById('serverUrl').value.trim();
-  const mode = document.getElementById('gameMode').value;
-  const roomCode = document.getElementById('roomCode').value.trim();
-  const matchId = document.getElementById('matchId').value.trim();
-  const count = parseInt(document.getElementById('botCount').value, 10);
+  if (!g.matchCode && g.mode !== 'gs') {
+    alert('Entrez le code du match pour ce groupe');
+    return;
+  }
 
-  if (!serverUrl) { alert('Entrez l\'URL du serveur'); return; }
-  if (mode === 'mp' && !roomCode) { alert('Entrez le code de la salle'); return; }
-  if ((mode === 'arena' || mode === 'training') && !matchId) { alert('Entrez le Match ID'); return; }
+  g.running = true;
+  g.status = 'active';
+  g.bots = [];
+  groupLog(gid, `Lancement de ${g.botCount} robot(s) en mode ${g.mode.toUpperCase()}...`, 'info');
+  renderGroup(g);
 
-  log(`Lancement de ${count} robot(s) en mode ${mode.toUpperCase()}...`, 'info');
-  document.getElementById('btnStart').disabled = true;
-  document.getElementById('btnStop').disabled = false;
-
-  totalPairs = 0;
-  totalErrors = 0;
-  updateStats();
-
-  for (let i = 0; i < count; i++) {
-    // Stagger connections by 500ms each to avoid overwhelming server
+  for (let i = 0; i < g.botCount; i++) {
     setTimeout(() => {
-      const bot = createBot(i, serverUrl, mode, roomCode, matchId);
-      bots.push(bot);
+      const bot = createGroupBot(g, i);
+      g.bots.push(bot);
+      renderGroup(g);
+      updateGlobalStats();
     }, i * 500);
   }
 }
 
-function stopBots() {
-  for (const bot of bots) {
+function stopGroup(gid) {
+  const g = groups.find(g => g.id === gid);
+  if (!g) return;
+
+  for (const bot of g.bots) {
     if (bot.pairTimer) clearTimeout(bot.pairTimer);
-    if (bot.socket) {
-      try { bot.socket.disconnect(); } catch {}
-    }
+    if (bot.socket) { try { bot.socket.disconnect(); } catch {} }
   }
-  bots = [];
-  document.getElementById('botGrid').innerHTML = '';
-  document.getElementById('btnStart').disabled = false;
-  document.getElementById('btnStop').disabled = true;
-  updateStats();
-  if (document.getElementById('logArea').children.length > 0) {
-    log('Tous les robots arretes', 'warn');
+  g.bots = [];
+  g.running = false;
+  g.status = 'idle';
+  groupLog(gid, 'Tous les robots arretes', 'warn');
+  renderGroup(g);
+  updateGlobalStats();
+}
+
+function startAllGroups() {
+  for (const g of groups) {
+    if (!g.running) startGroup(g.id);
   }
 }
+
+function stopAllGroups() {
+  for (const g of groups) {
+    if (g.running) stopGroup(g.id);
+  }
+}
+
+// Start with one group by default
+addGroup();
 </script>
 </body>
 </html>
