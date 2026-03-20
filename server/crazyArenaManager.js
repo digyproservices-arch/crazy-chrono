@@ -1335,6 +1335,18 @@ class CrazyArenaManager {
   async joinMatch(socket, matchId, studentData) {
     let match = this.matches.get(matchId);
     
+    // Fallback: si matchId est un roomCode, chercher le vrai match
+    if (!match) {
+      for (const [id, m] of this.matches.entries()) {
+        if (m.roomCode === matchId || m.roomCode === matchId.toUpperCase()) {
+          console.log(`[CrazyArena] Résolution roomCode "${matchId}" → matchId "${id}"`);
+          matchId = id;
+          match = m;
+          break;
+        }
+      }
+    }
+    
     // Si le match n'existe pas en RAM, essayer de le récupérer depuis Supabase
     if (!match) {
       console.log(`[CrazyArena] Match ${matchId} introuvable en RAM, tentative récupération depuis Supabase...`);
