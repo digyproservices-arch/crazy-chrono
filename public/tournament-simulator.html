@@ -357,10 +357,10 @@ async function doLogin() {
 // Try to extract Supabase config from the server
 function getSupabaseUrl() {
   // Common Supabase project URL pattern
-  return localStorage.getItem('supabaseUrl') || 'https://cjwyqxfgnjyynovsqwkf.supabase.co';
+  return localStorage.getItem('supabaseUrl') || 'https://dfrwoabuftlbrhqxnrbl.supabase.co';
 }
 function getSupabaseAnonKey() {
-  return localStorage.getItem('supabaseAnonKey') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqd3lxeGZnbmp5eW5vdnNxd2tmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzIwMjc0ODksImV4cCI6MjA0NzYwMzQ4OX0.gFjxsatRGQqMnfh4rcH9Rn8Fym0rc7NXD0MjNUiuMbk';
+  return localStorage.getItem('supabaseAnonKey') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmcndvYWJ1ZnRsYnJocXhucmJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY0MjExMjUsImV4cCI6MjA0MTk5NzEyNX0.o_WhCaOQ0fft-JI5cUwlOxonaVCmBYW2PfEb3KNkJMQ';
 }
 
 function authHeaders() {
@@ -827,7 +827,7 @@ window.addEventListener('load', () => {
   try {
     // Try multiple possible storage keys for the Supabase session
     const keys = [
-      'sb-cjwyqxfgnjyynovsqwkf-auth-token',
+      'sb-dfrwoabuftlbrhqxnrbl-auth-token',
       'supabase_token',
       'token'
     ];
