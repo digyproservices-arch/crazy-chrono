@@ -37,6 +37,10 @@
       "dest": "/bot-tester.html"
     },
     {
+      "src": "/tournament-simulator\\.html",
+      "dest": "/tournament-simulator.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
