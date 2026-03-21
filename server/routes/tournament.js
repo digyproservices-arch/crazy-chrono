@@ -386,7 +386,7 @@ router.patch('/phases/:phaseId/close', requireSupabase, requireAuth, async (req,
                 id: groupId,
                 tournament_id: phase.tournament_id,
                 phase_level: nextLevel,
-                class_id: phase.tournament_id,
+                class_id: null,
                 name: `${PHASE_NAMES[nextLevel]} - Groupe ${groupNum}`,
                 student_ids: JSON.stringify(groupWinners),
                 status: 'pending'
@@ -577,7 +577,7 @@ router.post('/groups', requireSupabase, requireAuth, ...validateCreateGroup, asy
         id: groupId,
         tournament_id: tournamentId,
         phase_level: phaseLevel,
-        class_id: classId,
+        class_id: classId || null,
         name: name,
         student_ids: JSON.stringify(studentIds),
         status: 'pending'

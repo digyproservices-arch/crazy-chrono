@@ -643,7 +643,6 @@ async function runPhase(level, numGroups, playersPerGroup, existingGroups) {
     const gRes = await apiPost('/api/tournament/groups', {
       tournamentId,
       phaseLevel: level,
-      classId: tournamentId,
       name: `Classe ${String.fromCharCode(65 + i)} (Phase ${level})`,
       studentIds
     });
