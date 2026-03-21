@@ -72,7 +72,7 @@ const requireSupabase = (req, res, next) => {
 // ==========================================
 router.get('/schema-check', requireSupabase, async (req, res) => {
   try {
-    const tables = ['tournaments', 'tournament_phases', 'tournament_groups', 'matches'];
+    const tables = ['tournaments', 'tournament_phases', 'tournament_groups', 'tournament_matches', 'match_results'];
     const result = {};
     for (const table of tables) {
       const { data, error } = await supabase.from(table).select('*').limit(1);
@@ -150,7 +150,7 @@ router.post('/phases', requireSupabase, requireAuth, async (req, res) => {
         level: level,
         name: phaseName,
         status: status || 'pending',
-        started_at: status === 'active' ? new Date().toISOString() : null
+        start_date: status === 'active' ? new Date().toISOString() : null
       })
       .select()
       .single();
@@ -335,7 +335,7 @@ router.patch('/phases/:phaseId/close', requireSupabase, requireAuth, async (req,
     // 4. Marquer la phase comme terminée
     await supabase
       .from('tournament_phases')
-      .update({ status: 'finished', finished_at: new Date().toISOString() })
+      .update({ status: 'finished', end_date: new Date().toISOString() })
       .eq('id', phaseId);
     
     // 5. Si pas phase finale (4), préparer la phase suivante
@@ -443,7 +443,7 @@ router.patch('/phases/:phaseId/activate', requireSupabase, requireAuth, async (r
     // Activer la phase
     await supabase
       .from('tournament_phases')
-      .update({ status: 'active', started_at: new Date().toISOString() })
+      .update({ status: 'active', start_date: new Date().toISOString() })
       .eq('id', phaseId);
     
     // Mettre à jour le tournoi
@@ -1306,8 +1306,8 @@ router.get('/:tournamentId/supervisor', requireSupabase, requireAuth, async (req
         level: phase.level,
         name: phase.name || PHASE_NAMES[phase.level],
         status: phase.status,
-        startedAt: phase.started_at,
-        finishedAt: phase.finished_at,
+        startedAt: phase.start_date,
+        finishedAt: phase.end_date,
         totalGroups: phaseGroups.length,
         finishedGroups: finishedGroups.length,
         totalMatches: phaseMatches.length,
@@ -1351,18 +1351,18 @@ router.get('/:tournamentId/supervisor', requireSupabase, requireAuth, async (req
 
     // Add phase events to timeline
     for (const phase of (phases || [])) {
-      if (phase.started_at) {
+      if (phase.start_date) {
         timeline.push({
           type: 'phase_started',
-          timestamp: phase.started_at,
+          timestamp: phase.start_date,
           phaseLevel: phase.level,
           phaseName: phase.name || PHASE_NAMES[phase.level]
         });
       }
-      if (phase.finished_at) {
+      if (phase.end_date) {
         timeline.push({
           type: 'phase_finished',
-          timestamp: phase.finished_at,
+          timestamp: phase.end_date,
           phaseLevel: phase.level,
           phaseName: phase.name || PHASE_NAMES[phase.level]
         });
