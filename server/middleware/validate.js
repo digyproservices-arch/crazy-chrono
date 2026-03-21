@@ -36,7 +36,7 @@ const validateStudentLogin = [
 // POST /api/tournament/groups
 const validateCreateGroup = [
   body('tournamentId').trim().notEmpty().withMessage('tournamentId requis'),
-  body('classId').trim().notEmpty().withMessage('classId requis'),
+  body('classId').optional({ nullable: true }).trim(),
   body('name').trim().notEmpty().withMessage('Nom du groupe requis')
     .isLength({ max: 100 }).withMessage('Nom trop long (max 100)'),
   body('studentIds')
