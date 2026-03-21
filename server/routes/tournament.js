@@ -77,7 +77,7 @@ const requireSupabase = (req, res, next) => {
  */
 router.post('/tournaments', requireSupabase, requireAuth, async (req, res) => {
   try {
-    const { name, description, level } = req.body;
+    const { name } = req.body;
     const tournamentId = `tournament_${uuidv4()}`;
 
     const { data, error } = await supabase
@@ -85,7 +85,6 @@ router.post('/tournaments', requireSupabase, requireAuth, async (req, res) => {
       .insert({
         id: tournamentId,
         name: name || 'Tournoi Crazy Chrono',
-        description: description || '',
         status: 'active',
         current_phase: 1,
         created_by: req.authUser.id
