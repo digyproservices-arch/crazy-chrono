@@ -252,6 +252,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 // ==========================================
 // STATE
@@ -313,44 +314,24 @@ async function doLogin() {
   statusEl.textContent = '⏳ Connexion Supabase...';
   statusEl.style.color = '#fbbf24';
 
-  const supabaseUrl = getSupabaseUrl();
-  const supabaseKey = getSupabaseAnonKey();
-  log(`Auth Supabase: ${supabaseUrl}/auth/v1/token`, 'info');
-
   try {
-    const res = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': supabaseKey
-      },
-      body: JSON.stringify({ email, password })
-    });
-
-    const contentType = res.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
-      const text = await res.text();
-      throw new Error(`Supabase a renvoyé du ${contentType || 'HTML'} (status ${res.status}) au lieu de JSON. Vérifiez l'URL Supabase.`);
-    }
-
-    const data = await res.json();
-    if (data.access_token) {
-      authToken = data.access_token;
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (data.session && data.session.access_token) {
+      authToken = data.session.access_token;
       statusEl.textContent = `✅ Connecté: ${data.user?.email || email}`;
       statusEl.style.color = '#34d399';
       document.getElementById('btnStart').disabled = false;
       document.getElementById('btnCleanup').disabled = false;
       log(`Authentifié en tant que ${email}`, 'success');
     } else {
-      statusEl.textContent = `❌ ${data.error_description || data.msg || 'Identifiants invalides'}`;
+      statusEl.textContent = '❌ Identifiants invalides';
       statusEl.style.color = '#f87171';
-      log(`Erreur auth: ${data.error_description || JSON.stringify(data)}`, 'error');
     }
   } catch (err) {
     statusEl.textContent = `❌ ${err.message}`;
     statusEl.style.color = '#f87171';
     log(`Erreur connexion: ${err.message}`, 'error');
-    log(`Vérifiez: 1) URL Supabase correcte 2) Email/mot de passe valides 3) Connexion internet`, 'warn');
   }
 }
 
@@ -820,44 +801,39 @@ function stopSimulation() {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// Try to load auth from localStorage on page load
-window.addEventListener('load', () => {
+// Initialize Supabase client for proper session management
+const supabaseClient = window.supabase.createClient(
+  getSupabaseUrl(),
+  getSupabaseAnonKey()
+);
+
+// Try to load auth from Supabase session (auto-refreshes expired tokens)
+window.addEventListener('load', async () => {
   serverUrl = document.getElementById('serverUrl').value.replace(/\/$/, '');
   try {
-    // Try multiple possible storage keys for the Supabase session
-    const keys = [
-      'sb-vimtycpjofejtgwejfht-auth-token',
-      'supabase_token',
-      'token'
-    ];
-    for (const key of keys) {
-      const stored = localStorage.getItem(key);
-      if (!stored) continue;
-      try {
-        const parsed = JSON.parse(stored);
-        const tok = parsed.access_token || parsed.token || (typeof parsed === 'string' ? parsed : null);
-        if (tok) {
-          authToken = tok;
-          document.getElementById('authStatus').textContent = `✅ Token chargé (${key})`;
-          document.getElementById('authStatus').style.color = '#34d399';
-          document.getElementById('btnStart').disabled = false;
-          document.getElementById('btnCleanup').disabled = false;
-          log(`Token de session détecté depuis localStorage[${key}]`, 'success');
-          return;
-        }
-      } catch {}
-    }
-    // Also try raw token string
-    const rawToken = localStorage.getItem('supabase_token') || localStorage.getItem('token');
-    if (rawToken && rawToken.startsWith('ey')) {
-      authToken = rawToken;
-      document.getElementById('authStatus').textContent = `✅ Token chargé depuis session`;
+    // Use Supabase client to get/refresh the current session
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
+    if (session && session.access_token) {
+      authToken = session.access_token;
+      document.getElementById('authStatus').textContent = `✅ Token chargé (${session.user?.email || 'session'})`;
       document.getElementById('authStatus').style.color = '#34d399';
       document.getElementById('btnStart').disabled = false;
       document.getElementById('btnCleanup').disabled = false;
-      log('Token brut détecté depuis localStorage', 'success');
+      log(`Token de session Supabase chargé pour ${session.user?.email}`, 'success');
+      return;
     }
-  } catch {}
+    if (error) log(`Session Supabase: ${error.message}`, 'warn');
+  } catch (e) {
+    log(`Erreur chargement session: ${e.message}`, 'warn');
+  }
+});
+
+// Listen for token refresh events
+supabaseClient.auth.onAuthStateChange((event, session) => {
+  if (session && session.access_token) {
+    authToken = session.access_token;
+    log(`Token rafraîchi (${event})`, 'info');
+  }
 });
 </script>
 </body>
