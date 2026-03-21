@@ -102,7 +102,7 @@ router.get('/schema-check', requireSupabase, async (req, res) => {
 router.post('/tournaments', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { name, academy_code } = req.body;
-    const tournamentId = `tournament_${uuidv4()}`;
+    const tournamentId = `tour_sim_${uuidv4().slice(0, 8)}`;
 
     const { data, error } = await supabase
       .from('tournaments')
@@ -139,7 +139,7 @@ router.post('/phases', requireSupabase, requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'tournamentId et level requis' });
     }
 
-    const phaseId = `phase_${level}_${tournamentId}`;
+    const phaseId = `ph${level}_${uuidv4().slice(0, 8)}`;
     const phaseName = PHASE_NAMES[level] || `Phase ${level}`;
 
     const { data, error } = await supabase
@@ -355,7 +355,7 @@ router.patch('/phases/:phaseId/close', requireSupabase, requireAuth, async (req,
         nextPhaseId = existingNext.id;
       } else {
         // Créer la phase suivante
-        const newPhaseId = `phase_${nextLevel}_${phase.tournament_id}`;
+        const newPhaseId = `ph${nextLevel}_${uuidv4().slice(0, 8)}`;
         const { data: newPhase } = await supabase
           .from('tournament_phases')
           .insert({
