@@ -313,9 +313,12 @@ function groupLog(gid, msg, level = 'info') {
 }
 
 // ========== BOT LOGIC ==========
-function getDelay(speed) {
+// Each bot gets a unique skill multiplier to avoid ties
+// skillMult < 1 = faster, > 1 = slower
+function getDelay(speed, skillMult = 1.0) {
   const [min, max] = SPEED_RANGES[speed] || SPEED_RANGES.normal;
-  return min + Math.random() * (max - min);
+  const base = min + Math.random() * (max - min);
+  return Math.round(base * skillMult);
 }
 
 function findCorrectPair(zones) {
@@ -331,10 +334,14 @@ function findCorrectPair(zones) {
 
 function createGroupBot(group, index) {
   const globalIndex = (group.id - 1) * 50 + index;
+  // Skill multiplier: bot 0 = fastest (0.4x), last = slowest (2.0x), with random jitter
+  const skillBase = 0.4 + (index / Math.max(group.botCount - 1, 1)) * 1.6;
+  const skillMult = skillBase + (Math.random() - 0.5) * 0.3; // ±0.15 jitter
   const bot = {
     id: `g${group.id}-b${index}`,
     name: BOT_NAMES[index] || `Bot-G${group.id}-${index + 1}`,
     studentId: `bot-g${group.id}-s${index}-${Date.now()}`,
+    skillMult: Math.max(0.2, skillMult),
     connected: false,
     playing: false,
     error: false,
@@ -456,7 +463,17 @@ function createGroupBot(group, index) {
     // ===== ARENA EVENTS =====
     socket.on('arena:game-start', (d) => { group.status = 'playing'; onNewZones(d.zones || [], 'Arena demarre'); });
     socket.on('arena:round-new', (d) => onNewZones(d.zones || [], `Arena carte ${d.roundIndex || '?'}`));
-    socket.on('arena:pair-validated', (d) => { if (d.studentId === bot.studentId) onPairSuccess('Arena'); });
+    socket.on('arena:pair-validated', (d) => {
+      // Stop ALL bots from validating the same pair (prevents ties)
+      if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
+      bot.currentZones = null; // Block further attempts until new zones arrive
+      if (d.studentId === bot.studentId) {
+        onPairSuccess('Arena');
+      } else {
+        bot.statusText = `${d.playerName || 'Autre'} a trouvé — attente nouvelle carte...`;
+        renderGroup(group);
+      }
+    });
     socket.on('arena:scores-update', (d) => onScoreUpdate(d.scores, 'studentId'));
     socket.on('arena:countdown', (d) => { bot.statusText = `Arena: ${d.count}...`; renderGroup(group); });
     socket.on('arena:game-end', () => onGameEnd('Arena'));
@@ -531,7 +548,7 @@ function createGroupBot(group, index) {
 
 function scheduleBotPair(bot, group) {
   if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
-  const delay = getDelay(group.speed);
+  const delay = getDelay(group.speed, bot.skillMult);
   bot.statusText = `Recherche... (${(delay / 1000).toFixed(1)}s)`;
   renderGroup(group);
 
