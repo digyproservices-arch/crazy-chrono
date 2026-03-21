@@ -68,6 +68,30 @@ const requireSupabase = (req, res, next) => {
 };
 
 // ==========================================
+// DIAGNOSTIC SCHEMA (temporaire)
+// ==========================================
+router.get('/schema-check', requireSupabase, async (req, res) => {
+  try {
+    const tables = ['tournaments', 'tournament_phases', 'tournament_groups', 'matches'];
+    const result = {};
+    for (const table of tables) {
+      const { data, error } = await supabase.from(table).select('*').limit(1);
+      if (error) {
+        result[table] = { error: error.message };
+      } else if (data && data.length > 0) {
+        result[table] = { columns: Object.keys(data[0]), sample: data[0] };
+      } else {
+        // Table exists but empty — try insert/select to get column names
+        result[table] = { columns: 'table empty — no sample', rowCount: 0 };
+      }
+    }
+    res.json({ success: true, schema: result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ==========================================
 // TOURNOIS
 // ==========================================
 
