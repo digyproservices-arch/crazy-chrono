@@ -502,4 +502,49 @@ router.get('/profile', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/auth/supabase-login
+ * Authentification côté serveur (contourne les clés legacy désactivées côté CDN)
+ * Body: { email, password }
+ * Retourne: { ok, access_token, user }
+ */
+router.post('/supabase-login', async (req, res) => {
+  try {
+    const supabase = req.app.locals.supabaseAdmin;
+    if (!supabase) {
+      return res.status(500).json({ ok: false, error: 'supabase_not_configured' });
+    }
+
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ ok: false, error: 'missing_email_or_password' });
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      console.error('[Auth] supabase-login error:', error.message);
+      return res.status(401).json({ ok: false, error: error.message });
+    }
+
+    if (!data?.session?.access_token) {
+      return res.status(401).json({ ok: false, error: 'no_session_returned' });
+    }
+
+    return res.json({
+      ok: true,
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.user_metadata?.name || data.user.email
+      }
+    });
+
+  } catch (error) {
+    console.error('[Auth] Error in /supabase-login:', error);
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
 module.exports = router;

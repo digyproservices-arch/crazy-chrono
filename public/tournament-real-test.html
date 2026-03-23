@@ -205,35 +205,100 @@ function log(msg, level = 'info') {
 }
 
 // ═══════════════════════════════════════
-// AUTH
+// AUTH (multi-stratégie : localStorage → Supabase → backend)
 // ═══════════════════════════════════════
+function tryLoadTokenFromLocalStorage() {
+  // 1) Supabase session stockée par l'app React
+  try {
+    const sbKey = 'sb-vimtycpjofejtgwejfht-auth-token';
+    const raw = localStorage.getItem(sbKey);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.access_token) return { token: parsed.access_token, email: parsed?.user?.email || 'session React' };
+    }
+  } catch {}
+  // 2) Fallback cc_auth
+  try {
+    const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+    if (auth?.token) return { token: auth.token, email: auth.email || 'cc_auth' };
+  } catch {}
+  return null;
+}
+
 async function doLogin() {
   const email = document.getElementById('cfgEmail').value;
   const pwd = document.getElementById('cfgPwd').value;
   const st = document.getElementById('authStatus');
   if (!email || !pwd) { st.textContent = '❌ Email + mdp requis'; st.style.color='#f87171'; return; }
   st.textContent = '⏳ Connexion...'; st.style.color = '#fbbf24';
+
+  // Stratégie 1: Supabase client CDN
   try {
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pwd });
-    if (error) throw error;
-    authToken = data.session.access_token;
-    st.textContent = `✅ ${data.user.email}`; st.style.color = '#34d399';
+    if (!error && data?.session?.access_token) {
+      authToken = data.session.access_token;
+      st.textContent = `✅ ${data.user.email}`; st.style.color = '#34d399';
+      document.getElementById('btnCreate').disabled = false;
+      log(`Authentifié via Supabase: ${data.user.email}`, 'ok');
+      return;
+    }
+    if (error) log(`Supabase direct: ${error.message} — tentative via backend...`, 'warn');
+  } catch (e) { log(`Supabase CDN: ${e.message} — tentative via backend...`, 'warn'); }
+
+  // Stratégie 2: Auth via le backend Render (POST /api/auth/supabase-login)
+  try {
+    const r = await fetch(`${apiUrl()}/api/auth/supabase-login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pwd })
+    });
+    if (r.ok) {
+      const data = await r.json();
+      if (data.access_token || data.token) {
+        authToken = data.access_token || data.token;
+        st.textContent = `✅ ${email} (via backend)`; st.style.color = '#34d399';
+        document.getElementById('btnCreate').disabled = false;
+        log(`Authentifié via backend: ${email}`, 'ok');
+        return;
+      }
+    }
+  } catch (e) { log(`Backend auth: ${e.message}`, 'warn'); }
+
+  // Stratégie 3: Lire le token existant dans localStorage
+  const ls = tryLoadTokenFromLocalStorage();
+  if (ls) {
+    authToken = ls.token;
+    st.textContent = `✅ ${ls.email} (session existante)`; st.style.color = '#34d399';
     document.getElementById('btnCreate').disabled = false;
-    log(`Authentifié: ${data.user.email}`, 'ok');
-  } catch (e) { st.textContent = `❌ ${e.message}`; st.style.color = '#f87171'; log(`Auth: ${e.message}`, 'err'); }
+    log(`Token récupéré depuis localStorage: ${ls.email}`, 'ok');
+    return;
+  }
+
+  st.textContent = '❌ Échec auth — connectez-vous d\'abord via l\'app React'; st.style.color = '#f87171';
+  log('❌ Toutes les méthodes d\'auth ont échoué. Connectez-vous sur app.crazy-chrono.com puis revenez ici.', 'err');
 }
 
-// Try auto-load session
-window.addEventListener('load', async () => {
+// Auto-load token on page load
+window.addEventListener('load', () => {
+  const ls = tryLoadTokenFromLocalStorage();
+  if (ls) {
+    authToken = ls.token;
+    document.getElementById('authStatus').textContent = `✅ ${ls.email}`;
+    document.getElementById('authStatus').style.color = '#34d399';
+    document.getElementById('btnCreate').disabled = false;
+    log(`Session auto (localStorage): ${ls.email}`, 'ok');
+  }
+  // Also try Supabase CDN session (non-blocking)
   try {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session?.access_token) {
-      authToken = session.access_token;
-      document.getElementById('authStatus').textContent = `✅ ${session.user.email}`;
-      document.getElementById('authStatus').style.color = '#34d399';
-      document.getElementById('btnCreate').disabled = false;
-      log(`Session auto: ${session.user.email}`, 'ok');
-    }
+    supabaseClient.auth.getSession().then(({ data }) => {
+      if (data?.session?.access_token) {
+        authToken = data.session.access_token;
+        if (!document.getElementById('btnCreate').disabled === false) {
+          document.getElementById('authStatus').textContent = `✅ ${data.session.user?.email}`;
+          document.getElementById('authStatus').style.color = '#34d399';
+          document.getElementById('btnCreate').disabled = false;
+        }
+      }
+    }).catch(() => {});
   } catch {}
 });
 supabaseClient.auth.onAuthStateChange((ev, session) => {
