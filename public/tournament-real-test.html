@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Tournoi Réel — Crazy Chrono</title>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',sans-serif;background:#0a0e27;color:#e0e0e0;min-height:100vh}
+    .header{background:linear-gradient(135deg,#1a1f4e,#2d1b69);padding:14px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #7c3aed;flex-wrap:wrap;gap:10px}
+    .header h1{font-size:1.3em;color:#a78bfa}
+    .hstats{display:flex;gap:14px;font-size:.82em;flex-wrap:wrap}
+    .hstats span{color:#94a3b8}.hstats strong{color:#22d3ee}
+    .container{max-width:1500px;margin:0 auto;padding:16px}
+    .panel{background:#111538;border-radius:10px;padding:16px;margin-bottom:14px;border:1px solid #2d2f6b}
+    .panel h2{color:#a78bfa;margin-bottom:10px;font-size:1em}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:10px}
+    .field{display:flex;flex-direction:column;gap:3px}
+    .field label{font-size:.72em;color:#94a3b8;text-transform:uppercase}
+    .field input,.field select{background:#1e2048;border:1px solid #3b3f7a;color:#e0e0e0;padding:7px 10px;border-radius:6px;font-size:.88em;min-width:100px}
+    .btn{padding:8px 18px;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:.88em;transition:all .2s}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+    .btn-purple{background:#7c3aed;color:#fff}.btn-purple:hover{background:#6d28d9}
+    .btn-green{background:#10b981;color:#fff}.btn-green:hover{background:#059669}
+    .btn-red{background:#ef4444;color:#fff}.btn-red:hover{background:#dc2626}
+    .btn-blue{background:#3b82f6;color:#fff}.btn-blue:hover{background:#2563eb}
+    .auth-status{font-size:.82em;padding:4px 10px;border-radius:6px}
+    /* Phase tabs */
+    .phase-tabs{display:flex;gap:6px;margin-bottom:12px}
+    .phase-tab{padding:8px 16px;border-radius:8px 8px 0 0;cursor:pointer;font-weight:600;font-size:.85em;border:1px solid #3b3f7a;border-bottom:none;background:#1e2048;color:#94a3b8}
+    .phase-tab.active{background:#7c3aed;color:#fff;border-color:#7c3aed}
+    .phase-tab .badge{background:rgba(255,255,255,.2);padding:1px 6px;border-radius:8px;font-size:.75em;margin-left:4px}
+    /* Match grid */
+    .match-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;max-height:60vh;overflow-y:auto;padding:4px}
+    .match-card{background:#1e2048;border-radius:8px;padding:12px;border:2px solid #3b3f7a;transition:border-color .3s;font-size:.82em}
+    .match-card.waiting{border-color:#64748b}
+    .match-card.playing{border-color:#fbbf24;box-shadow:0 0 8px rgba(251,191,36,.2)}
+    .match-card.finished{border-color:#10b981}
+    .match-card.tie{border-color:#ef4444}
+    .match-card .mc-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+    .match-card .mc-title{font-weight:700;font-size:.9em}
+    .match-card .mc-status{font-size:.72em;padding:2px 8px;border-radius:10px;font-weight:600}
+    .mc-status.waiting{background:#334155;color:#94a3b8}
+    .mc-status.playing{background:#92400e;color:#fbbf24}
+    .mc-status.finished{background:#064e3b;color:#34d399}
+    .mc-status.tie{background:#7f1d1d;color:#fca5a5}
+    .match-card .mc-info{color:#64748b;font-size:.72em;margin-bottom:4px}
+    .match-card .mc-players{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+    .mc-player{background:#0f172a;padding:4px 8px;border-radius:4px;display:flex;justify-content:space-between;align-items:center}
+    .mc-player.winner{background:#064e3b;border:1px solid #10b981}
+    .mc-player .pname{font-weight:600;font-size:.8em}
+    .mc-player .pscore{color:#fbbf24;font-weight:700}
+    /* Structure tree */
+    .tree{font-size:.8em;max-height:200px;overflow-y:auto;background:#0f172a;border-radius:6px;padding:8px}
+    .tree-circo{margin-bottom:4px}
+    .tree-circo-name{color:#7c3aed;font-weight:700;cursor:pointer}
+    .tree-ecole{margin-left:16px;color:#3b82f6}
+    .tree-classe{margin-left:32px;color:#94a3b8;font-size:.9em}
+    /* Log */
+    .log-area{background:#0f172a;border-radius:6px;padding:8px;max-height:160px;overflow-y:auto;font-family:Consolas,monospace;font-size:.72em;line-height:1.5}
+    .log-area .t{color:#64748b}.log-area .info{color:#38bdf8}.log-area .ok{color:#10b981}.log-area .warn{color:#fbbf24}.log-area .err{color:#ef4444}
+    /* Summary */
+    .summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+    .summary-card{background:#1e2048;border-radius:8px;padding:12px;text-align:center}
+    .summary-card .sv{font-size:1.8em;font-weight:700;color:#22d3ee}
+    .summary-card .sl{font-size:.75em;color:#94a3b8;margin-top:2px}
+    /* Progress bar */
+    .progress-bar{height:6px;background:#1e2048;border-radius:3px;overflow:hidden;margin:8px 0}
+    .progress-fill{height:100%;background:linear-gradient(90deg,#7c3aed,#22d3ee);transition:width .5s}
+  </style>
+</head>
+<body>
+<div class="header">
+  <h1>🏆 Test Tournoi Réel — Arena Bots</h1>
+  <div class="hstats">
+    <span>Circo: <strong id="hCirco">0</strong></span>
+    <span>Écoles: <strong id="hEcoles">0</strong></span>
+    <span>Classes: <strong id="hClasses">0</strong></span>
+    <span>Bots: <strong id="hBots">0</strong></span>
+    <span>Matchs: <strong id="hMatchs">0</strong></span>
+    <span>Phase: <strong id="hPhase">—</strong></span>
+  </div>
+</div>
+<div class="container">
+  <!-- Auth + Config -->
+  <div class="panel">
+    <h2>⚙️ Configuration</h2>
+    <div class="row">
+      <div class="field"><label>Serveur</label><input id="cfgServer" value="https://crazy-chrono-backend.onrender.com"></div>
+      <div class="field"><label>Email prof</label><input id="cfgEmail" value="prof@ecole.fr"></div>
+      <div class="field"><label>Mot de passe</label><input id="cfgPwd" type="password" value=""></div>
+      <button class="btn btn-purple" onclick="doLogin()">Connexion</button>
+      <span class="auth-status" id="authStatus">⏳ Non connecté</span>
+    </div>
+    <div class="row">
+      <div class="field"><label>Circonscriptions</label><input id="cfgCirco" type="number" value="11" min="1" max="20"></div>
+      <div class="field"><label>Écoles / circo</label><input id="cfgEcoles" type="number" value="3" min="1" max="10"></div>
+      <div class="field"><label>Classes / école</label><input id="cfgClasses" type="number" value="2" min="1" max="5"></div>
+      <div class="field"><label>Joueurs / classe</label><input id="cfgPlayers" type="number" value="4" min="2" max="4"></div>
+      <div class="field"><label>Rounds / match</label><input id="cfgRounds" type="number" value="1" min="1" max="5"></div>
+      <div class="field"><label>Durée round (s)</label><input id="cfgDuration" type="number" value="30" min="10" max="120"></div>
+      <div class="field"><label>Matchs simultanés</label><input id="cfgWaveSize" type="number" value="8" min="1" max="20"></div>
+      <div class="field"><label>Vitesse bots</label>
+        <select id="cfgSpeed">
+          <option value="fast">Rapide</option>
+          <option value="normal" selected>Normal</option>
+          <option value="slow">Lent</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn btn-green" id="btnCreate" onclick="createTournament()" disabled>1. Créer le tournoi</button>
+      <button class="btn btn-blue" id="btnLaunch" onclick="launchNextPhase()" disabled>2. Lancer la phase suivante</button>
+      <button class="btn btn-red" id="btnStop" onclick="stopAll()" disabled>⏹ Arrêter tout</button>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary-grid" id="summaryGrid" style="display:none">
+    <div class="summary-card"><div class="sv" id="smMatchsDone">0</div><div class="sl">Matchs terminés</div></div>
+    <div class="summary-card"><div class="sv" id="smPairs">0</div><div class="sl">Paires validées</div></div>
+    <div class="summary-card"><div class="sv" id="smErrors">0</div><div class="sl">Erreurs bots</div></div>
+    <div class="summary-card"><div class="sv" id="smWinners">0</div><div class="sl">Gagnants Phase</div></div>
+  </div>
+
+  <!-- Structure -->
+  <div class="panel" id="structPanel" style="display:none">
+    <h2>🏫 Structure du tournoi <small id="structInfo"></small></h2>
+    <div class="tree" id="structTree"></div>
+  </div>
+
+  <!-- Phase tabs + match grid -->
+  <div class="panel" id="matchPanel" style="display:none">
+    <div class="phase-tabs" id="phaseTabs"></div>
+    <div class="match-grid" id="matchGrid"></div>
+  </div>
+
+  <!-- Log -->
+  <div class="panel">
+    <h2>📋 Journal</h2>
+    <div class="log-area" id="logArea"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// CONFIG & STATE
+// ═══════════════════════════════════════
+const SUPABASE_URL = 'https://vimtycpjofejtgwejfht.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpbXR5Y3Bqb2ZlanRnd2VqZmh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgxNTQ5OTAsImV4cCI6MjA3MzczMDk5MH0.JQ4Ciy5SPYQ79JrWDA9UwMdln0PtvNnLzYx6QJAcJ5Q';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const SPEED_RANGES = { slow: [4000, 7000], normal: [1500, 3500], fast: [400, 1200] };
+const CIRCO_NAMES = ['Nord','Sud','Est','Ouest','Centre','Basse-Terre','Pointe-à-Pitre','Sainte-Anne','Le Moule','Capesterre','Les Abymes'];
+const ECOLE_NAMES = ['Voltaire','Hugo','Curie','Pasteur','Sand','Zola','Dumas','Verne','Camus','Molière'];
+const NIVEAUX = ['CP','CE1','CE2','CM1','CM2'];
+const PRENOMS = [
+  'Emma','Lucas','Mia','Hugo','Jade','Noah','Léa','Tom','Alice','Adam','Sofia','Raphaël','Chloé','Léo','Inès',
+  'Sacha','Lina','Nathan','Manon','Louis','Camille','Gabriel','Louise','Arthur','Zoé','Jules','Rose','Ethan',
+  'Anna','Paul','Clara','Théo','Eva','Maxime','Lola','Victor','Sarah','Oscar','Nora','Axel','Mila','Aaron',
+  'Ambre','Rayan','Nina','Mohamed','Agathe','Noé','Juliette','Malik','Lily','Ibrahim','Margot','Enzo','Élise',
+  'Youssef','Jeanne','Timéo','Léonie','Ilyes','Charlotte','Samuel','Romane','Ayoub','Capucine','Eden','Anaïs',
+  'Mathis','Apolline','Ali','Clémence','Gabin','Adèle','Wassim','Victoire','Martin','Diane','Eliott','Lou',
+  'Nolan','Olivia','Antonin','Marie','Isaac','Constance','Robin','Iris','Ismaël','Elsa','Gaspard','Lucie',
+  'Soan','Mathilde','Sohan','Héloïse','Marius','Pauline','Liam','Valentine','Amir','Célia','Owen','Émilie',
+  'Yanis','Stella','Kylian','Camilla','Naël','Assia','Gustave','Salomé','Côme','Aya','Marceau','Thaïs',
+  'Simon','Lana','Abel','Roxane','Louka','Maëlys','Naïm','Yasmine','Andrea','Alicia','Dorian','Fatoumata',
+  'Rémi','Julia','Alexis','Fanny','Basile','Aline','César','Méline','Edgar','Livia','Félix','Sienna',
+  'Hector','Leïla','Jérémy','Maïssa','Kevin','Nawel','Léandre','Océane','Milo','Perrine','Neo','Rania',
+  'Octave','Sana','Pacôme','Thalia','Quentin','Uma','Rafaël','Violette','Sylvain','Wendy','Tanguy','Xénia',
+  'Ulysse','Yaëlle','Valentin','Zahra','Warren','Aurore','Xavier','Bérénice','Yvan','Clarisse','Zacharie','Daphné',
+  'Aurélien','Églantine','Baptiste','Flore','Corentin','Gloria','Damien','Hortense','Esteban','Isaure',
+  'Florian','Joséphine','Grégoire','Kimia','Hadrien','Laure','Igor','Mélissa','Joël','Noémie',
+  'Killian','Ophélie','Loïc','Pénélope','Mattéo','Quitterie','Nils','Rebecca','Olivier','Sixtine'
+];
+
+let authToken = null;
+let tournamentId = null;
+let structure = null; // { circos: [{name, ecoles: [{name, classes: [{name, niveau, students:[...]}]}]}] }
+let phases = {};      // { 1: {id, groups:[], matches:[], winners:[]}, 2: ..., 3: ..., 4: ... }
+let currentPhase = 0;
+let activeBots = [];  // all live socket connections
+let activeMatches = new Map(); // matchId → { card data, bots, status, winner }
+let running = false;
+let waveResolve = null; // resolve function for current wave promise
+let totalPairsValidated = 0;
+let totalErrors = 0;
+let totalMatchesDone = 0;
+let orchestratorSocket = null; // socket for teacher actions (force-start, tiebreaker)
+
+// ═══════════════════════════════════════
+// LOGGING
+// ═══════════════════════════════════════
+function log(msg, level = 'info') {
+  const area = document.getElementById('logArea');
+  const t = new Date().toLocaleTimeString('fr-FR');
+  const div = document.createElement('div');
+  div.innerHTML = `<span class="t">[${t}]</span> <span class="${level}">${msg}</span>`;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+  while (area.children.length > 300) area.removeChild(area.firstChild);
+}
+
+// ═══════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════
+async function doLogin() {
+  const email = document.getElementById('cfgEmail').value;
+  const pwd = document.getElementById('cfgPwd').value;
+  const st = document.getElementById('authStatus');
+  if (!email || !pwd) { st.textContent = '❌ Email + mdp requis'; st.style.color='#f87171'; return; }
+  st.textContent = '⏳ Connexion...'; st.style.color = '#fbbf24';
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pwd });
+    if (error) throw error;
+    authToken = data.session.access_token;
+    st.textContent = `✅ ${data.user.email}`; st.style.color = '#34d399';
+    document.getElementById('btnCreate').disabled = false;
+    log(`Authentifié: ${data.user.email}`, 'ok');
+  } catch (e) { st.textContent = `❌ ${e.message}`; st.style.color = '#f87171'; log(`Auth: ${e.message}`, 'err'); }
+}
+
+// Try auto-load session
+window.addEventListener('load', async () => {
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session?.access_token) {
+      authToken = session.access_token;
+      document.getElementById('authStatus').textContent = `✅ ${session.user.email}`;
+      document.getElementById('authStatus').style.color = '#34d399';
+      document.getElementById('btnCreate').disabled = false;
+      log(`Session auto: ${session.user.email}`, 'ok');
+    }
+  } catch {}
+});
+supabaseClient.auth.onAuthStateChange((ev, session) => {
+  if (session?.access_token) authToken = session.access_token;
+});
+
+// ═══════════════════════════════════════
+// API HELPERS
+// ═══════════════════════════════════════
+function apiUrl() { return document.getElementById('cfgServer').value.replace(/\/$/, ''); }
+function authHeaders() { return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` }; }
+async function apiPost(path, body) {
+  const r = await fetch(`${apiUrl()}${path}`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+  if (!r.ok) { const t = await r.text(); throw new Error(`${r.status}: ${t.slice(0, 200)}`); }
+  return r.json();
+}
+async function apiPatch(path, body) {
+  const r = await fetch(`${apiUrl()}${path}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) });
+  if (!r.ok) { const t = await r.text(); throw new Error(`${r.status}: ${t.slice(0, 200)}`); }
+  return r.json();
+}
+
+// ═══════════════════════════════════════
+// STRUCTURE GENERATION
+// ═══════════════════════════════════════
+function generateStructure() {
+  const nCirco = +document.getElementById('cfgCirco').value;
+  const nEcoles = +document.getElementById('cfgEcoles').value;
+  const nClasses = +document.getElementById('cfgClasses').value;
+  const nPlayers = +document.getElementById('cfgPlayers').value;
+
+  let prenomIdx = 0;
+  const circos = [];
+  for (let c = 0; c < nCirco; c++) {
+    const ecoles = [];
+    for (let e = 0; e < nEcoles; e++) {
+      const classes = [];
+      const niveau = NIVEAUX[(c * nEcoles + e) % NIVEAUX.length];
+      for (let cl = 0; cl < nClasses; cl++) {
+        const students = [];
+        for (let s = 0; s < nPlayers; s++) {
+          const prenom = PRENOMS[prenomIdx % PRENOMS.length];
+          prenomIdx++;
+          students.push({
+            id: `bot-c${c}e${e}cl${cl}s${s}-${Date.now()}`,
+            name: prenom,
+            label: `${prenom} (${niveau}-${String.fromCharCode(65 + cl)})`
+          });
+        }
+        classes.push({
+          name: `${niveau}-${String.fromCharCode(65 + cl)}`,
+          niveau,
+          students
+        });
+      }
+      ecoles.push({ name: ECOLE_NAMES[e % ECOLE_NAMES.length], classes });
+    }
+    circos.push({ name: `Circo ${CIRCO_NAMES[c % CIRCO_NAMES.length]}`, ecoles });
+  }
+
+  structure = { circos };
+  const totalStudents = nCirco * nEcoles * nClasses * nPlayers;
+  const totalClasses = nCirco * nEcoles * nClasses;
+
+  document.getElementById('hCirco').textContent = nCirco;
+  document.getElementById('hEcoles').textContent = nCirco * nEcoles;
+  document.getElementById('hClasses').textContent = totalClasses;
+  document.getElementById('hBots').textContent = totalStudents;
+
+  // Render tree
+  let html = '';
+  for (const ci of circos) {
+    html += `<div class="tree-circo"><span class="tree-circo-name">📍 ${ci.name}</span>`;
+    for (const ec of ci.ecoles) {
+      html += `<div class="tree-ecole">🏫 ${ec.name}`;
+      for (const cl of ec.classes) {
+        html += `<div class="tree-classe">📚 ${cl.name}: ${cl.students.map(s => s.name).join(', ')}</div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+  document.getElementById('structTree').innerHTML = html;
+  document.getElementById('structPanel').style.display = '';
+  document.getElementById('structInfo').textContent = `— ${nCirco} circo, ${nCirco * nEcoles} écoles, ${totalClasses} classes, ${totalStudents} élèves`;
+
+  return structure;
+}
+
+// ═══════════════════════════════════════
+// TOURNAMENT CREATION (API)
+// ═══════════════════════════════════════
+async function createTournament() {
+  if (!authToken) { log('Pas authentifié', 'err'); return; }
+  document.getElementById('btnCreate').disabled = true;
+  log('═══ CRÉATION DU TOURNOI ═══', 'info');
+
+  generateStructure();
+
+  try {
+    // 1. Create tournament
+    const tRes = await apiPost('/api/tournament/tournaments', { name: 'Test Réel Arena', academy_code: 'GP' });
+    tournamentId = tRes.tournament.id;
+    log(`Tournoi créé: ${tournamentId}`, 'ok');
+
+    // 2. Create Phase 1
+    const p1 = await apiPost('/api/tournament/phases', { tournamentId, level: 1, status: 'active' });
+    phases[1] = { id: p1.phase.id, groups: [], matches: [], winners: [] };
+    log(`Phase 1 créée: ${p1.phase.id}`, 'ok');
+
+    // 3. Create groups for Phase 1 (one per class)
+    let groupIdx = 0;
+    for (const ci of structure.circos) {
+      for (const ec of ci.ecoles) {
+        for (const cl of ec.classes) {
+          groupIdx++;
+          const gName = `${ci.name} / ${ec.name} / ${cl.name}`;
+          const studentIds = cl.students.map(s => s.id);
+          const gRes = await apiPost('/api/tournament/groups', {
+            tournamentId, phaseLevel: 1, name: gName, studentIds
+          });
+          phases[1].groups.push({
+            id: gRes.group.id, name: gName, students: cl.students,
+            circo: ci.name, ecole: ec.name, classe: cl.name
+          });
+        }
+      }
+    }
+    log(`${phases[1].groups.length} groupes Phase 1 créés`, 'ok');
+
+    // 4. Create matches for each group
+    const matchConfig = {
+      rounds: +document.getElementById('cfgRounds').value,
+      duration: +document.getElementById('cfgDuration').value,
+      classes: NIVEAUX,
+      themes: ['botanique', 'multiplication']
+    };
+    for (const grp of phases[1].groups) {
+      const mRes = await apiPost('/api/tournament/matches', {
+        tournamentId, phaseId: phases[1].id, groupId: grp.id, config: matchConfig
+      });
+      const matchData = mRes.match;
+      grp.matchId = matchData.id;
+      grp.roomCode = matchData.room_code;
+      phases[1].matches.push({ id: matchData.id, roomCode: matchData.room_code, groupId: grp.id, group: grp });
+    }
+    log(`${phases[1].matches.length} matchs Phase 1 créés`, 'ok');
+
+    document.getElementById('btnLaunch').disabled = false;
+    document.getElementById('matchPanel').style.display = '';
+    document.getElementById('summaryGrid').style.display = '';
+    currentPhase = 1;
+    renderPhaseTabs();
+    renderMatchGrid();
+    updateStats();
+    log('✅ Tournoi prêt — cliquez "Lancer la phase suivante"', 'ok');
+  } catch (e) {
+    log(`Erreur création: ${e.message}`, 'err');
+    document.getElementById('btnCreate').disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════
+// UI RENDERING
+// ═══════════════════════════════════════
+function renderPhaseTabs() {
+  const tabs = document.getElementById('phaseTabs');
+  let html = '';
+  for (let p = 1; p <= 4; p++) {
+    const phase = phases[p];
+    const active = p === currentPhase ? 'active' : '';
+    const count = phase ? phase.matches.length : 0;
+    const names = ['', 'CLASSE', 'ÉCOLE', 'CIRCONSCRIPTION', 'ACADÉMIQUE'];
+    html += `<div class="phase-tab ${active}" onclick="switchPhase(${p})">Phase ${p} — ${names[p]} <span class="badge">${count}</span></div>`;
+  }
+  tabs.innerHTML = html;
+}
+
+function switchPhase(p) {
+  if (!phases[p]) return;
+  currentPhase = p;
+  renderPhaseTabs();
+  renderMatchGrid();
+}
+
+function renderMatchGrid() {
+  const grid = document.getElementById('matchGrid');
+  const phase = phases[currentPhase];
+  if (!phase) { grid.innerHTML = '<p style="color:#64748b">Aucune phase</p>'; return; }
+
+  let html = '';
+  for (const m of phase.matches) {
+    const am = activeMatches.get(m.id);
+    const status = am?.status || 'waiting';
+    const players = am?.players || m.group.students.map(s => ({ name: s.label || s.name, score: 0 }));
+    const winner = am?.winner;
+
+    html += `<div class="match-card ${status}" id="mc-${m.id}">`;
+    html += `<div class="mc-header"><span class="mc-title">${m.group.name}</span><span class="mc-status ${status}">${status.toUpperCase()}</span></div>`;
+    html += `<div class="mc-info">Code: ${m.roomCode} | Match: ${m.id.slice(-8)}</div>`;
+    html += `<div class="mc-players">`;
+    for (const p of players) {
+      const isWinner = winner && p.studentId === winner.studentId;
+      html += `<div class="mc-player ${isWinner ? 'winner' : ''}"><span class="pname">${p.name}</span><span class="pscore">${p.score || 0}</span></div>`;
+    }
+    html += `</div></div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function updateMatchCard(matchId) {
+  const am = activeMatches.get(matchId);
+  if (!am) return;
+  const card = document.getElementById(`mc-${matchId}`);
+  if (!card) return;
+  card.className = `match-card ${am.status}`;
+  const statusEl = card.querySelector('.mc-status');
+  if (statusEl) { statusEl.textContent = am.status.toUpperCase(); statusEl.className = `mc-status ${am.status}`; }
+  const playersEl = card.querySelector('.mc-players');
+  if (playersEl) {
+    let html = '';
+    for (const p of am.players) {
+      const isW = am.winner && p.studentId === am.winner.studentId;
+      html += `<div class="mc-player ${isW ? 'winner' : ''}"><span class="pname">${p.name}</span><span class="pscore">${p.score || 0}</span></div>`;
+    }
+    playersEl.innerHTML = html;
+  }
+}
+
+function updateStats() {
+  document.getElementById('hMatchs').textContent = totalMatchesDone;
+  document.getElementById('hPhase').textContent = currentPhase || '—';
+  document.getElementById('smMatchsDone').textContent = totalMatchesDone;
+  document.getElementById('smPairs').textContent = totalPairsValidated;
+  document.getElementById('smErrors').textContent = totalErrors;
+  const phase = phases[currentPhase];
+  document.getElementById('smWinners').textContent = phase ? phase.winners.length : 0;
+  // Progress
+  if (phase) {
+    const pct = phase.matches.length > 0 ? Math.round((totalMatchesDone / phase.matches.length) * 100) : 0;
+    document.getElementById('progressFill').style.width = pct + '%';
+  }
+}
+
+// ═══════════════════════════════════════
+// MONITORING INTEGRATION
+// ═══════════════════════════════════════
+const monitoringBuffer = [];
+let monitoringFlushTimer = null;
+
+function sendMonitoringEvent(label, payload) {
+  monitoringBuffer.push({ label, payload, ts: Date.now() });
+  // Flush every 5s
+  if (!monitoringFlushTimer) {
+    monitoringFlushTimer = setTimeout(flushMonitoring, 5000);
+  }
+}
+
+async function flushMonitoring() {
+  monitoringFlushTimer = null;
+  if (monitoringBuffer.length === 0) return;
+  const events = monitoringBuffer.splice(0, monitoringBuffer.length);
+  try {
+    await fetch(`${apiUrl()}/api/monitoring/client-diag`, {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ events })
+    });
+  } catch (e) { /* non-bloquant */ }
+}
+
+async function sendIncident(type, severity, details) {
+  const incident = {
+    id: `arena-${type}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    type: `arena:${type}`,
+    severity,
+    timestamp: new Date().toISOString(),
+    details: { ...details, source: 'tournament-real-test', tournamentId },
+    sessionInfo: { phase: currentPhase, tournamentId }
+  };
+  try {
+    await fetch(`${apiUrl()}/api/monitoring/incidents`, {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ incident })
+    });
+  } catch (e) { /* non-bloquant */ }
+}
+
+// ═══════════════════════════════════════
+// MATCH WAVE EXECUTION (REAL SOCKET.IO)
+// ═══════════════════════════════════════
+function getDelay(speed, skillMult) {
+  const [min, max] = SPEED_RANGES[speed] || SPEED_RANGES.normal;
+  return Math.round((min + Math.random() * (max - min)) * skillMult);
+}
+
+function findCorrectPair(zones) {
+  const map = {};
+  for (const z of zones) {
+    const pid = (z.pairId || '').trim();
+    if (!pid) continue;
+    if (map[pid]) return { a: map[pid], b: z };
+    map[pid] = z;
+  }
+  return null;
+}
+
+function connectOrchestratorSocket() {
+  if (orchestratorSocket?.connected) return orchestratorSocket;
+  orchestratorSocket = io(apiUrl(), { transports: ['websocket', 'polling'] });
+  orchestratorSocket.on('connect', () => log('Orchestrateur socket connecté', 'ok'));
+  orchestratorSocket.on('arena:tie-waiting-teacher', (data) => {
+    log(`⚖️ Égalité match ${data.matchId.slice(-8)} — auto-départage...`, 'warn');
+    // Auto-start tiebreaker after bots mark ready
+    setTimeout(() => {
+      orchestratorSocket.emit('arena:start-tiebreaker', { matchId: data.matchId });
+      log(`Départage lancé pour ${data.matchId.slice(-8)}`, 'info');
+    }, 3000);
+  });
+  return orchestratorSocket;
+}
+
+async function launchNextPhase() {
+  if (!phases[currentPhase]) { log('Aucune phase à lancer', 'err'); return; }
+  running = true;
+  document.getElementById('btnLaunch').disabled = true;
+  document.getElementById('btnStop').disabled = false;
+
+  connectOrchestratorSocket();
+
+  const phase = phases[currentPhase];
+  const waveSize = +document.getElementById('cfgWaveSize').value;
+  const speed = document.getElementById('cfgSpeed').value;
+  const phaseDoneMatchesBefore = totalMatchesDone;
+
+  log(`═══ LANCEMENT PHASE ${currentPhase} — ${phase.matches.length} matchs en vagues de ${waveSize} ═══`, 'info');
+  sendMonitoringEvent('arena:phase-start', { phase: currentPhase, matchCount: phase.matches.length, waveSize });
+
+  // Launch matches in waves
+  for (let i = 0; i < phase.matches.length && running; i += waveSize) {
+    const wave = phase.matches.slice(i, i + waveSize);
+    const waveNum = Math.floor(i / waveSize) + 1;
+    log(`🌊 Vague ${waveNum}: matchs ${i + 1} à ${i + wave.length}`, 'info');
+
+    // Start all matches in this wave
+    const wavePromises = wave.map(m => runSingleMatch(m, speed));
+    await Promise.all(wavePromises);
+
+    if (running) log(`✅ Vague ${waveNum} terminée`, 'ok');
+    sendMonitoringEvent('arena:wave-done', { phase: currentPhase, waveNum, matchesDone: totalMatchesDone });
+  }
+
+  if (!running) { log('⏹ Arrêté par utilisateur', 'warn'); return; }
+
+  // Phase complete
+  log(`═══ PHASE ${currentPhase} TERMINÉE — ${phase.winners.length} gagnants ═══`, 'ok');
+  sendMonitoringEvent('arena:phase-end', { phase: currentPhase, winners: phase.winners.length, totalPairs: totalPairsValidated, totalErrors });
+
+  // Close phase
+  try { await apiPatch(`/api/tournament/phases/${phase.id}/close`, {}); } catch (e) { log(`Warn close phase: ${e.message}`, 'warn'); }
+
+  // Prepare next phase if applicable
+  if (currentPhase < 4 && phase.winners.length >= 2) {
+    await prepareNextPhase();
+    document.getElementById('btnLaunch').disabled = false;
+  } else {
+    log('🏆 TOURNOI TERMINÉ !', 'ok');
+    if (phase.winners.length > 0) {
+      log(`🥇 CHAMPION: ${phase.winners[0].name}`, 'ok');
+    }
+  }
+  document.getElementById('btnStop').disabled = true;
+  running = false;
+}
+
+async function runSingleMatch(matchInfo, speed) {
+  const matchId = matchInfo.id;
+  const group = matchInfo.group;
+  const students = group.students;
+
+  // Init active match state
+  activeMatches.set(matchId, {
+    status: 'waiting',
+    players: students.map((s, i) => ({ studentId: s.id, name: s.label || s.name, score: 0, skillMult: 0.4 + (i / Math.max(students.length - 1, 1)) * 1.6 + (Math.random() - 0.5) * 0.3 })),
+    winner: null,
+    bots: []
+  });
+  updateMatchCard(matchId);
+
+  return new Promise((resolve) => {
+    const am = activeMatches.get(matchId);
+    const bots = [];
+    let botsReady = 0;
+    let matchEnded = false;
+
+    function onMatchEnd(winner) {
+      if (matchEnded) return;
+      matchEnded = true;
+      am.status = 'finished';
+      am.winner = winner;
+      if (winner) {
+        phases[currentPhase].winners.push({ ...winner, fromGroup: group.name, fromCirco: group.circo, fromEcole: group.ecole });
+        log(`🏆 ${group.name}: ${winner.name} gagne (${winner.score} pts)`, 'ok');
+        sendMonitoringEvent('arena:match-end', { matchId, winner: winner.name, score: winner.score, group: group.name });
+      }
+      totalMatchesDone++;
+      updateMatchCard(matchId);
+      updateStats();
+      // Disconnect bots after short delay
+      setTimeout(() => {
+        bots.forEach(b => { if (b.pairTimer) clearTimeout(b.pairTimer); if (b.socket?.connected) b.socket.disconnect(); });
+      }, 2000);
+      resolve();
+    }
+
+    // Connect each bot
+    students.forEach((student, idx) => {
+      const skillMult = am.players[idx].skillMult;
+      const sock = io(apiUrl(), { transports: ['websocket', 'polling'], reconnection: false, timeout: 15000 });
+      const bot = { socket: sock, student, skillMult, pairTimer: null, currentZones: null };
+      bots.push(bot);
+      am.bots.push(bot);
+
+      sock.on('connect', () => {
+        sock.emit('arena:join', {
+          matchId,
+          studentData: { studentId: student.id, authId: `bot-${student.id}`, name: student.label || student.name, avatar: '/avatars/default.png' }
+        });
+        setTimeout(() => {
+          sock.emit('arena:ready', { studentId: student.id });
+          botsReady++;
+          if (botsReady === students.length) {
+            am.status = 'playing';
+            updateMatchCard(matchId);
+            // Force start via orchestrator socket
+            setTimeout(() => {
+              orchestratorSocket.emit('arena:force-start', { matchId }, (resp) => {
+                if (resp?.ok) log(`▶ ${group.name} démarré`, 'info');
+                else log(`⚠ ${group.name} force-start: ${JSON.stringify(resp)}`, 'warn');
+              });
+            }, 500);
+          }
+        }, 300 + Math.random() * 500);
+      });
+
+      function scheduleFind() {
+        if (matchEnded || !bot.currentZones) return;
+        const delay = getDelay(speed, skillMult);
+        bot.pairTimer = setTimeout(() => {
+          bot.pairTimer = null;
+          if (matchEnded || !bot.currentZones) return;
+          const pair = findCorrectPair(bot.currentZones);
+          if (!pair) return;
+          sock.emit('arena:pair-validated', {
+            matchId, studentId: student.id, isCorrect: true,
+            timeMs: delay, pairId: pair.a.pairId, zoneAId: pair.a.id, zoneBId: pair.b.id
+          });
+        }, delay);
+      }
+
+      sock.on('arena:game-start', (d) => {
+        bot.currentZones = d.zones || [];
+        scheduleFind();
+      });
+      sock.on('arena:round-new', (d) => {
+        bot.currentZones = d.zones || [];
+        if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
+        scheduleFind();
+      });
+      sock.on('arena:pair-validated', (d) => {
+        if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
+        bot.currentZones = null;
+        if (d.studentId === student.id) totalPairsValidated++;
+      });
+      sock.on('arena:scores-update', (d) => {
+        for (const s of (d.scores || [])) {
+          const p = am.players.find(pl => pl.studentId === s.studentId);
+          if (p) p.score = s.score || 0;
+        }
+        updateMatchCard(matchId);
+        updateStats();
+      });
+      sock.on('arena:game-end', (d) => {
+        const winner = d?.winner || (d?.ranking && d.ranking[0]) || null;
+        onMatchEnd(winner);
+      });
+      sock.on('arena:tie-detected', () => {
+        am.status = 'tie';
+        updateMatchCard(matchId);
+        sendIncident('tie-detected', 'warning', { matchId, group: group.name, scores: am.players.map(p => ({ name: p.name, score: p.score })) });
+        // Bots auto-ready for tiebreaker
+        setTimeout(() => {
+          bots.forEach(b => {
+            b.socket.emit('arena:player-ready-tiebreaker', { matchId, studentId: b.student.id, playerName: b.student.name });
+          });
+        }, 1000);
+      });
+      sock.on('arena:tiebreaker-start', (d) => {
+        am.status = 'playing';
+        updateMatchCard(matchId);
+        bot.currentZones = d.zones || [];
+        if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
+        scheduleFind();
+      });
+      sock.on('connect_error', (err) => {
+        totalErrors++;
+        log(`❌ ${student.name}: ${err.message}`, 'err');
+        sendIncident('bot-connect-error', 'error', { matchId, student: student.name, error: err.message });
+      });
+
+      // Safety timeout — end match after max duration + buffer
+      const maxDuration = (+document.getElementById('cfgRounds').value) * (+document.getElementById('cfgDuration').value) * 1000 + 30000;
+      setTimeout(() => { if (!matchEnded) { log(`⏰ ${group.name} timeout`, 'warn'); onMatchEnd(am.players.sort((a, b) => b.score - a.score)[0]); } }, maxDuration);
+    });
+  });
+}
+
+// ═══════════════════════════════════════
+// PREPARE NEXT PHASE
+// ═══════════════════════════════════════
+async function prepareNextPhase() {
+  const prevPhase = currentPhase;
+  const nextLevel = prevPhase + 1;
+  const winners = phases[prevPhase].winners;
+
+  log(`📌 Préparation Phase ${nextLevel}...`, 'info');
+
+  // Create next phase
+  const pRes = await apiPost('/api/tournament/phases', { tournamentId, level: nextLevel, status: 'active' });
+  phases[nextLevel] = { id: pRes.phase.id, groups: [], matches: [], winners: [] };
+
+  // Group winners by:
+  // Phase 2 (école): winners from same école
+  // Phase 3 (circo): winners from same circo
+  // Phase 4 (académique): all remaining winners
+  let groupedWinners = [];
+  if (nextLevel === 2) {
+    // Group by école
+    const byEcole = {};
+    winners.forEach(w => {
+      const key = `${w.fromCirco}/${w.fromEcole}`;
+      if (!byEcole[key]) byEcole[key] = { name: `${w.fromCirco} / ${w.fromEcole}`, circo: w.fromCirco, ecole: w.fromEcole, players: [] };
+      byEcole[key].players.push(w);
+    });
+    groupedWinners = Object.values(byEcole);
+  } else if (nextLevel === 3) {
+    // Group by circo
+    const byCirco = {};
+    winners.forEach(w => {
+      const key = w.fromCirco;
+      if (!byCirco[key]) byCirco[key] = { name: w.fromCirco, circo: w.fromCirco, ecole: '', players: [] };
+      byCirco[key].players.push(w);
+    });
+    groupedWinners = Object.values(byCirco);
+  } else {
+    // Phase 4: all in one or few groups of max 4
+    const all = [...winners];
+    while (all.length > 0) {
+      const chunk = all.splice(0, 4);
+      groupedWinners.push({ name: `Finale Académique #${groupedWinners.length + 1}`, circo: 'Académie', ecole: '', players: chunk });
+    }
+  }
+
+  // Filter out groups with < 2 players (can't have a match)
+  groupedWinners = groupedWinners.filter(g => g.players.length >= 2);
+
+  // Create groups and matches
+  const matchConfig = {
+    rounds: +document.getElementById('cfgRounds').value,
+    duration: +document.getElementById('cfgDuration').value,
+    classes: NIVEAUX,
+    themes: ['botanique', 'multiplication']
+  };
+
+  for (const grp of groupedWinners) {
+    // If group > 4 players, split into sub-groups of 4
+    const subGroups = [];
+    const allP = [...grp.players];
+    while (allP.length > 0) {
+      subGroups.push(allP.splice(0, 4));
+    }
+
+    for (let si = 0; si < subGroups.length; si++) {
+      const subPlayers = subGroups[si];
+      const gName = subGroups.length > 1 ? `${grp.name} (${si + 1})` : grp.name;
+      const studentIds = subPlayers.map(p => p.studentId);
+      const gRes = await apiPost('/api/tournament/groups', { tournamentId, phaseLevel: nextLevel, name: gName, studentIds });
+      
+      const groupData = {
+        id: gRes.group.id, name: gName,
+        students: subPlayers.map(p => ({ id: p.studentId, name: p.name, label: p.name })),
+        circo: grp.circo, ecole: grp.ecole, classe: ''
+      };
+      phases[nextLevel].groups.push(groupData);
+
+      const mRes = await apiPost('/api/tournament/matches', { tournamentId, phaseId: phases[nextLevel].id, groupId: gRes.group.id, config: matchConfig });
+      groupData.matchId = mRes.match.id;
+      groupData.roomCode = mRes.match.room_code;
+      phases[nextLevel].matches.push({ id: mRes.match.id, roomCode: mRes.match.room_code, groupId: gRes.group.id, group: groupData });
+    }
+  }
+
+  log(`Phase ${nextLevel}: ${phases[nextLevel].groups.length} groupes, ${phases[nextLevel].matches.length} matchs`, 'ok');
+  currentPhase = nextLevel;
+  totalMatchesDone = 0;
+  renderPhaseTabs();
+  renderMatchGrid();
+  updateStats();
+}
+
+// ═══════════════════════════════════════
+// STOP
+// ═══════════════════════════════════════
+function stopAll() {
+  running = false;
+  for (const [, am] of activeMatches) {
+    (am.bots || []).forEach(b => {
+      if (b.pairTimer) clearTimeout(b.pairTimer);
+      if (b.socket?.connected) b.socket.disconnect();
+    });
+  }
+  flushMonitoring();
+  if (orchestratorSocket?.connected) orchestratorSocket.disconnect();
+  orchestratorSocket = null;
+  document.getElementById('btnStop').disabled = true;
+  document.getElementById('btnLaunch').disabled = false;
+  log('⏹ Tout arrêté', 'warn');
+}
+</script>
+</body>
+</html>
