@@ -64,6 +64,9 @@ function MonitoringDashboard() {
   const [auditResult, setAuditResult] = useState(null);
   const [auditLoading, setAuditLoading] = useState(false);
 
+  // ── Zone Viewer state (screenshot visuel des cartes Arena) ──
+  const [zoneViewerRound, setZoneViewerRound] = useState(null); // round log à afficher visuellement
+
   // ── Arena tab state ──
   const [arenaStats, setArenaStats] = useState(null);
   const [arenaLoading, setArenaLoading] = useState(false);
@@ -867,6 +870,9 @@ sections.push(`===== FIN DU RAPPORT =====`);
                               {hasSS && (
                                 <button onClick={() => viewScreenshot(r.id)} disabled={screenshotLoading} title="Voir screenshot" style={{ marginLeft: 8, padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: '#3b82f6', color: '#fff', border: 'none', cursor: 'pointer' }}>📷</button>
                               )}
+                              {r.zonesSnapshot && r.zonesSnapshot.length > 0 && (
+                                <button onClick={() => setZoneViewerRound(r)} title="Voir la carte (zones visuelles)" style={{ marginLeft: 6, padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: '#8b5cf6', color: '#fff', border: 'none', cursor: 'pointer' }}>🗺️ Carte</button>
+                              )}
                               {r.issues && r.issues.map((iss, j) => (
                                 <div key={j} style={{ marginLeft: 20, color: '#ef4444', fontSize: 11, marginTop: 2 }}>
                                   ⚠️ {iss.message || JSON.stringify(iss)}
@@ -882,6 +888,85 @@ sections.push(`===== FIN DU RAPPORT =====`);
                       </div>
                     )}
                   </div>
+
+                  {/* ── Zone Viewer Modal ── */}
+                  {zoneViewerRound && zoneViewerRound.zonesSnapshot && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+                      onClick={() => setZoneViewerRound(null)}>
+                      <div style={{ background: '#1e293b', borderRadius: 12, padding: 20, maxWidth: 900, width: '100%', maxHeight: '90vh', overflowY: 'auto', border: '2px solid #334155' }}
+                        onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                          <h3 style={{ margin: 0, color: '#f1f5f9', fontSize: 16 }}>
+                            🗺️ Carte — {zoneViewerRound.mode || 'arena'} | Round {zoneViewerRound.roundIndex ?? 0} | Match {zoneViewerRound.matchId || '?'}
+                          </h3>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <span style={{ fontSize: 11, color: '#94a3b8' }}>{zoneViewerRound.timestamp ? new Date(zoneViewerRound.timestamp).toLocaleString('fr-FR') : ''}</span>
+                            <button onClick={() => setZoneViewerRound(null)} style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontWeight: 700 }}>✕ Fermer</button>
+                          </div>
+                        </div>
+                        {/* Légende */}
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap', fontSize: 11 }}>
+                          <span style={{ padding: '2px 8px', borderRadius: 4, background: '#3b82f6', color: '#fff' }}>🖼️ Image</span>
+                          <span style={{ padding: '2px 8px', borderRadius: 4, background: '#10b981', color: '#fff' }}>📝 Texte</span>
+                          <span style={{ padding: '2px 8px', borderRadius: 4, background: '#f59e0b', color: '#000' }}>🔢 Calcul</span>
+                          <span style={{ padding: '2px 8px', borderRadius: 4, background: '#a855f7', color: '#fff' }}>🔵 Chiffre</span>
+                          <span style={{ padding: '2px 8px', borderRadius: 4, background: 'transparent', color: '#fbbf24', border: '2px solid #fbbf24' }}>⭐ Paire correcte</span>
+                          <span style={{ padding: '2px 8px', borderRadius: 4, background: 'transparent', color: '#64748b', border: '1px dashed #64748b' }}>Distracteur</span>
+                        </div>
+                        {/* Résumé */}
+                        <div style={{ marginBottom: 12, padding: 8, background: '#0f172a', borderRadius: 8, fontSize: 12, color: '#94a3b8' }}>
+                          <strong style={{ color: '#f1f5f9' }}>{zoneViewerRound.zonesSnapshot.length} zones</strong> | 
+                          <strong style={{ color: '#fbbf24' }}>{zoneViewerRound.zonesSnapshot.filter(z => z.pairId).length} avec pairId</strong> | 
+                          <strong style={{ color: '#64748b' }}>{zoneViewerRound.zonesSnapshot.filter(z => z.isDistractor).length} distracteurs</strong>
+                          {zoneViewerRound.validPairs === 0 && <span style={{ color: '#ef4444', fontWeight: 700, marginLeft: 12 }}>🚨 AUCUNE PAIRE VALIDE</span>}
+                          {zoneViewerRound.doublePairIssues > 0 && <span style={{ color: '#ef4444', fontWeight: 700, marginLeft: 12 }}>🚨 {zoneViewerRound.doublePairIssues} DOUBLE(S) PAIRE(S)</span>}
+                        </div>
+                        {/* Zones grid */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
+                          {zoneViewerRound.zonesSnapshot.map((z, i) => {
+                            const typeColors = { image: '#3b82f6', texte: '#10b981', calcul: '#f59e0b', chiffre: '#a855f7' };
+                            const bg = typeColors[z.type] || '#475569';
+                            const hasPair = !!(z.pairId);
+                            const isImg = z.type === 'image';
+                            const content = z.content || '';
+                            return (
+                              <div key={z.id || i} style={{
+                                background: hasPair ? 'rgba(251,191,36,0.15)' : 'rgba(100,116,139,0.1)',
+                                border: hasPair ? '2px solid #fbbf24' : z.isDistractor ? '1px dashed #475569' : '1px solid #334155',
+                                borderRadius: 8, padding: 8, position: 'relative', minHeight: 70
+                              }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                  <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: bg, color: z.type === 'calcul' ? '#000' : '#fff', fontWeight: 700, textTransform: 'uppercase' }}>{z.type}</span>
+                                  {hasPair && <span style={{ fontSize: 10, color: '#fbbf24' }}>⭐</span>}
+                                  {z.isDistractor && <span style={{ fontSize: 9, color: '#64748b' }}>distr.</span>}
+                                </div>
+                                {isImg ? (
+                                  <div style={{ fontSize: 10, color: '#94a3b8', wordBreak: 'break-all' }} title={content}>
+                                    🖼️ {content.split('/').pop()?.substring(0, 40) || content.substring(0, 40)}
+                                  </div>
+                                ) : (
+                                  <div style={{ fontSize: 12, color: '#f1f5f9', fontWeight: hasPair ? 700 : 400, wordBreak: 'break-word' }} title={content}>
+                                    {content.substring(0, 60)}{content.length > 60 ? '…' : ''}
+                                  </div>
+                                )}
+                                {hasPair && <div style={{ fontSize: 8, color: '#fbbf24', marginTop: 4, wordBreak: 'break-all' }}>pairId: {z.pairId.substring(0, 20)}</div>}
+                                <div style={{ fontSize: 8, color: '#475569', marginTop: 2 }}>id: {z.id}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* Issues détaillées */}
+                        {zoneViewerRound.issues && zoneViewerRound.issues.length > 0 && (
+                          <div style={{ marginTop: 16, padding: 10, background: 'rgba(239,68,68,0.1)', borderRadius: 8, border: '1px solid #ef4444' }}>
+                            <h4 style={{ color: '#ef4444', margin: '0 0 8px 0', fontSize: 13 }}>⚠️ Anomalies détectées</h4>
+                            {zoneViewerRound.issues.map((iss, j) => (
+                              <div key={j} style={{ fontSize: 11, color: '#fca5a5', marginBottom: 4 }}>• {iss.message || JSON.stringify(iss)}</div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Server Screenshots section */}
                   <div style={{ ...cardStyle, marginBottom: 16, borderLeft: '4px solid #3b82f6' }}>
