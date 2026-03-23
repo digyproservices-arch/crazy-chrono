@@ -507,7 +507,8 @@ function renderMatchGrid() {
     html += `<div class="mc-header"><span class="mc-title">${m.group.name}</span><span class="mc-status ${status}">${status.toUpperCase()}</span></div>`;
     html += `<div class="mc-info">🔑 <b>${m.roomCode}</b> | ${m.id.slice(-8)}</div>`;
     html += `<div class="mc-actions">`;
-    html += `<button class="btn-watch" onclick="watchMatch('${m.id}','${m.roomCode}')" title="Voir le match en direct">👁️ Direct</button>`;
+    html += `<button class="btn-watch" onclick="openSpectator('${m.id}')" title="Ouvrir le vrai spectateur (carte, bulles, animations)">🎮 Voir en direct</button>`;
+    html += `<button class="btn-watch" style="background:#334155" onclick="watchMatch('${m.id}','${m.roomCode}')" title="Panneau rapide scores">�</button>`;
     html += `</div>`;
     html += `<div class="mc-players">`;
     for (const p of players) {
@@ -527,9 +528,7 @@ function updateMatchCard(matchId) {
   card.className = `match-card ${am.status}`;
   const statusEl = card.querySelector('.mc-status');
   if (statusEl) { statusEl.textContent = am.status.toUpperCase(); statusEl.className = `mc-status ${am.status}`; }
-  // Update watch button visibility
-  const watchBtn = card.querySelector('.btn-watch');
-  if (watchBtn) watchBtn.style.display = (am.status === 'playing' || am.status === 'tie') ? '' : 'none';
+  // Watch buttons always visible
   const playersEl = card.querySelector('.mc-players');
   if (playersEl) {
     let html = '';
@@ -792,6 +791,11 @@ async function runSingleMatch(matchInfo, speed) {
         }, 3000);
       });
 
+      // ── Diagnostic counters per match ──
+      let matchGameStartReceived = false;
+      let matchRoundNewCount = 0;
+      let matchPairEmittedCount = 0;
+
       function scheduleFind() {
         if (matchEnded || !bot.currentZones) return;
         const delay = getDelay(speed, skillMult);
@@ -800,11 +804,14 @@ async function runSingleMatch(matchInfo, speed) {
           if (matchEnded || !bot.currentZones) return;
           const pair = findCorrectPair(bot.currentZones);
           if (!pair) {
-            // No pair found in zones — log and retry in 1s
-            log(`⚠ ${student.name}: pas de paire trouvée dans ${bot.currentZones.length} zones`, 'warn');
+            const withPairId = bot.currentZones.filter(z => z.pairId).length;
+            if (withPairId === 0) {
+              log(`🔴 ${student.name}: 0 zones avec pairId sur ${bot.currentZones.length} zones totales!`, 'err');
+            }
             setTimeout(() => scheduleFind(), 1000);
             return;
           }
+          matchPairEmittedCount++;
           sock.emit('arena:pair-validated', {
             matchId, studentId: student.id, isCorrect: true,
             timeMs: delay, pairId: pair.a.pairId, zoneAId: pair.a.id, zoneBId: pair.b.id
@@ -819,11 +826,16 @@ async function runSingleMatch(matchInfo, speed) {
         am.status = 'playing';
         updateMatchCard(matchId);
         bot.currentZones = d.zones || [];
-        log(`🎮 ${group.name}: game-start reçu, ${bot.currentZones.length} zones`, 'info');
+        if (!matchGameStartReceived) {
+          matchGameStartReceived = true;
+          const withPairId = bot.currentZones.filter(z => z.pairId).length;
+          log(`🎮 ${group.name}: game-start — ${bot.currentZones.length} zones (${withPairId} avec pairId)`, withPairId >= 2 ? 'ok' : 'err');
+        }
         scheduleFind();
       });
       sock.on('arena:round-new', (d) => {
         bot.currentZones = d.zones || [];
+        matchRoundNewCount++;
         if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
         scheduleFind();
       });
@@ -841,12 +853,16 @@ async function runSingleMatch(matchInfo, speed) {
         updateStats();
       });
       sock.on('arena:game-end', (d) => {
+        const scores = (d?.ranking || []).map(r => `${r.name}:${r.score}`).join(', ');
+        log(`🏁 ${group.name} fin — scores: [${scores}] rounds-new:${matchRoundNewCount} paires-emit:${matchPairEmittedCount}`, 'info');
         const winner = d?.winner || (d?.ranking && d.ranking[0]) || null;
         onMatchEnd(winner);
       });
-      sock.on('arena:tie-detected', () => {
+      sock.on('arena:tie-detected', (d) => {
         am.status = 'tie';
         updateMatchCard(matchId);
+        const tiedNames = (d?.tiedPlayers || []).map(p => p.name).join(', ');
+        log(`⚖️ ${group.name} ÉGALITÉ: ${tiedNames} — lancement départage auto`, 'warn');
         sendIncident('tie-detected', 'warning', { matchId, group: group.name, scores: am.players.map(p => ({ name: p.name, score: p.score })) });
         // Bots auto-ready for tiebreaker
         setTimeout(() => {
@@ -859,6 +875,8 @@ async function runSingleMatch(matchInfo, speed) {
         am.status = 'playing';
         updateMatchCard(matchId);
         bot.currentZones = d.zones || [];
+        const withPairId = bot.currentZones.filter(z => z.pairId).length;
+        if (idx === 0) log(`🔁 ${group.name} départage: ${bot.currentZones.length} zones (${withPairId} pairId)`, withPairId >= 2 ? 'ok' : 'err');
         if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
         scheduleFind();
       });
@@ -1008,6 +1026,13 @@ async function prepareNextPhase() {
 // ═══════════════════════════════════════
 // STOP
 // ═══════════════════════════════════════
+function openSpectator(matchId) {
+  // Open the REAL ArenaSpectator component (SVG map, bubbles, animations)
+  const url = `/crazy-arena/spectate/${matchId}`;
+  window.open(url, `spectate_${matchId.slice(-8)}`, 'width=1200,height=800');
+  log(`👁️ Spectateur ouvert pour ${matchId.slice(-8)}`, 'info');
+}
+
 function watchMatch(matchId, roomCode) {
   const am = activeMatches.get(matchId);
   const players = am?.players || [];

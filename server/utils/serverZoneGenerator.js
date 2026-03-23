@@ -4,6 +4,31 @@
 const fs = require('fs');
 const path = require('path');
 
+// ===== FILE CACHE (avoid readFileSync on every call) =====
+const _cache = { zones: null, associations: null, mathPositions: null, loadedAt: 0 };
+const CACHE_TTL = 60000; // 60s — reload if files change
+
+function _loadCached() {
+  const now = Date.now();
+  if (_cache.zones && _cache.associations && (now - _cache.loadedAt) < CACHE_TTL) {
+    return { zonesData: _cache.zones, associationsFile: _cache.associations, mathPositions: _cache.mathPositions };
+  }
+  const zonesPath = path.join(__dirname, '..', 'data', 'zones2.json');
+  const associationsPath = path.join(__dirname, '..', 'data', 'associations.json');
+  _cache.zones = JSON.parse(fs.readFileSync(zonesPath, 'utf8'));
+  _cache.associations = JSON.parse(fs.readFileSync(associationsPath, 'utf8'));
+  // math_positions.json
+  let mp = { calcAngles: {}, mathOffsets: {} };
+  try {
+    const mpPath = path.join(__dirname, '..', '..', 'public', 'data', 'math_positions.json');
+    if (fs.existsSync(mpPath)) mp = JSON.parse(fs.readFileSync(mpPath, 'utf8'));
+  } catch (e) { /* ignore */ }
+  _cache.mathPositions = mp;
+  _cache.loadedAt = now;
+  console.log('[ServerZoneGen] Cache loaded/refreshed');
+  return { zonesData: _cache.zones, associationsFile: _cache.associations, mathPositions: _cache.mathPositions };
+}
+
 /**
  * Évalue une expression mathématique complète avec support:
  * - Opérations chaînées: "4 × 2 × 8" → 64, "5 × 8 × 50" → 2000
@@ -206,12 +231,11 @@ function generateRoundZones(seed, config = {}) {
       excludedPairsCount: (config.excludedPairIds || new Set()).size
     });
     
-    // Charger les données
-    const zonesPath = path.join(__dirname, '..', 'data', 'zones2.json');
-    const associationsPath = path.join(__dirname, '..', 'data', 'associations.json');
-    
-    const zonesData = JSON.parse(fs.readFileSync(zonesPath, 'utf8'));
-    const associationsFile = JSON.parse(fs.readFileSync(associationsPath, 'utf8'));
+    // Charger les données (CACHED — évite readFileSync à chaque appel)
+    const { zonesData: _zd, associationsFile: _af, mathPositions: _mp } = _loadCached();
+    // Deep-clone zonesData car on le mute (assign pairId etc.)
+    const zonesData = _zd.map(z => ({ ...z }));
+    const associationsFile = _af; // read-only après filtering, safe to share
     
     // Extraire les tableaux
     let textes = Array.isArray(associationsFile.textes) ? associationsFile.textes : [];
@@ -431,25 +455,9 @@ function generateRoundZones(seed, config = {}) {
     const calculIds = [...calculToChiffres.keys()];
     const chiffreIds = [...chiffreToCalculs.keys()];
     
-    // ✅ FIX: Charger math_positions.json pour injecter angle + offset dans les zones
-    // En mode Arena/Training, le client utilise zone.angle directement (pas localStorage)
-    let mathPositions = { calcAngles: {}, mathOffsets: {} };
-    try {
-      const mpPath = path.join(__dirname, '..', '..', 'public', 'data', 'math_positions.json');
-      if (fs.existsSync(mpPath)) {
-        mathPositions = JSON.parse(fs.readFileSync(mpPath, 'utf8'));
-        console.log('[ServerZoneGen] math_positions.json chargé:', {
-          anglesCount: Object.keys(mathPositions.calcAngles || {}).length,
-          offsetsCount: Object.keys(mathPositions.mathOffsets || {}).length
-        });
-      } else {
-        console.warn('[ServerZoneGen] math_positions.json introuvable:', mpPath);
-      }
-    } catch (mpErr) {
-      console.warn('[ServerZoneGen] Erreur chargement math_positions.json:', mpErr.message);
-    }
-    const mpAngles = mathPositions.calcAngles || {};
-    const mpOffsets = mathPositions.mathOffsets || {};
+    // math_positions.json (from cache)
+    const mpAngles = (_mp.calcAngles || {});
+    const mpOffsets = (_mp.mathOffsets || {});
 
     let result = zonesData.map(z => {
       const zone = { ...z };
