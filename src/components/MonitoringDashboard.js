@@ -131,12 +131,29 @@ function MonitoringDashboard() {
   }, [incidentSeverityFilter]);
 
   
-  const fetchRoundLogs = useCallback(() => {
+  const fetchRoundLogs = useCallback(async () => {
     try {
-      const logs = getRoundLogs();
-      // Sort newest first
-      logs.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-      setRoundLogs(logs);
+      // 1) Logs localStorage (mode classique)
+      const localLogs = getRoundLogs();
+      
+      // 2) Logs serveur (Arena rounds)
+      let serverLogs = [];
+      try {
+        const token = getAuthToken();
+        const backendUrl = getBackendUrl();
+        const res = await fetch(`${backendUrl}/api/monitoring/arena-rounds`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && Array.isArray(data.rounds)) serverLogs = data.rounds;
+        }
+      } catch (e) { console.warn('[Monitoring] Arena rounds fetch failed:', e.message); }
+      
+      // 3) Fusionner et trier (plus récent en premier)
+      const allLogs = [...localLogs, ...serverLogs];
+      allLogs.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+      setRoundLogs(allLogs);
     } catch (e) {
       console.warn('[Monitoring] Error loading round logs:', e);
     }
@@ -167,6 +184,7 @@ const clearIncidents = async () => {
       await Promise.allSettled([
         fetch(`${backendUrl}/api/monitoring/incidents`, { method: 'DELETE', headers }),
         fetch(`${backendUrl}/api/monitoring/game-screenshots`, { method: 'DELETE', headers }),
+        fetch(`${backendUrl}/api/monitoring/arena-rounds`, { method: 'DELETE', headers }),
       ]);
       // Purge local data
       try { localStorage.removeItem('cc_game_incidents'); } catch {}

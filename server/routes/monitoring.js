@@ -9,6 +9,30 @@ const { recordImageUsage, analyzeImageUsage, sendEmailReport } = require('../ima
 const INCIDENTS_FILE = path.join(__dirname, '..', 'data', 'game_incidents.json');
 const MAX_INCIDENTS = 500;
 
+// ── Arena Round Logs Storage (server-side, pour le monitoring) ──
+const ARENA_ROUNDS_FILE = path.join(__dirname, '..', 'data', 'arena_round_logs.json');
+const MAX_ARENA_ROUNDS = 200;
+
+function loadArenaRounds() {
+  try {
+    const dir = path.dirname(ARENA_ROUNDS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(ARENA_ROUNDS_FILE)) return [];
+    return JSON.parse(fs.readFileSync(ARENA_ROUNDS_FILE, 'utf8'));
+  } catch { return []; }
+}
+
+function saveArenaRounds(rounds) {
+  try {
+    const dir = path.dirname(ARENA_ROUNDS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const trimmed = rounds.slice(-MAX_ARENA_ROUNDS);
+    fs.writeFileSync(ARENA_ROUNDS_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
+  } catch (e) {
+    console.error('[ArenaRounds] Save failed:', e.message);
+  }
+}
+
 function ensureDataDir() {
   const dir = path.dirname(INCIDENTS_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -177,6 +201,53 @@ router.delete('/incidents', requireAdminAuth, async (req, res) => {
   try {
     saveIncidents([]);
     res.json({ ok: true, message: 'Incidents cleared' });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// ── Arena Round Logs Endpoints ────────────────────────────
+
+/**
+ * GET /api/monitoring/arena-rounds
+ * Récupère les manches Arena enregistrées côté serveur
+ */
+router.get('/arena-rounds', requireAdminAuth, async (req, res) => {
+  try {
+    const rounds = loadArenaRounds();
+    const limit = parseInt(req.query.limit) || 200;
+    res.json({ ok: true, rounds: rounds.slice(-limit).reverse(), total: rounds.length });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/monitoring/arena-rounds
+ * Enregistre une manche Arena (appelé par le serveur Arena internement)
+ * Body: { round }
+ */
+router.post('/arena-rounds', (req, res) => {
+  try {
+    const { round } = req.body;
+    if (!round) return res.status(400).json({ ok: false, error: 'missing round' });
+    const rounds = loadArenaRounds();
+    rounds.push({ ...round, receivedAt: new Date().toISOString() });
+    saveArenaRounds(rounds);
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/monitoring/arena-rounds
+ * Vider les manches Arena
+ */
+router.delete('/arena-rounds', requireAdminAuth, async (req, res) => {
+  try {
+    saveArenaRounds([]);
+    res.json({ ok: true, message: 'Arena rounds cleared' });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
   }

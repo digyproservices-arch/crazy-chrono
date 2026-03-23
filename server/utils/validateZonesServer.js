@@ -13,6 +13,37 @@ const logger = winston.createLogger({
   transports: [new winston.transports.Console()],
 });
 
+// ── Bridge vers le monitoring: sauvegarder les anomalies dans game_incidents.json ──
+const INCIDENTS_FILE = path.join(__dirname, '..', 'data', 'game_incidents.json');
+const MAX_INCIDENTS = 500;
+
+function _saveAnomaliesToMonitoring(anomalies, context) {
+  if (!anomalies || anomalies.length === 0) return;
+  try {
+    const dir = path.dirname(INCIDENTS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    let existing = [];
+    try { if (fs.existsSync(INCIDENTS_FILE)) existing = JSON.parse(fs.readFileSync(INCIDENTS_FILE, 'utf8')); } catch {}
+    
+    for (const a of anomalies) {
+      existing.push({
+        id: `zone-${a.type}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        type: `zone:${a.type}`,
+        severity: (a.type === 'ZERO_VALID_PAIRS' || a.type === 'MULTIPLE_TARGETS') ? 'critical' : 'warning',
+        timestamp: new Date().toISOString(),
+        receivedAt: new Date().toISOString(),
+        details: { ...a, message: `Zone anomaly: ${a.type}` },
+        sessionInfo: { source: context.source || 'server', matchId: context.matchId, roomCode: context.roomCode }
+      });
+    }
+    
+    const trimmed = existing.slice(-MAX_INCIDENTS);
+    fs.writeFileSync(INCIDENTS_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
+  } catch (e) {
+    logger.warn('[ZoneValidation] Failed to save anomalies to monitoring:', e.message);
+  }
+}
+
 // ── Parse operation (recursive descent parser — handles chained ops, fractions, parentheses) ──
 function parseOperation(s) {
   if (!s) return null;
@@ -271,6 +302,8 @@ function validateZonesServer(zones, context = {}) {
 
   if (anomalies.length > 0) {
     logger.warn(`${prefix} ${anomalies.length} anomalie(s) détectée(s) sur cette carte`);
+    // ✅ Sauvegarder dans le monitoring (game_incidents.json) pour le dashboard
+    _saveAnomaliesToMonitoring(anomalies, context);
   } else {
     logger.info(`${prefix} OK: 1 PA, ${zones.length} zones, aucune anomalie`);
   }

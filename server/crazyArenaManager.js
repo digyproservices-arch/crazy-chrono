@@ -11,6 +11,24 @@
 const logger = require('./logger');
 const { v4: uuidv4 } = require('uuid');
 const { validateZonesServer } = require('./utils/validateZonesServer');
+const fs = require('fs');
+const path = require('path');
+
+// ── Bridge monitoring: sauvegarder chaque round Arena dans arena_round_logs.json ──
+const ARENA_ROUNDS_FILE = path.join(__dirname, 'data', 'arena_round_logs.json');
+function _logArenaRound(roundData) {
+  try {
+    const dir = path.dirname(ARENA_ROUNDS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    let existing = [];
+    try { if (fs.existsSync(ARENA_ROUNDS_FILE)) existing = JSON.parse(fs.readFileSync(ARENA_ROUNDS_FILE, 'utf8')); } catch {}
+    existing.push({ ...roundData, receivedAt: new Date().toISOString() });
+    if (existing.length > 200) existing = existing.slice(-200);
+    fs.writeFileSync(ARENA_ROUNDS_FILE, JSON.stringify(existing, null, 2), 'utf8');
+  } catch (e) {
+    logger.warn('[ArenaRoundLog] Save failed:', e.message);
+  }
+}
 
 class CrazyArenaManager {
   constructor(io, supabase = null) {
@@ -1656,6 +1674,23 @@ class CrazyArenaManager {
     
     // Valider les zones avant émission (monitoring double PA / fausse paire)
     try { validateZonesServer(zones, { source: 'arena:game-start', matchId: matchId.slice(-8) }); } catch (e) { logger.warn('[CrazyArena] Zone validation error:', e.message); }
+    
+    // ✅ Log round to monitoring dashboard
+    const pairZones = zones.filter(z => z.pairId);
+    _logArenaRound({
+      id: `arena_${matchId.slice(-8)}_r0_${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      mode: 'arena',
+      source: 'arena:game-start',
+      matchId: matchId.slice(-8),
+      roundIndex: 0,
+      validPairs: Math.floor(pairZones.length / 2),
+      doublePairIssues: 0,
+      issues: [],
+      summary: { totalZones: zones.length, pairedCount: pairZones.length },
+      zonesSnapshot: zones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 80), pairId: z.pairId || '', isDistractor: !!z.isDistractor }))
+    });
+    
     this.io.to(matchId).emit('arena:game-start', gameStartPayload);
 
     // 💾 PERSISTENCE: Créer match_results initiaux en DB (skip si reprise après redémarrage)
@@ -1692,6 +1727,16 @@ class CrazyArenaManager {
           
           // Valider les zones avant émission (monitoring double PA / fausse paire)
           try { validateZonesServer(newZones, { source: 'arena:round-new', matchId: matchId.slice(-8), roundIndex: match.roundsPlayed }); } catch (e) { logger.warn('[CrazyArena] Zone validation error (round-new):', e.message); }
+          // ✅ Log round to monitoring
+          const _pz = newZones.filter(z => z.pairId);
+          _logArenaRound({
+            id: `arena_${matchId.slice(-8)}_r${match.roundsPlayed}_${Date.now()}`,
+            timestamp: new Date().toISOString(), mode: 'arena', source: 'arena:round-new',
+            matchId: matchId.slice(-8), roundIndex: match.roundsPlayed,
+            validPairs: Math.floor(_pz.length / 2), doublePairIssues: 0, issues: [],
+            summary: { totalZones: newZones.length, pairedCount: _pz.length },
+            zonesSnapshot: newZones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 80), pairId: z.pairId || '', isDistractor: !!z.isDistractor }))
+          });
           // Émettre nouvelle carte à tous les joueurs
           this.io.to(matchId).emit('arena:round-new', {
             zones: newZones,
