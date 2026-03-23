@@ -46,6 +46,9 @@
     .mc-status.playing{background:#92400e;color:#fbbf24}
     .mc-status.finished{background:#064e3b;color:#34d399}
     .mc-status.tie{background:#7f1d1d;color:#fca5a5}
+    .mc-status.ready{background:#1e3a5f;color:#60a5fa}
+    .mc-status.countdown{background:#4c1d95;color:#c4b5fd;animation:pulse .5s infinite alternate}
+    @keyframes pulse{from{opacity:.7}to{opacity:1}}
     .match-card .mc-info{color:#64748b;font-size:.72em;margin-bottom:4px}
     .match-card .mc-players{display:grid;grid-template-columns:1fr 1fr;gap:4px}
     .mc-player{background:#0f172a;padding:4px 8px;border-radius:4px;display:flex;justify-content:space-between;align-items:center}
@@ -738,34 +741,55 @@ async function runSingleMatch(matchInfo, speed) {
       resolve();
     }
 
-    // Connect each bot
+    // Connect each bot — SEQUENTIAL join with callback confirmation
     students.forEach((student, idx) => {
       const skillMult = am.players[idx].skillMult;
-      const sock = io(apiUrl(), { transports: ['websocket', 'polling'], reconnection: false, timeout: 15000 });
-      const bot = { socket: sock, student, skillMult, pairTimer: null, currentZones: null };
+      const sock = io(apiUrl(), { transports: ['websocket', 'polling'], reconnection: false, timeout: 20000 });
+      const bot = { socket: sock, student, skillMult, pairTimer: null, currentZones: null, joined: false, ready: false };
       bots.push(bot);
       am.bots.push(bot);
 
       sock.on('connect', () => {
+        // ✅ FIX: Use callback to confirm join before marking ready
         sock.emit('arena:join', {
           matchId,
           studentData: { studentId: student.id, authId: `bot-${student.id}`, name: student.label || student.name, avatar: '/avatars/default.png' }
-        });
-        setTimeout(() => {
-          sock.emit('arena:ready', { studentId: student.id });
-          botsReady++;
-          if (botsReady === students.length) {
-            am.status = 'playing';
-            updateMatchCard(matchId);
-            // Force start via orchestrator socket
-            setTimeout(() => {
-              orchestratorSocket.emit('arena:force-start', { matchId }, (resp) => {
-                if (resp?.ok) log(`▶ ${group.name} démarré`, 'info');
-                else log(`⚠ ${group.name} force-start: ${JSON.stringify(resp)}`, 'warn');
-              });
-            }, 500);
+        }, (resp) => {
+          bot.joined = true;
+          if (!resp?.ok) {
+            log(`⚠ ${student.name} join échoué: ${JSON.stringify(resp)}`, 'warn');
           }
-        }, 300 + Math.random() * 500);
+          // ✅ Now safe to mark ready (server has registered us)
+          setTimeout(() => {
+            sock.emit('arena:ready', { studentId: student.id });
+            bot.ready = true;
+            botsReady++;
+            if (botsReady === students.length) {
+              am.status = 'ready';
+              updateMatchCard(matchId);
+              // ✅ FIX: Force start with retry logic (server needs time to process all ready events)
+              tryForceStart(matchId, group.name, 0);
+            }
+          }, 200);
+        });
+
+        // Fallback: if no callback after 3s (older server), proceed anyway
+        setTimeout(() => {
+          if (!bot.joined) {
+            log(`⚠ ${student.name}: join timeout, proceeding anyway`, 'warn');
+            bot.joined = true;
+            setTimeout(() => {
+              sock.emit('arena:ready', { studentId: student.id });
+              bot.ready = true;
+              botsReady++;
+              if (botsReady === students.length) {
+                am.status = 'ready';
+                updateMatchCard(matchId);
+                tryForceStart(matchId, group.name, 0);
+              }
+            }, 200);
+          }
+        }, 3000);
       });
 
       function scheduleFind() {
@@ -775,7 +799,12 @@ async function runSingleMatch(matchInfo, speed) {
           bot.pairTimer = null;
           if (matchEnded || !bot.currentZones) return;
           const pair = findCorrectPair(bot.currentZones);
-          if (!pair) return;
+          if (!pair) {
+            // No pair found in zones — log and retry in 1s
+            log(`⚠ ${student.name}: pas de paire trouvée dans ${bot.currentZones.length} zones`, 'warn');
+            setTimeout(() => scheduleFind(), 1000);
+            return;
+          }
           sock.emit('arena:pair-validated', {
             matchId, studentId: student.id, isCorrect: true,
             timeMs: delay, pairId: pair.a.pairId, zoneAId: pair.a.id, zoneBId: pair.b.id
@@ -783,8 +812,14 @@ async function runSingleMatch(matchInfo, speed) {
         }, delay);
       }
 
+      sock.on('arena:countdown', (d) => {
+        if (d.count === 3) { am.status = 'countdown'; updateMatchCard(matchId); }
+      });
       sock.on('arena:game-start', (d) => {
+        am.status = 'playing';
+        updateMatchCard(matchId);
         bot.currentZones = d.zones || [];
+        log(`🎮 ${group.name}: game-start reçu, ${bot.currentZones.length} zones`, 'info');
         scheduleFind();
       });
       sock.on('arena:round-new', (d) => {
@@ -794,7 +829,7 @@ async function runSingleMatch(matchInfo, speed) {
       });
       sock.on('arena:pair-validated', (d) => {
         if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
-        bot.currentZones = null;
+        bot.currentZones = null; // Wait for arena:round-new with fresh zones
         if (d.studentId === student.id) totalPairsValidated++;
       });
       sock.on('arena:scores-update', (d) => {
@@ -827,20 +862,51 @@ async function runSingleMatch(matchInfo, speed) {
         if (bot.pairTimer) { clearTimeout(bot.pairTimer); bot.pairTimer = null; }
         scheduleFind();
       });
+      sock.on('arena:match-lost', (d) => {
+        log(`❌ ${student.name}: match perdu — ${d?.reason}`, 'err');
+      });
       sock.on('connect_error', (err) => {
         totalErrors++;
-        log(`❌ ${student.name}: ${err.message}`, 'err');
+        log(`❌ ${student.name}: connexion échouée — ${err.message}`, 'err');
         sendIncident('bot-connect-error', 'error', { matchId, student: student.name, error: err.message });
       });
-
     });
 
-    // Safety timeout — ONE per match (not per bot)
-    const maxDuration = (+document.getElementById('cfgRounds').value) * (+document.getElementById('cfgDuration').value) * 1000 + 45000;
+    // ✅ FIX: Force-start with retry (up to 5 attempts, increasing delay)
+    function tryForceStart(mId, gName, attempt) {
+      if (matchEnded) return;
+      if (attempt > 5) {
+        log(`❌ ${gName}: force-start échoué après 5 tentatives`, 'err');
+        sendIncident('force-start-failed', 'error', { matchId: mId, group: gName, attempts: attempt });
+        onMatchEnd(null);
+        return;
+      }
+      const delay = attempt === 0 ? 800 : 1000 + attempt * 500;
+      setTimeout(() => {
+        if (matchEnded) return;
+        orchestratorSocket.emit('arena:force-start', { matchId: mId }, (resp) => {
+          if (resp?.ok) {
+            log(`▶ ${gName} démarré (tentative ${attempt + 1})`, 'ok');
+          } else {
+            log(`⚠ ${gName} force-start tentative ${attempt + 1}: ${JSON.stringify(resp)} — retry...`, 'warn');
+            tryForceStart(mId, gName, attempt + 1);
+          }
+        });
+      }, delay);
+    }
+
+    // Safety timeout — ONE per match, with countdown (3s) + generous buffer
+    const roundsDuration = (+document.getElementById('cfgRounds').value) * (+document.getElementById('cfgDuration').value);
+    const maxDuration = (roundsDuration + 10) * 1000 + 60000; // rounds + 10s countdown/buffer + 60s grace
     setTimeout(() => {
       if (!matchEnded) {
-        log(`⏰ ${group.name} timeout (${Math.round(maxDuration/1000)}s)`, 'warn');
-        onMatchEnd(null); // fallback in onMatchEnd picks best player
+        const maxScore = Math.max(...am.players.map(p => p.score || 0));
+        log(`⏰ ${group.name} timeout (${Math.round(maxDuration/1000)}s) — score max: ${maxScore}`, 'warn');
+        if (maxScore === 0) {
+          log(`🔴 ${group.name}: AUCUN score → problème de démarrage du match`, 'err');
+          sendIncident('zero-score-timeout', 'error', { matchId, group: group.name, botsReady, botsJoined: bots.filter(b => b.joined).length });
+        }
+        onMatchEnd(null);
       }
     }, maxDuration);
   });
