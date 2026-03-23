@@ -969,10 +969,14 @@ function generateRoundZones(seed, config = {}) {
       });
       
       // Collecter tous les zoneIds des paires en trop à SUPPRIMER PHYSIQUEMENT
+      // ✅ CRITICAL FIX: Ne PAS supprimer les zones qui font partie de la paire gardée !
+      const keptZoneIds = new Set(kept.zones);
       const zoneIdsToRemove = new Set();
       for (let i = 1; i < allPairs.length; i++) {
         for (const zoneId of allPairs[i].zones) {
-          zoneIdsToRemove.add(zoneId);
+          if (!keptZoneIds.has(zoneId)) {
+            zoneIdsToRemove.add(zoneId);
+          }
         }
       }
       
