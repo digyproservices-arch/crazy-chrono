@@ -41,6 +41,10 @@
       "dest": "/tournament-simulator.html"
     },
     {
+      "src": "/tournament-real-test\\.html",
+      "dest": "/tournament-real-test.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }

@@ -495,6 +495,18 @@ const clearIncidents = async () => {
             >
               🔄 Rafraîchir
             </button>
+            <button
+              onClick={() => window.open('/tournament-real-test.html', '_blank')}
+              style={btnStyle('#7c3aed')}
+            >
+              🏆 Test Tournoi Réel
+            </button>
+            <button
+              onClick={() => window.open('/bot-tester.html', '_blank')}
+              style={btnStyle('#0d9488')}
+            >
+              🤖 Bot Tester
+            </button>
             <button onClick={() => navigate('/admin/dashboard')} style={btnStyle('#334155')}>
               ← Dashboard
             </button>
