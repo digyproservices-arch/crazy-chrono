@@ -277,32 +277,33 @@ async function doLogin() {
   log('❌ Toutes les méthodes d\'auth ont échoué. Connectez-vous sur app.crazy-chrono.com puis revenez ici.', 'err');
 }
 
-// Auto-load token on page load
-window.addEventListener('load', () => {
+// Validate token against backend
+async function validateToken(token) {
+  try {
+    const r = await fetch(`${apiUrl()}/api/auth/me`, { headers: { 'Authorization': `Bearer ${token}` } });
+    if (r.ok) { const d = await r.json(); return d.ok ? (d.user?.email || true) : false; }
+    return false;
+  } catch { return false; }
+}
+
+// Auto-load + validate token on page load
+window.addEventListener('load', async () => {
+  const st = document.getElementById('authStatus');
   const ls = tryLoadTokenFromLocalStorage();
   if (ls) {
-    authToken = ls.token;
-    document.getElementById('authStatus').textContent = `✅ ${ls.email}`;
-    document.getElementById('authStatus').style.color = '#34d399';
-    document.getElementById('btnCreate').disabled = false;
-    log(`Session auto (localStorage): ${ls.email}`, 'ok');
+    st.textContent = '⏳ Vérification token...'; st.style.color = '#fbbf24';
+    const valid = await validateToken(ls.token);
+    if (valid) {
+      authToken = ls.token;
+      const email = typeof valid === 'string' ? valid : ls.email;
+      st.textContent = `✅ ${email}`; st.style.color = '#34d399';
+      document.getElementById('btnCreate').disabled = false;
+      log(`Token valide: ${email}`, 'ok');
+    } else {
+      st.textContent = '⚠️ Token expiré — cliquez Connexion'; st.style.color = '#f97316';
+      log('Token localStorage expiré. Entrez votre mot de passe et cliquez Connexion.', 'warn');
+    }
   }
-  // Also try Supabase CDN session (non-blocking)
-  try {
-    supabaseClient.auth.getSession().then(({ data }) => {
-      if (data?.session?.access_token) {
-        authToken = data.session.access_token;
-        if (!document.getElementById('btnCreate').disabled === false) {
-          document.getElementById('authStatus').textContent = `✅ ${data.session.user?.email}`;
-          document.getElementById('authStatus').style.color = '#34d399';
-          document.getElementById('btnCreate').disabled = false;
-        }
-      }
-    }).catch(() => {});
-  } catch {}
-});
-supabaseClient.auth.onAuthStateChange((ev, session) => {
-  if (session?.access_token) authToken = session.access_token;
 });
 
 // ═══════════════════════════════════════
