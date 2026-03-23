@@ -378,9 +378,10 @@ const clearIncidents = async () => {
 
   useEffect(() => {
     fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas();
+    fetchArenaStats(); // ✅ Auto-charger Arena pour le rapport complet
     setLoading(false);
     setLastRefresh(new Date());
-  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas]);
+  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats]);
 
   useEffect(() => {
     if (activeTab === 'incidents' || activeTab === 'report') {

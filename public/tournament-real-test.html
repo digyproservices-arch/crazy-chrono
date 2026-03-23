@@ -749,44 +749,35 @@ async function runSingleMatch(matchInfo, speed) {
       am.bots.push(bot);
 
       sock.on('connect', () => {
-        // ✅ FIX: Use callback to confirm join before marking ready
+        function markBotReady() {
+          if (bot.ready) return; // ✅ Guard: only emit ready ONCE per bot
+          bot.ready = true;
+          sock.emit('arena:ready', { studentId: student.id });
+          botsReady++;
+          log(`✅ ${student.name} ready (${botsReady}/${students.length})`, 'info');
+          if (botsReady === students.length) {
+            am.status = 'ready';
+            updateMatchCard(matchId);
+            tryForceStart(matchId, group.name, 0);
+          }
+        }
+
         sock.emit('arena:join', {
           matchId,
           studentData: { studentId: student.id, authId: `bot-${student.id}`, name: student.label || student.name, avatar: '/avatars/default.png' }
         }, (resp) => {
+          if (bot.joined) return; // fallback already handled
           bot.joined = true;
-          if (!resp?.ok) {
-            log(`⚠ ${student.name} join échoué: ${JSON.stringify(resp)}`, 'warn');
-          }
-          // ✅ Now safe to mark ready (server has registered us)
-          setTimeout(() => {
-            sock.emit('arena:ready', { studentId: student.id });
-            bot.ready = true;
-            botsReady++;
-            if (botsReady === students.length) {
-              am.status = 'ready';
-              updateMatchCard(matchId);
-              // ✅ FIX: Force start with retry logic (server needs time to process all ready events)
-              tryForceStart(matchId, group.name, 0);
-            }
-          }, 200);
+          if (!resp?.ok) log(`⚠ ${student.name} join échoué: ${JSON.stringify(resp)}`, 'warn');
+          setTimeout(markBotReady, 200);
         });
 
-        // Fallback: if no callback after 3s (older server), proceed anyway
+        // Fallback: if no callback after 3s, proceed anyway
         setTimeout(() => {
           if (!bot.joined) {
-            log(`⚠ ${student.name}: join timeout, proceeding anyway`, 'warn');
+            log(`⚠ ${student.name}: join timeout 3s, proceeding`, 'warn');
             bot.joined = true;
-            setTimeout(() => {
-              sock.emit('arena:ready', { studentId: student.id });
-              bot.ready = true;
-              botsReady++;
-              if (botsReady === students.length) {
-                am.status = 'ready';
-                updateMatchCard(matchId);
-                tryForceStart(matchId, group.name, 0);
-              }
-            }, 200);
+            setTimeout(markBotReady, 200);
           }
         }, 3000);
       });

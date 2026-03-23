@@ -1559,8 +1559,12 @@ class CrazyArenaManager {
       return false;
     }
 
+    if (match.status === 'countdown' || match.status === 'playing') {
+      console.log(`[CrazyArena] forceStart: Match ${matchId} déjà en ${match.status} — OK`);
+      return true; // ✅ Idempotent: already starting/playing is fine
+    }
     if (match.status !== 'waiting') {
-      console.warn(`[CrazyArena] forceStart: Match ${matchId} déjà en statut ${match.status}`);
+      console.warn(`[CrazyArena] forceStart: Match ${matchId} statut ${match.status} — refusé`);
       return false;
     }
 
@@ -1906,6 +1910,17 @@ class CrazyArenaManager {
           return;
         }
         
+        // ✅ Émettre scores-update pendant le tiebreaker (sinon UI reste à 0)
+        const tbScoresPayload = {
+          scores: match.players.map(p => ({
+            studentId: p.studentId,
+            name: p.name,
+            score: (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0),
+            pairsValidated: (p.pairsBeforeTiebreaker || 0) + (p.tiebreakerPairs || 0)
+          })).sort((a, b) => b.score - a.score)
+        };
+        this.io.to(matchId).emit('arena:scores-update', tbScoresPayload);
+
         setTimeout(async () => {
           try {
             logger.info('[CrazyArena][Arena] Génération nouvelle carte tiebreaker', { 
@@ -2121,6 +2136,9 @@ class CrazyArenaManager {
     }
     if (match.timerInterval) {
       clearInterval(match.timerInterval);
+    }
+    if (match.tiebreakerTimeout) {
+      clearTimeout(match.tiebreakerTimeout);
     }
 
     console.log(`[CrazyArena] Partie terminée pour match ${matchId}`);
@@ -2410,6 +2428,14 @@ class CrazyArenaManager {
           this.io.emit('arena:tiebreaker-start', { ...payload, matchId });
           
           console.log(`[CrazyArena] ✅ arena:tiebreaker-start émis (room + broadcast)`);
+          
+          // ✅ Safety timeout: si tiebreaker ne finit pas en 30s, forcer la fin
+          match.tiebreakerTimeout = setTimeout(() => {
+            if (match.status === 'tiebreaker') {
+              console.warn(`[CrazyArena] ⏰ Tiebreaker timeout 30s pour match ${matchId} — forceEnd`);
+              this.endGame(matchId);
+            }
+          }, 30000);
           
         } catch (error) {
           console.error(`[CrazyArena] ❌ ERREUR émission arena:tiebreaker-start:`, error);
