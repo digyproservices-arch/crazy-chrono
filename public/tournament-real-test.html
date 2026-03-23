@@ -52,6 +52,9 @@
     .mc-player.winner{background:#064e3b;border:1px solid #10b981}
     .mc-player .pname{font-weight:600;font-size:.8em}
     .mc-player .pscore{color:#fbbf24;font-weight:700}
+    .mc-actions{display:flex;gap:4px;margin:4px 0}
+    .btn-watch{background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:3px 10px;font-size:.72em;cursor:pointer;font-weight:600;transition:background .2s}
+    .btn-watch:hover{background:#6d28d9}
     /* Structure tree */
     .tree{font-size:.8em;max-height:200px;overflow-y:auto;background:#0f172a;border-radius:6px;padding:8px}
     .tree-circo{margin-bottom:4px}
@@ -499,7 +502,10 @@ function renderMatchGrid() {
 
     html += `<div class="match-card ${status}" id="mc-${m.id}">`;
     html += `<div class="mc-header"><span class="mc-title">${m.group.name}</span><span class="mc-status ${status}">${status.toUpperCase()}</span></div>`;
-    html += `<div class="mc-info">Code: ${m.roomCode} | Match: ${m.id.slice(-8)}</div>`;
+    html += `<div class="mc-info">🔑 <b>${m.roomCode}</b> | ${m.id.slice(-8)}</div>`;
+    html += `<div class="mc-actions">`;
+    html += `<button class="btn-watch" onclick="watchMatch('${m.id}','${m.roomCode}')" title="Voir le match en direct">👁️ Direct</button>`;
+    html += `</div>`;
     html += `<div class="mc-players">`;
     for (const p of players) {
       const isWinner = winner && p.studentId === winner.studentId;
@@ -518,6 +524,9 @@ function updateMatchCard(matchId) {
   card.className = `match-card ${am.status}`;
   const statusEl = card.querySelector('.mc-status');
   if (statusEl) { statusEl.textContent = am.status.toUpperCase(); statusEl.className = `mc-status ${am.status}`; }
+  // Update watch button visibility
+  const watchBtn = card.querySelector('.btn-watch');
+  if (watchBtn) watchBtn.style.display = (am.status === 'playing' || am.status === 'tie') ? '' : 'none';
   const playersEl = card.querySelector('.mc-players');
   if (playersEl) {
     let html = '';
@@ -654,7 +663,8 @@ async function launchNextPhase() {
   if (!running) { log('⏹ Arrêté par utilisateur', 'warn'); return; }
 
   // Phase complete
-  log(`═══ PHASE ${currentPhase} TERMINÉE — ${phase.winners.length} gagnants ═══`, 'ok');
+  log(`═══ PHASE ${currentPhase} TERMINÉE — ${phase.winners.length} gagnants sur ${phase.matches.length} matchs ═══`, 'ok');
+  log(`📊 Détail gagnants: ${phase.winners.map(w => `${w.name} [${w.fromCirco}/${w.fromEcole}]`).join(', ')}`, 'info');
   sendMonitoringEvent('arena:phase-end', { phase: currentPhase, winners: phase.winners.length, totalPairs: totalPairsValidated, totalErrors });
 
   // Close phase
@@ -662,13 +672,17 @@ async function launchNextPhase() {
 
   // Prepare next phase if applicable
   if (currentPhase < 4 && phase.winners.length >= 2) {
+    log(`📌 Préparation phase ${currentPhase + 1} avec ${phase.winners.length} gagnants...`, 'info');
     await prepareNextPhase();
     document.getElementById('btnLaunch').disabled = false;
+  } else if (currentPhase >= 4) {
+    log('🏆 TOURNOI TERMINÉ (phase académique atteinte) !', 'ok');
+    if (phase.winners.length > 0) log(`🥇 CHAMPION: ${phase.winners[0].name}`, 'ok');
+  } else if (phase.winners.length === 1) {
+    log(`🏆 TOURNOI TERMINÉ — un seul gagnant restant: ${phase.winners[0].name}`, 'ok');
   } else {
-    log('🏆 TOURNOI TERMINÉ !', 'ok');
-    if (phase.winners.length > 0) {
-      log(`🥇 CHAMPION: ${phase.winners[0].name}`, 'ok');
-    }
+    log(`⚠ TOURNOI TERMINÉ PRÉMATURÉMENT — ${phase.winners.length} gagnants (besoin ≥2 pour continuer)`, 'warn');
+    log(`Vérifiez les logs ci-dessus pour les matchs sans gagnant`, 'warn');
   }
   document.getElementById('btnStop').disabled = true;
   running = false;
@@ -694,15 +708,25 @@ async function runSingleMatch(matchInfo, speed) {
     let botsReady = 0;
     let matchEnded = false;
 
-    function onMatchEnd(winner) {
+    function onMatchEnd(rawWinner) {
       if (matchEnded) return;
       matchEnded = true;
       am.status = 'finished';
+
+      // Robust winner: always fallback to best-scoring player
+      let winner = rawWinner;
+      if (!winner || !winner.studentId) {
+        const sorted = [...am.players].sort((a, b) => (b.score || 0) - (a.score || 0));
+        winner = sorted[0] || null;
+        if (winner && !rawWinner) log(`⚠ ${group.name}: pas de winner serveur, fallback → ${winner.name} (${winner.score} pts)`, 'warn');
+      }
       am.winner = winner;
       if (winner) {
-        phases[currentPhase].winners.push({ ...winner, fromGroup: group.name, fromCirco: group.circo, fromEcole: group.ecole });
-        log(`🏆 ${group.name}: ${winner.name} gagne (${winner.score} pts)`, 'ok');
+        phases[currentPhase].winners.push({ studentId: winner.studentId, name: winner.name, score: winner.score || 0, fromGroup: group.name, fromCirco: group.circo, fromEcole: group.ecole });
+        log(`🏆 ${group.name}: ${winner.name} gagne (${winner.score || 0} pts)`, 'ok');
         sendMonitoringEvent('arena:match-end', { matchId, winner: winner.name, score: winner.score, group: group.name });
+      } else {
+        log(`❌ ${group.name}: aucun joueur — pas de gagnant`, 'err');
       }
       totalMatchesDone++;
       updateMatchCard(matchId);
@@ -809,10 +833,16 @@ async function runSingleMatch(matchInfo, speed) {
         sendIncident('bot-connect-error', 'error', { matchId, student: student.name, error: err.message });
       });
 
-      // Safety timeout — end match after max duration + buffer
-      const maxDuration = (+document.getElementById('cfgRounds').value) * (+document.getElementById('cfgDuration').value) * 1000 + 30000;
-      setTimeout(() => { if (!matchEnded) { log(`⏰ ${group.name} timeout`, 'warn'); onMatchEnd(am.players.sort((a, b) => b.score - a.score)[0]); } }, maxDuration);
     });
+
+    // Safety timeout — ONE per match (not per bot)
+    const maxDuration = (+document.getElementById('cfgRounds').value) * (+document.getElementById('cfgDuration').value) * 1000 + 45000;
+    setTimeout(() => {
+      if (!matchEnded) {
+        log(`⏰ ${group.name} timeout (${Math.round(maxDuration/1000)}s)`, 'warn');
+        onMatchEnd(null); // fallback in onMatchEnd picks best player
+      }
+    }, maxDuration);
   });
 }
 
@@ -912,6 +942,81 @@ async function prepareNextPhase() {
 // ═══════════════════════════════════════
 // STOP
 // ═══════════════════════════════════════
+function watchMatch(matchId, roomCode) {
+  const am = activeMatches.get(matchId);
+  const players = am?.players || [];
+  const status = am?.status || 'unknown';
+  const scores = players.map(p => `${p.name}: ${p.score || 0} pts`).join('\n');
+  const info = `Match: ${matchId.slice(-12)}\nRoom: ${roomCode}\nStatut: ${status}\n\nJoueurs:\n${scores}`;
+
+  // Open a floating panel
+  let panel = document.getElementById('watchPanel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'watchPanel';
+    panel.style.cssText = 'position:fixed;top:60px;right:20px;width:320px;max-height:80vh;background:#1e293b;border:2px solid #7c3aed;border-radius:12px;padding:16px;z-index:9999;font-family:Inter,sans-serif;color:#e2e8f0;box-shadow:0 8px 32px rgba(0,0,0,0.5);overflow-y:auto';
+    document.body.appendChild(panel);
+  }
+
+  // Set up live update
+  panel.dataset.matchId = matchId;
+  updateWatchPanel(matchId, roomCode);
+
+  // Auto-refresh every 500ms
+  if (panel._interval) clearInterval(panel._interval);
+  panel._interval = setInterval(() => {
+    if (panel.dataset.matchId === matchId) updateWatchPanel(matchId, roomCode);
+    else clearInterval(panel._interval);
+  }, 500);
+}
+
+function updateWatchPanel(matchId, roomCode) {
+  const panel = document.getElementById('watchPanel');
+  if (!panel) return;
+  const am = activeMatches.get(matchId);
+  const players = am?.players || [];
+  const status = am?.status || 'unknown';
+  const statusColors = { waiting: '#64748b', playing: '#10b981', tie: '#f59e0b', finished: '#6366f1' };
+
+  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">`;
+  html += `<span style="font-weight:700;font-size:1.1em">👁️ Match en direct</span>`;
+  html += `<button onclick="closeWatchPanel()" style="background:none;border:none;color:#ef4444;font-size:1.2em;cursor:pointer">✖</button></div>`;
+  html += `<div style="background:#0f172a;border-radius:8px;padding:10px;margin-bottom:8px">`;
+  html += `<div style="font-size:.8em;color:#94a3b8">Room: <b style="color:#22d3ee">${roomCode}</b> | ${matchId.slice(-10)}</div>`;
+  html += `<div style="margin-top:4px"><span style="padding:2px 8px;border-radius:4px;font-size:.75em;font-weight:700;background:${statusColors[status] || '#334155'};color:#fff">${status.toUpperCase()}</span></div></div>`;
+
+  // Player scores - sorted by score
+  const sorted = [...players].sort((a, b) => (b.score || 0) - (a.score || 0));
+  html += `<div style="display:flex;flex-direction:column;gap:6px">`;
+  sorted.forEach((p, i) => {
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+    const barWidth = players.length > 0 ? Math.max(5, ((p.score || 0) / Math.max(...players.map(x => x.score || 1))) * 100) : 0;
+    const isWinner = am?.winner && p.studentId === am.winner.studentId;
+    html += `<div style="background:${isWinner ? '#064e3b' : '#0f172a'};border-radius:6px;padding:8px;${isWinner ? 'border:1px solid #10b981' : ''}">`;
+    html += `<div style="display:flex;justify-content:space-between;align-items:center">`;
+    html += `<span style="font-weight:600">${medal} ${p.name}</span>`;
+    html += `<span style="font-size:1.3em;font-weight:800;color:#fbbf24">${p.score || 0}</span></div>`;
+    html += `<div style="height:4px;background:#1e2048;border-radius:2px;margin-top:4px;overflow:hidden">`;
+    html += `<div style="height:100%;width:${barWidth}%;background:linear-gradient(90deg,#7c3aed,#22d3ee);transition:width .3s"></div></div></div>`;
+  });
+  html += `</div>`;
+
+  if (status === 'finished' && am?.winner) {
+    html += `<div style="text-align:center;margin-top:12px;padding:8px;background:#064e3b;border-radius:8px;border:1px solid #10b981">`;
+    html += `<div style="font-size:1.5em">🏆</div><div style="font-weight:700">${am.winner.name} gagne !</div></div>`;
+  }
+
+  panel.innerHTML = html;
+}
+
+function closeWatchPanel() {
+  const panel = document.getElementById('watchPanel');
+  if (panel) {
+    if (panel._interval) clearInterval(panel._interval);
+    panel.remove();
+  }
+}
+
 function stopAll() {
   running = false;
   for (const [, am] of activeMatches) {

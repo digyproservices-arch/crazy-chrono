@@ -386,6 +386,9 @@ const clearIncidents = async () => {
     if (activeTab === 'incidents' || activeTab === 'report') {
       fetchIncidents();
     }
+    if (activeTab === 'report') {
+      fetchArenaStats();
+    }
     if (activeTab === 'players') {
       fetchOnlinePlayers();
       fetchPaymentEvents();
