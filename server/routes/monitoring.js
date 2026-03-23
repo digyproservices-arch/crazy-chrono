@@ -866,4 +866,114 @@ router.get('/audit-parser', requireAdminAuth, (req, res) => {
   }
 });
 
+// ── Arena / Tournament Stats ─────────────────────────────
+/**
+ * GET /api/monitoring/arena-stats
+ * Récupère les stats des matchs Arena / tournois depuis Supabase (admin only)
+ * Query: ?since=ISO_DATE&limit=100
+ */
+router.get('/arena-stats', requireAdminAuth, async (req, res) => {
+  try {
+    const supabase = req.app.locals.supabaseAdmin;
+    if (!supabase) return res.json({ ok: false, error: 'supabase_not_configured' });
+
+    const limit = parseInt(req.query.limit) || 200;
+    const since = req.query.since || new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+
+    // 1) Tournaments
+    let tournaments = [];
+    try {
+      const { data } = await supabase
+        .from('tournaments')
+        .select('id, name, status, created_at, updated_at')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      tournaments = data || [];
+    } catch {}
+
+    // 2) Tournament matches
+    let matches = [];
+    try {
+      const { data } = await supabase
+        .from('tournament_matches')
+        .select('id, tournament_id, phase_id, group_id, status, room_code, created_at, started_at, finished_at, config')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      matches = data || [];
+    } catch {}
+
+    // 3) Match results (linked to recent matches)
+    let results = [];
+    if (matches.length > 0) {
+      const matchIds = matches.map(m => m.id);
+      try {
+        const { data } = await supabase
+          .from('match_results')
+          .select('id, match_id, student_id, score, position, pairs_found, errors, time_ms, created_at')
+          .in('match_id', matchIds.slice(0, 50))
+          .order('match_id')
+          .order('position');
+        results = data || [];
+      } catch {}
+    }
+
+    // 4) In-memory Arena state (live matches)
+    let liveMatches = [];
+    try {
+      const arena = global.crazyArena;
+      if (arena && arena.matches) {
+        for (const [matchId, match] of arena.matches) {
+          liveMatches.push({
+            matchId,
+            status: match.status,
+            playersCount: match.players?.length || 0,
+            players: (match.players || []).map(p => ({
+              name: p.name,
+              studentId: p.studentId,
+              score: p.score || 0,
+              ready: p.ready,
+              connected: !!p.socketId,
+            })),
+            round: match.currentRound || 0,
+            startTime: match.startTime ? new Date(match.startTime).toISOString() : null,
+            config: match.config || {},
+          });
+        }
+      }
+    } catch {}
+
+    // 5) Aggregate stats
+    const stats = {
+      totalTournaments: tournaments.length,
+      totalMatches: matches.length,
+      matchesByStatus: {},
+      totalResults: results.length,
+      totalPairsFound: 0,
+      totalErrors: 0,
+      liveMatchesCount: liveMatches.length,
+    };
+    for (const m of matches) {
+      stats.matchesByStatus[m.status] = (stats.matchesByStatus[m.status] || 0) + 1;
+    }
+    for (const r of results) {
+      stats.totalPairsFound += r.pairs_found || 0;
+      stats.totalErrors += r.errors || 0;
+    }
+
+    res.json({
+      ok: true,
+      stats,
+      tournaments,
+      matches: matches.slice(0, 100),
+      results: results.slice(0, 500),
+      liveMatches,
+    });
+  } catch (error) {
+    console.error('[Monitoring] Arena stats error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 module.exports = router;

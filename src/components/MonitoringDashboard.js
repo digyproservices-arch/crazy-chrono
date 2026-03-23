@@ -64,6 +64,10 @@ function MonitoringDashboard() {
   const [auditResult, setAuditResult] = useState(null);
   const [auditLoading, setAuditLoading] = useState(false);
 
+  // ── Arena tab state ──
+  const [arenaStats, setArenaStats] = useState(null);
+  const [arenaLoading, setArenaLoading] = useState(false);
+
   const copyToClipboard = async (text, source) => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -323,6 +327,25 @@ const clearIncidents = async () => {
     }
   }, []);
 
+  const fetchArenaStats = useCallback(async () => {
+    try {
+      setArenaLoading(true);
+      const token = getAuthToken();
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/monitoring/arena-stats`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) setArenaStats(data);
+      }
+    } catch (err) {
+      console.warn('[Monitoring] Arena stats fetch failed:', err.message);
+    } finally {
+      setArenaLoading(false);
+    }
+  }, []);
+
   const viewScreenshot = useCallback(async (roundId) => {
     if (!roundId) return;
     setScreenshotLoading(true);
@@ -368,7 +391,10 @@ const clearIncidents = async () => {
       fetchPaymentEvents();
       fetchUsageStats();
     }
-  }, [activeTab, fetchIncidents, fetchOnlinePlayers, fetchPaymentEvents, fetchUsageStats]);
+    if (activeTab === 'arena') {
+      fetchArenaStats();
+    }
+  }, [activeTab, fetchIncidents, fetchOnlinePlayers, fetchPaymentEvents, fetchUsageStats, fetchArenaStats]);
 
   useEffect(() => {
     if (!autoRefresh) return;
@@ -521,6 +547,7 @@ const clearIncidents = async () => {
             { id: 'rounds', label: `🎮 Manches (${roundLogs.length}) ${roundLogs.some(r => r.doublePairIssues > 0) ? '🚨' : ''}`, icon: '' },
             { id: 'e2e', label: `🧪 Tests E2E ${e2eResults.length > 0 ? (e2eResults[0]?.summary?.status === 'PASS' ? '✅' : '❌') : ''}`, icon: '' },
             { id: 'players', label: `👥 Joueurs (${onlinePlayers.length} en ligne)`, icon: '' },
+            { id: 'arena', label: `🏟️ Arena ${arenaStats?.stats ? `(${arenaStats.stats.totalMatches})` : ''}`, icon: '' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -623,6 +650,34 @@ const clearIncidents = async () => {
                       });
                     }
                   });
+                }
+                sections.push('');
+
+                // Arena stats (si chargées)
+                sections.push(`--- ARENA / TOURNOIS ---`);
+                if (arenaStats?.stats) {
+                  const s = arenaStats.stats;
+                  sections.push(`Tournois: ${s.totalTournaments} | Matchs: ${s.totalMatches} | Terminés: ${s.matchesByStatus?.finished || 0} | En cours: ${(s.matchesByStatus?.in_progress || 0) + (s.matchesByStatus?.playing || 0)}`);
+                  sections.push(`Paires trouvées: ${s.totalPairsFound} | Erreurs: ${s.totalErrors} | Matchs live: ${s.liveMatchesCount}`);
+                  if (arenaStats.tournaments?.length > 0) {
+                    sections.push(`Tournois récents:`);
+                    arenaStats.tournaments.slice(0, 5).forEach((t, i) => {
+                      sections.push(`  [${i+1}] ${t.name || t.id.slice(0, 20)} — ${t.status} — ${t.created_at ? new Date(t.created_at).toLocaleString('fr-FR') : ''}`);
+                    });
+                  }
+                  if (arenaStats.matches?.length > 0) {
+                    const finished = arenaStats.matches.filter(m => m.status === 'finished');
+                    const pending = arenaStats.matches.filter(m => m.status === 'pending');
+                    sections.push(`Matchs: ${finished.length} terminés, ${pending.length} en attente, ${arenaStats.matches.length - finished.length - pending.length} autres`);
+                  }
+                  if (arenaStats.results?.length > 0) {
+                    sections.push(`Top résultats:`);
+                    arenaStats.results.filter(r => r.position === 1).slice(0, 10).forEach((r, i) => {
+                      sections.push(`  🥇 ${r.student_id} — score: ${r.score}, paires: ${r.pairs_found || 0}`);
+                    });
+                  }
+                } else {
+                  sections.push('Données Arena non chargées. Ouvrez l\'onglet Arena pour les charger.');
                 }
                 sections.push('');
 
@@ -1793,6 +1848,169 @@ sections.push(`===== FIN DU RAPPORT =====`);
                       );
                     })()}
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* ====== ARENA TAB ====== */}
+            {activeTab === 'arena' && (
+              <div>
+                <div style={{ ...cardStyle, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 'bold' }}>🏟️ Statistiques Arena & Tournois</h3>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={fetchArenaStats} style={btnStyle(COLORS.info)} disabled={arenaLoading}>
+                      {arenaLoading ? '⏳ Chargement...' : '🔄 Rafraîchir'}
+                    </button>
+                    <button onClick={() => window.open('/tournament-real-test.html', '_blank')} style={btnStyle('#7c3aed')}>
+                      🏆 Test Tournoi Réel
+                    </button>
+                  </div>
+                </div>
+
+                {!arenaStats ? (
+                  <div style={{ ...cardStyle, textAlign: 'center', padding: 40, color: COLORS.textMuted }}>
+                    {arenaLoading ? '⏳ Chargement des données Arena...' : 'Cliquez Rafraîchir pour charger les stats Arena'}
+                  </div>
+                ) : (
+                  <>
+                    {/* KPIs */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
+                      <KPICard title="Tournois" value={arenaStats.stats.totalTournaments} icon="🏆" color={COLORS.info} />
+                      <KPICard title="Matchs total" value={arenaStats.stats.totalMatches} icon="⚔️" color="#fff" />
+                      <KPICard title="Terminés" value={arenaStats.stats.matchesByStatus?.finished || 0} icon="✅" color={COLORS.success} />
+                      <KPICard title="En cours" value={(arenaStats.stats.matchesByStatus?.in_progress || 0) + (arenaStats.stats.matchesByStatus?.playing || 0)} icon="▶️" color={COLORS.warn} />
+                      <KPICard title="Paires trouvées" value={arenaStats.stats.totalPairsFound} icon="🎯" color="#a78bfa" />
+                      <KPICard title="Erreurs" value={arenaStats.stats.totalErrors} icon="❌" color={COLORS.error} highlight={arenaStats.stats.totalErrors > 0} />
+                      <KPICard title="Matchs live" value={arenaStats.stats.liveMatchesCount} icon="📡" color="#f472b6" highlight={arenaStats.stats.liveMatchesCount > 0} />
+                    </div>
+
+                    {/* Live matches */}
+                    {arenaStats.liveMatches.length > 0 && (
+                      <div style={{ ...cardStyle, marginBottom: 16 }}>
+                        <h4 style={cardTitleStyle}>📡 Matchs en direct ({arenaStats.liveMatches.length})</h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 10 }}>
+                          {arenaStats.liveMatches.map(lm => (
+                            <div key={lm.matchId} style={{ background: '#0f172a', borderRadius: 8, padding: 12, border: `1px solid ${lm.status === 'playing' ? COLORS.success : COLORS.border}` }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                <span style={{ fontSize: 12, color: COLORS.textMuted, fontFamily: 'monospace' }}>{lm.matchId.slice(0, 20)}...</span>
+                                <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: lm.status === 'playing' ? COLORS.success : lm.status === 'waiting' ? COLORS.warn : COLORS.border, color: '#fff', fontWeight: 600 }}>{lm.status}</span>
+                              </div>
+                              {lm.players.map(p => (
+                                <div key={p.studentId} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '2px 0' }}>
+                                  <span>{p.connected ? '🟢' : '🔴'} {p.name}</span>
+                                  <span style={{ fontWeight: 600 }}>{p.score} pts</span>
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tournaments */}
+                    {arenaStats.tournaments.length > 0 && (
+                      <div style={{ ...cardStyle, marginBottom: 16 }}>
+                        <h4 style={cardTitleStyle}>🏆 Tournois récents ({arenaStats.tournaments.length})</h4>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                          <thead>
+                            <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                              <th style={{ textAlign: 'left', padding: '6px 8px', color: COLORS.textMuted }}>Nom</th>
+                              <th style={{ textAlign: 'left', padding: '6px 8px', color: COLORS.textMuted }}>Statut</th>
+                              <th style={{ textAlign: 'left', padding: '6px 8px', color: COLORS.textMuted }}>Créé le</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {arenaStats.tournaments.map(t => (
+                              <tr key={t.id} style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
+                                <td style={{ padding: '6px 8px' }}>{t.name || t.id.slice(0, 20)}</td>
+                                <td style={{ padding: '6px 8px' }}>
+                                  <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: t.status === 'active' ? COLORS.success : t.status === 'finished' ? '#6366f1' : COLORS.border, color: '#fff' }}>{t.status}</span>
+                                </td>
+                                <td style={{ padding: '6px 8px', color: COLORS.textMuted }}>{formatDateTime(t.created_at)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Matches */}
+                    <div style={{ ...cardStyle, marginBottom: 16 }}>
+                      <h4 style={cardTitleStyle}>⚔️ Matchs récents ({arenaStats.matches.length})</h4>
+                      {arenaStats.matches.length === 0 ? (
+                        <p style={{ color: COLORS.textMuted, textAlign: 'center' }}>Aucun match Arena trouvé sur les 7 derniers jours</p>
+                      ) : (
+                        <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                            <thead style={{ position: 'sticky', top: 0, background: COLORS.card }}>
+                              <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                                <th style={{ textAlign: 'left', padding: '6px 8px', color: COLORS.textMuted }}>Match</th>
+                                <th style={{ textAlign: 'left', padding: '6px 8px', color: COLORS.textMuted }}>Statut</th>
+                                <th style={{ textAlign: 'left', padding: '6px 8px', color: COLORS.textMuted }}>Room</th>
+                                <th style={{ textAlign: 'left', padding: '6px 8px', color: COLORS.textMuted }}>Créé</th>
+                                <th style={{ textAlign: 'left', padding: '6px 8px', color: COLORS.textMuted }}>Démarré</th>
+                                <th style={{ textAlign: 'left', padding: '6px 8px', color: COLORS.textMuted }}>Terminé</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {arenaStats.matches.map(m => {
+                                const statusColors = { pending: COLORS.textMuted, in_progress: COLORS.warn, playing: COLORS.warn, finished: COLORS.success, deleted: COLORS.error, tie: '#f59e0b' };
+                                return (
+                                  <tr key={m.id} style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
+                                    <td style={{ padding: '5px 8px', fontFamily: 'monospace', fontSize: 11 }}>{m.id.slice(0, 18)}...</td>
+                                    <td style={{ padding: '5px 8px' }}>
+                                      <span style={{ padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, background: statusColors[m.status] || COLORS.border, color: '#fff' }}>{m.status}</span>
+                                    </td>
+                                    <td style={{ padding: '5px 8px', fontFamily: 'monospace' }}>{m.room_code}</td>
+                                    <td style={{ padding: '5px 8px', color: COLORS.textMuted }}>{formatDateTime(m.created_at)}</td>
+                                    <td style={{ padding: '5px 8px', color: COLORS.textMuted }}>{m.started_at ? formatDateTime(m.started_at) : '—'}</td>
+                                    <td style={{ padding: '5px 8px', color: COLORS.textMuted }}>{m.finished_at ? formatDateTime(m.finished_at) : '—'}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Results */}
+                    {arenaStats.results.length > 0 && (
+                      <div style={{ ...cardStyle }}>
+                        <h4 style={cardTitleStyle}>🏅 Résultats joueurs ({arenaStats.results.length})</h4>
+                        <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                            <thead style={{ position: 'sticky', top: 0, background: COLORS.card }}>
+                              <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                                <th style={{ textAlign: 'left', padding: '6px 8px', color: COLORS.textMuted }}>Match</th>
+                                <th style={{ textAlign: 'left', padding: '6px 8px', color: COLORS.textMuted }}>Joueur</th>
+                                <th style={{ textAlign: 'center', padding: '6px 8px', color: COLORS.textMuted }}>Pos</th>
+                                <th style={{ textAlign: 'center', padding: '6px 8px', color: COLORS.textMuted }}>Score</th>
+                                <th style={{ textAlign: 'center', padding: '6px 8px', color: COLORS.textMuted }}>Paires</th>
+                                <th style={{ textAlign: 'center', padding: '6px 8px', color: COLORS.textMuted }}>Erreurs</th>
+                                <th style={{ textAlign: 'center', padding: '6px 8px', color: COLORS.textMuted }}>Temps</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {arenaStats.results.map(r => (
+                                <tr key={r.id} style={{ borderBottom: `1px solid ${COLORS.border}22` }}>
+                                  <td style={{ padding: '4px 8px', fontFamily: 'monospace', fontSize: 10 }}>{r.match_id.slice(0, 14)}...</td>
+                                  <td style={{ padding: '4px 8px' }}>{r.student_id}</td>
+                                  <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: 600, color: r.position === 1 ? '#fbbf24' : r.position === 2 ? '#94a3b8' : r.position === 3 ? '#cd7f32' : COLORS.textMuted }}>
+                                    {r.position === 1 ? '🥇' : r.position === 2 ? '🥈' : r.position === 3 ? '🥉' : `#${r.position}`}
+                                  </td>
+                                  <td style={{ padding: '4px 8px', textAlign: 'center', fontWeight: 700 }}>{r.score}</td>
+                                  <td style={{ padding: '4px 8px', textAlign: 'center' }}>{r.pairs_found || 0}</td>
+                                  <td style={{ padding: '4px 8px', textAlign: 'center', color: r.errors > 0 ? COLORS.error : COLORS.textMuted }}>{r.errors || 0}</td>
+                                  <td style={{ padding: '4px 8px', textAlign: 'center', color: COLORS.textMuted }}>{r.time_ms ? `${(r.time_ms / 1000).toFixed(1)}s` : '—'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
