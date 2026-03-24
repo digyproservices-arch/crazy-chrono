@@ -66,6 +66,7 @@ function MonitoringDashboard() {
 
   // ── Zone Viewer state (screenshot visuel des cartes Arena) ──
   const [zoneViewerRound, setZoneViewerRound] = useState(null); // round log à afficher visuellement
+  const [roundLogFilter, setRoundLogFilter] = useState('all'); // 'all' | 'anomalies'
 
   // ── Arena tab state ──
   const [arenaStats, setArenaStats] = useState(null);
@@ -842,9 +843,21 @@ sections.push(`===== FIN DU RAPPORT =====`);
                         <button onClick={() => { clearRoundLogs(); setRoundLogs([]); }} style={btnStyle('#dc2626')}>🗑️ Vider</button>
                       </div>
                     </div>
+                    {/* Filtre Toutes / Anomalies */}
+                    {roundLogs.length > 0 && (
+                      <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                        {[['all', `Toutes (${roundLogs.length})`], ['anomalies', `🚨 Anomalies (${roundLogs.filter(r => r.doublePairIssues > 0 || (r.issues && r.issues.length > 0)).length})`]].map(([key, label]) => (
+                          <button key={key} onClick={() => setRoundLogFilter(key)} style={{
+                            padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer',
+                            background: roundLogFilter === key ? (key === 'anomalies' ? '#ef4444' : '#6366f1') : 'rgba(255,255,255,0.08)',
+                            color: roundLogFilter === key ? '#fff' : COLORS.textMuted
+                          }}>{label}</button>
+                        ))}
+                      </div>
+                    )}
                     {roundLogs.length > 0 ? (
                       <div style={{ maxHeight: 250, overflowY: 'auto' }}>
-                        {(() => { const _ssIds = new Set(screenshotMetas.map(m => m.roundId)); return roundLogs.slice(0, 15).map((r, i) => {
+                        {(() => { const _ssIds = new Set(screenshotMetas.map(m => m.roundId)); const _filtered = roundLogFilter === 'anomalies' ? roundLogs.filter(r => r.doublePairIssues > 0 || (r.issues && r.issues.length > 0)) : roundLogs; return _filtered.slice(0, 30).map((r, i) => {
                           const hasIssue = r.doublePairIssues > 0;
                           const ts = r.timestamp ? new Date(r.timestamp).toLocaleString('fr-FR') : 'N/A';
                           const hasSS = _ssIds.has(r.id);
