@@ -637,6 +637,131 @@ app.post('/rename-image', requireAdminAuth, (req, res) => {
 });
 
 // ==========================================
+// ADMIN INVITE — Création invitation + envoi email
+// ==========================================
+app.post('/api/admin/send-invite', requireAdminAuth, express.json(), async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
+    
+    const { email, role, region } = req.body;
+    if (!email || !role) return res.status(400).json({ ok: false, error: 'email et role requis' });
+    
+    // Générer token unique
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(24).toString('hex');
+    const expires_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 jours
+    
+    // Insérer invitation via supabaseAdmin (bypass RLS)
+    const inviteData = {
+      email: email.trim().toLowerCase(),
+      role,
+      token,
+      expires_at,
+      invited_by: req.adminUser?.email || 'admin',
+      region: role === 'rectorat' ? (region || null) : null
+    };
+    
+    const { data: inv, error: dbErr } = await supabaseAdmin
+      .from('invitations')
+      .insert(inviteData)
+      .select()
+      .single();
+    
+    if (dbErr) {
+      logger.error('[Invite] DB error:', dbErr.message);
+      return res.status(500).json({ ok: false, error: dbErr.message });
+    }
+    
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'https://app.crazy-chrono.com';
+    const inviteLink = `${FRONTEND_URL}/login?invite=${token}`;
+    
+    // Envoi email via Nodemailer
+    let emailSent = false;
+    const SMTP_USER = process.env.SMTP_USER;
+    const SMTP_PASS = process.env.SMTP_PASS;
+    
+    if (SMTP_USER && SMTP_PASS) {
+      try {
+        const nodemailer = require('nodemailer');
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST || 'smtp.gmail.com',
+          port: parseInt(process.env.SMTP_PORT || '587'),
+          secure: false,
+          auth: { user: SMTP_USER, pass: SMTP_PASS }
+        });
+        
+        const roleLabel = {
+          rectorat: 'Cadre académique (Rectorat)',
+          admin: 'Administrateur',
+          teacher: 'Enseignant',
+          editor: 'Éditeur',
+          user: 'Utilisateur'
+        }[role] || role;
+        
+        const regionLabel = region ? ` — Région ${region.charAt(0).toUpperCase() + region.slice(1)}` : '';
+        
+        await transporter.sendMail({
+          from: `"Crazy Chrono" <${SMTP_USER}>`,
+          to: email,
+          subject: `🎓 Invitation Crazy Chrono — ${roleLabel}`,
+          html: `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f4f7fa;">
+  <div style="max-width:560px;margin:30px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#0D6A7A,#1AACBE);padding:32px 24px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:8px;">⏱️</div>
+      <h1 style="color:#fff;margin:0;font-size:28px;font-weight:800;letter-spacing:1px;">CRAZY CHRONO</h1>
+      <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:14px;">Plateforme éducative de jeux chronométrés</p>
+    </div>
+    <div style="padding:32px 28px;">
+      <h2 style="color:#0D6A7A;margin:0 0 16px;font-size:22px;">Vous êtes invité(e) !</h2>
+      <p style="color:#374151;line-height:1.6;margin:0 0 12px;">
+        Bonjour,<br><br>
+        Vous avez été invité(e) à rejoindre <strong>Crazy Chrono</strong> en tant que :
+      </p>
+      <div style="background:#f0fdff;border:1px solid #bae6fd;border-radius:10px;padding:14px 18px;margin:16px 0;text-align:center;">
+        <span style="font-size:18px;font-weight:700;color:#0D6A7A;">${roleLabel}${regionLabel}</span>
+      </div>
+      <p style="color:#374151;line-height:1.6;margin:16px 0;">
+        Cliquez sur le bouton ci-dessous pour créer votre compte et accéder à la plateforme :
+      </p>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="${inviteLink}" style="display:inline-block;padding:14px 36px;background:linear-gradient(135deg,#F5A623,#FFC940);color:#4A3728;text-decoration:none;border-radius:12px;font-weight:800;font-size:16px;box-shadow:0 4px 16px rgba(245,166,35,0.35);">
+          Créer mon compte
+        </a>
+      </div>
+      <p style="color:#9ca3af;font-size:13px;line-height:1.5;margin:16px 0 0;">
+        Ou copiez ce lien dans votre navigateur :<br>
+        <a href="${inviteLink}" style="color:#1AACBE;word-break:break-all;">${inviteLink}</a>
+      </p>
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+      <p style="color:#9ca3af;font-size:12px;text-align:center;margin:0;">
+        Ce lien expire dans 7 jours. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.<br>
+        © ${new Date().getFullYear()} Crazy Chrono — DIGIKAZ
+      </p>
+    </div>
+  </div>
+</body></html>`
+        });
+        
+        emailSent = true;
+        logger.info(`[Invite] Email envoyé à ${email} (${role})`);
+      } catch (emailErr) {
+        logger.error('[Invite] Erreur envoi email:', emailErr.message);
+      }
+    } else {
+      logger.warn('[Invite] SMTP non configuré — email non envoyé');
+    }
+    
+    res.json({ ok: true, invitation: inv, inviteLink, emailSent });
+  } catch (err) {
+    logger.error('[Invite] Erreur:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ==========================================
 // ADMIN DASHBOARD STATS — Données réelles
 // ==========================================
 app.get('/api/admin/dashboard-stats', requireAdminAuth, async (req, res) => {

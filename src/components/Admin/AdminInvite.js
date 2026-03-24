@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import supabase from '../../utils/supabaseClient';
+import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
 
 export default function AdminInvite() {
   const [email, setEmail] = useState('');
@@ -16,6 +17,7 @@ export default function AdminInvite() {
 
   const loadInvitations = async () => {
     try {
+      // Try backend first, fallback to direct Supabase
       const { data } = await supabase
         .from('invitations')
         .select('*')
@@ -38,26 +40,21 @@ export default function AdminInvite() {
     try {
       setLoading(true);
       
-      // Générer token unique
-      const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      // Appel backend API (crée invitation + envoie email)
+      const res = await fetch(`${getBackendUrl()}/api/admin/send-invite`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ email: em, role, region: role === 'rectorat' ? region : null })
+      });
+      const data = await res.json();
       
-      // Créer invitation
-      const { data: inv, error } = await supabase
-        .from('invitations')
-        .insert({
-          email: em,
-          role,
-          token,
-          region: role === 'rectorat' ? region : null,
-          invited_by: (await supabase.auth.getUser()).data?.user?.email
-        })
-        .select()
-        .single();
+      if (!data.ok) throw new Error(data.error || 'Erreur création invitation');
       
-      if (error) throw error;
+      const emailStatus = data.emailSent 
+        ? '📧 Email envoyé !' 
+        : '⚠️ Email non envoyé (SMTP non configuré)';
       
-      const inviteLink = `${window.location.origin}/login?invite=${token}`;
-      setMsg(`Invitation créée ! Lien : ${inviteLink}`);
+      setMsg(`✅ Invitation créée ! ${emailStatus}\nLien : ${data.inviteLink}`);
       setEmail('');
       loadInvitations();
     } catch (e) {
@@ -125,7 +122,7 @@ export default function AdminInvite() {
             disabled={loading}
             style={{ padding: '10px 14px', borderRadius: 10, background: 'linear-gradient(135deg, #1AACBE, #148A9C)', color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer' }}
           >
-            {loading ? 'Création...' : 'Créer invitation'}
+            {loading ? 'Envoi en cours...' : '📧 Créer et envoyer l\'invitation'}
           </button>
         </div>
       </form>
