@@ -33,6 +33,11 @@ export function hasMaintenanceBypass() {
     const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
     if (a && (a.role === 'admin' || a.isAdmin)) return true;
   } catch {}
+  // Check invite link (allow signup via invitation even in maintenance mode)
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('invite')) return true;
+  } catch {}
   return false;
 }
 
