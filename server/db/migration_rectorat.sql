@@ -23,8 +23,60 @@ ALTER TABLE training_sessions ADD COLUMN IF NOT EXISTS rounds_data JSONB;
 -- 6. Index pour filtrer rapidement les matchs officiels
 CREATE INDEX IF NOT EXISTS idx_matches_official ON tournament_matches(is_official) WHERE is_official = true;
 
--- 5. Index pour filtrer par région
+-- 7. Index pour filtrer par région
 CREATE INDEX IF NOT EXISTS idx_user_profiles_region ON user_profiles(region) WHERE region IS NOT NULL;
 
+-- ==========================================
+-- 8. RLS POLICIES pour la table invitations
+-- Permet aux admin de créer/lire/modifier des invitations
+-- ==========================================
+
+-- Activer RLS si pas déjà fait
+ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;
+
+-- Supprimer les anciennes policies si elles existent (pour éviter les conflits)
+DROP POLICY IF EXISTS "Admin can insert invitations" ON invitations;
+DROP POLICY IF EXISTS "Admin can read invitations" ON invitations;
+DROP POLICY IF EXISTS "Admin can update invitations" ON invitations;
+DROP POLICY IF EXISTS "Anyone can read invitation by token" ON invitations;
+
+-- Admin: INSERT
+CREATE POLICY "Admin can insert invitations" ON invitations
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM user_profiles
+      WHERE user_profiles.id = auth.uid()
+      AND user_profiles.role = 'admin'
+    )
+  );
+
+-- Admin: SELECT (toutes les invitations)
+CREATE POLICY "Admin can read invitations" ON invitations
+  FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_profiles
+      WHERE user_profiles.id = auth.uid()
+      AND user_profiles.role = 'admin'
+    )
+  );
+
+-- Admin: UPDATE (marquer comme utilisée)
+CREATE POLICY "Admin can update invitations" ON invitations
+  FOR UPDATE TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_profiles
+      WHERE user_profiles.id = auth.uid()
+      AND user_profiles.role = 'admin'
+    )
+  );
+
+-- Public: lire une invitation par son token (pour le lien d'inscription)
+CREATE POLICY "Anyone can read invitation by token" ON invitations
+  FOR SELECT TO authenticated
+  USING (true);
+
 -- Vérification
-SELECT 'Migration rectorat OK' AS status;
+SELECT 'Migration rectorat + RLS OK' AS status;
