@@ -49,7 +49,7 @@ export function isPro() {
   if (getSubscriptionStatus() === 'pro') return true;
   try {
     const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
-    if (a && (a.role === 'admin' || a.role === 'teacher')) return true;
+    if (a && (a.role === 'admin' || a.role === 'teacher' || a.role === 'rectorat')) return true;
   } catch {}
   return false;
 }
