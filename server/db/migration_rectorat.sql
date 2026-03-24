@@ -26,8 +26,18 @@ CREATE INDEX IF NOT EXISTS idx_matches_official ON tournament_matches(is_officia
 -- 7. Index pour filtrer par région
 CREATE INDEX IF NOT EXISTS idx_user_profiles_region ON user_profiles(region) WHERE region IS NOT NULL;
 
+-- 8. Ajouter 'rectorat' au CHECK CONSTRAINT sur invitations.role
+ALTER TABLE invitations DROP CONSTRAINT IF EXISTS invitations_role_check;
+ALTER TABLE invitations ADD CONSTRAINT invitations_role_check 
+  CHECK (role IN ('user', 'editor', 'teacher', 'admin', 'rectorat'));
+
+-- Idem pour user_profiles si besoin
+ALTER TABLE user_profiles DROP CONSTRAINT IF EXISTS user_profiles_role_check;
+ALTER TABLE user_profiles ADD CONSTRAINT user_profiles_role_check 
+  CHECK (role IN ('user', 'editor', 'teacher', 'admin', 'rectorat'));
+
 -- ==========================================
--- 8. RLS POLICIES pour la table invitations
+-- 9. RLS POLICIES pour la table invitations
 -- Permet aux admin de créer/lire/modifier des invitations
 -- ==========================================
 
