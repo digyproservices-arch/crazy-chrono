@@ -133,6 +133,9 @@ export default function TrainingArenaSetup() {
   const [helpEnabled, setHelpEnabled] = useState(() => {
     try { return !!JSON.parse(localStorage.getItem('cc_training_cfg'))?.helpEnabled; } catch { return false; }
   });
+  const [isOfficial, setIsOfficial] = useState(() => {
+    try { return !!JSON.parse(localStorage.getItem('cc_training_cfg'))?.isOfficial; } catch { return false; }
+  });
   const userToggledThemes = useRef((() => {
     try { const t = JSON.parse(localStorage.getItem('cc_training_cfg'))?.themes; return Array.isArray(t) && t.length > 0; } catch { return false; }
   })());
@@ -142,12 +145,12 @@ export default function TrainingArenaSetup() {
     const t = setTimeout(() => {
       try {
         localStorage.setItem('cc_training_cfg', JSON.stringify({
-          classes: selClasses, themes: selThemes, objectiveMode, rounds: matchRounds, duration: matchDuration, helpEnabled
+          classes: selClasses, themes: selThemes, objectiveMode, rounds: matchRounds, duration: matchDuration, helpEnabled, isOfficial
         }));
       } catch {}
     }, 300);
     return () => clearTimeout(t);
-  }, [selClasses, selThemes, objectiveMode, matchRounds, matchDuration, helpEnabled]);
+  }, [selClasses, selThemes, objectiveMode, matchRounds, matchDuration, helpEnabled, isOfficial]);
 
   // Thèmes disponibles filtrés par niveaux sélectionnés
   const allThemes = useMemo(() => {
@@ -410,6 +413,7 @@ export default function TrainingArenaSetup() {
         objectiveTarget: objectiveMode ? selThemes.length : null,
         objectiveThemes: objectiveMode ? selThemes : [],
         helpEnabled: helpEnabled,
+        isOfficial: isOfficial,
       };
       
       console.log('[TrainingArena] 🚀 Lancement match Training');
@@ -742,6 +746,25 @@ export default function TrainingArenaSetup() {
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>💡 Système d'aide</div>
                     <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Indices et réponses disponibles pendant le jeu</div>
+                  </div>
+                </label>
+              </div>
+
+              {/* Compétition Officielle */}
+              <div style={{ padding: 14, borderRadius: 12, border: isOfficial ? '2px solid #1d4ed8' : '2px solid #e2e8f0', background: isOfficial ? '#eff6ff' : '#fff', transition: 'all 0.2s' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                  <div
+                    onClick={() => setIsOfficial(p => !p)}
+                    style={{ position: 'relative', width: 44, height: 24, borderRadius: 12, background: isOfficial ? '#1d4ed8' : '#cbd5e1', transition: 'background 0.2s', cursor: 'pointer', flexShrink: 0 }}>
+                    <div style={{ position: 'absolute', top: 2, left: isOfficial ? 22 : 2, width: 20, height: 20, borderRadius: 10, background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>🏛️ Compétition Officielle</div>
+                    <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.4, marginTop: 2 }}>
+                      {isOfficial
+                        ? 'Les résultats et cartes seront visibles par le rectorat.'
+                        : 'Session d\'entraînement simple (non comptabilisée).'}
+                    </div>
                   </div>
                 </label>
               </div>

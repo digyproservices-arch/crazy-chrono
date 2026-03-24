@@ -831,7 +831,8 @@ router.post('/matches', requireSupabase, requireAuth, ...validateCreateMatch, as
         group_id: groupId,
         status: 'pending',
         room_code: roomCode,
-        config: JSON.stringify(config)
+        config: JSON.stringify(config),
+        is_official: !!(config && config.isOfficial)
       })
       .select()
       .single();

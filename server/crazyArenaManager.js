@@ -203,6 +203,7 @@ class CrazyArenaManager {
         objectiveTarget: config.objectiveTarget || null,
         objectiveThemes: config.objectiveThemes || [],
         helpEnabled: !!config.helpEnabled,
+        isOfficial: !!config.isOfficial,
       },
       players: [],
       status: 'waiting',
@@ -565,6 +566,14 @@ class CrazyArenaManager {
       }))
     });
     
+    // 💾 Accumuler les zones pour archivage Supabase
+    if (!match._roundsData) match._roundsData = [];
+    match._roundsData.push({
+      roundIndex: 0,
+      timestamp: new Date().toISOString(),
+      zones: zones.map(z => ({ id: z.id, type: z.type, content: z.content, pairId: z.pairId || '', isDistractor: !!z.isDistractor, points: z.points, arcPoints: z.arcPoints, angle: z.angle, mathOffset: z.mathOffset }))
+    });
+
     try { validateZonesServer(zones, { source: 'training:game-start', matchId: matchId.slice(-8) }); } catch (e) { logger.warn('[CrazyArena][Training] Zone validation error:', e.message); }
     this.io.to(matchId).emit('training:game-start', gameStartPayload);
 
@@ -613,6 +622,13 @@ class CrazyArenaManager {
             }))
           });
           
+          // 💾 Accumuler zones pour archivage
+          if (!match._roundsData) match._roundsData = [];
+          match._roundsData.push({
+            roundIndex: match.roundsPlayed,
+            timestamp: new Date().toISOString(),
+            zones: newZones.map(z => ({ id: z.id, type: z.type, content: z.content, pairId: z.pairId || '', isDistractor: !!z.isDistractor, points: z.points, arcPoints: z.arcPoints, angle: z.angle, mathOffset: z.mathOffset }))
+          });
           // Émettre nouvelle carte à tous les joueurs
           try { validateZonesServer(newZones, { source: 'training:round-new', matchId: matchId.slice(-8), roundIndex: match.roundsPlayed }); } catch (e) { logger.warn('[CrazyArena][Training] Zone validation error (round-new):', e.message); }
           this.io.to(matchId).emit('training:round-new', {
@@ -1675,6 +1691,14 @@ class CrazyArenaManager {
     // Valider les zones avant émission (monitoring double PA / fausse paire)
     try { validateZonesServer(zones, { source: 'arena:game-start', matchId: matchId.slice(-8) }); } catch (e) { logger.warn('[CrazyArena] Zone validation error:', e.message); }
     
+    // 💾 Accumuler les zones de chaque round pour archivage Supabase
+    if (!match._roundsData) match._roundsData = [];
+    match._roundsData.push({
+      roundIndex: 0,
+      timestamp: new Date().toISOString(),
+      zones: zones.map(z => ({ id: z.id, type: z.type, content: z.content, pairId: z.pairId || '', isDistractor: !!z.isDistractor, points: z.points, arcPoints: z.arcPoints, angle: z.angle, mathOffset: z.mathOffset }))
+    });
+
     // ✅ Log round to monitoring dashboard
     const pairZones = zones.filter(z => z.pairId);
     _logArenaRound({
@@ -1728,6 +1752,13 @@ class CrazyArenaManager {
           
           // Valider les zones avant émission (monitoring double PA / fausse paire)
           try { validateZonesServer(newZones, { source: 'arena:round-new', matchId: matchId.slice(-8), roundIndex: match.roundsPlayed }); } catch (e) { logger.warn('[CrazyArena] Zone validation error (round-new):', e.message); }
+          // 💾 Accumuler zones pour archivage
+          if (!match._roundsData) match._roundsData = [];
+          match._roundsData.push({
+            roundIndex: match.roundsPlayed,
+            timestamp: new Date().toISOString(),
+            zones: newZones.map(z => ({ id: z.id, type: z.type, content: z.content, pairId: z.pairId || '', isDistractor: !!z.isDistractor, points: z.points, arcPoints: z.arcPoints, angle: z.angle, mathOffset: z.mathOffset }))
+          });
           // ✅ Log round to monitoring
           const _pz = newZones.filter(z => z.pairId);
           _logArenaRound({
@@ -2712,10 +2743,15 @@ class CrazyArenaManager {
         logger.info('[CrazyArena][Training] ✅ persistMatchStart terminé, mise à jour des scores...');
       }
       
-      // Marquer la session comme terminée
+      // Marquer la session comme terminée + sauvegarder rounds_data (cartes jouées)
+      const sessionUpdate = { completed_at: new Date().toISOString() };
+      if (match._roundsData && match._roundsData.length > 0) {
+        sessionUpdate.rounds_data = JSON.stringify(match._roundsData);
+        logger.info('[CrazyArena][Training] 📸 Archivage cartes: ' + match._roundsData.length + ' rounds sauvegardés', { matchId });
+      }
       await this.supabase
         .from('training_sessions')
-        .update({ completed_at: new Date().toISOString() })
+        .update(sessionUpdate)
         .eq('id', match._sessionId);
 
       // Mettre à jour chaque résultat avec position finale
@@ -2964,15 +3000,20 @@ class CrazyArenaManager {
           .eq('id', resultId);
       }
 
-      // Marquer tournament_matches comme finished
+      // Marquer tournament_matches comme finished + sauvegarder rounds_data (cartes jouées)
+      const updateData = {
+        status: 'finished',
+        finished_at: new Date().toISOString(),
+        players: JSON.stringify(ranking),
+        winner: JSON.stringify(ranking[0] || null)
+      };
+      if (match._roundsData && match._roundsData.length > 0) {
+        updateData.rounds_data = JSON.stringify(match._roundsData);
+        logger.info('[CrazyArena][Arena] 📸 Archivage cartes: ' + match._roundsData.length + ' rounds sauvegardés', { matchId });
+      }
       await this.supabase
         .from('tournament_matches')
-        .update({
-          status: 'finished',
-          finished_at: new Date().toISOString(),
-          players: JSON.stringify(ranking),
-          winner: JSON.stringify(ranking[0] || null)
-        })
+        .update(updateData)
         .eq('id', matchId);
 
       logger.info('[CrazyArena][Arena] 💾 Match Arena finalisé en DB', { matchId, players: ranking.length });

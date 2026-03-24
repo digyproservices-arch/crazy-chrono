@@ -4,416 +4,371 @@ import { getBackendUrl } from '../../utils/subscription';
 import { getAuthHeaders } from '../../utils/apiHelpers';
 import './RectoratDashboard.css';
 
-const PHASE_ICONS = { 1: '🏫', 2: '🏫', 3: '🏛️', 4: '🏆' };
-const PHASE_NAMES = {
-  1: 'CRAZY WINNER CLASSE',
-  2: 'CRAZY WINNER ÉCOLE',
-  3: 'CRAZY WINNER CIRCONSCRIPTION',
-  4: 'CRAZY WINNER ACADÉMIQUE'
-};
+const CARD = { background: '#fff', borderRadius: 16, padding: '20px 24px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0', marginBottom: 16 };
 
 const RectoratDashboard = () => {
   const navigate = useNavigate();
-  const [tournaments, setTournaments] = useState([]);
-  const [selectedTournamentId, setSelectedTournamentId] = useState(null);
-  const [supervisorData, setSupervisorData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('phases');
-  const [expandedGroups, setExpandedGroups] = useState({});
-  const [expandedTimeline, setExpandedTimeline] = useState({});
-  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [stats, setStats] = useState(null);
+  const [competitions, setCompetitions] = useState([]);
+  const [filterOfficial, setFilterOfficial] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [matchCards, setMatchCards] = useState(null);
+  const [loadingCards, setLoadingCards] = useState(false);
+  const [schools, setSchools] = useState([]);
+  const [userRegion, setUserRegion] = useState('');
 
   useEffect(() => {
-    loadTournaments();
-  }, []);
-
-  const loadSupervisorData = useCallback(async (tournamentId) => {
     try {
-      const res = await fetch(`${getBackendUrl()}/api/tournament/${tournamentId}/supervisor`, { headers: getAuthHeaders() });
-      const data = await res.json();
-      if (data.success) {
-        setSupervisorData(data);
-      }
-    } catch (err) {
-      console.error('[Rectorat] Erreur chargement supervisor:', err);
-    }
+      const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+      setUserRegion(auth.region || '');
+    } catch {}
+    loadStats();
+    loadCompetitions();
   }, []);
 
   useEffect(() => {
-    if (selectedTournamentId) {
-      loadSupervisorData(selectedTournamentId);
-    }
-  }, [selectedTournamentId, loadSupervisorData]);
+    loadCompetitions();
+  }, [filterOfficial]);
 
-  useEffect(() => {
-    if (!autoRefresh || !selectedTournamentId) return;
-    const interval = setInterval(() => loadSupervisorData(selectedTournamentId), 10000);
-    return () => clearInterval(interval);
-  }, [autoRefresh, selectedTournamentId, loadSupervisorData]);
-
-  const loadTournaments = async () => {
+  const loadStats = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${getBackendUrl()}/api/tournament/list`, { headers: getAuthHeaders() });
+      const res = await fetch(`${getBackendUrl()}/api/rectorat/stats`, { headers: getAuthHeaders() });
       const data = await res.json();
-      if (data.success) {
-        setTournaments(data.tournaments || []);
-        if (data.tournaments && data.tournaments.length > 0) {
-          setSelectedTournamentId(data.tournaments[0].id);
-        }
-      }
+      if (data.ok) setStats(data.stats);
     } catch (err) {
-      console.error('[Rectorat] Erreur chargement tournois:', err);
+      console.error('[Rectorat] stats error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const closePhase = async (phaseId) => {
-    if (!window.confirm('Voulez-vous vraiment clôturer cette phase ?\nCela passera automatiquement les gagnants à la phase suivante.')) return;
+  const loadCompetitions = useCallback(async () => {
     try {
-      const res = await fetch(`${getBackendUrl()}/api/tournament/phases/${phaseId}/close`, { method: 'PATCH', headers: getAuthHeaders() });
+      const params = new URLSearchParams({ limit: '50' });
+      if (filterOfficial) params.set('official', 'true');
+      const res = await fetch(`${getBackendUrl()}/api/rectorat/competitions?${params}`, { headers: getAuthHeaders() });
       const data = await res.json();
-      if (data.success) {
-        alert(`Phase clôturée! ${data.qualifiedCount} gagnant(s) qualifié(s).`);
-        loadSupervisorData(selectedTournamentId);
+      if (data.ok) setCompetitions(data.competitions || []);
+    } catch (err) {
+      console.error('[Rectorat] competitions error:', err);
+    }
+  }, [filterOfficial]);
+
+  const loadMatchCards = async (matchId) => {
+    try {
+      setLoadingCards(true);
+      setSelectedMatch(matchId);
+      const res = await fetch(`${getBackendUrl()}/api/rectorat/match/${matchId}/cards`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      if (data.ok) {
+        setMatchCards(data);
       } else {
-        alert(`Erreur: ${data.error}`);
+        setMatchCards({ error: data.error || 'Erreur' });
       }
     } catch (err) {
-      console.error('[Rectorat] Erreur clôture:', err);
-      alert('Erreur lors de la clôture de la phase');
+      console.error('[Rectorat] cards error:', err);
+      setMatchCards({ error: err.message });
+    } finally {
+      setLoadingCards(false);
     }
   };
 
-  const activatePhase = async (phaseId) => {
-    if (!window.confirm('Activer cette phase ?')) return;
+  const loadSchools = async () => {
     try {
-      const res = await fetch(`${getBackendUrl()}/api/tournament/phases/${phaseId}/activate`, { method: 'PATCH', headers: getAuthHeaders() });
+      const res = await fetch(`${getBackendUrl()}/api/rectorat/schools`, { headers: getAuthHeaders() });
       const data = await res.json();
-      if (data.success) {
-        alert('Phase activée!');
-        loadSupervisorData(selectedTournamentId);
-      } else {
-        alert(`Erreur: ${data.error}`);
-      }
+      if (data.ok) setSchools(data.schools || []);
     } catch (err) {
-      console.error('[Rectorat] Erreur activation:', err);
+      console.error('[Rectorat] schools error:', err);
     }
-  };
-
-  const exportRanking = async () => {
-    try {
-      const res = await fetch(`${getBackendUrl()}/api/tournament/${selectedTournamentId}/ranking/pdf`, { headers: getAuthHeaders() });
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `classement_tournoi.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (err) {
-      console.error('[Rectorat] Erreur export PDF:', err);
-      alert('Erreur lors de l\'export');
-    }
-  };
-
-  const toggleGroup = (groupId) => {
-    setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
-  };
-
-  const toggleTimelineItem = (idx) => {
-    setExpandedTimeline(prev => ({ ...prev, [idx]: !prev[idx] }));
   };
 
   const formatDate = (dateStr) => {
-    if (!dateStr) return '—';
+    if (!dateStr) return '';
     return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
-  const formatTime = (ms) => {
-    if (!ms) return '—';
-    const s = Math.round(ms / 1000);
-    return s >= 60 ? `${Math.floor(s / 60)}m${s % 60}s` : `${s}s`;
-  };
-
   // ========== RENDER ==========
-
-  if (loading) {
-    return <div className="rectorat-dashboard-container"><div className="loading">Chargement des tournois...</div></div>;
-  }
-
-  if (tournaments.length === 0) {
+  if (loading && !stats) {
     return (
-      <div className="rectorat-dashboard-container">
-        <div className="empty-state">
-          <h2>Aucun tournoi actif</h2>
-          <p>Créez un tournoi ou lancez une simulation pour commencer</p>
-          <a href="/tournament-simulator.html" target="_blank" rel="noopener noreferrer" style={{display:'inline-block',padding:'15px 40px',background:'linear-gradient(135deg, #7c3aed, #6d28d9)',color:'white',borderRadius:'10px',textDecoration:'none',fontWeight:600,fontSize:'1.1rem'}}>
-            🏆 Lancer le Simulateur
-          </a>
-        </div>
+      <div style={{ maxWidth: 1100, margin: '40px auto', padding: '0 20px', textAlign: 'center' }}>
+        <p style={{ fontSize: 18, color: '#64748b' }}>Chargement du tableau de bord...</p>
       </div>
     );
   }
 
-  const stats = supervisorData?.stats || {};
-  const phases = supervisorData?.phases || [];
-  const timeline = supervisorData?.timeline || [];
-
   return (
-    <div className="rectorat-dashboard-container">
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 20px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
       {/* HEADER */}
-      <div className="rectorat-header">
-        <div className="header-left">
-          <h1>🏛️ Dashboard Superviseur</h1>
-          <p>Vue globale du tournoi — Rectorat</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#1e293b', margin: 0 }}>
+            🏛️ Tableau de Bord Rectorat
+          </h1>
+          <p style={{ fontSize: 14, color: '#64748b', margin: '4px 0 0' }}>
+            Supervision académique {userRegion ? `— ${userRegion}` : ''}
+          </p>
         </div>
-        <div className="header-actions">
-          <label className="auto-refresh-toggle">
-            <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
-            <span>Auto-refresh 10s</span>
-          </label>
-          <a href="/tournament-simulator.html" target="_blank" rel="noopener noreferrer" className="btn-simulator" style={{padding:'8px 16px',borderRadius:'8px',background:'#7c3aed',color:'white',textDecoration:'none',fontWeight:600,fontSize:'0.85rem'}}>
-            🏆 Simulateur
-          </a>
-          <a href="/bot-tester.html" target="_blank" rel="noopener noreferrer" className="btn-bots" style={{padding:'8px 16px',borderRadius:'8px',background:'#0d6a7a',color:'white',textDecoration:'none',fontWeight:600,fontSize:'0.85rem'}}>
-            🤖 Robots
-          </a>
-          <button className="btn-secondary" onClick={() => navigate('/admin')}>← Admin</button>
-        </div>
-      </div>
-
-      {/* TOURNAMENT SELECTOR */}
-      <div className="tournament-selector">
-        <label>Tournoi:</label>
-        <select value={selectedTournamentId || ''} onChange={(e) => setSelectedTournamentId(e.target.value)}>
-          {tournaments.map(t => (
-            <option key={t.id} value={t.id}>{t.name} ({t.status})</option>
-          ))}
-        </select>
-        <button className="export-button" onClick={exportRanking}>📥 Export PDF</button>
-        <button className="btn-refresh" onClick={() => loadSupervisorData(selectedTournamentId)}>🔄 Actualiser</button>
-      </div>
-
-      {/* GLOBAL STATS */}
-      <div className="stats-grid">
-        <div className="stat-card stat-phases">
-          <div className="stat-card-icon">📊</div>
-          <div className="stat-card-value">{stats.finishedPhases || 0}/{stats.totalPhases || 0}</div>
-          <div className="stat-card-label">Phases terminées</div>
-        </div>
-        <div className="stat-card stat-groups">
-          <div className="stat-card-icon">👥</div>
-          <div className="stat-card-value">{stats.totalGroups || 0}</div>
-          <div className="stat-card-label">Groupes</div>
-        </div>
-        <div className="stat-card stat-matches">
-          <div className="stat-card-icon">⚔️</div>
-          <div className="stat-card-value">{stats.finishedMatches || 0}/{stats.totalMatches || 0}</div>
-          <div className="stat-card-label">Matchs terminés</div>
-        </div>
-        <div className="stat-card stat-players">
-          <div className="stat-card-icon">🎮</div>
-          <div className="stat-card-value">{stats.totalPlayers || 0}</div>
-          <div className="stat-card-label">Joueurs</div>
-        </div>
-        <div className="stat-card stat-playing">
-          <div className="stat-card-icon">🔴</div>
-          <div className="stat-card-value">{stats.playingMatches || 0}</div>
-          <div className="stat-card-label">Matchs en cours</div>
-        </div>
+        <button
+          onClick={() => { loadStats(); loadCompetitions(); }}
+          style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}
+        >
+          🔄 Actualiser
+        </button>
       </div>
 
       {/* TAB NAVIGATION */}
-      <div className="tab-nav">
-        <button className={`tab-btn ${activeTab === 'phases' ? 'active' : ''}`} onClick={() => setActiveTab('phases')}>
-          📊 Phases & Groupes
-        </button>
-        <button className={`tab-btn ${activeTab === 'timeline' ? 'active' : ''}`} onClick={() => setActiveTab('timeline')}>
-          🔄 Replay Timeline ({timeline.length})
-        </button>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid #e2e8f0', paddingBottom: 0 }}>
+        {[
+          { key: 'overview', label: '📊 Vue d\'ensemble' },
+          { key: 'competitions', label: '⚔️ Compétitions' },
+          { key: 'cards', label: '🃏 Cartes jouées' },
+          { key: 'schools', label: '🏫 Écoles' },
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => { setActiveTab(tab.key); if (tab.key === 'schools' && schools.length === 0) loadSchools(); }}
+            style={{
+              padding: '12px 20px', fontWeight: 700, fontSize: 14, cursor: 'pointer', border: 'none',
+              borderBottom: activeTab === tab.key ? '3px solid #1d4ed8' : '3px solid transparent',
+              background: 'transparent', color: activeTab === tab.key ? '#1d4ed8' : '#64748b',
+              transition: 'all 0.2s',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* TAB: PHASES & GROUPS */}
-      {activeTab === 'phases' && (
-        <div className="phases-section">
-          {phases.length === 0 ? (
-            <div className="no-phases">Aucune phase créée pour ce tournoi</div>
+      {/* TAB: VUE D'ENSEMBLE */}
+      {activeTab === 'overview' && stats && (
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
+            {[
+              { icon: '🏫', value: stats.schools, label: 'Écoles', color: '#3b82f6' },
+              { icon: '🎓', value: stats.licensedStudents, label: 'Élèves licenciés', color: '#10b981' },
+              { icon: '⚔️', value: stats.totalMatches, label: 'Matchs total', color: '#f59e0b' },
+              { icon: '🏛️', value: stats.officialMatches, label: 'Compétitions officielles', color: '#1d4ed8' },
+              { icon: '✅', value: stats.finishedMatches, label: 'Matchs terminés', color: '#059669' },
+            ].map((s, i) => (
+              <div key={i} style={{ ...CARD, textAlign: 'center', borderTop: `4px solid ${s.color}` }}>
+                <div style={{ fontSize: 28 }}>{s.icon}</div>
+                <div style={{ fontSize: 32, fontWeight: 800, color: s.color, margin: '8px 0 4px' }}>{s.value}</div>
+                <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={CARD}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginTop: 0 }}>Dernières compétitions</h3>
+            {competitions.length === 0 ? (
+              <p style={{ color: '#94a3b8' }}>Aucune compétition enregistrée</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {competitions.slice(0, 5).map(c => (
+                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#f8fafc', borderRadius: 10 }}>
+                    <span style={{ fontSize: 20 }}>{c.type === 'arena' ? '🏆' : '📚'}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>{c.name}</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8' }}>{formatDate(c.createdAt)}</div>
+                    </div>
+                    {c.isOfficial && <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: '#1d4ed8', color: '#fff' }}>OFFICIEL</span>}
+                    <span style={{
+                      padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                      background: c.status === 'finished' ? '#059669' : c.status === 'playing' ? '#f59e0b' : '#94a3b8',
+                      color: '#fff'
+                    }}>
+                      {c.status === 'finished' ? 'Terminé' : c.status === 'playing' ? 'En cours' : 'En attente'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB: COMPETITIONS */}
+      {activeTab === 'competitions' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <div
+                onClick={() => setFilterOfficial(p => !p)}
+                style={{ position: 'relative', width: 44, height: 24, borderRadius: 12, background: filterOfficial ? '#1d4ed8' : '#cbd5e1', transition: 'background 0.2s', cursor: 'pointer' }}>
+                <div style={{ position: 'absolute', top: 2, left: filterOfficial ? 22 : 2, width: 20, height: 20, borderRadius: 10, background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>Officielles uniquement</span>
+            </label>
+            <span style={{ fontSize: 12, color: '#94a3b8' }}>{competitions.length} résultat(s)</span>
+          </div>
+
+          {competitions.length === 0 ? (
+            <div style={{ ...CARD, textAlign: 'center', color: '#94a3b8', padding: 40 }}>
+              Aucune compétition {filterOfficial ? 'officielle ' : ''}trouvée
+            </div>
           ) : (
-            <div className="phases-grid">
-              {phases.map(phase => {
-                const progress = phase.totalGroups > 0 ? Math.round((phase.finishedGroups / phase.totalGroups) * 100) : 0;
-                const statusBadge = phase.status === 'finished' ? { label: 'Terminée', color: 'green' }
-                  : phase.status === 'active' ? { label: 'En cours', color: 'blue' }
-                  : { label: 'En attente', color: 'gray' };
-
-                return (
-                  <div key={phase.id} className={`phase-card ${phase.status}`}>
-                    <div className="phase-header">
-                      <h3>{PHASE_ICONS[phase.level] || '📌'} {phase.name || PHASE_NAMES[phase.level]}</h3>
-                      <span className={`phase-badge ${statusBadge.color}`}>{statusBadge.label}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {competitions.map(c => (
+                <div key={c.id} style={{ ...CARD, display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', cursor: 'pointer', transition: 'box-shadow 0.2s' }}
+                  onClick={() => { setActiveTab('cards'); loadMatchCards(c.id); }}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)'}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 6px rgba(0,0,0,0.06)'}
+                >
+                  <span style={{ fontSize: 24 }}>{c.type === 'arena' ? '🏆' : '📚'}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b' }}>{c.name}</div>
+                    <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                      {formatDate(c.createdAt)}
+                      {c.config?.rounds && ` — ${c.config.rounds} manches`}
+                      {c.config?.duration && ` × ${c.config.duration}s`}
                     </div>
-
-                    <div className="phase-stats">
-                      <div className="stat"><span className="stat-label">Groupes</span><span className="stat-value">{phase.totalGroups}</span></div>
-                      <div className="stat"><span className="stat-label">Terminés</span><span className="stat-value">{phase.finishedGroups}/{phase.totalGroups}</span></div>
-                      <div className="stat"><span className="stat-label">Gagnants</span><span className="stat-value">{phase.winnersCount}</span></div>
+                  </div>
+                  {c.isOfficial && <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: '#1d4ed8', color: '#fff' }}>OFFICIEL</span>}
+                  {c.winner && (
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 11, color: '#64748b' }}>Gagnant</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>🏆 {c.winner.name || c.winner.studentId?.slice(0, 12)}</div>
                     </div>
+                  )}
+                  <span style={{
+                    padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                    background: c.status === 'finished' ? '#059669' : c.status === 'playing' ? '#f59e0b' : '#94a3b8', color: '#fff'
+                  }}>
+                    {c.status === 'finished' ? 'Terminé' : c.status === 'playing' ? 'En cours' : 'En attente'}
+                  </span>
+                  <span style={{ color: '#94a3b8', fontSize: 18 }}>→</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-                    <div className="progress-bar">
-                      <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+      {/* TAB: CARTES JOUÉES */}
+      {activeTab === 'cards' && (
+        <div>
+          {!selectedMatch && (
+            <div style={{ ...CARD, textAlign: 'center', color: '#94a3b8', padding: 40 }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🃏</div>
+              <p style={{ fontSize: 16, fontWeight: 600 }}>Sélectionnez une compétition dans l'onglet "Compétitions" pour voir les cartes jouées</p>
+              <button onClick={() => setActiveTab('competitions')} style={{ marginTop: 12, padding: '10px 24px', borderRadius: 10, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>
+                ⚔️ Voir les compétitions
+              </button>
+            </div>
+          )}
+
+          {selectedMatch && loadingCards && (
+            <div style={{ ...CARD, textAlign: 'center', padding: 40 }}>
+              <p>Chargement des cartes...</p>
+            </div>
+          )}
+
+          {selectedMatch && !loadingCards && matchCards && (
+            <div>
+              {matchCards.error ? (
+                <div style={{ ...CARD, textAlign: 'center', color: '#ef4444', padding: 40 }}>
+                  <p>Erreur: {matchCards.error}</p>
+                </div>
+              ) : (
+                <>
+                  <div style={{ ...CARD, display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 24 }}>{matchCards.type === 'arena' ? '🏆' : '📚'}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 16 }}>Match {selectedMatch.slice(-8)}</div>
+                      <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                        Type: {matchCards.type === 'arena' ? 'Arena (Tournoi)' : 'Entraînement'}
+                        {matchCards.config?.classes && ` — Niveaux: ${matchCards.config.classes.join(', ')}`}
+                      </div>
                     </div>
+                    <button onClick={() => { setSelectedMatch(null); setMatchCards(null); setActiveTab('competitions'); }}
+                      style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>
+                      ← Retour
+                    </button>
+                  </div>
 
-                    {/* GROUPS DETAIL */}
-                    <div className="groups-detail">
-                      {(phase.groups || []).map(group => (
-                        <div key={group.id} className={`group-row ${group.status}`} onClick={() => toggleGroup(group.id)}>
-                          <div className="group-row-header">
-                            <span className={`group-status-dot ${group.status}`}></span>
-                            <span className="group-name">{group.name}</span>
-                            <span className="group-players">{group.studentIds?.length || 0} joueurs</span>
-                            {group.winnerId && <span className="group-winner">🏆 Gagnant</span>}
-                            {group.match?.roomCode && <span className="group-code">Code: {group.match.roomCode}</span>}
-                            <span className="group-expand">{expandedGroups[group.id] ? '▼' : '▶'}</span>
+                  {(!matchCards.rounds || matchCards.rounds.length === 0) ? (
+                    <div style={{ ...CARD, textAlign: 'center', color: '#94a3b8', padding: 40 }}>
+                      <div style={{ fontSize: 40, marginBottom: 8 }}>📭</div>
+                      <p>Aucune carte archivée pour ce match</p>
+                      <p style={{ fontSize: 12 }}>Les cartes sont archivées pour les matchs joués après l'activation de cette fonctionnalité.</p>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {matchCards.rounds.map((round, ri) => (
+                        <div key={ri} style={CARD}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                            <span style={{ padding: '4px 12px', borderRadius: 8, fontSize: 13, fontWeight: 800, background: '#1d4ed8', color: '#fff' }}>
+                              Manche {round.roundIndex + 1}
+                            </span>
+                            <span style={{ fontSize: 12, color: '#94a3b8' }}>{formatDate(round.timestamp)}</span>
+                            <span style={{ fontSize: 12, color: '#64748b' }}>{round.zones?.length || 0} zones</span>
                           </div>
 
-                          {expandedGroups[group.id] && group.match && (
-                            <div className="group-match-detail" onClick={(e) => e.stopPropagation()}>
-                              <div className="match-info-row">
-                                <span>Match: {group.match.status}</span>
-                                {group.match.finishedAt && <span>Terminé: {formatDate(group.match.finishedAt)}</span>}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
+                            {(round.zones || []).map((zone, zi) => (
+                              <div key={zi} style={{
+                                padding: '10px 12px', borderRadius: 10,
+                                border: zone.pairId ? '2px solid #10b981' : '2px solid #e2e8f0',
+                                background: zone.isDistractor ? '#fef2f2' : zone.pairId ? '#f0fdf4' : '#f8fafc',
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                  <span style={{
+                                    fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
+                                    background: zone.type === 'image' ? '#dbeafe' : zone.type === 'texte' ? '#fef3c7' : zone.type === 'calcul' ? '#ede9fe' : '#e2e8f0',
+                                    color: zone.type === 'image' ? '#1d4ed8' : zone.type === 'texte' ? '#b45309' : zone.type === 'calcul' ? '#7c3aed' : '#64748b',
+                                  }}>
+                                    {zone.type}
+                                  </span>
+                                  {zone.pairId && <span style={{ fontSize: 10, color: '#10b981', fontWeight: 600 }}>paire: {zone.pairId}</span>}
+                                  {zone.isDistractor && <span style={{ fontSize: 10, color: '#ef4444', fontWeight: 600 }}>distracteur</span>}
+                                </div>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', wordBreak: 'break-word' }}>
+                                  {zone.type === 'image'
+                                    ? (typeof zone.content === 'string' ? zone.content.split('/').pop() : 'image')
+                                    : String(zone.content || '').substring(0, 60)}
+                                </div>
                               </div>
-                              {group.match.results && group.match.results.length > 0 && (
-                                <table className="results-table">
-                                  <thead>
-                                    <tr><th>#</th><th>Joueur</th><th>Score</th><th>Paires</th><th>Erreurs</th><th>Temps</th></tr>
-                                  </thead>
-                                  <tbody>
-                                    {group.match.results.map((r, i) => (
-                                      <tr key={i} className={r.position === 1 ? 'winner-row' : ''}>
-                                        <td>{r.position === 1 ? '🏆' : `#${r.position}`}</td>
-                                        <td>{r.studentId?.slice(0, 16)}</td>
-                                        <td className="score-cell">{r.score}</td>
-                                        <td>{r.pairs}</td>
-                                        <td>{r.errors}</td>
-                                        <td>{formatTime(r.timeMs)}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              )}
-                            </div>
-                          )}
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>
-
-                    <div className="phase-actions">
-                      {phase.status === 'active' && progress === 100 && (
-                        <button className="btn-close-phase" onClick={() => closePhase(phase.id)}>🔒 Clôturer Phase</button>
-                      )}
-                      {phase.status === 'pending' && (
-                        <button className="btn-activate" onClick={() => activatePhase(phase.id)}>▶️ Activer</button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* TAB: REPLAY TIMELINE */}
-      {activeTab === 'timeline' && (
-        <div className="timeline-section">
-          <h2>🔄 Replay — Timeline Chronologique</h2>
-          <p className="timeline-subtitle">Historique complet de tous les événements du tournoi</p>
-
-          {timeline.length === 0 ? (
-            <div className="no-phases">Aucun événement enregistré</div>
+      {/* TAB: ÉCOLES */}
+      {activeTab === 'schools' && (
+        <div>
+          {schools.length === 0 ? (
+            <div style={{ ...CARD, textAlign: 'center', color: '#94a3b8', padding: 40 }}>
+              Aucune école enregistrée
+            </div>
           ) : (
-            <div className="timeline-list">
-              {timeline.map((event, idx) => {
-                const isPhaseEvent = event.type === 'phase_started' || event.type === 'phase_finished';
-                const phaseColor = { 1: '#3b82f6', 2: '#8b5cf6', 3: '#f59e0b', 4: '#ef4444' }[event.phaseLevel] || '#6b7280';
-
-                return (
-                  <div key={idx} className={`timeline-item ${event.type}`} onClick={() => !isPhaseEvent && toggleTimelineItem(idx)}>
-                    <div className="timeline-dot" style={{ background: phaseColor }}></div>
-                    <div className="timeline-line"></div>
-                    <div className="timeline-content">
-                      <div className="timeline-time">{formatDate(event.timestamp)}</div>
-
-                      {event.type === 'phase_started' && (
-                        <div className="timeline-event phase-event">
-                          <span className="timeline-icon">🚀</span>
-                          <span>Phase {event.phaseLevel} démarrée — <strong>{event.phaseName}</strong></span>
-                        </div>
-                      )}
-
-                      {event.type === 'phase_finished' && (
-                        <div className="timeline-event phase-event">
-                          <span className="timeline-icon">🔒</span>
-                          <span>Phase {event.phaseLevel} terminée — <strong>{event.phaseName}</strong></span>
-                        </div>
-                      )}
-
-                      {event.type === 'match_finished' && (
-                        <>
-                          <div className="timeline-event match-event">
-                            <span className="timeline-phase-tag" style={{ background: phaseColor }}>P{event.phaseLevel}</span>
-                            <span className="timeline-icon">⚔️</span>
-                            <span><strong>{event.groupName}</strong> — {event.playerCount} joueurs</span>
-                            {event.winnerId && <span className="timeline-winner">🏆 Score: {event.winnerScore}</span>}
-                            <span className="timeline-expand">{expandedTimeline[idx] ? '▼' : '▶'}</span>
-                          </div>
-
-                          {expandedTimeline[idx] && event.results && (
-                            <div className="timeline-results">
-                              <table className="results-table compact">
-                                <thead>
-                                  <tr><th>#</th><th>Joueur</th><th>Score</th><th>Paires</th><th>Erreurs</th><th>Temps</th></tr>
-                                </thead>
-                                <tbody>
-                                  {event.results.map((r, i) => (
-                                    <tr key={i} className={r.position === 1 ? 'winner-row' : ''}>
-                                      <td>{r.position === 1 ? '🏆' : `#${r.position}`}</td>
-                                      <td>{r.studentId?.slice(0, 16)}</td>
-                                      <td className="score-cell">{r.score}</td>
-                                      <td>{r.pairs}</td>
-                                      <td>{r.errors}</td>
-                                      <td>{formatTime(r.timeMs)}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+              {schools.map(s => (
+                <div key={s.id} style={{ ...CARD, padding: '16px 20px' }}>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: '#1e293b', marginBottom: 4 }}>🏫 {s.name}</div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>{s.city} {s.postal_code}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#eff6ff', color: '#1d4ed8' }}>
+                      {s.studentCount} élève(s) licencié(s)
+                    </span>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
         </div>
       )}
-
-      {/* HELP */}
-      <div className="help-section">
-        <h3>ℹ️ Aide</h3>
-        <ul>
-          <li><strong>Phases & Groupes:</strong> Visualisez chaque phase, cliquez sur un groupe pour voir les résultats détaillés du match</li>
-          <li><strong>Replay Timeline:</strong> Revivez chronologiquement tous les événements du tournoi</li>
-          <li><strong>Clôturer Phase:</strong> Quand tous les groupes sont terminés (100%), clôture et qualifie les gagnants</li>
-          <li><strong>Auto-refresh:</strong> Activez pour suivre les matchs en temps réel (10s)</li>
-        </ul>
-      </div>
     </div>
   );
 };

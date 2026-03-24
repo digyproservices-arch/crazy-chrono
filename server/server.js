@@ -225,6 +225,10 @@ app.use('/api/training', trainingRoutes);
 const notificationsRoutes = require('./routes/notifications');
 app.use('/api/notifications', notificationsRoutes);
 
+// ===== Rectorat Routes (Dashboard académique) =====
+const rectoratRoutes = require('./routes/rectorat');
+app.use('/api/rectorat', rectoratRoutes);
+
 // ===== Grande Salle Routes (Tournois programmés) =====
 const grandeSalleRoutes = require('./routes/grandeSalle');
 app.use('/api/gs', grandeSalleRoutes);

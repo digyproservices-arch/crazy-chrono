@@ -53,4 +53,25 @@ async function requireAdminAuth(req, res, next) {
   }
 }
 
-module.exports = { requireAuth, requireAdminAuth };
+// Require rectorat or admin role
+async function requireRectoratAuth(req, res, next) {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) return res.status(503).json({ ok: false, error: 'service_unavailable' });
+    const authz = String(req.headers['authorization'] || '').trim();
+    if (!authz.startsWith('Bearer ')) return res.status(401).json({ ok: false, error: 'missing_token' });
+    const token = authz.slice(7).trim();
+    const { data: who, error: whoErr } = await supabase.auth.getUser(token);
+    if (whoErr || !who?.user) return res.status(401).json({ ok: false, error: 'invalid_token' });
+    const { data: prof } = await supabase.from('user_profiles').select('role, region').eq('id', who.user.id).single();
+    if (!prof || (prof.role !== 'rectorat' && prof.role !== 'admin')) {
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
+    req.rectoratUser = { id: who.user.id, email: who.user.email, role: prof.role, region: prof.region };
+    next();
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'auth_error' });
+  }
+}
+
+module.exports = { requireAuth, requireAdminAuth, requireRectoratAuth };

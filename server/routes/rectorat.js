@@ -1,0 +1,231 @@
+// ==========================================
+// ROUTES API RECTORAT
+// Dashboard académique - stats, compétitions, cartes jouées
+// ==========================================
+
+const express = require('express');
+const router = express.Router();
+const { requireRectoratAuth } = require('../middleware/auth');
+const { createClient } = require('@supabase/supabase-js');
+
+let _supabase = null;
+function getSupabase() {
+  if (_supabase) return _supabase;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  _supabase = createClient(url, key, { auth: { persistSession: false } });
+  return _supabase;
+}
+
+// ── GET /api/rectorat/stats ──
+// Vue d'ensemble: nombre d'écoles, élèves, matchs, sessions
+router.get('/stats', requireRectoratAuth, async (req, res) => {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) return res.status(503).json({ ok: false, error: 'db_unavailable' });
+
+    const [schools, students, matches, sessions] = await Promise.all([
+      supabase.from('schools').select('id', { count: 'exact', head: true }),
+      supabase.from('students').select('id', { count: 'exact', head: true }).eq('licensed', true),
+      supabase.from('tournament_matches').select('id', { count: 'exact', head: true }),
+      supabase.from('training_sessions').select('id', { count: 'exact', head: true }),
+    ]);
+
+    // Matchs officiels
+    const { count: officialCount } = await supabase
+      .from('tournament_matches')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_official', true);
+
+    // Matchs terminés
+    const { count: finishedMatches } = await supabase
+      .from('tournament_matches')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'finished');
+
+    // Sessions terminées
+    const { count: finishedSessions } = await supabase
+      .from('training_sessions')
+      .select('id', { count: 'exact', head: true })
+      .not('completed_at', 'is', null);
+
+    res.json({
+      ok: true,
+      stats: {
+        schools: schools.count || 0,
+        licensedStudents: students.count || 0,
+        totalMatches: (matches.count || 0) + (sessions.count || 0),
+        officialMatches: officialCount || 0,
+        finishedMatches: (finishedMatches || 0) + (finishedSessions || 0),
+      }
+    });
+  } catch (e) {
+    console.error('[Rectorat API] stats error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── GET /api/rectorat/competitions ──
+// Liste des matchs (Arena + Training) avec filtres
+router.get('/competitions', requireRectoratAuth, async (req, res) => {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) return res.status(503).json({ ok: false, error: 'db_unavailable' });
+
+    const { official, status, limit: lim, offset } = req.query;
+    const pageSize = Math.min(parseInt(lim) || 50, 100);
+    const pageOffset = parseInt(offset) || 0;
+
+    // 1. Tournament matches (Arena)
+    let arenaQuery = supabase
+      .from('tournament_matches')
+      .select('id, tournament_id, status, room_code, config, players, winner, is_official, started_at, finished_at, created_at')
+      .order('created_at', { ascending: false })
+      .range(pageOffset, pageOffset + pageSize - 1);
+
+    if (official === 'true') arenaQuery = arenaQuery.eq('is_official', true);
+    if (status) arenaQuery = arenaQuery.eq('status', status);
+
+    const { data: arenaMatches, error: arenaErr } = await arenaQuery;
+    if (arenaErr) throw arenaErr;
+
+    // 2. Training sessions
+    let trainingQuery = supabase
+      .from('training_sessions')
+      .select('id, match_id, session_name, config, class_id, completed_at, created_at')
+      .order('created_at', { ascending: false })
+      .range(pageOffset, pageOffset + pageSize - 1);
+
+    const { data: trainingSessions, error: trainingErr } = await trainingQuery;
+    if (trainingErr) throw trainingErr;
+
+    // Combiner et trier
+    const competitions = [
+      ...(arenaMatches || []).map(m => ({
+        id: m.id,
+        type: 'arena',
+        name: `Arena ${m.room_code || m.id.slice(-8)}`,
+        status: m.status,
+        isOfficial: m.is_official || false,
+        config: typeof m.config === 'string' ? JSON.parse(m.config) : m.config,
+        players: typeof m.players === 'string' ? JSON.parse(m.players) : m.players,
+        winner: typeof m.winner === 'string' ? JSON.parse(m.winner) : m.winner,
+        startedAt: m.started_at,
+        finishedAt: m.finished_at,
+        createdAt: m.created_at,
+      })),
+      ...(trainingSessions || []).map(s => ({
+        id: s.id,
+        type: 'training',
+        name: s.session_name || 'Session Entraînement',
+        status: s.completed_at ? 'finished' : 'in_progress',
+        isOfficial: !!(typeof s.config === 'object' ? s.config : JSON.parse(s.config || '{}')).isOfficial,
+        config: typeof s.config === 'string' ? JSON.parse(s.config) : s.config,
+        classId: s.class_id,
+        finishedAt: s.completed_at,
+        createdAt: s.created_at,
+      })),
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    // Filter official after merge if needed
+    const filtered = official === 'true' ? competitions.filter(c => c.isOfficial) : competitions;
+
+    res.json({ ok: true, competitions: filtered.slice(0, pageSize), total: filtered.length });
+  } catch (e) {
+    console.error('[Rectorat API] competitions error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── GET /api/rectorat/match/:id/cards ──
+// Cartes jouées pour un match donné (rounds_data)
+router.get('/match/:id/cards', requireRectoratAuth, async (req, res) => {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) return res.status(503).json({ ok: false, error: 'db_unavailable' });
+
+    const matchId = req.params.id;
+
+    // Essayer tournament_matches d'abord
+    const { data: arenaMatch } = await supabase
+      .from('tournament_matches')
+      .select('id, rounds_data, config, status, players, winner, started_at, finished_at')
+      .eq('id', matchId)
+      .single();
+
+    if (arenaMatch) {
+      const roundsData = arenaMatch.rounds_data
+        ? (typeof arenaMatch.rounds_data === 'string' ? JSON.parse(arenaMatch.rounds_data) : arenaMatch.rounds_data)
+        : [];
+      return res.json({
+        ok: true,
+        type: 'arena',
+        matchId,
+        rounds: roundsData,
+        config: typeof arenaMatch.config === 'string' ? JSON.parse(arenaMatch.config) : arenaMatch.config,
+        status: arenaMatch.status,
+        players: typeof arenaMatch.players === 'string' ? JSON.parse(arenaMatch.players) : arenaMatch.players,
+      });
+    }
+
+    // Essayer training_sessions
+    const { data: session } = await supabase
+      .from('training_sessions')
+      .select('id, rounds_data, config, session_name, completed_at')
+      .eq('id', matchId)
+      .single();
+
+    if (session) {
+      const roundsData = session.rounds_data
+        ? (typeof session.rounds_data === 'string' ? JSON.parse(session.rounds_data) : session.rounds_data)
+        : [];
+      return res.json({
+        ok: true,
+        type: 'training',
+        matchId,
+        rounds: roundsData,
+        config: typeof session.config === 'string' ? JSON.parse(session.config) : session.config,
+        name: session.session_name,
+      });
+    }
+
+    res.status(404).json({ ok: false, error: 'Match non trouvé' });
+  } catch (e) {
+    console.error('[Rectorat API] match cards error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── GET /api/rectorat/schools ──
+// Liste des écoles avec stats
+router.get('/schools', requireRectoratAuth, async (req, res) => {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) return res.status(503).json({ ok: false, error: 'db_unavailable' });
+
+    const { data: schools, error } = await supabase
+      .from('schools')
+      .select('id, name, type, city, postal_code')
+      .order('name');
+
+    if (error) throw error;
+
+    // Compter élèves par école
+    const schoolStats = await Promise.all((schools || []).map(async (school) => {
+      const { count } = await supabase
+        .from('students')
+        .select('id', { count: 'exact', head: true })
+        .eq('school_id', school.id)
+        .eq('licensed', true);
+      return { ...school, studentCount: count || 0 };
+    }));
+
+    res.json({ ok: true, schools: schoolStats });
+  } catch (e) {
+    console.error('[Rectorat API] schools error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+module.exports = router;
