@@ -4,6 +4,7 @@ import supabase from '../../utils/supabaseClient';
 export default function AdminInvite() {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('editor');
+  const [region, setRegion] = useState('guadeloupe');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
@@ -47,6 +48,7 @@ export default function AdminInvite() {
           email: em,
           role,
           token,
+          region: role === 'rectorat' ? region : null,
           invited_by: (await supabase.auth.getUser()).data?.user?.email
         })
         .select()
@@ -90,11 +92,31 @@ export default function AdminInvite() {
               style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, marginTop: 4 }}
             >
               <option value="user">Utilisateur</option>
+              <option value="teacher">Enseignant</option>
               <option value="editor">Éditeur</option>
+              <option value="rectorat">🏛️ Rectorat (cadre académique)</option>
               <option value="admin">Admin</option>
             </select>
           </label>
           
+          {role === 'rectorat' && (
+            <label>
+              Région académique
+              <select
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, marginTop: 4 }}
+              >
+                <option value="guadeloupe">Guadeloupe</option>
+                <option value="martinique">Martinique</option>
+                <option value="guyane">Guyane</option>
+                <option value="reunion">La Réunion</option>
+                <option value="mayotte">Mayotte</option>
+                <option value="metropole">Métropole</option>
+              </select>
+            </label>
+          )}
+
           {err && <div style={{ color: '#b91c1c', padding: 10, background: '#fee', borderRadius: 6 }}>{err}</div>}
           {msg && <div style={{ color: '#065f46', padding: 10, background: '#d1fae5', borderRadius: 6 }}>{msg}</div>}
           
@@ -129,7 +151,7 @@ export default function AdminInvite() {
                       padding: '4px 8px', 
                       borderRadius: 4, 
                       fontSize: 12,
-                      background: inv.role === 'admin' ? '#7c3aed' : inv.role === 'editor' ? '#0891b2' : '#6b7280',
+                      background: inv.role === 'admin' ? '#7c3aed' : inv.role === 'rectorat' ? '#1d4ed8' : inv.role === 'editor' ? '#0891b2' : inv.role === 'teacher' ? '#059669' : '#6b7280',
                       color: '#fff'
                     }}>
                       {inv.role}

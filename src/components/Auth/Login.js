@@ -6,6 +6,12 @@ import { logAuth } from '../../utils/authLogger';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com';
 
+// Redirection post-login selon le rôle
+const getPostLoginPath = (profile) => {
+  if (profile?.role === 'rectorat') return '/rectorat';
+  return '/modes';
+};
+
 export default function Login({ onLogin }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -21,6 +27,7 @@ export default function Login({ onLogin }) {
   const [signupMode, setSignupMode] = useState(false);
   const [inviteToken, setInviteToken] = useState('');
   const [inviteRole, setInviteRole] = useState('');
+  const [inviteRegion, setInviteRegion] = useState(null);
   const [studentMode, setStudentMode] = useState(false);
   const [studentCode, setStudentCode] = useState('');
   const [acceptCgu, setAcceptCgu] = useState(false);
@@ -41,9 +48,10 @@ export default function Login({ onLogin }) {
           if (inv && new Date(inv.expires_at) > new Date()) {
             setInviteToken(token);
             setInviteRole(inv.role);
+            if (inv.region) setInviteRegion(inv.region);
             setEmail(inv.email);
             setSignupMode(true);
-            setInfo(`Invitation pour ${inv.email} en tant que ${inv.role}`);
+            setInfo(`Invitation pour ${inv.email} en tant que ${inv.role}${inv.region ? ` (${inv.region})` : ''}`);
             return;
           }
         }
@@ -95,7 +103,7 @@ export default function Login({ onLogin }) {
             });
             try { localStorage.setItem('cc_auth', JSON.stringify(profile)); } catch {}
             onLogin && onLogin(profile);
-            navigate('/modes', { replace: true });
+            navigate(getPostLoginPath(profile), { replace: true });
             return;
           }
         }
@@ -103,7 +111,7 @@ export default function Login({ onLogin }) {
         const saved = localStorage.getItem('cc_auth');
         if (saved) {
           const payload = JSON.parse(saved);
-          if (payload?.id || payload?.pseudo) navigate('/modes', { replace: true });
+          if (payload?.id || payload?.pseudo) navigate(getPostLoginPath(payload), { replace: true });
         }
       } catch {}
     })();
@@ -234,6 +242,7 @@ export default function Login({ onLogin }) {
           firstName: firstName,
           lastName: lastName,
           role: userProfile?.role || 'user',
+          ...(userProfile?.region ? { region: userProfile.region } : {}),
           token: data?.session?.access_token
         };
         
@@ -297,7 +306,7 @@ export default function Login({ onLogin }) {
         }
         
         onLogin && onLogin(profile);
-        navigate('/modes', { replace: true });
+        navigate(getPostLoginPath(profile), { replace: true });
       }
     } catch (e1) {
       setError(e1.message || 'Erreur de connexion');
@@ -351,15 +360,17 @@ export default function Login({ onLogin }) {
         const roleToAssign = inviteRole || 'user';
         
         // Créer le profil dans user_profiles
-        await supabase
-          .from('user_profiles')
-          .upsert({
+        const profileData = {
             id: user.id,
             email: em,
             first_name: fn,
             last_name: ln,
             role: roleToAssign
-          }, { onConflict: 'id' });
+          };
+        if (inviteRegion) profileData.region = inviteRegion;
+        await supabase
+          .from('user_profiles')
+          .upsert(profileData, { onConflict: 'id' });
         
         // Si invitation, marquer comme utilisée
         if (inviteToken) {
@@ -378,11 +389,12 @@ export default function Login({ onLogin }) {
           email: u.email, 
           name: u.user_metadata?.name || u.email?.split('@')[0], 
           role: inviteRole || 'user',
+          ...(inviteRegion ? { region: inviteRegion } : {}),
           token: session.access_token // Ajouter le token pour les API calls
         };
         saveAuth(profile);
         onLogin && onLogin(profile);
-        navigate('/modes', { replace: true });
+        navigate(getPostLoginPath(profile), { replace: true });
         return;
       }
       // Cas standard: confirmation e‑mail requise
@@ -438,7 +450,7 @@ export default function Login({ onLogin }) {
           // ✅ FIX: Un élève qui se connecte avec succès est forcément licencié (le backend rejette les non-licenciés)
           try { localStorage.setItem('cc_subscription_status', 'pro'); } catch {}
           onLogin && onLogin(profile);
-          navigate('/modes', { replace: true });
+          navigate(getPostLoginPath(profile), { replace: true });
         }
       }
     } catch (e1) {

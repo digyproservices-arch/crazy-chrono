@@ -62,6 +62,14 @@ const RequireAdmin = ({ children }) => {
   return <Navigate to="/modes" replace />;
 };
 
+const RequireRectorat = ({ children }) => {
+  try {
+    const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
+    if (a && (a.role === 'rectorat' || a.role === 'admin' || a.isAdmin)) return children;
+  } catch {}
+  return <Navigate to="/modes" replace />;
+};
+
 const RequirePro = ({ children, auth }) => {
   if (!auth) return <Navigate to="/login" replace />;
   try {
@@ -494,6 +502,8 @@ function App() {
               <Route path="/grande-salle" element={<RequireAuth auth={auth}><GrandeSalle /></RequireAuth>} />
               <Route path="/grande-salle/tournament/:tournamentId" element={<RequireAuth auth={auth}><GrandeSalle /></RequireAuth>} />
               <Route path="/admin/tournaments" element={<RequireAdmin><TournamentAdmin /></RequireAdmin>} />
+              {/* Dashboard Rectorat (cadres académiques) */}
+              <Route path="/rectorat" element={<RequireRectorat><RectoratDashboard /></RequireRectorat>} />
               {/* Mode Apprendre (Premium) */}
               <Route path="/apprendre" element={<RequireAuth auth={auth}><LearnMode /></RequireAuth>} />
               {/* Carte (éditeur/jeu) accessible en direct si nécessaire, sinon on y accède après config */}
