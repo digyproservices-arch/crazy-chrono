@@ -871,7 +871,20 @@ sections.push(`===== FIN DU RAPPORT =====`);
                                 <button onClick={() => viewScreenshot(r.id)} disabled={screenshotLoading} title="Voir screenshot" style={{ marginLeft: 8, padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: '#3b82f6', color: '#fff', border: 'none', cursor: 'pointer' }}>📷</button>
                               )}
                               {r.zonesSnapshot && r.zonesSnapshot.length > 0 && (
-                                <button onClick={() => setZoneViewerRound(r)} title="Voir la carte (zones visuelles)" style={{ marginLeft: 6, padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: '#8b5cf6', color: '#fff', border: 'none', cursor: 'pointer' }}>🗺️ Carte</button>
+                                <button onClick={() => setZoneViewerRound(r)} title="Voir la carte (données)" style={{ marginLeft: 6, padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: '#8b5cf6', color: '#fff', border: 'none', cursor: 'pointer' }}>🗺️ Données</button>
+                              )}
+                              {r.zonesFull && r.zonesFull.length > 0 && (
+                                <button onClick={() => {
+                                  const w = window.open('/card-screenshot.html', '_blank', 'width=1050,height=1080,scrollbars=no,resizable=yes');
+                                  if (w) {
+                                    const sendData = () => {
+                                      w.postMessage({ type: 'render-card', zones: r.zonesFull, meta: { matchId: r.matchId, roundIndex: r.roundIndex, mode: r.mode } }, '*');
+                                    };
+                                    // Wait for window to load before sending data
+                                    setTimeout(sendData, 1500);
+                                    setTimeout(sendData, 3000);
+                                  }
+                                }} title="Voir la VRAIE carte (rendu identique au joueur)" style={{ marginLeft: 4, padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: '#059669', color: '#fff', border: 'none', cursor: 'pointer' }}>👁️ Vraie carte</button>
                               )}
                               {r.issues && r.issues.map((iss, j) => (
                                 <div key={j} style={{ marginLeft: 20, color: '#ef4444', fontSize: 11, marginTop: 2 }}>

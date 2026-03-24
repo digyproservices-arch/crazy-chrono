@@ -1688,7 +1688,8 @@ class CrazyArenaManager {
       doublePairIssues: 0,
       issues: [],
       summary: { totalZones: zones.length, pairedCount: pairZones.length },
-      zonesSnapshot: zones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 80), pairId: z.pairId || '', isDistractor: !!z.isDistractor }))
+      zonesSnapshot: zones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 80), pairId: z.pairId || '', isDistractor: !!z.isDistractor })),
+      zonesFull: zones.map(z => ({ id: z.id, type: z.type, content: z.content, pairId: z.pairId || '', isDistractor: !!z.isDistractor, points: z.points, arcPoints: z.arcPoints, angle: z.angle, mathOffset: z.mathOffset }))
     });
     
     this.io.to(matchId).emit('arena:game-start', gameStartPayload);
@@ -1735,7 +1736,8 @@ class CrazyArenaManager {
             matchId: matchId.slice(-8), roundIndex: match.roundsPlayed,
             validPairs: Math.floor(_pz.length / 2), doublePairIssues: 0, issues: [],
             summary: { totalZones: newZones.length, pairedCount: _pz.length },
-            zonesSnapshot: newZones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 80), pairId: z.pairId || '', isDistractor: !!z.isDistractor }))
+            zonesSnapshot: newZones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 80), pairId: z.pairId || '', isDistractor: !!z.isDistractor })),
+            zonesFull: newZones.map(z => ({ id: z.id, type: z.type, content: z.content, pairId: z.pairId || '', isDistractor: !!z.isDistractor, points: z.points, arcPoints: z.arcPoints, angle: z.angle, mathOffset: z.mathOffset }))
           });
           // Émettre nouvelle carte à tous les joueurs
           this.io.to(matchId).emit('arena:round-new', {

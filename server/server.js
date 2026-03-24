@@ -201,6 +201,18 @@ const monitoringRoutes = require('./routes/monitoring');
 const { startWeeklyMonitoring, startDailyMonitoring } = require('./cronJobs');
 app.use('/api/monitoring', monitoringRoutes);
 
+// ===== Internal: Screenshot Data for Puppeteer =====
+app.get('/api/internal/screenshot-data/:id', (req, res) => {
+  try {
+    const { loadZoneData } = require('./utils/screenshotService');
+    const data = loadZoneData(req.params.id);
+    if (!data) return res.status(404).json({ error: 'not found' });
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ===== Tournament / Battle Royale Routes =====
 const tournamentRoutes = require('./routes/tournament');
 app.use('/api/tournament', tournamentRoutes);

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1000, height=1000">
+<title>Card Screenshot Renderer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 1000px; height: 1000px; overflow: hidden; background: #1a1a2e; }
+  #card-container {
+    position: relative;
+    width: 1000px;
+    height: 1000px;
+  }
+  #bg-map {
+    position: absolute;
+    top: 0; left: 0;
+    width: 1000px; height: 1000px;
+    pointer-events: none;
+  }
+  #svg-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 1000px; height: 1000px;
+    z-index: 2;
+  }
+  #status {
+    position: absolute;
+    bottom: 4px; right: 4px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.4);
+    z-index: 10;
+    font-family: monospace;
+  }
+  /* Pair highlight badge */
+  .pair-badge {
+    position: absolute;
+    z-index: 20;
+    background: #fbbf24;
+    color: #000;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 4px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="card-container">
+  <object id="bg-map" type="image/svg+xml" data="images/carte-svg.svg">SVG non supporté</object>
+  <svg id="svg-overlay" width="1000" height="1000" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <defs id="svg-defs"></defs>
+    <g id="zones-group"></g>
+  </svg>
+  <div id="status">Loading...</div>
+</div>
+
+<script>
+// ── Bézier path from points (EXACT copy of CarteUtils.js pointsToBezierPath) ──
+function pointsToBezierPath(points) {
+  if (!points || points.length === 0) return '';
+  let d = `M ${points[0].x},${points[0].y} `;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    if (prev.handleOut && curr.handleIn) {
+      d += `C ${prev.handleOut.x},${prev.handleOut.y} ${curr.handleIn.x},${curr.handleIn.y} ${curr.x},${curr.y} `;
+    } else if (curr.handleIn) {
+      d += `Q ${curr.handleIn.x},${curr.handleIn.y} ${curr.x},${curr.y} `;
+    } else {
+      d += `L ${curr.x},${curr.y} `;
+    }
+  }
+  d += 'Z';
+  return d;
+}
+
+// ── Bounding box ──
+function getZoneBoundingBox(points) {
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+  return {
+    x: Math.min(...xs), y: Math.min(...ys),
+    width: Math.max(...xs) - Math.min(...xs),
+    height: Math.max(...ys) - Math.min(...ys)
+  };
+}
+
+// ── Arc path for curved text (EXACT copy of CarteRenderer.js) ──
+function interpolateArc(points, idxStart, idxEnd, marginPx) {
+  const start = points[idxStart] || points[0];
+  const end = points[idxEnd] || points[1];
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+  const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const r = (Math.hypot(start.x - centerX, start.y - centerY) + Math.hypot(end.x - centerX, end.y - centerY)) / 2;
+  const angleStart = Math.atan2(start.y - centerY, start.x - centerX);
+  const angleEnd = Math.atan2(end.y - centerY, end.x - centerX);
+  let delta = angleEnd - angleStart;
+  if (delta < 0) delta += 2 * Math.PI;
+  const arcLen = r * delta;
+  const marginAngle = marginPx / r;
+  const newAngleStart = angleStart + marginAngle;
+  const newAngleEnd = angleEnd - marginAngle;
+  return {
+    newStart: { x: centerX + r * Math.cos(newAngleStart), y: centerY + r * Math.sin(newAngleStart) },
+    newEnd: { x: centerX + r * Math.cos(newAngleEnd), y: centerY + r * Math.sin(newAngleEnd) },
+    r, centerX, centerY, largeArcFlag: 0, sweepFlag: 1, arcLen, delta
+  };
+}
+
+function getArcPath(points, arcPoints) {
+  if (!points || points.length < 2) return '';
+  let idxStart = 0, idxEnd = 1;
+  if (Array.isArray(arcPoints) && arcPoints.length === 2) {
+    idxStart = arcPoints[0];
+    idxEnd = arcPoints[1];
+  }
+  const { newStart, newEnd, r, largeArcFlag, sweepFlag } = interpolateArc(points, idxStart, idxEnd, 0);
+  return `M ${newStart.x},${newStart.y} A ${r},${r} 0 ${largeArcFlag},${sweepFlag} ${newEnd.x},${newEnd.y}`;
+}
+
+// ── Render all zones ──
+function renderZones(zones) {
+  const defs = document.getElementById('svg-defs');
+  const group = document.getElementById('zones-group');
+  defs.innerHTML = '';
+  group.innerHTML = '';
+
+  // Compute chiffreRefBase (average base of chiffre zones)
+  const chiffreBases = zones
+    .filter(z => z.type === 'chiffre' && Array.isArray(z.points) && z.points.length > 0)
+    .map(z => { const b = getZoneBoundingBox(z.points); return Math.max(12, Math.min(b.width, b.height)); });
+  const chiffreRefBase = chiffreBases.length > 0 ? chiffreBases.reduce((a, b) => a + b, 0) / chiffreBases.length : null;
+
+  // 1) Defs: clipPaths for images + text curve paths
+  zones.forEach(z => {
+    if (!Array.isArray(z.points) || z.points.length < 2) return;
+    if (z.type === 'image') {
+      const cp = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+      cp.setAttribute('id', `clip-zone-${z.id}`);
+      cp.setAttribute('clipPathUnits', 'userSpaceOnUse');
+      const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      p.setAttribute('d', pointsToBezierPath(z.points));
+      cp.appendChild(p);
+      defs.appendChild(cp);
+    } else {
+      const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      p.setAttribute('id', `text-curve-${z.id}`);
+      p.setAttribute('d', getArcPath(z.points, z.arcPoints));
+      p.setAttribute('fill', 'none');
+      defs.appendChild(p);
+    }
+  });
+
+  // 2) Sort: images first (behind), then text/calcul/chiffre on top
+  const sorted = [...zones].sort((a, b) => (a.type === 'image' ? 0 : 1) - (b.type === 'image' ? 0 : 1));
+
+  sorted.forEach(zone => {
+    if (!Array.isArray(zone.points) || zone.points.length < 2) return;
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('data-zone-id', zone.id);
+
+    const hasPair = !!(zone.pairId);
+
+    // ── Image zones ──
+    if (zone.type === 'image' && zone.content) {
+      const raw = zone.content;
+      const src = raw.startsWith('http') ? raw :
+        (raw.startsWith('/') ? raw.slice(1) : (raw.startsWith('images/') ? raw : 'images/' + raw));
+      const bbox = getZoneBoundingBox(zone.points);
+      const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+      img.setAttribute('href', encodeURI(src));
+      img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', encodeURI(src));
+      img.setAttribute('x', bbox.x);
+      img.setAttribute('y', bbox.y);
+      img.setAttribute('width', bbox.width);
+      img.setAttribute('height', bbox.height);
+      img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+      img.setAttribute('clip-path', `url(#clip-zone-${zone.id})`);
+      img.style.pointerEvents = 'none';
+      g.appendChild(img);
+    }
+
+    // ── Zone path (fill) ──
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', pointsToBezierPath(zone.points));
+    if (zone.type === 'image') {
+      path.setAttribute('fill', hasPair ? 'rgba(255,214,0,0.25)' : 'rgba(255,214,0,0.01)');
+    } else {
+      path.setAttribute('fill', hasPair ? 'rgba(40,167,69,0.25)' : 'rgba(40,167,69,0.01)');
+    }
+    path.setAttribute('stroke', hasPair ? '#fbbf24' : 'none');
+    path.setAttribute('stroke-width', hasPair ? '2' : '0');
+    g.appendChild(path);
+
+    // ── Text zones (curved) ──
+    if (zone.type === 'texte') {
+      const pts = zone.points;
+      let idxS = 0, idxE = 1;
+      if (Array.isArray(zone.arcPoints) && zone.arcPoints.length === 2) {
+        idxS = zone.arcPoints[0]; idxE = zone.arcPoints[1];
+      }
+      const { r, delta } = interpolateArc(pts, idxS, idxE, 0);
+      const arcLen = r * delta;
+      const textValue = zone.content || zone.label || '';
+      const baseFontSize = 32;
+      const textLen = textValue.length * baseFontSize * 0.6;
+      const marginPx = 24;
+      const fontSize = textLen > arcLen - 2 * marginPx
+        ? Math.max(12, (arcLen - 2 * marginPx) / (textValue.length * 0.6))
+        : baseFontSize;
+
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('font-size', fontSize);
+      text.setAttribute('font-family', 'Arial');
+      text.setAttribute('fill', '#fff');
+      text.setAttribute('font-weight', 'bold');
+      const tp = document.createElementNS('http://www.w3.org/2000/svg', 'textPath');
+      tp.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', `#text-curve-${zone.id}`);
+      tp.setAttribute('startOffset', '50%');
+      tp.setAttribute('text-anchor', 'middle');
+      tp.setAttribute('dominant-baseline', 'middle');
+      tp.textContent = textValue;
+      text.appendChild(tp);
+      g.appendChild(text);
+    }
+
+    // ── Calcul / Chiffre zones (centered text) ──
+    if ((zone.type === 'calcul' || zone.type === 'chiffre') && zone.content) {
+      const bbox = getZoneBoundingBox(zone.points);
+      const cx = bbox.x + bbox.width / 2;
+      const cy = bbox.y + bbox.height / 2;
+      const base = Math.max(12, Math.min(bbox.width, bbox.height));
+      const chiffreBaseMin = chiffreRefBase ? 0.95 * chiffreRefBase : base;
+      const effectiveBase = (zone.type === 'chiffre') ? Math.max(base, chiffreBaseMin) : base;
+      const rawFontSize = (zone.type === 'chiffre' ? 0.42 : 0.38) * effectiveBase;
+      const contentStr = String(zone.content).trim();
+      const charW = 0.52;
+      const fitW = contentStr.length > 0 ? (bbox.width * 0.92) / (contentStr.length * charW) : rawFontSize;
+      const fitH = bbox.height * 0.75;
+      const fontSize = Math.max(10, Math.min(rawFontSize, fitW, fitH));
+      const angle = Number(zone.angle || 0);
+      const mo = zone.mathOffset || { x: 0, y: 0 };
+
+      const gTransform = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      gTransform.setAttribute('transform', `translate(${mo.x || 0} ${mo.y || 0}) rotate(${angle} ${cx} ${cy})`);
+
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', cx);
+      text.setAttribute('y', cy);
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('alignment-baseline', 'middle');
+      text.setAttribute('font-size', fontSize);
+      text.setAttribute('fill', '#456451');
+      text.setAttribute('font-weight', 'bold');
+      text.textContent = zone.content;
+      gTransform.appendChild(text);
+
+      // Underline for chiffre
+      if (zone.type === 'chiffre') {
+        const underLen = 0.5 * fontSize;
+        const half = underLen / 2;
+        const uy = cy + 0.54 * fontSize;
+        const strokeW = Math.max(1, 0.09 * fontSize);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', cx - half);
+        line.setAttribute('y1', uy);
+        line.setAttribute('x2', cx + half);
+        line.setAttribute('y2', uy);
+        line.setAttribute('stroke', '#456451');
+        line.setAttribute('stroke-width', strokeW);
+        line.setAttribute('stroke-linecap', 'round');
+        gTransform.appendChild(line);
+      }
+
+      g.appendChild(gTransform);
+    }
+
+    // ── Pair indicator ──
+    if (hasPair) {
+      const bbox = getZoneBoundingBox(zone.points);
+      const star = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      star.setAttribute('x', bbox.x + 4);
+      star.setAttribute('y', bbox.y + 14);
+      star.setAttribute('font-size', '14');
+      star.setAttribute('fill', '#fbbf24');
+      star.textContent = '\u2B50';
+      g.appendChild(star);
+    }
+
+    group.appendChild(g);
+  });
+}
+
+// ── Render zones and wait for images ──
+async function doRender(zones, meta) {
+  const statusEl = document.getElementById('status');
+  try {
+    statusEl.textContent = `Rendering ${zones.length} zones...`;
+    renderZones(zones);
+
+    // Wait for images to load
+    const images = document.querySelectorAll('#svg-overlay image');
+    await Promise.all(Array.from(images).map(img => new Promise(resolve => {
+      if (img.complete) return resolve();
+      img.addEventListener('load', resolve);
+      img.addEventListener('error', resolve);
+      setTimeout(resolve, 3000);
+    })));
+
+    const pairCount = zones.filter(z => z.pairId).length;
+    const info = meta ? `Match ${meta.matchId || '?'} | Round ${meta.roundIndex ?? 0}` : '';
+    statusEl.textContent = `${info} | ${zones.length} zones | ${Math.floor(pairCount/2)} paire(s)`;
+    statusEl.style.color = pairCount === 2 ? 'rgba(16,185,129,0.8)' : 'rgba(239,68,68,0.9)';
+    window.__SCREENSHOT_READY = true;
+  } catch (e) {
+    statusEl.textContent = 'Error: ' + e.message;
+    window.__SCREENSHOT_READY = true;
+  }
+}
+
+// ── Mode 1: Receive zones via postMessage from monitoring dashboard ──
+window.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'render-card' && Array.isArray(event.data.zones)) {
+    doRender(event.data.zones, event.data.meta || {});
+  }
+});
+
+// ── Mode 2: Load zones from server endpoint (Puppeteer / direct URL) ──
+async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const dataId = params.get('id');
+  const statusEl = document.getElementById('status');
+
+  if (!dataId) {
+    statusEl.textContent = 'En attente des données... (postMessage ou ?id=xxx)';
+    return;
+  }
+
+  try {
+    statusEl.textContent = 'Fetching zones...';
+    const res = await fetch(`/api/internal/screenshot-data/${dataId}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.zones || !Array.isArray(data.zones)) throw new Error('Invalid zones data');
+    doRender(data.zones, {});
+  } catch (e) {
+    statusEl.textContent = 'Error: ' + e.message;
+    window.__SCREENSHOT_READY = true;
+  }
+}
+
+// Wait for SVG map to load first
+document.getElementById('bg-map').addEventListener('load', () => init());
+setTimeout(() => { if (!window.__SCREENSHOT_READY) init(); }, 2000);
+</script>
+</body>
+</html>
