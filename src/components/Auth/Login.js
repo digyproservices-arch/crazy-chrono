@@ -285,6 +285,31 @@ export default function Login({ onLogin }) {
           }
         } catch (e) { console.warn('[Login] Auto-save pseudo failed:', e.message); }
 
+        // Si invitation en cours, appliquer le rôle via backend (compte existant)
+        if (inviteToken && data?.session?.access_token) {
+          try {
+            const applyRes = await fetch(`${BACKEND_URL}/api/auth/apply-invite`, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${data.session.access_token}` 
+              },
+              body: JSON.stringify({ inviteToken })
+            });
+            const applyData = await applyRes.json();
+            if (applyData.ok) {
+              profile.role = applyData.role;
+              if (applyData.region) profile.region = applyData.region;
+              saveAuth(profile);
+              console.log(`[Login] Invitation appliquée: ${applyData.role}${applyData.region ? ` (${applyData.region})` : ''}`);
+            } else {
+              console.warn('[Login] apply-invite failed:', applyData.error);
+            }
+          } catch (applyErr) {
+            console.warn('[Login] apply-invite error:', applyErr.message);
+          }
+        }
+
         // Si c'est un professeur, récupérer sa classe
         try {
           const classRes = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com'}/api/auth/teacher-class`, {
@@ -354,6 +379,14 @@ export default function Login({ onLogin }) {
       if (err) throw err;
       const user = data?.user;
       const session = data?.session;
+      
+      // Détecter si le compte existe déjà (Supabase retourne un "fake user" sans session ni identities)
+      const isExistingAccount = user && (!session) && (!user.identities || user.identities.length === 0);
+      if (isExistingAccount) {
+        setSignupMode(false);
+        setInfo('Ce compte existe déjà. Connectez-vous avec votre mot de passe — l\'invitation sera automatiquement appliquée.');
+        return;
+      }
       
       // Créer ou mettre à jour le profil utilisateur
       if (user) {

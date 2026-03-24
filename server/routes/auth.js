@@ -547,4 +547,71 @@ router.post('/supabase-login', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/auth/apply-invite
+ * Applique une invitation à un utilisateur existant (après login)
+ * Body: { inviteToken }
+ */
+router.post('/apply-invite', async (req, res) => {
+  try {
+    const supabase = req.app.locals.supabaseAdmin;
+    if (!supabase) return res.status(500).json({ ok: false, error: 'supabase_not_configured' });
+
+    // Vérifier le JWT
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ ok: false, error: 'missing_token' });
+    }
+    const token = authHeader.slice(7).trim();
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) {
+      return res.status(401).json({ ok: false, error: 'invalid_token' });
+    }
+
+    const { inviteToken } = req.body;
+    if (!inviteToken) return res.status(400).json({ ok: false, error: 'inviteToken requis' });
+
+    // Lire l'invitation (via admin, bypass RLS)
+    const { data: inv, error: invErr } = await supabase
+      .from('invitations')
+      .select('*')
+      .eq('token', inviteToken)
+      .eq('used', false)
+      .single();
+
+    if (invErr || !inv) {
+      return res.status(404).json({ ok: false, error: 'Invitation invalide ou déjà utilisée' });
+    }
+    if (new Date(inv.expires_at) < new Date()) {
+      return res.status(410).json({ ok: false, error: 'Invitation expirée' });
+    }
+
+    // Mettre à jour le profil utilisateur avec le rôle de l'invitation
+    const updateData = { role: inv.role };
+    if (inv.region) updateData.region = inv.region;
+
+    const { error: upErr } = await supabase
+      .from('user_profiles')
+      .update(updateData)
+      .eq('id', user.id);
+
+    if (upErr) {
+      console.error('[Auth] apply-invite update error:', upErr.message);
+      return res.status(500).json({ ok: false, error: upErr.message });
+    }
+
+    // Marquer l'invitation comme utilisée
+    await supabase
+      .from('invitations')
+      .update({ used: true, used_at: new Date().toISOString() })
+      .eq('token', inviteToken);
+
+    console.log(`[Auth] Invitation appliquée: ${user.email} → ${inv.role}${inv.region ? ` (${inv.region})` : ''}`);
+    res.json({ ok: true, role: inv.role, region: inv.region || null });
+  } catch (err) {
+    console.error('[Auth] apply-invite error:', err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 module.exports = router;
