@@ -228,8 +228,14 @@ router.get('/schools', requireRectoratAuth, async (req, res) => {
     const classes = classesRes.data || [];
     const students = studentsRes.data || [];
 
-    // Extraire les circonscriptions uniques
-    const circonscriptions = [...new Set((schools || []).map(s => s.circonscription_id).filter(Boolean))].sort();
+    // Extraire TOUTES les circonscriptions (pas seulement celles filtrées)
+    let circonscriptions;
+    if (circonscription) {
+      const { data: allSchools } = await supabase.from('schools').select('circonscription_id');
+      circonscriptions = [...new Set((allSchools || []).map(s => s.circonscription_id).filter(Boolean))].sort();
+    } else {
+      circonscriptions = [...new Set((schools || []).map(s => s.circonscription_id).filter(Boolean))].sort();
+    }
 
     const schoolStats = (schools || []).map(school => {
       const sClasses = classes.filter(c => c.school_id === school.id);

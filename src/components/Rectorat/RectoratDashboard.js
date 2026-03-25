@@ -100,6 +100,8 @@ const RectoratDashboard = () => {
       const res = await fetch(`${getBackendUrl()}/api/rectorat/classes${params}`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (data.ok) setAllClasses(data.classes || []);
+      // Charger les circonscriptions si pas encore fait
+      if (circonscriptions.length === 0) loadSchools();
     } catch (err) {
       console.error('[Rectorat] classes error:', err);
     }
