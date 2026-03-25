@@ -372,7 +372,7 @@ export default function Login({ onLogin }) {
         email: em,
         password,
         options: { 
-          emailRedirectTo: window.location.origin + '/login',
+          emailRedirectTo: window.location.origin + '/login' + (inviteToken ? '?invite=' + inviteToken : ''),
           data: { first_name: fn, last_name: ln }
         }
       });
@@ -388,30 +388,23 @@ export default function Login({ onLogin }) {
         return;
       }
       
-      // Créer ou mettre à jour le profil utilisateur
+      // Créer le profil utilisateur (sans rôle invitation — apply-invite le fera côté backend après login)
       if (user) {
-        const roleToAssign = inviteRole || 'user';
-        
-        // Créer le profil dans user_profiles
         const profileData = {
             id: user.id,
             email: em,
             first_name: fn,
             last_name: ln,
-            role: roleToAssign
+            pseudo: [fn, ln].filter(Boolean).join(' ').trim(),
+            role: inviteRole || 'user'
           };
         if (inviteRegion) profileData.region = inviteRegion;
-        await supabase
+        // Tentative client-side (peut échouer si RLS bloque)
+        const { error: upsertErr } = await supabase
           .from('user_profiles')
           .upsert(profileData, { onConflict: 'id' });
-        
-        // Si invitation, marquer comme utilisée
-        if (inviteToken) {
-          await supabase
-            .from('invitations')
-            .update({ used: true, used_at: new Date().toISOString() })
-            .eq('token', inviteToken);
-        }
+        if (upsertErr) console.warn('[Signup] Profile upsert failed (RLS?):', upsertErr.message);
+        // NE PAS marquer l'invitation comme utilisée ici — apply-invite le fera après confirmation email + login
       }
       
       if (session && session.user) {

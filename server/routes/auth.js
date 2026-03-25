@@ -586,14 +586,13 @@ router.post('/apply-invite', async (req, res) => {
       return res.status(410).json({ ok: false, error: 'Invitation expirée' });
     }
 
-    // Mettre à jour le profil utilisateur avec le rôle de l'invitation
-    const updateData = { role: inv.role };
-    if (inv.region) updateData.region = inv.region;
+    // Mettre à jour le profil utilisateur avec le rôle de l'invitation (upsert pour couvrir le cas où le profil n'existe pas encore)
+    const upsertData = { id: user.id, email: user.email, role: inv.role };
+    if (inv.region) upsertData.region = inv.region;
 
     const { error: upErr } = await supabase
       .from('user_profiles')
-      .update(updateData)
-      .eq('id', user.id);
+      .upsert(upsertData, { onConflict: 'id' });
 
     if (upErr) {
       console.error('[Auth] apply-invite update error:', upErr.message);
