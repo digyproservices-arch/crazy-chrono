@@ -17,6 +17,10 @@ const RectoratDashboard = () => {
   const [matchCards, setMatchCards] = useState(null);
   const [loadingCards, setLoadingCards] = useState(false);
   const [schools, setSchools] = useState([]);
+  const [circonscriptions, setCirconscriptions] = useState([]);
+  const [selectedCirc, setSelectedCirc] = useState('');
+  const [expandedSchool, setExpandedSchool] = useState(null);
+  const [allClasses, setAllClasses] = useState([]);
   const [userRegion, setUserRegion] = useState('');
 
   useEffect(() => {
@@ -76,13 +80,28 @@ const RectoratDashboard = () => {
     }
   };
 
-  const loadSchools = async () => {
+  const loadSchools = async (circ) => {
     try {
-      const res = await fetch(`${getBackendUrl()}/api/rectorat/schools`, { headers: getAuthHeaders() });
+      const params = circ ? `?circonscription=${encodeURIComponent(circ)}` : '';
+      const res = await fetch(`${getBackendUrl()}/api/rectorat/schools${params}`, { headers: getAuthHeaders() });
       const data = await res.json();
-      if (data.ok) setSchools(data.schools || []);
+      if (data.ok) {
+        setSchools(data.schools || []);
+        if (data.circonscriptions) setCirconscriptions(data.circonscriptions);
+      }
     } catch (err) {
       console.error('[Rectorat] schools error:', err);
+    }
+  };
+
+  const loadClasses = async (circ) => {
+    try {
+      const params = circ ? `?circonscription=${encodeURIComponent(circ)}` : '';
+      const res = await fetch(`${getBackendUrl()}/api/rectorat/classes${params}`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      if (data.ok) setAllClasses(data.classes || []);
+    } catch (err) {
+      console.error('[Rectorat] classes error:', err);
     }
   };
 
@@ -127,10 +146,11 @@ const RectoratDashboard = () => {
           { key: 'competitions', label: '⚔️ Compétitions' },
           { key: 'cards', label: '🃏 Cartes jouées' },
           { key: 'schools', label: '🏫 Écoles' },
+          { key: 'classes', label: '📋 Classes' },
         ].map(tab => (
           <button
             key={tab.key}
-            onClick={() => { setActiveTab(tab.key); if (tab.key === 'schools' && schools.length === 0) loadSchools(); }}
+            onClick={() => { setActiveTab(tab.key); if (tab.key === 'schools' && schools.length === 0) loadSchools(); if (tab.key === 'classes' && allClasses.length === 0) loadClasses(); }}
             style={{
               padding: '12px 20px', fontWeight: 700, fontSize: 14, cursor: 'pointer', border: 'none',
               borderBottom: activeTab === tab.key ? '3px solid #1d4ed8' : '3px solid transparent',
@@ -348,21 +368,133 @@ const RectoratDashboard = () => {
       {/* TAB: ÉCOLES */}
       {activeTab === 'schools' && (
         <div>
+          {/* Filtre par circonscription */}
+          {circonscriptions.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>📍 Circonscription :</span>
+              <button
+                onClick={() => { setSelectedCirc(''); loadSchools(''); }}
+                style={{ padding: '6px 14px', borderRadius: 8, border: !selectedCirc ? '2px solid #1d4ed8' : '1px solid #e2e8f0', background: !selectedCirc ? '#eff6ff' : '#fff', color: !selectedCirc ? '#1d4ed8' : '#64748b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+              >Toutes ({circonscriptions.length})</button>
+              {circonscriptions.map(c => {
+                const label = c.replace('circ_', '').replace(/_/g, ' ').replace(/(^|\s)\w/g, l => l.toUpperCase());
+                return (
+                  <button key={c}
+                    onClick={() => { setSelectedCirc(c); loadSchools(c); }}
+                    style={{ padding: '6px 14px', borderRadius: 8, border: selectedCirc === c ? '2px solid #1d4ed8' : '1px solid #e2e8f0', background: selectedCirc === c ? '#eff6ff' : '#fff', color: selectedCirc === c ? '#1d4ed8' : '#64748b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                  >{label}</button>
+                );
+              })}
+            </div>
+          )}
+
           {schools.length === 0 ? (
             <div style={{ ...CARD, textAlign: 'center', color: '#94a3b8', padding: 40 }}>
               Aucune école enregistrée
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {schools.map(s => (
-                <div key={s.id} style={{ ...CARD, padding: '16px 20px' }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: '#1e293b', marginBottom: 4 }}>🏫 {s.name}</div>
-                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>{s.city} {s.postal_code}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div key={s.id} style={{ ...CARD, padding: '16px 20px', cursor: 'pointer', transition: 'box-shadow 0.2s' }}
+                  onClick={() => setExpandedSchool(expandedSchool === s.id ? null : s.id)}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)'}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 6px rgba(0,0,0,0.06)'}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 24 }}>🏫</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: '#1e293b' }}>{s.name}</div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>{s.city} {s.postal_code}</div>
+                    </div>
+                    {s.circonscription_id && (
+                      <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: '#fef3c7', color: '#b45309' }}>
+                        {s.circonscription_id.replace('circ_', '').replace(/_/g, ' ')}
+                      </span>
+                    )}
                     <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#eff6ff', color: '#1d4ed8' }}>
-                      {s.studentCount} élève(s) licencié(s)
+                      {s.studentCount} élèves
                     </span>
+                    <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#f0fdf4', color: '#059669' }}>
+                      {s.classCount} classe(s)
+                    </span>
+                    <span style={{ color: '#94a3b8', fontSize: 16, transform: expandedSchool === s.id ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>▶</span>
                   </div>
+                  {/* Classes de l'école */}
+                  {expandedSchool === s.id && s.classes && s.classes.length > 0 && (
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #e2e8f0' }} onClick={e => e.stopPropagation()}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 8 }}>
+                        {s.classes.map(c => (
+                          <div key={c.id} style={{ padding: '10px 14px', borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: '#1e293b' }}>📚 {c.name} — {c.level}</div>
+                            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{c.teacherName || 'Pas de professeur'}</div>
+                            <div style={{ fontSize: 11, color: '#94a3b8' }}>{c.studentCount} élèves</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB: CLASSES (pour lancer entraînements / tournois) */}
+      {activeTab === 'classes' && (
+        <div>
+          {/* Filtre par circonscription */}
+          {circonscriptions.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>📍 Circonscription :</span>
+              <button
+                onClick={() => { setSelectedCirc(''); loadClasses(''); }}
+                style={{ padding: '6px 14px', borderRadius: 8, border: !selectedCirc ? '2px solid #1d4ed8' : '1px solid #e2e8f0', background: !selectedCirc ? '#eff6ff' : '#fff', color: !selectedCirc ? '#1d4ed8' : '#64748b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+              >Toutes</button>
+              {circonscriptions.map(c => {
+                const label = c.replace('circ_', '').replace(/_/g, ' ').replace(/(^|\s)\w/g, l => l.toUpperCase());
+                return (
+                  <button key={c}
+                    onClick={() => { setSelectedCirc(c); loadClasses(c); }}
+                    style={{ padding: '6px 14px', borderRadius: 8, border: selectedCirc === c ? '2px solid #1d4ed8' : '1px solid #e2e8f0', background: selectedCirc === c ? '#eff6ff' : '#fff', color: selectedCirc === c ? '#1d4ed8' : '#64748b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                  >{label}</button>
+                );
+              })}
+            </div>
+          )}
+
+          <div style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>
+            {allClasses.length} classe(s) • Sélectionnez une classe pour lancer un entraînement ou un tournoi Arena
+          </div>
+
+          {allClasses.length === 0 ? (
+            <div style={{ ...CARD, textAlign: 'center', color: '#94a3b8', padding: 40 }}>
+              Aucune classe trouvée
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {allClasses.map(c => (
+                <div key={c.id} style={{ ...CARD, display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px' }}>
+                  <span style={{ fontSize: 22 }}>📚</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b' }}>{c.name} — {c.level}</div>
+                    <div style={{ fontSize: 12, color: '#64748b' }}>
+                      🏫 {c.schoolName} • {c.city}
+                      {c.circonscription && <span style={{ marginLeft: 8, color: '#b45309' }}>📍 {c.circonscription.replace('circ_', '').replace(/_/g, ' ')}</span>}
+                    </div>
+                    {c.teacherName && <div style={{ fontSize: 11, color: '#94a3b8' }}>👩‍🏫 {c.teacherName}</div>}
+                  </div>
+                  <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#eff6ff', color: '#1d4ed8' }}>
+                    {c.students?.length || c.studentCount} élèves
+                  </span>
+                  <button
+                    onClick={() => navigate(`/training-arena/setup?classId=${c.id}&className=${encodeURIComponent(c.name + ' - ' + c.schoolName)}`)}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#10b981', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                  >📚 Entraînement</button>
+                  <button
+                    onClick={() => navigate(`/teacher/tournament?classId=${c.id}&className=${encodeURIComponent(c.name + ' - ' + c.schoolName)}`)}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                  >🏆 Tournoi Arena</button>
                 </div>
               ))}
             </div>

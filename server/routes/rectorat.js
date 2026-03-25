@@ -198,32 +198,117 @@ router.get('/match/:id/cards', requireRectoratAuth, async (req, res) => {
 });
 
 // ── GET /api/rectorat/schools ──
-// Liste des écoles avec stats
+// Liste des écoles avec stats, classes et circonscription
 router.get('/schools', requireRectoratAuth, async (req, res) => {
   try {
     const supabase = getSupabase();
     if (!supabase) return res.status(503).json({ ok: false, error: 'db_unavailable' });
 
-    const { data: schools, error } = await supabase
+    const { circonscription } = req.query;
+
+    let schoolQuery = supabase
       .from('schools')
-      .select('id, name, type, city, postal_code')
+      .select('id, name, type, city, postal_code, circonscription_id')
       .order('name');
 
+    if (circonscription) {
+      schoolQuery = schoolQuery.eq('circonscription_id', circonscription);
+    }
+
+    const { data: schools, error } = await schoolQuery;
     if (error) throw error;
 
-    // Compter élèves par école
-    const schoolStats = await Promise.all((schools || []).map(async (school) => {
-      const { count } = await supabase
-        .from('students')
-        .select('id', { count: 'exact', head: true })
-        .eq('school_id', school.id)
-        .eq('licensed', true);
-      return { ...school, studentCount: count || 0 };
-    }));
+    // Charger classes et élèves en batch
+    const schoolIds = (schools || []).map(s => s.id);
+    const [classesRes, studentsRes] = await Promise.all([
+      supabase.from('classes').select('id, school_id, name, level, teacher_name, teacher_email, student_count').in('school_id', schoolIds),
+      supabase.from('students').select('id, school_id, class_id, licensed').in('school_id', schoolIds),
+    ]);
 
-    res.json({ ok: true, schools: schoolStats });
+    const classes = classesRes.data || [];
+    const students = studentsRes.data || [];
+
+    // Extraire les circonscriptions uniques
+    const circonscriptions = [...new Set((schools || []).map(s => s.circonscription_id).filter(Boolean))].sort();
+
+    const schoolStats = (schools || []).map(school => {
+      const sClasses = classes.filter(c => c.school_id === school.id);
+      const sStudents = students.filter(st => st.school_id === school.id);
+      return {
+        ...school,
+        classCount: sClasses.length,
+        studentCount: sStudents.filter(s => s.licensed).length,
+        classes: sClasses.map(c => ({
+          id: c.id, name: c.name, level: c.level,
+          teacherName: c.teacher_name, teacherEmail: c.teacher_email,
+          studentCount: c.student_count || sStudents.filter(s => s.class_id === c.id).length,
+        })),
+      };
+    });
+
+    res.json({ ok: true, schools: schoolStats, circonscriptions });
   } catch (e) {
     console.error('[Rectorat API] schools error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── GET /api/rectorat/classes ──
+// Toutes les classes visibles par le rectorat (pour lancer entraînement / tournoi)
+router.get('/classes', requireRectoratAuth, async (req, res) => {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) return res.status(503).json({ ok: false, error: 'db_unavailable' });
+
+    const { circonscription } = req.query;
+
+    let query = supabase
+      .from('classes')
+      .select('id, school_id, name, level, teacher_name, teacher_email, student_count, schools(id, name, city, circonscription_id)')
+      .order('name');
+
+    const { data: classes, error } = await query;
+    if (error) throw error;
+
+    // Filtrer par circonscription si demandé
+    let filtered = classes || [];
+    if (circonscription) {
+      filtered = filtered.filter(c => c.schools?.circonscription_id === circonscription);
+    }
+
+    // Charger les élèves pour chaque classe
+    const classIds = filtered.map(c => c.id);
+    const { data: students } = await supabase
+      .from('students')
+      .select('id, first_name, last_name, full_name, class_id, licensed, access_code')
+      .in('class_id', classIds)
+      .eq('licensed', true)
+      .order('last_name');
+
+    const result = filtered.map(c => ({
+      id: c.id,
+      name: c.name,
+      level: c.level,
+      teacherName: c.teacher_name,
+      teacherEmail: c.teacher_email,
+      schoolId: c.school_id,
+      schoolName: c.schools?.name || '',
+      city: c.schools?.city || '',
+      circonscription: c.schools?.circonscription_id || '',
+      studentCount: c.student_count || 0,
+      students: (students || []).filter(s => s.class_id === c.id).map(s => ({
+        id: s.id,
+        firstName: s.first_name,
+        lastName: s.last_name,
+        fullName: s.full_name,
+        accessCode: s.access_code,
+        licensed: s.licensed,
+      })),
+    }));
+
+    res.json({ ok: true, classes: result });
+  } catch (e) {
+    console.error('[Rectorat API] classes error:', e.message);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
