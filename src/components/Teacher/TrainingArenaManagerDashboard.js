@@ -18,6 +18,8 @@ export default function TrainingArenaManagerDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const socketRef = useRef(null);
+  const [checkedMatches, setCheckedMatches] = useState(new Set());
+  const [bulkStarting, setBulkStarting] = useState(false);
 
   // Récupérer les matchs actifs depuis l'API
   const loadActiveMatches = async () => {
@@ -298,6 +300,39 @@ export default function TrainingArenaManagerDashboard() {
     });
   }, [matches.map(m => m.matchId).join(',')]);
 
+  const toggleMatchCheck = (matchId) => {
+    setCheckedMatches(prev => {
+      const next = new Set(prev);
+      if (next.has(matchId)) next.delete(matchId); else next.add(matchId);
+      return next;
+    });
+  };
+
+  const selectAllReadyMatches = () => {
+    const ready = matches.filter(m => m.connectedPlayers >= 2 && m.readyPlayers === m.connectedPlayers && m.status !== 'playing' && m.status !== 'finished');
+    if (checkedMatches.size === ready.length && ready.length > 0) {
+      setCheckedMatches(new Set());
+    } else {
+      setCheckedMatches(new Set(ready.map(m => m.matchId)));
+    }
+  };
+
+  const bulkStartMatches = async () => {
+    const toStart = matches.filter(m => checkedMatches.has(m.matchId) && m.connectedPlayers >= 2 && m.readyPlayers === m.connectedPlayers);
+    if (toStart.length === 0) { alert('Aucun match sélectionné n\'est prêt à démarrer.'); return; }
+    if (!window.confirm(`Démarrer ${toStart.length} match(s) sélectionné(s) ?`)) return;
+    
+    setBulkStarting(true);
+    for (const match of toStart) {
+      socketRef.current.emit('training:force-start', { matchId: match.matchId });
+    }
+    setTimeout(() => {
+      setBulkStarting(false);
+      setCheckedMatches(new Set());
+      alert(`✅ ${toStart.length} match(s) démarré(s) !`);
+    }, 1500);
+  };
+
   // Démarrer un match manuellement
   const handleStartMatch = (matchId) => {
     console.log('[TrainingArenaManager] 🚀 handleStartMatch appelé pour:', matchId);
@@ -428,22 +463,31 @@ export default function TrainingArenaManagerDashboard() {
         </p>
       </div>
 
-      {/* Bouton retour */}
-      <button
-        onClick={() => navigate('/training-arena/setup')}
-        style={{
-          padding: '10px 20px',
-          background: '#f3f4f6',
-          border: '1px solid #d1d5db',
-          borderRadius: 8,
-          cursor: 'pointer',
-          fontSize: 14,
-          fontWeight: 600,
-          marginBottom: 24
-        }}
-      >
-        ← Retour à la création de groupes
-      </button>
+      {/* Barre d'actions */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+        <button
+          onClick={() => navigate('/training-arena/setup')}
+          style={{ padding: '10px 20px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+        >
+          ← Retour à la création de groupes
+        </button>
+        {matches.length > 0 && (
+          <>
+            <button onClick={selectAllReadyMatches} style={{ padding: '10px 20px', background: '#fff', border: '2px solid #059669', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#059669' }}>
+              ✅ Sélectionner tous les matchs prêts
+            </button>
+            {checkedMatches.size > 0 && (
+              <button
+                onClick={bulkStartMatches}
+                disabled={bulkStarting}
+                style={{ padding: '10px 24px', background: bulkStarting ? '#94a3b8' : 'linear-gradient(135deg, #f97316, #ea580c)', border: 'none', borderRadius: 8, cursor: bulkStarting ? 'wait' : 'pointer', fontSize: 14, fontWeight: 800, color: '#fff', boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)' }}
+              >
+                {bulkStarting ? '⏳ Démarrage...' : `▶️ Démarrer les matchs sélectionnés (${checkedMatches.size})`}
+              </button>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Message erreur */}
       {error && (
@@ -498,10 +542,11 @@ export default function TrainingArenaManagerDashboard() {
                 key={match.matchId}
                 style={{
                   padding: 24,
-                  background: '#fff',
-                  border: '2px solid #e5e7eb',
+                  background: checkedMatches.has(match.matchId) ? '#fff7ed' : '#fff',
+                  border: checkedMatches.has(match.matchId) ? '2px solid #f97316' : '2px solid #e5e7eb',
                   borderRadius: 12,
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                  transition: 'all 0.2s'
                 }}
               >
                 {/* Header du match */}
@@ -511,7 +556,11 @@ export default function TrainingArenaManagerDashboard() {
                   alignItems: 'flex-start',
                   marginBottom: 16
                 }}>
-                  <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {match.status !== 'playing' && match.status !== 'finished' && (
+                      <input type="checkbox" checked={checkedMatches.has(match.matchId)} onChange={() => toggleMatchCheck(match.matchId)}
+                        style={{ width: 22, height: 22, cursor: 'pointer', accentColor: '#f97316' }} />
+                    )}
                     <h3 style={{ 
                       fontSize: 20, 
                       fontWeight: 700, 

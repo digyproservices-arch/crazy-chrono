@@ -113,6 +113,8 @@ export default function TrainingArenaSetup() {
   const [tournament, setTournament] = useState(null);
   const [perfMap, setPerfMap] = useState({}); // studentId → performance stats
   const [configOpen, setConfigOpen] = useState(false); // Toggle panneau config
+  const [checkedGroups, setCheckedGroups] = useState(new Set()); // Groupes cochés pour notif bulk
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   // ===== Configuration pédagogique (avec persistance localStorage) =====
   const [selClasses, setSelClasses] = useState(() => {
@@ -389,7 +391,49 @@ export default function TrainingArenaSetup() {
     }
   };
   
-  const launchMatch = async (group) => {
+  const toggleGroupCheck = (groupId) => {
+    setCheckedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
+      return next;
+    });
+  };
+
+  const selectAllPendingGroups = () => {
+    const pending = groups.filter(g => g.status === 'pending' && !g.match_id);
+    if (checkedGroups.size === pending.length) {
+      setCheckedGroups(new Set());
+    } else {
+      setCheckedGroups(new Set(pending.map(g => g.id)));
+    }
+  };
+
+  const bulkNotifyGroups = async () => {
+    const toNotify = groups.filter(g => checkedGroups.has(g.id) && g.status === 'pending' && !g.match_id);
+    if (toNotify.length === 0) return;
+    if (!window.confirm(`Créer les salles et notifier les élèves pour ${toNotify.length} groupe(s) ?\n\nLes élèves devront se connecter avec leur code d'accès pour rejoindre la salle.`)) return;
+    
+    setBulkLoading(true);
+    const results = [];
+    for (const group of toNotify) {
+      try {
+        const result = await launchMatch(group, true);
+        if (result) results.push(result);
+      } catch (e) {
+        console.error('[TrainingArena] Erreur bulk notify:', e);
+      }
+    }
+    setBulkLoading(false);
+    setCheckedGroups(new Set());
+    
+    if (results.length > 0) {
+      const recap = results.map(r => `• ${r.groupName}: Code ${r.roomCode}`).join('\n');
+      alert(`✅ ${results.length} salle(s) créée(s) !\n\n${recap}\n\nLes élèves doivent se connecter avec leur code d'accès et rejoindre la salle.`);
+    }
+    loadTournamentData();
+  };
+
+  const launchMatch = async (group, silent = false) => {
     try {
       // ✅ FIX: Utiliser cc_class_id (identique à loadTournamentData)
       const classId = localStorage.getItem('cc_class_id');
@@ -454,27 +498,23 @@ export default function TrainingArenaSetup() {
           console.warn('[TrainingArena] ⚠️ Erreur mise à jour group.match_id:', patchErr);
         }
         
-        // Afficher le code de salle
         const playerCount = parseStudentIds(group.student_ids).length;
-        alert(`✅ Match créé avec succès!\n\nCode de salle: ${data.roomCode}\n\n📋 Donnez ce code aux ${playerCount} élève(s) pour qu'ils rejoignent le match.\n\nURL pour les élèves:\nhttps://app.crazy-chrono.com/training-arena/lobby/${data.roomCode}`);
         
-        // Stocker l'info du match pour le mode Training Arena (au cas où)
-        localStorage.setItem('cc_training_arena_match', JSON.stringify({
-          matchId: data.matchId,
-          roomCode: data.roomCode,
-          groupId: group.id,
-          studentIds: parseStudentIds(group.student_ids)
-        }));
+        if (silent) {
+          return { groupName: group.name, roomCode: data.roomCode, matchId: data.matchId, playerCount };
+        }
         
-        // NE PAS rediriger le professeur - il reste ici pour créer d'autres matchs
-        // Les élèves vont sur /training-arena/lobby/${roomCode}
-        loadTournamentData(); // Refresh pour voir le match créé
+        alert(`✅ Salle créée !\n\nCode de salle: ${data.roomCode}\n\n📋 Les ${playerCount} élève(s) doivent se connecter avec leur code d'accès et rejoindre la salle.\n\nURL: https://app.crazy-chrono.com/training-arena/lobby/${data.roomCode}`);
+        loadTournamentData();
+        return { groupName: group.name, roomCode: data.roomCode, matchId: data.matchId, playerCount };
       } else {
-        alert('Erreur lors de la création du match: ' + data.error);
+        if (!silent) alert('Erreur lors de la création de la salle: ' + data.error);
+        return null;
       }
     } catch (error) {
       console.error('[TrainingArena] Error launching match:', error);
-      alert('Erreur réseau lors du lancement du match.');
+      if (!silent) alert('Erreur réseau lors de la création de la salle.');
+      return null;
     }
   };
   
@@ -972,7 +1012,14 @@ export default function TrainingArenaSetup() {
       
       {/* Liste des groupes créés */}
       <section>
-        <h3>Groupes créés ({groups.length})</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3 style={{ margin: 0 }}>Groupes créés ({groups.length})</h3>
+          {groups.filter(g => g.status === 'pending' && !g.match_id).length > 0 && (
+            <button onClick={selectAllPendingGroups} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #6b7280', background: '#fff', color: '#374151', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              {checkedGroups.size === groups.filter(g => g.status === 'pending' && !g.match_id).length ? '☐ Tout désélectionner' : '☑ Tout sélectionner'}
+            </button>
+          )}
+        </div>
         
         {groups.length === 0 && (
           <p style={{ color: '#6b7280' }}>Aucun groupe créé pour le moment.</p>
@@ -982,30 +1029,37 @@ export default function TrainingArenaSetup() {
           {groups.map(group => {
             const studentIds = parseStudentIds(group.student_ids);
             const groupStudents = students.filter(s => studentIds.includes(s.id));
+            const isPending = group.status === 'pending' && !group.match_id;
+            const isChecked = checkedGroups.has(group.id);
             
             return (
               <div 
                 key={group.id} 
                 style={{ 
                   padding: 16, 
-                  border: '1px solid #e5e7eb', 
+                  border: isChecked ? '2px solid #1AACBE' : '1px solid #e5e7eb', 
                   borderRadius: 12, 
-                  background: '#fff' 
+                  background: isChecked ? '#f0fafb' : '#fff',
+                  transition: 'all 0.2s'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <h4 style={{ margin: 0 }}>{group.name}</h4>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                  {isPending && (
+                    <input type="checkbox" checked={isChecked} onChange={() => toggleGroupCheck(group.id)}
+                      style={{ width: 20, height: 20, cursor: 'pointer', accentColor: '#1AACBE' }} />
+                  )}
+                  <h4 style={{ margin: 0, flex: 1 }}>{group.name}</h4>
                   <span 
                     style={{ 
                       padding: '4px 12px', 
                       borderRadius: 999, 
                       fontSize: 12, 
                       fontWeight: 700, 
-                      background: group.status === 'finished' ? '#148A9C' : group.status === 'playing' ? '#F5A623' : '#6b7280',
+                      background: group.status === 'finished' ? '#148A9C' : group.status === 'playing' ? '#F5A623' : group.match_id ? '#3b82f6' : '#6b7280',
                       color: '#fff'
                     }}
                   >
-                    {group.status === 'finished' ? 'Terminé' : group.status === 'playing' ? 'En cours' : 'En attente'}
+                    {group.status === 'finished' ? 'Terminé' : group.status === 'playing' ? 'En cours' : group.match_id ? 'Salle créée' : 'En attente'}
                   </span>
                 </div>
                 
@@ -1044,7 +1098,7 @@ export default function TrainingArenaSetup() {
                 )}
                 
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {group.status === 'pending' && (
+                  {isPending && (
                     <>
                       <button 
                         onClick={() => launchMatch(group)}
@@ -1058,7 +1112,7 @@ export default function TrainingArenaSetup() {
                           cursor: 'pointer'
                         }}
                       >
-                        🚀 Lancer le match
+                        � Créer la salle et notifier
                       </button>
                       <button 
                         onClick={() => deleteGroup(group.id)}
@@ -1126,6 +1180,33 @@ export default function TrainingArenaSetup() {
             );
           })}
         </div>
+
+        {/* Bouton bulk: Notifier tous les groupes sélectionnés */}
+        {checkedGroups.size > 0 && (
+          <div style={{ marginTop: 16, padding: 16, background: '#f0fafb', borderRadius: 12, border: '2px solid #1AACBE' }}>
+            <button
+              onClick={bulkNotifyGroups}
+              disabled={bulkLoading}
+              style={{
+                width: '100%',
+                padding: '14px 24px',
+                borderRadius: 10,
+                border: 'none',
+                background: bulkLoading ? '#94a3b8' : 'linear-gradient(135deg, #1AACBE, #148A9C)',
+                color: '#fff',
+                fontWeight: 800,
+                fontSize: 16,
+                cursor: bulkLoading ? 'wait' : 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              {bulkLoading ? '⏳ Création des salles en cours...' : `📨 Créer les salles et notifier les élèves (${checkedGroups.size} groupe(s))`}
+            </button>
+            <p style={{ fontSize: 12, color: '#64748b', marginTop: 8, marginBottom: 0, textAlign: 'center' }}>
+              Les élèves recevront une invitation à rejoindre leur salle de jeu. Ils devront se connecter avec leur code d'accès.
+            </p>
+          </div>
+        )}
       </section>
       
       <div style={{ marginTop: 24 }}>
