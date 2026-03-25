@@ -508,6 +508,8 @@ router.get('/classes/:classId/groups', requireSupabase, requireAuth, ...validate
   try {
     const { classId } = req.params;
     
+    console.log('[Tournament API] 🔍 FETCH GROUPS for classId:', classId);
+    
     const { data, error } = await supabase
       .from('tournament_groups')
       .select('*')
@@ -515,6 +517,17 @@ router.get('/classes/:classId/groups', requireSupabase, requireAuth, ...validate
       .order('created_at', { ascending: false });
     
     if (error) throw error;
+    
+    console.log('[Tournament API] 🔍 GROUPS FOUND:', data?.length || 0, 'for classId:', classId);
+    if (data?.length === 0) {
+      // Diagnostic : vérifier s'il existe des groupes avec un AUTRE class_id
+      const { data: allGroups } = await supabase
+        .from('tournament_groups')
+        .select('id, class_id, name, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      console.log('[Tournament API] 🔍 ALL RECENT GROUPS (diag):', JSON.stringify(allGroups));
+    }
     
     res.json({ success: true, groups: data || [] });
   } catch (error) {
@@ -565,27 +578,45 @@ router.post('/groups', requireSupabase, requireAuth, ...validateCreateGroup, asy
   try {
     const { tournamentId, phaseLevel, classId, name, studentIds } = req.body;
     
+    console.log('[Tournament API] 📨 CREATE GROUP - tournamentId:', tournamentId, 'classId:', classId, 'name:', name, 'studentIds:', studentIds, 'phaseLevel:', phaseLevel);
+    
     if (!Array.isArray(studentIds) || studentIds.length < 2 || studentIds.length > 4) {
       return res.status(400).json({ success: false, error: 'Un groupe doit contenir entre 2 et 4 élèves' });
     }
     
     const groupId = `group_${uuidv4()}`;
     
+    const insertPayload = {
+      id: groupId,
+      tournament_id: tournamentId,
+      phase_level: phaseLevel,
+      class_id: classId || null,
+      name: name,
+      student_ids: JSON.stringify(studentIds),
+      status: 'pending'
+    };
+    console.log('[Tournament API] 📨 INSERT payload:', JSON.stringify(insertPayload));
+    
     const { data, error } = await supabase
       .from('tournament_groups')
-      .insert({
-        id: groupId,
-        tournament_id: tournamentId,
-        phase_level: phaseLevel,
-        class_id: classId || null,
-        name: name,
-        student_ids: JSON.stringify(studentIds),
-        status: 'pending'
-      })
+      .insert(insertPayload)
       .select()
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error('[Tournament API] ❌ INSERT error:', error);
+      throw error;
+    }
+    
+    console.log('[Tournament API] ✅ GROUP CREATED:', data?.id, 'class_id:', data?.class_id);
+    
+    // Vérification immédiate : re-lire le groupe pour confirmer la persistance
+    const { data: verify, error: verifyErr } = await supabase
+      .from('tournament_groups')
+      .select('id, class_id, name')
+      .eq('id', groupId)
+      .single();
+    console.log('[Tournament API] 🔍 VERIFY after insert:', verify, 'err:', verifyErr?.message);
     
     res.json({ success: true, groupId, group: data });
   } catch (error) {
