@@ -108,8 +108,8 @@ export default function CrazyArenaSetup() {
       const classId = urlParams.get('classId') || localStorage.getItem('cc_class_id');
       console.log('[CrazyArena] 📚 Class ID:', classId, '(source:', urlParams.get('classId') ? 'URL' : 'localStorage', ')');
       
-      if (classId && !localStorage.getItem('cc_class_id')) {
-        localStorage.setItem('cc_class_id', classId);
+      if (urlParams.get('classId')) {
+        localStorage.setItem('cc_class_id', urlParams.get('classId'));
       }
       
       if (!classId) {
