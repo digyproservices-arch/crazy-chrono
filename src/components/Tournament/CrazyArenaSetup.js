@@ -101,12 +101,17 @@ export default function CrazyArenaSetup() {
       setTournament(tournamentData.tournament);
       
       // 2. Récupérer la liste des élèves de la classe
-      // ✅ FIX: Utiliser cc_class_id (identique à Training) au lieu de cc_session_cfg.classId
-      const classId = localStorage.getItem('cc_class_id');
-      console.log('[CrazyArena] 📚 Class ID:', classId);
+      // ✅ FIX: Lire classId depuis URL params (rectorat dashboard) OU localStorage (prof)
+      const urlParams = new URLSearchParams(window.location.search);
+      const classId = urlParams.get('classId') || localStorage.getItem('cc_class_id');
+      console.log('[CrazyArena] 📚 Class ID:', classId, '(source:', urlParams.get('classId') ? 'URL' : 'localStorage', ')');
+      
+      if (classId && !localStorage.getItem('cc_class_id')) {
+        localStorage.setItem('cc_class_id', classId);
+      }
       
       if (!classId) {
-        console.error('[CrazyArena] ❌ cc_class_id non trouvé dans localStorage');
+        console.error('[CrazyArena] ❌ classId non trouvé (ni URL ni localStorage)');
         throw new Error('Classe non trouvée. Veuillez vous reconnecter.');
       }
       
