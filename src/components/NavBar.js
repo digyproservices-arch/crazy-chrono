@@ -143,16 +143,20 @@ const NavBar = () => {
         <div style={{
           display: 'flex', alignItems: 'center', gap: 2
         }} className="cc-nav-desktop">
-          <NavLink icon="🎮" label={isTeacher ? "Modes de jeu" : "Jouer"} to="/modes" active={isActive('/modes')} navigate={navigate} />
+          <NavLink icon="🎮" label={(isTeacher || role === 'rectorat') ? "Modes de jeu" : "Jouer"} to="/modes" active={isActive('/modes')} navigate={navigate} />
 
-          {isTeacher && (
+          {role === 'rectorat' && (
+            <NavLink icon="🏛️" label="Dashboard" to="/rectorat" active={isActive('/rectorat')} navigate={navigate} />
+          )}
+
+          {(isTeacher || role === 'rectorat') && (
             <NavDropdown icon="📚" label="Entraînement" active={isActive('/training-arena')}>
               <DropdownItem icon="➕" label="Créer une session" to="/training-arena/setup" navigate={navigate} active={isActive('/training-arena/setup')} />
               <DropdownItem icon="📋" label="Gérer les matchs" to="/training-arena/manager" navigate={navigate} active={isActive('/training-arena/manager')} />
             </NavDropdown>
           )}
 
-          {isTeacher && (
+          {(isTeacher || role === 'rectorat') && (
             <NavDropdown icon="🏆" label="Tournoi" active={isActive('/teacher/tournament') || isActive('/crazy-arena')}>
               <DropdownItem icon="⚙️" label="Configuration" to="/teacher/tournament" navigate={navigate} active={isActive('/teacher/tournament')} />
               <DropdownItem icon="📋" label="Gérer les matchs" to="/crazy-arena/manager" navigate={navigate} active={isActive('/crazy-arena/manager')} />
