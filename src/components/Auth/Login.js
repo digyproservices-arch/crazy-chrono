@@ -233,12 +233,12 @@ export default function Login({ onLogin }) {
         const lastName = userProfile?.last_name || user.user_metadata?.last_name || '';
         const fullDisplayName = [firstName, lastName].filter(Boolean).join(' ').trim();
         
-        const existingAuth = (() => { try { return JSON.parse(localStorage.getItem('cc_auth') || '{}'); } catch { return {}; } })();
+        const existingAuth = (() => { try { const a = JSON.parse(localStorage.getItem('cc_auth') || '{}'); return (a?.id === user.id) ? a : {}; } catch { return {}; } })();
         const profile = {
-          ...existingAuth, // Préserver préférences existantes (langue, avatar, etc.)
+          ...existingAuth, // Préserver préférences existantes UNIQUEMENT si même utilisateur
           id: user.id,
           email: user.email,
-          name: (!isGenericName(existingAuth.name) && existingAuth.name) || (!isGenericName(userProfile?.pseudo) && userProfile?.pseudo) || (!isGenericName(fullDisplayName) && fullDisplayName) || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur',
+          name: (!isGenericName(userProfile?.pseudo) && userProfile?.pseudo) || (!isGenericName(fullDisplayName) && fullDisplayName) || (!isGenericName(existingAuth.name) && existingAuth.name) || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur',
           firstName: firstName,
           lastName: lastName,
           role: userProfile?.role || 'user',
