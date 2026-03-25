@@ -614,24 +614,40 @@ export default function Login({ onLogin }) {
         </div>
         {error && <div style={{ marginTop: 10, color: '#b91c1c' }}>{error}</div>}
         {info && <div style={{ marginTop: 10, color: '#065f46' }}>{info}</div>}
-        <button type="submit" disabled={loading} style={{ marginTop: 16, width: '100%', padding: '12px 12px', borderRadius: 10, border: 'none', background: '#1AACBE', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: '0 3px 10px rgba(26,172,190,0.3)' }}>
-          {loading ? 'Connexion…' : 'Se connecter'}
-        </button>
-        <button
-          type="button"
-          onClick={async () => {
-            if (!signupMode) {
-              setSignupMode(true);
-              setInfo(''); setError('');
-              return;
-            }
-            await handleSignup();
-          }}
-          disabled={loading}
-          style={{ marginTop: 8, width: '100%', padding: '12px 12px', borderRadius: 10, border: signupMode ? 'none' : '2px solid #1AACBE', background: signupMode ? '#F5A623' : 'transparent', color: signupMode ? '#4A3728' : '#1AACBE', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
-        >
-          {signupMode ? 'Valider l’inscription' : 'Créer un compte'}
-        </button>
+        {signupMode ? (
+          <>
+            <button
+              type="button"
+              onClick={handleSignup}
+              disabled={loading}
+              style={{ marginTop: 16, width: '100%', padding: '12px 12px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #F5A623, #FFC940)', color: '#4A3728', fontWeight: 800, fontSize: 15, cursor: 'pointer', boxShadow: '0 3px 10px rgba(245,166,35,0.35)' }}
+            >
+              {loading ? 'Inscription…' : 'Valider l\u2019inscription'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setSignupMode(false); setError(''); }}
+              disabled={loading}
+              style={{ marginTop: 8, width: '100%', padding: '12px 12px', borderRadius: 10, border: '2px solid #1AACBE', background: 'transparent', color: '#1AACBE', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+            >
+              J'ai déjà un compte — Se connecter
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="submit" disabled={loading} style={{ marginTop: 16, width: '100%', padding: '12px 12px', borderRadius: 10, border: 'none', background: '#1AACBE', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: '0 3px 10px rgba(26,172,190,0.3)' }}>
+              {loading ? 'Connexion…' : 'Se connecter'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setSignupMode(true); setInfo(''); setError(''); }}
+              disabled={loading}
+              style={{ marginTop: 8, width: '100%', padding: '12px 12px', borderRadius: 10, border: '2px solid #1AACBE', background: 'transparent', color: '#1AACBE', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+            >
+              Créer un compte
+            </button>
+          </>
+        )}
         {signupMode && (
           <div style={{ marginTop: 8, textAlign: 'center' }}>
             <button type="button" onClick={handleResendConfirmation} style={{ background: 'transparent', border: 'none', color: '#1AACBE', textDecoration: 'underline', cursor: 'pointer', fontWeight: 600 }}>
