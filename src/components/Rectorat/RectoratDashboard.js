@@ -107,6 +107,21 @@ const RectoratDashboard = () => {
     }
   };
 
+  const exportClassCodes = (className, schoolName, students) => {
+    if (!students || students.length === 0) return;
+    const bom = '\uFEFF';
+    const header = 'Classe;École;Prénom;Nom;Code d\'accès\n';
+    const rows = students.map(st => `${className};${schoolName};${st.firstName};${st.lastName};${st.accessCode || 'N/A'}`).join('\n');
+    const csv = bom + header + rows;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `codes_${className.replace(/\s/g, '_')}_${schoolName.replace(/\s/g, '_')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -431,12 +446,15 @@ const RectoratDashboard = () => {
                             <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{c.teacherName || 'Pas de professeur'}</div>
                             <div style={{ fontSize: 11, color: '#94a3b8' }}>{c.studentCount || c.students?.length || 0} élèves</div>
                             {c.students && c.students.length > 0 && (
-                              <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                                {c.students.map(st => (
-                                  <span key={st.id} style={{ padding: '2px 8px', borderRadius: 6, fontSize: 10, background: '#e0f2fe', color: '#0369a1', fontWeight: 600 }}>
-                                    {st.fullName || `${st.firstName} ${st.lastName}`}
-                                  </span>
-                                ))}
+                              <div style={{ marginTop: 6 }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
+                                  {c.students.map(st => (
+                                    <span key={st.id} style={{ padding: '2px 8px', borderRadius: 6, fontSize: 10, background: '#e0f2fe', color: '#0369a1', fontWeight: 600 }} title={st.accessCode ? `Code: ${st.accessCode}` : ''}>
+                                      {st.fullName || `${st.firstName} ${st.lastName}`} {st.accessCode && <span style={{ color: '#6b7280', fontWeight: 400 }}>| {st.accessCode}</span>}
+                                    </span>
+                                  ))}
+                                </div>
+                                <button onClick={() => exportClassCodes(c.name, s.name, c.students)} style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #10b981', background: '#ecfdf5', color: '#059669', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>📥 Exporter codes CSV</button>
                               </div>
                             )}
                           </div>
@@ -509,12 +527,15 @@ const RectoratDashboard = () => {
                     >🏆 Tournoi Arena</button>
                   </div>
                   {c.students && c.students.length > 0 && (
-                    <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #e2e8f0', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                      {c.students.map(st => (
-                        <span key={st.id} style={{ padding: '3px 10px', borderRadius: 8, fontSize: 11, background: '#e0f2fe', color: '#0369a1', fontWeight: 600 }}>
-                          🎓 {st.fullName || `${st.firstName} ${st.lastName}`}
-                        </span>
-                      ))}
+                    <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                        {c.students.map(st => (
+                          <span key={st.id} style={{ padding: '3px 10px', borderRadius: 8, fontSize: 11, background: '#e0f2fe', color: '#0369a1', fontWeight: 600 }}>
+                            🎓 {st.fullName || `${st.firstName} ${st.lastName}`} {st.accessCode && <span style={{ color: '#6b7280', fontWeight: 400, fontSize: 10 }}>| {st.accessCode}</span>}
+                          </span>
+                        ))}
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); exportClassCodes(c.name, c.schoolName, c.students); }} style={{ padding: '5px 14px', borderRadius: 8, border: '1px solid #10b981', background: '#ecfdf5', color: '#059669', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>📥 Exporter les codes d'accès (CSV)</button>
                     </div>
                   )}
                 </div>
