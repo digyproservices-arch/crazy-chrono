@@ -222,7 +222,7 @@ router.get('/schools', requireRectoratAuth, async (req, res) => {
     const schoolIds = (schools || []).map(s => s.id);
     const [classesRes, studentsRes] = await Promise.all([
       supabase.from('classes').select('id, school_id, name, level, teacher_name, teacher_email, student_count').in('school_id', schoolIds),
-      supabase.from('students').select('id, school_id, class_id, licensed').in('school_id', schoolIds),
+      supabase.from('students').select('id, first_name, last_name, full_name, school_id, class_id, licensed, access_code').in('school_id', schoolIds).eq('licensed', true),
     ]);
 
     const classes = classesRes.data || [];
@@ -244,11 +244,15 @@ router.get('/schools', requireRectoratAuth, async (req, res) => {
         ...school,
         classCount: sClasses.length,
         studentCount: sStudents.filter(s => s.licensed).length,
-        classes: sClasses.map(c => ({
-          id: c.id, name: c.name, level: c.level,
-          teacherName: c.teacher_name, teacherEmail: c.teacher_email,
-          studentCount: c.student_count || sStudents.filter(s => s.class_id === c.id).length,
-        })),
+        classes: sClasses.map(c => {
+          const cStudents = sStudents.filter(s => s.class_id === c.id);
+          return {
+            id: c.id, name: c.name, level: c.level,
+            teacherName: c.teacher_name, teacherEmail: c.teacher_email,
+            studentCount: cStudents.length || c.student_count || 0,
+            students: cStudents.map(s => ({ id: s.id, firstName: s.first_name, lastName: s.last_name, fullName: s.full_name, accessCode: s.access_code })),
+          };
+        }),
       };
     });
 

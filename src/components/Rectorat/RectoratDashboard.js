@@ -429,7 +429,16 @@ const RectoratDashboard = () => {
                           <div key={c.id} style={{ padding: '10px 14px', borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                             <div style={{ fontWeight: 700, fontSize: 13, color: '#1e293b' }}>📚 {c.name} — {c.level}</div>
                             <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{c.teacherName || 'Pas de professeur'}</div>
-                            <div style={{ fontSize: 11, color: '#94a3b8' }}>{c.studentCount} élèves</div>
+                            <div style={{ fontSize: 11, color: '#94a3b8' }}>{c.studentCount || c.students?.length || 0} élèves</div>
+                            {c.students && c.students.length > 0 && (
+                              <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                {c.students.map(st => (
+                                  <span key={st.id} style={{ padding: '2px 8px', borderRadius: 6, fontSize: 10, background: '#e0f2fe', color: '#0369a1', fontWeight: 600 }}>
+                                    {st.fullName || `${st.firstName} ${st.lastName}`}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -476,27 +485,38 @@ const RectoratDashboard = () => {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {allClasses.map(c => (
-                <div key={c.id} style={{ ...CARD, display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px' }}>
-                  <span style={{ fontSize: 22 }}>📚</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b' }}>{c.name} — {c.level}</div>
-                    <div style={{ fontSize: 12, color: '#64748b' }}>
-                      🏫 {c.schoolName} • {c.city}
-                      {c.circonscription && <span style={{ marginLeft: 8, color: '#b45309' }}>📍 {c.circonscription.replace('circ_', '').replace(/_/g, ' ')}</span>}
+                <div key={c.id} style={{ ...CARD, padding: '14px 18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <span style={{ fontSize: 22 }}>📚</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b' }}>{c.name} — {c.level}</div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>
+                        🏫 {c.schoolName} • {c.city}
+                        {c.circonscription && <span style={{ marginLeft: 8, color: '#b45309' }}>📍 {c.circonscription.replace('circ_', '').replace(/_/g, ' ')}</span>}
+                      </div>
+                      {c.teacherName && <div style={{ fontSize: 11, color: '#94a3b8' }}>👩‍🏫 {c.teacherName}</div>}
                     </div>
-                    {c.teacherName && <div style={{ fontSize: 11, color: '#94a3b8' }}>👩‍🏫 {c.teacherName}</div>}
+                    <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#eff6ff', color: '#1d4ed8' }}>
+                      {c.students?.length || c.studentCount} élèves
+                    </span>
+                    <button
+                      onClick={() => navigate(`/training-arena/setup?classId=${c.id}&className=${encodeURIComponent(c.name + ' - ' + c.schoolName)}`)}
+                      style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#10b981', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                    >📚 Entraînement</button>
+                    <button
+                      onClick={() => navigate(`/teacher/tournament?classId=${c.id}&className=${encodeURIComponent(c.name + ' - ' + c.schoolName)}`)}
+                      style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                    >🏆 Tournoi Arena</button>
                   </div>
-                  <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#eff6ff', color: '#1d4ed8' }}>
-                    {c.students?.length || c.studentCount} élèves
-                  </span>
-                  <button
-                    onClick={() => navigate(`/training-arena/setup?classId=${c.id}&className=${encodeURIComponent(c.name + ' - ' + c.schoolName)}`)}
-                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#10b981', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
-                  >📚 Entraînement</button>
-                  <button
-                    onClick={() => navigate(`/teacher/tournament?classId=${c.id}&className=${encodeURIComponent(c.name + ' - ' + c.schoolName)}`)}
-                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#1d4ed8', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
-                  >🏆 Tournoi Arena</button>
+                  {c.students && c.students.length > 0 && (
+                    <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #e2e8f0', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {c.students.map(st => (
+                        <span key={st.id} style={{ padding: '3px 10px', borderRadius: 8, fontSize: 11, background: '#e0f2fe', color: '#0369a1', fontWeight: 600 }}>
+                          🎓 {st.fullName || `${st.firstName} ${st.lastName}`}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
