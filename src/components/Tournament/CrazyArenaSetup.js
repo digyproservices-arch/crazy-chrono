@@ -627,6 +627,21 @@ export default function CrazyArenaSetup() {
                       </button>
                     </>
                   )}
+                  {group.status === 'playing' && (
+                    <button 
+                      onClick={() => deleteGroup(group.id)}
+                      style={{ 
+                        padding: '8px 16px', 
+                        borderRadius: 8, 
+                        border: '1px solid #ef4444', 
+                        background: '#fff', 
+                        color: '#ef4444',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      🗑️ Supprimer
+                    </button>
+                  )}
                   {group.match_id && (
                     <button 
                       onClick={() => navigate(`/tournament/match/${group.match_id}/results`)}
