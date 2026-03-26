@@ -790,6 +790,26 @@ class CrazyArenaManager {
       await this.saveTrainingResults(matchId, ranking, match);
     }
     
+    // ✅ FIX: Mettre à jour le statut du groupe en DB (playing → finished)
+    if (this.supabase) {
+      try {
+        const { data: groupData, error: groupErr } = await this.supabase
+          .from('tournament_groups')
+          .update({ status: 'finished', winner_id: winner.studentId })
+          .eq('match_id', matchId)
+          .select('id')
+          .single();
+        
+        if (groupErr) {
+          console.warn(`[CrazyArena][Training] ⚠️ Erreur mise à jour groupe:`, groupErr.message);
+        } else if (groupData) {
+          console.log(`[CrazyArena][Training] ✅ Groupe ${groupData.id} → finished, winner: ${winner.name}`);
+        }
+      } catch (err) {
+        console.warn(`[CrazyArena][Training] ⚠️ Erreur update groupe:`, err.message);
+      }
+    }
+    
     // Nettoyer après 30s (IDENTIQUE À ARENA)
     setTimeout(() => {
       this.cleanupMatch(matchId);

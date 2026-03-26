@@ -124,7 +124,7 @@ export default function CrazyArenaSetup() {
       setStudents(studentsData.students || []);
       
       // 3. Récupérer les groupes déjà créés
-      const groupsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/groups`, { headers: getAuthHeaders() });
+      const groupsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/groups?mode=arena`, { headers: getAuthHeaders() });
       const groupsData = await groupsRes.json();
       console.log('[CrazyArena] 👥 Groups data:', groupsData);
       console.log('[CrazyArena] 👥 Groups count:', groupsData.groups?.length || 0);
@@ -185,7 +185,8 @@ export default function CrazyArenaSetup() {
           phaseLevel: tournament.current_phase,
           classId,
           name: groupName,
-          studentIds: selectedStudents
+          studentIds: selectedStudents,
+          mode: 'arena'
         })
       });
       

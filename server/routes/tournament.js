@@ -507,14 +507,22 @@ router.get('/classes/:classId/students', requireSupabase, requireAuth, ...valida
 router.get('/classes/:classId/groups', requireSupabase, requireAuth, ...validateParamClassId, async (req, res) => {
   try {
     const { classId } = req.params;
+    const { mode } = req.query;
     
-    console.log('[Tournament API] 🔍 FETCH GROUPS for classId:', classId);
+    console.log('[Tournament API] 🔍 FETCH GROUPS for classId:', classId, 'mode:', mode || 'all');
     
-    const { data, error } = await supabase
+    let query = supabase
       .from('tournament_groups')
       .select('*')
       .eq('class_id', classId)
       .order('created_at', { ascending: false });
+    
+    // Filtrer par mode si spécifié
+    if (mode) {
+      query = query.eq('mode', mode);
+    }
+    
+    const { data, error } = await query;
     
     if (error) throw error;
     
@@ -576,9 +584,9 @@ router.get('/students/:id', requireSupabase, requireAuth, async (req, res) => {
  */
 router.post('/groups', requireSupabase, requireAuth, ...validateCreateGroup, async (req, res) => {
   try {
-    const { tournamentId, phaseLevel, classId, name, studentIds } = req.body;
+    const { tournamentId, phaseLevel, classId, name, studentIds, mode } = req.body;
     
-    console.log('[Tournament API] 📨 CREATE GROUP - tournamentId:', tournamentId, 'classId:', classId, 'name:', name, 'studentIds:', studentIds, 'phaseLevel:', phaseLevel);
+    console.log('[Tournament API] 📨 CREATE GROUP - tournamentId:', tournamentId, 'classId:', classId, 'name:', name, 'studentIds:', studentIds, 'phaseLevel:', phaseLevel, 'mode:', mode);
     
     if (!Array.isArray(studentIds) || studentIds.length < 2 || studentIds.length > 4) {
       return res.status(400).json({ success: false, error: 'Un groupe doit contenir entre 2 et 4 élèves' });
@@ -593,7 +601,8 @@ router.post('/groups', requireSupabase, requireAuth, ...validateCreateGroup, asy
       class_id: classId || null,
       name: name,
       student_ids: JSON.stringify(studentIds),
-      status: 'pending'
+      status: 'pending',
+      mode: mode || 'arena'
     };
     console.log('[Tournament API] 📨 INSERT payload:', JSON.stringify(insertPayload));
     

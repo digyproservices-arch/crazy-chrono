@@ -296,7 +296,7 @@ export default function TrainingArenaSetup() {
       setStudents(studentsData.students || []);
       
       // 3. Récupérer les groupes déjà créés
-      const groupsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/groups`, { headers: getAuthHeaders() });
+      const groupsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/groups?mode=training`, { headers: getAuthHeaders() });
       const groupsData = await groupsRes.json();
       console.log('[TrainingArena] 👥 Groups data:', groupsData);
       console.log('[TrainingArena] 👥 Groups count:', groupsData.groups?.length || 0);
@@ -371,7 +371,8 @@ export default function TrainingArenaSetup() {
           phaseLevel: tournament.current_phase,
           classId,
           name: groupName,
-          studentIds: selectedStudents
+          studentIds: selectedStudents,
+          mode: 'training'
         })
       });
       
