@@ -302,11 +302,24 @@ function generateRoundZones(seed, config = {}) {
         if (!lc) return true;
         return selectedClasses.has(lc);
       };
+      // ✅ FIX: Normaliser les thèmes pour gérer le mismatch entre
+      // éléments (themes: ["botanique"]) et associations (themes: ["domain:botany", "region:guadeloupe", ...])
+      const THEME_ALIASES = {
+        'botanique': ['botanique', 'domain:botany'],
+        'domain:botany': ['botanique', 'domain:botany'],
+        'multiplication': ['multiplication'],
+        'geographie': ['geographie', 'domain:geography'],
+        'domain:geography': ['geographie', 'domain:geography'],
+      };
+      const expandTheme = (t) => THEME_ALIASES[t] || [t];
+      // Pré-calculer l'ensemble étendu des thèmes sélectionnés
+      const expandedSelectedThemes = new Set(selectedThemes.flatMap(expandTheme));
+      
       const hasThemes = (el) => {
         const tags = Array.isArray(el?.themes) ? el.themes : [];
         if (selectedThemes.length === 0) return true;
         if (tags.length === 0) return true; // includeUntagged par défaut
-        return selectedThemes.some(t => tags.includes(t)); // mode 'any'
+        return tags.some(t => expandedSelectedThemes.has(t) || expandedSelectedThemes.has(t.split(':').pop())); // mode 'any'
       };
       
       const filterEl = (el) => hasClass(el) && hasThemes(el);
