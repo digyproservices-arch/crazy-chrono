@@ -57,13 +57,15 @@ export default function TrainingArenaManagerDashboard() {
             return apiMatches;
           }
           
-          // Sinon, fusionner intelligemment
-          return apiMatches.map(apiMatch => {
+          // Fusionner: prendre les matchs API + conserver les matchs locaux non-finished absents de l'API
+          const apiMatchIds = new Set(apiMatches.map(m => m.matchId));
+          
+          const merged = apiMatches.map(apiMatch => {
             const existingMatch = prevMatches.find(m => m.matchId === apiMatch.matchId);
             
             if (existingMatch) {
               // CRITIQUE: Ne JAMAIS écraser avec undefined
-              const merged = {
+              const m = {
                 ...apiMatch,
                 connectedPlayers: existingMatch.connectedPlayers || apiMatch.connectedPlayers || 0,
                 readyPlayers: existingMatch.readyPlayers || apiMatch.readyPlayers || 0,
@@ -74,28 +76,26 @@ export default function TrainingArenaManagerDashboard() {
                 isTiebreaker: existingMatch.isTiebreaker
               };
               
-              // ✅ COPIE EXACTE Arena (ArenaManagerDashboard.js lignes 54-60)
-              // Préserver playersReadyCount du cache (socket temps réel) plutôt que l'écraser avec API (polling retardé)
+              // Préserver playersReadyCount du cache (socket temps réel)
               if (existingMatch.playersReadyCount !== undefined) {
-                merged.playersReadyCount = existingMatch.playersReadyCount;
+                m.playersReadyCount = existingMatch.playersReadyCount;
               }
               if (existingMatch.playersTotalCount !== undefined) {
-                merged.playersTotalCount = existingMatch.playersTotalCount;
+                m.playersTotalCount = existingMatch.playersTotalCount;
               }
               
-              // Log diagnostic pour tie-waiting
-              if (existingMatch.status === 'tie-waiting') {
-                console.log(`[TrainingArenaManager] 🔄 POLLING API - Match ${apiMatch.matchId.slice(-8)}:`, {
-                  avant: { ready: existingMatch.playersReadyCount, total: existingMatch.playersTotalCount },
-                  apres: { ready: merged.playersReadyCount, total: merged.playersTotalCount }
-                });
-              }
-              
-              return merged;
+              return m;
             }
             
             return apiMatch;
           });
+          
+          // ✅ FIX: Conserver les matchs connus (ex: en countdown) temporairement absents de l'API
+          const preserved = prevMatches.filter(m => 
+            !apiMatchIds.has(m.matchId) && m.status !== 'finished'
+          );
+          
+          return [...merged, ...preserved];
         });
         setError(null);
       } else {

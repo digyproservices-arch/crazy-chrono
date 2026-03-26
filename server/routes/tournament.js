@@ -1642,7 +1642,7 @@ router.get('/active-matches', requireSupabase, requireAuth, async (req, res) => 
       const allMemMatches = Array.from(global.crazyArena.matches.values());
       
       arenaMemoryMatches = allMemMatches
-        .filter(m => m.mode === 'arena' && ['waiting', 'playing', 'tie-waiting'].includes(m.status))
+        .filter(m => m.mode === 'arena' && ['waiting', 'playing', 'countdown', 'tie-waiting'].includes(m.status))
         .filter(m => !dbMatchIds.has(m.matchId)) // Pas déjà dans la DB
         .map(match => ({
           matchId: match.matchId,
@@ -1672,7 +1672,7 @@ router.get('/active-matches', requireSupabase, requireAuth, async (req, res) => 
       // Filtrer les matchs Training actifs (waiting, playing, ou tie-waiting)
       // + filtrer par teacherId si fourni
       trainingMatches = allMatches
-        .filter(m => m.mode === 'training' && ['waiting', 'playing', 'tie-waiting'].includes(m.status))
+        .filter(m => m.mode === 'training' && ['waiting', 'playing', 'countdown', 'tie-waiting'].includes(m.status))
         .filter(m => !teacherId || m.teacherId === teacherId)
         .map(match => {
           const baseMatch = {
