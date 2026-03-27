@@ -312,7 +312,8 @@ const RectoratDashboard = () => {
       {/* TAB: COMPETITIONS */}
       {activeTab === 'competitions' && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <div
                 onClick={() => setFilterOfficial(p => !p)}
@@ -322,6 +323,23 @@ const RectoratDashboard = () => {
               <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>Officielles uniquement</span>
             </label>
             <span style={{ fontSize: 12, color: '#94a3b8' }}>{competitions.length} résultat(s)</span>
+            </div>
+            <button
+              onClick={() => navigate('/crazy-arena/competition')}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '10px 20px', borderRadius: 12, border: 'none',
+                background: 'linear-gradient(135deg, #0D6A7A, #1AACBE)',
+                color: '#fff', fontWeight: 700, fontSize: 14,
+                cursor: 'pointer', boxShadow: '0 2px 8px rgba(13,106,122,0.3)',
+                transition: 'transform 0.15s, box-shadow 0.15s'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(13,106,122,0.4)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(13,106,122,0.3)'; }}
+            >
+              <span style={{ fontSize: 18 }}>🏆</span>
+              Suivi Compétition
+            </button>
           </div>
 
           {competitions.length === 0 ? (
