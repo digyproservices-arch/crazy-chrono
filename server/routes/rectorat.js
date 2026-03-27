@@ -323,4 +323,92 @@ router.get('/classes', requireRectoratAuth, async (req, res) => {
   }
 });
 
+// ── PATCH /api/rectorat/competition/:id/toggle ──
+// Ouvrir ou fermer la compétition officielle (rectorat uniquement)
+router.patch('/competition/:id/toggle', requireRectoratAuth, async (req, res) => {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) return res.status(503).json({ ok: false, error: 'db_unavailable' });
+
+    const tournamentId = req.params.id;
+
+    // Récupérer le tournoi actuel
+    const { data: tournament, error: fetchErr } = await supabase
+      .from('tournaments')
+      .select('id, name, status, academy_code')
+      .eq('id', tournamentId)
+      .single();
+
+    if (fetchErr || !tournament) {
+      return res.status(404).json({ ok: false, error: 'Tournoi non trouvé' });
+    }
+
+    // Toggle: draft → active, active → draft
+    const newStatus = tournament.status === 'active' ? 'draft' : 'active';
+    const now = new Date().toISOString();
+
+    const updateFields = { status: newStatus };
+    if (newStatus === 'active') {
+      updateFields.start_date = now;
+    }
+
+    const { error: updateErr } = await supabase
+      .from('tournaments')
+      .update(updateFields)
+      .eq('id', tournamentId);
+
+    if (updateErr) throw updateErr;
+
+    console.log(`[Rectorat API] Compétition ${tournamentId} → ${newStatus} (par ${req.user?.email || 'rectorat'})`);
+
+    res.json({
+      ok: true,
+      tournament: { ...tournament, status: newStatus },
+      message: newStatus === 'active'
+        ? 'Compétition ouverte ! Les enseignants peuvent maintenant lancer des matchs Arena officiels.'
+        : 'Compétition fermée. Le bouton Arena sera grisé pour les enseignants.'
+    });
+  } catch (e) {
+    console.error('[Rectorat API] toggle competition error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ── GET /api/rectorat/competition-status ──
+// Statut de la compétition (accessible aussi sans auth rectorat pour les profs)
+router.get('/competition-status', async (req, res) => {
+  try {
+    const supabase = getSupabase();
+    if (!supabase) return res.status(503).json({ ok: false, error: 'db_unavailable' });
+
+    const academy = req.query.academy || 'GP';
+
+    const { data: tournament, error } = await supabase
+      .from('tournaments')
+      .select('id, name, status, academy_code, start_date, current_phase')
+      .eq('academy_code', academy)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !tournament) {
+      return res.json({ ok: true, open: false, reason: 'no_tournament' });
+    }
+
+    res.json({
+      ok: true,
+      open: tournament.status === 'active',
+      tournamentId: tournament.id,
+      name: tournament.name,
+      status: tournament.status,
+      startDate: tournament.start_date,
+      currentPhase: tournament.current_phase,
+      academy: tournament.academy_code
+    });
+  } catch (e) {
+    console.error('[Rectorat API] competition-status error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 module.exports = router;

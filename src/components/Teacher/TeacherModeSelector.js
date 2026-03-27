@@ -1,10 +1,19 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './TeacherModeSelector.css';
 import InteractiveDemo from '../InteractiveDemo';
+import { getBackendUrl } from '../../utils/subscription';
 
 const TeacherModeSelector = () => {
   const navigate = useNavigate();
+  const [competitionOpen, setCompetitionOpen] = useState(null); // null=loading, true/false
+
+  useEffect(() => {
+    fetch(`${getBackendUrl()}/api/rectorat/competition-status?academy=GP`)
+      .then(r => r.json())
+      .then(d => setCompetitionOpen(d.ok ? d.open : false))
+      .catch(() => setCompetitionOpen(false));
+  }, []);
 
   return (
     <div className="mode-selector-container">
@@ -75,7 +84,7 @@ const TeacherModeSelector = () => {
           </button>
         </div>
 
-        <div className="mode-card tournament-mode">
+        <div className="mode-card tournament-mode" style={competitionOpen === false ? { opacity: 0.55, filter: 'grayscale(40%)' } : {}}>
           <div className="mode-icon">🏆</div>
           <h2>TOURNOI OFFICIEL</h2>
           <p className="mode-description">
@@ -88,11 +97,24 @@ const TeacherModeSelector = () => {
             <div className="feature">🔑 Licence requise</div>
           </div>
 
+          {competitionOpen === false && (
+            <div style={{
+              padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+              background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca',
+              textAlign: 'center', marginBottom: 8
+            }}>
+              🔴 Compétition non ouverte par le rectorat
+            </div>
+          )}
+
           <button 
             className="mode-button tournament-button"
-            onClick={() => navigate('/teacher/tournament')}
+            disabled={competitionOpen === false}
+            onClick={() => competitionOpen && navigate('/teacher/tournament')}
+            style={competitionOpen === false ? { cursor: 'not-allowed', opacity: 0.5 } : {}}
+            title={competitionOpen === false ? 'La compétition n\'est pas encore ouverte par le rectorat académique' : ''}
           >
-            VOIR TOURNOI
+            {competitionOpen === null ? '...' : competitionOpen ? 'VOIR TOURNOI' : 'TOURNOI FERMÉ'}
           </button>
         </div>
 

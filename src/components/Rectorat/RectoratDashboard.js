@@ -22,6 +22,8 @@ const RectoratDashboard = () => {
   const [expandedSchool, setExpandedSchool] = useState(null);
   const [allClasses, setAllClasses] = useState([]);
   const [userRegion, setUserRegion] = useState('');
+  const [competition, setCompetition] = useState(null);
+  const [togglingCompetition, setTogglingCompetition] = useState(false);
 
   useEffect(() => {
     try {
@@ -30,6 +32,7 @@ const RectoratDashboard = () => {
     } catch {}
     loadStats();
     loadCompetitions();
+    loadCompetitionStatus();
   }, []);
 
   useEffect(() => {
@@ -46,6 +49,40 @@ const RectoratDashboard = () => {
       console.error('[Rectorat] stats error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCompetitionStatus = async () => {
+    try {
+      const res = await fetch(`${getBackendUrl()}/api/rectorat/competition-status?academy=GP`);
+      const data = await res.json();
+      if (data.ok) setCompetition(data);
+    } catch (err) {
+      console.error('[Rectorat] competition-status error:', err);
+    }
+  };
+
+  const toggleCompetition = async () => {
+    if (!competition?.tournamentId) return;
+    const action = competition.open ? 'fermer' : 'ouvrir';
+    if (!window.confirm(`Voulez-vous ${action} la compétition officielle ?`)) return;
+    try {
+      setTogglingCompetition(true);
+      const res = await fetch(`${getBackendUrl()}/api/rectorat/competition/${competition.tournamentId}/toggle`, {
+        method: 'PATCH',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setCompetition(prev => ({ ...prev, open: data.tournament.status === 'active', status: data.tournament.status }));
+      } else {
+        alert('Erreur: ' + (data.error || 'Impossible de modifier la compétition'));
+      }
+    } catch (err) {
+      console.error('[Rectorat] toggle competition error:', err);
+      alert('Erreur réseau');
+    } finally {
+      setTogglingCompetition(false);
     }
   };
 
@@ -149,12 +186,56 @@ const RectoratDashboard = () => {
           </p>
         </div>
         <button
-          onClick={() => { loadStats(); loadCompetitions(); }}
+          onClick={() => { loadStats(); loadCompetitions(); loadCompetitionStatus(); }}
           style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}
         >
           🔄 Actualiser
         </button>
       </div>
+
+      {/* BANDEAU COMPÉTITION */}
+      {competition && (
+        <div style={{
+          ...CARD,
+          display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
+          borderLeft: `5px solid ${competition.open ? '#10b981' : '#ef4444'}`,
+          background: competition.open ? '#f0fdf4' : '#fef2f2',
+          marginBottom: 20
+        }}>
+          <span style={{ fontSize: 28 }}>🏆</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, fontSize: 16, color: '#1e293b' }}>
+              {competition.name || 'Tournoi Interscolaire CrazyChrono 2025-2026'}
+            </div>
+            <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>
+              Académie : {competition.academy || 'GP'}
+              {competition.startDate && ` — Ouverte le ${new Date(competition.startDate).toLocaleDateString('fr-FR')}`}
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{
+              padding: '6px 14px', borderRadius: 999, fontSize: 13, fontWeight: 800,
+              background: competition.open ? '#dcfce7' : '#fecaca',
+              color: competition.open ? '#166534' : '#991b1b'
+            }}>
+              {competition.open ? '🟢 OUVERTE' : '🔴 FERMÉE'}
+            </span>
+            <button
+              onClick={toggleCompetition}
+              disabled={togglingCompetition}
+              style={{
+                padding: '8px 18px', borderRadius: 10, border: 'none', fontWeight: 700, fontSize: 13,
+                cursor: togglingCompetition ? 'wait' : 'pointer',
+                background: competition.open ? '#ef4444' : '#10b981',
+                color: '#fff', opacity: togglingCompetition ? 0.6 : 1,
+                transition: 'opacity 0.2s'
+              }}
+            >
+              {togglingCompetition ? '...' : competition.open ? '🔴 Fermer la compétition' : '🟢 Ouvrir la compétition'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* TAB NAVIGATION */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid #e2e8f0', paddingBottom: 0 }}>
