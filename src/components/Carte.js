@@ -3086,17 +3086,17 @@ function startGame() {
   const uid = getLocalUserId();
   // Helper: vérifier la limite locale (free seulement) — retourne true si bloqué
   const checkLocalLimit = (source) => {
-    if (isFree()) {
-      console.log('[CC][quota]', source, '| isFree=true, localSessions=', getDailyCounts().sessions);
+    const free = isFree();
+    console.log('[CC][quota]', source, '| isFree=' + free + ', localSessions=', getDailyCounts().sessions);
+    if (free) {
       if (!canStartSessionToday(3)) {
         alert('Limite quotidienne atteinte (3 sessions/jour en version gratuite). Passe à la version Pro pour continuer.');
         try { navigate('/pricing'); } catch {}
         return true;
       }
-      incrementSessionCount();
-    } else {
-      console.log('[CC][quota]', source, '| isFree=false (pro/admin/teacher), skip local limit');
     }
+    // Always increment local counter (even for pro/role users) for accurate tracking
+    incrementSessionCount();
     return false;
   };
   serverAllowsStart(uid).then((res) => {
@@ -4934,7 +4934,7 @@ setZones(dataWithRandomTexts);
                 const lc = a?.levelClass ? [String(a.levelClass)] : [];
                 const arr = a?.levels || a?.classes || a?.classLevels || [];
                 const vals = [...lc, ...arr].map(normLvl).filter(Boolean);
-                return vals.length === 0 || vals.some(v => (lvlIdx[v] ?? 99) <= maxLvlIdx);
+                return vals.length > 0 && vals.some(v => (lvlIdx[v] ?? 99) <= maxLvlIdx);
               };
               if (Array.isArray(assocRoot)) {
                 assocRoot = assocRoot.filter(byClassCumul);
@@ -5461,8 +5461,7 @@ setZones(dataWithRandomTexts);
                   if (!pick) {
                     const pool2 = allCalcs.filter(cand => {
                       const idStr = String(cand.id);
-                      const contNorm = normCalc(cand.content || '');
-                      if (usedCalcIds.has(idStr) || !contNorm || usedCalcContents.has(contNorm)) return false;
+                      if (usedCalcIds.has(idStr)) return false;
                       const parsed = parseOperation(cand.content || '');
                       const res = parsed && Number.isFinite(parsed.result) ? parsed.result : null;
                       if (res != null && (presentCalcResults.has(res) || numbersOnCardSetIB.has(res))) { filteredCalcsByResultIB++; return false; }
@@ -5579,7 +5578,7 @@ setZones(dataWithRandomTexts);
                 const existingNumContents = new Set(
                   post.filter(z => normType(z?.type) === 'chiffre').map(z => String(z.content ?? '').trim())
                 );
-                const _parseChiffre = (s) => { const v = parseFloat(String(s).replace(/\s/g, '').replace(/,/g, '.')); return Number.isFinite(v) ? Math.round(v * 1e8) / 1e8 : NaN; };
+                const _parseChiffre = (s) => { const r = String(s).replace(/\s/g, '').replace(/,/g, '.'); const fm = r.match(/^(-?[\d.]+)\/(-?[\d.]+)$/); if (fm) { const a = parseFloat(fm[1]), b = parseFloat(fm[2]); if (Number.isFinite(a) && Number.isFinite(b) && b !== 0) return Math.round((a / b) * 1e8) / 1e8; } const v = parseFloat(r); return Number.isFinite(v) ? Math.round(v * 1e8) / 1e8 : NaN; };
                 const numbersOnCardSet = new Set(
                   Array.from(existingNumContents).map(s => _parseChiffre(s)).filter(n => Number.isFinite(n))
                 );
@@ -6010,9 +6009,9 @@ setZones(dataWithRandomTexts);
             if (s.startsWith('/')) s = s.slice(1);
             return s;
           };
-          const _afpImgIdByUrl = new Map(((assocData.images || []).map(it => [_afpNormUrl(it.url || it.path || it.src || ''), String(it.id)])));
-          const _afpImgTxtPairs = new Set(((assocData.associations || []).filter(a => a.imageId && a.texteId).map(a => `${a.imageId}|${a.texteId}`)));
-          const _afpAllTextes = assocData.textes || [];
+          const _afpImgIdByUrl = new Map(assocData.images.map(it => [_afpNormUrl(it.url || it.path || it.src || ''), String(it.id)]));
+          const _afpImgTxtPairs = new Set(assocData.associations.filter(a => a.imageId && a.texteId).map(a => `${a.imageId}|${a.texteId}`));
+          const _afpAllTextes = assocData.textes;
           const _afpTxtIdByCont = new Map(_afpAllTextes.map(t => [_afpNorm(t.content), String(t.id)]));
           const _afpPresentImgIds = new Set(
             post.filter(z => (normType(z?.type) || 'image') === 'image')
@@ -6073,7 +6072,7 @@ setZones(dataWithRandomTexts);
       // Assainissement final: garantir EXACTEMENT UNE paire calcul-chiffre valide
       try {
         // Détecter la première paire calcul-chiffre existante (via pairId partagé)
-        const calcWithPair = post.find(z => normType(z?.type) === 'calcul' && getPairId(z));
+        const calcWithPair = post.find(z => normType(z?.type) === 'calcul' && (z.pairId || '').trim());
         let allowedCalcNumKey = null;
         let keptNumZoneId = null;
         if (calcWithPair) {
@@ -6173,13 +6172,15 @@ setZones(dataWithRandomTexts);
         const calcNumPairs = new Set(((assocData && assocData.associations) || [])
           .filter(a => a.calculId && a.chiffreId)
           .map(a => `${a.calculId}|${a.chiffreId}`));
-        // Calculs présents (IDs admin si disponibles)
+
+        // Construire l'ensemble des calculs présents (IDs Admin si possible)
         const presentCalcIds = new Set(
           post.filter(z => normType(z?.type) === 'calcul')
               .map(z => calcIdByContent.get(normCalc(z.content)))
               .filter(id => id != null)
               .map(id => String(id))
         );
+
         const usedNumContents = new Set();
         const usedNumIds = new Set();
         // seed with paired chiffre if any
@@ -6270,7 +6271,11 @@ setZones(dataWithRandomTexts);
         const allTextes = (assocData && assocData.textes) || [];
         const allCalcs = (assocData && assocData.calculs) || [];
         const allNums = (assocData && assocData.chiffres) || [];
-        const imgIdByUrl = new Map(allImages.map(it => [normUrl(it.url || it.path || it.src || ''), it.id]));
+        const imgIdByUrl = new Map();
+        for (const im of (assocData.images || [])) {
+          const u = normUrl(im.url || im.path || im.src || '');
+          if (u) imgIdByUrl.set(u, String(im.id));
+        }
         const calcIdByContent = new Map(allCalcs.map(it => [normCalc(it.content), it.id]));
         const numIdByContent = new Map(allNums.map(it => [normNum(it.content), it.id]));
         const imgTxtPairs = new Set(((assocData && assocData.associations) || [])
@@ -6339,7 +6344,7 @@ setZones(dataWithRandomTexts);
               return true;
             });
             if (!safe.length) return null;
-            return safe[Math.floor(rng() * safe.length)];
+            return safe[Math.floor(Math.random() * safe.length)];
           };
           post = post.map(z => {
             if (normType(z?.type) !== 'texte') return z;
@@ -6388,7 +6393,7 @@ setZones(dataWithRandomTexts);
               return true;
             });
             if (safe.length) {
-              const pick = safe[Math.floor(rng() * safe.length)];
+              const pick = safe[Math.floor(Math.random() * safe.length)];
               _usedSafe.add(String(pick.id));
               console.warn('[CC] ANTI-FAUSSE-PAIRE: texte "' + z.content + '" remplacé par "' + pick.content + '" (formait paire avec image présente)');
               try { newTextSettings[z.id] = { ...defaultTextSettings, ...(newTextSettings[z.id] || {}), text: pick.content || '' }; } catch {}
@@ -6411,7 +6416,7 @@ setZones(dataWithRandomTexts);
               return true;
             });
             if (!safe.length) return null;
-            return safe[Math.floor(rng() * safe.length)];
+            return safe[Math.floor(Math.random() * safe.length)];
           };
           post = post.map(z => {
             if (normType(z?.type) !== 'calcul') return z;
@@ -6536,11 +6541,11 @@ setZones(dataWithRandomTexts);
         const _peImgTxtPairs = new Set(((assocData && assocData.associations) || [])
           .filter(a => a.imageId && a.texteId)
           .map(a => `${a.imageId}|${a.texteId}`));
-        const _peTxtIdByContent = new Map(_peAllTextes.map(t => [_peNorm(t.content), String(t.id)]));
+        const _peTxtIdByCont = new Map(_peAllTextes.map(t => [_peNorm(t.content), String(t.id)]));
         const _pePresentImgIds = new Set(
           post.filter(z => normType(z?.type) === 'image')
               .map(z => _peImgIdByUrl.get(_peNormUrl(z.content || z.url || z.path || z.src || '')))
-              .filter(id => id != null)
+              .filter(id => id != null).map(id => String(id))
         );
         const _peUsedTexts = new Set(post.filter(z => normType(z?.type) === 'texte').map(z => _peNorm(z.content)));
         const _peUsedSafe = new Set();
@@ -6549,7 +6554,7 @@ setZones(dataWithRandomTexts);
           if (normType(z?.type) !== 'texte') return z;
           const pid = (z.pairId || '').trim();
           if (pid && !pid.startsWith('x_')) return z;
-          const adminTxtId = _peTxtIdByContent.get(_peNorm(z.content));
+          const adminTxtId = _peTxtIdByCont.get(_peNorm(z.content));
           if (!adminTxtId) return z;
           let wouldPair = false;
           for (const imgId of _pePresentImgIds) {
@@ -6638,7 +6643,7 @@ setZones(dataWithRandomTexts);
           const lc = a?.levelClass ? [String(a.levelClass)] : [];
           const arr = a?.levels || a?.classes || a?.classLevels || [];
           const vals = [...lc, ...arr].map(normLevelF).filter(Boolean);
-          return vals.length === 0 || vals.some(v => (lvlIdxF[v] ?? 99) <= maxLvlIdxF);
+          return vals.length > 0 && vals.some(v => (lvlIdxF[v] ?? 99) <= maxLvlIdxF);
         });
         // IDs autorisés = images référencées par associations filtrées (héritage de thème)
         const allowedImgIds = new Set(filteredAssoc.filter(a => a.imageId).map(a => String(a.imageId)));
@@ -6677,17 +6682,25 @@ setZones(dataWithRandomTexts);
       } catch {}
       // FILET DE SÉCURITÉ: éliminer toute fausse paire calcul-chiffre résiduelle
       try {
+        const _sfParseFrac = (s) => { const fm = String(s).match(/^(-?[\d.]+)\/(-?[\d.]+)$/); if (fm) { const a = parseFloat(fm[1]), b = parseFloat(fm[2]); if (Number.isFinite(a) && Number.isFinite(b) && b !== 0) return a / b; } const v = parseFloat(s); return Number.isFinite(v) ? v : NaN; };
         const _sfEval = (expr) => {
           if (!expr) return NaN;
           const n = String(expr).replace(/×/g, '*').replace(/÷/g, '/').replace(/\s/g, '').replace(/,/g, '.');
           const m = n.match(/^(-?[\d.]+)([+\-*/])(-?[\d.]+)$/);
           if (m) { const a = parseFloat(m[1]), b = parseFloat(m[3]); switch(m[2]) { case '+': return a+b; case '-': return a-b; case '*': return a*b; case '/': return b?a/b:NaN; } }
+          const mf = n.match(/^(-?[\d.]+)([+\-*])(-?[\d.]+\/[\d.]+)$/);
+          if (mf) { const a = parseFloat(mf[1]), b = _sfParseFrac(mf[3]); if (Number.isFinite(a) && Number.isFinite(b)) { switch(mf[2]) { case '+': return a+b; case '-': return a-b; case '*': return a*b; } } }
+          const mf2 = n.match(/^(-?[\d.]+\/[\d.]+)([+\-*])(-?[\d.]+)$/);
+          if (mf2) { const a = _sfParseFrac(mf2[1]), b = parseFloat(mf2[3]); if (Number.isFinite(a) && Number.isFinite(b)) { switch(mf2[2]) { case '+': return a+b; case '-': return a-b; case '*': return a*b; } } }
+          const fracOnly = _sfParseFrac(n);
+          if (Number.isFinite(fracOnly)) return fracOnly;
           return NaN;
         };
         const _sfR = (v) => Math.round(v * 1e8) / 1e8;
         const sfDistCalcs = post.filter(z => normType(z?.type) === 'calcul' && !(z.pairId || '').trim() && z.content);
         const sfDistNums = post.filter(z => normType(z?.type) === 'chiffre' && !(z.pairId || '').trim() && z.content);
-        const sfNumVals = new Set(sfDistNums.map(z => _sfR(parseFloat(String(z.content).replace(/\s/g, '').replace(/,/g, '.')))).filter(Number.isFinite));
+        const sfNumVals = new Set(sfDistNums.map(z => { const raw = String(z.content).replace(/\s/g, '').replace(/,/g, '.'); return _sfR(_sfParseFrac(raw)); }).filter(Number.isFinite));
+        let _sfFixed = 0;
         let sfCleaned = 0;
         for (const cz of sfDistCalcs) {
           const res = _sfEval(cz.content);
