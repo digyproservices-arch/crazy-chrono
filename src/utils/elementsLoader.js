@@ -173,7 +173,28 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     // En mode objectif: pas d'éléments non taggés (on veut UNIQUEMENT les paires des tables choisies)
     const includeUntagged = isObjectiveMode ? false : (cfg.includeUntagged !== false);
 
-    const hasClass = (el) => !selectedClasses || !el?.levelClass || (lvlIdx[el.levelClass] ?? 99) <= maxLvlIdx;
+    const normLvl = (s) => {
+      const x = String(s || '').toLowerCase();
+      if (/\bcp\b/.test(x)) return 'CP';
+      if (/\bce1\b/.test(x)) return 'CE1';
+      if (/\bce2\b/.test(x)) return 'CE2';
+      if (/\bcm1\b/.test(x)) return 'CM1';
+      if (/\bcm2\b/.test(x)) return 'CM2';
+      if (/\b6e\b|\bsixieme\b/.test(x)) return '6e';
+      if (/\b5e\b|\bcinquieme\b/.test(x)) return '5e';
+      if (/\b4e\b|\bquatrieme\b/.test(x)) return '4e';
+      if (/\b3e\b|\btroisieme\b/.test(x)) return '3e';
+      return '';
+    };
+    const hasClass = (el) => {
+      if (!selectedClasses) return true;
+      const lc = el?.levelClass ? [String(el.levelClass)] : [];
+      const arr = el?.levels || el?.classes || el?.classLevels || [];
+      const vals = [...lc, ...arr].map(normLvl).filter(Boolean);
+      // Exclude elements with no level info when class filter is active
+      if (vals.length === 0) return false;
+      return vals.some(v => (lvlIdx[v] ?? 99) <= maxLvlIdx);
+    };
     const hasThemes = (el) => {
       const tags = Array.isArray(el?.themes) ? el.themes.map(String) : [];
       if (!selectedThemes.length) return true; // pas de filtre thème
