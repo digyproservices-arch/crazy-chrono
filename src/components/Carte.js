@@ -3096,7 +3096,8 @@ function startGame() {
       }
     }
     // Always increment local counter (even for pro/role users) for accurate tracking
-    incrementSessionCount();
+    const newCount = incrementSessionCount();
+    console.log('[CC][B1-diag] incrementSessionCount done, newCount=', newCount, ', localStorage cc_free_quota=', localStorage.getItem('cc_free_quota'), ', cc_subscription_status=', localStorage.getItem('cc_subscription_status'));
     return false;
   };
   serverAllowsStart(uid).then((res) => {
@@ -5183,6 +5184,7 @@ setZones(dataWithRandomTexts);
 
               // 2) Aucune association calcul-chiffre: vider les pools pour forcer le fallback génératif niveau-aware
               if (calcNumArr.length === 0) {
+                console.log('[CC][B2-diag] No calc-chiffre associations → emptying allCalcs/allNums, will use generateCalcForLevel fallback. level=', pickPrimaryLevel());
                 allCalcs = [];
                 allNums = [];
               }
@@ -5191,13 +5193,11 @@ setZones(dataWithRandomTexts);
               if (typeof window !== 'undefined') {
                 // Exposer pour UI (bandeau) et logs
                 try { window.__CC_LAST_FILTER_COUNTS__ = { textImage: textImageArr.length, calcNum: calcNumArr.length }; } catch {}
-                if (/localhost|127\.0\.0\.1/.test(window.location.host)) {
-                  console.debug('[ASSIGN] filtres actifs', {
-                    themes: cfg?.themes || [], classes: cfg?.classes || [],
-                    assocCounts: { textImage: textImageArr.length, calcNum: calcNumArr.length },
-                    pools: { images: allImages.length, textes: allTextes.length, calculs: allCalcs.length, chiffres: allNums.length }
-                  });
-                }
+                console.log('[ASSIGN] filtres actifs', {
+                  themes: cfg?.themes || [], classes: cfg?.classes || [],
+                  assocCounts: { textImage: textImageArr.length, calcNum: calcNumArr.length },
+                  pools: { images: allImages.length, textes: allTextes.length, calculs: allCalcs.length, chiffres: allNums.length }
+                });
               }
             }
           } catch {}
@@ -5478,6 +5478,22 @@ setZones(dataWithRandomTexts);
                     post[o.i] = { ...post[o.i], content: calcContent, label: calcContent, pairId: '' };
                     const parsed = parseOperation(pick.content || '');
                     if (parsed && Number.isFinite(parsed.result)) presentCalcResults.add(parsed.result);
+                  } else {
+                    // B2-FIX: fallback génératif niveau-aware quand allCalcs est vide
+                    const _eC = new Set(post.filter(z => normType(z?.type) === 'calcul').map(z => String(z.content || '').trim()).filter(Boolean));
+                    let _gt = 0;
+                    while (_gt < 30) {
+                      const expr = generateCalcForLevel(null, rng);
+                      if (expr && !_eC.has(expr) && !usedCalcContents.has(normCalc(expr))) {
+                        usedCalcContents.add(normCalc(expr));
+                        post[o.i] = { ...post[o.i], content: expr, label: expr, pairId: '' };
+                        const _pp = parseOperation(expr);
+                        if (_pp && Number.isFinite(_pp.result)) presentCalcResults.add(_pp.result);
+                        console.log('[CC][B2-fix] Fallback calc:', expr, 'level:', pickPrimaryLevel());
+                        break;
+                      }
+                      _gt++;
+                    }
                   }
                 }
                 if (filteredCalcsByResultIB > 0 && window && typeof window.ccAddDiag === 'function') try { window.ccAddDiag('round:guard:imgtxt:filtered', { calcFilteredByResult: filteredCalcsByResultIB, numbersOnCard: Array.from(numbersOnCardSetIB) }); } catch {}
