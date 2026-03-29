@@ -2570,6 +2570,7 @@ function startRound(roomCode) {
   const zoneGenResult = generateRoundZones(seed, {
     themes: room.selectedThemes || [],
     classes: room.selectedClasses || [],
+    extras: room.selectedExtras || [],
     excludedPairIds: room.validatedPairIds || new Set(),
     deckState: room.deckState,
     logFn: (level, message, data) => emitServerLog(roomCode, level, message, data)
@@ -2895,17 +2896,19 @@ io.on('connection', (socket) => {
   });
 
   // Hôte: définir les thématiques et classes pour la génération de zones
-  socket.on('room:setConfig', ({ themes, classes }) => {
+  socket.on('room:setConfig', ({ themes, classes, extras }) => {
     if (!currentRoom) return;
     const room = getRoom(currentRoom);
     if (socket.id !== room.hostId) return;
     
     room.selectedThemes = Array.isArray(themes) ? themes : [];
     room.selectedClasses = Array.isArray(classes) ? classes : [];
+    room.selectedExtras = Array.isArray(extras) ? extras : [];
     
-    console.log(`[MP] setConfig room=${currentRoom} themes=${room.selectedThemes.length} classes=${room.selectedClasses.length}`);
+    console.log(`[MP] setConfig room=${currentRoom} themes=${room.selectedThemes.length} classes=${room.selectedClasses.length} extras=${room.selectedExtras.length}`);
     console.log(`[MP] Themes:`, room.selectedThemes);
     console.log(`[MP] Classes:`, room.selectedClasses);
+    console.log(`[MP] Extras:`, room.selectedExtras);
   });
 
   // Toggle prêt/pas prêt
@@ -3096,6 +3099,7 @@ io.on('connection', (socket) => {
           const config = {
             themes: room.selectedThemes || [],
             classes: room.selectedClasses || [],
+            extras: room.selectedExtras || [],
             excludedPairIds: new Set(),
             deckState: room.deckState,
             logFn: (level, message, data) => emitServerLog(currentRoom, level, message, data)

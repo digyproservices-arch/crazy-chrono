@@ -255,6 +255,7 @@ function generateRoundZones(seed, config = {}) {
     // ===== Filtrage par thématiques et classes =====
     const selectedThemes = Array.isArray(config.themes) ? config.themes.filter(Boolean) : [];
     const selectedClassesRaw = Array.isArray(config.classes) ? config.classes.filter(Boolean) : [];
+    const selectedExtras = Array.isArray(config.extras) ? config.extras.filter(Boolean) : [];
     const excludedPairIds = config.excludedPairIds || new Set();
     
     // Cumulative level logic (matches client SessionConfig.js)
@@ -282,9 +283,13 @@ function generateRoundZones(seed, config = {}) {
       ? new Set(CLASS_LEVELS.filter((_, i) => i <= maxClassIdx))
       : null;
     
+    // Build a Set of extra category tags for fast lookup (e.g. "category:soustraction")
+    const extrasSet = new Set(selectedExtras);
+    
     console.log('[ServerZoneGen] Filter config:', {
       themes: selectedThemes,
       classesRaw: selectedClassesRaw,
+      extras: selectedExtras,
       maxClassIdx,
       classesExpanded: selectedClasses ? Array.from(selectedClasses) : null,
       hasThemes: selectedThemes.length > 0,
@@ -322,7 +327,13 @@ function generateRoundZones(seed, config = {}) {
         return tags.some(t => expandedSelectedThemes.has(t) || expandedSelectedThemes.has(t.split(':').pop())); // mode 'any'
       };
       
-      const filterEl = (el) => hasClass(el) && hasThemes(el);
+      // B4: Elements matching a selected extra bypass the level filter
+      const matchesExtra = (el) => {
+        if (extrasSet.size === 0) return false;
+        const tags = Array.isArray(el?.themes) ? el.themes : [];
+        return tags.some(t => extrasSet.has(t));
+      };
+      const filterEl = (el) => matchesExtra(el) || (hasClass(el) && hasThemes(el));
       
       // Filtrer éléments
       textes = textes.filter(filterEl);

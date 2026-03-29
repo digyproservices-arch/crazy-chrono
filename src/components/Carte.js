@@ -2140,11 +2140,12 @@ const Carte = () => {
                   if (Number.isFinite(d2) && d2 >= 10 && d2 <= 600) s.emit('room:duration:set', { duration: d2 });
                   if (Number.isFinite(r2) && r2 >= 1 && r2 <= 20) s.emit('room:setRounds', r2);
                   
-                  // Envoyer les thématiques et classes au serveur
+                  // Envoyer les thématiques, classes et extras au serveur
                   const themes2 = Array.isArray(cfg2?.themes) ? cfg2.themes : [];
                   const classes2 = Array.isArray(cfg2?.classes) ? cfg2.classes : [];
-                  s.emit('room:setConfig', { themes: themes2, classes: classes2 });
-                  console.log('[MP] Sent config to server:', { themes: themes2, classes: classes2 });
+                  const extras2 = Array.isArray(cfg2?.extras) ? cfg2.extras : [];
+                  s.emit('room:setConfig', { themes: themes2, classes: classes2, extras: extras2 });
+                  console.log('[MP] Sent config to server:', { themes: themes2, classes: classes2, extras: extras2 });
                   
                   configAppliedRef.current = true;
                 }
@@ -2167,11 +2168,12 @@ const Carte = () => {
                         if (Number.isFinite(d3) && d3 >= 10 && d3 <= 600) s.emit('room:duration:set', { duration: d3 });
                         if (Number.isFinite(r3) && r3 >= 1 && r3 <= 20) s.emit('room:setRounds', r3);
                         
-                        // Envoyer les thématiques et classes au serveur
+                        // Envoyer les thématiques, classes et extras au serveur
                         const themes = Array.isArray(cfg3?.themes) ? cfg3.themes : [];
                         const classes = Array.isArray(cfg3?.classes) ? cfg3.classes : [];
-                        s.emit('room:setConfig', { themes, classes });
-                        console.log('[MP] Sent config to server:', { themes, classes });
+                        const extras = Array.isArray(cfg3?.extras) ? cfg3.extras : [];
+                        s.emit('room:setConfig', { themes, classes, extras });
+                        console.log('[MP] Sent config to server:', { themes, classes, extras });
                         
                         configAppliedRef.current = true;
                       }
@@ -2206,8 +2208,9 @@ const Carte = () => {
           try {
             const themes = Array.isArray(cfgSolo?.themes) ? cfgSolo.themes : [];
             const classes = Array.isArray(cfgSolo?.classes) ? cfgSolo.classes : [];
-            s.emit('room:setConfig', { themes, classes });
-            console.log('[MP][solo] Sent config to server:', { themes, classes });
+            const extras = Array.isArray(cfgSolo?.extras) ? cfgSolo.extras : [];
+            s.emit('room:setConfig', { themes, classes, extras });
+            console.log('[MP][solo] Sent config to server:', { themes, classes, extras });
           } catch {}
         }, 100);
         // Démarrage auto si mode=solo enregistré
