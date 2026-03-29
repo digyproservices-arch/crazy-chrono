@@ -13,6 +13,10 @@ const LEVEL_INCLUDES = {
   'CE2': new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5']),
   'CM1': new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5', 'category:table_6', 'category:table_7', 'category:table_8', 'category:table_9']),
   'CM2': new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5', 'category:table_6', 'category:table_7', 'category:table_8', 'category:table_9', 'category:table_10', 'category:table_11', 'category:table_12']),
+  '6e':  new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5', 'category:table_6', 'category:table_7', 'category:table_8', 'category:table_9', 'category:table_10', 'category:table_11', 'category:table_12', 'category:division', 'category:numeration']),
+  '5e':  new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5', 'category:table_6', 'category:table_7', 'category:table_8', 'category:table_9', 'category:table_10', 'category:table_11', 'category:table_12', 'category:division', 'category:numeration', 'category:fraction']),
+  '4e':  new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5', 'category:table_6', 'category:table_7', 'category:table_8', 'category:table_9', 'category:table_10', 'category:table_11', 'category:table_12', 'category:division', 'category:numeration', 'category:fraction', 'category:equation']),
+  '3e':  new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5', 'category:table_6', 'category:table_7', 'category:table_8', 'category:table_9', 'category:table_10', 'category:table_11', 'category:table_12', 'category:division', 'category:numeration', 'category:fraction', 'category:equation', 'category:multiplication_avancee']),
 };
 
 const CATEGORY_LABELS = {
@@ -40,6 +44,12 @@ const CATEGORY_LABELS = {
   'category:table_12': '×12 Table de 12',
   'category:addition': '➕ Additions',
   'category:soustraction': '➖ Soustractions',
+  'category:division': '➗ Divisions',
+  'category:fraction': '🔣 Fractions',
+  'category:equation': '📐 Équations',
+  'category:numeration': '🔢 Numération',
+  'category:multiplication_avancee': '✖️ Mult. avancées',
+  'category:table_15': '×15 Table de 15',
 };
 
 const PLAYER_ZONES = [
@@ -67,26 +77,24 @@ const MODE_META = {
   tournament: { icon: '🏆', label: 'Tournoi', desc: 'Compétition Battle Royale entre joueurs' },
 };
 
-const DOMAIN_LABELS = {
-  'domain:botany': { label: 'Botanique', icon: '🌿', color: '#16a34a', bg: '#f0fdf4' },
-  'domain:zoology': { label: 'Zoologie', icon: '🐾', color: '#ea580c', bg: '#fff7ed' },
-  'domain:math': { label: 'Mathématiques', icon: '🔢', color: '#2563eb', bg: '#eff6ff' },
-  'domain:language': { label: 'Langue', icon: '📝', color: '#7c3aed', bg: '#f5f3ff' },
-  'domain:science': { label: 'Sciences', icon: '🔬', color: '#0891b2', bg: '#ecfeff' },
-  'domain:geography': { label: 'Géographie', icon: '🌍', color: '#ca8a04', bg: '#fefce8' },
-  'domain:history_civics': { label: 'Histoire & EMC', icon: '📜', color: '#b45309', bg: '#fffbeb' },
-  'domain:arts': { label: 'Arts', icon: '🎨', color: '#db2777', bg: '#fdf2f8' },
-  'domain:culture': { label: 'Culture', icon: '🎭', color: '#9333ea', bg: '#faf5ff' },
-  'domain:environment': { label: 'Environnement', icon: '♻️', color: '#059669', bg: '#ecfdf5' },
-  'domain:sports': { label: 'Sports', icon: '⚽', color: '#dc2626', bg: '#fef2f2' },
-};
-
-const REGION_LABELS = {};
-PLAYER_ZONES.forEach(z => { REGION_LABELS['region:' + z.key] = z; });
-// Extra region keys that may exist in data
-['afrique', 'asie', 'international', 'ameriques', 'caraibes', 'europe', 'oceanie'].forEach(k => {
-  if (!REGION_LABELS['region:' + k]) REGION_LABELS['region:' + k] = { key: k, label: k.charAt(0).toUpperCase() + k.slice(1), icon: '🌍' };
-});
+const CONTENT_DOMAINS = [
+  { key: 'nature', domain: 'domain:botany', icon: '🌿', label: 'Nature',
+    color: '#16a34a', bg: '#f0fdf4', tags: ['botanique', 'domain:botany'],
+    categories: ['category:plante_medicinale', 'category:epice', 'category:fruit', 'category:fleur', 'category:tubercule', 'category:legumineuse', 'category:plante_aromatique'],
+    hasGeo: true },
+  { key: 'animaux', domain: 'domain:zoology', icon: '🐾', label: 'Animaux',
+    color: '#ea580c', bg: '#fff7ed', tags: ['animaux', 'domain:zoology'], categories: [] },
+  { key: 'math', domain: 'domain:math', icon: '🔢', label: 'Mathématiques',
+    color: '#2563eb', bg: '#eff6ff', tags: ['domain:math', 'multiplication'],
+    categories: [
+      'category:addition', 'category:soustraction',
+      'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5',
+      'category:table_6', 'category:table_7', 'category:table_8', 'category:table_9',
+      'category:table_10', 'category:table_11', 'category:table_12', 'category:table_15',
+      'category:division', 'category:fraction', 'category:equation', 'category:numeration',
+      'category:multiplication_avancee',
+    ] },
+];
 
 const ZONE_GROUPS = [
   { label: 'Caraïbes & Amériques', keys: ['guadeloupe', 'martinique', 'guyane', 'haiti', 'cuba', 'trinidad'] },
@@ -98,19 +106,6 @@ const ZONE_GROUPS = [
 const CARD = { background: '#fff', borderRadius: 16, padding: '20px 24px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0', marginBottom: 16 };
 const SECTION_TITLE = { fontSize: 15, fontWeight: 800, color: '#0D6A7A', marginTop: 0, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 };
 
-const SIMPLE_THEME_LABELS = {
-  'botanique': '🌿 Botanique',
-  'animaux': '🐾 Animaux',
-};
-
-function themeDisplayLabel(t) {
-  if (DOMAIN_LABELS[t]) return DOMAIN_LABELS[t].icon + ' ' + DOMAIN_LABELS[t].label;
-  if (CATEGORY_LABELS[t]) return CATEGORY_LABELS[t];
-  if (SIMPLE_THEME_LABELS[t]) return SIMPLE_THEME_LABELS[t];
-  if (REGION_LABELS[t]) return (REGION_LABELS[t].icon || '🌍') + ' ' + REGION_LABELS[t].label;
-  if (t.startsWith('group:')) return '📦 ' + t.slice(6);
-  return t;
-}
 
 export default function SessionConfig() {
   const { mode } = useParams();
@@ -136,8 +131,11 @@ export default function SessionConfig() {
   const [selectedExtras, setSelectedExtras] = useState([]);
   // Categories already covered by the selected level — used to hide redundant extras
   const levelIncludes = useMemo(() => LEVEL_INCLUDES[selectedLevel] || new Set(), [selectedLevel]);
-  const [selectedThemes, setSelectedThemes] = useState([]);
-  const userManuallyToggledThemes = useRef(false);
+  const [enabledDomains, setEnabledDomains] = useState(() => {
+    const init = {};
+    CONTENT_DOMAINS.forEach(d => { init[d.key] = true; });
+    return init;
+  });
   // Garder des strings pour permettre la saisie sans "saut" (ex: vide, 1 puis 10, etc.)
   const [rounds, setRounds] = useState('3');
   const [duration, setDuration] = useState('60');
@@ -159,28 +157,6 @@ export default function SessionConfig() {
     obs.observe(document.body, { attributes: true, attributeFilter: ['style'] });
     return () => obs.disconnect();
   }, []);
-
-  // Helper dans le scope du composant: déterminer si un thème a des données pour les classes sélectionnées
-  function themeHasData(theme) {
-    try {
-      const maxIdx = Math.max(...selectedClasses.map(c => LEVEL_INDEX[NORM_LEVEL(c)] ?? -1));
-      const matchLevel = (obj) => {
-        if (selectedClasses.length === 0) return true;
-        const lc = obj?.levelClass ? [String(obj.levelClass)] : [];
-        const arr = obj?.levels || obj?.classes || obj?.classLevels || [];
-        const vals = [...lc, ...arr].map(NORM_LEVEL).filter(Boolean);
-        return vals.length === 0 || vals.some(v => (LEVEL_INDEX[v] ?? 99) <= maxIdx);
-      };
-      const matchTheme = (obj) => (obj?.themes || []).map(String).includes(String(theme));
-      // 1) Associations
-      const assoc = (data?.associations || []);
-      const anyAssoc = assoc.some(a => matchLevel(a) && matchTheme(a));
-      if (anyAssoc) return true;
-      // 2) Fallback éléments
-      const anyElem = (arr) => (arr || []).some(x => matchLevel(x) && matchTheme(x));
-      return anyElem(data?.textes) || anyElem(data?.images) || anyElem(data?.calculs) || anyElem(data?.chiffres);
-    } catch { return false; }
-  }
 
   // ===== Mode-spécifique =====
   // Online (multijoueur)
@@ -255,82 +231,58 @@ export default function SessionConfig() {
     return '';
   };
 
-  // Thèmes filtrés par niveaux sélectionnés (logique cumulative: CM2 inclut CP→CM2)
-  const allThemes = useMemo(() => {
+  // Compteurs d'associations par tag (domaine + catégorie) pour les niveaux sélectionnés
+  const categoryCounts = useMemo(() => {
     const maxIdx = Math.max(...selectedClasses.map(c => LEVEL_INDEX[NORM_LEVEL(c)] ?? -1));
-    const matchesLevel = (obj) => {
+    const matchLevel = (obj) => {
       if (selectedClasses.length === 0) return true;
       const lc = obj?.levelClass ? [String(obj.levelClass)] : [];
       const arr = obj?.levels || obj?.classes || obj?.classLevels || [];
       const vals = [...lc, ...arr].map(NORM_LEVEL).filter(Boolean);
       return vals.length === 0 || vals.some(v => (LEVEL_INDEX[v] ?? 99) <= maxIdx);
     };
-    const bag = new Set();
-    // 1) Thèmes issus des associations correspondant aux niveaux sélectionnés
+    const counts = {};
     (data?.associations || []).forEach(a => {
-      if (!matchesLevel(a)) return;
-      (a?.themes || []).forEach(t => bag.add(String(t)));
+      if (!matchLevel(a)) return;
+      (a?.themes || []).forEach(t => { counts[t] = (counts[t] || 0) + 1; });
     });
-    // 2) Si aucun thème détecté, fallback sur les éléments (textes/images/calculs/chiffres) filtrés par niveau
-    if (bag.size === 0) {
-      const push = (arr) => (arr || []).forEach(x => { if (matchesLevel(x)) (x?.themes || []).forEach(t => bag.add(String(t))); });
-      push(data?.textes); push(data?.images); push(data?.calculs); push(data?.chiffres);
-    }
-    return Array.from(bag).sort();
+    return counts;
   }, [data, selectedClasses]);
 
-  // Découper les facettes (domain:/region:/group:) et autres thèmes
-  const { domains, categories, regions, groups, others } = useMemo(() => {
-    const d = new Set(); const c = new Set(); const r = new Set(); const g = new Set(); const o = new Set();
-    for (const t of allThemes) {
-      if (/^domain:/.test(t)) d.add(t);
-      else if (/^category:/.test(t)) c.add(t);
-      else if (/^region:/.test(t)) r.add(t);
-      else if (/^group:/.test(t)) g.add(t);
-      else o.add(t);
-    }
-    return {
-      domains: Array.from(d).sort(),
-      categories: Array.from(c).sort(),
-      regions: Array.from(r).sort(),
-      groups: Array.from(g).sort(),
-      others: Array.from(o).sort(),
-    };
-  }, [allThemes]);
+  // Thèmes dérivés des domaines activés (envoyés au serveur)
+  const computedThemes = useMemo(() => {
+    const allEnabled = CONTENT_DOMAINS.every(d => enabledDomains[d.key]);
+    if (allEnabled && selectedExtras.length === 0) return [];
+    const tags = [];
+    CONTENT_DOMAINS.forEach(d => {
+      if (enabledDomains[d.key]) {
+        tags.push(...d.tags);
+        d.categories.forEach(c => tags.push(c));
+      }
+    });
+    selectedExtras.forEach(e => { if (!tags.includes(e)) tags.push(e); });
+    return tags;
+  }, [enabledDomains, selectedExtras]);
 
-  // B4: sélection exclusive de niveau (radio)
-  // Auto-clear extras that become redundant when level changes
+  // Sélection exclusive de niveau (radio) — auto-supprime les extras devenus redondants
   const selectLevel = (lv) => {
-    userManuallyToggledThemes.current = false;
     setSelectedLevel(lv);
     const inc = LEVEL_INCLUDES[lv] || new Set();
     setSelectedExtras(prev => prev.filter(e => !inc.has(e)));
   };
 
   const toggleExtra = (cat) => {
-    userManuallyToggledThemes.current = true;
     setSelectedExtras(prev => prev.includes(cat) ? prev.filter(x => x !== cat) : [...prev, cat]);
   };
 
-  const toggleTheme = (t) => {
-    userManuallyToggledThemes.current = true;
-    setSelectedThemes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
+  const toggleDomain = (key) => {
+    setEnabledDomains(prev => ({ ...prev, [key]: !prev[key] }));
   };
-
-  // Auto-sélectionner tous les thèmes disponibles quand les niveaux changent
-  // (sauf si l'utilisateur a manuellement modifié la sélection de thèmes)
-  useEffect(() => {
-    if (!userManuallyToggledThemes.current && allThemes.length > 0) {
-      setSelectedThemes(allThemes);
-    }
-  }, [allThemes]);
-
-  
 
   // Estimation de suffisance des données pour la config courante
   const dataStats = useMemo(() => {
     const maxIdx = Math.max(...selectedClasses.map(c => LEVEL_INDEX[NORM_LEVEL(c)] ?? -1));
-    const themeSet = new Set(selectedThemes);
+    const themeSet = new Set(computedThemes);
     const matchLevel = (obj) => {
       if (selectedClasses.length === 0) return true;
       const lc = obj?.levelClass ? [String(obj.levelClass)] : [];
@@ -346,7 +298,7 @@ export default function SessionConfig() {
     const ti = assoc.filter(a => a.texteId && a.imageId && matchLevel(a) && matchTheme(a)).length;
     const cn = assoc.filter(a => a.calculId && a.chiffreId && matchLevel(a) && matchTheme(a)).length;
     return { textImage: ti, calcNum: cn };
-  }, [data, selectedClasses, selectedThemes]);
+  }, [data, selectedClasses, computedThemes]);
 
   // Prefill depuis une éventuelle config stockée
   useEffect(() => {
@@ -364,9 +316,15 @@ export default function SessionConfig() {
           if (maxLv) setSelectedLevel(maxLv);
         }
         if (Array.isArray(prev.extras)) setSelectedExtras(prev.extras);
-        if (Array.isArray(prev.themes) && prev.themes.length > 0) {
-          setSelectedThemes(prev.themes);
-          userManuallyToggledThemes.current = true;
+        if (prev.enabledDomains && typeof prev.enabledDomains === 'object') {
+          setEnabledDomains(prev.enabledDomains);
+        } else if (Array.isArray(prev.themes) && prev.themes.length > 0) {
+          const ts = new Set(prev.themes);
+          const ed = {};
+          CONTENT_DOMAINS.forEach(d => {
+            ed[d.key] = d.tags.some(t => ts.has(t)) || d.categories.some(t => ts.has(t));
+          });
+          if (Object.values(ed).some(v => v)) setEnabledDomains(ed);
         }
         if (prev.rounds != null) setRounds(String(prev.rounds));
         if (prev.duration != null) setDuration(String(prev.duration));
@@ -389,14 +347,15 @@ export default function SessionConfig() {
           selectedLevel,
           classes: selectedClasses,
           extras: selectedExtras,
-          themes: selectedThemes,
+          themes: computedThemes,
+          enabledDomains,
           rounds,
           duration,
           allowEmptyMathWhenNoData: !!allowEmptyMath,
           playerZone: playerZone || '',
           objectiveMode: !!objectiveMode,
           objectiveTarget: objectiveMode ? objectiveTarget : null,
-          objectiveThemes: objectiveMode ? selectedThemes : [],
+          objectiveThemes: objectiveMode ? computedThemes : [],
           helpEnabled: !!helpEnabled,
         };
         localStorage.setItem('cc_session_cfg', JSON.stringify(payload));
@@ -404,7 +363,7 @@ export default function SessionConfig() {
       } catch {}
     }, 200);
     return () => clearTimeout(t);
-  }, [mode, selectedLevel, selectedClasses, selectedExtras, selectedThemes, rounds, duration, allowEmptyMath, playerZone, objectiveMode, objectiveTarget, helpEnabled]);
+  }, [mode, selectedLevel, selectedClasses, selectedExtras, computedThemes, enabledDomains, rounds, duration, allowEmptyMath, playerZone, objectiveMode, objectiveTarget, helpEnabled]);
 
   const clampInt = (val, lo, hi, fallback) => {
     const n = parseInt(String(val), 10);
@@ -429,7 +388,7 @@ export default function SessionConfig() {
     // Règle simple: si des thèmes sont sélectionnés, on ne garde QUE ceux-ci; sinon, tout est autorisé
     const r = clampInt(rounds, 1, maxRounds, 3);
     const d = clampInt(duration, 15, maxDuration, 60);
-    const payload = { mode, selectedLevel, classes: selectedClasses, extras: selectedExtras, themes: selectedThemes, rounds: r, duration: objectiveMode ? null : d, allowEmptyMathWhenNoData: !!allowEmptyMath, playerZone: playerZone || '', objectiveMode: !!objectiveMode, objectiveTarget: objectiveMode ? objectiveTarget : null, objectiveThemes: objectiveMode ? selectedThemes : [], helpEnabled: !!helpEnabled };
+    const payload = { mode, selectedLevel, classes: selectedClasses, extras: selectedExtras, themes: computedThemes, enabledDomains, rounds: r, duration: objectiveMode ? null : d, allowEmptyMathWhenNoData: !!allowEmptyMath, playerZone: playerZone || '', objectiveMode: !!objectiveMode, objectiveTarget: objectiveMode ? objectiveTarget : null, objectiveThemes: objectiveMode ? computedThemes : [], helpEnabled: !!helpEnabled };
     if (mode === 'online') {
       payload.playerName = playerName || 'Joueur';
       payload.room = { type: roomMode, code: (roomCode||'').toUpperCase() };
@@ -463,26 +422,6 @@ export default function SessionConfig() {
     background: sel ? '#0D6A7A' : '#fff', color: sel ? '#fff' : '#475569',
     fontWeight: 600, fontSize: 12, cursor: 'pointer', transition: 'all 0.15s',
   });
-
-  const ThemePill = ({ t }) => {
-    const sel = selectedThemes.includes(t);
-    const hasData = themeHasData(t);
-    const dl = DOMAIN_LABELS[t];
-    const rl = REGION_LABELS[t];
-    let label = themeDisplayLabel(t);
-    let pillBg = sel ? '#0D6A7A' : '#fff';
-    let pillColor = sel ? '#fff' : '#475569';
-    let pillBorder = sel ? '#0D6A7A' : '#e2e8f0';
-    if (!sel && dl) { pillBg = dl.bg; pillColor = dl.color; pillBorder = dl.color + '44'; }
-    if (!sel && rl) { pillBorder = '#94a3b8'; }
-    return (
-      <button onClick={() => toggleTheme(t)} disabled={!hasData}
-        title={hasData ? (sel ? 'Cliquez pour retirer' : 'Cliquez pour filtrer') : 'Aucune donnée pour les niveaux sélectionnés'}
-        style={{ padding: '6px 12px', borderRadius: 10, border: '2px solid ' + pillBorder, background: pillBg, color: pillColor, fontWeight: 600, fontSize: 12, cursor: hasData ? 'pointer' : 'not-allowed', opacity: hasData ? 1 : 0.4, transition: 'all 0.15s', whiteSpace: 'nowrap' }}>
-        {label}
-      </button>
-    );
-  };
 
   return (
     <div style={{ maxWidth: 880, margin: '0 auto', padding: '20px 16px 80px' }}>
@@ -527,159 +466,116 @@ export default function SessionConfig() {
         )}
       </div>
 
-      {/* ===== 1b. ENRICHIR LA PARTIE (matières bonus) ===== */}
+      {/* ===== 2. QUE VEUX-TU RÉVISER ? ===== */}
       <div style={CARD}>
-        <h3 style={SECTION_TITLE}><span>🎯</span> Enrichir la partie <span style={{ fontSize: 11, fontWeight: 500, color: '#94a3b8' }}>(optionnel)</span></h3>
-        <p style={{ fontSize: 12, color: '#64748b', margin: '-4px 0 12px', lineHeight: 1.5 }}>
-          Ajoutez des matières supplémentaires au-delà du programme du niveau sélectionné.
-        </p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-          {[
-            { key: 'category:addition', label: '➕ Additions' },
-            { key: 'category:soustraction', label: '➖ Soustractions' },
-          ].map(({ key, label }) => {
-            const included = levelIncludes.has(key);
-            if (included) return (
-              <span key={key} style={{ ...PILL(false), background: '#f0fdf4', borderColor: '#86efac', color: '#16a34a', cursor: 'default', opacity: 0.7 }}>
-                {label} <span style={{ fontSize: 10 }}>✓ Inclus</span>
-              </span>
-            );
-            return (
-              <button key={key} onClick={() => toggleExtra(key)}
-                style={{ ...PILL(selectedExtras.includes(key)), background: selectedExtras.includes(key) ? '#f59e0b' : '#fff', borderColor: selectedExtras.includes(key) ? '#f59e0b' : '#e2e8f0', color: selectedExtras.includes(key) ? '#fff' : '#475569' }}>
-                {label}
-              </button>
-            );
-          })}
-        </div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Tables de multiplication</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {[2,3,4,5,6,7,8,9,10,11,12].map(n => {
-            const key = `category:table_${n}`;
-            const included = levelIncludes.has(key);
-            if (included) return (
-              <span key={key} style={{ ...PILL(false), fontSize: 12, padding: '6px 10px', background: '#f0fdf4', borderColor: '#86efac', color: '#16a34a', cursor: 'default', opacity: 0.7 }}>
-                x{n} ✓
-              </span>
-            );
-            return (
-              <button key={key} onClick={() => toggleExtra(key)}
-                style={{ ...PILL(selectedExtras.includes(key)), fontSize: 12, padding: '6px 10px', background: selectedExtras.includes(key) ? '#f59e0b' : '#fff', borderColor: selectedExtras.includes(key) ? '#f59e0b' : '#e2e8f0', color: selectedExtras.includes(key) ? '#fff' : '#475569' }}>
-                x{n}
-              </button>
-            );
-          })}
-        </div>
-        {selectedExtras.length > 0 && (
-          <div style={{ marginTop: 10, fontSize: 12, color: '#92400e', fontWeight: 600, background: '#fffbeb', padding: '8px 12px', borderRadius: 8, border: '1px solid #fde68a' }}>
-            {selectedExtras.length} matière{selectedExtras.length > 1 ? 's' : ''} bonus ajoutée{selectedExtras.length > 1 ? 's' : ''}
-          </div>
-        )}
-      </div>
-
-      {/* ===== MODE OBJECTIF TOGGLE ===== */}
-      {(() => {
-        const locked = isFree();
-        return (
-          <div style={{ ...CARD, display: 'flex', alignItems: 'center', gap: 14, position: 'relative' }}>
-            {locked && (
-              <div style={{ position: 'absolute', top: 8, right: 12, fontSize: 10, fontWeight: 700, color: '#fff', background: 'linear-gradient(135deg, #f59e0b, #ef4444)', padding: '2px 8px', borderRadius: 6 }}>PRO</div>
-            )}
-            <div
-              onClick={() => { if (!locked) setObjectiveMode(p => !p); }}
-              style={{ position: 'relative', width: 48, height: 26, borderRadius: 13, background: objectiveMode && !locked ? '#0D6A7A' : '#cbd5e1', transition: 'background 0.2s', cursor: locked ? 'not-allowed' : 'pointer', flexShrink: 0 }}>
-              <div style={{ position: 'absolute', top: 3, left: objectiveMode && !locked ? 25 : 3, width: 20, height: 20, borderRadius: 10, background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: locked ? '#94a3b8' : '#334155' }}>🎯 Mode Objectif</div>
-              <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.4, marginTop: 2 }}>
-                {locked
-                  ? <>Réservé aux abonnés. <a href="/pricing" style={{ color: '#0D6A7A', fontWeight: 700 }}>Passer en Pro</a></>
-                  : objectiveMode
-                    ? 'Activé — Le chrono défile sans limite. Les thématiques sélectionnées ci-dessous deviennent vos objectifs. La partie se termine quand tous sont atteints.'
-                    : 'Jouez sans limite de temps. Les thématiques sélectionnées deviennent vos objectifs à maîtriser.'}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* ===== 2. ZONE GÉOGRAPHIQUE ===== */}
-      <div style={CARD}>
-        <h3 style={SECTION_TITLE}><span>🌍</span> Ma zone géographique</h3>
-        <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 12px', lineHeight: 1.5 }}>
-          Adapte les noms locaux des plantes selon votre région. Ex : <em>Madère</em> (GP) devient <em>Dachine</em> (MQ) ou <em>Taro</em> (Asie).
-        </p>
-        <div style={{ marginBottom: 12 }}>
-          <button onClick={() => setPlayerZone('')} style={{ ...PILL_ZONE(!playerZone), background: !playerZone ? '#0D6A7A' : '#f0fdfa', color: !playerZone ? '#fff' : '#0D6A7A', border: !playerZone ? '2px solid #0D6A7A' : '2px solid #99f6e4' }}>
-            🌐 Toutes zones
-          </button>
-        </div>
-        {ZONE_GROUPS.map(grp => (
-          <div key={grp.label} style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>{grp.label}</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {grp.keys.map(k => {
-                const z = PLAYER_ZONES.find(pz => pz.key === k);
-                if (!z) return null;
-                return (
-                  <button key={k} onClick={() => setPlayerZone(k)} style={PILL_ZONE(playerZone === k)}>
-                    {z.icon} {z.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ===== 3. CONTENU PÉDAGOGIQUE (THÈMES) ===== */}
-      <div style={CARD}>
-        <h3 style={SECTION_TITLE}><span>🎯</span> Contenu pédagogique</h3>
+        <h3 style={SECTION_TITLE}><span>🎯</span> Que veux-tu réviser ?</h3>
         <p style={{ fontSize: 12, color: '#64748b', margin: '-4px 0 14px', lineHeight: 1.5 }}>
-          Filtrez le contenu par domaine, catégorie ou région. Sans sélection, tout le contenu est disponible.
+          Active ou désactive les domaines. Dans Mathématiques, les contenus de ton niveau sont automatiquement inclus (✅). Tu peux ajouter des bonus (➕).
         </p>
 
-        {/* Domaines */}
-        {domains.length > 0 && (
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Domaines</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {domains.map(t => <ThemePill key={t} t={t} />)}
-            </div>
-          </div>
-        )}
+        {CONTENT_DOMAINS.map(dom => {
+          const enabled = !!enabledDomains[dom.key];
+          const domCount = dom.tags.reduce((s, t) => s + (categoryCounts[t] || 0), 0)
+            + dom.categories.reduce((s, c) => s + (categoryCounts[c] || 0), 0);
+          return (
+            <div key={dom.key} style={{ marginBottom: 14, borderRadius: 12, border: `2px solid ${enabled ? dom.color + '44' : '#e2e8f0'}`, background: enabled ? dom.bg : '#fafafa', overflow: 'hidden', transition: 'all 0.2s' }}>
+              {/* En-tête du domaine */}
+              <div onClick={() => toggleDomain(dom.key)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', cursor: 'pointer', userSelect: 'none' }}>
+                <div style={{ position: 'relative', width: 40, height: 22, borderRadius: 11, background: enabled ? dom.color : '#cbd5e1', transition: 'background 0.2s', flexShrink: 0 }}>
+                  <div style={{ position: 'absolute', top: 2, left: enabled ? 20 : 2, width: 18, height: 18, borderRadius: 9, background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                </div>
+                <span style={{ fontSize: 22 }}>{dom.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: enabled ? dom.color : '#94a3b8' }}>{dom.label}</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8' }}>{domCount} paire{domCount > 1 ? 's' : ''} disponible{domCount > 1 ? 's' : ''}</div>
+                </div>
+              </div>
 
-        {/* Catégories */}
-        {categories.length > 0 && (
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Catégories</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {categories.map(t => <ThemePill key={t} t={t} />)}
-            </div>
-          </div>
-        )}
+              {/* Contenu du domaine (visible si activé) */}
+              {enabled && (
+                <div style={{ padding: '0 16px 14px' }}>
 
-        {/* Régions (thèmes) */}
-        {regions.length > 0 && (
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Régions du contenu</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {regions.map(t => <ThemePill key={t} t={t} />)}
-            </div>
-          </div>
-        )}
+                  {/* Sous-catégories nature */}
+                  {dom.categories.length > 0 && dom.key !== 'math' && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                      {dom.categories.map(cat => {
+                        const cnt = categoryCounts[cat] || 0;
+                        if (cnt === 0) return null;
+                        return (
+                          <span key={cat} style={{ padding: '4px 10px', borderRadius: 8, background: dom.color + '18', color: dom.color, fontSize: 11, fontWeight: 600 }}>
+                            {CATEGORY_LABELS[cat] || cat.replace('category:', '')} ({cnt})
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
 
-        {/* Groupes + Autres */}
-        {(groups.length > 0 || others.length > 0) && (
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>Autres filtres</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {groups.map(t => <ThemePill key={t} t={t} />)}
-              {others.map(t => <ThemePill key={t} t={t} />)}
+                  {/* Zone géographique (inline dans Nature) */}
+                  {dom.hasGeo && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>🌍 Noms locaux :</span>
+                      <select value={playerZone} onChange={e => setPlayerZone(e.target.value)}
+                        style={{ padding: '6px 10px', borderRadius: 8, border: '2px solid #e2e8f0', fontSize: 12, fontWeight: 600, color: '#334155', background: '#fff', cursor: 'pointer' }}>
+                        <option value="">Toutes zones</option>
+                        {ZONE_GROUPS.map(grp => (
+                          <optgroup key={grp.label} label={grp.label}>
+                            {grp.keys.map(k => {
+                              const z = PLAYER_ZONES.find(pz => pz.key === k);
+                              return z ? <option key={k} value={k}>{z.icon} {z.label}</option> : null;
+                            })}
+                          </optgroup>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Mathématiques : inclus + bonus */}
+                  {dom.key === 'math' && (() => {
+                    const included = dom.categories.filter(c => levelIncludes.has(c));
+                    const bonus = dom.categories.filter(c => !levelIncludes.has(c) && (categoryCounts[c] || 0) > 0);
+                    return (
+                      <>
+                        {included.length > 0 && (
+                          <div style={{ marginBottom: 10 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>✅ Inclus dans ton niveau ({selectedLevel})</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {included.map(cat => {
+                                const cnt = categoryCounts[cat] || 0;
+                                return (
+                                  <span key={cat} style={{ padding: '5px 10px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #86efac', color: '#16a34a', fontSize: 11, fontWeight: 600 }}>
+                                    {CATEGORY_LABELS[cat] || cat.replace('category:', '')} {cnt > 0 && <span style={{ opacity: 0.7 }}>({cnt})</span>}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        {bonus.length > 0 && (
+                          <div>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>➕ Bonus (cliquer pour ajouter)</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {bonus.map(cat => {
+                                const sel = selectedExtras.includes(cat);
+                                const cnt = categoryCounts[cat] || 0;
+                                return (
+                                  <button key={cat} onClick={() => toggleExtra(cat)}
+                                    style={{ padding: '5px 10px', borderRadius: 8, border: sel ? '2px solid #f59e0b' : '2px solid #e2e8f0', background: sel ? '#f59e0b' : '#fff', color: sel ? '#fff' : '#475569', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}>
+                                    {CATEGORY_LABELS[cat] || cat.replace('category:', '')} ({cnt})
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })}
 
         {/* Résumé données */}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8, padding: '10px 14px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
@@ -698,16 +594,11 @@ export default function SessionConfig() {
               <div style={{ fontSize: 10, color: '#64748b', marginTop: -2 }}>Calcul / Chiffre</div>
             </div>
           </div>
-          {selectedThemes.length > 0 && (
+          {selectedExtras.length > 0 && (
             <>
               <div style={{ width: 1, background: '#e2e8f0', margin: '0 4px' }} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>Filtres actifs :</span>
-                {selectedThemes.map(t => (
-                  <span key={t} onClick={() => toggleTheme(t)} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, background: '#0D6A7A', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
-                    {themeDisplayLabel(t)} ✕
-                  </span>
-                ))}
+              <div style={{ fontSize: 11, color: '#92400e', fontWeight: 600 }}>
+                {selectedExtras.length} bonus actif{selectedExtras.length > 1 ? 's' : ''}
               </div>
             </>
           )}
@@ -728,51 +619,62 @@ export default function SessionConfig() {
         )}
       </div>
 
-      {/* ===== 4. PARAMÈTRES DE JEU ===== */}
+      {/* ===== 3. COMMENT JOUER ? ===== */}
       <div style={CARD}>
-        <h3 style={SECTION_TITLE}><span>⚙️</span> Paramètres de jeu</h3>
+        <h3 style={SECTION_TITLE}><span>⚙️</span> Comment jouer ?</h3>
+
+        {/* Mode Objectif toggle */}
+        {(() => {
+          const locked = isFree();
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16, padding: '12px 16px', borderRadius: 12, border: objectiveMode && !locked ? '2px solid #0D6A7A' : '2px solid #e2e8f0', background: objectiveMode && !locked ? '#f0fdfa' : '#fff', position: 'relative', transition: 'all 0.2s' }}>
+              {locked && (
+                <div style={{ position: 'absolute', top: 8, right: 12, fontSize: 10, fontWeight: 700, color: '#fff', background: 'linear-gradient(135deg, #f59e0b, #ef4444)', padding: '2px 8px', borderRadius: 6 }}>PRO</div>
+              )}
+              <div onClick={() => { if (!locked) setObjectiveMode(p => !p); }}
+                style={{ position: 'relative', width: 44, height: 24, borderRadius: 12, background: objectiveMode && !locked ? '#0D6A7A' : '#cbd5e1', transition: 'background 0.2s', cursor: locked ? 'not-allowed' : 'pointer', flexShrink: 0 }}>
+                <div style={{ position: 'absolute', top: 2, left: objectiveMode && !locked ? 22 : 2, width: 20, height: 20, borderRadius: 10, background: '#fff', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: locked ? '#94a3b8' : '#334155' }}>🎯 Mode Objectif</div>
+                <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.4, marginTop: 2 }}>
+                  {locked
+                    ? <>Réservé aux abonnés. <a href="/pricing" style={{ color: '#0D6A7A', fontWeight: 700 }}>Passer en Pro</a></>
+                    : objectiveMode
+                      ? 'Activé — Pas de limite de temps. Trouvez toutes les paires pour terminer.'
+                      : 'Sans limite de temps. Les domaines activés deviennent vos objectifs.'}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Manches & Durée — masqués en mode objectif */}
         {!objectiveMode && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>🔄 Nombre de manches</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <button onClick={() => stepRounds(-1)} style={{ width: 40, height: 40, borderRadius: 10, border: '2px solid #e2e8f0', background: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>−</button>
-              <div style={{ flex: 1, textAlign: 'center', padding: '8px 12px', border: '2px solid #e2e8f0', borderRadius: 10, background: '#f8fafc', fontWeight: 800, fontSize: 18, color: '#0D6A7A' }}>{rounds}</div>
-              <button onClick={() => stepRounds(+1)} style={{ width: 40, height: 40, borderRadius: 10, border: '2px solid #e2e8f0', background: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>+</button>
-            </div>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>1 à {maxRounds} manches{isFree() ? ' (Free)' : ''}</div>
-          </div>
-          <div>
-            <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>⏱️ Durée par manche</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <button onClick={() => stepDuration(-5)} style={{ width: 40, height: 40, borderRadius: 10, border: '2px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>−5</button>
-              <div style={{ flex: 1, textAlign: 'center', padding: '8px 12px', border: '2px solid #e2e8f0', borderRadius: 10, background: '#f8fafc', fontWeight: 800, fontSize: 18, color: '#0D6A7A' }}>{duration}<span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8' }}>s</span></div>
-              <button onClick={() => stepDuration(+5)} style={{ width: 40, height: 40, borderRadius: 10, border: '2px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>+5</button>
-            </div>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>15 à {maxDuration} secondes{isFree() ? ' (Free)' : ''}</div>
-          </div>
-        </div>
-        )}
-
-        {/* Info mode objectif */}
-        {objectiveMode && (
-          <div style={{ padding: '12px 16px', borderRadius: 10, background: '#f0fdfa', border: '1px solid #99f6e4', marginBottom: 8 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#0D6A7A', marginBottom: 4 }}>🎯 Mode Objectif activé</div>
-            <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.5 }}>
-              Le chrono défile sans limite de temps. Les <strong>{selectedThemes.length}</strong> thématique{selectedThemes.length > 1 ? 's' : ''} sélectionnée{selectedThemes.length > 1 ? 's' : ''} dans « Contenu pédagogique » ci-dessus deviennent vos objectifs. La partie se termine quand toutes les paires de chaque thème sont trouvées.
-            </div>
-            {selectedThemes.length === 0 && (
-              <div style={{ fontSize: 12, color: '#f59e0b', fontWeight: 600, marginTop: 6 }}>
-                ⚠️ Sélectionnez au moins une thématique dans la section « Contenu pédagogique » pour que le mode objectif fonctionne.
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>🔄 Nombre de manches</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={() => stepRounds(-1)} style={{ width: 40, height: 40, borderRadius: 10, border: '2px solid #e2e8f0', background: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>−</button>
+                <div style={{ flex: 1, textAlign: 'center', padding: '8px 12px', border: '2px solid #e2e8f0', borderRadius: 10, background: '#f8fafc', fontWeight: 800, fontSize: 18, color: '#0D6A7A' }}>{rounds}</div>
+                <button onClick={() => stepRounds(+1)} style={{ width: 40, height: 40, borderRadius: 10, border: '2px solid #e2e8f0', background: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>+</button>
               </div>
-            )}
+              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>1 à {maxRounds} manches{isFree() ? ' (Free)' : ''}</div>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>⏱️ Durée par manche</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={() => stepDuration(-5)} style={{ width: 40, height: 40, borderRadius: 10, border: '2px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>−5</button>
+                <div style={{ flex: 1, textAlign: 'center', padding: '8px 12px', border: '2px solid #e2e8f0', borderRadius: 10, background: '#f8fafc', fontWeight: 800, fontSize: 18, color: '#0D6A7A' }}>{duration}<span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8' }}>s</span></div>
+                <button onClick={() => stepDuration(+5)} style={{ width: 40, height: 40, borderRadius: 10, border: '2px solid #e2e8f0', background: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>+5</button>
+              </div>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>15 à {maxDuration} secondes{isFree() ? ' (Free)' : ''}</div>
+            </div>
           </div>
         )}
 
         {/* Système d'aide */}
-        <div style={{ marginTop: 12, padding: '14px 16px', borderRadius: 12, border: helpEnabled ? '2px solid #f59e0b' : '2px solid #e2e8f0', background: helpEnabled ? '#fffbeb' : '#fff', transition: 'all 0.2s' }}>
+        <div style={{ padding: '14px 16px', borderRadius: 12, border: helpEnabled ? '2px solid #f59e0b' : '2px solid #e2e8f0', background: helpEnabled ? '#fffbeb' : '#fff', transition: 'all 0.2s' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
             <input type="checkbox" checked={helpEnabled} onChange={e => setHelpEnabled(e.target.checked)}
               style={{ width: 18, height: 18, accentColor: '#f59e0b' }} />

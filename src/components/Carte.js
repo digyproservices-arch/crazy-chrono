@@ -9,6 +9,7 @@ import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck }
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
 import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError, reportIncident as incidentReportIncident, INCIDENT_TYPES as INCIDENT_TYPES_TRACKER } from '../utils/gameIncidentTracker';
 import { logRound } from '../utils/roundLogger';
+import { logClick, clearClickLogs } from '../utils/clickLogger';
 import { captureCardScreenshot } from '../utils/cardScreenshot';
 import { isFree, canStartSessionToday, incrementSessionCount, setSubscriptionStatus, getDailyCounts } from '../utils/subscription';
 
@@ -3346,24 +3347,29 @@ function handleGameClick(zone) {
   // Ignore clicks during assignment transition to avoid race conditions
   if (assignInFlightRef.current || assignBusy) {
     try { addDiag('click:REJECTED:assignBusy', { assignInFlight: assignInFlightRef.current, assignBusy, zoneId: zone?.id }); } catch {}
+    try { logClick('REJECTED:assignBusy', { zoneId: zone?.id, type: zone?.type, content: zone?.content, assignInFlight: assignInFlightRef.current, assignBusy }); } catch {}
     return;
   }
   if (!gameActive || !zone) {
     try { addDiag('click:REJECTED:inactive', { gameActive, hasZone: !!zone }); } catch {}
+    try { logClick('REJECTED:inactive', { gameActive, hasZone: !!zone }); } catch {}
     return;
   }
   // ✅ FIX DISPARITÉ: Ignorer zones déjà validées (masquées)
   if (zone.validated) {
     try { addDiag('click:REJECTED:validated', { zoneId: zone.id }); } catch {}
+    try { logClick('REJECTED:validated', { zoneId: zone.id, type: zone.type, content: zone.content }); } catch {}
     return;
   }
   if (processingPairRef.current) {
     try { addDiag('click:REJECTED:processingPair', { zoneId: zone?.id }); } catch {}
+    try { logClick('REJECTED:processingPair', { zoneId: zone?.id, type: zone?.type, content: zone?.content }); } catch {}
     return;
   }
   // Déselection: clic sur une zone déjà sélectionnée = la retirer
   if (gameSelectedIds.includes(zone.id)) {
     setGameSelectedIds(prev => prev.filter(id => id !== zone.id));
+    try { logClick('SKIPPED:alreadySelected', { zoneId: zone.id, type: zone.type, content: zone.content }); } catch {}
     return;
   }
   // si déjà 2, réinitialiser avant de prendre un nouveau clic
@@ -3461,6 +3467,8 @@ function handleGameClick(zone) {
       }
       if (okPair) {
         console.log('[GAME] OK pair', { a, b, ZA: { id: ZA.id, type: ZA.type, pairId: ZA.pairId }, ZB: { id: ZB.id, type: ZB.type, pairId: ZB.pairId } });
+        try { logClick('ok', { zoneId: a, type: t1, content: ZA?.content }); } catch {}
+        try { logClick('ok', { zoneId: b, type: t2, content: ZB?.content }); } catch {}
         try {
           window.ccAddDiag && window.ccAddDiag('solo:pair:correct', {
             zoneA: { id: a, type: t1, content: String(ZA?.content || ZA?.label || '').substring(0, 60), pairId: p1 },
