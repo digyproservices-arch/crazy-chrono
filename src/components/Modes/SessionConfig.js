@@ -6,6 +6,15 @@ import { isFree } from '../../utils/subscription';
 const CLASS_LEVELS = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"];
 const LEVEL_INDEX = Object.fromEntries(CLASS_LEVELS.map((l, i) => [l, i]));
 
+// Categories already included at each level (cumulative from lower levels)
+const LEVEL_INCLUDES = {
+  'CP':  new Set(['category:addition']),
+  'CE1': new Set(['category:addition', 'category:soustraction']),
+  'CE2': new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5']),
+  'CM1': new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5', 'category:table_6', 'category:table_7', 'category:table_8', 'category:table_9']),
+  'CM2': new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5', 'category:table_6', 'category:table_7', 'category:table_8', 'category:table_9', 'category:table_10', 'category:table_11', 'category:table_12']),
+};
+
 const CATEGORY_LABELS = {
   'category:fruit': '🍎 Fruits',
   'category:epice': '🌶️ Épices',
@@ -125,6 +134,8 @@ export default function SessionConfig() {
   }, [selectedLevel]);
   // B4: matières bonus (ex: soustractions, multiplications hors programme)
   const [selectedExtras, setSelectedExtras] = useState([]);
+  // Categories already covered by the selected level — used to hide redundant extras
+  const levelIncludes = useMemo(() => LEVEL_INCLUDES[selectedLevel] || new Set(), [selectedLevel]);
   const [selectedThemes, setSelectedThemes] = useState([]);
   const userManuallyToggledThemes = useRef(false);
   // Garder des strings pour permettre la saisie sans "saut" (ex: vide, 1 puis 10, etc.)
@@ -288,9 +299,12 @@ export default function SessionConfig() {
   }, [allThemes]);
 
   // B4: sélection exclusive de niveau (radio)
+  // Auto-clear extras that become redundant when level changes
   const selectLevel = (lv) => {
     userManuallyToggledThemes.current = false;
     setSelectedLevel(lv);
+    const inc = LEVEL_INCLUDES[lv] || new Set();
+    setSelectedExtras(prev => prev.filter(e => !inc.has(e)));
   };
 
   const toggleExtra = (cat) => {
@@ -375,7 +389,7 @@ export default function SessionConfig() {
           selectedLevel,
           classes: selectedClasses,
           extras: selectedExtras,
-          themes: [...selectedThemes, ...selectedExtras],
+          themes: selectedThemes,
           rounds,
           duration,
           allowEmptyMathWhenNoData: !!allowEmptyMath,
@@ -415,8 +429,7 @@ export default function SessionConfig() {
     // Règle simple: si des thèmes sont sélectionnés, on ne garde QUE ceux-ci; sinon, tout est autorisé
     const r = clampInt(rounds, 1, maxRounds, 3);
     const d = clampInt(duration, 15, maxDuration, 60);
-    const allThemesWithExtras = [...selectedThemes, ...selectedExtras];
-    const payload = { mode, selectedLevel, classes: selectedClasses, extras: selectedExtras, themes: allThemesWithExtras, rounds: r, duration: objectiveMode ? null : d, allowEmptyMathWhenNoData: !!allowEmptyMath, playerZone: playerZone || '', objectiveMode: !!objectiveMode, objectiveTarget: objectiveMode ? objectiveTarget : null, objectiveThemes: objectiveMode ? selectedThemes : [], helpEnabled: !!helpEnabled };
+    const payload = { mode, selectedLevel, classes: selectedClasses, extras: selectedExtras, themes: selectedThemes, rounds: r, duration: objectiveMode ? null : d, allowEmptyMathWhenNoData: !!allowEmptyMath, playerZone: playerZone || '', objectiveMode: !!objectiveMode, objectiveTarget: objectiveMode ? objectiveTarget : null, objectiveThemes: objectiveMode ? selectedThemes : [], helpEnabled: !!helpEnabled };
     if (mode === 'online') {
       payload.playerName = playerName || 'Joueur';
       payload.room = { type: roomMode, code: (roomCode||'').toUpperCase() };
@@ -524,17 +537,31 @@ export default function SessionConfig() {
           {[
             { key: 'category:addition', label: '➕ Additions' },
             { key: 'category:soustraction', label: '➖ Soustractions' },
-          ].map(({ key, label }) => (
-            <button key={key} onClick={() => toggleExtra(key)}
-              style={{ ...PILL(selectedExtras.includes(key)), background: selectedExtras.includes(key) ? '#f59e0b' : '#fff', borderColor: selectedExtras.includes(key) ? '#f59e0b' : '#e2e8f0', color: selectedExtras.includes(key) ? '#fff' : '#475569' }}>
-              {label}
-            </button>
-          ))}
+          ].map(({ key, label }) => {
+            const included = levelIncludes.has(key);
+            if (included) return (
+              <span key={key} style={{ ...PILL(false), background: '#f0fdf4', borderColor: '#86efac', color: '#16a34a', cursor: 'default', opacity: 0.7 }}>
+                {label} <span style={{ fontSize: 10 }}>✓ Inclus</span>
+              </span>
+            );
+            return (
+              <button key={key} onClick={() => toggleExtra(key)}
+                style={{ ...PILL(selectedExtras.includes(key)), background: selectedExtras.includes(key) ? '#f59e0b' : '#fff', borderColor: selectedExtras.includes(key) ? '#f59e0b' : '#e2e8f0', color: selectedExtras.includes(key) ? '#fff' : '#475569' }}>
+                {label}
+              </button>
+            );
+          })}
         </div>
         <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Tables de multiplication</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {[2,3,4,5,6,7,8,9,10,11,12].map(n => {
             const key = `category:table_${n}`;
+            const included = levelIncludes.has(key);
+            if (included) return (
+              <span key={key} style={{ ...PILL(false), fontSize: 12, padding: '6px 10px', background: '#f0fdf4', borderColor: '#86efac', color: '#16a34a', cursor: 'default', opacity: 0.7 }}>
+                x{n} ✓
+              </span>
+            );
             return (
               <button key={key} onClick={() => toggleExtra(key)}
                 style={{ ...PILL(selectedExtras.includes(key)), fontSize: 12, padding: '6px 10px', background: selectedExtras.includes(key) ? '#f59e0b' : '#fff', borderColor: selectedExtras.includes(key) ? '#f59e0b' : '#e2e8f0', color: selectedExtras.includes(key) ? '#fff' : '#475569' }}>
