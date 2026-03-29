@@ -2555,8 +2555,13 @@ function startRound(roomCode) {
   room.pairsValidated = 0;
   
   // Générer les zones côté serveur pour synchronisation multijoueur
+  if (!(room.selectedClasses || []).length) {
+    console.warn(`[MP][B2-diag] ⚠️ room.selectedClasses is EMPTY for room=${roomCode} — no level filtering will be applied!`);
+  }
   emitServerLog(roomCode, 'info', '[MP] Starting zone generation', {
     seed,
+    themes: room.selectedThemes || [],
+    classes: room.selectedClasses || [],
     themesCount: (room.selectedThemes || []).length,
     classesCount: (room.selectedClasses || []).length,
     excludedPairsCount: (room.validatedPairIds || new Set()).size

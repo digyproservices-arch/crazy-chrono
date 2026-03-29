@@ -4,7 +4,7 @@
    Network-first pour les API
    ============================================ */
 
-const CACHE_NAME = 'crazy-chrono-v8';
+const CACHE_NAME = 'crazy-chrono-v9';
 
 // Assets à pré-cacher au moment de l'installation
 const PRECACHE_URLS = [

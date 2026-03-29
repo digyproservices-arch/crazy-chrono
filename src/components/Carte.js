@@ -1906,6 +1906,8 @@ const Carte = () => {
 
     const onConnect = () => {
       setSocketConnected(true);
+      // B2-fix: toujours re-envoyer la config (themes/classes) sur chaque connexion/reconnexion
+      configAppliedRef.current = false;
       addDiag('socket:connected', { id: s.id });
       console.debug('[CC][client] socket connected', { id: s.id });
       // Envoyer studentId au serveur pour le tracking des stats multijoueur
@@ -2199,9 +2201,18 @@ const Carte = () => {
         let cfgSolo = null; try { cfgSolo = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
         const soloRoomId = (cfgSolo && cfgSolo.mode === 'solo') ? `solo-${s.id}` : roomId;
         try { const _sid = localStorage.getItem('cc_student_id') || null; s.emit('joinRoom', { roomId: soloRoomId, name: playerName, studentId: _sid }); } catch {}
+        // B2-fix: envoyer themes/classes au serveur même en solo (le serveur génère les zones)
+        setTimeout(() => {
+          try {
+            const themes = Array.isArray(cfgSolo?.themes) ? cfgSolo.themes : [];
+            const classes = Array.isArray(cfgSolo?.classes) ? cfgSolo.classes : [];
+            s.emit('room:setConfig', { themes, classes });
+            console.log('[MP][solo] Sent config to server:', { themes, classes });
+          } catch {}
+        }, 100);
         // Démarrage auto si mode=solo enregistré
         if (cfgSolo && cfgSolo.mode === 'solo') {
-          setTimeout(() => { try { s.emit('startGame'); } catch {} }, 200);
+          setTimeout(() => { try { s.emit('startGame'); } catch {} }, 300);
         }
       }
       // Charger l'historique de sessions
