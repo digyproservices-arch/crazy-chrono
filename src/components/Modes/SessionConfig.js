@@ -249,6 +249,15 @@ export default function SessionConfig() {
     return counts;
   }, [data, selectedClasses]);
 
+  // Compteurs globaux (tous niveaux) — pour afficher les bonus au-delà du niveau sélectionné
+  const globalCategoryCounts = useMemo(() => {
+    const counts = {};
+    (data?.associations || []).forEach(a => {
+      (a?.themes || []).forEach(t => { counts[t] = (counts[t] || 0) + 1; });
+    });
+    return counts;
+  }, [data]);
+
   // Thèmes dérivés des domaines activés (envoyés au serveur)
   const computedThemes = useMemo(() => {
     const allEnabled = CONTENT_DOMAINS.every(d => enabledDomains[d.key]);
@@ -533,7 +542,7 @@ export default function SessionConfig() {
                   {/* Mathématiques : inclus + bonus */}
                   {dom.key === 'math' && (() => {
                     const included = dom.categories.filter(c => levelIncludes.has(c));
-                    const bonus = dom.categories.filter(c => !levelIncludes.has(c) && (categoryCounts[c] || 0) > 0);
+                    const bonus = dom.categories.filter(c => !levelIncludes.has(c) && (globalCategoryCounts[c] || 0) > 0);
                     return (
                       <>
                         {included.length > 0 && (
@@ -557,7 +566,7 @@ export default function SessionConfig() {
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                               {bonus.map(cat => {
                                 const sel = selectedExtras.includes(cat);
-                                const cnt = categoryCounts[cat] || 0;
+                                const cnt = globalCategoryCounts[cat] || 0;
                                 return (
                                   <button key={cat} onClick={() => toggleExtra(cat)}
                                     style={{ padding: '5px 10px', borderRadius: 8, border: sel ? '2px solid #f59e0b' : '2px solid #e2e8f0', background: sel ? '#f59e0b' : '#fff', color: sel ? '#fff' : '#475569', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}>
