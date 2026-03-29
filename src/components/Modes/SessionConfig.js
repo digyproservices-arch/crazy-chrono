@@ -505,20 +505,46 @@ export default function SessionConfig() {
               {enabled && (
                 <div style={{ padding: '0 16px 14px' }}>
 
-                  {/* Sous-catégories nature */}
-                  {dom.categories.length > 0 && dom.key !== 'math' && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                      {dom.categories.map(cat => {
-                        const cnt = categoryCounts[cat] || 0;
-                        if (cnt === 0) return null;
-                        return (
-                          <span key={cat} style={{ padding: '4px 10px', borderRadius: 8, background: dom.color + '18', color: dom.color, fontSize: 11, fontWeight: 600 }}>
-                            {CATEGORY_LABELS[cat] || cat.replace('category:', '')} ({cnt})
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
+                  {/* Sous-catégories (inclus + bonus) pour domaines non-math */}
+                  {dom.categories.length > 0 && dom.key !== 'math' && (() => {
+                    const included = dom.categories.filter(c => (categoryCounts[c] || 0) > 0);
+                    const bonus = dom.categories.filter(c => (categoryCounts[c] || 0) === 0 && (globalCategoryCounts[c] || 0) > 0);
+                    return (
+                      <>
+                        {included.length > 0 && (
+                          <div style={{ marginBottom: bonus.length > 0 ? 10 : 8 }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {included.map(cat => {
+                                const cnt = categoryCounts[cat] || 0;
+                                return (
+                                  <span key={cat} style={{ padding: '4px 10px', borderRadius: 8, background: dom.color + '18', color: dom.color, fontSize: 11, fontWeight: 600 }}>
+                                    {CATEGORY_LABELS[cat] || cat.replace('category:', '')} ({cnt})
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        {bonus.length > 0 && (
+                          <div style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>➕ Bonus (cliquer pour ajouter)</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {bonus.map(cat => {
+                                const sel = selectedExtras.includes(cat);
+                                const cnt = globalCategoryCounts[cat] || 0;
+                                return (
+                                  <button key={cat} onClick={() => toggleExtra(cat)}
+                                    style={{ padding: '4px 10px', borderRadius: 8, border: sel ? '2px solid #f59e0b' : '2px solid #e2e8f0', background: sel ? '#f59e0b' : '#fff', color: sel ? '#fff' : '#475569', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}>
+                                    {CATEGORY_LABELS[cat] || cat.replace('category:', '')} ({cnt})
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
 
                   {/* Zone géographique (inline dans Nature) */}
                   {dom.hasGeo && (
