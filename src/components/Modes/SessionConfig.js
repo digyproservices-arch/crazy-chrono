@@ -116,7 +116,15 @@ export default function SessionConfig() {
   }, [mode, navigate]);
 
   // Sélections
-  const [selectedClasses, setSelectedClasses] = useState(["CP","CE1","CE2","CM1","CM2"]);
+  // B4: sélection unique de niveau (radio) — le cumul est calculé automatiquement
+  const [selectedLevel, setSelectedLevel] = useState('CP');
+  // Calcul automatique des classes cumulatives (CE1 → ["CP","CE1"])
+  const selectedClasses = useMemo(() => {
+    const idx = LEVEL_INDEX[selectedLevel] ?? 0;
+    return CLASS_LEVELS.slice(0, idx + 1);
+  }, [selectedLevel]);
+  // B4: matières bonus (ex: soustractions, multiplications hors programme)
+  const [selectedExtras, setSelectedExtras] = useState([]);
   const [selectedThemes, setSelectedThemes] = useState([]);
   const userManuallyToggledThemes = useRef(false);
   // Garder des strings pour permettre la saisie sans "saut" (ex: vide, 1 puis 10, etc.)
@@ -279,9 +287,15 @@ export default function SessionConfig() {
     };
   }, [allThemes]);
 
-  const toggleClass = (lv) => {
+  // B4: sélection exclusive de niveau (radio)
+  const selectLevel = (lv) => {
     userManuallyToggledThemes.current = false;
-    setSelectedClasses(prev => prev.includes(lv) ? prev.filter(x => x !== lv) : [...prev, lv]);
+    setSelectedLevel(lv);
+  };
+
+  const toggleExtra = (cat) => {
+    userManuallyToggledThemes.current = true;
+    setSelectedExtras(prev => prev.includes(cat) ? prev.filter(x => x !== cat) : [...prev, cat]);
   };
 
   const toggleTheme = (t) => {
@@ -325,7 +339,17 @@ export default function SessionConfig() {
     try {
       const prev = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
       if (prev && typeof prev === 'object') {
-        if (Array.isArray(prev.classes) && prev.classes.length) setSelectedClasses(prev.classes);
+        // B4: rétro-compatibilité — extraire le niveau max depuis l'ancien tableau classes
+        if (prev.selectedLevel && CLASS_LEVELS.includes(prev.selectedLevel)) {
+          setSelectedLevel(prev.selectedLevel);
+        } else if (Array.isArray(prev.classes) && prev.classes.length) {
+          const maxLv = prev.classes.reduce((best, c) => {
+            const i = LEVEL_INDEX[c] ?? -1;
+            return i > (LEVEL_INDEX[best] ?? -1) ? c : best;
+          }, prev.classes[0]);
+          if (maxLv) setSelectedLevel(maxLv);
+        }
+        if (Array.isArray(prev.extras)) setSelectedExtras(prev.extras);
         if (Array.isArray(prev.themes) && prev.themes.length > 0) {
           setSelectedThemes(prev.themes);
           userManuallyToggledThemes.current = true;
@@ -348,8 +372,10 @@ export default function SessionConfig() {
       try {
         const payload = {
           mode,
+          selectedLevel,
           classes: selectedClasses,
-          themes: selectedThemes,
+          extras: selectedExtras,
+          themes: [...selectedThemes, ...selectedExtras],
           rounds,
           duration,
           allowEmptyMathWhenNoData: !!allowEmptyMath,
@@ -364,7 +390,7 @@ export default function SessionConfig() {
       } catch {}
     }, 200);
     return () => clearTimeout(t);
-  }, [mode, selectedClasses, selectedThemes, rounds, duration, allowEmptyMath, playerZone, objectiveMode, objectiveTarget, helpEnabled]);
+  }, [mode, selectedLevel, selectedClasses, selectedExtras, selectedThemes, rounds, duration, allowEmptyMath, playerZone, objectiveMode, objectiveTarget, helpEnabled]);
 
   const clampInt = (val, lo, hi, fallback) => {
     const n = parseInt(String(val), 10);
@@ -389,7 +415,8 @@ export default function SessionConfig() {
     // Règle simple: si des thèmes sont sélectionnés, on ne garde QUE ceux-ci; sinon, tout est autorisé
     const r = clampInt(rounds, 1, maxRounds, 3);
     const d = clampInt(duration, 15, maxDuration, 60);
-    const payload = { mode, classes: selectedClasses, themes: selectedThemes, rounds: r, duration: objectiveMode ? null : d, allowEmptyMathWhenNoData: !!allowEmptyMath, playerZone: playerZone || '', objectiveMode: !!objectiveMode, objectiveTarget: objectiveMode ? objectiveTarget : null, objectiveThemes: objectiveMode ? selectedThemes : [], helpEnabled: !!helpEnabled };
+    const allThemesWithExtras = [...selectedThemes, ...selectedExtras];
+    const payload = { mode, selectedLevel, classes: selectedClasses, extras: selectedExtras, themes: allThemesWithExtras, rounds: r, duration: objectiveMode ? null : d, allowEmptyMathWhenNoData: !!allowEmptyMath, playerZone: playerZone || '', objectiveMode: !!objectiveMode, objectiveTarget: objectiveMode ? objectiveTarget : null, objectiveThemes: objectiveMode ? selectedThemes : [], helpEnabled: !!helpEnabled };
     if (mode === 'online') {
       payload.playerName = playerName || 'Joueur';
       payload.room = { type: roomMode, code: (roomCode||'').toUpperCase() };
@@ -458,14 +485,17 @@ export default function SessionConfig() {
         </div>
       </div>
 
-      {/* ===== 1. NIVEAUX SCOLAIRES ===== */}
+      {/* ===== 1. NIVEAU SCOLAIRE (sélection unique) ===== */}
       <div style={CARD}>
-        <h3 style={SECTION_TITLE}><span>📚</span> Niveaux scolaires</h3>
+        <h3 style={SECTION_TITLE}><span>📚</span> Niveau scolaire</h3>
+        <p style={{ fontSize: 12, color: '#64748b', margin: '-4px 0 12px', lineHeight: 1.5 }}>
+          Choisissez un niveau. Tout le contenu des niveaux inférieurs est automatiquement inclus.
+        </p>
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Primaire</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {["CP","CE1","CE2","CM1","CM2"].map(lv => (
-              <button key={lv} onClick={() => toggleClass(lv)} style={PILL(selectedClasses.includes(lv))}>{lv}</button>
+              <button key={lv} onClick={() => selectLevel(lv)} style={PILL(selectedLevel === lv)}>{lv}</button>
             ))}
           </div>
         </div>
@@ -473,10 +503,51 @@ export default function SessionConfig() {
           <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Collège</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {["6e","5e","4e","3e"].map(lv => (
-              <button key={lv} onClick={() => toggleClass(lv)} style={PILL(selectedClasses.includes(lv))}>{lv}</button>
+              <button key={lv} onClick={() => selectLevel(lv)} style={PILL(selectedLevel === lv)}>{lv}</button>
             ))}
           </div>
         </div>
+        {selectedLevel && (
+          <div style={{ marginTop: 10, fontSize: 12, color: '#0D6A7A', fontWeight: 600, background: '#f0fdfa', padding: '8px 12px', borderRadius: 8, border: '1px solid #99f6e4' }}>
+            Contenu inclus : {selectedClasses.join(' + ')}
+          </div>
+        )}
+      </div>
+
+      {/* ===== 1b. ENRICHIR LA PARTIE (matières bonus) ===== */}
+      <div style={CARD}>
+        <h3 style={SECTION_TITLE}><span>🎯</span> Enrichir la partie <span style={{ fontSize: 11, fontWeight: 500, color: '#94a3b8' }}>(optionnel)</span></h3>
+        <p style={{ fontSize: 12, color: '#64748b', margin: '-4px 0 12px', lineHeight: 1.5 }}>
+          Ajoutez des matières supplémentaires au-delà du programme du niveau sélectionné.
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+          {[
+            { key: 'category:addition', label: '➕ Additions' },
+            { key: 'category:soustraction', label: '➖ Soustractions' },
+          ].map(({ key, label }) => (
+            <button key={key} onClick={() => toggleExtra(key)}
+              style={{ ...PILL(selectedExtras.includes(key)), background: selectedExtras.includes(key) ? '#f59e0b' : '#fff', borderColor: selectedExtras.includes(key) ? '#f59e0b' : '#e2e8f0', color: selectedExtras.includes(key) ? '#fff' : '#475569' }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Tables de multiplication</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {[2,3,4,5,6,7,8,9,10,11,12].map(n => {
+            const key = `category:table_${n}`;
+            return (
+              <button key={key} onClick={() => toggleExtra(key)}
+                style={{ ...PILL(selectedExtras.includes(key)), fontSize: 12, padding: '6px 10px', background: selectedExtras.includes(key) ? '#f59e0b' : '#fff', borderColor: selectedExtras.includes(key) ? '#f59e0b' : '#e2e8f0', color: selectedExtras.includes(key) ? '#fff' : '#475569' }}>
+                x{n}
+              </button>
+            );
+          })}
+        </div>
+        {selectedExtras.length > 0 && (
+          <div style={{ marginTop: 10, fontSize: 12, color: '#92400e', fontWeight: 600, background: '#fffbeb', padding: '8px 12px', borderRadius: 8, border: '1px solid #fde68a' }}>
+            {selectedExtras.length} matière{selectedExtras.length > 1 ? 's' : ''} bonus ajoutée{selectedExtras.length > 1 ? 's' : ''}
+          </div>
+        )}
       </div>
 
       {/* ===== MODE OBJECTIF TOGGLE ===== */}
