@@ -102,6 +102,11 @@ export default function Login({ onLogin }) {
               source: dbPseudo ? (dbPseudo === profile.name ? 'db' : 'existingAuth') : 'email_prefix',
             });
             try { localStorage.setItem('cc_auth', JSON.stringify(profile)); } catch {}
+            // B3-fix: nettoyer clés étudiant stale lors d'un auto-login non-étudiant
+            if (profile.role !== 'student') {
+              try { localStorage.removeItem('cc_student_name'); } catch {}
+              try { localStorage.removeItem('cc_student_id'); } catch {}
+            }
             onLogin && onLogin(profile);
             navigate(getPostLoginPath(profile), { replace: true });
             return;
@@ -262,6 +267,12 @@ export default function Login({ onLogin }) {
         logAuth('login', diagDetails);
         
         saveAuth(profile);
+        // B3-fix: nettoyer les clés étudiant stale lors d'un login non-étudiant
+        // (empêche l'interférence d'identité entre comptes)
+        if (profile.role !== 'student') {
+          try { localStorage.removeItem('cc_student_name'); } catch {}
+          try { localStorage.removeItem('cc_student_id'); } catch {}
+        }
         // Stocker l'ID utilisateur pour filtrage matchs
         try { localStorage.setItem('cc_user_id', user.id); } catch {}
 

@@ -80,6 +80,9 @@ const NavBar = () => {
     try { logAuth('logout', { email: auth?.email, nom: auth?.name || auth?.username }); } catch {}
     try { await supabase?.auth?.signOut?.(); } catch {}
     try { localStorage.removeItem('cc_auth'); } catch {}
+    try { localStorage.removeItem('cc_student_name'); } catch {}
+    try { localStorage.removeItem('cc_student_id'); } catch {}
+    try { localStorage.removeItem('cc_session_cfg'); } catch {}
     try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
     navigate('/login', { replace: true });
   };
