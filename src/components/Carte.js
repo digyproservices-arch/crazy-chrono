@@ -3347,22 +3347,26 @@ function handleGameClick(zone) {
   // Ignore clicks during assignment transition to avoid race conditions
   if (assignInFlightRef.current || assignBusy) {
     try { addDiag('click:REJECTED:assignBusy', { assignInFlight: assignInFlightRef.current, assignBusy, zoneId: zone?.id }); } catch {}
+    console.warn('[CLICK-DIAG] REJECTED:assignBusy', zone?.id, { assignInFlight: assignInFlightRef.current, assignBusy });
     try { logClick('REJECTED:assignBusy', { zoneId: zone?.id, type: zone?.type, content: zone?.content, assignInFlight: assignInFlightRef.current, assignBusy }); } catch {}
     return;
   }
   if (!gameActive || !zone) {
     try { addDiag('click:REJECTED:inactive', { gameActive, hasZone: !!zone }); } catch {}
+    console.warn('[CLICK-DIAG] REJECTED:inactive', { gameActive, hasZone: !!zone });
     try { logClick('REJECTED:inactive', { gameActive, hasZone: !!zone }); } catch {}
     return;
   }
   // ✅ FIX DISPARITÉ: Ignorer zones déjà validées (masquées)
   if (zone.validated) {
     try { addDiag('click:REJECTED:validated', { zoneId: zone.id }); } catch {}
+    console.warn('[CLICK-DIAG] REJECTED:validated', zone.id);
     try { logClick('REJECTED:validated', { zoneId: zone.id, type: zone.type, content: zone.content }); } catch {}
     return;
   }
   if (processingPairRef.current) {
     try { addDiag('click:REJECTED:processingPair', { zoneId: zone?.id }); } catch {}
+    console.warn('[CLICK-DIAG] REJECTED:processingPair', zone?.id);
     try { logClick('REJECTED:processingPair', { zoneId: zone?.id, type: zone?.type, content: zone?.content }); } catch {}
     return;
   }
@@ -7745,6 +7749,7 @@ setZones(dataWithRandomTexts);
               const svg = svgOverlayRef.current;
               const pt = svg ? pointToSvgCoords(e, svg) : null;
               addDiag('click:svg-overlay', { x: pt?.x?.toFixed(0), y: pt?.y?.toFixed(0), target: e.target?.tagName, targetId: e.target?.id || e.target?.parentNode?.id });
+              console.warn('[CLICK-DIAG] svg-overlay', { x: pt?.x?.toFixed(0), y: pt?.y?.toFixed(0), target: e.target?.tagName, targetId: e.target?.id || e.target?.parentNode?.id });
             } catch {}
           }}
         >
@@ -7892,6 +7897,7 @@ setZones(dataWithRandomTexts);
                 pointerEvents="all"
                 onClick={(e) => {
                   try { addDiag('click:path', { zoneId: zone.id, type: zone.type, content: String(zone.content || '').substring(0, 30), gameActive }); } catch {}
+                  console.warn('[CLICK-DIAG] path', zone.id, zone.type, String(zone.content || '').substring(0, 30));
                   if (gameActive && (zone.type === 'image' || zone.type === 'texte' || zone.type === 'chiffre' || zone.type === 'calcul')) {
                     e.stopPropagation();
                     handleGameClick(zone);
@@ -7933,6 +7939,7 @@ setZones(dataWithRandomTexts);
                     const svg = svgOverlayRef.current;
                     const pt = svg ? pointToSvgCoords(e, svg) : null;
                     addDiag('click:LOUPE-INTERCEPT', { zoneId: zone.id, loupeX: lx.toFixed(0), loupeY: ly.toFixed(0), clickX: pt?.x?.toFixed(0), clickY: pt?.y?.toFixed(0) });
+                    console.warn('[CLICK-DIAG] LOUPE-INTERCEPT zone=', zone.id, 'loupePos=', lx.toFixed(0), ly.toFixed(0));
                   } catch {}
                   if (zoomTimerRef.current) clearTimeout(zoomTimerRef.current);
                   setZoomPreviewSrc(imgSrc);
@@ -7945,8 +7952,8 @@ setZones(dataWithRandomTexts);
                     onClick={handleLoupeTap}
                     onTouchStart={handleLoupeTap}
                   >
-                    {/* Zone de clic invisible élargie pour mobile (min 44pt) */}
-                    <circle cx={lx} cy={ly} r={36} fill="transparent" />
+                    {/* Zone de clic invisible – réduite pour éviter le chevauchement avec les zones voisines */}
+                    <circle cx={lx} cy={ly} r={22} fill="transparent" />
                     <circle cx={lx} cy={ly} r={22} fill="rgba(0,0,0,0.55)" stroke="rgba(255,255,255,0.9)" strokeWidth={2} />
                     <circle cx={lx - 2.5} cy={ly - 2.5} r={7} fill="none" stroke="#fff" strokeWidth={2.2} />
                     <line x1={lx + 2.5} y1={ly + 2.5} x2={lx + 9} y2={ly + 9} stroke="#fff" strokeWidth={2.2} strokeLinecap="round" />
