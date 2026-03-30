@@ -7739,6 +7739,14 @@ setZones(dataWithRandomTexts);
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onClick={(e) => {
+            if (!gameActive) return;
+            try {
+              const svg = svgOverlayRef.current;
+              const pt = svg ? pointToSvgCoords(e, svg) : null;
+              addDiag('click:svg-overlay', { x: pt?.x?.toFixed(0), y: pt?.y?.toFixed(0), target: e.target?.tagName, targetId: e.target?.id || e.target?.parentNode?.id });
+            } catch {}
+          }}
         >
         {/* Définitions SVG */}
         <defs>
@@ -7921,6 +7929,11 @@ setZones(dataWithRandomTexts);
                 const handleLoupeTap = (e) => {
                   e.stopPropagation();
                   e.preventDefault();
+                  try {
+                    const svg = svgOverlayRef.current;
+                    const pt = svg ? pointToSvgCoords(e, svg) : null;
+                    addDiag('click:LOUPE-INTERCEPT', { zoneId: zone.id, loupeX: lx.toFixed(0), loupeY: ly.toFixed(0), clickX: pt?.x?.toFixed(0), clickY: pt?.y?.toFixed(0) });
+                  } catch {}
                   if (zoomTimerRef.current) clearTimeout(zoomTimerRef.current);
                   setZoomPreviewSrc(imgSrc);
                   zoomTimerRef.current = setTimeout(() => setZoomPreviewSrc(null), 2000);
