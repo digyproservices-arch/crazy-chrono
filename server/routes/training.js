@@ -232,12 +232,17 @@ router.get('/stats/student/:studentId', requireSupabase, requireAuth, ...validat
 });
 
 // GET /api/training/records — Public: best solo score & paires/min across all users
+// PPM cap: 30 paires/min max (1 paire toutes les 2s = déjà surhumain)
+// Durée minimum: 30s pour éviter les PPM aberrants sur sessions ultra-courtes
+const PPM_CAP = 30;
+const MIN_DURATION_MS = 30000;
 router.get('/records', requireSupabase, async (req, res) => {
   try {
-    // Best score
+    // Best score (only from sessions >= 30s to filter out glitches)
     const { data: bestRow } = await supabase
       .from('training_results')
       .select('student_id, score, pairs_validated, time_ms, created_at')
+      .gte('time_ms', MIN_DURATION_MS)
       .order('score', { ascending: false })
       .limit(1);
 
@@ -247,14 +252,16 @@ router.get('/records', requireSupabase, async (req, res) => {
       bestScore = r.score || 0;
       bestStudent = r.student_id;
       const durationSec = (r.time_ms || 0) / 1000;
-      bestPPM = durationSec > 0 ? parseFloat(((r.pairs_validated || r.score || 0) / durationSec * 60).toFixed(1)) : 0;
+      if (durationSec > 0) {
+        bestPPM = Math.min(PPM_CAP, parseFloat(((r.pairs_validated || r.score || 0) / durationSec * 60).toFixed(1)));
+      }
     }
 
-    // Best PPM (may be a different player)
+    // Best PPM (may be a different player) — same filters
     const { data: allRows } = await supabase
       .from('training_results')
       .select('student_id, score, pairs_validated, time_ms')
-      .gt('time_ms', 0)
+      .gte('time_ms', MIN_DURATION_MS)
       .order('score', { ascending: false })
       .limit(50);
 
@@ -262,7 +269,7 @@ router.get('/records', requireSupabase, async (req, res) => {
       for (const r of allRows) {
         const dur = (r.time_ms || 0) / 1000;
         if (dur > 0) {
-          const ppm = (r.pairs_validated || r.score || 0) / dur * 60;
+          const ppm = Math.min(PPM_CAP, (r.pairs_validated || r.score || 0) / dur * 60);
           if (ppm > bestPPM) {
             bestPPM = parseFloat(ppm.toFixed(1));
           }

@@ -2961,15 +2961,19 @@ useEffect(() => {
         });
 
         // Update personal solo record if beaten
+        // PPM cap: 30/min max (1 paire/2s = surhumain). Durée min: 30s pour éviter aberrations.
         if (isSolo && (finalScore > 0 || pairsCount > 0)) {
           try {
-            const currentPPM = sessionElapsedSec > 0 ? parseFloat(((pairsCount || finalScore) / sessionElapsedSec * 60).toFixed(1)) : 0;
+            const PPM_CAP = 30;
+            const rawPPM = sessionElapsedSec > 0 ? (pairsCount || finalScore) / sessionElapsedSec * 60 : 0;
+            const currentPPM = sessionElapsedSec >= 30 ? parseFloat(Math.min(PPM_CAP, rawPPM).toFixed(1)) : 0;
             const prev = JSON.parse(localStorage.getItem('cc_solo_best') || 'null') || { bestScore: 0, bestPPM: 0 };
+            const cappedPrevPPM = Math.min(prev.bestPPM || 0, PPM_CAP);
             const updated = {
               bestScore: Math.max(prev.bestScore || 0, finalScore),
-              bestPPM: Math.max(prev.bestPPM || 0, currentPPM),
+              bestPPM: Math.max(cappedPrevPPM, currentPPM),
             };
-            if (updated.bestScore > (prev.bestScore || 0) || updated.bestPPM > (prev.bestPPM || 0)) {
+            if (updated.bestScore > (prev.bestScore || 0) || updated.bestPPM > cappedPrevPPM) {
               localStorage.setItem('cc_solo_best', JSON.stringify(updated));
               setSoloPersonalBest(updated);
             }
@@ -3924,7 +3928,7 @@ const handleEditGreenZone = (zone) => {
         const res = await fetch(`${getBackendUrl()}/api/training/records`);
         if (res.ok) {
           const data = await res.json();
-          if (data.success) setSoloGlobalBest({ bestScore: data.bestScore || 0, bestPPM: data.bestPPM || 0 });
+          if (data.success) setSoloGlobalBest({ bestScore: data.bestScore || 0, bestPPM: Math.min(data.bestPPM || 0, 30) });
         }
       } catch {}
     };
