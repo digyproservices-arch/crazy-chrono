@@ -709,10 +709,6 @@ const Carte = () => {
   const [highlightedZoneIds, setHighlightedZoneIds] = useState([]); // zones surlignées par la réponse
   const helpStatsRef = useRef({ hintsUsed: 0, answersUsed: 0, totalPenalty: 0 });
   const objectivePairsRef = useRef(0); // compteur de paires pour le mode objectif
-  // Sync objectiveModeRef with state (avoid stale closures in setTimeout/async)
-  useEffect(() => { objectiveModeRef.current = objectiveMode; }, [objectiveMode]);
-  // Sync socketConnectedRef with state (avoid stale closures in useEffect([], []) socket handlers)
-  useEffect(() => { socketConnectedRef.current = socketConnected; }, [socketConnected]);
   // Historique des sessions multi
   const [sessions, setSessions] = useState([]);
   // Verrou court pour éviter le double traitement d'une paire
@@ -731,6 +727,10 @@ const Carte = () => {
   const socket = socketRef.current;
   // Apply session config (rounds/duration) once when we are host
   const configAppliedRef = useRef(false);
+  // Sync objectiveModeRef with state (avoid stale closures in setTimeout/async)
+  useEffect(() => { objectiveModeRef.current = objectiveMode; }, [objectiveMode]);
+  // Sync socketConnectedRef with state (avoid stale closures in useEffect([], []) socket handlers)
+  useEffect(() => { socketConnectedRef.current = socketConnected; }, [socketConnected]);
   // Preload + gating state
   const [preparing, setPreparing] = useState(false);
   const [prepProgress, setPrepProgress] = useState(0);
