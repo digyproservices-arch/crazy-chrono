@@ -3690,8 +3690,8 @@ function handleGameClick(zone) {
             reason, latencyMs: latency, itemType: item_type, theme, itemDetail,
             round: Number(roundsPlayed) || 0, score: scoreRef.current
           });
+          logClickAttempt('PAIR_FAIL', { zoneId: a, zoneType: t1, content: String(ZA?.content || '').substring(0, 40), reason, guardStates: { zoneB: b, typeB: t2, contentB: String(ZB?.content || '').substring(0, 40), pairA: p1, pairB: p2 } });
         } catch {}
-        logClickAttempt('PAIR_FAIL', { zoneId: a, zoneType: t1, content: String(ZA?.content || '').substring(0, 40), reason, guardStates: { zoneB: b, typeB: t2, contentB: String(ZB?.content || '').substring(0, 40), pairA: p1, pairB: p2 } });
         try { masteryRecordPair(p1 || p2 || '', false, latency); } catch {}
         setGameMsg('Mauvaise association');
         setShowBigCross(true);
