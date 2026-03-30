@@ -364,6 +364,7 @@ export default function LandingPage() {
         textAlign: 'center', fontSize: 13,
       }}>
         <div style={{ display: 'flex', gap: 20, justifyContent: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+          <a href="/presentation" style={{ color: '#94a3b8', textDecoration: 'none' }}>Présentation</a>
           <a href="/pricing" style={{ color: '#94a3b8', textDecoration: 'none' }}>Tarifs</a>
           <a href="/legal" style={{ color: '#94a3b8', textDecoration: 'none' }}>Mentions légales</a>
           <a href="mailto:contact@crazy-chrono.com" style={{ color: '#94a3b8', textDecoration: 'none' }}>Contact</a>

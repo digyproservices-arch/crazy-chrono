@@ -45,6 +45,7 @@ import PWAInstallPrompt from './components/PWAInstallPrompt';
 import LearnMode from './components/Modes/LearnMode';
 import LegalPages from './components/LegalPages';
 import LandingPage from './components/LandingPage';
+import PresentationPage from './components/PresentationPage';
 import MaintenancePage, { hasMaintenanceBypass } from './components/MaintenancePage';
 import { startHeartbeat, stopHeartbeat } from './utils/presenceHeartbeat';
 
@@ -447,7 +448,9 @@ function App() {
   const carteVidePath = `${process.env.PUBLIC_URL}/images/carte-vide.png`;
   
   // Maintenance gate: bloquer tout accès si MAINTENANCE_MODE=true sauf bypass
-  if (MAINTENANCE_MODE && !hasMaintenanceBypass()) {
+  // Exception: /presentation est toujours accessible (démo rectorat, enseignants)
+  const isPresentation = window.location.pathname === '/presentation';
+  if (MAINTENANCE_MODE && !hasMaintenanceBypass() && !isPresentation) {
     return <MaintenancePage />;
   }
 
@@ -508,6 +511,7 @@ function App() {
               <Route path="/apprendre" element={<RequireAuth auth={auth}><LearnMode /></RequireAuth>} />
               {/* Carte (éditeur/jeu) accessible en direct si nécessaire, sinon on y accède après config */}
               <Route path="/carte" element={<div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div>} />
+              <Route path="/presentation" element={<PresentationPage />} />
               <Route path="/legal" element={<LegalPages />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

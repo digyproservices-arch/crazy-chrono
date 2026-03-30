@@ -169,6 +169,7 @@ const NavBar = () => {
 
           {!isFree() && <NavLink icon="📊" label="Performances" to="/my-performance" active={isActive('/my-performance')} navigate={navigate} />}
           <NavLink icon="💰" label="Tarifs" to="/pricing" active={isActive('/pricing')} navigate={navigate} />
+          <NavLink icon="🎬" label="Présentation" to="/presentation" active={isActive('/presentation')} navigate={navigate} />
 
           {isAdmin && (
             <NavDropdown icon="⚙️" label="Administration" active={isActive('/admin')}>
@@ -245,7 +246,8 @@ const NavBar = () => {
           {isTeacher && <MobileLink icon="🏅" label="Compétition" to="/crazy-arena/competition" navigate={navigate} active={isActive('/crazy-arena/competition')} />}
           {!isFree() && <MobileLink icon="📊" label="Performances" to="/my-performance" navigate={navigate} active={isActive('/my-performance')} />}
           <MobileLink icon="💰" label="Tarifs" to="/pricing" navigate={navigate} active={isActive('/pricing')} />
-          <MobileLink icon="🏪" label="Boutique" to="/pricing" navigate={navigate} active={false} />
+          <MobileLink icon="�" label="Présentation" to="/presentation" navigate={navigate} active={isActive('/presentation')} />
+          <MobileLink icon="�🏪" label="Boutique" to="/pricing" navigate={navigate} active={false} />
           <MobileLink icon="🏟️" label="Grande Salle" to="/grande-salle" navigate={navigate} active={isActive('/grande-salle')} />
           {isAdmin && <div style={{ height: 1, background: 'rgba(255,255,255,0.15)', margin: '6px 0' }} />}
           {isAdmin && <MobileLink icon="📊" label="Admin Dashboard" to="/admin/dashboard" navigate={navigate} active={isActive('/admin/dashboard')} />}
