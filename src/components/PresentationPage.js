@@ -50,79 +50,6 @@ const GlassCard = ({ children, style }) => (
   }}>{children}</div>
 );
 
-// ============ MOCK CLOCK FACE ============
-const MockClockFace = ({ highlight, animPhase }) => {
-  const zones = [
-    { type: 'image', label: '🐬', angle: 315, color: '#3b82f6' },
-    { type: 'image', label: '🦅', angle: 225, color: '#10b981' },
-    { type: 'image', label: '🌺', angle: 135, color: '#f59e0b' },
-    { type: 'image', label: '🦜', angle: 45, color: '#ec4899' },
-    { type: 'text', label: 'Dauphin', angle: 340, color: '#fff' },
-    { type: 'text', label: 'Héron vert', angle: 200, color: '#fff' },
-    { type: 'text', label: 'Hibiscus', angle: 160, color: '#fff' },
-    { type: 'text', label: 'Perroquet', angle: 20, color: '#fff' },
-    { type: 'calc', label: '8×7', angle: 290, color: '#456451' },
-    { type: 'calc', label: '12+13', angle: 250, color: '#456451' },
-    { type: 'num', label: '56', angle: 110, color: '#456451' },
-    { type: 'num', label: '25', angle: 70, color: '#456451' },
-  ];
-  const r = 160;
-  const cx = 200, cy = 200;
-  return (
-    <svg viewBox="0 0 400 400" style={{ width: '100%', maxWidth: 380, filter: 'drop-shadow(0 8px 30px rgba(0,0,0,0.25))' }}>
-      {/* Fond cadran */}
-      <defs>
-        <radialGradient id="clock-bg" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#2dd4bf" stopOpacity="0.3" />
-          <stop offset="100%" stopColor={CC.tealDeep} stopOpacity="0.9" />
-        </radialGradient>
-      </defs>
-      <circle cx={cx} cy={cy} r={195} fill="url(#clock-bg)" stroke="rgba(255,255,255,0.2)" strokeWidth="2" />
-      {/* Croix centrale */}
-      <line x1={cx} y1={cy - 180} x2={cx} y2={cy + 180} stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" />
-      <line x1={cx - 180} y1={cy} x2={cx + 180} y2={cy} stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" />
-      {/* Zones */}
-      {zones.map((z, i) => {
-        const rad = (z.angle * Math.PI) / 180;
-        const x = cx + r * Math.cos(rad);
-        const y = cy + r * Math.sin(rad);
-        const isHighlighted = highlight && highlight.includes(i);
-        const scale = isHighlighted ? 1.15 : 1;
-        const glow = isHighlighted ? 'drop-shadow(0 0 12px rgba(245,166,35,0.8))' : 'none';
-        return (
-          <g key={i} style={{ filter: glow, transition: 'all 0.5s' }}>
-            {z.type === 'image' ? (
-              <>
-                <circle cx={x} cy={y} r={28 * scale} fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" strokeWidth="1.5" />
-                <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize={24 * scale}>{z.label}</text>
-              </>
-            ) : z.type === 'text' ? (
-              <>
-                <rect x={x - 42} y={y - 14} width={84} height={28} rx={8} fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.2)" strokeWidth="1" />
-                <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize={11} fill={z.color} fontWeight="bold">{z.label}</text>
-              </>
-            ) : (
-              <>
-                <circle cx={x} cy={y} r={22 * scale} fill="rgba(69,100,81,0.15)" stroke="rgba(69,100,81,0.3)" strokeWidth="1" />
-                <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize={14 * scale} fill={z.color} fontWeight="bold">{z.label}</text>
-              </>
-            )}
-          </g>
-        );
-      })}
-      {/* Lignes de paire si highlight */}
-      {highlight && highlight.length === 2 && (
-        <line
-          x1={cx + r * Math.cos((zones[highlight[0]].angle * Math.PI) / 180)}
-          y1={cy + r * Math.sin((zones[highlight[0]].angle * Math.PI) / 180)}
-          x2={cx + r * Math.cos((zones[highlight[1]].angle * Math.PI) / 180)}
-          y2={cy + r * Math.sin((zones[highlight[1]].angle * Math.PI) / 180)}
-          stroke={CC.yellow} strokeWidth="3" strokeDasharray="8 4" opacity="0.8"
-        />
-      )}
-    </svg>
-  );
-};
 
 // ============ MOCK SCOREBOARD (sidebar game) ============
 const MockScoreboard = ({ scores, timeLeft, round, animIdx }) => (
@@ -450,8 +377,8 @@ const SLIDES = [
             ))}
           </div>
         </div>
-        <div style={{ flex: '0 0 auto' }}>
-          <MockClockFace highlight={phase >= 1 ? [0, 4] : null} />
+        <div style={{ flex: '0 0 auto', maxWidth: 420, width: '100%' }}>
+          <InteractiveDemo />
         </div>
       </div>
     ),
@@ -721,34 +648,13 @@ const SLIDES = [
       const timeLeft = phase >= 3 ? 8 : phase >= 2 ? 24 : phase >= 1 ? 42 : 60;
       return (
         <div style={{ display: 'flex', height: '100%', padding: '12px 16px', gap: 16, maxWidth: 1400, margin: '0 auto', alignItems: 'stretch' }}>
-          <div style={{ flex: 1, position: 'relative', borderRadius: 16, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)', border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ flex: 1, position: 'relative', borderRadius: 16, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)', border: '1px solid rgba(255,255,255,0.1)', padding: 16 }}>
             <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 2 }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.5)', color: '#fff', padding: '4px 14px', borderRadius: 10, fontSize: 12, fontWeight: 700 }}>🏆 MATCH EN COURS</div>
             </div>
-            <MockClockFace
-              highlight={phase >= 1 ? [0, 4] : null}
-              animPhase={phase}
-            />
-            {/* Bulles qui s'envolent */}
-            {phase >= 2 && (
-              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-                {[0, 1, 2].map(i => (
-                  <div key={i} style={{
-                    position: 'absolute',
-                    left: `${30 + i * 20}%`, bottom: `${20 + i * 15}%`,
-                    width: 60, height: 60, borderRadius: '50%',
-                    background: `${PLAYER_COLORS[i]}`,
-                    border: '3px solid #fff',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 13, fontWeight: 800, color: '#fff',
-                    animation: `presBubbleFly ${2 + i * 0.3}s ease-out ${i * 0.5}s both`,
-                    boxShadow: `0 0 20px ${PLAYER_COLORS[i]}88, 0 0 40px ${PLAYER_COLORS[i]}44`,
-                  }}>
-                    {PLAYER_NAMES[i][0]}{PLAYER_NAMES[i][1]}
-                  </div>
-                ))}
-              </div>
-            )}
+            <div style={{ maxWidth: 500, width: '100%' }}>
+              <InteractiveDemo />
+            </div>
           </div>
           <div style={{ flex: '0 0 280px' }}>
             <MockScoreboard
