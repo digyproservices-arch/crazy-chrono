@@ -9,7 +9,7 @@ import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck }
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
 import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError, reportIncident as incidentReportIncident, INCIDENT_TYPES as INCIDENT_TYPES_TRACKER } from '../utils/gameIncidentTracker';
 import { logRound } from '../utils/roundLogger';
-import { logClick, clearClickLogs } from '../utils/clickLogger';
+import { logClick, logClickAttempt, clearClickLogs } from '../utils/clickLogger';
 import { captureCardScreenshot } from '../utils/cardScreenshot';
 import { isFree, canStartSessionToday, incrementSessionCount, setSubscriptionStatus, getDailyCounts } from '../utils/subscription';
 
@@ -3335,6 +3335,7 @@ function handleMouseUp() {
 
 function handleGameClick(zone) {
   // 🔍 DIAGNOSTIC: Log every call with all guard states
+  const _guardStates = { gameActive, assignBusy, assignInFlight: assignInFlightRef.current, processingPair: processingPairRef.current, validated: zone?.validated };
   try { addDiag('click:handleGameClick', {
     zoneId: zone?.id, zoneType: zone?.type,
     content: String(zone?.content || zone?.label || '').substring(0, 40),
@@ -3344,17 +3345,20 @@ function handleGameClick(zone) {
     validated: zone?.validated,
     selectedIds: [...gameSelectedIds]
   }); } catch {}
+  logClickAttempt('GAME_CLICK', { zoneId: zone?.id, zoneType: zone?.type, content: String(zone?.content || zone?.label || '').substring(0, 40), guardStates: _guardStates, selectedIds: [...gameSelectedIds] });
   // Ignore clicks during assignment transition to avoid race conditions
   if (assignInFlightRef.current || assignBusy) {
     try { addDiag('click:REJECTED:assignBusy', { assignInFlight: assignInFlightRef.current, assignBusy, zoneId: zone?.id }); } catch {}
     console.warn('[CLICK-DIAG] REJECTED:assignBusy', zone?.id, { assignInFlight: assignInFlightRef.current, assignBusy });
     try { logClick('REJECTED:assignBusy', { zoneId: zone?.id, type: zone?.type, content: zone?.content, assignInFlight: assignInFlightRef.current, assignBusy }); } catch {}
+    logClickAttempt('REJECTED:assignBusy', { zoneId: zone?.id, zoneType: zone?.type, content: String(zone?.content || '').substring(0, 40), reason: 'assignBusy', guardStates: _guardStates });
     return;
   }
   if (!gameActive || !zone) {
     try { addDiag('click:REJECTED:inactive', { gameActive, hasZone: !!zone }); } catch {}
     console.warn('[CLICK-DIAG] REJECTED:inactive', { gameActive, hasZone: !!zone });
     try { logClick('REJECTED:inactive', { gameActive, hasZone: !!zone }); } catch {}
+    logClickAttempt('REJECTED:inactive', { reason: !gameActive ? 'game_not_active' : 'zone_null', guardStates: _guardStates });
     return;
   }
   // ✅ FIX DISPARITÉ: Ignorer zones déjà validées (masquées)
@@ -3362,23 +3366,27 @@ function handleGameClick(zone) {
     try { addDiag('click:REJECTED:validated', { zoneId: zone.id }); } catch {}
     console.warn('[CLICK-DIAG] REJECTED:validated', zone.id);
     try { logClick('REJECTED:validated', { zoneId: zone.id, type: zone.type, content: zone.content }); } catch {}
+    logClickAttempt('REJECTED:validated', { zoneId: zone.id, zoneType: zone.type, content: String(zone.content || '').substring(0, 40), reason: 'already_validated', guardStates: _guardStates });
     return;
   }
   if (processingPairRef.current) {
     try { addDiag('click:REJECTED:processingPair', { zoneId: zone?.id }); } catch {}
     console.warn('[CLICK-DIAG] REJECTED:processingPair', zone?.id);
     try { logClick('REJECTED:processingPair', { zoneId: zone?.id, type: zone?.type, content: zone?.content }); } catch {}
+    logClickAttempt('REJECTED:processingPair', { zoneId: zone.id, zoneType: zone.type, content: String(zone.content || '').substring(0, 40), reason: 'processing_pair', guardStates: _guardStates });
     return;
   }
   // Déselection: clic sur une zone déjà sélectionnée = la retirer
   if (gameSelectedIds.includes(zone.id)) {
     setGameSelectedIds(prev => prev.filter(id => id !== zone.id));
     try { logClick('SKIPPED:alreadySelected', { zoneId: zone.id, type: zone.type, content: zone.content }); } catch {}
+    logClickAttempt('DESELECT', { zoneId: zone.id, zoneType: zone.type, content: String(zone.content || '').substring(0, 40) });
     return;
   }
   // si déjà 2, réinitialiser avant de prendre un nouveau clic
   if (gameSelectedIds.length >= 2) {
     setGameSelectedIds([zone.id]);
+    logClickAttempt('ACCEPTED', { zoneId: zone.id, zoneType: zone.type, content: String(zone.content || '').substring(0, 40) });
     return;
   }
   setGameSelectedIds(prev => {
@@ -3395,6 +3403,7 @@ function handleGameClick(zone) {
           round: Number(roundsPlayed) || 0
         });
       } catch {}
+      logClickAttempt('ACCEPTED', { zoneId: zone.id, zoneType: zone.type, content: String(zone.content || '').substring(0, 40) });
     }
     if (next.length === 2) {
       const [a, b] = next;
@@ -3481,6 +3490,7 @@ function handleGameClick(zone) {
             round: Number(roundsPlayed) || 0, score: scoreRef.current
           });
         } catch {}
+        logClickAttempt('PAIR_OK', { zoneId: a, zoneType: t1, content: String(ZA?.content || '').substring(0, 40), reason: `pair=${pairKey}`, guardStates: { zoneB: b, typeB: t2, contentB: String(ZB?.content || '').substring(0, 40) } });
         try { const mEvt = masteryRecordPair(pairKey, true, latency); if (mEvt) setMasteryEvent(mEvt); setMasteryProgress(getActiveSessionProgress()); masterySyncToServer(getBackendUrl(), getAuthHeaders()); } catch {}
         // ✅ FIX DISPARITÉ: Activer verrou pendant traitement
         processingPairRef.current = true;
@@ -3677,6 +3687,7 @@ function handleGameClick(zone) {
             round: Number(roundsPlayed) || 0, score: scoreRef.current
           });
         } catch {}
+        logClickAttempt('PAIR_FAIL', { zoneId: a, zoneType: t1, content: String(ZA?.content || '').substring(0, 40), reason, guardStates: { zoneB: b, typeB: t2, contentB: String(ZB?.content || '').substring(0, 40), pairA: p1, pairB: p2 } });
         try { masteryRecordPair(p1 || p2 || '', false, latency); } catch {}
         setGameMsg('Mauvaise association');
         setShowBigCross(true);
@@ -7748,8 +7759,20 @@ setZones(dataWithRandomTexts);
             try {
               const svg = svgOverlayRef.current;
               const pt = svg ? pointToSvgCoords(e, svg) : null;
-              addDiag('click:svg-overlay', { x: pt?.x?.toFixed(0), y: pt?.y?.toFixed(0), target: e.target?.tagName, targetId: e.target?.id || e.target?.parentNode?.id });
-              console.warn('[CLICK-DIAG] svg-overlay', { x: pt?.x?.toFixed(0), y: pt?.y?.toFixed(0), target: e.target?.tagName, targetId: e.target?.id || e.target?.parentNode?.id });
+              const cx = pt?.x, cy = pt?.y;
+              // Trouver les zones dont le bounding box contient le point cliqué
+              const candidates = [];
+              if (cx != null && cy != null) {
+                for (const z of zones) {
+                  if (!z || !z.points || z.validated) continue;
+                  const bb = getZoneBoundingBox(z.points);
+                  if (cx >= bb.x && cx <= bb.x + bb.width && cy >= bb.y && cy <= bb.y + bb.height) {
+                    candidates.push({ id: z.id, type: z.type, content: String(z.content || z.label || '').substring(0, 30) });
+                  }
+                }
+              }
+              addDiag('click:svg-overlay', { x: cx?.toFixed(0), y: cy?.toFixed(0), target: e.target?.tagName, candidates });
+              logClickAttempt('BOARD_CLICK', { x: cx, y: cy, candidates });
             } catch {}
           }}
         >
@@ -7897,11 +7920,12 @@ setZones(dataWithRandomTexts);
                 pointerEvents="all"
                 onClick={(e) => {
                   try { addDiag('click:path', { zoneId: zone.id, type: zone.type, content: String(zone.content || '').substring(0, 30), gameActive }); } catch {}
-                  console.warn('[CLICK-DIAG] path', zone.id, zone.type, String(zone.content || '').substring(0, 30));
+                  logClickAttempt('ZONE_CLICK', { zoneId: zone.id, type: zone.type, content: String(zone.content || '').substring(0, 30), gameActive, validated: zone.validated });
                   if (gameActive && (zone.type === 'image' || zone.type === 'texte' || zone.type === 'chiffre' || zone.type === 'calcul')) {
                     e.stopPropagation();
                     handleGameClick(zone);
                   } else {
+                    logClickAttempt('ZONE_SKIPPED', { reason: !gameActive ? 'game_inactive' : 'unknown_type', zoneId: zone.id, type: zone.type });
                     try { addDiag('click:path:SKIPPED', { gameActive, type: zone.type, zoneId: zone.id }); } catch {}
                   }
                 }}
@@ -7939,7 +7963,7 @@ setZones(dataWithRandomTexts);
                     const svg = svgOverlayRef.current;
                     const pt = svg ? pointToSvgCoords(e, svg) : null;
                     addDiag('click:LOUPE-INTERCEPT', { zoneId: zone.id, loupeX: lx.toFixed(0), loupeY: ly.toFixed(0), clickX: pt?.x?.toFixed(0), clickY: pt?.y?.toFixed(0) });
-                    console.warn('[CLICK-DIAG] LOUPE-INTERCEPT zone=', zone.id, 'loupePos=', lx.toFixed(0), ly.toFixed(0));
+                    logClickAttempt('LOUPE_INTERCEPT', { zoneId: zone.id, loupeX: lx, loupeY: ly, clickX: pt?.x, clickY: pt?.y });
                   } catch {}
                   if (zoomTimerRef.current) clearTimeout(zoomTimerRef.current);
                   setZoomPreviewSrc(imgSrc);

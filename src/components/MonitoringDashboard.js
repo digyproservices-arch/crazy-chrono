@@ -9,6 +9,7 @@ import { getBackendUrl } from '../utils/apiHelpers';
 import { getRoundLogs, clearRoundLogs } from '../utils/roundLogger';
 import { getAuthLogs, clearAuthLogs } from '../utils/authLogger';
 import { getAllScreenshotMetas, getScreenshot } from '../utils/cardScreenshot';
+import { formatClickReport, getClickAttempts, getClickStats, clearClickLogs } from '../utils/clickLogger';
 
 const COLORS = {
   bg: '#0f172a',
@@ -194,11 +195,12 @@ const clearIncidents = async () => {
       try { localStorage.removeItem('cc_game_incidents'); } catch {}
       clearRoundLogs();
       clearAuthLogs();
+      clearClickLogs();
       setIncidents([]);
       setRoundLogs([]);
       setAuthLogs([]);
       setScreenshotMetas([]);
-      alert('✅ Tout a été purgé. Vous repartez à zéro.');
+      alert('✅ Tout a été purgé (incluant les logs de clics). Vous repartez à zéro.');
     } catch (err) {
       console.error('[Monitoring] Purge error:', err);
       alert('Erreur lors de la purge: ' + err.message);
@@ -707,6 +709,16 @@ const clearIncidents = async () => {
                 }
                 sections.push('');
 
+                // Rapport clics (monitoring exhaustif)
+                sections.push(`--- MONITORING CLICS ---`);
+                try {
+                  const clickReport = formatClickReport();
+                  sections.push(clickReport);
+                } catch (e) {
+                  sections.push('Erreur chargement rapport clics: ' + (e.message || e));
+                }
+                sections.push('');
+
 sections.push(`===== FIN DU RAPPORT =====`);
                 return sections.join('\n');
               };
@@ -758,6 +770,7 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     <KPICard title="Incidents" value={incidents.length} icon="🚨" color={COLORS.accent} highlight={incidents.length > 0} />
                     <KPICard title="Manches" value={roundLogs.length} icon="🎮" color="#10b981" highlight={roundLogs.some(r => r.doublePairIssues > 0)} />
                     <KPICard title="Double paires" value={roundLogs.filter(r => r.doublePairIssues > 0).length} icon="🚨" color={COLORS.error} highlight={roundLogs.some(r => r.doublePairIssues > 0)} />
+                    {(() => { try { const cs = getClickStats(); const ca = getClickAttempts(); const rejected = ca.filter(a => a.stage.startsWith('REJECTED')).length; const missed = ca.filter(a => a.stage === 'BOARD_CLICK').length; return (<><KPICard title="Clics acceptés" value={cs.ok || 0} icon="✅" color="#10b981" /><KPICard title="Clics rejetés" value={rejected} icon="🚫" color={COLORS.warn} highlight={rejected > 0} /><KPICard title="Clics perdus" value={missed} icon="❓" color={COLORS.error} highlight={missed > 0} /></>); } catch { return null; } })()}
                   </div>
 
                   {/* Audit Parser section */}
@@ -829,7 +842,90 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     )}
                   </div>
 
-                  
+                  {/* Click Monitoring section */}
+                  {(() => {
+                    try {
+                      const ca = getClickAttempts();
+                      const rejected = ca.filter(a => a.stage.startsWith('REJECTED'));
+                      const missed = ca.filter(a => a.stage === 'BOARD_CLICK');
+                      const hasProblems = rejected.length > 0 || missed.length > 0;
+                      return (
+                        <div style={{ ...cardStyle, marginBottom: 16, borderLeft: `4px solid ${hasProblems ? COLORS.warn : '#10b981'}` }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <h3 style={{ ...cardTitleStyle, color: hasProblems ? COLORS.warn : '#10b981', margin: 0 }}>
+                              {hasProblems
+                                ? `🔍 Monitoring Clics — ${rejected.length} rejetés, ${missed.length} perdus sur ${ca.length} total`
+                                : `✅ Monitoring Clics — ${ca.length} clics, aucun problème`}
+                            </h3>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button onClick={() => copyToClipboard(formatClickReport(), 'clicks')} style={btnStyle(COLORS.info)}>
+                                {copyFeedback === 'clicks' ? '✅ Copié !' : '📋 Copier rapport clics'}
+                              </button>
+                              <button onClick={() => { clearClickLogs(); window.location.reload(); }} style={btnStyle('#dc2626')}>🗑️ Vider</button>
+                            </div>
+                          </div>
+                          {ca.length === 0 && <p style={{ color: COLORS.textMuted, fontSize: 13, margin: 0 }}>Aucun clic enregistré. Jouez une partie pour voir les données.</p>}
+                          {rejected.length > 0 && (
+                            <div style={{ marginBottom: 8 }}>
+                              <div style={{ fontWeight: 700, color: COLORS.warn, fontSize: 13, marginBottom: 4 }}>Clics rejetés :</div>
+                              <div style={{ maxHeight: 150, overflowY: 'auto' }}>
+                                {rejected.slice(-15).map((r, i) => (
+                                  <div key={i} style={{ padding: '4px 8px', background: 'rgba(245,158,11,0.08)', borderRadius: 4, marginBottom: 2, fontSize: 11, color: COLORS.text }}>
+                                    🚫 <span style={{ color: COLORS.textMuted }}>{r.ts?.substring(11, 19)}</span>{' '}
+                                    <span style={{ fontWeight: 700 }}>{r.stage}</span>{' '}
+                                    zone={r.zoneId}({r.zoneType}) "{r.content || ''}"
+                                    {r.guardStates && <span style={{ color: COLORS.textMuted }}> guards={JSON.stringify(r.guardStates)}</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {missed.length > 0 && (
+                            <div style={{ marginBottom: 8 }}>
+                              <div style={{ fontWeight: 700, color: COLORS.error, fontSize: 13, marginBottom: 4 }}>Clics perdus (aucune zone touchée) :</div>
+                              <div style={{ maxHeight: 150, overflowY: 'auto' }}>
+                                {missed.slice(-15).map((m, i) => (
+                                  <div key={i} style={{ padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 4, marginBottom: 2, fontSize: 11, color: COLORS.text }}>
+                                    ❓ <span style={{ color: COLORS.textMuted }}>{m.ts?.substring(11, 19)}</span>{' '}
+                                    pos=({m.x},{m.y})
+                                    {m.candidates && m.candidates.length > 0
+                                      ? <span> → zones proches: {m.candidates.map(c => `${c.id}(${c.type})`).join(', ')}</span>
+                                      : <span style={{ color: COLORS.error }}> → aucune zone proche</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {ca.length > 0 && (
+                            <div>
+                              <div style={{ fontWeight: 700, color: COLORS.textMuted, fontSize: 13, marginBottom: 4 }}>Pipeline complet (20 derniers) :</div>
+                              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                                {ca.slice(-20).map((a, i) => {
+                                  const stageColor = a.stage.startsWith('REJECTED') ? COLORS.warn
+                                    : a.stage === 'BOARD_CLICK' ? COLORS.error
+                                    : a.stage === 'PAIR_OK' ? '#10b981'
+                                    : a.stage === 'PAIR_FAIL' ? '#ef4444'
+                                    : a.stage === 'ACCEPTED' ? '#3b82f6'
+                                    : COLORS.textMuted;
+                                  return (
+                                    <div key={i} style={{ padding: '3px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 4, marginBottom: 1, fontSize: 11, color: COLORS.text }}>
+                                      <span style={{ color: COLORS.textMuted }}>{a.ts?.substring(11, 19)}</span>{' '}
+                                      <span style={{ fontWeight: 700, color: stageColor }}>{a.stage}</span>
+                                      {a.zoneId && <span> zone={a.zoneId}({a.zoneType})</span>}
+                                      {a.x != null && <span> pos=({a.x},{a.y})</span>}
+                                      {a.content && <span> "{a.content}"</span>}
+                                      {a.reason && <span style={{ color: COLORS.textMuted }}> raison={a.reason}</span>}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    } catch { return null; }
+                  })()}
+
                   {/* Round Logs section (manches jouées) */}
                   <div style={{ ...cardStyle, marginBottom: 16, borderLeft: roundLogs.some(r => r.doublePairIssues > 0) ? '4px solid #ef4444' : '4px solid #10b981' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
