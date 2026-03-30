@@ -711,6 +711,8 @@ const Carte = () => {
   const objectivePairsRef = useRef(0); // compteur de paires pour le mode objectif
   // Sync objectiveModeRef with state (avoid stale closures in setTimeout/async)
   useEffect(() => { objectiveModeRef.current = objectiveMode; }, [objectiveMode]);
+  // Sync socketConnectedRef with state (avoid stale closures in useEffect([], []) socket handlers)
+  useEffect(() => { socketConnectedRef.current = socketConnected; }, [socketConnected]);
   // Historique des sessions multi
   const [sessions, setSessions] = useState([]);
   // Verrou court pour éviter le double traitement d'une paire
@@ -723,6 +725,7 @@ const Carte = () => {
   const socketRef = useRef(null);
   const trainingEndedRef = useRef(false);
   const [socketConnected, setSocketConnected] = useState(false);
+  const socketConnectedRef = useRef(false);
   const roundNewTimerRef = useRef(null);
   // Expose a stable alias so existing handlers using `socket` keep working
   const socket = socketRef.current;
@@ -2643,11 +2646,12 @@ const Carte = () => {
         console.log('[CC][client] ⚠️ gameActive=false (paire validée Arena, attente nouvelle carte)');
       }
       
-      // ✅ FIX ZONES VIDES: Ne marquer validated UNIQUEMENT en mode solo (pas multijoueur)
-      // En multijoueur: round:new remplace toutes les zones, mais pair:valid arrive APRÈS et marque
-      // les zones avec les mêmes IDs comme validated=true, cachant le nouveau contenu
-      // En solo: pas de round:new, donc on doit marquer validated pour masquer visuellement
-      if (!socketConnected || objectiveModeRef.current) {
+      // ✅ FIX ZONES VIDES: Ne marquer validated QUE si socket déconnectée (fallback offline)
+      // En solo ET multijoueur: le serveur émet round:new (nouvelles zones) PUIS pair:valid.
+      // Les zones ont des IDs statiques réutilisés → pair:valid marquait les NOUVELLES zones
+      // comme validated=true à tort. On utilise socketConnectedRef (pas socketConnected)
+      // pour éviter le stale closure du useEffect([], []).
+      if (!socketConnectedRef.current || objectiveModeRef.current) {
         setZones(prevZones => {
           return prevZones.map(z => {
             if (z.id === aId || z.id === bId) {
