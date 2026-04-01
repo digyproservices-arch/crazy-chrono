@@ -420,7 +420,33 @@ export function logRound(zones, options = {}) {
     console.warn('[RoundLogger] Erreur sauvegarde localStorage:', e);
   }
 
+  // Sync vers le backend (async, non-bloquant)
+  syncRoundToBackend(log);
+
   return log;
+}
+
+/**
+ * Envoie un round log au backend pour persistance serveur.
+ */
+async function syncRoundToBackend(log) {
+  try {
+    const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+    const token = auth.token;
+    if (!token) return;
+    const { getBackendUrl } = await import('./apiHelpers');
+    const backendUrl = getBackendUrl();
+    await fetch(`${backendUrl}/api/monitoring/client-rounds`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ rounds: [log] }),
+    });
+  } catch (e) {
+    console.warn('[RoundLogger] Sync backend failed:', e.message);
+  }
 }
 
 /**

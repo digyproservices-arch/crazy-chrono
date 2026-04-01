@@ -9,6 +9,30 @@ const { recordImageUsage, analyzeImageUsage, sendEmailReport } = require('../ima
 const INCIDENTS_FILE = path.join(__dirname, '..', 'data', 'game_incidents.json');
 const MAX_INCIDENTS = 500;
 
+// ── Client Round Logs Storage (synced from client localStorage) ──
+const CLIENT_ROUNDS_FILE = path.join(__dirname, '..', 'data', 'client_round_logs.json');
+const MAX_CLIENT_ROUNDS = 500;
+
+function loadClientRounds() {
+  try {
+    const dir = path.dirname(CLIENT_ROUNDS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(CLIENT_ROUNDS_FILE)) return [];
+    return JSON.parse(fs.readFileSync(CLIENT_ROUNDS_FILE, 'utf8'));
+  } catch { return []; }
+}
+
+function saveClientRounds(rounds) {
+  try {
+    const dir = path.dirname(CLIENT_ROUNDS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const trimmed = rounds.slice(-MAX_CLIENT_ROUNDS);
+    fs.writeFileSync(CLIENT_ROUNDS_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
+  } catch (e) {
+    console.error('[ClientRounds] Save failed:', e.message);
+  }
+}
+
 // ── Arena Round Logs Storage (server-side, pour le monitoring) ──
 const ARENA_ROUNDS_FILE = path.join(__dirname, '..', 'data', 'arena_round_logs.json');
 const MAX_ARENA_ROUNDS = 200;
@@ -248,6 +272,49 @@ router.delete('/arena-rounds', requireAdminAuth, async (req, res) => {
   try {
     saveArenaRounds([]);
     res.json({ ok: true, message: 'Arena rounds cleared' });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// ── Client Round Logs Endpoints (sync localStorage → serveur) ──
+
+/**
+ * POST /api/monitoring/client-rounds
+ * Reçoit un batch de round logs depuis le client
+ * Body: { rounds: [...] }
+ */
+router.post('/client-rounds', (req, res) => {
+  try {
+    const { rounds } = req.body;
+    if (!Array.isArray(rounds)) return res.status(400).json({ ok: false, error: 'rounds must be array' });
+    const existing = loadClientRounds();
+    const existingIds = new Set(existing.map(r => r.id));
+    let added = 0;
+    for (const r of rounds.slice(0, 50)) {
+      if (r.id && !existingIds.has(r.id)) {
+        existing.push({ ...r, receivedAt: new Date().toISOString() });
+        existingIds.add(r.id);
+        added++;
+      }
+    }
+    if (added > 0) saveClientRounds(existing);
+    res.json({ ok: true, added, total: existing.length });
+  } catch (error) {
+    console.error('[ClientRounds] POST error:', error.message);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/monitoring/client-rounds
+ * Récupère les round logs client synchronisés (admin only)
+ */
+router.get('/client-rounds', requireAdminAuth, async (req, res) => {
+  try {
+    const rounds = loadClientRounds();
+    const limit = parseInt(req.query.limit) || 200;
+    res.json({ ok: true, rounds: rounds.slice(-limit).reverse(), total: rounds.length });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
   }

@@ -155,8 +155,27 @@ function MonitoringDashboard() {
         }
       } catch (e) { console.warn('[Monitoring] Arena rounds fetch failed:', e.message); }
       
-      // 3) Fusionner et trier (plus récent en premier)
-      const allLogs = [...localLogs, ...serverLogs];
+      // 2b) Logs client synchronisés au backend (round logs de tous les appareils)
+      let clientServerLogs = [];
+      try {
+        const token = getAuthToken();
+        const backendUrl = getBackendUrl();
+        const res = await fetch(`${backendUrl}/api/monitoring/client-rounds?limit=200`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && Array.isArray(data.rounds)) clientServerLogs = data.rounds;
+        }
+      } catch (e) { console.warn('[Monitoring] Client rounds fetch failed:', e.message); }
+      
+      // 3) Fusionner, dédupliquer par id, trier (plus récent en premier)
+      const byId = new Map();
+      for (const log of [...localLogs, ...serverLogs, ...clientServerLogs]) {
+        const key = log.id || `${log.timestamp}_${log.mode}`;
+        if (!byId.has(key)) byId.set(key, log);
+      }
+      const allLogs = [...byId.values()];
       allLogs.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
       setRoundLogs(allLogs);
     } catch (e) {
