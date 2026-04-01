@@ -69,6 +69,9 @@ function MonitoringDashboard() {
   const [zoneViewerRound, setZoneViewerRound] = useState(null); // round log à afficher visuellement
   const [roundLogFilter, setRoundLogFilter] = useState('all'); // 'all' | 'anomalies'
 
+  // ── Server Click Events (PAIR_FAIL / PAIR_OK synchronisés depuis tous les appareils) ──
+  const [serverClickEvents, setServerClickEvents] = useState([]);
+
   // ── Arena tab state ──
   const [arenaStats, setArenaStats] = useState(null);
   const [arenaLoading, setArenaLoading] = useState(false);
@@ -209,6 +212,8 @@ const clearIncidents = async () => {
         fetch(`${backendUrl}/api/monitoring/incidents`, { method: 'DELETE', headers }),
         fetch(`${backendUrl}/api/monitoring/game-screenshots`, { method: 'DELETE', headers }),
         fetch(`${backendUrl}/api/monitoring/arena-rounds`, { method: 'DELETE', headers }),
+        fetch(`${backendUrl}/api/monitoring/client-rounds`, { method: 'DELETE', headers }),
+        fetch(`${backendUrl}/api/monitoring/client-clicks`, { method: 'DELETE', headers }),
       ]);
       // Purge local data
       try { localStorage.removeItem('cc_game_incidents'); } catch {}
@@ -272,6 +277,20 @@ const clearIncidents = async () => {
 
   const fetchAuthLogs = useCallback(() => {
     try { setAuthLogs(getAuthLogs()); } catch {}
+  }, []);
+
+  const fetchServerClicks = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/monitoring/client-clicks?limit=200`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.clicks)) setServerClickEvents(data.clicks);
+      }
+    } catch (e) { console.warn('[Monitoring] Server clicks fetch failed:', e.message); }
   }, []);
 
   const fetchOnlinePlayers = useCallback(async () => {
@@ -421,10 +440,10 @@ const clearIncidents = async () => {
 
   useEffect(() => {
     fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas();
-    fetchArenaStats(); // ✅ Auto-charger Arena pour le rapport complet
+    fetchArenaStats(); fetchServerClicks();
     setLoading(false);
     setLastRefresh(new Date());
-  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats]);
+  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats, fetchServerClicks]);
 
   useEffect(() => {
     if (activeTab === 'incidents' || activeTab === 'report') {
@@ -446,11 +465,11 @@ const clearIncidents = async () => {
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(() => {
-      fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas();
+      fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas(); fetchServerClicks();
       if (activeTab === 'players') { fetchOnlinePlayers(); fetchPaymentEvents(); }
     }, 30000);
     return () => clearInterval(interval);
-  }, [autoRefresh, fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchOnlinePlayers, fetchPaymentEvents, activeTab]);
+  }, [autoRefresh, fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchOnlinePlayers, fetchPaymentEvents, fetchServerClicks, activeTab]);
 
   // Timer: mettre à jour le temps écoulé chaque seconde quand les tests tournent
   useEffect(() => {
@@ -563,7 +582,7 @@ const clearIncidents = async () => {
               Auto-refresh 30s
             </label>
             <button
-              onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); }}
+              onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchServerClicks(); }}
               style={btnStyle(COLORS.info)}
             >
               🔄 Rafraîchir
@@ -729,12 +748,27 @@ const clearIncidents = async () => {
                 sections.push('');
 
                 // Rapport clics (monitoring exhaustif)
-                sections.push(`--- MONITORING CLICS ---`);
+                sections.push(`--- MONITORING CLICS (local) ---`);
                 try {
                   const clickReport = formatClickReport();
                   sections.push(clickReport);
                 } catch (e) {
                   sections.push('Erreur chargement rapport clics: ' + (e.message || e));
+                }
+                sections.push('');
+
+                // Clics serveur (PAIR_FAIL/PAIR_OK de tous les appareils)
+                sections.push(`--- CLICS SERVEUR — PAIR_FAIL / PAIR_OK (${serverClickEvents.length} events, tous appareils) ---`);
+                if (serverClickEvents.length === 0) {
+                  sections.push('Aucun clic critique synchronisé.');
+                } else {
+                  const fails = serverClickEvents.filter(c => c.stage === 'PAIR_FAIL');
+                  const oks = serverClickEvents.filter(c => c.stage === 'PAIR_OK');
+                  sections.push(`PAIR_FAIL: ${fails.length} | PAIR_OK: ${oks.length}`);
+                  fails.slice(0, 30).forEach((c, i) => {
+                    sections.push(`  FAIL ${i+1}: ${c.ts} zone=${c.zoneId}(${c.zoneType}) "${c.content || ''}" raison=${c.reason || '?'} device=${c.deviceId || '?'}`);
+                    if (c.guardStates) sections.push(`    guardStates: ${JSON.stringify(c.guardStates)}`);
+                  });
                 }
                 sections.push('');
 
@@ -753,7 +787,7 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button
-                        onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchScreenshotMetas(); }}
+                        onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchScreenshotMetas(); fetchServerClicks(); }}
                         style={btnStyle(COLORS.info)}
                       >
                         🔄 Rafraîchir tout

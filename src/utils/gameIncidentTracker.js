@@ -112,16 +112,16 @@ function detectGameMode() {
 // ── Send to backend ────────────────────────────────────────
 async function sendToBackend(incident) {
   try {
-    const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
-    const token = auth.token;
-    if (!token) return false;
+    const headers = { 'Content-Type': 'application/json' };
+    // Ajouter le token si disponible (optionnel — le monitoring fonctionne sans auth)
+    try {
+      const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+      if (auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
+    } catch {}
 
     const res = await fetch(`${getBackendUrl()}/api/monitoring/incidents`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({ incident }),
     });
     return res.ok;

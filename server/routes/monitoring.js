@@ -13,6 +13,30 @@ const MAX_INCIDENTS = 500;
 const CLIENT_ROUNDS_FILE = path.join(__dirname, '..', 'data', 'client_round_logs.json');
 const MAX_CLIENT_ROUNDS = 500;
 
+// ── Client Click Events Storage (PAIR_FAIL / PAIR_OK synced from client) ──
+const CLIENT_CLICKS_FILE = path.join(__dirname, '..', 'data', 'client_click_events.json');
+const MAX_CLIENT_CLICKS = 1000;
+
+function loadClientClicks() {
+  try {
+    const dir = path.dirname(CLIENT_CLICKS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(CLIENT_CLICKS_FILE)) return [];
+    return JSON.parse(fs.readFileSync(CLIENT_CLICKS_FILE, 'utf8'));
+  } catch { return []; }
+}
+
+function saveClientClicks(clicks) {
+  try {
+    const dir = path.dirname(CLIENT_CLICKS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const trimmed = clicks.slice(-MAX_CLIENT_CLICKS);
+    fs.writeFileSync(CLIENT_CLICKS_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
+  } catch (e) {
+    console.error('[ClientClicks] Save failed:', e.message);
+  }
+}
+
 function loadClientRounds() {
   try {
     const dir = path.dirname(CLIENT_ROUNDS_FILE);
@@ -315,6 +339,78 @@ router.get('/client-rounds', requireAdminAuth, async (req, res) => {
     const rounds = loadClientRounds();
     const limit = parseInt(req.query.limit) || 200;
     res.json({ ok: true, rounds: rounds.slice(-limit).reverse(), total: rounds.length });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/monitoring/client-rounds
+ * Vider les round logs client (admin only)
+ */
+router.delete('/client-rounds', requireAdminAuth, async (req, res) => {
+  try {
+    saveClientRounds([]);
+    res.json({ ok: true, message: 'Client rounds cleared' });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// ── Client Click Events Endpoints (sync PAIR_FAIL/PAIR_OK → serveur) ──
+
+/**
+ * POST /api/monitoring/client-clicks
+ * Reçoit un batch de click events depuis le client (PAIR_FAIL, PAIR_OK, etc.)
+ * Body: { clicks: [...] }
+ */
+router.post('/client-clicks', (req, res) => {
+  try {
+    const { clicks } = req.body;
+    if (!Array.isArray(clicks)) return res.status(400).json({ ok: false, error: 'clicks must be array' });
+    const existing = loadClientClicks();
+    const existingKeys = new Set(existing.map(c => c._syncId || `${c.ts}_${c.zoneId}`));
+    let added = 0;
+    for (const c of clicks.slice(0, 100)) {
+      const key = c._syncId || `${c.ts}_${c.zoneId}`;
+      if (!existingKeys.has(key)) {
+        existing.push({ ...c, receivedAt: new Date().toISOString() });
+        existingKeys.add(key);
+        added++;
+      }
+    }
+    if (added > 0) saveClientClicks(existing);
+    if (added > 0) console.warn(`[ClientClicks] +${added} click events reçus (total: ${existing.length})`);
+    res.json({ ok: true, added, total: existing.length });
+  } catch (error) {
+    console.error('[ClientClicks] POST error:', error.message);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/monitoring/client-clicks
+ * Récupère les click events client synchronisés (admin only)
+ */
+router.get('/client-clicks', requireAdminAuth, async (req, res) => {
+  try {
+    let clicks = loadClientClicks();
+    if (req.query.stage) clicks = clicks.filter(c => c.stage === req.query.stage);
+    const limit = parseInt(req.query.limit) || 200;
+    res.json({ ok: true, clicks: clicks.slice(-limit).reverse(), total: clicks.length });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/monitoring/client-clicks
+ * Vider les click events client (admin only)
+ */
+router.delete('/client-clicks', requireAdminAuth, async (req, res) => {
+  try {
+    saveClientClicks([]);
+    res.json({ ok: true, message: 'Client clicks cleared' });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
   }

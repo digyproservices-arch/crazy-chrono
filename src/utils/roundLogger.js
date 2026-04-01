@@ -431,17 +431,17 @@ export function logRound(zones, options = {}) {
  */
 async function syncRoundToBackend(log) {
   try {
-    const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
-    const token = auth.token;
-    if (!token) return;
     const { getBackendUrl } = await import('./apiHelpers');
     const backendUrl = getBackendUrl();
+    const headers = { 'Content-Type': 'application/json' };
+    // Ajouter le token si disponible (optionnel — le monitoring fonctionne sans auth)
+    try {
+      const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+      if (auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
+    } catch {}
     await fetch(`${backendUrl}/api/monitoring/client-rounds`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({ rounds: [log] }),
     });
   } catch (e) {

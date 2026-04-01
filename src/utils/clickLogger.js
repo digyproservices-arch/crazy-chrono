@@ -22,6 +22,9 @@ const LS_ATTEMPTS_KEY = 'cc_click_attempts';
 const MAX_LOGS = 100;
 const MAX_ATTEMPTS = 200; // Derniers 200 clics complets
 
+// Stages critiques à synchroniser au serveur (diagnostic paires)
+const SYNC_STAGES = new Set(['PAIR_FAIL', 'PAIR_OK']);
+
 /**
  * Log a click event (ancien système, conservé pour compatibilité).
  */
@@ -86,6 +89,22 @@ export function logClickAttempt(stage, data = {}) {
     });
     while (attempts.length > MAX_ATTEMPTS) attempts.shift();
     localStorage.setItem(LS_ATTEMPTS_KEY, JSON.stringify(attempts));
+
+    // Sync PAIR_FAIL et PAIR_OK au serveur (async, non-bloquant)
+    if (SYNC_STAGES.has(stage)) {
+      syncClickToBackend({
+        _syncId: `click_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        stage,
+        ts: new Date().toISOString(),
+        zoneId: data.zoneId || null,
+        zoneType: data.zoneType || null,
+        content: data.content ? String(data.content).substring(0, 80) : null,
+        reason: data.reason || null,
+        guardStates: data.guardStates || null,
+        selectedIds: data.selectedIds || null,
+        deviceId: getDeviceId(),
+      });
+    }
   } catch (e) {
     // Silent fail
   }
@@ -207,5 +226,43 @@ export function formatClickReport() {
     return lines.join('\n');
   } catch (e) {
     return 'Erreur génération rapport clics: ' + (e.message || e);
+  }
+}
+
+/**
+ * Identifiant unique d'appareil (persisté dans localStorage).
+ */
+function getDeviceId() {
+  try {
+    let id = localStorage.getItem('cc_device_id');
+    if (!id) {
+      id = `dev_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      localStorage.setItem('cc_device_id', id);
+    }
+    return id;
+  } catch { return 'unknown'; }
+}
+
+/**
+ * Envoie un click event critique au backend (PAIR_FAIL, PAIR_OK).
+ * Fonctionne même sans token d'authentification.
+ */
+async function syncClickToBackend(clickEvent) {
+  try {
+    const { getBackendUrl } = await import('./apiHelpers');
+    const backendUrl = getBackendUrl();
+    const headers = { 'Content-Type': 'application/json' };
+    // Ajouter le token si disponible (optionnel)
+    try {
+      const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+      if (auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
+    } catch {}
+    await fetch(`${backendUrl}/api/monitoring/client-clicks`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ clicks: [clickEvent] }),
+    });
+  } catch (e) {
+    console.warn('[ClickLogger] Sync backend failed:', e.message);
   }
 }
