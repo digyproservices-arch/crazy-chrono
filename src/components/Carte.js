@@ -3227,7 +3227,18 @@ async function doStart() {
       const wantRounds = parseInt(cfg2?.rounds, 10);
       const wantDuration = parseInt(cfg2?.duration, 10);
       // 1) Joindre la salle et pousser la config demandée
-      try { let _sid = null; try { _sid = JSON.parse(localStorage.getItem('cc_auth') || '{}').id || null; } catch {} if (!_sid) _sid = localStorage.getItem('cc_student_id') || null; socket.emit('joinRoom', { roomId, name: playerName, studentId: _sid }); } catch {}
+      // FIX: utiliser un roomId solo isolé (pas 'default') pour éviter conflits entre sessions
+      const isSoloCfg = !cfg2 || cfg2.mode === 'solo';
+      const effectiveRoomId = isSoloCfg ? `solo-${socket.id}` : roomId;
+      try { let _sid = null; try { _sid = JSON.parse(localStorage.getItem('cc_auth') || '{}').id || null; } catch {} if (!_sid) _sid = localStorage.getItem('cc_student_id') || null; socket.emit('joinRoom', { roomId: effectiveRoomId, name: playerName, studentId: _sid }); } catch {}
+      // FIX: TOUJOURS re-envoyer themes/classes/extras au serveur (crucial pour Rejouer)
+      try {
+        const _themes = Array.isArray(cfg2?.themes) ? cfg2.themes : [];
+        const _classes = Array.isArray(cfg2?.classes) ? cfg2.classes : [];
+        const _extras = Array.isArray(cfg2?.extras) ? cfg2.extras : [];
+        socket.emit('room:setConfig', { themes: _themes, classes: _classes, extras: _extras });
+        console.log('[CC][doStart] Sent room:setConfig:', { themes: _themes, classes: _classes, extras: _extras });
+      } catch {}
       try {
         if (Number.isFinite(wantDuration) && wantDuration >= 10 && wantDuration <= 600) {
           console.debug('[CC][client] emit room:duration:set', wantDuration);
