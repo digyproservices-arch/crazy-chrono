@@ -26,6 +26,7 @@ export const INCIDENT_TYPES = {
   QUOTA_BYPASS: 'quota_bypass',                 // Limite de sessions contournée ou non appliquée
   WRONG_CALC_RESULT: 'wrong_calc_result',         // Paire calcul-chiffre officielle où le résultat du calcul ≠ contenu du chiffre
   PAIR_REJECTED: 'pair_rejected',                   // Paire cliquée rejetée (croix rouge) — trace pairId, contenu, raison
+  TRANSITION_DELAY_HIGH: 'transition_delay_high',     // Délai excessif entre fin de manche et réception de la carte suivante
 };
 
 const SEVERITY = {
@@ -45,6 +46,7 @@ const SEVERITY = {
   [INCIDENT_TYPES.QUOTA_BYPASS]: 'error',
   [INCIDENT_TYPES.WRONG_CALC_RESULT]: 'critical',
   [INCIDENT_TYPES.PAIR_REJECTED]: 'error',
+  [INCIDENT_TYPES.TRANSITION_DELAY_HIGH]: 'warning',
 };
 
 // ── Device info helper ─────────────────────────────────────

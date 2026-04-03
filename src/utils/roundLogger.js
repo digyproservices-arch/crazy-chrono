@@ -1,6 +1,16 @@
 /**
- * Round Logger — Enregistre CHAQUE manche jouée (tous modes) avec analyse complète.
+ * Round Logger — Enregistre CHAQUE carte générée (tous modes) avec analyse complète.
  * Stockage localStorage pour visibilité immédiate dans le dashboard, sans auth.
+ *
+ * TERMINOLOGIE:
+ *   - "round" / "carte" = un jeu de zones affiché à l'écran (chaque appel à logRound).
+ *     Chaque validation de paire en multijoueur régénère une nouvelle carte (round:new).
+ *   - "manche" = une période chronométrée (timer) qui peut contenir PLUSIEURS cartes.
+ *     La manche se termine quand le timer expire (round:result côté serveur).
+ *   - "session" = l'ensemble des manches jouées (défini par roundsPerSession).
+ *
+ * Donc: 1 session → N manches → M cartes par manche.
+ * Chaque entrée dans ce logger = 1 carte générée, PAS 1 manche complète.
  *
  * Usage:
  *   import { logRound } from '../utils/roundLogger';

@@ -247,22 +247,38 @@ function getDeviceId() {
  * Envoie un click event critique au backend (PAIR_FAIL, PAIR_OK).
  * Fonctionne même sans token d'authentification.
  */
-async function syncClickToBackend(clickEvent) {
+async function syncClickToBackend(clickEvent, attempt = 1) {
+  const MAX_RETRIES = 2;
   try {
     const { getBackendUrl } = await import('./apiHelpers');
     const backendUrl = getBackendUrl();
+    const url = `${backendUrl}/api/monitoring/client-clicks`;
+    console.log(`[ClickLogger] Syncing ${clickEvent.stage} to ${url} (attempt ${attempt})`);
     const headers = { 'Content-Type': 'application/json' };
     // Ajouter le token si disponible (optionnel)
     try {
       const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
       if (auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
     } catch {}
-    await fetch(`${backendUrl}/api/monitoring/client-clicks`, {
+    const resp = await fetch(url, {
       method: 'POST',
       headers,
       body: JSON.stringify({ clicks: [clickEvent] }),
     });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      console.error(`[ClickLogger] Server returned ${resp.status}: ${text}`);
+      if (attempt < MAX_RETRIES) {
+        setTimeout(() => syncClickToBackend(clickEvent, attempt + 1), 2000 * attempt);
+      }
+      return;
+    }
+    const json = await resp.json().catch(() => ({}));
+    console.log(`[ClickLogger] ✅ Synced ${clickEvent.stage} → added=${json.added}, total=${json.total}`);
   } catch (e) {
-    console.warn('[ClickLogger] Sync backend failed:', e.message);
+    console.error(`[ClickLogger] Sync failed (attempt ${attempt}):`, e.message);
+    if (attempt < MAX_RETRIES) {
+      setTimeout(() => syncClickToBackend(clickEvent, attempt + 1), 2000 * attempt);
+    }
   }
 }

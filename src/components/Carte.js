@@ -723,6 +723,7 @@ const Carte = () => {
   const [socketConnected, setSocketConnected] = useState(false);
   const socketConnectedRef = useRef(false);
   const roundNewTimerRef = useRef(null);
+  const roundEndTsRef = useRef(null);
   // Expose a stable alias so existing handlers using `socket` keep working
   const socket = socketRef.current;
   // Apply session config (rounds/duration) once when we are host
@@ -2322,6 +2323,19 @@ const Carte = () => {
 
     s.on('round:new', (payload) => {
       console.debug('[CC][client] round:new', payload);
+      // --- Transition delay monitoring ---
+      try {
+        if (roundEndTsRef.current) {
+          const transitionMs = Date.now() - roundEndTsRef.current;
+          console.log('[CC][TRANSITION] round:new received after', transitionMs, 'ms since timer→0');
+          addDiag('round:transition', { delayMs: transitionMs, roundIndex: payload?.roundIndex });
+          if (transitionMs > 2000) {
+            incidentReportIncident('TRANSITION_DELAY_HIGH', { delayMs: transitionMs, roundIndex: payload?.roundIndex, threshold: 2000 });
+            console.warn('[CC][TRANSITION] ⚠️ HIGH delay:', transitionMs, 'ms');
+          }
+          roundEndTsRef.current = null;
+        }
+      } catch (e) { console.error('[CC][TRANSITION] error:', e); }
       console.log('[CC][client] round:new zones check:', {
         hasZones: !!payload?.zones,
         zonesIsArray: Array.isArray(payload?.zones),
@@ -2879,6 +2893,8 @@ useEffect(() => {
     setTimeLeft(remaining);
     if (remaining <= 0) {
       clearInterval(id);
+      roundEndTsRef.current = Date.now();
+      try { window.ccAddDiag && window.ccAddDiag('round:timer:zero', { ts: roundEndTsRef.current }); } catch {}
       setGameActive(false);
     }
   }, 250);
