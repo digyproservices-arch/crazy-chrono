@@ -186,6 +186,8 @@ export default function Login({ onLogin }) {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    // If student mode is active, delegate to student login (Enter key in code field triggers form submit)
+    if (studentMode) { handleStudentLogin(e); return; }
     setError('');
     if (!supabase) { setError('Supabase non configuré'); return; }
     try {

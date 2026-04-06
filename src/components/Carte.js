@@ -3920,6 +3920,7 @@ const handleEditGreenZone = (zone) => {
   const [selectedPointIdx, setSelectedPointIdx] = useState(null);
   const [hoveredZoneId, setHoveredZoneId] = useState(null);
   // --- Multiplayer state ---
+  const [roomStatus, setRoomStatus] = useState('lobby');
   const [roomId, setRoomId] = useState('default');
   const [playerName, setPlayerName] = useState(() => {
     try {
