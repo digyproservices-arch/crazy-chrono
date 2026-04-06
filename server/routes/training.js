@@ -277,7 +277,46 @@ router.get('/records', requireSupabase, async (req, res) => {
       }
     }
 
-    return res.json({ success: true, bestScore, bestPPM, bestStudent });
+    // Per-student personal best (optional query param ?studentId=xxx)
+    let myBestScore = 0, myBestPPM = 0;
+    const reqStudentId = req.query.studentId;
+    if (reqStudentId) {
+      try {
+        // Resolve all possible IDs for this student (UUID ↔ student code)
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reqStudentId);
+        const ids = [reqStudentId];
+        try {
+          if (!isUuid) {
+            const { data: m } = await supabase.from('user_student_mapping').select('user_id').eq('student_id', reqStudentId).eq('active', true).single();
+            if (m?.user_id) ids.push(m.user_id);
+          } else {
+            const { data: m } = await supabase.from('user_student_mapping').select('student_id').eq('user_id', reqStudentId).eq('active', true).single();
+            if (m?.student_id && !ids.includes(m.student_id)) ids.push(m.student_id);
+          }
+        } catch {}
+        const { data: myRows } = await supabase
+          .from('training_results')
+          .select('score, pairs_validated, time_ms')
+          .in('student_id', ids)
+          .gte('time_ms', MIN_DURATION_MS)
+          .order('score', { ascending: false })
+          .limit(20);
+        if (myRows && myRows.length > 0) {
+          for (const r of myRows) {
+            if ((r.score || 0) > myBestScore) myBestScore = r.score;
+            const dur = (r.time_ms || 0) / 1000;
+            if (dur > 0) {
+              const ppm = Math.min(PPM_CAP, (r.pairs_validated || r.score || 0) / dur * 60);
+              if (ppm > myBestPPM) myBestPPM = parseFloat(ppm.toFixed(1));
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Training API] Per-student records lookup failed:', e.message);
+      }
+    }
+
+    return res.json({ success: true, bestScore, bestPPM, bestStudent, myBestScore, myBestPPM });
   } catch (error) {
     console.error('[Training API] Error fetching records:', error);
     return res.status(500).json({ success: false, error: error.message });

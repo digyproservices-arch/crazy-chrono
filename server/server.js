@@ -2727,40 +2727,46 @@ function endSession(roomCode) {
     emitPerfEvent('endSession', { room: roomCode, players: ranking.map(p => ({ name: p.name, studentId: p.studentId, score: p.score, errors: p.errors || 0 })) });
     const identifiedPlayers = ranking.filter(p => p.studentId);
     emitPerfEvent('endSession:identified', { room: roomCode, identified: identifiedPlayers.length, total: ranking.length });
-    if (identifiedPlayers.length > 0) {
-      const selfPort = process.env.PORT || 4000;
-      const backendUrl = process.env.BACKEND_URL || `http://localhost:${selfPort}`;
-      fetch(`${backendUrl}/api/training/sessions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          matchId: `mp_${roomCode}_${Date.now()}`,
-          classId: null,
-          teacherId: null,
-          sessionName: `Multijoueur - ${roomCode}`,
-          config: { mode: 'multiplayer', duration: room.duration || 60, roomCode },
-          completedAt: new Date().toISOString(),
-          results: identifiedPlayers.map(p => ({
-            studentId: p.studentId,
+    if (identifiedPlayers.length > 0 && supabaseAdmin) {
+      // FIX: Insert directement via supabaseAdmin (l'ancien fetch HTTP échouait en 401 car pas de token auth)
+      const { v4: uuidv4 } = require('uuid');
+      const isSoloRoom = roomCode.startsWith('solo-');
+      const sessionPayload = {
+        match_id: uuidv4(),
+        class_id: 'solo',
+        teacher_id: null,
+        session_name: isSoloRoom ? 'Session Solo' : `Multijoueur - ${roomCode}`,
+        config: { mode: isSoloRoom ? 'solo' : 'multiplayer', duration: room.duration || 60, roomCode },
+        completed_at: new Date().toISOString(),
+        created_at: new Date().toISOString()
+      };
+      const { data: session, error: sessErr } = await supabaseAdmin
+        .from('training_sessions').insert(sessionPayload).select('id').single();
+      if (sessErr) {
+        emitPerfEvent('save:error', { room: roomCode, step: 'session_insert', error: sessErr.message });
+      } else {
+        const sessionId = session.id;
+        const timeMs = room.sessionStartedAt ? (Date.now() - room.sessionStartedAt) : ((room.duration || 60) * 1000);
+        for (const p of identifiedPlayers) {
+          const { error: resErr } = await supabaseAdmin.from('training_results').insert({
+            session_id: sessionId,
+            student_id: p.studentId,
             position: p.position,
             score: p.score,
-            timeMs: room.sessionStartedAt ? (Date.now() - room.sessionStartedAt) : ((room.duration || 60) * 1000),
-            pairsValidated: p.score,
+            time_ms: timeMs,
+            pairs_validated: p.score,
             errors: p.errors || 0
-          }))
-        })
-      }).then(async r => {
-        if (r.ok) {
-          emitPerfEvent('save:success', { room: roomCode, players: identifiedPlayers.length, status: r.status });
-        } else {
-          const body = await r.text().catch(() => '');
-          emitPerfEvent('save:error', { room: roomCode, status: r.status, body: body.slice(0, 300) });
+          });
+          if (resErr) {
+            emitPerfEvent('save:error', { room: roomCode, step: 'result_insert', studentId: p.studentId, error: resErr.message });
+          }
         }
-      }).catch(e => {
-        emitPerfEvent('save:error', { room: roomCode, error: e.message });
-      });
-    } else {
+        emitPerfEvent('save:success', { room: roomCode, players: identifiedPlayers.length, sessionId });
+      }
+    } else if (identifiedPlayers.length === 0) {
       emitPerfEvent('save:skipped', { room: roomCode, reason: 'no identified players' });
+    } else {
+      emitPerfEvent('save:skipped', { room: roomCode, reason: 'supabaseAdmin not configured' });
     }
   } catch (e) {
     emitPerfEvent('save:exception', { room: roomCode, error: e.message });

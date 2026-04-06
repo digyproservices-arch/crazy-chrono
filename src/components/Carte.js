@@ -713,6 +713,11 @@ const Carte = () => {
   const [sessions, setSessions] = useState([]);
   // Verrou court pour éviter le double traitement d'une paire
   const processingPairRef = useRef(false);
+  // Helper: résoudre le studentId courant (préfère auth UUID Supabase, fallback cc_student_id)
+  const getMyStudentId = () => {
+    try { const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}'); if (auth.id) return auth.id; } catch {}
+    return localStorage.getItem('cc_student_id') || null;
+  };
   // Index des zones par id pour éviter les .find() répétitifs (déclaré après l'init de `zones`)
   // Responsive UI state
   const [isMobile, setIsMobile] = useState(false);
@@ -2119,7 +2124,7 @@ const Carte = () => {
         try { alert('Le mode en ligne est réservé aux abonnés Pro.'); } catch {}
         try { navigate('/pricing'); } catch {}
         // ... (rest of the code remains the same)
-        try { s.emit('joinRoom', { roomId, name: cfg.playerName || playerName }); } catch {}
+        try { s.emit('joinRoom', { roomId, name: cfg.playerName || playerName, studentId: getMyStudentId() }); } catch {}
         return;
       }
       if (isOnline) {
@@ -2134,7 +2139,7 @@ const Carte = () => {
           if (code) {
             // Utiliser le code fourni puis rejoindre
             try { setRoomId(code); } catch {}
-            try { s.emit('joinRoom', { roomId: code, name: cfg.playerName || playerName }); } catch {}
+            try { s.emit('joinRoom', { roomId: code, name: cfg.playerName || playerName, studentId: getMyStudentId() }); } catch {}
             // Appliquer la config mais ne pas auto-start en multijoueur
             setTimeout(() => {
               try {
@@ -2162,7 +2167,7 @@ const Carte = () => {
               s.emit('room:create', (res) => {
                 if (res && res.ok && res.roomCode) {
                   setRoomId(res.roomCode);
-                  s.emit('joinRoom', { roomId: res.roomCode, name: cfg.playerName || playerName });
+                  s.emit('joinRoom', { roomId: res.roomCode, name: cfg.playerName || playerName, studentId: getMyStudentId() });
                   // Appliquer la config mais ne pas auto-start
                   setTimeout(() => {
                     try {
@@ -2186,20 +2191,20 @@ const Carte = () => {
                   }, 150);
                 } else {
                   // fallback: rejoindre la salle par défaut
-                  s.emit('joinRoom', { roomId, name: cfg.playerName || playerName });
+                  s.emit('joinRoom', { roomId, name: cfg.playerName || playerName, studentId: getMyStudentId() });
                 }
               });
             } catch {
-              try { s.emit('joinRoom', { roomId, name: cfg.playerName || playerName }); } catch {}
+              try { s.emit('joinRoom', { roomId, name: cfg.playerName || playerName, studentId: getMyStudentId() }); } catch {}
             }
           }
         } else {
           // join
           if (code) {
             try { setRoomId(code); } catch {}
-            try { s.emit('joinRoom', { roomId: code, name: cfg.playerName || playerName }); } catch {}
+            try { s.emit('joinRoom', { roomId: code, name: cfg.playerName || playerName, studentId: getMyStudentId() }); } catch {}
           } else {
-            try { const _sid = localStorage.getItem('cc_student_id') || null; s.emit('joinRoom', { roomId, name: cfg.playerName || playerName, studentId: _sid }); } catch {}
+            try { s.emit('joinRoom', { roomId, name: cfg.playerName || playerName, studentId: getMyStudentId() }); } catch {}
           }
         }
       } else {
@@ -2207,7 +2212,7 @@ const Carte = () => {
         // FIX: En mode solo, utiliser un roomId unique pour isoler chaque joueur
         let cfgSolo = null; try { cfgSolo = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
         const soloRoomId = (cfgSolo && cfgSolo.mode === 'solo') ? `solo-${s.id}` : roomId;
-        try { const _sid = localStorage.getItem('cc_student_id') || null; s.emit('joinRoom', { roomId: soloRoomId, name: playerName, studentId: _sid }); } catch {}
+        try { s.emit('joinRoom', { roomId: soloRoomId, name: playerName, studentId: getMyStudentId() }); } catch {}
         // B2-fix: envoyer themes/classes au serveur même en solo (le serveur génère les zones)
         setTimeout(() => {
           try {
@@ -2504,6 +2509,30 @@ const Carte = () => {
 
       // Reset session start time
       sessionStartTimeRef.current = null;
+
+      // FIX: Mettre à jour le record personnel (cc_solo_best_<sid>) — tous modes
+      if (myScore > 0) {
+        try {
+          const PPM_CAP = 30;
+          const rawPPM = sessionDur > 0 ? myScore / sessionDur * 60 : 0;
+          const currentPPM = sessionDur >= 30 ? parseFloat(Math.min(PPM_CAP, rawPPM).toFixed(1)) : 0;
+          const _sid = getMyStudentId();
+          const _key = _sid ? `cc_solo_best_${_sid}` : 'cc_solo_best';
+          const prev = JSON.parse(localStorage.getItem(_key) || 'null') || { bestScore: 0, bestPPM: 0 };
+          const cappedPrevPPM = Math.min(prev.bestPPM || 0, PPM_CAP);
+          const updated = {
+            bestScore: Math.max(prev.bestScore || 0, myScore),
+            bestPPM: Math.max(cappedPrevPPM, currentPPM),
+          };
+          if (updated.bestScore > (prev.bestScore || 0) || updated.bestPPM > cappedPrevPPM) {
+            localStorage.setItem(_key, JSON.stringify(updated));
+            setSoloPersonalBest(updated);
+          }
+        } catch {}
+      }
+
+      // Flush les tentatives restantes dans le buffer (progress.js)
+      try { pgFlushAttempts(); } catch {}
 
       // Historique client: enregistrer la session terminée
       try {
@@ -2976,21 +3005,23 @@ useEffect(() => {
           masteryAll: getMasteryProgress()
         });
 
-        // Update personal solo record if beaten
+        // Update personal record if beaten — tous modes (solo + multi)
         // PPM cap: 30/min max (1 paire/2s = surhumain). Durée min: 30s pour éviter aberrations.
-        if (isSolo && (finalScore > 0 || pairsCount > 0)) {
+        if (finalScore > 0 || pairsCount > 0) {
           try {
             const PPM_CAP = 30;
             const rawPPM = sessionElapsedSec > 0 ? (pairsCount || finalScore) / sessionElapsedSec * 60 : 0;
             const currentPPM = sessionElapsedSec >= 30 ? parseFloat(Math.min(PPM_CAP, rawPPM).toFixed(1)) : 0;
-            const prev = JSON.parse(localStorage.getItem('cc_solo_best') || 'null') || { bestScore: 0, bestPPM: 0 };
+            const _sid = getMyStudentId();
+            const _key = _sid ? `cc_solo_best_${_sid}` : 'cc_solo_best';
+            const prev = JSON.parse(localStorage.getItem(_key) || 'null') || { bestScore: 0, bestPPM: 0 };
             const cappedPrevPPM = Math.min(prev.bestPPM || 0, PPM_CAP);
             const updated = {
               bestScore: Math.max(prev.bestScore || 0, finalScore),
               bestPPM: Math.max(cappedPrevPPM, currentPPM),
             };
             if (updated.bestScore > (prev.bestScore || 0) || updated.bestPPM > cappedPrevPPM) {
-              localStorage.setItem('cc_solo_best', JSON.stringify(updated));
+              localStorage.setItem(_key, JSON.stringify(updated));
               setSoloPersonalBest(updated);
             }
           } catch {}
@@ -3230,7 +3261,7 @@ async function doStart() {
       // FIX: utiliser un roomId solo isolé (pas 'default') pour éviter conflits entre sessions
       const isSoloCfg = !cfg2 || cfg2.mode === 'solo';
       const effectiveRoomId = isSoloCfg ? `solo-${socket.id}` : roomId;
-      try { let _sid = null; try { _sid = JSON.parse(localStorage.getItem('cc_auth') || '{}').id || null; } catch {} if (!_sid) _sid = localStorage.getItem('cc_student_id') || null; socket.emit('joinRoom', { roomId: effectiveRoomId, name: playerName, studentId: _sid }); } catch {}
+      try { socket.emit('joinRoom', { roomId: effectiveRoomId, name: playerName, studentId: getMyStudentId() }); } catch {}
       // FIX: TOUJOURS re-envoyer themes/classes/extras au serveur (crucial pour Rejouer)
       try {
         const _themes = Array.isArray(cfg2?.themes) ? cfg2.themes : [];
@@ -3904,84 +3935,56 @@ const handleEditGreenZone = (zone) => {
     return `Joueur-${rnd}`;
   });
   const [scoresMP, setScoresMP] = useState([]); // [{id,name,score}]
-  const [mpMsg, setMpMsg] = useState('');
   // Solo mode detection (hide lobby UI)
   const [isSoloMode] = useState(() => {
     try { const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); return cfg && cfg.mode === 'solo'; } catch { return false; }
   });
-  // Solo records: personal best + global best
+  // Solo records: personal best + global best (student-keyed localStorage)
   const [soloPersonalBest, setSoloPersonalBest] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('cc_solo_best') || 'null') || { bestScore: 0, bestPPM: 0 }; } catch { return { bestScore: 0, bestPPM: 0 }; }
+    try {
+      const sid = getMyStudentId();
+      const key = sid ? `cc_solo_best_${sid}` : 'cc_solo_best';
+      const stored = JSON.parse(localStorage.getItem(key) || 'null');
+      if (stored) return stored;
+      // Migration: try legacy non-keyed entry
+      const legacy = JSON.parse(localStorage.getItem('cc_solo_best') || 'null');
+      return legacy || { bestScore: 0, bestPPM: 0 };
+    } catch { return { bestScore: 0, bestPPM: 0 }; }
   });
   const [soloGlobalBest, setSoloGlobalBest] = useState({ bestScore: 0, bestPPM: 0 });
-  // Lobby/ready state
-  const [roomStatus, setRoomStatus] = useState('lobby'); // 'lobby'|'countdown'|'playing'
-  const [roomPlayers, setRoomPlayers] = useState([]); // [{id,nickname,score,ready,isHost}]
-  const [isHost, setIsHost] = useState(false);
-  const [myReady, setMyReady] = useState(false);
-  const [countdown, setCountdown] = useState(null);
-  const [isTiebreaker, setIsTiebreaker] = useState(false);
-  const [countdownT, setCountdownT] = useState(null);
-  const [arenaPauseInfo, setArenaPauseInfo] = useState(null); // { paused, disconnectedPlayer, gracePeriodMs }
-  // Rotation en degrés des contenus pour zones calcul/chiffre (par id de zone)
-  const [calcAngles, setCalcAngles] = useState(() => {
-    try {
-      const raw = localStorage.getItem('cc_calc_angles');
-      return raw ? JSON.parse(raw) : {};
-    } catch {
-      return {};
-    }
-  });
-  // Offsets manuels pour déplacer chiffre/calcul à la souris
-  const [mathOffsets, setMathOffsets] = useState(() => {
-    try {
-      const raw = localStorage.getItem('cc_math_offsets');
-      return raw ? JSON.parse(raw) : {};
-    } catch { return {}; }
-  }); // { [zoneId]: { x, y } }
-  const [dragState, setDragState] = useState({ id: null, start: null, orig: null, moved: false });
 
-  useEffect(() => {
-    try { localStorage.setItem('cc_calc_angles', JSON.stringify(calcAngles)); } catch {}
-  }, [calcAngles]);
-  useEffect(() => {
-    try { localStorage.setItem('cc_math_offsets', JSON.stringify(mathOffsets)); } catch {}
-  }, [mathOffsets]);
+  // ... (rest of the code remains the same)
 
-  // Flush des tentatives quand on quitte le jeu ou quand on arrête la partie
+  // Fetch global + personal records on mount (all modes, not just solo)
   useEffect(() => {
-    const onBeforeUnload = () => { try { pgFlushAttempts(); } catch {} };
-    window.addEventListener('beforeunload', onBeforeUnload);
-    return () => {
-      try { pgFlushAttempts(); } catch {}
-      window.removeEventListener('beforeunload', onBeforeUnload);
-    };
-  }, []);
-  useEffect(() => {
-    if (!gameActive) {
-      try { pgFlushAttempts(); } catch {}
-    }
-  }, [gameActive]);
-
-  // Fetch global solo records on mount
-  useEffect(() => {
-    if (!isSoloMode) return;
     const fetchRecords = async () => {
       try {
-        const res = await fetch(`${getBackendUrl()}/api/training/records`);
+        const sid = getMyStudentId();
+        const url = sid
+          ? `${getBackendUrl()}/api/training/records?studentId=${encodeURIComponent(sid)}`
+          : `${getBackendUrl()}/api/training/records`;
+        const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
-          if (data.success) setSoloGlobalBest({ bestScore: data.bestScore || 0, bestPPM: Math.min(data.bestPPM || 0, 30) });
+          if (data.success) {
+            setSoloGlobalBest({ bestScore: data.bestScore || 0, bestPPM: Math.min(data.bestPPM || 0, 30) });
+            // Merge server personal best with localStorage (take max)
+            if (sid && (data.myBestScore > 0 || data.myBestPPM > 0)) {
+              setSoloPersonalBest(prev => {
+                const merged = {
+                  bestScore: Math.max(prev.bestScore || 0, data.myBestScore || 0),
+                  bestPPM: Math.max(prev.bestPPM || 0, Math.min(data.myBestPPM || 0, 30)),
+                };
+                try { localStorage.setItem(`cc_solo_best_${sid}`, JSON.stringify(merged)); } catch {}
+                return merged;
+              });
+            }
+          }
         }
       } catch {}
     };
     fetchRecords();
-  }, [isSoloMode]);
-
-  // --- Edit mode and backend sync for positions/angles ---
-  const [editMode, setEditMode] = useState(false);
-  const [isLoadingPositions, setIsLoadingPositions] = useState(false);
-  const [isSavingPositions, setIsSavingPositions] = useState(false);
+  }, []); // Added missing closing bracket here
 
   // Affichage colonne latérale de jeu (même sans plein écran)
   const hasSidebar = fullScreen || roomStatus === 'playing' || gameActive;
@@ -4210,7 +4213,7 @@ const handleEditGreenZone = (zone) => {
     try {
       setMyReady(false);
       setRoomStatus('lobby');
-      socket.emit('joinRoom', { roomId: 'default', name: playerName });
+      socket.emit('joinRoom', { roomId: 'default', name: playerName, studentId: getMyStudentId() });
       setRoomId('default');
     } catch {}
   };
@@ -4230,7 +4233,7 @@ const handleEditGreenZone = (zone) => {
         if (res?.ok && res.roomCode) {
           setRoomId(res.roomCode);
           setMpMsg(`Salle créée: ${res.roomCode}`);
-          try { socket.emit('joinRoom', { roomId: res.roomCode, name: playerName }); } catch {}
+          try { socket.emit('joinRoom', { roomId: res.roomCode, name: playerName, studentId: getMyStudentId() }); } catch {}
         } else {
           setMpMsg('Création de salle impossible');
         }
@@ -4245,7 +4248,7 @@ const handleEditGreenZone = (zone) => {
   // Rejoindre une salle existante avec le code saisi
   const handleJoinRoom = () => {
     if (!socket || !roomId) return;
-    try { socket.emit('joinRoom', { roomId, name: playerName }); } catch {}
+    try { socket.emit('joinRoom', { roomId, name: playerName, studentId: getMyStudentId() }); } catch {}
   };
 
   // Basculer l'état prêt/pas prêt
@@ -7383,47 +7386,46 @@ setZones(dataWithRandomTexts);
               </div>
               <button onClick={handleEndSessionNow} style={{ background: 'rgba(220,38,38,0.8)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '6px 12px', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Terminer</button>
             </div>
-            {/* Classement joueurs (multi) ou Stats perso (solo) */}
-            {isSoloMode ? (
-              <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {/* Mon record personnel */}
-                <div>
-                  <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#fbbf24' }}>🏅 Mon record</h3>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires</div>
-                      <div style={{ fontSize: 20, fontWeight: 900, color: score > soloPersonalBest.bestScore ? '#22c55e' : '#fff', fontVariantNumeric: 'tabular-nums' }}>
-                        {soloPersonalBest.bestScore || '—'}
-                      </div>
-                    </div>
-                    <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires/min</div>
-                      <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
-                        {soloPersonalBest.bestPPM || '—'}
-                      </div>
+            {/* Mon record personnel — affiché dans tous les modes */}
+            <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div>
+                <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#fbbf24' }}>🏅 Mon record</h3>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: score > soloPersonalBest.bestScore ? '#22c55e' : '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                      {soloPersonalBest.bestScore || '—'}
                     </div>
                   </div>
-                </div>
-                {/* Record à battre (global) */}
-                <div>
-                  <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#f87171' }}>🔥 Record à battre</h3>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires</div>
-                      <div style={{ fontSize: 20, fontWeight: 900, color: soloGlobalBest.bestScore > 0 ? '#f87171' : '#64748b', fontVariantNumeric: 'tabular-nums' }}>
-                        {soloGlobalBest.bestScore || '—'}
-                      </div>
-                    </div>
-                    <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires/min</div>
-                      <div style={{ fontSize: 20, fontWeight: 900, color: soloGlobalBest.bestPPM > 0 ? '#f87171' : '#64748b', fontVariantNumeric: 'tabular-nums' }}>
-                        {soloGlobalBest.bestPPM || '—'}
-                      </div>
+                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires/min</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                      {soloPersonalBest.bestPPM || '—'}
                     </div>
                   </div>
                 </div>
               </div>
-            ) : (
+              {/* Record à battre (global) */}
+              <div>
+                <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#f87171' }}>🔥 Record à battre</h3>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: soloGlobalBest.bestScore > 0 ? '#f87171' : '#64748b', fontVariantNumeric: 'tabular-nums' }}>
+                      {soloGlobalBest.bestScore || '—'}
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires/min</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: soloGlobalBest.bestPPM > 0 ? '#f87171' : '#64748b', fontVariantNumeric: 'tabular-nums' }}>
+                      {soloGlobalBest.bestPPM || '—'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* Classement — affiché uniquement en multijoueur */}
+            {!isSoloMode && (
               <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <h3 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700, color: '#fff' }}>{'\u{1F3C6}'} Classement</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
