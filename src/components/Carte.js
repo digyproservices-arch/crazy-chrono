@@ -3922,6 +3922,9 @@ const handleEditGreenZone = (zone) => {
   // --- Multiplayer state ---
   const [roomStatus, setRoomStatus] = useState('lobby');
   const [editMode, setEditMode] = useState(false);
+  const [isTiebreaker, setIsTiebreaker] = useState(false);
+  const [countdown, setCountdown] = useState(null);
+  const [countdownT, setCountdownT] = useState(null);
   const [mpMsg, setMpMsg] = useState('');
   const [myReady, setMyReady] = useState(false);
   const [isHost, setIsHost] = useState(false);
