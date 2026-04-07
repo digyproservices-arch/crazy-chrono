@@ -6,10 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
-
-const getBackendUrl = () => {
-  return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
-};
+import { getBackendUrl } from '../../utils/apiHelpers';
 
 export default function TrainingArenaLobby() {
   const { roomCode } = useParams();

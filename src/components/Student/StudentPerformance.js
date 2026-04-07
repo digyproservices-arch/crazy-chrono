@@ -5,13 +5,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getAuthHeaders } from '../../utils/apiHelpers';
+import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Area, AreaChart, Legend, Cell
 } from 'recharts';
 
-const getBackendUrl = () => process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
 
 const MEDAL_EMOJIS = ['🥇', '🥈', '🥉'];
 

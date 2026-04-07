@@ -10,8 +10,7 @@ import io from 'socket.io-client';
 import { pointsToBezierPath } from '../CarteUtils';
 import { animateBubblesFromZones, invalidateZoneCenterCache } from '../Carte';
 import '../../styles/Carte.css';
-
-const getBackendUrl = () => process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
+import { getBackendUrl } from '../../utils/apiHelpers';
 
 // Charte graphique Crazy Chrono
 const CC = {

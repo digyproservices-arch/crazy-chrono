@@ -5,13 +5,10 @@
 
 import React, { useState, useEffect, useRef, useMemo, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAuthHeaders } from '../../utils/apiHelpers';
+import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
 import { DataContext } from '../../context/DataContext';
 import PedagogicConfig, { CARD, SECTION_TITLE } from '../Shared/PedagogicConfig';
 
-const getBackendUrl = () => {
-  return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
-};
 
 // Helper : Parser student_ids avec support multi-format
 const parseStudentIds = (studentIds) => {

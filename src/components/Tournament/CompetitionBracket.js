@@ -6,11 +6,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAuthHeaders } from '../../utils/apiHelpers';
+import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
 
-const getBackendUrl = () => {
-  return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
-};
 
 const MEDAL_EMOJIS = ['🥇', '🥈', '🥉'];
 

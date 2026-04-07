@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { DataContext } from '../../context/DataContext';
 import { isFree } from '../../utils/subscription';
 import PedagogicConfig, { CARD, SECTION_TITLE } from '../Shared/PedagogicConfig';
+import { getBackendUrl } from '../../utils/apiHelpers';
 
 const MODE_META = {
   solo: { icon: '🎮', label: 'Solo', desc: 'Jouez seul et progressez à votre rythme' },
@@ -72,7 +73,7 @@ export default function SessionConfig() {
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await fetch('http://localhost:4000/students');
+        const res = await fetch(`${getBackendUrl()}/students`);
         if (!res.ok) throw new Error('http');
         const arr = await res.json();
         if (!cancelled) setStudents(Array.isArray(arr) ? arr : []);

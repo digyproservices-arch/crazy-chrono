@@ -5,11 +5,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getAuthHeaders } from '../../utils/apiHelpers';
+import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
 
-const getBackendUrl = () => {
-  return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
-};
 
 const medalEmojis = ['🥇', '🥈', '🥉'];
 const podiumColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
