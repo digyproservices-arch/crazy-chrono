@@ -110,6 +110,8 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
   const [filterLevel, setFilterLevel] = useState('all');
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('cards');
+  const [showOrphans, setShowOrphans] = useState(false);
+  const [orphanSearch, setOrphanSearch] = useState('');
 
   // Charger le référentiel botanique pour les noms locaux
   const botRefRef = useRef(null);
@@ -273,6 +275,22 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
   const removeLocalName = (idx, regionKey) => {
     updateLocalName(idx, regionKey, '');
   };
+
+  // Orphan images: in data.images but not referenced by any association
+  const orphanImages = useMemo(() => {
+    if (!data?.images) return [];
+    const usedIds = new Set((data.associations || []).map(a => a.imageId).filter(Boolean));
+    return data.images.filter(img => !usedIds.has(img.id));
+  }, [data]);
+
+  const filteredOrphans = useMemo(() => {
+    if (!orphanSearch.trim()) return orphanImages;
+    const q = orphanSearch.toLowerCase();
+    return orphanImages.filter(img => {
+      const name = (img.url || '').replace(/^images\//, '').replace(/\.[^.]+$/, '').replace(/-/g, ' ');
+      return name.toLowerCase().includes(q);
+    });
+  }, [orphanImages, orphanSearch]);
 
   const totalAssocs = data?.associations?.length || 0;
 
@@ -696,6 +714,90 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
       {filtered.length > (viewMode === 'cards' ? 120 : 200) && (
         <div style={{ textAlign: 'center', padding: 16, color: '#64748b', fontSize: 13 }}>
           Affichage limité. Utilisez les filtres pour affiner.
+        </div>
+      )}
+
+      {/* === ORPHAN IMAGES SECTION === */}
+      {orphanImages.length > 0 && (
+        <div style={{ marginTop: 32, borderTop: '2px dashed #fbbf24', paddingTop: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: showOrphans ? 12 : 0 }} onClick={() => setShowOrphans(v => !v)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 18 }}>📷</span>
+              <span style={{ fontSize: 15, fontWeight: 800, color: '#d97706' }}>Images non associées</span>
+              <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>({orphanImages.length} image{orphanImages.length > 1 ? 's' : ''})</span>
+            </div>
+            <span style={{ fontSize: 16, color: '#d97706', transition: 'transform 0.2s', transform: showOrphans ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+          </div>
+          {showOrphans && (
+            <div>
+              <p style={{ fontSize: 12, color: '#92400e', background: '#fffbeb', padding: '8px 12px', borderRadius: 8, marginBottom: 12, border: '1px solid #fde68a' }}>
+                Ces images existent dans votre bibliothèque mais ne sont pas encore reliées à un texte (pas de paire texte↔image). Vous pouvez les voir, les retrouver, et les catégoriser ici.
+              </p>
+              <input value={orphanSearch} onChange={e => setOrphanSearch(e.target.value)} placeholder="🔍 Filtrer les images non associées..." style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #fde68a', fontSize: 13, marginBottom: 12, boxSizing: 'border-box', background: '#fffbeb' }} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+                {filteredOrphans.map(img => {
+                  const fileName = (img.url || '').replace(/^images\//, '').replace(/\.[^.]+$/, '').replace(/-/g, ' ');
+                  const displayName = fileName.charAt(0).toUpperCase() + fileName.slice(1);
+                  const hasThemes = img.themes && img.themes.length > 0;
+                  const hasLevel = !!img.levelClass;
+                  return (
+                    <div key={img.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid ' + (hasThemes ? '#bbf7d0' : '#fde68a'), overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                      <div style={{ height: 100, background: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                        <img src={process.env.PUBLIC_URL + '/' + img.url} alt={displayName} style={{ maxWidth: '100%', maxHeight: 100, objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
+                      </div>
+                      <div style={{ padding: '6px 8px' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={displayName}>{displayName}</div>
+                        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginBottom: 4 }}>
+                          <select value={(img.themes || []).find(t => t.startsWith('domain:'))?.slice(7) || ''}
+                            onChange={e => {
+                              const domainKey = e.target.value;
+                              setData(prev => {
+                                const images = (prev.images || []).map(im => {
+                                  if (im.id !== img.id) return im;
+                                  const themes = (im.themes || []).filter(t => !t.startsWith('domain:'));
+                                  if (domainKey) themes.push('domain:' + domainKey);
+                                  return { ...im, themes };
+                                });
+                                const nd = { ...prev, images };
+                                if (saveToBackend) saveToBackend(nd);
+                                return nd;
+                              });
+                            }}
+                            style={{ padding: '2px 4px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 10, fontWeight: 600, cursor: 'pointer', maxWidth: 110 }}>
+                            <option value="">Domaine...</option>
+                            {DOMAIN_KEYS.map(k => <option key={k} value={k}>{DOMAIN_META[k].icon} {DOMAIN_META[k].label}</option>)}
+                          </select>
+                          <select value={img.levelClass || ''}
+                            onChange={e => {
+                              const level = e.target.value;
+                              setData(prev => {
+                                const images = (prev.images || []).map(im => {
+                                  if (im.id !== img.id) return im;
+                                  return { ...im, levelClass: level || undefined };
+                                });
+                                const nd = { ...prev, images };
+                                if (saveToBackend) saveToBackend(nd);
+                                return nd;
+                              });
+                            }}
+                            style={{ padding: '2px 4px', borderRadius: 6, border: '1px solid #e2e8f0', fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>
+                            <option value="">Niveau...</option>
+                            {CLASS_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                          </select>
+                        </div>
+                        <div style={{ fontSize: 9, color: hasThemes || hasLevel ? '#16a34a' : '#f59e0b', fontWeight: 600 }}>
+                          {hasThemes || hasLevel ? '✓ Catégorisée' : '⚠ Non catégorisée'}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {filteredOrphans.length === 0 && orphanSearch && (
+                <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 13 }}>Aucune image ne correspond à "{orphanSearch}"</div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
