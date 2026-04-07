@@ -766,17 +766,23 @@ function generateRoundZones(seed, config = {}) {
           placedDistractorImageIds.add(imgId);
           usedImageContents.add(url);
         } else {
-          // FALLBACK: Prendre n'importe quelle image disponible non utilisée
-          const availableImages = images.filter(img => 
+          // FALLBACK: Prendre n'importe quelle image non utilisée, mais éviter les fausses paires visuelles
+          const allForbiddenTextIdsFB = new Set([...forbiddenTextIds, ...placedDistractorTextIds]);
+          const safeImages = images.filter(img => 
             !usedImageContents.has(img.url) && 
-            !used.image.has(img.id)
+            !used.image.has(img.id) &&
+            (!imageToTextes.get(img.id) || ![...imageToTextes.get(img.id)].some(t => allForbiddenTextIdsFB.has(t)))
+          );
+          const availableImages = safeImages.length > 0 ? safeImages : images.filter(img => 
+            !usedImageContents.has(img.url) && !used.image.has(img.id)
           );
           if (availableImages.length > 0) {
             const fallbackImg = choose(availableImages, rng);
             url = fallbackImg.url;
             used.image.add(fallbackImg.id);
+            placedDistractorImageIds.add(fallbackImg.id);
             usedImageContents.add(url);
-            logFn('info', '[ZoneGen] FALLBACK: Using any available image', {
+            logFn('info', '[ZoneGen] FALLBACK: Using available image (safe=' + (safeImages.length > 0) + ')', {
               zoneId: z.id,
               imageId: fallbackImg.id,
               reason: 'No valid distractors found'
@@ -808,18 +814,24 @@ function generateRoundZones(seed, config = {}) {
           placedDistractorTextIds.add(tId);
           usedTextContents.add(content);
         } else {
-          // FALLBACK: Prendre n'importe quel texte non utilisé
-          const availableTexts = textes.filter(t =>
+          // FALLBACK: Prendre n'importe quel texte non utilisé, mais éviter les fausses paires visuelles
+          const allForbiddenImageIdsFB = new Set([...forbiddenImageIds, ...placedDistractorImageIds]);
+          const safeTexts = textes.filter(t =>
+            !usedTextContents.has(t.content) && !used.texte.has(t.id) &&
+            (!texteToImages.get(t.id) || ![...texteToImages.get(t.id)].some(i => allForbiddenImageIdsFB.has(i)))
+          );
+          const availableTexts = safeTexts.length > 0 ? safeTexts : textes.filter(t =>
             !usedTextContents.has(t.content) && !used.texte.has(t.id)
           );
           if (availableTexts.length > 0) {
             const fallbackTxt = choose(availableTexts, rng);
             z.content = fallbackTxt.content || '';
             z.label = z.content;
-            logFn('info', '[ZoneGen] FALLBACK: Using any available texte', {
+            logFn('info', '[ZoneGen] FALLBACK: Using available texte (safe=' + (safeTexts.length > 0) + ')', {
               zoneId: z.id, texteId: fallbackTxt.id, reason: 'No valid distractors found'
             });
             used.texte.add(fallbackTxt.id);
+            placedDistractorTextIds.add(fallbackTxt.id);
             usedTextContents.add(z.content);
           } else {
             logFn('warn', '[ZoneGen] FALLBACK: No texte available at all', { zoneId: z.id });

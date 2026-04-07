@@ -185,6 +185,7 @@ class CrazyArenaManager {
    */
   createTrainingMatch(matchId, studentIds, config, classId, teacherId) {
     console.log(`[CrazyArena][Training] Création match ${matchId} pour ${studentIds.length} élèves`);
+    console.log(`[CrazyArena][Training] Config reçue:`, { classes: config.classes, themes: config.themes, extras: config.extras, rounds: config.rounds, objectiveMode: config.objectiveMode });
     
     this.matches.set(matchId, {
       matchId,
@@ -197,6 +198,7 @@ class CrazyArenaManager {
         duration: config.duration || config.durationPerRound || 60,
         classes: config.classes || ['CP', 'CE1', 'CE2', 'CM1', 'CM2', '6e', '5e', '4e', '3e'],
         themes: config.themes || [],
+        extras: Array.isArray(config.extras) ? config.extras : [],
         level: config.level || 'CE1',
         sessionName: config.sessionName || 'Session Entraînement',
         objectiveMode: !!config.objectiveMode,
