@@ -731,13 +731,40 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
           {showOrphans && (
             <div>
               <p style={{ fontSize: 12, color: '#92400e', background: '#fffbeb', padding: '8px 12px', borderRadius: 8, marginBottom: 12, border: '1px solid #fde68a' }}>
-                Ces images existent dans votre bibliothèque mais ne sont pas encore reliées à un texte (pas de paire texte↔image). Vous pouvez les voir, les retrouver, et les catégoriser ici.
+                Ces images ne sont pas encore reliées à un texte. Cliquez <b>« Créer la paire »</b> pour générer automatiquement le texte et l'association — l'image apparaîtra alors dans la Bibliothèque principale. Vous pouvez d'abord choisir un domaine et un niveau avant de créer la paire.
               </p>
-              <input value={orphanSearch} onChange={e => setOrphanSearch(e.target.value)} placeholder="🔍 Filtrer les images non associées..." style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #fde68a', fontSize: 13, marginBottom: 12, boxSizing: 'border-box', background: '#fffbeb' }} />
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                <input value={orphanSearch} onChange={e => setOrphanSearch(e.target.value)} placeholder="🔍 Filtrer..." style={{ flex: '1 1 200px', padding: '8px 12px', borderRadius: 8, border: '1px solid #fde68a', fontSize: 13, boxSizing: 'border-box', background: '#fffbeb' }} />
+                <button onClick={() => {
+                  if (!window.confirm(`Créer automatiquement ${orphanImages.length} paire(s) texte↔image ?\n\nChaque image aura un texte généré depuis son nom de fichier et apparaîtra dans la Bibliothèque principale.`)) return;
+                  setData(prev => {
+                    const textes = [...(prev.textes || [])];
+                    const associations = [...(prev.associations || [])];
+                    for (const img of orphanImages) {
+                      const fn = (img.url || '').replace(/^images\//, '').replace(/\.[^.]+$/, '').replace(/-/g, ' ');
+                      const textContent = fn.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                      const tId = 't' + Date.now() + Math.random().toString(36).slice(2, 6);
+                      const newTexte = { id: tId, content: textContent };
+                      if (img.themes?.length) newTexte.themes = [...img.themes];
+                      if (img.levelClass) newTexte.levelClass = img.levelClass;
+                      textes.push(newTexte);
+                      const newAssoc = { texteId: tId, imageId: img.id };
+                      if (img.themes?.length) newAssoc.themes = [...img.themes];
+                      if (img.levelClass) newAssoc.levelClass = img.levelClass;
+                      associations.push(newAssoc);
+                    }
+                    const nd = { ...prev, textes, associations };
+                    if (saveToBackend) saveToBackend(nd);
+                    return nd;
+                  });
+                }} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#d97706', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  ⚡ Tout associer ({orphanImages.length})
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12 }}>
                 {filteredOrphans.map(img => {
                   const fileName = (img.url || '').replace(/^images\//, '').replace(/\.[^.]+$/, '').replace(/-/g, ' ');
-                  const displayName = fileName.charAt(0).toUpperCase() + fileName.slice(1);
+                  const displayName = fileName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
                   const hasThemes = img.themes && img.themes.length > 0;
                   const hasLevel = !!img.levelClass;
                   return (
@@ -785,7 +812,27 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
                             {CLASS_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                           </select>
                         </div>
-                        <div style={{ fontSize: 9, color: hasThemes || hasLevel ? '#16a34a' : '#f59e0b', fontWeight: 600 }}>
+                        <button onClick={() => {
+                          const tId = 't' + Date.now() + Math.random().toString(36).slice(2, 6);
+                          setData(prev => {
+                            const newTexte = { id: tId, content: displayName };
+                            if (img.themes?.length) newTexte.themes = [...img.themes];
+                            if (img.levelClass) newTexte.levelClass = img.levelClass;
+                            const newAssoc = { texteId: tId, imageId: img.id };
+                            if (img.themes?.length) newAssoc.themes = [...img.themes];
+                            if (img.levelClass) newAssoc.levelClass = img.levelClass;
+                            const nd = {
+                              ...prev,
+                              textes: [...(prev.textes || []), newTexte],
+                              associations: [...(prev.associations || []), newAssoc],
+                            };
+                            if (saveToBackend) saveToBackend(nd);
+                            return nd;
+                          });
+                        }} style={{ width: '100%', padding: '5px 0', borderRadius: 6, border: 'none', background: '#16a34a', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', marginBottom: 2 }}>
+                          ✚ Créer la paire « {displayName} »
+                        </button>
+                        <div style={{ fontSize: 9, color: hasThemes || hasLevel ? '#16a34a' : '#f59e0b', fontWeight: 600, textAlign: 'center' }}>
                           {hasThemes || hasLevel ? '✓ Catégorisée' : '⚠ Non catégorisée'}
                         </div>
                       </div>
