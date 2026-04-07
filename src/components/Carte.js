@@ -2223,9 +2223,42 @@ const Carte = () => {
             console.log('[MP][solo] Sent config to server:', { themes, classes, extras });
           } catch {}
         }, 100);
-        // Démarrage auto si mode=solo enregistré
+        // Démarrage auto si mode=solo enregistré — avec quota check (Sprint A freemium)
         if (cfgSolo && cfgSolo.mode === 'solo') {
-          setTimeout(() => { try { s.emit('startGame'); } catch {} }, 300);
+          const uid = getLocalUserId();
+          serverAllowsStart(uid).then((res) => {
+            try {
+              console.log('[CC][quota:auto] serverAllowsStart response:', JSON.stringify(res));
+              if (res && res.ok && res.allow === false) {
+                alert("Limite quotidienne atteinte sur votre compte Free. Passez à la version Pro pour continuer.");
+                try { navigate('/pricing'); } catch {}
+                return;
+              }
+              if (isFree()) {
+                if (!canStartSessionToday(3)) {
+                  alert('Limite quotidienne atteinte (3 sessions/jour en version gratuite). Passe à la version Pro pour continuer.');
+                  try { navigate('/pricing'); } catch {}
+                  return;
+                }
+              }
+              incrementSessionCount();
+              try { applyFreeLimits(s); } catch {}
+              try { pgStartSession({ mode: 'solo', classes: Array.isArray(cfgSolo?.classes) ? cfgSolo.classes : [], themes: Array.isArray(cfgSolo?.themes) ? cfgSolo.themes : [] }); } catch {}
+              s.emit('startGame');
+            } catch (e) {
+              console.warn('[CC][quota:auto] error:', e?.message || e);
+              if (isFree() && !canStartSessionToday(3)) { alert('Limite quotidienne atteinte.'); try { navigate('/pricing'); } catch {} return; }
+              incrementSessionCount();
+              try { s.emit('startGame'); } catch {}
+            }
+          }).catch(() => {
+            console.warn('[CC][quota:auto] server unreachable, using local limit');
+            if (isFree() && !canStartSessionToday(3)) { alert('Limite quotidienne atteinte.'); try { navigate('/pricing'); } catch {} return; }
+            incrementSessionCount();
+            try { applyFreeLimits(s); } catch {}
+            try { pgStartSession({ mode: 'solo', classes: Array.isArray(cfgSolo?.classes) ? cfgSolo.classes : [], themes: Array.isArray(cfgSolo?.themes) ? cfgSolo.themes : [] }); } catch {}
+            try { s.emit('startGame'); } catch {}
+          });
         }
       }
       // Charger l'historique de sessions
