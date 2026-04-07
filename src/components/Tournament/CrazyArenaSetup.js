@@ -3,9 +3,11 @@
 // Interface enseignant pour créer des groupes et lancer les matchs
 // ==========================================
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAuthHeaders } from '../../utils/apiHelpers';
+import { DataContext } from '../../context/DataContext';
+import PedagogicConfig, { CARD, SECTION_TITLE } from '../Shared/PedagogicConfig';
 
 const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000';
@@ -43,6 +45,7 @@ const CACHE_KEY_GROUPS = 'br_cache_groups';
 export default function CrazyArenaSetup() {
   const navigate = useNavigate();
   const loadedRef = useRef(false);
+  const { data } = useContext(DataContext);
   
   // État
   const [students, setStudents] = useState([]); // Liste des élèves de la classe
@@ -53,6 +56,25 @@ export default function CrazyArenaSetup() {
   const [tournament, setTournament] = useState(null);
   const [checkedGroups, setCheckedGroups] = useState(new Set()); // Groupes cochés pour notif bulk
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
+
+  // ===== Configuration pédagogique (composant partagé PedagogicConfig) =====
+  const [pedConfig, setPedConfig] = useState(null);
+  const initialPedConfig = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('cc_arena_cfg') || 'null') || undefined; } catch { return undefined; }
+  }, []);
+
+  // Persister la config pédagogique (debounce 300ms)
+  useEffect(() => {
+    if (!pedConfig) return;
+    const t = setTimeout(() => {
+      try {
+        const { dataStats: _ds, ...rest } = pedConfig;
+        localStorage.setItem('cc_arena_cfg', JSON.stringify(rest));
+      } catch {}
+    }, 300);
+    return () => clearTimeout(t);
+  }, [pedConfig]);
   
   // Charger les données au montage (CACHE DÉSACTIVÉ pour stabilité)
   useEffect(() => {
@@ -267,13 +289,18 @@ export default function CrazyArenaSetup() {
       };
       const phaseId = phaseNames[tournament.current_phase] || 'phase_1_classe';
       
-      // FORCER classes et themes en dur pour mode tournoi
-      // Ne pas utiliser localStorage qui peut être vide ou mal configuré
+      // Utiliser la config pédagogique définie par le professeur (via PedagogicConfig partagé)
+      const pc = pedConfig || {};
       const matchConfig = {
-        rounds: 3,
-        duration: 60,
-        classes: ['CP', 'CE1', 'CE2', 'CM1', 'CM2', '6e', '5e', '4e', '3e'],
-        themes: ['botanique', 'multiplication']
+        rounds: pc.objectiveMode ? 99 : (pc.rounds || 3),
+        duration: pc.objectiveMode ? 9999 : (pc.duration || 60),
+        classes: pc.classes || ['CP','CE1','CE2','CM1','CM2'],
+        themes: pc.themes || [],
+        extras: pc.extras || [],
+        objectiveMode: !!pc.objectiveMode,
+        objectiveTarget: pc.objectiveTarget || null,
+        objectiveThemes: pc.objectiveThemes || [],
+        helpEnabled: !!pc.helpEnabled,
       };
       
       console.log('[CrazyArena] 🚀 Lancement match - Phase:', tournament.current_phase, '→ ID:', phaseId);
@@ -443,6 +470,41 @@ export default function CrazyArenaSetup() {
           <strong>Phase actuelle:</strong> Phase {tournament.current_phase} / 4
         </div>
       )}
+
+      {/* ===== CONFIGURATION PÉDAGOGIQUE (collapsible) ===== */}
+      <div style={CARD}>
+        <div
+          onClick={() => setConfigOpen(p => !p)}
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+        >
+          <h3 style={{ ...SECTION_TITLE, marginBottom: 0 }}>
+            <span>📚</span> Configuration pédagogique
+          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {pedConfig?.dataStats && (
+              <div style={{ display: 'flex', gap: 8, fontSize: 12 }}>
+                <span style={{ padding: '3px 10px', borderRadius: 8, background: '#f0fdfa', color: '#0D6A7A', fontWeight: 700 }}>
+                  🖼️ {pedConfig.dataStats.textImage} paires
+                </span>
+                <span style={{ padding: '3px 10px', borderRadius: 8, background: '#eff6ff', color: '#2563eb', fontWeight: 700 }}>
+                  🔢 {pedConfig.dataStats.calcNum} calculs
+                </span>
+              </div>
+            )}
+            <span style={{ fontSize: 18, color: '#94a3b8', transition: 'transform 0.2s', transform: configOpen ? 'rotate(180deg)' : 'rotate(0)' }}>▼</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Toujours monté pour que pedConfig soit rempli même quand fermé */}
+      <div style={configOpen ? undefined : { display: 'none' }}>
+        <PedagogicConfig
+          data={data}
+          onChange={setPedConfig}
+          initialConfig={initialPedConfig}
+          options={{ showPlayerZone: false, showFreeLimits: false, showAllowEmptyMath: true, showObjectiveTarget: true }}
+        />
+      </div>
       
       {/* Formulaire création groupe */}
       <section style={{ marginBottom: 24, padding: 16, background: '#f9fafb', borderRadius: 12, border: '1px solid #e5e7eb' }}>

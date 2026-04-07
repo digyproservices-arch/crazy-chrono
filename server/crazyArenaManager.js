@@ -1840,6 +1840,7 @@ class CrazyArenaManager {
       
       const finalClasses = (config.classes && config.classes.length > 0) ? config.classes : defaultClasses;
       const finalThemes = (config.themes && config.themes.length > 0) ? config.themes : defaultThemes;
+      const finalExtras = Array.isArray(config.extras) ? config.extras.filter(Boolean) : [];
       
       // ✅ CRITIQUE: Récupérer les paires exclues du match (FIFO)
       let excludedPairIds = new Set();
@@ -1861,14 +1862,16 @@ class CrazyArenaManager {
         seed,
         classes: finalClasses,
         themes: finalThemes,
+        extras: finalExtras,
         excludedCount: excludedPairIds.size,
         hasDeck: !!deckState
       });
       
-      // IMPORTANT: Passer excludedPairIds + deckState au générateur
+      // IMPORTANT: Passer excludedPairIds + deckState + extras au générateur
       const result = generateRoundZones(seed, {
         classes: finalClasses,
         themes: finalThemes,
+        extras: finalExtras,
         excludedPairIds: excludedPairIds,
         deckState: deckState
       });
