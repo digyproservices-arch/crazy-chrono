@@ -3,6 +3,7 @@ import React, { useContext, useState, useEffect, useLayoutEffect, useRef, useMem
 import { DataContext } from "../context/DataContext";
 import RectoratUpload from "./Rectorat/RectoratUpload";
 import RectoratLibrary from "./Rectorat/RectoratLibrary";
+import { getBackendUrl } from "../utils/apiHelpers";
 
 function AdminPanel() {
   const { data, setData, importJson, downloadJson } = useContext(DataContext);
@@ -356,7 +357,7 @@ function AdminPanel() {
       // Étape 0: Purge serveur de elements.json (supprime les entrées d'images non listées dans l'Admin)
       let purgeInfo = '';
       try {
-        const resp = await fetch('http://localhost:4000/purge-elements', { method: 'POST' });
+        const resp = await fetch(`${getBackendUrl()}/purge-elements`, { method: 'POST' });
         const pj = await resp.json();
         if (pj && pj.success) {
           console.info('purge-elements:', pj);
@@ -425,7 +426,7 @@ function AdminPanel() {
   // Fonction pour sauvegarder côté backend
   const saveToBackend = async (dataToSave) => {
     try {
-      const res = await fetch('http://localhost:4000/save-associations', {
+      const res = await fetch(`${getBackendUrl()}/save-associations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSave)
@@ -603,7 +604,7 @@ function AdminPanel() {
   // Fonction pour renommer physiquement un fichier image
   const renameImageOnServer = async (oldUrl, newUrl) => {
     if (oldUrl === newUrl) return;
-    const response = await fetch('http://localhost:4000/rename-image', {
+    const response = await fetch(`${getBackendUrl()}/rename-image`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ oldPath: oldUrl, newPath: newUrl })
@@ -671,7 +672,7 @@ function AdminPanel() {
       // 1) Liste depuis le backend (dossier public/images)
       let folderList = [];
       try {
-        const resp = await fetch('http://localhost:4000/list-images');
+        const resp = await fetch(`${getBackendUrl()}/list-images`);
         const res = await resp.json();
         if (res.success && Array.isArray(res.images)) folderList = res.images;
       } catch (_) { /* backend peut être hors ligne: on continue */ }
@@ -851,7 +852,7 @@ function AdminPanel() {
 
   // Suppressions
   const deleteImageOnServer = async (relPath) => {
-    const res = await fetch('http://localhost:4000/delete-image', {
+    const res = await fetch(`${getBackendUrl()}/delete-image`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path: relPath })
@@ -1231,7 +1232,7 @@ function AdminPanel() {
                   <button type="button" onClick={scanAndCleanOrphanZones} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#334155' }}>🔍 Scanner zones orphelines</button>
                   <button type="button" style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #0D6A7A', background: '#f0fdfa', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#0D6A7A' }} onClick={async () => {
                     try {
-                      const response = await fetch('http://localhost:4000/list-images');
+                      const response = await fetch(`${getBackendUrl()}/list-images`);
                       const result = await response.json();
                       if (!result.success) { alert(result.message || 'Erreur'); return; }
                       const existing = new Set(data.images.map(img => img.url));
@@ -1247,7 +1248,7 @@ function AdminPanel() {
                       const files = Array.from(e.target.files); if (files.length === 0) return;
                       const formData = new FormData(); files.forEach(f => formData.append('images', f));
                       try {
-                        const response = await fetch('http://localhost:4000/upload-images', { method: 'POST', body: formData });
+                        const response = await fetch(`${getBackendUrl()}/upload-images`, { method: 'POST', body: formData });
                         const result = await response.json();
                         if (!result.success) { alert(result.message || 'Erreur'); return; }
                         setData(d => { const nd = { ...d, images: [...d.images, ...result.files.map(f => ({ id: 'i' + Date.now() + Math.random().toString(36).slice(2, 6), url: f.path }))] }; saveToBackend(nd); return nd; });
