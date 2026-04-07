@@ -3921,6 +3921,20 @@ const handleEditGreenZone = (zone) => {
   const [hoveredZoneId, setHoveredZoneId] = useState(null);
   // --- Multiplayer state ---
   const [roomStatus, setRoomStatus] = useState('lobby');
+  const [editMode, setEditMode] = useState(false);
+  const [mpMsg, setMpMsg] = useState('');
+  const [myReady, setMyReady] = useState(false);
+  const [isHost, setIsHost] = useState(false);
+  const [roomPlayers, setRoomPlayers] = useState([]);
+  const [isSavingPositions, setIsSavingPositions] = useState(false);
+  const [isLoadingPositions, setIsLoadingPositions] = useState(false);
+  const [dragState, setDragState] = useState({ id: null, start: null, orig: null, moved: false });
+  const [mathOffsets, setMathOffsets] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cc_math_offsets') || '{}'); } catch { return {}; }
+  });
+  const [calcAngles, setCalcAngles] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cc_calc_angles') || '{}'); } catch { return {}; }
+  });
   const [roomId, setRoomId] = useState('default');
   const [playerName, setPlayerName] = useState(() => {
     try {
