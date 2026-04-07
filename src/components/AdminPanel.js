@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
-import AdminAssocMeta from "./AdminAssocMeta";
+// AdminAssocMeta removed: catégorisation avancée now handled directly in RectoratLibrary
 import { DataContext } from "../context/DataContext";
 import RectoratUpload from "./Rectorat/RectoratUpload";
 import RectoratLibrary from "./Rectorat/RectoratLibrary";
@@ -1152,10 +1152,11 @@ function AdminPanel() {
         <div style={{ textAlign: 'center', padding: 48, color: '#64748b', fontSize: 16 }}>Chargement…</div>
       ) : (
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 40px' }}>
-          {/* 2 Main Tabs */}
+          {/* 3 Main Tabs: Importer, Bibliothèque, Outils */}
           <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e2e8f0', marginBottom: 24, background: '#fff', borderRadius: '12px 12px 0 0', padding: '0 8px', marginTop: -1, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
             <button style={TAB_STYLE(activeTab === 'upload')} onClick={() => setActiveTab('upload')}>📤 Importer</button>
             <button style={TAB_STYLE(activeTab === 'library')} onClick={() => setActiveTab('library')}>📚 Bibliothèque</button>
+            <button style={TAB_STYLE(activeTab === 'tools')} onClick={() => setActiveTab('tools')}>🔧 Outils</button>
           </div>
 
           {/* TAB: Importer */}
@@ -1174,265 +1175,98 @@ function AdminPanel() {
             </div>
           )}
 
-          {/* ─── Admin avancé (repliable) ─── */}
-          <div style={{ marginTop: 40 }}>
-            <details>
-              <summary style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 8, background: '#f8fafc', border: '1px solid #e2e8f0', color: '#64748b', fontSize: 13, fontWeight: 600, userSelect: 'none' }}>
-                🔧 Admin avancé
-              </summary>
+          {/* TAB: Outils */}
+          {activeTab === 'tools' && (
+            <div style={{ background: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0D6A7A', marginTop: 0, marginBottom: 4 }}>🔧 Outils de maintenance</h2>
+              <p style={{ color: '#64748b', fontSize: 13, marginBottom: 20 }}>Sauvegarde, nettoyage, classification automatique et gestion des images.</p>
 
-              <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {/* JSON & Dedup & Auto-tag */}
-                <div style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e2e8f0' }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: '#475569', marginTop: 0, marginBottom: 12 }}>📦 Maintenance données</h3>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-                    <button onClick={downloadJson} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #0D6A7A', background: '#f0fdfa', color: '#0D6A7A', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>📥 Export JSON</button>
-                    <label style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', color: '#334155', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
-                      📤 Import JSON
-                      <input type="file" accept="application/json" onChange={handleJsonUpload} style={{ display: 'none' }} />
-                    </label>
-                    <button type="button" onClick={dedupeImages} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #fde68a', background: '#fffbeb', color: '#92400e', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>🧹 Dédup images</button>
-                    <button type="button" onClick={dedupeAssociations} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #fde68a', background: '#fffbeb', color: '#92400e', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>🧹 Dédup assoc.</button>
-                    <button type="button" onClick={autoTagElements} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #a7f3d0', background: '#ecfdf5', color: '#065f46', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>🏷️ Auto-tag</button>
-                    <button type="button" onClick={autoClassifyBotany} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #86efac', background: '#f0fdf4', color: '#166534', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>🌿 Classif. botanique</button>
-                    <button type="button" onClick={autoClassifyMath} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #93c5fd', background: '#eff6ff', color: '#1e40af', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>🔢 Classif. maths</button>
+              {/* Statistiques résumées */}
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
+                {[
+                  { label: 'Textes', count: (data.textes||[]).length, icon: '📝', color: '#7c3aed' },
+                  { label: 'Images', count: (data.images||[]).length, icon: '🖼️', color: '#ea580c' },
+                  { label: 'Calculs', count: (data.calculs||[]).length, icon: '🔢', color: '#2563eb' },
+                  { label: 'Chiffres', count: (data.chiffres||[]).length, icon: '🔢', color: '#0891b2' },
+                  { label: 'Associations', count: (data.associations||[]).length, icon: '🔗', color: '#16a34a' },
+                ].map(s => (
+                  <div key={s.label} style={{ flex: '1 1 140px', padding: '12px 16px', borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.count}</div>
+                    <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>{s.icon} {s.label}</div>
                   </div>
-                  <div style={{ fontSize: 11, color: '#94a3b8' }}>
-                    Textes: {(data.textes||[]).length} · Images: {(data.images||[]).length} · Calculs: {(data.calculs||[]).length} · Chiffres: {(data.chiffres||[]).length} · Associations: {(data.associations||[]).length}
-                  </div>
+                ))}
+              </div>
+
+              {/* Section 1: Sauvegarde & Nettoyage */}
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#475569', marginBottom: 12, borderBottom: '1px solid #e2e8f0', paddingBottom: 8 }}>📦 Sauvegarde & Nettoyage</h3>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button onClick={downloadJson} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #0D6A7A', background: '#f0fdfa', color: '#0D6A7A', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>📥 Export JSON</button>
+                  <label style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', color: '#334155', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}>
+                    📤 Import JSON
+                    <input type="file" accept="application/json" onChange={handleJsonUpload} style={{ display: 'none' }} />
+                  </label>
+                  <button type="button" onClick={dedupeImages} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #fde68a', background: '#fffbeb', color: '#92400e', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>🧹 Dédup images</button>
+                  <button type="button" onClick={dedupeAssociations} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #fde68a', background: '#fffbeb', color: '#92400e', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>🧹 Dédup associations</button>
                 </div>
+              </div>
 
-                {/* Catégorisation avancée (AdminAssocMeta) */}
-                <details style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e2e8f0' }}>
-                  <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 14, color: '#475569' }}>🏷️ Catégorisation avancée des associations</summary>
-                  <div style={{ marginTop: 12 }}>
-                    <AdminAssocMeta data={data} setData={setData} save={saveToBackend} />
-                  </div>
-                </details>
+              {/* Section 2: Classification automatique */}
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#475569', marginBottom: 12, borderBottom: '1px solid #e2e8f0', paddingBottom: 8 }}>🏷️ Classification automatique</h3>
+                <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 10 }}>Applique automatiquement les niveaux, domaines et catégories à partir des données existantes.</p>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button type="button" onClick={autoTagElements} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #a7f3d0', background: '#ecfdf5', color: '#065f46', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>🏷️ Auto-tag (niveaux & thèmes)</button>
+                  <button type="button" onClick={autoClassifyBotany} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #86efac', background: '#f0fdf4', color: '#166534', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>🌿 Classification botanique</button>
+                  <button type="button" onClick={autoClassifyMath} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #93c5fd', background: '#eff6ff', color: '#1e40af', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>🔢 Classification maths</button>
+                </div>
+              </div>
 
-                {/* Images tools */}
-                <details style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e2e8f0' }}>
-                  <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 14, color: '#475569' }}>🖼️ Outils images</summary>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
-                    <button type="button" onClick={handleVerifyAllImages} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, cursor: 'pointer' }}>Vérifier images</button>
-                    <button type="button" onClick={scanAndCleanOrphanZones} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, cursor: 'pointer' }}>Scanner orphelines</button>
-                    <button type="button" style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, cursor: 'pointer' }} onClick={async () => {
+              {/* Section 3: Gestion des images */}
+              <div style={{ marginBottom: 24 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#475569', marginBottom: 12, borderBottom: '1px solid #e2e8f0', paddingBottom: 8 }}>🖼️ Gestion des images</h3>
+                <p style={{ fontSize: 12, color: '#94a3b8', marginBottom: 10 }}>Vérifiez, synchronisez et uploadez des images. Le bouton « Sync dossier » détecte les images non répertoriées dans le JSON.</p>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button type="button" onClick={handleVerifyAllImages} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#334155' }}>✅ Vérifier toutes les images</button>
+                  <button type="button" onClick={scanAndCleanOrphanZones} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#334155' }}>🔍 Scanner zones orphelines</button>
+                  <button type="button" style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #0D6A7A', background: '#f0fdfa', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#0D6A7A' }} onClick={async () => {
+                    try {
+                      const response = await fetch('http://localhost:4000/list-images');
+                      const result = await response.json();
+                      if (!result.success) { alert(result.message || 'Erreur'); return; }
+                      const existing = new Set(data.images.map(img => img.url));
+                      const toAdd = result.images.filter(url => !existing.has(url));
+                      if (toAdd.length === 0) { alert('Aucune nouvelle image à importer. Toutes les images du dossier sont déjà répertoriées.'); return; }
+                      if (!window.confirm(`${toAdd.length} image(s) non répertoriée(s) trouvée(s) dans le dossier.\n\nVoulez-vous les importer dans le JSON ?`)) return;
+                      setData(d => { const nd = { ...d, images: [...d.images, ...toAdd.map(url => ({ id: 'i' + Date.now() + Math.random().toString(36).slice(2, 6), url }))] }; saveToBackend(nd); return nd; });
+                      alert(toAdd.length + ' image(s) importée(s) avec succès !');
+                    } catch (err) { alert('Erreur: ' + (err.message || err)); }
+                  }}>📂 Sync dossier → importer images non répertoriées</button>
+                  <div style={{ width: '100%', marginTop: 8 }}>
+                    <input type="file" accept="image/*" multiple id="multi-upload" style={{ display: 'none' }} onChange={async e => {
+                      const files = Array.from(e.target.files); if (files.length === 0) return;
+                      const formData = new FormData(); files.forEach(f => formData.append('images', f));
                       try {
-                        const response = await fetch('http://localhost:4000/list-images');
+                        const response = await fetch('http://localhost:4000/upload-images', { method: 'POST', body: formData });
                         const result = await response.json();
                         if (!result.success) { alert(result.message || 'Erreur'); return; }
-                        const existing = new Set(data.images.map(img => img.url));
-                        const toAdd = result.images.filter(url => !existing.has(url));
-                        if (toAdd.length === 0) { alert('Aucune nouvelle image.'); return; }
-                        setData(d => { const nd = { ...d, images: [...d.images, ...toAdd.map(url => ({ id: 'i' + Date.now() + Math.random().toString(36).slice(2, 6), url }))] }; saveToBackend(nd); return nd; });
-                        alert(toAdd.length + ' images ajoutées !');
+                        setData(d => { const nd = { ...d, images: [...d.images, ...result.files.map(f => ({ id: 'i' + Date.now() + Math.random().toString(36).slice(2, 6), url: f.path }))] }; saveToBackend(nd); return nd; });
+                        alert(result.files.length + ' image(s) uploadée(s) !');
+                        e.target.value = '';
                       } catch (err) { alert('Erreur: ' + (err.message || err)); }
-                    }}>Sync dossier</button>
-                    <div style={{ marginTop: 8, width: '100%' }}>
-                      <input type="file" accept="image/*" multiple id="multi-upload" style={{ display: 'none' }} onChange={async e => {
-                        const files = Array.from(e.target.files); if (files.length === 0) return;
-                        const formData = new FormData(); files.forEach(f => formData.append('images', f));
-                        try {
-                          const response = await fetch('http://localhost:4000/upload-images', { method: 'POST', body: formData });
-                          const result = await response.json();
-                          if (!result.success) { alert(result.message || 'Erreur'); return; }
-                          setData(d => { const nd = { ...d, images: [...d.images, ...result.files.map(f => ({ id: 'i' + Date.now() + Math.random().toString(36).slice(2, 6), url: f.path }))] }; saveToBackend(nd); return nd; });
-                          e.target.value = '';
-                        } catch (err) { alert('Erreur: ' + (err.message || err)); }
-                      }} />
-                      <button type="button" onClick={() => document.getElementById('multi-upload').click()} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 12, cursor: 'pointer' }}>📷 Upload images</button>
-                    </div>
+                    }} />
+                    <button type="button" onClick={() => document.getElementById('multi-upload').click()} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#334155' }}>📷 Uploader de nouvelles images</button>
                   </div>
-                </details>
-
-                {/* Tables brutes */}
-                <details style={{ background: '#fff', borderRadius: 12, padding: 20, border: '1px solid #e2e8f0' }}>
-                  <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 14, color: '#475569' }}>📋 Tables brutes (éléments individuels)</summary>
-                  <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-                    {/* Textes */}
-                    <details>
-                      <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13, color: '#64748b' }}>📝 Textes ({(data.textes||[]).length})</summary>
-                      <div style={{ overflowX: 'auto', marginTop: 8 }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                          <thead><tr>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569' }}>Texte</th>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569', width: 90 }}>Niveau</th>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569' }}>Catégories</th>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569', width: 80 }}>Actions</th>
-                          </tr></thead>
-                          <tbody>
-                            {data.textes.map(t => (
-                              <tr key={t.id} ref={el => itemRefs.current.textes.set(t.id, el)}>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 6px', maxWidth: 280 }}>
-                                  {editTexteId === t.id ? <input value={editTexteValue} onChange={e => setEditTexteValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleEditTexteSave(t.id); if (e.key === 'Escape') setEditTexteId(null); }} style={{ width: '100%', padding: '3px 6px', borderRadius: 4, border: '1px solid #cbd5e1', fontSize: 12 }} autoFocus /> : <span style={{ fontSize: 12 }}>{t.content}</span>}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 6px' }}>
-                                  <select value={t.levelClass || ''} onChange={e => handleUpdateTexteLevel(t.id, e.target.value)} style={{ width: '100%', padding: '2px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 11 }}><option value="">—</option>{CLASS_LEVELS.map(lv => <option key={lv} value={lv}>{lv}</option>)}</select>
-                                </td>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 6px' }}>
-                                  <input value={(t.themes || []).join(', ')} onChange={e => handleUpdateTexteThemes(t.id, e.target.value)} style={{ width: '100%', padding: '3px 6px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 11 }} />
-                                </td>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 6px', whiteSpace: 'nowrap' }}>
-                                  {editTexteId === t.id ? (<><button type="button" onClick={() => handleEditTexteSave(t.id)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #16a34a', background: '#f0fdf4', color: '#16a34a', fontSize: 11, cursor: 'pointer' }}>✓</button> <button type="button" onClick={() => setEditTexteId(null)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 11, cursor: 'pointer' }}>✕</button></>) : (<><button type="button" onClick={() => { setEditTexteId(t.id); setEditTexteValue(t.content); }} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 11, cursor: 'pointer' }}>✏️</button> <button type="button" onClick={() => handleDeleteTexte(t.id)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #fecaca', color: '#dc2626', fontSize: 11, cursor: 'pointer' }}>🗑️</button></>)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
-                        <input value={newTexte} onChange={e => setNewTexte(e.target.value)} placeholder="Nouveau texte" style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} />
-                        <button type="button" onClick={addTexte} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#0D6A7A', color: '#fff', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>+</button>
-                      </div>
-                    </details>
-
-                    {/* Images */}
-                    <details>
-                      <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13, color: '#64748b' }}>🖼️ Images ({(data.images||[]).length})</summary>
-                      <div style={{ overflowX: 'auto', marginTop: 8 }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                          <thead><tr>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569', width: 50 }}>Img</th>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569' }}>Chemin</th>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569', width: 90 }}>Niveau</th>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569' }}>Catégories</th>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569', width: 80 }}>Actions</th>
-                          </tr></thead>
-                          <tbody>
-                            {data.images.map(i => (
-                              <tr key={i.id} ref={el => itemRefs.current.images.set(i.id, el)}>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '3px 6px' }}><img src={process.env.PUBLIC_URL + '/' + i.url} alt={i.url} style={{ width: 36, height: 36, borderRadius: 4, border: '1px solid #e2e8f0', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }} /></td>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 6px' }}>
-                                  {editImageId === i.id ? <input value={editImageValue} onChange={e => setEditImageValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleEditImageSave(i.id); } if (e.key === 'Escape') { e.preventDefault(); setEditImageId(null); } }} style={{ width: '100%', padding: '3px 6px', borderRadius: 4, border: '1px solid #cbd5e1', fontSize: 11 }} autoFocus /> : <span style={{ fontSize: 11 }}>{i.url}</span>}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 6px' }}>
-                                  <select value={i.levelClass || ''} onChange={e => handleUpdateImageLevel(i.id, e.target.value)} style={{ width: '100%', padding: '2px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 11 }}><option value="">—</option>{CLASS_LEVELS.map(lv => <option key={lv} value={lv}>{lv}</option>)}</select>
-                                </td>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 6px' }}>
-                                  <input value={(i.themes || []).join(', ')} onChange={e => handleUpdateImageThemes(i.id, e.target.value)} style={{ width: '100%', padding: '3px 6px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 11 }} />
-                                </td>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 6px', whiteSpace: 'nowrap' }}>
-                                  {editImageId === i.id ? (<><button type="button" onClick={() => handleEditImageSave(i.id)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #16a34a', background: '#f0fdf4', color: '#16a34a', fontSize: 11, cursor: 'pointer' }}>✓</button> <button type="button" onClick={() => setEditImageId(null)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 11, cursor: 'pointer' }}>✕</button></>) : (<><button type="button" onClick={() => { setEditImageId(i.id); setEditImageValue(i.url); }} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 11, cursor: 'pointer' }}>✏️</button> <button type="button" onClick={() => handleDeleteImage(i.id)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #fecaca', color: '#dc2626', fontSize: 11, cursor: 'pointer' }}>🗑️</button></>)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
-                        <input value={newImage} onChange={e => setNewImage(e.target.value)} placeholder="URL image" style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} />
-                        <button type="button" onClick={addImage} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#0D6A7A', color: '#fff', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>+</button>
-                      </div>
-                    </details>
-
-                    {/* Calculs */}
-                    <details>
-                      <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13, color: '#64748b' }}>🔢 Calculs ({(data.calculs||[]).length})</summary>
-                      <div style={{ overflowX: 'auto', marginTop: 8 }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                          <thead><tr>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569' }}>Calcul</th>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569', width: 90 }}>Niveau</th>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569' }}>Catégories</th>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569', width: 80 }}>Actions</th>
-                          </tr></thead>
-                          <tbody>
-                            {data.calculs.map(c => (
-                              <tr key={c.id} ref={el => itemRefs.current.calculs.set(c.id, el)}>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 6px' }}>
-                                  {editCalculId === c.id ? <input value={editCalculValue} onChange={e => setEditCalculValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleEditCalculSave(c.id); } if (e.key === 'Escape') { e.preventDefault(); setEditCalculId(null); } }} style={{ width: '100%', padding: '3px 6px', borderRadius: 4, border: '1px solid #cbd5e1', fontSize: 12 }} autoFocus /> : <span style={{ fontSize: 12 }}>{c.content}</span>}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 6px' }}>
-                                  <select value={c.levelClass || ''} onChange={e => handleUpdateCalculLevel(c.id, e.target.value)} style={{ width: '100%', padding: '2px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 11 }}><option value="">—</option>{CLASS_LEVELS.map(lv => <option key={lv} value={lv}>{lv}</option>)}</select>
-                                </td>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 6px' }}>
-                                  <input value={(c.themes || []).join(', ')} onChange={e => handleUpdateCalculThemes(c.id, e.target.value)} style={{ width: '100%', padding: '3px 6px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 11 }} />
-                                </td>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 6px', whiteSpace: 'nowrap' }}>
-                                  {editCalculId === c.id ? (<><button type="button" onClick={() => handleEditCalculSave(c.id)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #16a34a', background: '#f0fdf4', color: '#16a34a', fontSize: 11, cursor: 'pointer' }}>✓</button> <button type="button" onClick={() => setEditCalculId(null)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 11, cursor: 'pointer' }}>✕</button></>) : (<><button type="button" onClick={() => { setEditCalculId(c.id); setEditCalculValue(c.content); }} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 11, cursor: 'pointer' }}>✏️</button> <button type="button" onClick={() => handleDeleteCalcul(c.id)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #fecaca', color: '#dc2626', fontSize: 11, cursor: 'pointer' }}>🗑️</button></>)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
-                        <input value={newCalcul} onChange={e => setNewCalcul(e.target.value)} placeholder="Nouveau calcul" style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} />
-                        <button type="button" onClick={addCalcul} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#0D6A7A', color: '#fff', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>+</button>
-                      </div>
-                      <button type="button" onClick={seedMultiplications} style={{ marginTop: 6, padding: '5px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 11, cursor: 'pointer' }}>Pré-remplir 30 multiplications</button>
-                    </details>
-
-                    {/* Chiffres */}
-                    <details>
-                      <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13, color: '#64748b' }}>🔢 Chiffres ({(data.chiffres||[]).length})</summary>
-                      <div style={{ overflowX: 'auto', marginTop: 8 }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                          <thead><tr>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569' }}>Chiffre</th>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569', width: 90 }}>Niveau</th>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569' }}>Catégories</th>
-                            <th style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0', padding: '6px', fontSize: 11, color: '#475569', width: 80 }}>Actions</th>
-                          </tr></thead>
-                          <tbody>
-                            {data.chiffres.map(n => (
-                              <tr key={n.id} ref={el => itemRefs.current.chiffres.set(n.id, el)}>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 6px' }}>
-                                  {editChiffreId === n.id ? <input value={editChiffreValue} onChange={e => setEditChiffreValue(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleEditChiffreSave(n.id); } if (e.key === 'Escape') { e.preventDefault(); setEditChiffreId(null); } }} style={{ width: '100%', padding: '3px 6px', borderRadius: 4, border: '1px solid #cbd5e1', fontSize: 12 }} autoFocus /> : <span style={{ fontSize: 12 }}>{n.content}</span>}
-                                </td>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 6px' }}>
-                                  <select value={n.levelClass || ''} onChange={e => handleUpdateChiffreLevel(n.id, e.target.value)} style={{ width: '100%', padding: '2px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 11 }}><option value="">—</option>{CLASS_LEVELS.map(lv => <option key={lv} value={lv}>{lv}</option>)}</select>
-                                </td>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 6px' }}>
-                                  <input value={(n.themes || []).join(', ')} onChange={e => handleUpdateChiffreThemes(n.id, e.target.value)} style={{ width: '100%', padding: '3px 6px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 11 }} />
-                                </td>
-                                <td style={{ borderBottom: '1px solid #f1f5f9', padding: '4px 6px', whiteSpace: 'nowrap' }}>
-                                  {editChiffreId === n.id ? (<><button type="button" onClick={() => handleEditChiffreSave(n.id)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #16a34a', background: '#f0fdf4', color: '#16a34a', fontSize: 11, cursor: 'pointer' }}>✓</button> <button type="button" onClick={() => setEditChiffreId(null)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 11, cursor: 'pointer' }}>✕</button></>) : (<><button type="button" onClick={() => { setEditChiffreId(n.id); setEditChiffreValue(n.content); }} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #e2e8f0', fontSize: 11, cursor: 'pointer' }}>✏️</button> <button type="button" onClick={() => handleDeleteChiffre(n.id)} style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid #fecaca', color: '#dc2626', fontSize: 11, cursor: 'pointer' }}>🗑️</button></>)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
-                        <input value={newChiffre} onChange={e => setNewChiffre(e.target.value)} placeholder="Nouveau chiffre" style={{ flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} />
-                        <button type="button" onClick={addChiffre} style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#0D6A7A', color: '#fff', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>+</button>
-                      </div>
-                    </details>
-
-                    {/* Associations manuelles */}
-                    <details>
-                      <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: 13, color: '#64748b' }}>🔗 Associations manuelles</summary>
-                      <div style={{ marginTop: 8 }}>
-                        <h4 style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Texte ↔ Image</h4>
-                        <div style={{ display: 'flex', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
-                          <input placeholder="Rechercher texte" value={texteFilter} onChange={e => setTexteFilter(e.target.value)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} />
-                          <input placeholder="Rechercher image" value={imageFilter} onChange={e => setImageFilter(e.target.value)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} />
-                        </div>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                          <select value={selectedTexte} onChange={e => setSelectedTexte(e.target.value)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}><option value="">-- Texte --</option>{textesFiltered.map(t => <option value={t.id} key={t.id}>{t.content}</option>)}</select>
-                          <select value={selectedImage} onChange={e => setSelectedImage(e.target.value)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}><option value="">-- Image --</option>{imagesFiltered.map(i => <option value={i.id} key={i.id}>{i.url}</option>)}</select>
-                          <button onClick={associerTexteImage} disabled={!selectedTexte || !selectedImage} style={{ padding: '4px 12px', borderRadius: 6, border: 'none', background: (!selectedTexte || !selectedImage) ? '#94a3b8' : '#0D6A7A', color: '#fff', fontWeight: 600, fontSize: 12, cursor: (!selectedTexte || !selectedImage) ? 'not-allowed' : 'pointer' }}>Associer</button>
-                        </div>
-                        <hr style={{ margin: '12px 0', borderColor: '#f1f5f9' }} />
-                        <h4 style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 6 }}>Calcul ↔ Chiffre</h4>
-                        <div style={{ display: 'flex', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
-                          <input placeholder="Rechercher calcul" value={calculFilter} onChange={e => setCalculFilter(e.target.value)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} />
-                          <input placeholder="Rechercher chiffre" value={chiffreFilter} onChange={e => setChiffreFilter(e.target.value)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} />
-                        </div>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                          <select value={selectedCalcul} onChange={e => setSelectedCalcul(e.target.value)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}><option value="">-- Calcul --</option>{calculsFiltered.map(c => <option value={c.id} key={c.id}>{c.content}</option>)}</select>
-                          <select value={selectedChiffre} onChange={e => setSelectedChiffre(e.target.value)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }}><option value="">-- Chiffre --</option>{chiffresFiltered.map(n => <option value={n.id} key={n.id}>{n.content}</option>)}</select>
-                          <button onClick={associerCalculChiffre} disabled={!selectedCalcul || !selectedChiffre} style={{ padding: '4px 12px', borderRadius: 6, border: 'none', background: (!selectedCalcul || !selectedChiffre) ? '#94a3b8' : '#0D6A7A', color: '#fff', fontWeight: 600, fontSize: 12, cursor: (!selectedCalcul || !selectedChiffre) ? 'not-allowed' : 'pointer' }}>Associer</button>
-                        </div>
-                      </div>
-                    </details>
-                  </div>
-                </details>
+                </div>
               </div>
-            </details>
-          </div>
+
+              {/* Section 4: Pré-remplissage */}
+              <div>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#475569', marginBottom: 12, borderBottom: '1px solid #e2e8f0', paddingBottom: 8 }}>🎲 Pré-remplissage</h3>
+                <button type="button" onClick={seedMultiplications} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#334155' }}>➕ Ajouter 30 multiplications (tables 2→7)</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
