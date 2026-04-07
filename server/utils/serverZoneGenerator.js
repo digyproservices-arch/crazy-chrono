@@ -392,6 +392,29 @@ function generateRoundZones(seed, config = {}) {
       });
     }
     
+    // ===== CLEANUP: Retirer les éléments orphelins (sans association survivante) =====
+    // Les orphelins ne peuvent jamais former de paire et polluent le pool de distracteurs
+    {
+      const _assocImgIds = new Set(associations.filter(a => a.imageId).map(a => a.imageId));
+      const _assocTxtIds = new Set(associations.filter(a => a.texteId).map(a => a.texteId));
+      const _assocCalcIds = new Set(associations.filter(a => a.calculId).map(a => a.calculId));
+      const _assocNumIds = new Set(associations.filter(a => a.chiffreId).map(a => a.chiffreId));
+      const _imgB = images.length, _txtB = textes.length, _calcB = calculs.length, _numB = chiffres.length;
+      images = images.filter(i => _assocImgIds.has(i.id));
+      textes = textes.filter(t => _assocTxtIds.has(t.id));
+      calculs = calculs.filter(c => _assocCalcIds.has(c.id));
+      chiffres = chiffres.filter(n => _assocNumIds.has(n.id));
+      const _removed = (_imgB - images.length) + (_txtB - textes.length) + (_calcB - calculs.length) + (_numB - chiffres.length);
+      if (_removed > 0) {
+        console.log('[ServerZoneGen] Removed orphan elements:', {
+          images: _imgB - images.length,
+          textes: _txtB - textes.length,
+          calculs: _calcB - calculs.length,
+          chiffres: _numB - chiffres.length
+        });
+      }
+    }
+    
     // ===== Filtrage des paires déjà validées =====
     if (excludedPairIds.size > 0) {
       const buildPairId = (a) => {
