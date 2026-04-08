@@ -61,6 +61,21 @@ function playWrongSound() {
   } catch {}
 }
 
+// Helper: charge les associations depuis localStorage (éditions Admin) ou fichier statique
+async function loadAssociationsData() {
+  try {
+    const cached = localStorage.getItem('cc_data_cache');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && Array.isArray(parsed.associations) && parsed.associations.length > 0) {
+        return parsed;
+      }
+    }
+  } catch {}
+  const resp = await fetch((process.env.PUBLIC_URL || '') + '/data/associations.json');
+  return await resp.json();
+}
+
 const norm = (v) => (v == null ? '' : String(v).trim().toLowerCase());
 const normType = (t) => {
   const x = norm(t);
@@ -961,9 +976,8 @@ const Carte = () => {
   // Fonction d'analyse des images utilisées
   const analyzeImageUsage = async () => {
     try {
-      // Charger associations.json
-      const resp = await fetch(process.env.PUBLIC_URL + '/data/associations.json');
-      const assocData = await resp.json();
+      // Charger associations (localStorage Admin ou fichier statique)
+      const assocData = await loadAssociationsData();
       
       // Extraire les images botaniques
       const botanicalImages = (assocData.images || []).filter(img => {

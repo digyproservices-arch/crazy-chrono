@@ -78,6 +78,21 @@ const CATEGORY_META = {
 
 const DOMAIN_KEYS = Object.keys(DOMAIN_META);
 
+function enrichAssocThemes(themes) {
+  const t = [...(themes || [])];
+  const hasBotanique = t.includes('botanique');
+  const hasAnimaux = t.includes('animaux');
+  if (hasBotanique && !t.includes('domain:botany')) t.push('domain:botany');
+  if (hasAnimaux && !t.includes('domain:zoology')) t.push('domain:zoology');
+  if (t.includes('domain:botany') && !t.some(x => x.startsWith('region:'))) {
+    t.push('region:guadeloupe', 'region:martinique');
+  }
+  if (t.includes('domain:botany') && !t.some(x => x.startsWith('category:'))) {
+    t.push('category:plante_medicinale');
+  }
+  return t;
+}
+
 function getDomain(themes) {
   for (const th of (themes || [])) {
     if (th.startsWith('domain:')) {
@@ -112,6 +127,8 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
   const [viewMode, setViewMode] = useState('cards');
   const [showOrphans, setShowOrphans] = useState(false);
   const [orphanSearch, setOrphanSearch] = useState('');
+  const [editingOrphanId, setEditingOrphanId] = useState(null);
+  const [editingOrphanName, setEditingOrphanName] = useState('');
 
   // Charger le référentiel botanique pour les noms locaux
   const botRefRef = useRef(null);
@@ -742,14 +759,14 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
                     const associations = [...(prev.associations || [])];
                     for (const img of orphanImages) {
                       const fn = (img.url || '').replace(/^images\//, '').replace(/\.[^.]+$/, '').replace(/-/g, ' ');
-                      const textContent = fn.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                      const textContent = img.content || fn.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
                       const tId = 't' + Date.now() + Math.random().toString(36).slice(2, 6);
                       const newTexte = { id: tId, content: textContent };
                       if (img.themes?.length) newTexte.themes = [...img.themes];
                       if (img.levelClass) newTexte.levelClass = img.levelClass;
                       textes.push(newTexte);
                       const newAssoc = { texteId: tId, imageId: img.id };
-                      if (img.themes?.length) newAssoc.themes = [...img.themes];
+                      newAssoc.themes = enrichAssocThemes(img.themes);
                       if (img.levelClass) newAssoc.levelClass = img.levelClass;
                       associations.push(newAssoc);
                     }
@@ -764,16 +781,71 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12 }}>
                 {filteredOrphans.map(img => {
                   const fileName = (img.url || '').replace(/^images\//, '').replace(/\.[^.]+$/, '').replace(/-/g, ' ');
-                  const displayName = fileName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                  const fallbackName = fileName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                  const displayName = img.content || fallbackName;
+                  const isEditing = editingOrphanId === img.id;
                   const hasThemes = img.themes && img.themes.length > 0;
                   const hasLevel = !!img.levelClass;
                   return (
                     <div key={img.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid ' + (hasThemes ? '#bbf7d0' : '#fde68a'), overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-                      <div style={{ height: 100, background: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                      <div style={{ height: 100, background: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
                         <img src={process.env.PUBLIC_URL + '/' + img.url} alt={displayName} style={{ maxWidth: '100%', maxHeight: 100, objectFit: 'contain' }} onError={e => { e.target.style.display = 'none'; }} />
+                        <button onClick={() => {
+                          if (!window.confirm(`Supprimer l'image orpheline « ${displayName} » ?\n\nCette action est irréversible.`)) return;
+                          setData(prev => {
+                            const images = (prev.images || []).filter(im => im.id !== img.id);
+                            const nd = { ...prev, images };
+                            if (saveToBackend) saveToBackend(nd);
+                            return nd;
+                          });
+                        }} title="Supprimer cette image" style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'rgba(220,38,38,0.85)', color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                          🗑
+                        </button>
                       </div>
                       <div style={{ padding: '6px 8px' }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={displayName}>{displayName}</div>
+                        {isEditing ? (
+                          <div style={{ display: 'flex', gap: 3, marginBottom: 4 }}>
+                            <input
+                              autoFocus
+                              value={editingOrphanName}
+                              onChange={e => setEditingOrphanName(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  const newName = editingOrphanName.trim();
+                                  if (newName) {
+                                    setData(prev => {
+                                      const images = (prev.images || []).map(im => im.id === img.id ? { ...im, content: newName } : im);
+                                      const nd = { ...prev, images };
+                                      if (saveToBackend) saveToBackend(nd);
+                                      return nd;
+                                    });
+                                  }
+                                  setEditingOrphanId(null);
+                                } else if (e.key === 'Escape') {
+                                  setEditingOrphanId(null);
+                                }
+                              }}
+                              style={{ flex: 1, padding: '2px 6px', borderRadius: 6, border: '1px solid #3b82f6', fontSize: 12, fontWeight: 700, minWidth: 0 }}
+                            />
+                            <button onClick={() => {
+                              const newName = editingOrphanName.trim();
+                              if (newName) {
+                                setData(prev => {
+                                  const images = (prev.images || []).map(im => im.id === img.id ? { ...im, content: newName } : im);
+                                  const nd = { ...prev, images };
+                                  if (saveToBackend) saveToBackend(nd);
+                                  return nd;
+                                });
+                              }
+                              setEditingOrphanId(null);
+                            }} style={{ border: 'none', background: '#16a34a', color: '#fff', borderRadius: 6, fontSize: 11, cursor: 'pointer', padding: '2px 6px', fontWeight: 700 }}>✓</button>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginBottom: 4 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={displayName}>{displayName}</div>
+                            <button onClick={() => { setEditingOrphanId(img.id); setEditingOrphanName(displayName); }} title="Renommer" style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, padding: 0, lineHeight: 1 }}>✏️</button>
+                          </div>
+                        )}
                         <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginBottom: 4 }}>
                           <select value={(img.themes || []).find(t => t.startsWith('domain:'))?.slice(7) || ''}
                             onChange={e => {
@@ -819,7 +891,7 @@ export default function RectoratLibrary({ data, setData, saveToBackend }) {
                             if (img.themes?.length) newTexte.themes = [...img.themes];
                             if (img.levelClass) newTexte.levelClass = img.levelClass;
                             const newAssoc = { texteId: tId, imageId: img.id };
-                            if (img.themes?.length) newAssoc.themes = [...img.themes];
+                            newAssoc.themes = enrichAssocThemes(img.themes);
                             if (img.levelClass) newAssoc.levelClass = img.levelClass;
                             const nd = {
                               ...prev,
