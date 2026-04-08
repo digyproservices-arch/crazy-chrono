@@ -8,6 +8,14 @@ const path = require('path');
 const _cache = { zones: null, associations: null, mathPositions: null, loadedAt: 0 };
 const CACHE_TTL = 60000; // 60s — reload if files change
 
+function invalidateCache() {
+  _cache.zones = null;
+  _cache.associations = null;
+  _cache.mathPositions = null;
+  _cache.loadedAt = 0;
+  console.log('[ServerZoneGen] Cache invalidé manuellement');
+}
+
 function _loadCached() {
   const now = Date.now();
   if (_cache.zones && _cache.associations && (now - _cache.loadedAt) < CACHE_TTL) {
@@ -1106,4 +1114,4 @@ function generateRoundZones(seed, config = {}) {
   }
 }
 
-module.exports = { generateRoundZones, createDeckState, evaluateCalcul };
+module.exports = { generateRoundZones, createDeckState, evaluateCalcul, invalidateCache };

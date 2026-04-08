@@ -571,14 +571,31 @@ app.use(listImagesRouter);
 // Endpoint pour sauvegarder le JSON associations
 app.post('/save-associations', requireAdminAuth, (req, res) => {
   const data = req.body;
-  const filePath = path.join(__dirname, '../public/data/associations.json');
-  fs.writeFile(filePath, JSON.stringify(data, null, 2), err => {
-    if (err) {
+  const jsonStr = JSON.stringify(data, null, 2);
+  const publicPath = path.join(__dirname, '../public/data/associations.json');
+  const serverPath = path.join(__dirname, 'data', 'associations.json');
+  // Écrire aux DEUX emplacements pour garder client et serveur synchronisés
+  const writePublic = fs.promises.writeFile(publicPath, jsonStr);
+  const writeServer = fs.promises.writeFile(serverPath, jsonStr);
+  Promise.all([writePublic, writeServer])
+    .then(() => {
+      // Invalider le cache du générateur de zones pour prise en compte immédiate
+      try {
+        const { invalidateCache } = require('./utils/serverZoneGenerator');
+        if (typeof invalidateCache === 'function') invalidateCache();
+      } catch (e) { console.warn('[save-associations] Cache invalidation skipped:', e.message); }
+      // Invalider aussi le cache de validation
+      try {
+        const { validateZonesServer } = require('./utils/validateZonesServer');
+        if (validateZonesServer._assocCache) validateZonesServer._assocCache = null;
+      } catch (e) { /* ignore */ }
+      console.log('[save-associations] Écrit aux 2 emplacements + cache invalidé');
+      res.json({ success: true });
+    })
+    .catch(err => {
       console.error('Erreur lors de la sauvegarde:', err);
-      return res.status(500).json({ success: false, message: 'Erreur lors de la sauvegarde.' });
-    }
-    res.json({ success: true });
-  });
+      res.status(500).json({ success: false, message: 'Erreur lors de la sauvegarde.' });
+    });
 });
 
 // Récupérer les positions/angles des éléments math enregistrés
