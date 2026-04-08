@@ -4,6 +4,7 @@ import { DataContext } from "../context/DataContext";
 import RectoratUpload from "./Rectorat/RectoratUpload";
 import RectoratLibrary from "./Rectorat/RectoratLibrary";
 import { getBackendUrl } from "../utils/apiHelpers";
+import supabase from "../utils/supabaseClient";
 
 function AdminPanel() {
   const { data, setData, importJson, downloadJson } = useContext(DataContext);
@@ -426,14 +427,27 @@ function AdminPanel() {
   // Fonction pour sauvegarder côté backend
   const saveToBackend = async (dataToSave) => {
     try {
+      // Récupérer le token admin Supabase
+      let token = null;
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        token = sess?.session?.access_token;
+      } catch {}
+      if (!token) {
+        try {
+          const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+          token = auth.token || null;
+        } catch {}
+      }
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const res = await fetch(`${getBackendUrl()}/save-associations`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(dataToSave)
       });
-      // Même si le backend renvoie une erreur, ne pas casser l'UI
       if (!res.ok) console.warn('save-associations HTTP', res.status);
-      return true;
+      return res.ok;
     } catch (e) {
       console.warn('save-associations failed (backend offline?)', e);
       return false;
