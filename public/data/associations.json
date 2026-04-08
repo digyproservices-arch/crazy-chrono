@@ -760,6 +760,15 @@
         "animaux"
       ],
       "levelClass": "CM2"
+    },
+    {
+      "id": "ta42",
+      "content": "Zandoli",
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
+      "levelClass": "CP"
     }
   ],
   "images": [
@@ -1060,10 +1069,6 @@
       "levelClass": "CM1"
     },
     {
-      "id": "i1754579810850qeb6",
-      "url": "images/2024-08-16-13-05-08-(23).jpeg"
-    },
-    {
       "id": "i1754579810850ojzt",
       "url": "images/atoumo.jpeg",
       "themes": [
@@ -1120,10 +1125,6 @@
       "levelClass": "6e"
     },
     {
-      "id": "i1754579810850h6md",
-      "url": "images/2024-08-16-13-05-08-(9).jpeg"
-    },
-    {
       "id": "i1754579810850ikhk",
       "url": "images/consoude.jpeg",
       "themes": [
@@ -1133,7 +1134,13 @@
     },
     {
       "id": "i1754579810850nqok",
-      "url": "images/zandoli.jpeg"
+      "url": "images/zandoli.jpeg",
+      "content": "Zandoli",
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
+      "levelClass": "CP"
     },
     {
       "id": "i1754579810850p3uq",
@@ -17250,7 +17257,16 @@
         "domain:math",
         "category:multiplication_avancee"
       ]
+    },
+    {
+      "texteId": "ta42",
+      "imageId": "i1754579810850nqok",
+      "themes": [
+        "domain:zoology",
+        "animaux"
+      ],
+      "levelClass": "CP"
     }
   ],
-  "_dataVersion": 6
+  "_dataVersion": 7
 }
