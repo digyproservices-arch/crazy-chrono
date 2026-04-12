@@ -1248,4 +1248,106 @@ router.get('/match-events', requireAdminAuth, (req, res) => {
   }
 });
 
+// ── Supabase helper (persistent logs) ─────────────────────
+function _getSupabase() {
+  try {
+    const { createClient } = require('@supabase/supabase-js');
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) return null;
+    return createClient(url, key, { auth: { persistSession: false } });
+  } catch { return null; }
+}
+
+// ── GET /api/monitoring/supabase-rounds ───────────────────
+// Récupère les manches depuis Supabase (persistant, survit aux redéploiements)
+router.get('/supabase-rounds', requireAdminAuth, async (req, res) => {
+  try {
+    const supabase = _getSupabase();
+    if (!supabase) return res.json({ ok: true, rounds: [], message: 'Supabase not configured' });
+
+    const hours = parseInt(req.query.hours) || 48;
+    const startDate = new Date();
+    startDate.setHours(startDate.getHours() - hours);
+
+    const { data: logs, error } = await supabase
+      .from('backend_logs')
+      .select('timestamp, message, meta')
+      .like('message', '%[ArenaRoundLog]%')
+      .gte('timestamp', startDate.toISOString())
+      .order('timestamp', { ascending: false })
+      .limit(200);
+
+    if (error) return res.status(500).json({ ok: false, error: error.message });
+
+    const rounds = (logs || []).map(log => {
+      const m = log.meta || {};
+      return {
+        id: m.roundId || `supa_${log.timestamp}`,
+        timestamp: log.timestamp,
+        mode: m.mode,
+        source: m.source || 'supabase',
+        matchId: m.matchId,
+        roundIndex: m.roundIndex,
+        totalZones: m.totalZones,
+        pairZones: m.pairZones,
+        validPairs: m.validPairs,
+        doublePairIssues: m.doublePairIssues || 0,
+        issues: m.issues || [],
+        pairDetails: m.pairDetails,
+        zonesSnapshot: m.zonesSnapshot,
+        summary: { totalZones: m.totalZones, pairedCount: m.pairZones },
+        _fromSupabase: true
+      };
+    }).filter(r => r.id);
+
+    res.json({ ok: true, rounds, total: rounds.length });
+  } catch (error) {
+    logger.error('[Monitoring] Supabase rounds error:', error.message);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// ── GET /api/monitoring/supabase-incidents ─────────────────
+// Récupère les anomalies de zones depuis Supabase (persistant)
+router.get('/supabase-incidents', requireAdminAuth, async (req, res) => {
+  try {
+    const supabase = _getSupabase();
+    if (!supabase) return res.json({ ok: true, incidents: [], message: 'Supabase not configured' });
+
+    const hours = parseInt(req.query.hours) || 48;
+    const startDate = new Date();
+    startDate.setHours(startDate.getHours() - hours);
+
+    const { data: logs, error } = await supabase
+      .from('backend_logs')
+      .select('timestamp, level, message, meta')
+      .like('message', '%[ZoneValidation][INCIDENT]%')
+      .gte('timestamp', startDate.toISOString())
+      .order('timestamp', { ascending: false })
+      .limit(200);
+
+    if (error) return res.status(500).json({ ok: false, error: error.message });
+
+    const incidents = (logs || []).map(log => {
+      const m = log.meta || {};
+      return {
+        id: `supa_inc_${Date.parse(log.timestamp)}_${(m.incidentType || '').replace(/[^a-z]/gi, '')}`,
+        type: m.incidentType || m.anomalyDetails?.type || 'unknown',
+        severity: m.severity || (log.level === 'error' ? 'critical' : 'warning'),
+        timestamp: log.timestamp,
+        receivedAt: log.timestamp,
+        details: m.anomalyDetails || {},
+        sessionInfo: { source: m.source, matchId: m.matchId, roundIndex: m.roundIndex },
+        _fromSupabase: true
+      };
+    });
+
+    res.json({ ok: true, incidents, total: incidents.length });
+  } catch (error) {
+    logger.error('[Monitoring] Supabase incidents error:', error.message);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 module.exports = router;

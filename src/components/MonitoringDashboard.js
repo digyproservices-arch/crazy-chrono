@@ -116,14 +116,29 @@ function MonitoringDashboard() {
       } catch (err) {
         console.warn('[Monitoring] Backend incidents fetch failed:', err.message);
       }
-      // 2) Toujours charger localStorage (incidents générés hors auth, mode solo/objectif)
+      // 2b) Incidents persistants depuis Supabase
+      let supabaseIncidents = [];
+      try {
+        const token = getAuthToken();
+        const backendUrl = getBackendUrl();
+        const res = await fetch(`${backendUrl}/api/monitoring/supabase-incidents?hours=48`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok) supabaseIncidents = data.incidents || [];
+        }
+      } catch (err) {
+        console.warn('[Monitoring] Supabase incidents fetch failed:', err.message);
+      }
+      // 3) Toujours charger localStorage (incidents générés hors auth, mode solo/objectif)
       let localIncidents = [];
       try {
         localIncidents = JSON.parse(localStorage.getItem('cc_game_incidents') || '[]');
       } catch {}
-      // 3) Fusionner et dédupliquer par id, trier par date décroissante
+      // 4) Fusionner et dédupliquer par id, trier par date décroissante
       const byId = new Map();
-      for (const inc of [...backendIncidents, ...localIncidents]) {
+      for (const inc of [...backendIncidents, ...supabaseIncidents, ...localIncidents]) {
         const key = inc.id || `${inc.type}_${inc.timestamp}`;
         if (!byId.has(key)) byId.set(key, inc);
       }
@@ -172,9 +187,23 @@ function MonitoringDashboard() {
         }
       } catch (e) { console.warn('[Monitoring] Client rounds fetch failed:', e.message); }
       
-      // 3) Fusionner, dédupliquer par id, trier (plus récent en premier)
+      // 3) Logs persistants depuis Supabase (survivent aux redéploiements Render)
+      let supabaseRounds = [];
+      try {
+        const token = getAuthToken();
+        const backendUrl = getBackendUrl();
+        const res = await fetch(`${backendUrl}/api/monitoring/supabase-rounds?hours=48`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && Array.isArray(data.rounds)) supabaseRounds = data.rounds;
+        }
+      } catch (e) { console.warn('[Monitoring] Supabase rounds fetch failed:', e.message); }
+      
+      // 4) Fusionner, dédupliquer par id, trier (plus récent en premier)
       const byId = new Map();
-      for (const log of [...localLogs, ...serverLogs, ...clientServerLogs]) {
+      for (const log of [...localLogs, ...serverLogs, ...clientServerLogs, ...supabaseRounds]) {
         const key = log.id || `${log.timestamp}_${log.mode}`;
         if (!byId.has(key)) byId.set(key, log);
       }
