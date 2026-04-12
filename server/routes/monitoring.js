@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const path = require('path');
+const logger = require('../logger');
 const { requireAuth, requireAdminAuth } = require('../middleware/auth');
 const { recordImageUsage, analyzeImageUsage, sendEmailReport } = require('../imageMonitoring');
 
@@ -33,7 +34,7 @@ function saveClientClicks(clicks) {
     const trimmed = clicks.slice(-MAX_CLIENT_CLICKS);
     fs.writeFileSync(CLIENT_CLICKS_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
   } catch (e) {
-    console.error('[ClientClicks] Save failed:', e.message);
+    logger.error('[ClientClicks] Save failed:', e.message);
   }
 }
 
@@ -53,7 +54,7 @@ function saveClientRounds(rounds) {
     const trimmed = rounds.slice(-MAX_CLIENT_ROUNDS);
     fs.writeFileSync(CLIENT_ROUNDS_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
   } catch (e) {
-    console.error('[ClientRounds] Save failed:', e.message);
+    logger.error('[ClientRounds] Save failed:', e.message);
   }
 }
 
@@ -77,7 +78,7 @@ function saveArenaRounds(rounds) {
     const trimmed = rounds.slice(-MAX_ARENA_ROUNDS);
     fs.writeFileSync(ARENA_ROUNDS_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
   } catch (e) {
-    console.error('[ArenaRounds] Save failed:', e.message);
+    logger.error('[ArenaRounds] Save failed:', e.message);
   }
 }
 
@@ -100,7 +101,7 @@ function saveIncidents(incidents) {
     const trimmed = incidents.slice(-MAX_INCIDENTS);
     fs.writeFileSync(INCIDENTS_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
   } catch (e) {
-    console.error('[Incidents] Save failed:', e.message);
+    logger.error('[Incidents] Save failed:', e.message);
   }
 }
 
@@ -121,7 +122,7 @@ router.post('/record-images', async (req, res) => {
     
     res.json({ ok: true });
   } catch (error) {
-    console.error('[Monitoring API] Erreur:', error);
+    logger.error('[Monitoring API] Erreur:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
@@ -140,7 +141,7 @@ router.get('/analyze', requireAdminAuth, async (req, res) => {
     
     res.json({ ok: true, analysis });
   } catch (error) {
-    console.error('[Monitoring API] Erreur analyse:', error);
+    logger.error('[Monitoring API] Erreur analyse:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
@@ -161,7 +162,7 @@ router.post('/send-report', requireAdminAuth, async (req, res) => {
     
     res.json({ ok: true, reportPath });
   } catch (error) {
-    console.error('[Monitoring API] Erreur envoi rapport:', error);
+    logger.error('[Monitoring API] Erreur envoi rapport:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
@@ -190,10 +191,10 @@ router.post('/incidents', async (req, res) => {
     incidents.push(incident);
     saveIncidents(incidents);
 
-    console.warn(`[Incidents] 🚨 ${incident.severity}: ${incident.type} - ${incident.details?.message || ''}`);
+    logger.warn(`[Incidents] 🚨 ${incident.severity}: ${incident.type} - ${incident.details?.message || ''}`);
     res.json({ ok: true });
   } catch (error) {
-    console.error('[Incidents] POST error:', error);
+    logger.error('[Incidents] POST error:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
@@ -236,7 +237,7 @@ router.get('/incidents', requireAdminAuth, async (req, res) => {
 
     res.json({ ok: true, incidents: incidents.reverse(), stats });
   } catch (error) {
-    console.error('[Incidents] GET error:', error);
+    logger.error('[Incidents] GET error:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
@@ -325,7 +326,7 @@ router.post('/client-rounds', (req, res) => {
     if (added > 0) saveClientRounds(existing);
     res.json({ ok: true, added, total: existing.length });
   } catch (error) {
-    console.error('[ClientRounds] POST error:', error.message);
+    logger.error('[ClientRounds] POST error:', error.message);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
@@ -380,10 +381,10 @@ router.post('/client-clicks', (req, res) => {
       }
     }
     if (added > 0) saveClientClicks(existing);
-    if (added > 0) console.warn(`[ClientClicks] +${added} click events reçus (total: ${existing.length})`);
+    if (added > 0) logger.info(`[ClientClicks] +${added} click events reçus (total: ${existing.length})`);
     res.json({ ok: true, added, total: existing.length });
   } catch (error) {
-    console.error('[ClientClicks] POST error:', error.message);
+    logger.error('[ClientClicks] POST error:', error.message);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
@@ -426,7 +427,6 @@ router.post('/client-diag', (req, res) => {
   try {
     const { events } = req.body;
     if (!Array.isArray(events)) return res.status(400).json({ ok: false, error: 'events must be array' });
-    const logger = require('../logger');
     const batch = events.slice(0, 50); // cap per request
     for (const evt of batch) {
       const label = evt.label || 'diag';
@@ -435,7 +435,7 @@ router.post('/client-diag', (req, res) => {
     }
     res.json({ ok: true, count: batch.length });
   } catch (error) {
-    console.error('[ClientDiag] POST error:', error.message);
+    logger.error('[ClientDiag] POST error:', error.message);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
@@ -511,10 +511,10 @@ router.post('/game-screenshots', async (req, res) => {
     }
 
     saveGameSSIndex(index);
-    console.log(`[GameSS] Screenshot saved: ${filename} (${(buffer.length / 1024).toFixed(1)}KB) mode=${mode} round=${roundId}`);
+    logger.info(`[GameSS] Screenshot saved: ${filename} (${(buffer.length / 1024).toFixed(1)}KB) mode=${mode} round=${roundId}`);
     res.json({ ok: true, filename });
   } catch (error) {
-    console.error('[GameSS] Save error:', error);
+    logger.error('[GameSS] Save error:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
@@ -622,10 +622,10 @@ router.post('/e2e-screenshot', async (req, res) => {
     }
 
     fs.writeFileSync(indexFile, JSON.stringify(index, null, 2), 'utf8');
-    console.log(`[E2E] Screenshot saved: ${filename} (${(buffer.length / 1024).toFixed(1)}KB)`);
+    logger.info(`[E2E] Screenshot saved: ${filename} (${(buffer.length / 1024).toFixed(1)}KB)`);
     res.json({ ok: true, filename });
   } catch (error) {
-    console.error('[E2E] Screenshot save error:', error);
+    logger.error('[E2E] Screenshot save error:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
@@ -680,7 +680,7 @@ function saveE2eResults(results) {
     const trimmed = results.slice(-MAX_E2E_RESULTS);
     fs.writeFileSync(E2E_RESULTS_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
   } catch (e) {
-    console.error('[E2E Results] Save error:', e.message);
+    logger.error('[E2E Results] Save error:', e.message);
   }
 }
 
@@ -703,10 +703,10 @@ router.post('/e2e-results', async (req, res) => {
     saveE2eResults(results);
 
     const s = report.summary;
-    console.log(`[E2E Results] Rapport reçu: ${s.passed}✅ ${s.failed}❌ ${s.skipped}⏭️ (${s.source || 'unknown'})`);
+    logger.info(`[E2E Results] Rapport reçu: ${s.passed}✅ ${s.failed}❌ ${s.skipped}⏭️ (${s.source || 'unknown'})`);
     res.json({ ok: true, message: 'Rapport enregistré' });
   } catch (error) {
-    console.error('[E2E Results] POST error:', error);
+    logger.error('[E2E Results] POST error:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
@@ -770,15 +770,15 @@ router.post('/trigger-e2e', requireAdminAuth, async (req, res) => {
     );
 
     if (response.status === 204) {
-      console.log('[E2E] GitHub Actions workflow déclenché avec succès');
+      logger.info('[E2E] GitHub Actions workflow déclenché avec succès');
       res.json({ ok: true, message: 'Tests E2E lancés ! Les résultats apparaîtront dans quelques minutes.' });
     } else {
       const errorText = await response.text();
-      console.error('[E2E] GitHub trigger failed:', response.status, errorText);
+      logger.error('[E2E] GitHub trigger failed:', response.status, errorText);
       res.status(response.status).json({ ok: false, error: `GitHub API: ${response.status} — ${errorText}` });
     }
   } catch (error) {
-    console.error('[E2E] Trigger error:', error);
+    logger.error('[E2E] Trigger error:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
@@ -843,9 +843,9 @@ try {
         onlinePlayers.set(uid, info);
       }
     }
-    console.log(`[Presence] Chargé ${onlinePlayers.size} joueur(s) depuis fichier`);
+    logger.info(`[Presence] Chargé ${onlinePlayers.size} joueur(s) depuis fichier`);
   }
-} catch (e) { console.warn('[Presence] Erreur chargement fichier:', e.message); }
+} catch (e) { logger.warn('[Presence] Erreur chargement fichier:', e.message); }
 
 function savePresenceFile() {
   try {
@@ -875,7 +875,7 @@ router.post('/heartbeat', (req, res) => {
       lastSeen: Date.now(),
     });
     if (isNew) {
-      console.log(`[Presence] Nouveau joueur: ${pseudo || email || userId} (mode: ${mode || '?'})`);
+      logger.info(`[Presence] Nouveau joueur: ${pseudo || email || userId} (mode: ${mode || '?'})`);
     }
     savePresenceFile();
     res.json({ ok: true });
@@ -1028,7 +1028,7 @@ router.get('/usage-stats', requireAdminAuth, async (req, res) => {
       },
     });
   } catch (e) {
-    console.error('[UsageStats] Error:', e);
+    logger.error('[UsageStats] Error:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
@@ -1095,7 +1095,7 @@ router.get('/audit-parser', requireAdminAuth, (req, res) => {
       counts: { calculs: calculs.length, chiffres: chiffres.length, associations: calcAssocs.length }
     });
   } catch (e) {
-    console.error('[AuditParser] Error:', e);
+    logger.error('[AuditParser] Error:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
@@ -1205,7 +1205,45 @@ router.get('/arena-stats', requireAdminAuth, async (req, res) => {
       liveMatches,
     });
   } catch (error) {
-    console.error('[Monitoring] Arena stats error:', error);
+    logger.error('[Monitoring] Arena stats error:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// ── Match Lifecycle Events (centralized journal from crazyArenaManager) ──
+const MATCH_EVENTS_FILE = path.join(__dirname, '..', 'data', 'match_events.json');
+
+router.get('/match-events', requireAdminAuth, (req, res) => {
+  try {
+    if (!fs.existsSync(MATCH_EVENTS_FILE)) return res.json({ ok: true, events: [], count: 0 });
+    const events = JSON.parse(fs.readFileSync(MATCH_EVENTS_FILE, 'utf8'));
+
+    // Optional filters
+    const { mode, type, matchId, since, limit } = req.query;
+    let filtered = events;
+    if (mode) filtered = filtered.filter(e => e.mode === mode);
+    if (type) filtered = filtered.filter(e => e.type === type);
+    if (matchId) filtered = filtered.filter(e => (e.matchId || '').includes(matchId));
+    if (since) {
+      const sinceDate = new Date(since);
+      filtered = filtered.filter(e => new Date(e.timestamp) >= sinceDate);
+    }
+
+    // Most recent first
+    filtered = filtered.reverse();
+
+    const maxLimit = Math.min(parseInt(limit) || 200, 2000);
+    filtered = filtered.slice(0, maxLimit);
+
+    // Summary stats
+    const stats = {};
+    for (const e of events) {
+      stats[e.type] = (stats[e.type] || 0) + 1;
+    }
+
+    res.json({ ok: true, events: filtered, count: filtered.length, totalEvents: events.length, stats });
+  } catch (error) {
+    logger.error('[Monitoring] Match events error:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });

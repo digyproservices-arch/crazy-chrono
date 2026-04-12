@@ -30,6 +30,34 @@ function _logArenaRound(roundData) {
   }
 }
 
+// ── Match Events: journal centralisé de TOUS les événements de match ──
+const MATCH_EVENTS_FILE = path.join(__dirname, 'data', 'match_events.json');
+const MAX_MATCH_EVENTS = 2000;
+function _logMatchEvent(eventType, matchId, data = {}) {
+  const event = {
+    id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    type: eventType,
+    matchId: matchId || 'unknown',
+    timestamp: new Date().toISOString(),
+    ...data
+  };
+  // Winston persistent (Supabase)
+  logger.info(`[MatchEvent][${eventType}]`, event);
+  // JSON file backup (survit aux crashes, lisible dans monitoring)
+  try {
+    const dir = path.dirname(MATCH_EVENTS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    let existing = [];
+    try { if (fs.existsSync(MATCH_EVENTS_FILE)) existing = JSON.parse(fs.readFileSync(MATCH_EVENTS_FILE, 'utf8')); } catch {}
+    existing.push(event);
+    if (existing.length > MAX_MATCH_EVENTS) existing = existing.slice(-MAX_MATCH_EVENTS);
+    fs.writeFileSync(MATCH_EVENTS_FILE, JSON.stringify(existing, null, 2), 'utf8');
+  } catch (e) {
+    logger.warn('[MatchEventLog] File save failed:', e.message);
+  }
+  return event;
+}
+
 class CrazyArenaManager {
   constructor(io, supabase = null) {
     this.io = io;
@@ -43,7 +71,7 @@ class CrazyArenaManager {
    */
   async loadMatchFromDatabase(matchId) {
     if (!this.supabase) {
-      console.warn('[CrazyArena] Supabase non configuré, impossible de récupérer le match');
+      logger.warn('[CrazyArena] Supabase non configuré, impossible de récupérer le match');
       return null;
     }
 
@@ -56,7 +84,7 @@ class CrazyArenaManager {
         .single();
 
       if (error || !data) {
-        console.log(`[CrazyArena] Match ${matchId} non trouvé en base:`, error?.message);
+        logger.info(`[CrazyArena] Match ${matchId} non trouvé en base:`, error?.message);
         return null;
       }
 
@@ -68,12 +96,12 @@ class CrazyArenaManager {
       const match = this.matches.get(matchId);
       if (match && data.status === 'in_progress') {
         match.wasInProgress = true;
-        console.log(`[CrazyArena] Match ${matchId} était in_progress en DB, marqué wasInProgress=true pour auto-reprise`);
+        logger.info(`[CrazyArena] Match ${matchId} était in_progress en DB, marqué wasInProgress=true pour auto-reprise`);
       }
       
       return match;
     } catch (err) {
-      console.error('[CrazyArena] Erreur chargement match depuis Supabase:', err);
+      logger.error('[CrazyArena] Erreur chargement match depuis Supabase:', err);
       return null;
     }
   }
@@ -84,7 +112,7 @@ class CrazyArenaManager {
    */
   async loadTrainingMatchFromDatabase(matchId) {
     if (!this.supabase) {
-      console.warn('[CrazyArena][Training] Supabase non configuré, impossible de récupérer le match');
+      logger.warn('[CrazyArena][Training] Supabase non configuré, impossible de récupérer le match');
       return null;
     }
 
@@ -92,7 +120,7 @@ class CrazyArenaManager {
       const isValidUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
       const rawUuid = matchId.replace(/^match_/, '');
       if (!isValidUuid(rawUuid)) {
-        console.log(`[CrazyArena][Training] Match ${matchId} - UUID invalide après strip: ${rawUuid}`);
+        logger.info(`[CrazyArena][Training] Match ${matchId} - UUID invalide après strip: ${rawUuid}`);
         return null;
       }
 
@@ -107,11 +135,11 @@ class CrazyArenaManager {
         .maybeSingle();
 
       if (error) {
-        console.warn('[CrazyArena][Training] Erreur query training_sessions:', error.message);
+        logger.warn('[CrazyArena][Training] Erreur query training_sessions:', error.message);
         return null;
       }
       if (!session) {
-        console.log(`[CrazyArena][Training] Aucune session active trouvée pour match_id=${rawUuid}`);
+        logger.info(`[CrazyArena][Training] Aucune session active trouvée pour match_id=${rawUuid}`);
         return null;
       }
 
@@ -138,7 +166,7 @@ class CrazyArenaManager {
         };
       });
 
-      console.log(`[CrazyArena][Training] 🔄 Restauration match ${matchId} depuis DB (session ${session.id}, ${studentIds.length} joueurs, wasInProgress=${wasInProgress})`);
+      logger.info(`[CrazyArena][Training] 🔄 Restauration match ${matchId} depuis DB (session ${session.id}, ${studentIds.length} joueurs, wasInProgress=${wasInProgress})`);
 
       // Recréer le match en mémoire
       this.matches.set(matchId, {
@@ -179,10 +207,10 @@ class CrazyArenaManager {
       });
 
       const match = this.matches.get(matchId);
-      console.log(`[CrazyArena][Training] ✅ Match ${matchId} restauré depuis DB — ${wasInProgress ? '⚡ jeu en cours, redémarrage auto quand joueurs rejoignent' : 'en attente de reconnexion des joueurs'}`);
+      logger.info(`[CrazyArena][Training] ✅ Match ${matchId} restauré depuis DB — ${wasInProgress ? '⚡ jeu en cours, redémarrage auto quand joueurs rejoignent' : 'en attente de reconnexion des joueurs'}`);
       return match;
     } catch (err) {
-      console.error('[CrazyArena][Training] Erreur loadTrainingMatchFromDatabase:', err);
+      logger.error('[CrazyArena][Training] Erreur loadTrainingMatchFromDatabase:', err);
       return null;
     }
   }
@@ -191,8 +219,9 @@ class CrazyArenaManager {
    * Créer un match en mode ENTRAÎNEMENT (sans Supabase)
    */
   createTrainingMatch(matchId, studentIds, config, classId, teacherId) {
-    console.log(`[CrazyArena][Training] Création match ${matchId} pour ${studentIds.length} élèves`);
-    console.log(`[CrazyArena][Training] Config reçue:`, { classes: config.classes, themes: config.themes, extras: config.extras, rounds: config.rounds, objectiveMode: config.objectiveMode });
+    logger.info(`[CrazyArena][Training] Création match ${matchId} pour ${studentIds.length} élèves`);
+    logger.info(`[CrazyArena][Training] Config reçue:`, { classes: config.classes, themes: config.themes, extras: config.extras, rounds: config.rounds, objectiveMode: config.objectiveMode });
+    _logMatchEvent('MATCH_CREATE', matchId, { mode: 'training', playersExpected: studentIds.length, studentIds, classId, teacherId, config: { classes: config.classes, themes: config.themes, rounds: config.rounds, duration: config.duration || config.durationPerRound || 60 } });
     
     this.matches.set(matchId, {
       matchId,
@@ -241,10 +270,10 @@ class CrazyArenaManager {
       })
     );
     
-    console.log(`[CrazyArena][Training][INVITE] 📤 ÉMISSION INVITATIONS matchId=${matchId}`);
-    console.log(`[CrazyArena][Training][INVITE]    → ${studentIds.length} élèves ciblés: [${studentIds.join(', ')}]`);
-    console.log(`[CrazyArena][Training][INVITE]    → Sockets connectés globalement: ${connectedSockets}`);
-    console.log(`[CrazyArena][Training][INVITE]    → Élèves déjà connectés à un training: [${alreadyConnected.join(', ') || 'aucun'}]`);
+    logger.info(`[CrazyArena][Training][INVITE] 📤 ÉMISSION INVITATIONS matchId=${matchId}`);
+    logger.info(`[CrazyArena][Training][INVITE]    → ${studentIds.length} élèves ciblés: [${studentIds.join(', ')}]`);
+    logger.info(`[CrazyArena][Training][INVITE]    → Sockets connectés globalement: ${connectedSockets}`);
+    logger.info(`[CrazyArena][Training][INVITE]    → Élèves déjà connectés à un training: [${alreadyConnected.join(', ') || 'aucun'}]`);
     
     let emittedCount = 0;
     studentIds.forEach(studentId => {
@@ -256,11 +285,11 @@ class CrazyArenaManager {
         config: storedConfig
       });
       emittedCount++;
-      console.log(`[CrazyArena][Training][INVITE]    → Émis: ${eventName}`);
+      logger.info(`[CrazyArena][Training][INVITE]    → Émis: ${eventName}`);
     });
     
-    console.log(`[CrazyArena][Training][INVITE] ✅ ${emittedCount} notifications émises via Socket.IO`);
-    console.log(`[CrazyArena][Training] Match ${matchId} créé, en attente de ${studentIds.length} joueurs`);
+    logger.info(`[CrazyArena][Training][INVITE] ✅ ${emittedCount} notifications émises via Socket.IO`);
+    logger.info(`[CrazyArena][Training] Match ${matchId} créé, en attente de ${studentIds.length} joueurs`);
     return this.matches.get(matchId);
   }
 
@@ -272,12 +301,12 @@ class CrazyArenaManager {
     
     // Si match non trouvé en mémoire, tenter de restaurer depuis la DB
     if (!match) {
-      console.log(`[CrazyArena][Training] Match ${matchId} non trouvé en mémoire, tentative de restauration depuis DB...`);
+      logger.info(`[CrazyArena][Training] Match ${matchId} non trouvé en mémoire, tentative de restauration depuis DB...`);
       match = await this.loadTrainingMatchFromDatabase(matchId);
     }
     
     if (!match) {
-      console.error(`[CrazyArena][Training] Match ${matchId} introuvable (mémoire + DB)`);
+      logger.error(`[CrazyArena][Training] Match ${matchId} introuvable (mémoire + DB)`);
       socket.emit('training:error', { message: 'Match introuvable' });
       socket.emit('training:match-lost', { reason: 'Match introuvable. Le serveur a peut-être redémarré.' });
       return false;
@@ -292,7 +321,8 @@ class CrazyArenaManager {
       if (oldSocketId && oldSocketId !== socket.id) {
         this.playerMatches.delete(oldSocketId);
       }
-      console.log(`[CrazyArena][Training] ${studentData.name} reconnecté au match ${matchId} (old=${oldSocketId?.slice(-6)}, new=${socket.id.slice(-6)})`);
+      logger.info(`[CrazyArena][Training] ${studentData.name} reconnecté au match ${matchId} (old=${oldSocketId?.slice(-6)}, new=${socket.id.slice(-6)})`);
+      _logMatchEvent('PLAYER_RECONNECT', matchId, { mode: 'training', studentId: studentData.studentId, name: studentData.name, matchStatus: match.status });
       existingPlayer.socketId = socket.id;
       existingPlayer.disconnected = false;
       delete existingPlayer.disconnectedAt;
@@ -314,13 +344,13 @@ class CrazyArenaManager {
       // ✅ Si le match était en pause (joueur déconnecté), reprendre automatiquement
       if (match.status === 'paused' && match._pauseState && 
           match._pauseState.disconnectedStudentId === studentData.studentId) {
-        console.log(`[CrazyArena][Training] ▶️ Joueur déconnecté ${studentData.name} reconnecté → reprise du match`);
+        logger.info(`[CrazyArena][Training] ▶️ Joueur déconnecté ${studentData.name} reconnecté → reprise du match`);
         this.resumeMatch(matchId);
       }
 
       // ✅ AUTO-RESTART sur reconnexion aussi (si dernier joueur attendu)
       if (match._needsGameRestart && match.status === 'waiting' && match.players.length >= match.expectedPlayers.length) {
-        console.log(`[CrazyArena][Training] ⚡ Reconnexion complète pour match restauré ${matchId} — redémarrage automatique !`);
+        logger.info(`[CrazyArena][Training] ⚡ Reconnexion complète pour match restauré ${matchId} — redémarrage automatique !`);
         match._needsGameRestart = false;
         match.status = 'countdown';
         let count = 3;
@@ -357,7 +387,8 @@ class CrazyArenaManager {
     this.playerMatches.set(socket.id, matchId);  // ✅ Mapping socket → matchId
     socket.join(matchId);
 
-    console.log(`[CrazyArena][Training] ${studentData.name} a rejoint le match ${matchId} (${match.players.length}/${match.expectedPlayers.length})${restoredScore ? ` [score restauré: ${restoredScore.score}]` : ''}`);
+    logger.info(`[CrazyArena][Training] ${studentData.name} a rejoint le match ${matchId} (${match.players.length}/${match.expectedPlayers.length})${restoredScore ? ` [score restauré: ${restoredScore.score}]` : ''}`);
+    _logMatchEvent('PLAYER_JOIN', matchId, { mode: 'training', studentId: studentData.studentId, name: studentData.name, playersCount: match.players.length, expectedCount: match.expectedPlayers.length });
 
     // Notifier tous les joueurs
     this.io.to(matchId).emit('training:player-joined', {
@@ -384,7 +415,7 @@ class CrazyArenaManager {
     // ✅ AUTO-RESTART: Si le match était en cours avant le redémarrage serveur,
     // relancer automatiquement le jeu quand tous les joueurs attendus ont rejoint
     if (match._needsGameRestart && match.players.length >= match.expectedPlayers.length) {
-      console.log(`[CrazyArena][Training] ⚡ Tous les joueurs ont rejoint le match restauré ${matchId} — redémarrage automatique du jeu !`);
+      logger.info(`[CrazyArena][Training] ⚡ Tous les joueurs ont rejoint le match restauré ${matchId} — redémarrage automatique du jeu !`);
       match._needsGameRestart = false;
       
       // Court countdown (2s) puis démarrage
@@ -395,7 +426,7 @@ class CrazyArenaManager {
         count--;
         if (count < 0) {
           clearInterval(interval);
-          console.log(`[CrazyArena][Training] ⚡ Countdown terminé, redémarrage jeu restauré...`);
+          logger.info(`[CrazyArena][Training] ⚡ Countdown terminé, redémarrage jeu restauré...`);
           this.startTrainingGame(matchId);
         }
       }, 1000);
@@ -483,31 +514,31 @@ class CrazyArenaManager {
     const match = this.matches.get(matchId);
     
     if (!match) {
-      console.error(`[CrazyArena][Training] forceStart: Match ${matchId} introuvable`);
+      logger.error(`[CrazyArena][Training] forceStart: Match ${matchId} introuvable`);
       return false;
     }
 
     if (match.status !== 'waiting') {
-      console.warn(`[CrazyArena][Training] forceStart: Match ${matchId} déjà en statut ${match.status}`);
+      logger.warn(`[CrazyArena][Training] forceStart: Match ${matchId} déjà en statut ${match.status}`);
       return false;
     }
 
     if (match.players.length < 2) {
-      console.warn(`[CrazyArena][Training] forceStart: Match ${matchId} a seulement ${match.players.length} joueur(s) (min 2)`);
+      logger.warn(`[CrazyArena][Training] forceStart: Match ${matchId} a seulement ${match.players.length} joueur(s) (min 2)`);
       return false;
     }
 
     const readyCount = match.players.filter(p => p.ready).length;
     if (readyCount !== match.players.length) {
-      console.warn(`[CrazyArena][Training] forceStart: Match ${matchId} - tous les joueurs ne sont pas prêts (${readyCount}/${match.players.length})`);
+      logger.warn(`[CrazyArena][Training] forceStart: Match ${matchId} - tous les joueurs ne sont pas prêts (${readyCount}/${match.players.length})`);
       return false;
     }
 
-    console.log(`[CrazyArena][Training] 🚀 Démarrage forcé du match ${matchId} avec ${match.players.length} joueur(s) (tous prêts)`);
+    logger.info(`[CrazyArena][Training] 🚀 Démarrage forcé du match ${matchId} avec ${match.players.length} joueur(s) (tous prêts)`);
     match.status = 'countdown';
     
     // Countdown 3, 2, 1, GO!
-    console.log(`[CrazyArena][Training] Countdown démarré pour match ${matchId}`);
+    logger.info(`[CrazyArena][Training] Countdown démarré pour match ${matchId}`);
     
     let count = 3;
     const interval = setInterval(() => {
@@ -516,7 +547,7 @@ class CrazyArenaManager {
 
       if (count < 0) {
         clearInterval(interval);
-        console.log(`[CrazyArena][Training] Countdown terminé, démarrage jeu...`);
+        logger.info(`[CrazyArena][Training] Countdown terminé, démarrage jeu...`);
         this.startTrainingGame(matchId);
       }
     }, 1000);
@@ -537,19 +568,32 @@ class CrazyArenaManager {
     match.roundsPlayed = 0;
     match.validatedPairIds = new Set();
 
-    console.log(`[CrazyArena][Training] Partie démarrée pour match ${matchId}`);
+    logger.info(`[CrazyArena][Training] Partie démarrée pour match ${matchId}`);
+    _logMatchEvent('MATCH_START', matchId, { mode: 'training', playersCount: match.players.length, players: match.players.map(p => ({ studentId: p.studentId, name: p.name })), config: { rounds: match.config.rounds, duration: match.config.duration, themes: match.config.themes, classes: match.config.classes } });
 
     // Générer les zones (utiliser la même logique que le mode multijoueur classique)
     const zones = await this.generateZones(match.config, matchId);
     match.zones = zones;
     
-    console.log(`[CrazyArena][Training] 🎯 Carte générée: ${zones.length} zones, 1 paire à trouver (règle: 1 paire/carte)`);
+    logger.info(`[CrazyArena][Training] 🎯 Carte générée: ${zones.length} zones, 1 paire à trouver (règle: 1 paire/carte)`);
+
+    // ✅ Log round to monitoring dashboard (same format as arena)
+    const pairZonesT = zones.filter(z => z.pairId);
+    _logArenaRound({
+      id: `training_${matchId.slice(-8)}_r0_${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      mode: 'training', source: 'training:game-start',
+      matchId: matchId.slice(-8), roundIndex: 0,
+      totalZones: zones.length, pairZones: pairZonesT.length,
+      uniquePairs: [...new Set(pairZonesT.map(z => z.pairId))].length,
+      pairDetails: pairZonesT.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 30), pairId: z.pairId }))
+    });
 
     // Initialiser les scores (préserver les scores restaurés depuis DB si match récupéré)
     const isRecovered = match._recoveredFromDB;
     match.players.forEach(p => {
       if (isRecovered && match.scores[p.studentId] && match.scores[p.studentId].score > 0) {
-        console.log(`[CrazyArena][Training] 🔄 Score restauré pour ${p.studentId}: ${match.scores[p.studentId].score} pts`);
+        logger.info(`[CrazyArena][Training] 🔄 Score restauré pour ${p.studentId}: ${match.scores[p.studentId].score} pts`);
         p.score = match.scores[p.studentId].score;
         p.pairsValidated = match.scores[p.studentId].pairsValidated;
         p.errors = match.scores[p.studentId].errors;
@@ -573,7 +617,7 @@ class CrazyArenaManager {
       }))
     };
     
-    console.log('[CrazyArena][Training] 🚀 Émission training:game-start avec config:', {
+    logger.info('[CrazyArena][Training] 🚀 Émission training:game-start avec config:', {
       matchId: matchId.slice(-8),
       hasConfig: !!gameStartPayload.config,
       configThemes: gameStartPayload.config?.themes,
@@ -619,7 +663,7 @@ class CrazyArenaManager {
     const durationPerRound = match.config.duration || match.config.durationPerRound || 60;
     const totalDuration = roundsPerMatch * durationPerRound;
     
-    console.log(`[CrazyArena][Training] ⏱️  Timer configuré: ${roundsPerMatch} rounds × ${durationPerRound}s = ${totalDuration}s TOTAL`);
+    logger.info(`[CrazyArena][Training] ⏱️  Timer configuré: ${roundsPerMatch} rounds × ${durationPerRound}s = ${totalDuration}s TOTAL`);
     
     match.timerInterval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - match.startTime) / 1000);
@@ -629,12 +673,23 @@ class CrazyArenaManager {
       const currentRound = Math.floor(elapsed / durationPerRound);
       if (currentRound > match.roundsPlayed && currentRound < roundsPerMatch) {
         match.roundsPlayed = currentRound;
-        console.log(`[CrazyArena][Training] 🔔 Nouvelle manche #${match.roundsPlayed + 1} démarrée (${elapsed}s écoulées)`);
+        logger.info(`[CrazyArena][Training] 🔔 Nouvelle manche #${match.roundsPlayed + 1} démarrée (${elapsed}s écoulées)`);
+        _logMatchEvent('ROUND_NEW', matchId, { mode: 'training', roundIndex: match.roundsPlayed, elapsed });
         
         // Générer nouvelle carte pour la nouvelle manche
         this.generateZones(match.config, matchId).then(newZones => {
           match.zones = newZones;
-          console.log(`[CrazyArena][Training] 🎯 Nouvelle carte pour manche ${match.roundsPlayed + 1}: ${newZones.length} zones`);
+          logger.info(`[CrazyArena][Training] 🎯 Nouvelle carte pour manche ${match.roundsPlayed + 1}: ${newZones.length} zones`);
+          // ✅ Log round to monitoring dashboard
+          const _pzT = newZones.filter(z => z.pairId);
+          _logArenaRound({
+            id: `training_${matchId.slice(-8)}_r${match.roundsPlayed}_${Date.now()}`,
+            timestamp: new Date().toISOString(), mode: 'training', source: 'training:round-new',
+            matchId: matchId.slice(-8), roundIndex: match.roundsPlayed,
+            totalZones: newZones.length, pairZones: _pzT.length,
+            uniquePairs: [...new Set(_pzT.map(z => z.pairId))].length,
+            pairDetails: _pzT.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 30), pairId: z.pairId }))
+          });
           
           // ✅ LOG WINSTON: Angles des zones de la nouvelle manche
           const newCalcChiffre = newZones.filter(z => z.type === 'calcul' || z.type === 'chiffre');
@@ -668,9 +723,9 @@ class CrazyArenaManager {
             timestamp: Date.now()
           });
           
-          console.log(`[CrazyArena][Training] ✅ Manche ${match.roundsPlayed + 1}/${roundsPerMatch} démarrée`);
+          logger.info(`[CrazyArena][Training] ✅ Manche ${match.roundsPlayed + 1}/${roundsPerMatch} démarrée`);
         }).catch(err => {
-          console.error('[CrazyArena][Training] Erreur génération nouvelle carte manche:', err);
+          logger.error('[CrazyArena][Training] Erreur génération nouvelle carte manche:', err);
         });
       }
       
@@ -678,7 +733,7 @@ class CrazyArenaManager {
       const elapsedInRound = elapsed % durationPerRound;
       const timeLeftInRound = Math.max(0, durationPerRound - elapsedInRound);
       
-      console.log(`[CrazyArena][Training] Émission training:timer-tick: timeLeft=${timeLeftInRound}s (manche ${match.roundsPlayed + 1}/${roundsPerMatch})`);
+      logger.info(`[CrazyArena][Training] Émission training:timer-tick: timeLeft=${timeLeftInRound}s (manche ${match.roundsPlayed + 1}/${roundsPerMatch})`);
       this.io.to(matchId).emit('training:timer-tick', {
         timeLeft: timeLeftInRound,  // Temps restant dans la manche actuelle
         elapsed,
@@ -688,7 +743,7 @@ class CrazyArenaManager {
       });
       
       if (timeLeft === 0) {
-        console.log(`[CrazyArena][Training] ⏰ Timer terminé pour match ${matchId}`);
+        logger.info(`[CrazyArena][Training] ⏰ Timer terminé pour match ${matchId}`);
         clearInterval(match.timerInterval);
         this.endTrainingGame(matchId);
       }
@@ -713,7 +768,8 @@ class CrazyArenaManager {
       clearInterval(match.timerInterval);
     }
 
-    console.log(`[CrazyArena][Training] 🏁 Match ${matchId} terminé`);
+    logger.info(`[CrazyArena][Training] 🏁 Match ${matchId} terminé`);
+    _logMatchEvent('MATCH_END', matchId, { mode: 'training', duration: match.endTime - match.startTime, playersCount: match.players.length, players: match.players.map(p => ({ studentId: p.studentId, name: p.name, score: p.score, pairsValidated: p.pairsValidated, errors: p.errors })) });
 
     // ✅ FIX: Si on sort d'un tiebreaker, ADDITIONNER scores match normal + tiebreaker
     if (match.isTiebreaker) {
@@ -726,7 +782,7 @@ class CrazyArenaManager {
         p.score = scoreNormal + scoreTiebreaker;
         p.pairsValidated = pairsNormal + pairsTiebreaker;
         
-        console.log(`[CrazyArena][Training] 🏆 ${p.name}: Score final = ${scoreNormal} (normal) + ${scoreTiebreaker} (tiebreaker) = ${p.score} pts`);
+        logger.info(`[CrazyArena][Training] 🏆 ${p.name}: Score final = ${scoreNormal} (normal) + ${scoreTiebreaker} (tiebreaker) = ${p.score} pts`);
       });
     }
 
@@ -761,8 +817,9 @@ class CrazyArenaManager {
     
     if (tiedPlayers.length > 1 && !match.isTiebreaker) {
       // ÉGALITÉ DÉTECTÉE - Attendre décision du professeur
-      console.log(`[CrazyArena][Training] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topScore} pts`);
-      console.log(`[CrazyArena][Training] ⏸️ En attente décision professeur pour départage...`);
+      logger.info(`[CrazyArena][Training] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topScore} pts`);
+      logger.info(`[CrazyArena][Training] ⏸️ En attente décision professeur pour départage...`);
+      _logMatchEvent('TIE_DETECTED', matchId, { mode: 'training', tiedCount: tiedPlayers.length, topScore, tiedPlayers: tiedPlayers.map(p => ({ studentId: p.studentId, name: p.name, score: p.score })) });
       
       // Mettre le match en attente de départage
       match.status = 'tie-waiting';
@@ -774,11 +831,11 @@ class CrazyArenaManager {
         message: 'Égalité ! En attente du professeur pour le départage...'
       };
       
-      console.log(`[CrazyArena][Training] 📢 Émission training:tie-detected à room ${matchId}:`, tieData);
+      logger.info(`[CrazyArena][Training] 📢 Émission training:tie-detected à room ${matchId}:`, tieData);
       this.io.to(matchId).emit('training:tie-detected', tieData);
       
       // AUSSI en broadcast pour debug
-      console.log(`[CrazyArena][Training] 📢 Émission training:tie-detected en BROADCAST`);
+      logger.info(`[CrazyArena][Training] 📢 Émission training:tie-detected en BROADCAST`);
       this.io.emit('training:tie-detected', { ...tieData, matchId });
       
       // Notifier le dashboard professeur qu'il doit décider
@@ -792,7 +849,7 @@ class CrazyArenaManager {
         ranking
       });
       
-      console.log(`[CrazyArena][Training] 📢 Notification égalité envoyée pour match ${matchId}`);
+      logger.info(`[CrazyArena][Training] 📢 Notification égalité envoyée pour match ${matchId}`);
       
       return; // Ne pas terminer le match - attendre décision prof
     }
@@ -800,7 +857,7 @@ class CrazyArenaManager {
     // Pas d'égalité ou après départage - Envoyer le podium final
     const winner = ranking[0];
 
-    console.log(`[CrazyArena][Training] 🎉 Émission podium final à room ${matchId}`);
+    logger.info(`[CrazyArena][Training] 🎉 Émission podium final à room ${matchId}`);
     this.io.to(matchId).emit('training:game-end', {
       ranking,
       winner,
@@ -810,7 +867,7 @@ class CrazyArenaManager {
     
     // ✅ BROADCAST GLOBAL pour retirer notifications des élèves
     this.io.emit('training:match-finished', { matchId });
-    console.log(`[Training] 📢 Broadcast training:match-finished pour ${matchId}`);
+    logger.info(`[Training] 📢 Broadcast training:match-finished pour ${matchId}`);
     
     // 💾 PERSISTENCE: Finaliser le match en DB (positions finales + completed_at)
     if (match._sessionId) {
@@ -831,12 +888,12 @@ class CrazyArenaManager {
           .single();
         
         if (groupErr) {
-          console.warn(`[CrazyArena][Training] ⚠️ Erreur mise à jour groupe:`, groupErr.message);
+          logger.warn(`[CrazyArena][Training] ⚠️ Erreur mise à jour groupe:`, groupErr.message);
         } else if (groupData) {
-          console.log(`[CrazyArena][Training] ✅ Groupe ${groupData.id} → finished, winner: ${winner.name}`);
+          logger.info(`[CrazyArena][Training] ✅ Groupe ${groupData.id} → finished, winner: ${winner.name}`);
         }
       } catch (err) {
-        console.warn(`[CrazyArena][Training] ⚠️ Erreur update groupe:`, err.message);
+        logger.warn(`[CrazyArena][Training] ⚠️ Erreur update groupe:`, err.message);
       }
     }
     
@@ -902,22 +959,22 @@ class CrazyArenaManager {
   async trainingStartTiebreakerByTeacher(matchId) {
     const match = this.matches.get(matchId);
     if (!match) {
-      console.error(`[CrazyArena][Training] ❌ Match ${matchId} introuvable`);
+      logger.error(`[CrazyArena][Training] ❌ Match ${matchId} introuvable`);
       return;
     }
 
     if (match.status !== 'tie-waiting') {
-      console.error(`[CrazyArena][Training] ❌ Match ${matchId} n'est pas en attente de départage`);
+      logger.error(`[CrazyArena][Training] ❌ Match ${matchId} n'est pas en attente de départage`);
       return;
     }
 
     const tiedPlayers = match.tiedPlayers;
     if (!tiedPlayers || tiedPlayers.length < 2) {
-      console.error(`[CrazyArena][Training] ❌ Pas de joueurs à égalité`);
+      logger.error(`[CrazyArena][Training] ❌ Pas de joueurs à égalité`);
       return;
     }
 
-    console.log(`[CrazyArena][Training] 🎯 Professeur lance départage (${tiedPlayers.length} joueurs)`);
+    logger.info(`[CrazyArena][Training] 🎯 Professeur lance départage (${tiedPlayers.length} joueurs)`);
     
     match.isTiebreaker = true;
     match.status = 'playing';
@@ -947,7 +1004,7 @@ class CrazyArenaManager {
       }
     });
     
-    console.log(`[CrazyArena][Training] 📡 Countdown 3-2-1 pour tiebreaker...`);
+    logger.info(`[CrazyArena][Training] 📡 Countdown 3-2-1 pour tiebreaker...`);
     
     match.status = 'tiebreaker-countdown';
     let count = 3;
@@ -973,14 +1030,14 @@ class CrazyArenaManager {
             pairsToFind: match.tiebreakerPairsToFind
           };
           
-          console.log(`[CrazyArena][Training] 📡 Émission training:tiebreaker-start...`);
+          logger.info(`[CrazyArena][Training] 📡 Émission training:tiebreaker-start...`);
           this.io.to(matchId).emit('training:tiebreaker-start', payload);
           this.io.emit('training:tiebreaker-start', { ...payload, matchId });
           
-          console.log(`[CrazyArena][Training] ✅ training:tiebreaker-start émis`);
+          logger.info(`[CrazyArena][Training] ✅ training:tiebreaker-start émis`);
           
         } catch (error) {
-          console.error(`[CrazyArena][Training] ❌ ERREUR tiebreaker:`, error);
+          logger.error(`[CrazyArena][Training] ❌ ERREUR tiebreaker:`, error);
           this.endTrainingGame(matchId);
         }
       }
@@ -1370,7 +1427,8 @@ class CrazyArenaManager {
       gameTimeout: null
     });
 
-    console.log(`[CrazyArena] Match créé: ${matchId} (code: ${roomCode})`);
+    logger.info(`[CrazyArena] Match créé: ${matchId} (code: ${roomCode})`);
+    _logMatchEvent('MATCH_CREATE', matchId, { mode: 'arena', roomCode, config: config || { rounds: 3, duration: 60 } });
     return this.matches.get(matchId);
   }
 
@@ -1423,7 +1481,7 @@ class CrazyArenaManager {
     if (!match) {
       for (const [id, m] of this.matches.entries()) {
         if (m.roomCode === matchId || m.roomCode === matchId.toUpperCase()) {
-          console.log(`[CrazyArena] Résolution roomCode "${matchId}" → matchId "${id}"`);
+          logger.info(`[CrazyArena] Résolution roomCode "${matchId}" → matchId "${id}"`);
           matchId = id;
           match = m;
           break;
@@ -1433,16 +1491,16 @@ class CrazyArenaManager {
     
     // Si le match n'existe pas en RAM, essayer de le récupérer depuis Supabase
     if (!match) {
-      console.log(`[CrazyArena] Match ${matchId} introuvable en RAM, tentative récupération depuis Supabase...`);
+      logger.info(`[CrazyArena] Match ${matchId} introuvable en RAM, tentative récupération depuis Supabase...`);
       match = await this.loadMatchFromDatabase(matchId);
       
       if (!match) {
-        console.error(`[CrazyArena] Match ${matchId} introuvable dans Supabase`);
+        logger.error(`[CrazyArena] Match ${matchId} introuvable dans Supabase`);
         socket.emit('arena:error', { message: 'Match introuvable' });
         return false;
       }
       
-      console.log(`[CrazyArena] Match ${matchId} récupéré depuis Supabase avec succès`);
+      logger.info(`[CrazyArena] Match ${matchId} récupéré depuis Supabase avec succès`);
     }
 
     // Vérifier si le joueur fait déjà partie du match (reconnexion)
@@ -1450,7 +1508,8 @@ class CrazyArenaManager {
     
     if (existingPlayer) {
       // RECONNEXION : Mettre à jour le socketId et rejoindre la room
-      console.log(`[CrazyArena] 🔄 Reconnexion de ${studentData.name} (status=${match.status}, wasDisconnected=${!!existingPlayer.disconnected})`);
+      logger.info(`[CrazyArena] 🔄 Reconnexion de ${studentData.name} (status=${match.status}, wasDisconnected=${!!existingPlayer.disconnected})`);
+      _logMatchEvent('PLAYER_RECONNECT', matchId, { mode: 'arena', studentId: studentData.studentId, name: studentData.name, matchStatus: match.status });
       
       // Nettoyer l'ancien mapping socket si différent
       if (existingPlayer._oldSocketId && existingPlayer._oldSocketId !== socket.id) {
@@ -1464,7 +1523,7 @@ class CrazyArenaManager {
       
       // Rejoindre la room Socket.IO
       socket.join(matchId);
-      console.log(`[CrazyArena] APRÈS socket.join(${matchId}) [RECONNECT] - socket.rooms:`, Array.from(socket.rooms));
+      logger.info(`[CrazyArena] APRÈS socket.join(${matchId}) [RECONNECT] - socket.rooms:`, Array.from(socket.rooms));
       
       // Notifier la reconnexion
       this.io.to(matchId).emit('arena:player-joined', {
@@ -1480,7 +1539,7 @@ class CrazyArenaManager {
       // ✅ Si le match était en pause (joueur déconnecté), reprendre automatiquement
       if (match.status === 'paused' && match._pauseState && 
           match._pauseState.disconnectedStudentId === studentData.studentId) {
-        console.log(`[CrazyArena] ▶️ Joueur déconnecté ${studentData.name} reconnecté → reprise du match`);
+        logger.info(`[CrazyArena] ▶️ Joueur déconnecté ${studentData.name} reconnecté → reprise du match`);
         this.resumeMatch(matchId);
       }
       
@@ -1513,14 +1572,14 @@ class CrazyArenaManager {
     this.playerMatches.set(socket.id, matchId);
 
     // Rejoindre la room Socket.IO
-    console.log(`[CrazyArena] AVANT socket.join(${matchId}) pour ${studentData.name}`);
+    logger.info(`[CrazyArena] AVANT socket.join(${matchId}) pour ${studentData.name}`);
     socket.join(matchId);
-    console.log(`[CrazyArena] APRÈS socket.join(${matchId}) - socket.rooms:`, Array.from(socket.rooms));
+    logger.info(`[CrazyArena] APRÈS socket.join(${matchId}) - socket.rooms:`, Array.from(socket.rooms));
 
-    console.log(`[CrazyArena] ${studentData.name} a rejoint le match ${matchId} (${match.players.length}/4)`);
+    logger.info(`[CrazyArena] ${studentData.name} a rejoint le match ${matchId} (${match.players.length}/4)`);
 
     // Notifier tous les joueurs
-    console.log(`[CrazyArena] Émission arena:player-joined à room ${matchId}, count=${match.players.length}`);
+    logger.info(`[CrazyArena] Émission arena:player-joined à room ${matchId}, count=${match.players.length}`);
     const playersData = match.players.map(p => ({
       studentId: p.studentId,
       name: p.name,
@@ -1544,17 +1603,17 @@ class CrazyArenaManager {
       matchId,
       players: playersData
     });
-    console.log(`[CrazyArena] arena:player-joined et arena:players-update émis avec succès`);
+    logger.info(`[CrazyArena] arena:player-joined et arena:players-update émis avec succès`);
 
     // ✅ AUTO-REPRISE: Si le match était in_progress avant un redémarrage serveur,
     // relancer automatiquement dès que 2+ joueurs se sont reconnectés
     if (match.wasInProgress && match.players.length >= 2 && match.status === 'waiting') {
-      console.log(`[CrazyArena] 🔄 Auto-reprise du match ${matchId} après redémarrage serveur (${match.players.length} joueurs reconnectés)`);
+      logger.info(`[CrazyArena] 🔄 Auto-reprise du match ${matchId} après redémarrage serveur (${match.players.length} joueurs reconnectés)`);
       // Petit délai pour laisser les autres joueurs se reconnecter aussi
       setTimeout(() => {
         const m = this.matches.get(matchId);
         if (m && m.status === 'waiting' && m.wasInProgress) {
-          console.log(`[CrazyArena] 🚀 Reprise effective du match ${matchId} avec ${m.players.length} joueur(s)`);
+          logger.info(`[CrazyArena] 🚀 Reprise effective du match ${matchId} avec ${m.players.length} joueur(s)`);
           delete m.wasInProgress;
           this.startGame(matchId, true);
         }
@@ -1639,31 +1698,31 @@ class CrazyArenaManager {
     const match = this.matches.get(matchId);
     
     if (!match) {
-      console.error(`[CrazyArena] forceStart: Match ${matchId} introuvable`);
+      logger.error(`[CrazyArena] forceStart: Match ${matchId} introuvable`);
       return false;
     }
 
     if (match.status === 'countdown' || match.status === 'playing') {
-      console.log(`[CrazyArena] forceStart: Match ${matchId} déjà en ${match.status} — OK`);
+      logger.info(`[CrazyArena] forceStart: Match ${matchId} déjà en ${match.status} — OK`);
       return true; // ✅ Idempotent: already starting/playing is fine
     }
     if (match.status !== 'waiting') {
-      console.warn(`[CrazyArena] forceStart: Match ${matchId} statut ${match.status} — refusé`);
+      logger.warn(`[CrazyArena] forceStart: Match ${matchId} statut ${match.status} — refusé`);
       return false;
     }
 
     if (match.players.length < 2) {
-      console.warn(`[CrazyArena] forceStart: Match ${matchId} a seulement ${match.players.length} joueur(s) (min 2)`);
+      logger.warn(`[CrazyArena] forceStart: Match ${matchId} a seulement ${match.players.length} joueur(s) (min 2)`);
       return false;
     }
 
     const readyCount = match.players.filter(p => p.ready).length;
     if (readyCount !== match.players.length) {
-      console.warn(`[CrazyArena] forceStart: Match ${matchId} - tous les joueurs ne sont pas prêts (${readyCount}/${match.players.length})`);
+      logger.warn(`[CrazyArena] forceStart: Match ${matchId} - tous les joueurs ne sont pas prêts (${readyCount}/${match.players.length})`);
       return false;
     }
 
-    console.log(`[CrazyArena] 🚀 Démarrage forcé du match ${matchId} avec ${match.players.length} joueur(s) (tous prêts)`);
+    logger.info(`[CrazyArena] 🚀 Démarrage forcé du match ${matchId} avec ${match.players.length} joueur(s) (tous prêts)`);
     this.startCountdown(matchId);
     return true;
   }
@@ -1676,7 +1735,7 @@ class CrazyArenaManager {
     if (!match || match.status !== 'waiting') return;
 
     match.status = 'countdown';
-    console.log(`[CrazyArena] Countdown démarré pour match ${matchId}`);
+    logger.info(`[CrazyArena] Countdown démarré pour match ${matchId}`);
 
     let count = 3;
     const interval = setInterval(() => {
@@ -1702,13 +1761,14 @@ class CrazyArenaManager {
     match.roundsPlayed = 0;
     match.validatedPairIds = new Set();
 
-    console.log(`[CrazyArena] Partie démarrée pour match ${matchId}`);
+    logger.info(`[CrazyArena] Partie démarrée pour match ${matchId}`);
+    _logMatchEvent('MATCH_START', matchId, { mode: 'arena', playersCount: match.players.length, players: match.players.map(p => ({ studentId: p.studentId, name: p.name })), config: { rounds: match.config.rounds, duration: match.config.duration, themes: match.config.themes, classes: match.config.classes } });
 
     // Générer les zones (utiliser la même logique que le mode multijoueur classique)
     const zones = await this.generateZones(match.config, matchId);
     match.zones = zones;
     
-    console.log(`[CrazyArena] 🎯 Carte générée: ${zones.length} zones, 1 paire à trouver (règle: 1 paire/carte)`);
+    logger.info(`[CrazyArena] 🎯 Carte générée: ${zones.length} zones, 1 paire à trouver (règle: 1 paire/carte)`);
 
     // Initialiser les scores
     match.players.forEach(p => {
@@ -1730,7 +1790,7 @@ class CrazyArenaManager {
       }))
     };
     
-    console.log('[CrazyArena] 🚀 Émission arena:game-start avec config:', {
+    logger.info('[CrazyArena] 🚀 Émission arena:game-start avec config:', {
       matchId: matchId.slice(-8),
       hasConfig: !!gameStartPayload.config,
       configThemes: gameStartPayload.config?.themes,
@@ -1774,7 +1834,7 @@ class CrazyArenaManager {
         logger.error('[CrazyArena][Arena] Erreur persistArenaMatchStart (non-bloquante)', { matchId, error: err.message });
       });
     } else {
-      console.log(`[CrazyArena] 🔄 Reprise: skip persistArenaMatchStart (match_results déjà en DB)`);
+      logger.info(`[CrazyArena] 🔄 Reprise: skip persistArenaMatchStart (match_results déjà en DB)`);
     }
 
     // ⏱️ CHRONO: Diffuser le temps restant toutes les secondes
@@ -1783,7 +1843,7 @@ class CrazyArenaManager {
     const durationPerRound = match.config.duration || match.config.durationPerRound || 60;
     const totalDuration = roundsPerMatch * durationPerRound;
     
-    console.log(`[CrazyArena] ⏱️  Timer configuré: ${roundsPerMatch} rounds × ${durationPerRound}s = ${totalDuration}s TOTAL`);
+    logger.info(`[CrazyArena] ⏱️  Timer configuré: ${roundsPerMatch} rounds × ${durationPerRound}s = ${totalDuration}s TOTAL`);
     
     match.timerInterval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - match.startTime) / 1000);
@@ -1793,12 +1853,12 @@ class CrazyArenaManager {
       const currentRound = Math.floor(elapsed / durationPerRound);
       if (currentRound > match.roundsPlayed && currentRound < roundsPerMatch) {
         match.roundsPlayed = currentRound;
-        console.log(`[CrazyArena] 🔔 Nouvelle manche #${match.roundsPlayed + 1} démarrée (${elapsed}s écoulées)`);
+        logger.info(`[CrazyArena] 🔔 Nouvelle manche #${match.roundsPlayed + 1} démarrée (${elapsed}s écoulées)`);
         
         // Générer nouvelle carte pour la nouvelle manche
         this.generateZones(match.config, matchId).then(newZones => {
           match.zones = newZones;
-          console.log(`[CrazyArena] 🎯 Nouvelle carte pour manche ${match.roundsPlayed + 1}: ${newZones.length} zones`);
+          logger.info(`[CrazyArena] 🎯 Nouvelle carte pour manche ${match.roundsPlayed + 1}: ${newZones.length} zones`);
           
           // Valider les zones avant émission (monitoring double PA / fausse paire)
           try { validateZonesServer(newZones, { source: 'arena:round-new', matchId: matchId.slice(-8), roundIndex: match.roundsPlayed }); } catch (e) { logger.warn('[CrazyArena] Zone validation error (round-new):', e.message); }
@@ -1828,9 +1888,9 @@ class CrazyArenaManager {
             timestamp: Date.now()
           });
           
-          console.log(`[CrazyArena] ✅ Manche ${match.roundsPlayed + 1}/${roundsPerMatch} démarrée`);
+          logger.info(`[CrazyArena] ✅ Manche ${match.roundsPlayed + 1}/${roundsPerMatch} démarrée`);
         }).catch(err => {
-          console.error('[CrazyArena] Erreur génération nouvelle carte manche:', err);
+          logger.error('[CrazyArena] Erreur génération nouvelle carte manche:', err);
         });
       }
       
@@ -1838,7 +1898,7 @@ class CrazyArenaManager {
       const elapsedInRound = elapsed % durationPerRound;
       const timeLeftInRound = Math.max(0, durationPerRound - elapsedInRound);
       
-      console.log(`[CrazyArena] Émission arena:timer-tick: timeLeft=${timeLeftInRound}s (manche ${match.roundsPlayed + 1}/${roundsPerMatch})`);
+      logger.info(`[CrazyArena] Émission arena:timer-tick: timeLeft=${timeLeftInRound}s (manche ${match.roundsPlayed + 1}/${roundsPerMatch})`);
       this.io.to(matchId).emit('arena:timer-tick', {
         timeLeft: timeLeftInRound,  // Temps restant dans la manche actuelle
         elapsed,
@@ -1848,7 +1908,7 @@ class CrazyArenaManager {
       });
       
       if (timeLeft === 0) {
-        console.log(`[CrazyArena] ⏰ Timer terminé pour match ${matchId}`);
+        logger.info(`[CrazyArena] ⏰ Timer terminé pour match ${matchId}`);
         clearInterval(match.timerInterval);
         this.endGame(matchId);
       }
@@ -1878,7 +1938,7 @@ class CrazyArenaManager {
         if (match) {
           if (match.validatedPairIds) {
             excludedPairIds = match.validatedPairIds;
-            console.log(`[ZoneGen] 🚫 Exclusion FIFO: ${excludedPairIds.size} paires`);
+            logger.info(`[ZoneGen] 🚫 Exclusion FIFO: ${excludedPairIds.size} paires`);
           }
           // Anti-repetition deck per match
           if (!match.deckState) match.deckState = createDeckState();
@@ -1886,7 +1946,7 @@ class CrazyArenaManager {
         }
       }
       
-      console.log('[ZoneGen] Config:', {
+      logger.info('[ZoneGen] Config:', {
         seed,
         classes: finalClasses,
         themes: finalThemes,
@@ -1907,10 +1967,10 @@ class CrazyArenaManager {
       // generateRoundZones retourne {zones: [], goodPairIds: {}}
       const zones = result.zones || [];
       
-      console.log('[ZoneGen] ✅ Zones générées:', zones.length);
+      logger.info('[ZoneGen] ✅ Zones générées:', zones.length);
       return zones;
     } catch (error) {
-      console.error('[ZoneGen] ❌ Erreur:', error);
+      logger.error('[ZoneGen] ❌ Erreur:', error);
       return [];
     }
   }
@@ -2270,7 +2330,8 @@ class CrazyArenaManager {
       clearTimeout(match.tiebreakerTimeout);
     }
 
-    console.log(`[CrazyArena] Partie terminée pour match ${matchId}`);
+    logger.info(`[CrazyArena] Partie terminée pour match ${matchId}`);
+    _logMatchEvent('MATCH_END', matchId, { mode: 'arena', duration: match.endTime - match.startTime, playersCount: match.players.length, players: match.players.map(p => ({ studentId: p.studentId, name: p.name, score: p.score, pairsValidated: p.pairsValidated, errors: p.errors })) });
 
     // ✅ FIX: Si on sort d'un tiebreaker, ADDITIONNER scores match normal + tiebreaker
     if (match.isTiebreaker) {
@@ -2283,7 +2344,7 @@ class CrazyArenaManager {
         p.score = scoreNormal + scoreTiebreaker;  // ADDITION
         p.pairsValidated = pairsNormal + pairsTiebreaker;
         
-        console.log(`[CrazyArena] 🏆 ${p.name}: Score final = ${scoreNormal} (normal) + ${scoreTiebreaker} (tiebreaker) = ${p.score} pts`);
+        logger.info(`[CrazyArena] 🏆 ${p.name}: Score final = ${scoreNormal} (normal) + ${scoreTiebreaker} (tiebreaker) = ${p.score} pts`);
       });
     }
 
@@ -2318,8 +2379,9 @@ class CrazyArenaManager {
     
     if (tiedPlayers.length > 1 && !match.isTiebreaker) {
       // ÉGALITÉ DÉTECTÉE - Attendre décision du professeur
-      console.log(`[CrazyArena] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topScore} pts`);
-      console.log(`[CrazyArena] ⏸️ En attente décision professeur pour départage...`);
+      logger.info(`[CrazyArena] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topScore} pts`);
+      logger.info(`[CrazyArena] ⏸️ En attente décision professeur pour départage...`);
+      _logMatchEvent('TIE_DETECTED', matchId, { mode: 'arena', tiedCount: tiedPlayers.length, topScore, tiedPlayers: tiedPlayers.map(p => ({ studentId: p.studentId, name: p.name, score: p.score })) });
       
       // Mettre le match en attente de départage
       match.status = 'tie-waiting';
@@ -2331,11 +2393,11 @@ class CrazyArenaManager {
         message: 'Égalité ! En attente du professeur pour le départage...'
       };
       
-      console.log(`[CrazyArena] 📢 Émission arena:tie-detected à room ${matchId}:`, tieData);
+      logger.info(`[CrazyArena] 📢 Émission arena:tie-detected à room ${matchId}:`, tieData);
       this.io.to(matchId).emit('arena:tie-detected', tieData);
       
       // AUSSI en broadcast pour debug (au cas où room échoue)
-      console.log(`[CrazyArena] 📢 Émission arena:tie-detected en BROADCAST`);
+      logger.info(`[CrazyArena] 📢 Émission arena:tie-detected en BROADCAST`);
       this.io.emit('arena:tie-detected', { ...tieData, matchId });
       
       // Notifier le dashboard professeur qu'il doit décider
@@ -2349,7 +2411,7 @@ class CrazyArenaManager {
         ranking
       });
       
-      console.log(`[CrazyArena] 📢 Notification égalité envoyée à TOUS les clients pour match ${matchId}`);
+      logger.info(`[CrazyArena] 📢 Notification égalité envoyée à TOUS les clients pour match ${matchId}`);
       
       return; // Ne pas terminer le match - attendre décision prof
     }
@@ -2357,7 +2419,7 @@ class CrazyArenaManager {
     // Pas d'égalité ou après départage - Envoyer le podium final
     const winner = ranking[0];
 
-    console.log(`[CrazyArena] 🎉 Émission podium final à room ${matchId}`);
+    logger.info(`[CrazyArena] 🎉 Émission podium final à room ${matchId}`);
     this.io.to(matchId).emit('arena:game-end', {
       ranking,
       winner,
@@ -2382,12 +2444,12 @@ class CrazyArenaManager {
     // Mode-specific extras (non-bloquant - ne doit PAS empêcher le marquage 'finished')
     try {
       if (match.mode === 'training') {
-        console.log(`[CrazyArena][Training] Extras mode Entraînement`);
+        logger.info(`[CrazyArena][Training] Extras mode Entraînement`);
         const trainingMode = new TrainingMode(this.io, this.supabase);
         trainingMode.matchId = matchId; // ✅ FIX: Injecter matchId manquant
         await trainingMode.saveTrainingStats(ranking);
       } else {
-        console.log(`[CrazyArena][Tournament] Extras mode Tournoi`);
+        logger.info(`[CrazyArena][Tournament] Extras mode Tournoi`);
         const tournamentMode = new TournamentMode(this.io, this.supabase);
         tournamentMode.matchId = matchId; // ✅ FIX: Injecter matchId manquant
         tournamentMode.groupId = match.groupId;
@@ -2396,7 +2458,7 @@ class CrazyArenaManager {
         }
       }
     } catch (error) {
-      console.error(`[CrazyArena] Erreur extras mode spécialisé (non-bloquant):`, error);
+      logger.error(`[CrazyArena] Erreur extras mode spécialisé (non-bloquant):`, error);
     }
 
     // Nettoyer après 30s
@@ -2460,22 +2522,22 @@ class CrazyArenaManager {
   async startTiebreakerByTeacher(matchId) {
     const match = this.matches.get(matchId);
     if (!match) {
-      console.error(`[CrazyArena] ❌ Match ${matchId} introuvable`);
+      logger.error(`[CrazyArena] ❌ Match ${matchId} introuvable`);
       return;
     }
 
     if (match.status !== 'tie-waiting') {
-      console.error(`[CrazyArena] ❌ Match ${matchId} n'est pas en attente de départage (status: ${match.status})`);
+      logger.error(`[CrazyArena] ❌ Match ${matchId} n'est pas en attente de départage (status: ${match.status})`);
       return;
     }
 
     const tiedPlayers = match.tiedPlayers;
     if (!tiedPlayers || tiedPlayers.length < 2) {
-      console.error(`[CrazyArena] ❌ Pas de joueurs à égalité pour match ${matchId}`);
+      logger.error(`[CrazyArena] ❌ Pas de joueurs à égalité pour match ${matchId}`);
       return;
     }
 
-    console.log(`[CrazyArena] 🎯 Professeur lance départage pour match ${matchId} (${tiedPlayers.length} joueurs à égalité)`);
+    logger.info(`[CrazyArena] 🎯 Professeur lance départage pour match ${matchId} (${tiedPlayers.length} joueurs à égalité)`);
     
     match.isTiebreaker = true;
     match.status = 'playing';
@@ -2492,22 +2554,22 @@ class CrazyArenaManager {
     // ✅ FIX: generateZones retourne {zones: [...]} pas [...]
     const zonesArray = Array.isArray(zonesResult) ? zonesResult : (zonesResult?.zones || []);
     
-    console.log(`[CrazyArena] 🔍 Zones générées pour tiebreaker:`, { count: zonesArray.length });
+    logger.info(`[CrazyArena] 🔍 Zones générées pour tiebreaker:`, { count: zonesArray.length });
     
     // ✅ UTILISER TOUTES les zones générées (comme démarrage normal)
     match.zones = zonesArray;
     match.tiebreakerPairsToFind = 3;
     match.tiebreakerPairsFound = 0;
     
-    console.log(`[CrazyArena] 🎴 Tiebreaker: ${match.zones.length} zones, objectif ${match.tiebreakerPairsToFind} paires`);
+    logger.info(`[CrazyArena] 🎴 Tiebreaker: ${match.zones.length} zones, objectif ${match.tiebreakerPairsToFind} paires`);
     
     const tiedStudentIds = tiedPlayers.map(p => p.studentId);
-    console.log(`[CrazyArena] 🔍 studentIds à égalité:`, tiedStudentIds);
+    logger.info(`[CrazyArena] 🔍 studentIds à égalité:`, tiedStudentIds);
     
     // ✅ FIX: Sauvegarder scores du match normal avant tiebreaker (pour addition finale)
     match.players.forEach(p => {
       if (tiedStudentIds.includes(p.studentId)) {
-        console.log(`[CrazyArena] 💾 Sauvegarde score match normal pour ${p.studentId}: ${p.score} pts`);
+        logger.info(`[CrazyArena] 💾 Sauvegarde score match normal pour ${p.studentId}: ${p.score} pts`);
         p.scoreBeforeTiebreaker = p.score;  // Sauvegarder score existant
         p.pairsBeforeTiebreaker = p.pairsValidated;
         // Reset UNIQUEMENT les compteurs tiebreaker (pas le score total)
@@ -2517,13 +2579,13 @@ class CrazyArenaManager {
       }
     });
     
-    console.log(`[CrazyArena] 📡 Countdown 3-2-1 pour tiebreaker...`);
+    logger.info(`[CrazyArena] 📡 Countdown 3-2-1 pour tiebreaker...`);
     
     // ✅ Countdown 3-2-1 comme au démarrage initial
     match.status = 'tiebreaker-countdown';
     let count = 3;
     const countdownInterval = setInterval(() => {
-      console.log(`[CrazyArena] Countdown tiebreaker: ${count}`);
+      logger.info(`[CrazyArena] Countdown tiebreaker: ${count}`);
       this.io.to(matchId).emit('arena:countdown', { count });
       count--;
       
@@ -2546,29 +2608,29 @@ class CrazyArenaManager {
             pairsToFind: match.tiebreakerPairsToFind
           };
           
-          console.log(`[CrazyArena] 🔍 Payload tiebreaker:`, {
+          logger.info(`[CrazyArena] 🔍 Payload tiebreaker:`, {
             zonesCount: payload.zones?.length,
             tiedPlayersCount: payload.tiedPlayers?.length,
             firstZone: payload.zones?.[0]
           });
           
-          console.log(`[CrazyArena] 📡 Émission arena:tiebreaker-start...`);
+          logger.info(`[CrazyArena] 📡 Émission arena:tiebreaker-start...`);
           this.io.to(matchId).emit('arena:tiebreaker-start', payload);
           this.io.emit('arena:tiebreaker-start', { ...payload, matchId });
           
-          console.log(`[CrazyArena] ✅ arena:tiebreaker-start émis (room + broadcast)`);
+          logger.info(`[CrazyArena] ✅ arena:tiebreaker-start émis (room + broadcast)`);
           
           // ✅ Safety timeout: si tiebreaker ne finit pas en 30s, forcer la fin
           match.tiebreakerTimeout = setTimeout(() => {
             if (match.status === 'tiebreaker') {
-              console.warn(`[CrazyArena] ⏰ Tiebreaker timeout 30s pour match ${matchId} — forceEnd`);
+              logger.warn(`[CrazyArena] ⏰ Tiebreaker timeout 30s pour match ${matchId} — forceEnd`);
               this.endGame(matchId);
             }
           }, 30000);
           
         } catch (error) {
-          console.error(`[CrazyArena] ❌ ERREUR émission arena:tiebreaker-start:`, error);
-          console.error(`[CrazyArena] Stack:`, error.stack);
+          logger.error(`[CrazyArena] ❌ ERREUR émission arena:tiebreaker-start:`, error);
+          logger.error(`[CrazyArena] Stack:`, error.stack);
           this.endGame(matchId);
         }
       }
@@ -3081,7 +3143,7 @@ class CrazyArenaManager {
     const selfPort = process.env.PORT || 4000;
     const backendUrl = process.env.BACKEND_URL || `http://localhost:${selfPort}`;
 
-    console.log(`[CrazyArena][Training] 💾 Sauvegarde résultats Training pour match ${matchId}`);
+    logger.info(`[CrazyArena][Training] 💾 Sauvegarde résultats Training pour match ${matchId}`);
     
     try {
       const url = `${backendUrl}/api/training/sessions`;
@@ -3102,7 +3164,7 @@ class CrazyArenaManager {
         }))
       };
       
-      console.log(`[CrazyArena][Training] 📡 Appel API: ${url}`, { 
+      logger.info(`[CrazyArena][Training] 📡 Appel API: ${url}`, { 
         matchId, 
         resultsCount: ranking.length,
         classId: match.classId 
@@ -3114,19 +3176,19 @@ class CrazyArenaManager {
         body: JSON.stringify(payload)
       });
       
-      console.log(`[CrazyArena][Training] 📥 Réponse API status: ${res.status}`);
+      logger.info(`[CrazyArena][Training] 📥 Réponse API status: ${res.status}`);
       
       if (!res.ok) {
         const text = await res.text();
-        console.error(`[CrazyArena][Training] ❌ API erreur: ${res.status} - ${text}`);
+        logger.error(`[CrazyArena][Training] ❌ API erreur: ${res.status} - ${text}`);
         return false;
       }
       
       const data = await res.json();
-      console.log('[CrazyArena][Training] ✅ Résultats Training sauvegardés:', data);
+      logger.info('[CrazyArena][Training] ✅ Résultats Training sauvegardés:', data);
       return true;
     } catch (error) {
-      console.error('[CrazyArena][Training] ❌ Erreur sauvegarde Training:', error);
+      logger.error('[CrazyArena][Training] ❌ Erreur sauvegarde Training:', error);
       return false;
     }
   }
@@ -3139,12 +3201,12 @@ class CrazyArenaManager {
     const selfPort = process.env.PORT || 4000;
     const backendUrl = process.env.BACKEND_URL || `http://localhost:${selfPort}`;
 
-    console.log(`[CrazyArena] 💾 Sauvegarde résultats pour match ${matchId}`);
-    console.log(`[CrazyArena] 🌐 Backend URL: ${backendUrl}`);
+    logger.info(`[CrazyArena] 💾 Sauvegarde résultats pour match ${matchId}`);
+    logger.info(`[CrazyArena] 🌐 Backend URL: ${backendUrl}`);
     
     try {
       const url = `${backendUrl}/api/tournament/matches/${matchId}/finish`;
-      console.log(`[CrazyArena] 📡 Appel API: ${url}`);
+      logger.info(`[CrazyArena] 📡 Appel API: ${url}`);
       
       const res = await fetch(url, {
         method: 'PATCH',
@@ -3160,16 +3222,16 @@ class CrazyArenaManager {
         })
       });
       
-      console.log(`[CrazyArena] 📥 Réponse API status: ${res.status}`);
+      logger.info(`[CrazyArena] 📥 Réponse API status: ${res.status}`);
       
       if (!res.ok) {
         const text = await res.text();
-        console.error(`[CrazyArena] ❌ API erreur: ${res.status} - ${text}`);
+        logger.error(`[CrazyArena] ❌ API erreur: ${res.status} - ${text}`);
         return false;
       }
       
       const data = await res.json();
-      console.log('[CrazyArena] ✅ Résultats sauvegardés:', data);
+      logger.info('[CrazyArena] ✅ Résultats sauvegardés:', data);
       
       // Notifier le dashboard que le match est terminé (room)
       this.io.to(matchId).emit('arena:match-finished', {
@@ -3182,7 +3244,7 @@ class CrazyArenaManager {
       
       return true;
     } catch (error) {
-      console.error('[CrazyArena] ❌ Erreur sauvegarde API:', error);
+      logger.error('[CrazyArena] ❌ Erreur sauvegarde API:', error);
       return false;
     }
   }
@@ -3201,7 +3263,7 @@ class CrazyArenaManager {
 
     // Supprimer le match
     this.matches.delete(matchId);
-    console.log(`[CrazyArena] Match ${matchId} nettoyé`);
+    logger.info(`[CrazyArena] Match ${matchId} nettoyé`);
   }
 
   /**
@@ -3312,7 +3374,8 @@ class CrazyArenaManager {
     }
 
     const mode = match.mode || 'arena';
-    console.log(`[CrazyArena]${mode === 'training' ? '[Training]' : ''} ${player.name} s'est déconnecté du match ${matchId} (status=${match.status})`);
+    logger.info(`[CrazyArena]${mode === 'training' ? '[Training]' : ''} ${player.name} s'est déconnecté du match ${matchId} (status=${match.status})`);
+    _logMatchEvent('PLAYER_DISCONNECT', matchId, { mode, studentId: player.studentId, name: player.name, matchStatus: match.status });
 
     // Si le match est en cours (playing/tiebreaker), mettre en PAUSE au lieu de retirer le joueur
     if (match.status === 'playing' || match.status === 'tiebreaker') {
@@ -3373,7 +3436,7 @@ class CrazyArenaManager {
     if (match.timerInterval) {
       clearInterval(match.timerInterval);
       match.timerInterval = null;
-      console.log(`[CrazyArena] ⏸️ Timer gelé pour match ${matchId}`);
+      logger.info(`[CrazyArena] ⏸️ Timer gelé pour match ${matchId}`);
     }
 
     const GRACE_PERIOD_MS = 15000; // 15 secondes
@@ -3389,14 +3452,15 @@ class CrazyArenaManager {
       pausedAt: now
     });
 
-    console.log(`[CrazyArena] ⏸️ Match ${matchId} en PAUSE — ${disconnectedPlayer.name} déconnecté — grace period ${GRACE_PERIOD_MS / 1000}s`);
+    logger.info(`[CrazyArena] ⏸️ Match ${matchId} en PAUSE — ${disconnectedPlayer.name} déconnecté — grace period ${GRACE_PERIOD_MS / 1000}s`);
+    _logMatchEvent('MATCH_PAUSE', matchId, { mode: match.mode, disconnectedPlayer: disconnectedPlayer.name, disconnectedStudentId: disconnectedPlayer.studentId, gracePeriodMs: GRACE_PERIOD_MS, elapsedBeforePause: match._pauseState?.elapsedBeforePause });
 
     // Lancer le timeout forfait
     match._forfeitTimeout = setTimeout(() => {
       const m = this.matches.get(matchId);
       if (!m || m.status !== 'paused') return;
 
-      console.log(`[CrazyArena] ⏰ Grace period expirée pour match ${matchId} — forfait de ${disconnectedPlayer.name}`);
+      logger.info(`[CrazyArena] ⏰ Grace period expirée pour match ${matchId} — forfait de ${disconnectedPlayer.name}`);
       this.forfeitPlayer(matchId, disconnectedPlayer.studentId);
     }, GRACE_PERIOD_MS);
   }
@@ -3423,7 +3487,8 @@ class CrazyArenaManager {
     // Ajuster startTime pour compenser la durée de la pause (le timer reprend là où il était)
     match.startTime += pauseDuration;
 
-    console.log(`[CrazyArena] ▶️ Match ${matchId} REPRIS — pause de ${Math.round(pauseDuration / 1000)}s — ${pauseState.disconnectedPlayerName} reconnecté`);
+    logger.info(`[CrazyArena] ▶️ Match ${matchId} REPRIS — pause de ${Math.round(pauseDuration / 1000)}s — ${pauseState.disconnectedPlayerName} reconnecté`);
+    _logMatchEvent('MATCH_RESUME', matchId, { mode: match.mode, pauseDurationMs: pauseDuration, reconnectedPlayer: pauseState.disconnectedPlayerName, reconnectedStudentId: pauseState.disconnectedStudentId });
 
     // Relancer le timer
     this._restartTimer(matchId);
@@ -3453,7 +3518,7 @@ class CrazyArenaManager {
     const durationPerRound = match.config.duration || match.config.durationPerRound || 60;
     const totalDuration = roundsPerMatch * durationPerRound;
 
-    console.log(`[CrazyArena] ▶️ _restartTimer: mode=${match.mode}, prefix=${prefix}, ${roundsPerMatch} rounds × ${durationPerRound}s`);
+    logger.info(`[CrazyArena] ▶️ _restartTimer: mode=${match.mode}, prefix=${prefix}, ${roundsPerMatch} rounds × ${durationPerRound}s`);
 
     match.timerInterval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - match.startTime) / 1000);
@@ -3471,7 +3536,7 @@ class CrazyArenaManager {
             timestamp: Date.now()
           });
         }).catch(err => {
-          console.error(`[CrazyArena] Erreur génération nouvelle carte manche (${prefix}):`, err);
+          logger.error(`[CrazyArena] Erreur génération nouvelle carte manche (${prefix}):`, err);
         });
       }
 
@@ -3510,7 +3575,8 @@ class CrazyArenaManager {
       match._forfeitTimeout = null;
     }
 
-    console.log(`[CrazyArena] 🏳️ Forfait de ${studentId} dans match ${matchId}`);
+    logger.info(`[CrazyArena] 🏳️ Forfait de ${studentId} dans match ${matchId}`);
+    _logMatchEvent('PLAYER_FORFEIT', matchId, { mode: match.mode, studentId, remainingPlayers: match.players.length - 1 });
 
     // Retirer le joueur forfait
     const playerIndex = match.players.findIndex(p => p.studentId === studentId);
@@ -3542,7 +3608,7 @@ class CrazyArenaManager {
       }
 
       this._restartTimer(matchId);
-      console.log(`[CrazyArena] ▶️ Match ${matchId} repris après forfait — ${match.players.length} joueur(s) restant(s)`);
+      logger.info(`[CrazyArena] ▶️ Match ${matchId} repris après forfait — ${match.players.length} joueur(s) restant(s)`);
     } else {
       // Plus personne → terminer
       this.cleanupMatch(matchId);

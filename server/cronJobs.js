@@ -1,4 +1,5 @@
 const cron = require('node-cron');
+const logger = require('./logger');
 const { analyzeImageUsage, sendEmailReport } = require('./imageMonitoring');
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@crazy-chrono.com';
@@ -10,13 +11,13 @@ const MONITORING_ENABLED = process.env.IMAGE_MONITORING_ENABLED === 'true';
  */
 function startWeeklyMonitoring() {
   if (!MONITORING_ENABLED) {
-    console.log('[Cron] Monitoring désactivé (IMAGE_MONITORING_ENABLED=false)');
+    logger.info('[Cron] Monitoring désactivé (IMAGE_MONITORING_ENABLED=false)');
     return;
   }
 
   // Tous les lundis à 9h00
   cron.schedule('0 9 * * 1', async () => {
-    console.log('[Cron] Démarrage analyse hebdomadaire des images...');
+    logger.info('[Cron] Démarrage analyse hebdomadaire des images...');
     
     try {
       const analysis = await analyzeImageUsage('botanique', 7);
@@ -28,20 +29,20 @@ function startWeeklyMonitoring() {
         analysis.anomalies.notUsed.length > 0;
       
       if (hasAnomalies) {
-        console.log('[Cron] Anomalies détectées! Envoi du rapport...');
+        logger.info('[Cron] Anomalies détectées! Envoi du rapport...');
         await sendEmailReport(analysis, ADMIN_EMAIL);
-        console.log('[Cron] Rapport envoyé à', ADMIN_EMAIL);
+        logger.info('[Cron] Rapport envoyé à', ADMIN_EMAIL);
       } else {
-        console.log('[Cron] Aucune anomalie détectée. Tout va bien! ✅');
+        logger.info('[Cron] Aucune anomalie détectée. Tout va bien! ✅');
       }
     } catch (error) {
-      console.error('[Cron] Erreur lors de l\'analyse:', error);
+      logger.error('[Cron] Erreur lors de l\'analyse:', error);
     }
   }, {
     timezone: "Europe/Paris"
   });
 
-  console.log('[Cron] Monitoring hebdomadaire activé (tous les lundis à 9h00)');
+  logger.info('[Cron] Monitoring hebdomadaire activé (tous les lundis à 9h00)');
 }
 
 /**
@@ -53,7 +54,7 @@ function startDailyMonitoring() {
 
   // Tous les jours à 8h00
   cron.schedule('0 8 * * *', async () => {
-    console.log('[Cron] Vérification quotidienne des anomalies critiques...');
+    logger.info('[Cron] Vérification quotidienne des anomalies critiques...');
     
     try {
       const analysis = await analyzeImageUsage('botanique', 1); // Dernières 24h
@@ -68,20 +69,20 @@ function startDailyMonitoring() {
       const highNotUsedRate = (analysis.stats.notUsedImages / analysis.stats.totalImages) > 0.5;
       
       if (criticalOverused.length > 0 || criticalUnderused.length > 0 || highNotUsedRate) {
-        console.log('[Cron] ⚠️ ANOMALIES CRITIQUES détectées! Envoi du rapport urgent...');
+        logger.info('[Cron] ⚠️ ANOMALIES CRITIQUES détectées! Envoi du rapport urgent...');
         await sendEmailReport(analysis, ADMIN_EMAIL);
-        console.log('[Cron] Rapport urgent envoyé à', ADMIN_EMAIL);
+        logger.info('[Cron] Rapport urgent envoyé à', ADMIN_EMAIL);
       } else {
-        console.log('[Cron] Pas d\'anomalie critique. ✅');
+        logger.info('[Cron] Pas d\'anomalie critique. ✅');
       }
     } catch (error) {
-      console.error('[Cron] Erreur lors de la vérification:', error);
+      logger.error('[Cron] Erreur lors de la vérification:', error);
     }
   }, {
     timezone: "Europe/Paris"
   });
 
-  console.log('[Cron] Vérification quotidienne activée (tous les jours à 8h00)');
+  logger.info('[Cron] Vérification quotidienne activée (tous les jours à 8h00)');
 }
 
 module.exports = {
