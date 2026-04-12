@@ -76,6 +76,9 @@ function MonitoringDashboard() {
   const [arenaStats, setArenaStats] = useState(null);
   const [arenaLoading, setArenaLoading] = useState(false);
 
+  // ── Supabase diagnostic ──
+  const [supabaseDiag, setSupabaseDiag] = useState(null);
+
   const copyToClipboard = async (text, source) => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -467,12 +470,30 @@ const clearIncidents = async () => {
     }
   }, [screenshotMetas]);
 
+  const fetchSupabaseDiag = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/monitoring/supabase-diagnostic`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSupabaseDiag(data.diagnostic || data);
+      } else {
+        setSupabaseDiag({ error: `HTTP ${res.status}`, supabaseConfigured: false });
+      }
+    } catch (err) {
+      setSupabaseDiag({ error: err.message, supabaseConfigured: false });
+    }
+  }, []);
+
   useEffect(() => {
     fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas();
-    fetchArenaStats(); fetchServerClicks();
+    fetchArenaStats(); fetchServerClicks(); fetchSupabaseDiag();
     setLoading(false);
     setLastRefresh(new Date());
-  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats, fetchServerClicks]);
+  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats, fetchServerClicks, fetchSupabaseDiag]);
 
   useEffect(() => {
     if (activeTab === 'incidents' || activeTab === 'report') {
@@ -798,6 +819,26 @@ const clearIncidents = async () => {
                     sections.push(`  FAIL ${i+1}: ${c.ts} zone=${c.zoneId}(${c.zoneType}) "${c.content || ''}" raison=${c.reason || '?'} device=${c.deviceId || '?'}`);
                     if (c.guardStates) sections.push(`    guardStates: ${JSON.stringify(c.guardStates)}`);
                   });
+                }
+                sections.push('');
+
+                // Diagnostic Supabase
+                sections.push(`--- DIAGNOSTIC SUPABASE ---`);
+                if (supabaseDiag) {
+                  sections.push(`Configuré: ${supabaseDiag.supabaseConfigured ? 'OUI' : 'NON'}`);
+                  sections.push(`Table backend_logs: ${supabaseDiag.tableExists ? 'OK' : 'NON TROUVÉE'}`);
+                  sections.push(`Total logs en base: ${supabaseDiag.totalRows || 0}`);
+                  sections.push(`Logs ArenaRoundLog: ${supabaseDiag.arenaRoundLogCount || 0}`);
+                  sections.push(`Logs ZoneIncident: ${supabaseDiag.zoneIncidentCount || 0}`);
+                  if (supabaseDiag.error) sections.push(`Erreur: ${supabaseDiag.error}`);
+                  if (supabaseDiag.recentMessages && supabaseDiag.recentMessages.length > 0) {
+                    sections.push(`Derniers messages:`);
+                    supabaseDiag.recentMessages.slice(0, 5).forEach(m => {
+                      sections.push(`  [${m.lvl}] ${m.ts} ${m.msg}`);
+                    });
+                  }
+                } else {
+                  sections.push('Diagnostic non chargé (endpoint /supabase-diagnostic absent ou erreur).');
                 }
                 sections.push('');
 

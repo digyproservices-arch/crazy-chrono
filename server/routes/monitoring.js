@@ -1350,4 +1350,58 @@ router.get('/supabase-incidents', requireAdminAuth, async (req, res) => {
   }
 });
 
+// ── GET /api/monitoring/supabase-diagnostic ────────────────
+// Diagnostic: vérifier que Supabase reçoit bien les logs
+router.get('/supabase-diagnostic', requireAdminAuth, async (req, res) => {
+  const diag = { supabaseConfigured: false, tableExists: false, totalRows: 0, recentMessages: [], arenaRoundLogCount: 0, zoneIncidentCount: 0, error: null };
+  try {
+    const supabase = _getSupabase();
+    if (!supabase) {
+      diag.error = 'Supabase not configured (missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)';
+      return res.json({ ok: false, diagnostic: diag });
+    }
+    diag.supabaseConfigured = true;
+
+    // 1) Compter tous les logs
+    const { count, error: cErr } = await supabase
+      .from('backend_logs')
+      .select('*', { count: 'exact', head: true });
+    if (cErr) {
+      diag.error = `Count query failed: ${cErr.message}`;
+      return res.json({ ok: false, diagnostic: diag });
+    }
+    diag.tableExists = true;
+    diag.totalRows = count || 0;
+
+    // 2) 10 derniers messages
+    const { data: recent, error: rErr } = await supabase
+      .from('backend_logs')
+      .select('timestamp, level, message')
+      .order('timestamp', { ascending: false })
+      .limit(10);
+    if (!rErr && recent) {
+      diag.recentMessages = recent.map(r => ({ ts: r.timestamp, lvl: r.level, msg: (r.message || '').substring(0, 80) }));
+    }
+
+    // 3) Compter ArenaRoundLog
+    const { count: arcCount, error: arcErr } = await supabase
+      .from('backend_logs')
+      .select('*', { count: 'exact', head: true })
+      .like('message', '%[ArenaRoundLog]%');
+    if (!arcErr) diag.arenaRoundLogCount = arcCount || 0;
+
+    // 4) Compter ZoneValidation incidents
+    const { count: zvcCount, error: zvcErr } = await supabase
+      .from('backend_logs')
+      .select('*', { count: 'exact', head: true })
+      .like('message', '%[ZoneValidation][INCIDENT]%');
+    if (!zvcErr) diag.zoneIncidentCount = zvcCount || 0;
+
+    res.json({ ok: true, diagnostic: diag });
+  } catch (error) {
+    diag.error = error.message;
+    res.json({ ok: false, diagnostic: diag });
+  }
+});
+
 module.exports = router;
