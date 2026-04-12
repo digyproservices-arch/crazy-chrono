@@ -150,10 +150,17 @@ class CrazyArenaManager {
         config: {
           rounds: config.rounds || 3,
           duration: config.duration || config.durationPerRound || 60,
-          classes: config.classes || [],
-          themes: config.themes || [],
-          level: config.level || 'CE1',
-          sessionName: config.sessionName || session.session_name || 'Session Entraînement'
+          classes: Array.isArray(config.classes) ? config.classes : [],
+          themes: Array.isArray(config.themes) ? config.themes : [],
+          extras: Array.isArray(config.extras) ? config.extras : [],
+          level: config.level || config.selectedLevel || null,
+          selectedLevel: config.selectedLevel || config.level || null,
+          sessionName: config.sessionName || session.session_name || 'Session Entraînement',
+          objectiveMode: !!config.objectiveMode,
+          objectiveTarget: config.objectiveTarget || null,
+          objectiveThemes: config.objectiveThemes || [],
+          helpEnabled: !!config.helpEnabled,
+          isOfficial: !!config.isOfficial,
         },
         players: [],
         status: 'waiting',
@@ -1836,12 +1843,10 @@ class CrazyArenaManager {
     const seed = Math.floor(Math.random() * 1000000000);
     
     try {
-      // Fallback pour classes et themes
-      const defaultClasses = ['CP', 'CE1', 'CE2', 'CM1', 'CM2', '6e', '5e', '4e', '3e'];
-      const defaultThemes = ['botanique', 'multiplication'];
-      
-      const finalClasses = (config.classes && config.classes.length > 0) ? config.classes : defaultClasses;
-      const finalThemes = (config.themes && config.themes.length > 0) ? config.themes : defaultThemes;
+      // ✅ FIX: themes vide = pas de filtre thème (tous domaines activés côté client)
+      // NE PAS faire de fallback vers des thèmes par défaut — ça cassait le filtrage
+      const finalClasses = Array.isArray(config.classes) && config.classes.length > 0 ? config.classes : [];
+      const finalThemes = Array.isArray(config.themes) && config.themes.length > 0 ? config.themes : [];
       const finalExtras = Array.isArray(config.extras) ? config.extras.filter(Boolean) : [];
       
       // ✅ CRITIQUE: Récupérer les paires exclues du match (FIFO)

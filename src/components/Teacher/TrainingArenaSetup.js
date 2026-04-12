@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef, useMemo, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
 import { DataContext } from '../../context/DataContext';
-import PedagogicConfig, { CARD, SECTION_TITLE } from '../Shared/PedagogicConfig';
+import PedagogicConfig, { CARD, SECTION_TITLE, CLASS_LEVELS, CONTENT_DOMAINS } from '../Shared/PedagogicConfig';
 
 
 // Helper : Parser student_ids avec support multi-format
@@ -57,6 +57,7 @@ export default function TrainingArenaSetup() {
   const [configOpen, setConfigOpen] = useState(false); // Toggle panneau config
   const [checkedGroups, setCheckedGroups] = useState(new Set()); // Groupes cochés pour notif bulk
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [groupConfigs, setGroupConfigs] = useState({}); // groupId → config snapshot
 
   // ===== Configuration pédagogique (composant partagé PedagogicConfig) =====
   const [pedConfig, setPedConfig] = useState(null);
@@ -234,6 +235,10 @@ export default function TrainingArenaSetup() {
       const data = await res.json();
       
       if (data.success) {
+        // ✅ Snapshot de la config pédagogique actuelle pour ce groupe
+        if (data.groupId && pedConfig) {
+          setGroupConfigs(prev => ({ ...prev, [data.groupId]: { ...pedConfig } }));
+        }
         alert(`Groupe "${groupName}" créé avec succès !`);
         setSelectedStudents([]);
         setGroupName('');
@@ -308,19 +313,21 @@ export default function TrainingArenaSetup() {
       };
       const phaseId = phaseNames[tournament.current_phase] || 'phase_1_classe';
       
-      // Utiliser la config pédagogique définie par le professeur (via PedagogicConfig partagé)
-      const pc = pedConfig || {};
+      // ✅ FIX: Utiliser la config spécifique du groupe si elle existe, sinon la config globale
+      const gc = groupConfigs[group.id];
+      const pc = gc || pedConfig || {};
       const matchConfig = {
         rounds: pc.objectiveMode ? 99 : (pc.rounds || 3),
         duration: pc.objectiveMode ? 9999 : (pc.duration || 60),
-        classes: pc.classes || ['CP','CE1','CE2','CM1','CM2'],
-        themes: pc.themes || [],
-        extras: pc.extras || [],
+        classes: (Array.isArray(pc.classes) && pc.classes.length > 0) ? pc.classes : ['CP'],
+        themes: Array.isArray(pc.themes) ? pc.themes : [],
+        extras: Array.isArray(pc.extras) ? pc.extras : [],
         objectiveMode: !!pc.objectiveMode,
         objectiveTarget: pc.objectiveTarget || null,
         objectiveThemes: pc.objectiveThemes || [],
         helpEnabled: !!pc.helpEnabled,
         isOfficial: isOfficial,
+        selectedLevel: pc.selectedLevel || null,
       };
       
       console.log('[TrainingArena] 🚀 Lancement match Training');
@@ -513,6 +520,45 @@ export default function TrainingArenaSetup() {
           initialConfig={initialPedConfig}
           options={{ showPlayerZone: false, showFreeLimits: false, showAllowEmptyMath: true, showObjectiveTarget: true }}
         />
+
+        {/* ✅ Boutons pour appliquer la config à un groupe spécifique */}
+        {groups.filter(g => g.status === 'pending' && !g.match_id).length > 0 && (
+          <div style={{ ...CARD, background: '#f0f9ff', border: '1px solid #bae6fd' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#0369a1', marginBottom: 8 }}>
+              Appliquer cette config à un groupe spécifique :
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {groups.filter(g => g.status === 'pending' && !g.match_id).map(g => (
+                <button
+                  key={g.id}
+                  onClick={() => {
+                    if (pedConfig) {
+                      setGroupConfigs(prev => ({ ...prev, [g.id]: { ...pedConfig } }));
+                      alert(`Config appliquée au groupe "${g.name}" ✅`);
+                    }
+                  }}
+                  style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #93c5fd', background: '#fff', color: '#1e40af', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  📋 {g.name}
+                </button>
+              ))}
+              <button
+                onClick={() => {
+                  if (pedConfig) {
+                    const pending = groups.filter(g => g.status === 'pending' && !g.match_id);
+                    const newConfigs = {};
+                    pending.forEach(g => { newConfigs[g.id] = { ...pedConfig }; });
+                    setGroupConfigs(prev => ({ ...prev, ...newConfigs }));
+                    alert(`Config appliquée à ${pending.length} groupe(s) ✅`);
+                  }
+                }}
+                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #1d4ed8', background: '#1d4ed8', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Appliquer à tous
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Training-specific: Compétition Officielle */}
         <div style={CARD}>
@@ -781,6 +827,56 @@ export default function TrainingArenaSetup() {
                   </span>
                 </div>
                 
+                {/* ✅ Indicateur visuel de la config pédagogique du groupe */}
+                {(() => {
+                  const gc = groupConfigs[group.id] || pedConfig;
+                  const level = gc?.selectedLevel || '?';
+                  const domains = CONTENT_DOMAINS.filter(d => {
+                    if (!gc?.themes || gc.themes.length === 0) return true;
+                    return d.tags.some(t => gc.themes.includes(t));
+                  });
+                  const hasCustom = !!groupConfigs[group.id];
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: '#e0f2fe', color: '#0369a1', fontWeight: 700 }}>
+                        {level}
+                      </span>
+                      {domains.map(d => (
+                        <span key={d.key} style={{ fontSize: 11, padding: '2px 6px', borderRadius: 6, background: d.bg, color: d.color, fontWeight: 600 }}>
+                          {d.icon} {d.label}
+                        </span>
+                      ))}
+                      {gc?.objectiveMode && (
+                        <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 6, background: '#fef3c7', color: '#92400e', fontWeight: 600 }}>
+                          🎯 Objectif
+                        </span>
+                      )}
+                      {hasCustom && (
+                        <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, background: '#dbeafe', color: '#1e40af', fontWeight: 700, border: '1px solid #93c5fd' }}>
+                          config propre
+                        </span>
+                      )}
+                      {isPending && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Copier la config globale actuelle pour ce groupe
+                            if (!groupConfigs[group.id] && pedConfig) {
+                              setGroupConfigs(prev => ({ ...prev, [group.id]: { ...pedConfig } }));
+                            }
+                            setConfigOpen(true);
+                            alert(`Pour modifier la config du groupe "${group.name}":\n\n1. Ajustez la Configuration pédagogique ci-dessus\n2. Cliquez sur "Appliquer à ${group.name}" qui apparaîtra`);
+                          }}
+                          style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#6b7280', cursor: 'pointer' }}
+                          title="Modifier la config de ce groupe"
+                        >
+                          ✏️
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 <div style={{ marginBottom: 12 }}>
                   <strong>Élèves:</strong>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>

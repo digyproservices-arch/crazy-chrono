@@ -320,7 +320,10 @@ function generateRoundZones(seed, config = {}) {
       const THEME_ALIASES = {
         'botanique': ['botanique', 'domain:botany'],
         'domain:botany': ['botanique', 'domain:botany'],
-        'multiplication': ['multiplication'],
+        'multiplication': ['multiplication', 'domain:math'],
+        'domain:math': ['domain:math', 'multiplication'],
+        'animaux': ['animaux', 'domain:zoology'],
+        'domain:zoology': ['animaux', 'domain:zoology'],
         'geographie': ['geographie', 'domain:geography'],
         'domain:geography': ['geographie', 'domain:geography'],
       };
