@@ -229,16 +229,37 @@ class CrazyArenaManager {
 
     // Notifier chaque élève via Socket.IO (config complète)
     const storedConfig = this.matches.get(matchId).config;
+    
+    // ✅ LOGS DÉTAILLÉS pour monitoring des invitations
+    const connectedSockets = this.io.engine?.clientsCount || 0;
+    const connectedPlayers = Array.from(this.playerMatches.entries());
+    const alreadyConnected = studentIds.filter(sid => 
+      connectedPlayers.some(([socketId, mid]) => {
+        const match = this.matches.get(mid);
+        if (!match || match.mode !== 'training') return false;
+        return match.players?.some(p => p.studentId === sid);
+      })
+    );
+    
+    console.log(`[CrazyArena][Training][INVITE] 📤 ÉMISSION INVITATIONS matchId=${matchId}`);
+    console.log(`[CrazyArena][Training][INVITE]    → ${studentIds.length} élèves ciblés: [${studentIds.join(', ')}]`);
+    console.log(`[CrazyArena][Training][INVITE]    → Sockets connectés globalement: ${connectedSockets}`);
+    console.log(`[CrazyArena][Training][INVITE]    → Élèves déjà connectés à un training: [${alreadyConnected.join(', ') || 'aucun'}]`);
+    
+    let emittedCount = 0;
     studentIds.forEach(studentId => {
-      this.io.emit(`training:invite:${studentId}`, {
+      const eventName = `training:invite:${studentId}`;
+      this.io.emit(eventName, {
         matchId,
         sessionName: storedConfig.sessionName,
         groupSize: studentIds.length,
         config: storedConfig
       });
-      console.log(`[CrazyArena][Training] Notification envoyée à l'élève ${studentId}`);
+      emittedCount++;
+      console.log(`[CrazyArena][Training][INVITE]    → Émis: ${eventName}`);
     });
-
+    
+    console.log(`[CrazyArena][Training][INVITE] ✅ ${emittedCount} notifications émises via Socket.IO`);
     console.log(`[CrazyArena][Training] Match ${matchId} créé, en attente de ${studentIds.length} joueurs`);
     return this.matches.get(matchId);
   }

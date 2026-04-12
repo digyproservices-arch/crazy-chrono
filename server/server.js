@@ -2796,6 +2796,10 @@ io.on('connection', (socket) => {
 
   // Identifier le joueur (studentId) pour le tracking des stats
   let playerStudentId = null;
+  
+  // ✅ LOG: Nouvelle connexion Socket.IO
+  logger.info(`[Socket][CONNECT] 🔌 Nouveau socket connecté: ${socket.id} | Total: ${io.engine?.clientsCount || '?'}`);
+  
   // Monitoring: permettre au dashboard de rejoindre la room monitoring
   socket.on('monitoring:join', () => {
     socket.join('monitoring');
@@ -2815,6 +2819,7 @@ io.on('connection', (socket) => {
   socket.on('mp:identify', ({ studentId }) => {
     playerStudentId = studentId || null;
     emitPerfEvent('mp:identify', { socketId: socket.id, studentId: playerStudentId });
+    logger.info(`[Socket][IDENTIFY] 🆔 Socket ${socket.id} identifié comme studentId: ${playerStudentId}`);
     // Mettre à jour le joueur dans la room si déjà rejoint
     if (currentRoom) {
       const room = getRoom(currentRoom);
@@ -3680,7 +3685,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', (reason) => {
+    // ✅ LOG: Déconnexion Socket.IO
+    logger.info(`[Socket][DISCONNECT] 🔴 Socket ${socket.id} déconnecté | reason: ${reason} | studentId: ${playerStudentId || 'N/A'}`);
+    
     // Gérer déconnexion Grande Salle
     if (currentGS) {
       const salle = grandeSalles.get(currentGS);

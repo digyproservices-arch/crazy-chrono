@@ -1048,6 +1048,15 @@ router.get('/students/:studentId/training-invitations', requireAuth, ...validate
   try {
     const { studentId } = req.params;
     const invitations = [];
+    
+    // ✅ LOGS DÉTAILLÉS pour monitoring API polling
+    console.log(`[Tournament API][INVITE-POLL] 📥 Requête API de ${studentId}`);
+    
+    // Log état du crazyArena
+    const matchCount = global.crazyArena?.matches?.size || 0;
+    const trainingMatches = global.crazyArena ? 
+      Array.from(global.crazyArena.matches.values()).filter(m => m.mode === 'training' && m.status !== 'finished').length : 0;
+    console.log(`[Tournament API][INVITE-POLL]    → Matchs en mémoire: ${matchCount} total, ${trainingMatches} training actifs`);
 
     if (global.crazyArena && global.crazyArena.matches) {
       for (const [matchId, match] of global.crazyArena.matches.entries()) {
@@ -1072,13 +1081,14 @@ router.get('/students/:studentId/training-invitations', requireAuth, ...validate
           },
           status: match.status
         });
+        console.log(`[Tournament API][INVITE-POLL]    → Match trouvé: ${matchId} pour ${studentId} (expectedPlayers=[${expected.join(',')}])`);
       }
     }
 
-    console.log(`[Tournament API] Training invitations pour ${studentId}: ${invitations.length} trouvée(s)`);
+    console.log(`[Tournament API][INVITE-POLL] ✅ Réponse: ${invitations.length} invitation(s) pour ${studentId}`);
     res.json({ success: true, invitations });
   } catch (error) {
-    console.error('[Tournament API] Error fetching training invitations:', error);
+    console.error('[Tournament API][INVITE-POLL] ❌ Erreur:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
