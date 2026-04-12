@@ -42,6 +42,7 @@ import NotificationBadge from './components/NotificationBadge';
 import GrandeSalle from './components/GrandeSalle/GrandeSalle';
 import TournamentAdmin from './components/GrandeSalle/TournamentAdmin';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
+import PWAUpdateButton from './components/PWAUpdateButton';
 import LearnMode from './components/Modes/LearnMode';
 import LegalPages from './components/LegalPages';
 import LandingPage from './components/LandingPage';
@@ -528,6 +529,7 @@ function App() {
           )}
         </div>
         <PWAInstallPrompt />
+        <PWAUpdateButton />
       </Router>
     </DataProvider>
   );

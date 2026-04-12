@@ -4,7 +4,7 @@
    Network-first pour les API
    ============================================ */
 
-const CACHE_NAME = 'crazy-chrono-v13';
+const CACHE_NAME = 'crazy-chrono-v14';
 
 // Assets à pré-cacher au moment de l'installation
 const PRECACHE_URLS = [
@@ -108,4 +108,12 @@ self.addEventListener('fetch', (event) => {
       });
     })
   );
+});
+
+// Écouter les messages du client (pour forcer la mise à jour)
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[SW] Received SKIP_WAITING message, activating immediately...');
+    self.skipWaiting();
+  }
 });
