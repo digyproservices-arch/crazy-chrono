@@ -17,6 +17,23 @@ const path = require('path');
 // ── Bridge monitoring: sauvegarder chaque round Arena dans arena_round_logs.json ──
 const ARENA_ROUNDS_FILE = path.join(__dirname, 'data', 'arena_round_logs.json');
 function _logArenaRound(roundData) {
+  // ✅ Persister dans Supabase via Winston (survit aux redéploiements Render)
+  logger.info('[ArenaRoundLog] Round logged', {
+    roundId: roundData.id,
+    mode: roundData.mode,
+    source: roundData.source,
+    matchId: roundData.matchId,
+    roundIndex: roundData.roundIndex,
+    totalZones: roundData.totalZones,
+    pairZones: roundData.pairZones,
+    validPairs: roundData.validPairs,
+    doublePairIssues: roundData.doublePairIssues,
+    issues: roundData.issues,
+    pairDetails: roundData.pairDetails,
+    zonesSnapshot: roundData.zonesSnapshot
+  });
+  
+  // JSON file backup (éphémère mais utile si serveur stable)
   try {
     const dir = path.dirname(ARENA_ROUNDS_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -26,7 +43,7 @@ function _logArenaRound(roundData) {
     if (existing.length > 200) existing = existing.slice(-200);
     fs.writeFileSync(ARENA_ROUNDS_FILE, JSON.stringify(existing, null, 2), 'utf8');
   } catch (e) {
-    logger.warn('[ArenaRoundLog] Save failed:', e.message);
+    logger.warn('[ArenaRoundLog] JSON file save failed:', e.message);
   }
 }
 

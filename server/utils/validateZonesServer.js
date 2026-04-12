@@ -6,12 +6,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const winston = require('winston');
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
-  transports: [new winston.transports.Console()],
-});
+const logger = require('../logger');
 
 // ── Bridge vers le monitoring: sauvegarder les anomalies dans game_incidents.json ──
 const INCIDENTS_FILE = path.join(__dirname, '..', 'data', 'game_incidents.json');
@@ -19,6 +14,23 @@ const MAX_INCIDENTS = 500;
 
 function _saveAnomaliesToMonitoring(anomalies, context) {
   if (!anomalies || anomalies.length === 0) return;
+  
+  // ✅ Persister dans Supabase via Winston (survit aux redéploiements Render)
+  for (const a of anomalies) {
+    const severity = (a.type === 'ZERO_VALID_PAIRS' || a.type === 'MULTIPLE_TARGETS') ? 'critical' : 'warning';
+    const logMethod = severity === 'critical' ? 'error' : 'warn';
+    logger[logMethod](`[ZoneValidation][INCIDENT] ${a.type}`, {
+      incidentType: `zone:${a.type}`,
+      severity,
+      source: context.source || 'server',
+      matchId: context.matchId,
+      roomCode: context.roomCode,
+      roundIndex: context.roundIndex,
+      anomalyDetails: a
+    });
+  }
+  
+  // JSON file backup (éphémère mais utile si serveur stable)
   try {
     const dir = path.dirname(INCIDENTS_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -40,7 +52,7 @@ function _saveAnomaliesToMonitoring(anomalies, context) {
     const trimmed = existing.slice(-MAX_INCIDENTS);
     fs.writeFileSync(INCIDENTS_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
   } catch (e) {
-    logger.warn('[ZoneValidation] Failed to save anomalies to monitoring:', e.message);
+    logger.warn('[ZoneValidation] Failed to save anomalies to JSON file:', e.message);
   }
 }
 
