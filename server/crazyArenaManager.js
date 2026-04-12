@@ -3426,9 +3426,13 @@ class CrazyArenaManager {
     const match = this.matches.get(matchId);
     if (!match) return;
 
+    // ✅ FIX CRITIQUE: Utiliser le bon préfixe selon le mode du match
+    const prefix = (match.mode === 'training') ? 'training' : 'arena';
     const roundsPerMatch = match.config.rounds || match.config.roundsPerMatch || 3;
     const durationPerRound = match.config.duration || match.config.durationPerRound || 60;
     const totalDuration = roundsPerMatch * durationPerRound;
+
+    console.log(`[CrazyArena] ▶️ _restartTimer: mode=${match.mode}, prefix=${prefix}, ${roundsPerMatch} rounds × ${durationPerRound}s`);
 
     match.timerInterval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - match.startTime) / 1000);
@@ -3439,21 +3443,21 @@ class CrazyArenaManager {
         match.roundsPlayed = currentRound;
         this.generateZones(match.config, matchId).then(newZones => {
           match.zones = newZones;
-          this.io.to(matchId).emit('arena:round-new', {
+          this.io.to(matchId).emit(`${prefix}:round-new`, {
             zones: newZones,
             roundIndex: match.roundsPlayed,
             totalRounds: roundsPerMatch,
             timestamp: Date.now()
           });
         }).catch(err => {
-          console.error('[CrazyArena] Erreur génération nouvelle carte manche:', err);
+          console.error(`[CrazyArena] Erreur génération nouvelle carte manche (${prefix}):`, err);
         });
       }
 
       const elapsedInRound = elapsed % durationPerRound;
       const timeLeftInRound = Math.max(0, durationPerRound - elapsedInRound);
 
-      this.io.to(matchId).emit('arena:timer-tick', {
+      this.io.to(matchId).emit(`${prefix}:timer-tick`, {
         timeLeft: timeLeftInRound,
         elapsed,
         duration: totalDuration,
@@ -3463,7 +3467,11 @@ class CrazyArenaManager {
 
       if (timeLeft === 0) {
         clearInterval(match.timerInterval);
-        this.endGame(matchId);
+        if (match.mode === 'training') {
+          this.endTrainingGame(matchId);
+        } else {
+          this.endGame(matchId);
+        }
       }
     }, 1000);
   }
