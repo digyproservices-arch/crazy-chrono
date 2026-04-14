@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef, useMemo, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
 import { DataContext } from '../../context/DataContext';
-import PedagogicConfig, { CARD, SECTION_TITLE } from '../Shared/PedagogicConfig';
+import PedagogicConfig, { CARD, SECTION_TITLE, CONTENT_DOMAINS } from '../Shared/PedagogicConfig';
 
 
 // Helper : Parser student_ids avec support multi-format
@@ -54,6 +54,7 @@ export default function CrazyArenaSetup() {
   const [checkedGroups, setCheckedGroups] = useState(new Set()); // Groupes cochés pour notif bulk
   const [bulkLoading, setBulkLoading] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
+  const [groupConfigs, setGroupConfigs] = useState({}); // groupId → config snapshot
 
   // ===== Configuration pédagogique (composant partagé PedagogicConfig) =====
   const [pedConfig, setPedConfig] = useState(null);
@@ -640,6 +641,55 @@ export default function CrazyArenaSetup() {
                   </span>
                 </div>
                 
+                {/* ✅ Indicateur visuel de la config pédagogique du groupe */}
+                {(() => {
+                  const gc = groupConfigs[group.id] || pedConfig;
+                  const level = gc?.selectedLevel || '?';
+                  const domains = CONTENT_DOMAINS.filter(d => {
+                    if (!gc?.themes || gc.themes.length === 0) return true;
+                    return d.tags.some(t => gc.themes.includes(t));
+                  });
+                  const hasCustom = !!groupConfigs[group.id];
+                  return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: '#e0f2fe', color: '#0369a1', fontWeight: 700 }}>
+                        {level}
+                      </span>
+                      {domains.map(d => (
+                        <span key={d.key} style={{ fontSize: 11, padding: '2px 6px', borderRadius: 6, background: d.bg, color: d.color, fontWeight: 600 }}>
+                          {d.icon} {d.label}
+                        </span>
+                      ))}
+                      {gc?.objectiveMode && (
+                        <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 6, background: '#fef3c7', color: '#92400e', fontWeight: 600 }}>
+                          🎯 Objectif
+                        </span>
+                      )}
+                      {hasCustom && (
+                        <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 6, background: '#dbeafe', color: '#1e40af', fontWeight: 700, border: '1px solid #93c5fd' }}>
+                          config propre
+                        </span>
+                      )}
+                      {isPending && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!groupConfigs[group.id] && pedConfig) {
+                              setGroupConfigs(prev => ({ ...prev, [group.id]: { ...pedConfig } }));
+                            }
+                            setConfigOpen(true);
+                            alert(`Pour modifier la config du groupe "${group.name}":\n\n1. Ajustez la Configuration pédagogique ci-dessus\n2. Cliquez sur "Appliquer à ${group.name}" qui apparaîtra`);
+                          }}
+                          style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#6b7280', cursor: 'pointer' }}
+                          title="Modifier la config de ce groupe"
+                        >
+                          ✏️
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 <div style={{ marginBottom: 12 }}>
                   <strong>Élèves:</strong>
                   <ul style={{ margin: '4px 0', paddingLeft: 20 }}>
