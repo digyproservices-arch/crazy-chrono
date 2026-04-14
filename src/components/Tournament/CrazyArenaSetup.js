@@ -502,6 +502,45 @@ export default function CrazyArenaSetup() {
           initialConfig={initialPedConfig}
           options={{ showPlayerZone: false, showFreeLimits: false, showAllowEmptyMath: true, showObjectiveTarget: true }}
         />
+
+        {/* ✅ Boutons pour appliquer la config à un groupe spécifique */}
+        {groups.filter(g => g.status === 'pending' && !g.match_id).length > 0 && (
+          <div style={{ ...CARD, background: '#f0f9ff', border: '1px solid #bae6fd' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#0369a1', marginBottom: 8 }}>
+              Appliquer cette config à un groupe spécifique :
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {groups.filter(g => g.status === 'pending' && !g.match_id).map(g => (
+                <button
+                  key={g.id}
+                  onClick={() => {
+                    if (pedConfig) {
+                      setGroupConfigs(prev => ({ ...prev, [g.id]: { ...pedConfig } }));
+                      alert(`Config appliquée au groupe "${g.name}" ✅`);
+                    }
+                  }}
+                  style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #93c5fd', background: '#fff', color: '#1e40af', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  📋 {g.name}
+                </button>
+              ))}
+              <button
+                onClick={() => {
+                  if (pedConfig) {
+                    const pending = groups.filter(g => g.status === 'pending' && !g.match_id);
+                    const newConfigs = {};
+                    pending.forEach(g => { newConfigs[g.id] = { ...pedConfig }; });
+                    setGroupConfigs(prev => ({ ...prev, ...newConfigs }));
+                    alert(`Config appliquée à ${pending.length} groupe(s) ✅`);
+                  }
+                }}
+                style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #1d4ed8', background: '#1d4ed8', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Appliquer à tous
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Formulaire création groupe */}
