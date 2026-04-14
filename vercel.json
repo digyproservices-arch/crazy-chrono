@@ -1,4 +1,5 @@
 {
+  "buildCommand": "REACT_APP_GIT_SHA=$(git rev-parse --short HEAD) REACT_APP_BUILD_TIME=$(date +%Y%m%d-%H%M) react-scripts build",
   "routes": [
     {
       "src": "/static/(.*)",

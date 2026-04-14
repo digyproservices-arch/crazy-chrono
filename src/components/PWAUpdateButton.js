@@ -7,7 +7,9 @@ import React, { useState, useEffect } from 'react';
 const PWAUpdateButton = () => {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [checking, setChecking] = useState(false);
-  const [version, setVersion] = useState(null);
+  const [version] = useState(
+    process.env.REACT_APP_GIT_SHA || process.env.REACT_APP_BUILD_TIME || null
+  );
 
   useEffect(() => {
     // Vérifier si on peut détecter les mises à jour
@@ -45,17 +47,6 @@ const PWAUpdateButton = () => {
         console.log('[PWA] Update found: waiting worker detected');
         setUpdateAvailable(true);
       }
-
-      // Vérifier la version du serveur vs cache
-      const response = await fetch('/?check-sw-update=' + Date.now(), {
-        cache: 'no-store'
-      });
-      const serverVersion = response.headers.get('x-vercel-deployment-url') || 
-                           response.headers.get('x-deployment-id') || 
-                           'unknown';
-      
-      // Stocker la version actuelle pour affichage
-      setVersion(serverVersion.slice(0, 8));
 
       // Écouter les nouveaux workers en cours d'installation
       reg.addEventListener('updatefound', () => {
