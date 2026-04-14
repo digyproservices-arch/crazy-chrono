@@ -3,7 +3,7 @@
 // Interface enseignant pour créer des groupes et lancer les matchs
 // ==========================================
 
-import React, { useState, useEffect, useRef, useMemo, useContext } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
 import { DataContext } from '../../context/DataContext';
@@ -55,6 +55,8 @@ export default function CrazyArenaSetup() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [groupConfigs, setGroupConfigs] = useState({}); // groupId → config snapshot
+  const [tourStatus, setTourStatus] = useState(null); // { tours, currentTour, classWinner }
+  const [creatingNextTour, setCreatingNextTour] = useState(false);
 
   // ===== Configuration pédagogique (composant partagé PedagogicConfig) =====
   const [pedConfig, setPedConfig] = useState(null);
@@ -149,6 +151,13 @@ export default function CrazyArenaSetup() {
       console.log('[CrazyArena] 👥 Groups data:', groupsData);
       console.log('[CrazyArena] 👥 Groups count:', groupsData.groups?.length || 0);
       setGroups(groupsData.groups || []);
+      
+      // 4. Récupérer le statut des tours
+      try {
+        const tourRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/tour-status?mode=arena&phase_level=${tournamentData.tournament?.current_phase || 1}`, { headers: getAuthHeaders() });
+        const tourData = await tourRes.json();
+        if (tourData.success) setTourStatus(tourData);
+      } catch (e) { console.warn('[CrazyArena] Tour status non disponible:', e); }
       
       console.log('[CrazyArena] ✅ Chargement terminé!');
       console.log('[CrazyArena] 📊 État final - Students:', studentsData.students?.length, 'Groups:', groupsData.groups?.length);
@@ -885,6 +894,114 @@ export default function CrazyArenaSetup() {
         )}
       </section>
       
+      {/* ===== SECTION PROGRESSION TOURNOI ===== */}
+      {tourStatus && tourStatus.tours.length > 0 && (() => {
+        const completedTours = tourStatus.tours.filter(t => t.allFinished);
+        const lastComplete = completedTours[completedTours.length - 1];
+        const hasClassWinner = !!tourStatus.classWinner;
+        const canCreateNext = lastComplete && lastComplete.winners.length >= 2 && !hasClassWinner;
+        // Vérifier si le tour suivant existe déjà
+        const nextTourExists = tourStatus.tours.some(t => t.tourNumber === (lastComplete?.tourNumber || 0) + 1);
+
+        return (
+          <section style={{ marginTop: 24, padding: 20, background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)', borderRadius: 16, border: '2px solid #86efac' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: 18, fontWeight: 800, color: '#065f46' }}>
+              🏆 Progression du tournoi
+            </h3>
+
+            {/* Résumé des tours */}
+            {tourStatus.tours.map(tour => (
+              <div key={tour.tourNumber} style={{
+                padding: 12, marginBottom: 10, borderRadius: 10,
+                background: tour.allFinished ? '#fff' : '#fefce8',
+                border: tour.allFinished ? '1px solid #d1fae5' : '1px solid #fde68a'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <strong style={{ fontSize: 14, color: '#1e293b' }}>Tour {tour.tourNumber}</strong>
+                  <span style={{
+                    padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700,
+                    background: tour.allFinished ? '#d1fae5' : '#fef3c7',
+                    color: tour.allFinished ? '#065f46' : '#92400e'
+                  }}>
+                    {tour.allFinished ? `✅ Terminé` : `⏳ ${tour.finishedGroups}/${tour.totalGroups} groupes`}
+                  </span>
+                </div>
+                {tour.allFinished && tour.winners.length > 0 && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {tour.winners.map(w => (
+                      <span key={w.studentId} style={{
+                        padding: '4px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                        background: '#dcfce7', color: '#166534', border: '1px solid #86efac'
+                      }}>
+                        🏅 {w.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Gagnant de classe */}
+            {hasClassWinner && (
+              <div style={{
+                padding: 16, borderRadius: 12, textAlign: 'center',
+                background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                color: '#fff', marginTop: 8
+              }}>
+                <div style={{ fontSize: 36, marginBottom: 4 }}>🏆</div>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>Gagnant de classe</div>
+                <div style={{ fontSize: 22, fontWeight: 900, marginTop: 4 }}>{tourStatus.classWinner.name}</div>
+              </div>
+            )}
+
+            {/* Bouton créer tour suivant */}
+            {canCreateNext && !nextTourExists && (
+              <button
+                onClick={async () => {
+                  setCreatingNextTour(true);
+                  try {
+                    const classId = localStorage.getItem('cc_class_id');
+                    const resp = await fetch(`${getBackendUrl()}/api/tournament/classes/${classId}/next-tour`, {
+                      method: 'POST',
+                      headers: getAuthHeaders(),
+                      body: JSON.stringify({
+                        mode: 'arena',
+                        phase_level: tournament?.current_phase || 1,
+                        tournamentId: tournament?.id
+                      })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                      alert(data.message);
+                      loadTournamentData();
+                    } else {
+                      alert('Erreur: ' + (data.error || 'Erreur inconnue'));
+                    }
+                  } catch (err) {
+                    alert('Erreur de connexion: ' + err.message);
+                  } finally {
+                    setCreatingNextTour(false);
+                  }
+                }}
+                disabled={creatingNextTour}
+                style={{
+                  marginTop: 12, width: '100%', padding: '14px 24px',
+                  borderRadius: 10, border: 'none',
+                  background: creatingNextTour ? '#94a3b8' : 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                  color: '#fff', fontWeight: 800, fontSize: 15,
+                  cursor: creatingNextTour ? 'wait' : 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {creatingNextTour
+                  ? '⏳ Création en cours...'
+                  : `➡️ Créer le Tour ${(lastComplete?.tourNumber || 1) + 1} avec ${lastComplete.winners.length} gagnant(s)`}
+              </button>
+            )}
+          </section>
+        );
+      })()}
+
       <div style={{ marginTop: 24 }}>
         <button 
           onClick={() => navigate('/modes')}

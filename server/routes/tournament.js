@@ -2006,6 +2006,237 @@ router.get('/classes/:classId/competition-results', requireSupabase, requireAuth
 });
 
 // ==========================================
+// PROGRESSION TOURNOI — TOURS SUCCESSIFS
+// ==========================================
+
+/**
+ * GET /api/tournament/classes/:classId/tour-status
+ * Résumé des tours pour une classe : tours terminés, gagnants, tour actuel
+ * Query params: mode=arena|training, phase_level=1 (default)
+ */
+router.get('/classes/:classId/tour-status', requireSupabase, requireAuth, ...validateParamClassId, async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const mode = req.query.mode || 'arena';
+    const phaseLevel = parseInt(req.query.phase_level) || 1;
+
+    // Récupérer tous les groupes de cette classe / mode / phase
+    let query = supabase
+      .from('tournament_groups')
+      .select('id, name, student_ids, status, winner_id, tour_number, match_id, mode')
+      .eq('class_id', classId)
+      .eq('phase_level', phaseLevel)
+      .order('tour_number', { ascending: true })
+      .order('created_at', { ascending: true });
+
+    if (mode) query = query.eq('mode', mode);
+
+    const { data: groups, error } = await query;
+    if (error) throw error;
+
+    if (!groups || groups.length === 0) {
+      return res.json({ success: true, tours: [], currentTour: 1, classWinner: null });
+    }
+
+    // Grouper par tour_number
+    const tourMap = {};
+    for (const g of groups) {
+      const t = g.tour_number || 1;
+      if (!tourMap[t]) tourMap[t] = [];
+      tourMap[t].push(g);
+    }
+
+    // Récupérer les infos élèves pour les noms
+    const allStudentIds = new Set();
+    groups.forEach(g => {
+      const ids = Array.isArray(g.student_ids) ? g.student_ids : JSON.parse(g.student_ids || '[]');
+      ids.forEach(id => allStudentIds.add(id));
+      if (g.winner_id) allStudentIds.add(g.winner_id);
+    });
+
+    let studentsMap = {};
+    if (allStudentIds.size > 0) {
+      const { data: students } = await supabase
+        .from('students')
+        .select('id, full_name, first_name, avatar_url')
+        .in('id', Array.from(allStudentIds));
+      studentsMap = Object.fromEntries((students || []).map(s => [s.id, s]));
+    }
+
+    // Construire le résumé par tour
+    const tours = Object.entries(tourMap)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .map(([tourNum, tourGroups]) => {
+        const finished = tourGroups.filter(g => g.status === 'finished');
+        const winners = tourGroups.filter(g => g.winner_id).map(g => ({
+          studentId: g.winner_id,
+          name: studentsMap[g.winner_id]?.full_name || studentsMap[g.winner_id]?.first_name || g.winner_id,
+          groupName: g.name
+        }));
+
+        return {
+          tourNumber: Number(tourNum),
+          totalGroups: tourGroups.length,
+          finishedGroups: finished.length,
+          allFinished: finished.length === tourGroups.length,
+          winners
+        };
+      });
+
+    // Déterminer le tour actuel (dernier tour dont tous les groupes sont terminés + 1)
+    const lastCompleteTour = tours.filter(t => t.allFinished).pop();
+    const currentTour = lastCompleteTour ? lastCompleteTour.tourNumber + 1 : 1;
+
+    // Vérifier s'il y a un gagnant de classe (1 seul gagnant au dernier tour terminé, ou 1 seul groupe au tour actuel avec 1 gagnant)
+    let classWinner = null;
+    if (lastCompleteTour && lastCompleteTour.winners.length === 1) {
+      classWinner = lastCompleteTour.winners[0];
+    }
+
+    console.log(`[Tournament API] Tour status class=${classId} mode=${mode}: ${tours.length} tour(s), current=${currentTour}, classWinner=${classWinner?.name || 'none'}`);
+
+    res.json({
+      success: true,
+      tours,
+      currentTour,
+      classWinner
+    });
+  } catch (error) {
+    console.error('[Tournament API] Error fetching tour status:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /api/tournament/classes/:classId/next-tour
+ * Créer automatiquement le tour suivant avec les gagnants du tour actuel
+ * Body: { mode, phase_level, tournamentId, groupings? }
+ *   - Sans groupings → auto-groupement (1 seul groupe avec tous les gagnants)
+ *   - Avec groupings → [[id1,id2,...], [id3,id4,...]] groupement manuel
+ */
+router.post('/classes/:classId/next-tour', requireSupabase, requireAuth, ...validateParamClassId, async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { mode = 'arena', phase_level = 1, tournamentId, groupings } = req.body;
+
+    if (!tournamentId) {
+      return res.status(400).json({ success: false, error: 'tournamentId requis' });
+    }
+
+    // 1. Récupérer les groupes de cette classe/mode/phase
+    let query = supabase
+      .from('tournament_groups')
+      .select('id, name, student_ids, status, winner_id, tour_number, mode')
+      .eq('class_id', classId)
+      .eq('phase_level', phase_level)
+      .order('tour_number', { ascending: true });
+
+    if (mode) query = query.eq('mode', mode);
+
+    const { data: groups, error } = await query;
+    if (error) throw error;
+
+    // 2. Trouver le dernier tour complété
+    const tourMap = {};
+    for (const g of (groups || [])) {
+      const t = g.tour_number || 1;
+      if (!tourMap[t]) tourMap[t] = [];
+      tourMap[t].push(g);
+    }
+
+    const tourNumbers = Object.keys(tourMap).map(Number).sort((a, b) => a - b);
+    const lastCompleteTour = tourNumbers.filter(t => tourMap[t].every(g => g.status === 'finished')).pop();
+
+    if (!lastCompleteTour) {
+      return res.status(400).json({ success: false, error: 'Aucun tour complété. Tous les matchs doivent être terminés.' });
+    }
+
+    // 3. Récupérer les gagnants du dernier tour
+    const winners = tourMap[lastCompleteTour]
+      .filter(g => g.winner_id)
+      .map(g => g.winner_id);
+
+    if (winners.length < 2) {
+      return res.status(400).json({
+        success: false,
+        error: winners.length === 1
+          ? 'Un seul gagnant — le tournoi de classe est terminé ! Pas de tour suivant nécessaire.'
+          : 'Aucun gagnant trouvé dans le dernier tour.'
+      });
+    }
+
+    const nextTour = lastCompleteTour + 1;
+
+    // Vérifier qu'on n'a pas déjà créé ce tour
+    const existingNext = (groups || []).filter(g => (g.tour_number || 1) === nextTour);
+    if (existingNext.length > 0) {
+      return res.status(400).json({ success: false, error: `Le tour ${nextTour} existe déjà avec ${existingNext.length} groupe(s).` });
+    }
+
+    // 4. Créer les groupes du tour suivant
+    let groupsToCreate;
+
+    if (groupings && Array.isArray(groupings)) {
+      // Groupement manuel
+      groupsToCreate = groupings.filter(g => Array.isArray(g) && g.length >= 2);
+      // Vérifier que tous les IDs sont des gagnants
+      const winnerSet = new Set(winners);
+      for (const grp of groupsToCreate) {
+        for (const id of grp) {
+          if (!winnerSet.has(id)) {
+            return res.status(400).json({ success: false, error: `L'élève ${id} n'est pas un gagnant du tour ${lastCompleteTour}` });
+          }
+        }
+      }
+    } else {
+      // Auto-groupement : tous les gagnants dans un seul groupe
+      groupsToCreate = [winners];
+    }
+
+    const createdGroups = [];
+    for (let i = 0; i < groupsToCreate.length; i++) {
+      const studentIds = groupsToCreate[i];
+      const groupId = `group_${uuidv4()}`;
+      const groupName = groupsToCreate.length === 1
+        ? `Tour ${nextTour} — Finale`
+        : `Tour ${nextTour} — Groupe ${i + 1}`;
+
+      const { data: created, error: createError } = await supabase
+        .from('tournament_groups')
+        .insert({
+          id: groupId,
+          tournament_id: tournamentId,
+          phase_level: phase_level,
+          class_id: classId,
+          name: groupName,
+          student_ids: JSON.stringify(studentIds),
+          status: 'pending',
+          mode: mode,
+          tour_number: nextTour
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+      createdGroups.push(created);
+    }
+
+    console.log(`[Tournament API] ✅ Tour ${nextTour} créé: ${createdGroups.length} groupe(s) avec ${winners.length} gagnant(s) du tour ${lastCompleteTour}`);
+
+    res.json({
+      success: true,
+      tourNumber: nextTour,
+      groupsCreated: createdGroups.length,
+      groups: createdGroups,
+      message: `Tour ${nextTour} créé avec ${winners.length} qualifié(s) répartis dans ${createdGroups.length} groupe(s)`
+    });
+  } catch (error) {
+    console.error('[Tournament API] Error creating next tour:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
 // HELPERS
 // ==========================================
 
