@@ -426,6 +426,47 @@ function generateRoundZones(seed, config = {}) {
       }
     }
     
+    // ===== Maps COMPLÈTES de cross-référence (AVANT exclusion) =====
+    // Ces maps gardent la connaissance de TOUS les liens entre éléments,
+    // même les paires exclues, pour empêcher les fausses paires distracteurs.
+    const byId = (arr) => Object.fromEntries(arr.map(x => [x.id, x]));
+    const textesById = byId(textes);
+    const imagesById = byId(images);
+    const calculsById = byId(calculs);
+    const chiffresById = byId(chiffres);
+    
+    const addMap = (m, a, b) => {
+      if (!m.has(a)) m.set(a, new Set());
+      m.get(a).add(b);
+    };
+    
+    const fullTexteToImages = new Map();
+    const fullImageToTextes = new Map();
+    const fullCalculToChiffres = new Map();
+    const fullChiffreToCalculs = new Map();
+    
+    for (const a of associations) {
+      if (a.texteId && a.imageId) {
+        if (textesById[a.texteId] && imagesById[a.imageId]) {
+          addMap(fullTexteToImages, a.texteId, a.imageId);
+          addMap(fullImageToTextes, a.imageId, a.texteId);
+        }
+      }
+      if (a.calculId && a.chiffreId) {
+        if (calculsById[a.calculId] && chiffresById[a.chiffreId]) {
+          addMap(fullCalculToChiffres, a.calculId, a.chiffreId);
+          addMap(fullChiffreToCalculs, a.chiffreId, a.calculId);
+        }
+      }
+    }
+    
+    console.log('[ServerZoneGen] Full cross-ref maps built (before exclusion):', {
+      fullImageToTextes: fullImageToTextes.size,
+      fullTexteToImages: fullTexteToImages.size,
+      fullCalculToChiffres: fullCalculToChiffres.size,
+      fullChiffreToCalculs: fullChiffreToCalculs.size
+    });
+    
     // ===== Filtrage des paires déjà validées =====
     if (excludedPairIds.size > 0) {
       const buildPairId = (a) => {
@@ -469,22 +510,11 @@ function generateRoundZones(seed, config = {}) {
       return `images/${encodeURIComponent(filename)}`;
     };
     
-    // ===== Créer les maps d'associations =====
-    const byId = (arr) => Object.fromEntries(arr.map(x => [x.id, x]));
-    const textesById = byId(textes);
-    const imagesById = byId(images);
-    const calculsById = byId(calculs);
-    const chiffresById = byId(chiffres);
-    
+    // ===== Maps FILTRÉES (pour sélection paire officielle uniquement) =====
     const texteToImages = new Map();
     const imageToTextes = new Map();
     const calculToChiffres = new Map();
     const chiffreToCalculs = new Map();
-    
-    const addMap = (m, a, b) => {
-      if (!m.has(a)) m.set(a, new Set());
-      m.get(a).add(b);
-    };
     
     for (const a of associations) {
       if (a.texteId && a.imageId) {
@@ -690,8 +720,8 @@ function generateRoundZones(seed, config = {}) {
       const url = imagesById[imgId]?.url;
       return !used.image.has(imgId) && 
              !usedContents.has(url) &&
-             (!forbiddenTextIds || !imageToTextes.get(imgId) || 
-              ![...imageToTextes.get(imgId)].some(t => forbiddenTextIds.has(t)));
+             (!forbiddenTextIds || !fullImageToTextes.get(imgId) || 
+              ![...fullImageToTextes.get(imgId)].some(t => forbiddenTextIds.has(t)));
     };
     const pickImageDistractor = (forbiddenTextIds, usedContents) => {
       if (deckState) return _drawFromDeck(deckState, 'distImg', imageIds, rng, _imgFilter(forbiddenTextIds, usedContents));
@@ -703,8 +733,8 @@ function generateRoundZones(seed, config = {}) {
       const content = textesById[tId]?.content;
       return !used.texte.has(tId) && 
              !usedContents.has(content) &&
-             (!forbiddenImageIds || !texteToImages.get(tId) || 
-              ![...texteToImages.get(tId)].some(i => forbiddenImageIds.has(i)));
+             (!forbiddenImageIds || !fullTexteToImages.get(tId) || 
+              ![...fullTexteToImages.get(tId)].some(i => forbiddenImageIds.has(i)));
     };
     const pickTexteDistractor = (forbiddenImageIds, usedContents) => {
       if (deckState) return _drawFromDeck(deckState, 'distTxt', texteIds, rng, _txtFilter(forbiddenImageIds, usedContents));
@@ -721,8 +751,8 @@ function generateRoundZones(seed, config = {}) {
       }
       return !used.calcul.has(cId) && 
              !usedContents.has(content) &&
-             (!forbiddenChiffreIds || !calculToChiffres.get(cId) || 
-              ![...calculToChiffres.get(cId)].some(n => forbiddenChiffreIds.has(n)));
+             (!forbiddenChiffreIds || !fullCalculToChiffres.get(cId) || 
+              ![...fullCalculToChiffres.get(cId)].some(n => forbiddenChiffreIds.has(n)));
     };
     const pickCalculDistractor = (forbiddenChiffreIds, usedContents, placedChiffreContents) => {
       if (deckState) return _drawFromDeck(deckState, 'distCalc', calculIds, rng, _calcFilter(forbiddenChiffreIds, usedContents, placedChiffreContents));
@@ -739,8 +769,8 @@ function generateRoundZones(seed, config = {}) {
       }
       return !used.chiffre.has(nId) && 
              !usedContents.has(content) &&
-             (!forbiddenCalculIds || !chiffreToCalculs.get(nId) || 
-              ![...chiffreToCalculs.get(nId)].some(c => forbiddenCalculIds.has(c)));
+             (!forbiddenCalculIds || !fullChiffreToCalculs.get(nId) || 
+              ![...fullChiffreToCalculs.get(nId)].some(c => forbiddenCalculIds.has(c)));
     };
     const pickChiffreDistractor = (forbiddenCalculIds, usedContents, placedCalculContents) => {
       if (deckState) return _drawFromDeck(deckState, 'distNum', chiffreIds, rng, _numFilter(forbiddenCalculIds, usedContents, placedCalculContents));
@@ -805,7 +835,7 @@ function generateRoundZones(seed, config = {}) {
           const safeImages = images.filter(img => 
             !usedImageContents.has(img.url) && 
             !used.image.has(img.id) &&
-            (!imageToTextes.get(img.id) || ![...imageToTextes.get(img.id)].some(t => allForbiddenTextIdsFB.has(t)))
+            (!fullImageToTextes.get(img.id) || ![...fullImageToTextes.get(img.id)].some(t => allForbiddenTextIdsFB.has(t)))
           );
           const availableImages = safeImages.length > 0 ? safeImages : images.filter(img => 
             !usedImageContents.has(img.url) && !used.image.has(img.id)
@@ -852,7 +882,7 @@ function generateRoundZones(seed, config = {}) {
           const allForbiddenImageIdsFB = new Set([...forbiddenImageIds, ...placedDistractorImageIds]);
           const safeTexts = textes.filter(t =>
             !usedTextContents.has(t.content) && !used.texte.has(t.id) &&
-            (!texteToImages.get(t.id) || ![...texteToImages.get(t.id)].some(i => allForbiddenImageIdsFB.has(i)))
+            (!fullTexteToImages.get(t.id) || ![...fullTexteToImages.get(t.id)].some(i => allForbiddenImageIdsFB.has(i)))
           );
           const availableTexts = safeTexts.length > 0 ? safeTexts : textes.filter(t =>
             !usedTextContents.has(t.content) && !used.texte.has(t.id)
@@ -982,7 +1012,7 @@ function generateRoundZones(seed, config = {}) {
             let isPair = false;
             for (const [imgId, imgData] of Object.entries(imagesById)) {
               if (imgData.url && String(imgData.url).includes(imageUrl)) {
-                const linkedTexteIds = imageToTextes.get(imgId) || new Set();
+                const linkedTexteIds = fullImageToTextes.get(imgId) || new Set();
                 for (const tId of linkedTexteIds) {
                   const linkedText = textesById[tId]?.content || '';
                   if (linkedText.toLowerCase() === texteContent) {
