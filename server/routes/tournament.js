@@ -588,8 +588,8 @@ router.post('/groups', requireSupabase, requireAuth, ...validateCreateGroup, asy
     
     console.log('[Tournament API] 📨 CREATE GROUP - tournamentId:', tournamentId, 'classId:', classId, 'name:', name, 'studentIds:', studentIds, 'phaseLevel:', phaseLevel, 'mode:', mode);
     
-    if (!Array.isArray(studentIds) || studentIds.length < 2 || studentIds.length > 4) {
-      return res.status(400).json({ success: false, error: 'Un groupe doit contenir entre 2 et 4 élèves' });
+    if (!Array.isArray(studentIds) || studentIds.length < 2) {
+      return res.status(400).json({ success: false, error: 'Un groupe doit contenir au moins 2 élèves' });
     }
     
     const groupId = `group_${uuidv4()}`;

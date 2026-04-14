@@ -40,7 +40,7 @@ const validateCreateGroup = [
   body('name').trim().notEmpty().withMessage('Nom du groupe requis')
     .isLength({ max: 100 }).withMessage('Nom trop long (max 100)'),
   body('studentIds')
-    .isArray({ min: 2, max: 4 }).withMessage('Entre 2 et 4 élèves requis'),
+    .isArray({ min: 2 }).withMessage('Au moins 2 élèves requis'),
   body('studentIds.*').trim().notEmpty().withMessage('ID élève invalide'),
   handleValidation
 ];

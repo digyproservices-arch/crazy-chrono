@@ -191,17 +191,14 @@ export default function TrainingArenaSetup() {
       if (prev.includes(studentId)) {
         return prev.filter(id => id !== studentId); // Désélectionner
       } else {
-        if (prev.length < 4) {
-          return [...prev, studentId];
-        }
-        return prev; // Max 4 élèves (modifiable 2-4)
+        return [...prev, studentId];
       }
     });
   };
   
   const createGroup = async () => {
-    if (selectedStudents.length < 2 || selectedStudents.length > 4) {
-      alert('Vous devez sélectionner entre 2 et 4 élèves pour former un groupe.');
+    if (selectedStudents.length < 2) {
+      alert('Vous devez sélectionner au moins 2 élèves pour former un groupe.');
       return;
     }
     
@@ -440,7 +437,7 @@ export default function TrainingArenaSetup() {
             🏆 Mode Entraînement - Training Arena
           </h1>
           <p style={{ fontSize: 16, color: '#666', marginBottom: 0 }}>
-            Créez des groupes de 2 à 4 élèves et lancez des matchs compétitifs
+            Créez des groupes d'au moins 2 élèves et lancez des matchs compétitifs
           </p>
         </div>
         
@@ -602,7 +599,7 @@ export default function TrainingArenaSetup() {
           
           {availableStudents.length > 0 && (
             <div style={{ marginTop: 8, marginBottom: 8, padding: 8, background: '#dbeafe', borderRadius: 6 }}>
-              <strong>✅ {availableStudents.length} élève(s) disponible(s)</strong> - Sélectionnez 2 à 4 élèves pour créer un groupe ({selectedStudents.length}/4)
+              <strong>✅ {availableStudents.length} élève(s) disponible(s)</strong> - Sélectionnez au moins 2 élèves pour créer un groupe ({selectedStudents.length} sélectionné(s))
             </div>
           )}
           
@@ -616,7 +613,7 @@ export default function TrainingArenaSetup() {
             {students.map(s => {
               const isInGroup = studentsInGroups.has(s.id);
               const isSelected = selectedStudents.includes(s.id);
-              const isDisabled = isInGroup || (!isSelected && selectedStudents.length >= 4);
+              const isDisabled = isInGroup;
               const perf = perfMap[s.id];
               const levelColors = {
                 'Expert': { bg: '#fef3c7', color: '#92400e', border: '#f59e0b' },
@@ -685,7 +682,7 @@ export default function TrainingArenaSetup() {
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <button 
             onClick={createGroup}
-            disabled={selectedStudents.length < 2 || selectedStudents.length > 4 || !groupName.trim()}
+            disabled={selectedStudents.length < 2 || !groupName.trim()}
             style={{ 
               padding: '10px 20px', 
               borderRadius: 8, 
@@ -693,8 +690,8 @@ export default function TrainingArenaSetup() {
               background: 'linear-gradient(135deg, #1AACBE, #148A9C)', 
               color: '#fff', 
               fontWeight: 700,
-              cursor: (selectedStudents.length < 2 || selectedStudents.length > 4 || !groupName.trim()) ? 'not-allowed' : 'pointer',
-              opacity: (selectedStudents.length < 2 || selectedStudents.length > 4 || !groupName.trim()) ? 0.5 : 1
+              cursor: (selectedStudents.length < 2 || !groupName.trim()) ? 'not-allowed' : 'pointer',
+              opacity: (selectedStudents.length < 2 || !groupName.trim()) ? 0.5 : 1
             }}
           >
             Créer le groupe ({selectedStudents.length} élève(s))
