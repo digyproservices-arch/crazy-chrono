@@ -780,23 +780,49 @@ export default function TrainingArenaSetup() {
         </div>
       </section>
       
-      {/* Liste des groupes créés */}
-      <section>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h3 style={{ margin: 0 }}>Groupes créés ({groups.length})</h3>
-          {groups.filter(g => g.status === 'pending' && !g.match_id).length > 0 && (
-            <button onClick={selectAllPendingGroups} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #6b7280', background: '#fff', color: '#374151', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-              {checkedGroups.size === groups.filter(g => g.status === 'pending' && !g.match_id).length ? '☐ Tout désélectionner' : '☑ Tout sélectionner'}
-            </button>
-          )}
-        </div>
-        
-        {groups.length === 0 && (
-          <p style={{ color: '#6b7280' }}>Aucun groupe créé pour le moment.</p>
-        )}
-        
-        <div style={{ display: 'grid', gap: 12 }}>
-          {groups.map(group => {
+      {/* Liste des groupes créés — organisés par tour */}
+      {(() => {
+        const tourColors = [
+          { bg: '#fff', border: '#e5e7eb', headerBg: 'transparent', headerColor: '#111' },
+          { bg: '#eff6ff', border: '#93c5fd', headerBg: '#dbeafe', headerColor: '#1e40af' },
+          { bg: '#fef3c7', border: '#fbbf24', headerBg: '#fde68a', headerColor: '#92400e' },
+          { bg: '#f0fdf4', border: '#86efac', headerBg: '#dcfce7', headerColor: '#166534' },
+        ];
+        const groupsByTour = {};
+        groups.forEach(g => {
+          const tn = g.tour_number || 1;
+          if (!groupsByTour[tn]) groupsByTour[tn] = [];
+          groupsByTour[tn].push(g);
+        });
+        const tourNumbers = Object.keys(groupsByTour).map(Number).sort((a, b) => a - b);
+
+        return tourNumbers.map(tn => {
+          const tourGroups = groupsByTour[tn];
+          const colors = tourColors[Math.min(tn - 1, tourColors.length - 1)];
+          const isTour1 = tn === 1;
+          return (
+            <section key={`tour-section-${tn}`} style={!isTour1 ? { marginTop: 20, padding: 16, background: colors.bg, borderRadius: 14, border: `2px solid ${colors.border}` } : undefined}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                {isTour1 ? (
+                  <h3 style={{ margin: 0 }}>Groupes créés ({tourGroups.length})</h3>
+                ) : (
+                  <h3 style={{ margin: 0, padding: '4px 14px', borderRadius: 8, background: colors.headerBg, color: colors.headerColor, fontSize: 15 }}>
+                    🔁 Tour {tn} — {tourGroups.length} groupe(s)
+                  </h3>
+                )}
+                {isTour1 && groups.filter(g => g.status === 'pending' && !g.match_id).length > 0 && (
+                  <button onClick={selectAllPendingGroups} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #6b7280', background: '#fff', color: '#374151', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    {checkedGroups.size === groups.filter(g => g.status === 'pending' && !g.match_id).length ? '☐ Tout désélectionner' : '☑ Tout sélectionner'}
+                  </button>
+                )}
+              </div>
+              
+              {isTour1 && tourGroups.length === 0 && (
+                <p style={{ color: '#6b7280' }}>Aucun groupe créé pour le moment.</p>
+              )}
+              
+              <div style={{ display: 'grid', gap: 12 }}>
+                {tourGroups.map(group => {
             const studentIds = parseStudentIds(group.student_ids);
             const groupStudents = students.filter(s => studentIds.includes(s.id));
             const isPending = group.status === 'pending' && !group.match_id;
@@ -1016,33 +1042,36 @@ export default function TrainingArenaSetup() {
           })}
         </div>
 
-        {/* Bouton bulk: Notifier tous les groupes sélectionnés */}
-        {checkedGroups.size > 0 && (
-          <div style={{ marginTop: 16, padding: 16, background: '#f0fafb', borderRadius: 12, border: '2px solid #1AACBE' }}>
-            <button
-              onClick={bulkNotifyGroups}
-              disabled={bulkLoading}
-              style={{
-                width: '100%',
-                padding: '14px 24px',
-                borderRadius: 10,
-                border: 'none',
-                background: bulkLoading ? '#94a3b8' : 'linear-gradient(135deg, #1AACBE, #148A9C)',
-                color: '#fff',
-                fontWeight: 800,
-                fontSize: 16,
-                cursor: bulkLoading ? 'wait' : 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              {bulkLoading ? '⏳ Création des salles en cours...' : `📨 Créer les salles et notifier les élèves (${checkedGroups.size} groupe(s))`}
-            </button>
-            <p style={{ fontSize: 12, color: '#64748b', marginTop: 8, marginBottom: 0, textAlign: 'center' }}>
-              Les élèves recevront une invitation à rejoindre leur salle de jeu. Ils devront se connecter avec leur code d'accès.
-            </p>
-          </div>
-        )}
-      </section>
+              {/* Bouton bulk: Notifier tous les groupes sélectionnés (Tour 1 uniquement) */}
+              {isTour1 && checkedGroups.size > 0 && (
+                <div style={{ marginTop: 16, padding: 16, background: '#f0fafb', borderRadius: 12, border: '2px solid #1AACBE' }}>
+                  <button
+                    onClick={bulkNotifyGroups}
+                    disabled={bulkLoading}
+                    style={{
+                      width: '100%',
+                      padding: '14px 24px',
+                      borderRadius: 10,
+                      border: 'none',
+                      background: bulkLoading ? '#94a3b8' : 'linear-gradient(135deg, #1AACBE, #148A9C)',
+                      color: '#fff',
+                      fontWeight: 800,
+                      fontSize: 16,
+                      cursor: bulkLoading ? 'wait' : 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {bulkLoading ? '⏳ Création des salles en cours...' : `📨 Créer les salles et notifier les élèves (${checkedGroups.size} groupe(s))`}
+                  </button>
+                  <p style={{ fontSize: 12, color: '#64748b', marginTop: 8, marginBottom: 0, textAlign: 'center' }}>
+                    Les élèves recevront une invitation à rejoindre leur salle de jeu. Ils devront se connecter avec leur code d'accès.
+                  </p>
+                </div>
+              )}
+            </section>
+          );
+        });
+      })()}
       
       {/* ===== SECTION PROGRESSION TOURNOI ===== */}
       {tourStatus && tourStatus.tours.length > 0 && (() => {
