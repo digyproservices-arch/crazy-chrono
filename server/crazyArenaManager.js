@@ -3147,6 +3147,30 @@ class CrazyArenaManager {
         .eq('id', matchId);
 
       logger.info('[CrazyArena][Arena] 💾 Match Arena finalisé en DB', { matchId, players: ranking.length });
+
+      // ✅ FIX: Mettre à jour le groupe (status=finished + winner_id) directement via Supabase
+      // Les appels HTTP internes échouent car requireAuth exige un JWT
+      const winner = ranking[0];
+      if (winner) {
+        const { data: matchRow } = await this.supabase
+          .from('tournament_matches')
+          .select('group_id')
+          .eq('id', matchId)
+          .single();
+
+        if (matchRow?.group_id) {
+          const { error: groupErr } = await this.supabase
+            .from('tournament_groups')
+            .update({ status: 'finished', winner_id: winner.studentId })
+            .eq('id', matchRow.group_id);
+
+          if (groupErr) {
+            logger.error('[CrazyArena][Arena] ❌ Erreur update groupe', { groupId: matchRow.group_id, error: groupErr.message });
+          } else {
+            logger.info(`[CrazyArena][Arena] ✅ Groupe ${matchRow.group_id} → finished, winner=${winner.studentId} (${winner.name})`);
+          }
+        }
+      }
     } catch (err) {
       logger.error('[CrazyArena][Arena] ❌ Erreur persistArenaMatchEnd', { matchId, error: err.message });
     }
