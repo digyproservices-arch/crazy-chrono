@@ -1229,8 +1229,8 @@ router.patch('/matches/:id/finish', requireSupabase, requireAuth, async (req, re
       .update({
         status: 'finished',
         finished_at: new Date().toISOString(),
-        players: JSON.stringify(results),
-        winner: JSON.stringify(winner)
+        players: results,
+        winner: winner
       })
       .eq('id', id);
     

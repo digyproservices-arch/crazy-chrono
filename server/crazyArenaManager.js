@@ -3134,11 +3134,11 @@ class CrazyArenaManager {
       const updateData = {
         status: 'finished',
         finished_at: new Date().toISOString(),
-        players: JSON.stringify(ranking),
-        winner: JSON.stringify(ranking[0] || null)
+        players: ranking,
+        winner: ranking[0] || null
       };
       if (match._roundsData && match._roundsData.length > 0) {
-        updateData.rounds_data = JSON.stringify(match._roundsData);
+        updateData.rounds_data = match._roundsData;
         logger.info('[CrazyArena][Arena] 📸 Archivage cartes: ' + match._roundsData.length + ' rounds sauvegardés', { matchId });
       }
       await this.supabase
