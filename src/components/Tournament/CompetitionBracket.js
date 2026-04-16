@@ -79,19 +79,21 @@ export default function CompetitionBracket() {
 
       const backendUrl = getBackendUrl();
 
-      // Charger résultats compétition
-      const resComp = await fetch(`${backendUrl}/api/tournament/classes/${classId}/competition-results`, { headers: getAuthHeaders() });
-      const dataComp = await resComp.json();
+      // ✅ PERF: Charger résultats compétition + tournoi en parallèle
+      const [resComp, resTour] = await Promise.all([
+        fetch(`${backendUrl}/api/tournament/classes/${classId}/competition-results`, { headers: getAuthHeaders() }),
+        fetch(`${backendUrl}/api/tournament/tournaments/tour_2025_gp`, { headers: getAuthHeaders() })
+      ]);
 
+      const dataComp = await resComp.json();
       if (dataComp.success) {
         setGroups(dataComp.groups || []);
         setOverallRanking(dataComp.overallRanking || []);
         setStats(dataComp.stats || null);
       }
 
-      // Charger tournoi + phases
+      // Charger phases (dépend du tournoi)
       try {
-        const resTour = await fetch(`${backendUrl}/api/tournament/tournaments/tour_2025_gp`, { headers: getAuthHeaders() });
         const dataTour = await resTour.json();
         if (dataTour.tournament) {
           setTournament(dataTour.tournament);

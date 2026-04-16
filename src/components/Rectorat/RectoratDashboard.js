@@ -30,9 +30,8 @@ const RectoratDashboard = () => {
       const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
       setUserRegion(auth.region || '');
     } catch {}
-    loadStats();
-    loadCompetitions();
-    loadCompetitionStatus();
+    // ✅ PERF: Chargement parallèle des 3 sources de données
+    Promise.all([loadStats(), loadCompetitions(), loadCompetitionStatus()]);
   }, []);
 
   useEffect(() => {

@@ -106,10 +106,14 @@ export default function NotificationBadge() {
       return;
     }
 
+    // ✅ PERF: Charger Arena + Training invitations en parallèle
     try {
       console.log('[NotificationBadge] Chargement invitations pour studentId:', studentId);
-      const res = await fetch(`${getBackendUrl()}/api/tournament/students/${studentId}/invitations`, { headers: getAuthHeaders() });
-      const data = await res.json();
+      const [arenaRes] = await Promise.all([
+        fetch(`${getBackendUrl()}/api/tournament/students/${studentId}/invitations`, { headers: getAuthHeaders() }),
+        loadTrainingInvitations()
+      ]);
+      const data = await arenaRes.json();
       
       if (data.success) {
         console.log('[NotificationBadge] Invitations Arena chargées:', data.invitations?.length);
@@ -118,9 +122,6 @@ export default function NotificationBadge() {
     } catch (error) {
       console.error('[NotificationBadge] Erreur chargement invitations:', error);
     }
-
-    // Also load training invitations
-    await loadTrainingInvitations();
   }, [studentId, loadTrainingInvitations]);
 
   // Charger les invitations au montage et toutes les 30 secondes

@@ -345,13 +345,12 @@ export default function StudentPerformance() {
   };
 
   const loadData = useCallback(async () => {
-    // Si vue prof avec studentId URL, récupérer le nom de l'élève
+    // ✅ PERF: Lancer info élève en parallèle (ne bloque pas le chargement principal)
     if (urlStudentId) {
-      try {
-        const nameRes = await fetch(`${getBackendUrl()}/api/tournament/students/${urlStudentId}/info`, { headers: getAuthHeaders() });
-        const nameData = await nameRes.json();
-        if (nameData.success && nameData.name) setStudentName(nameData.name);
-      } catch {}
+      fetch(`${getBackendUrl()}/api/tournament/students/${urlStudentId}/info`, { headers: getAuthHeaders() })
+        .then(r => r.json())
+        .then(d => { if (d.success && d.name) setStudentName(d.name); })
+        .catch(() => {});
     }
     try {
       const ids = getAllStudentIds();
