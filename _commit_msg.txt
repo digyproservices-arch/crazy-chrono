@@ -1,0 +1,8 @@
+feat(monitoring): sync clics PAIR_FAIL/PAIR_OK au serveur + monitoring sans auth
+
+- Ajout endpoint POST/GET/DELETE /api/monitoring/client-clicks
+- clickLogger.js: sync automatique PAIR_FAIL et PAIR_OK au backend
+- Suppression blocage token sur incidents et round logs (monitoring fonctionne sans authentification)
+- Dashboard: affiche clics serveur de tous les appareils dans le rapport
+- Ajout device ID persistant pour identifier les appareils
+- Ajout DELETE endpoints pour client-rounds et client-clicks (purge dashboard)

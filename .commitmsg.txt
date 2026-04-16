@@ -1,0 +1,7 @@
+feat: ajout logs débogage chrono training bloqué
+
+- Ajout de logs détaillés dans _restartTimer de crazyArenaManager.js pour tracer le redémarrage du timer et les événements émis
+- Ajout de logs dans server.js pour tracer les connexions (mp:identify) et déconnexions
+- Le bug potentiel est identifié: après une déconnexion/reconnexion en training, le timer redémarre avec les événements arena:xxx au lieu de training:xxx
+
+Refs: test chrono bloqué pour Bryan et Leo en mode training

@@ -76,20 +76,9 @@ export default function CrazyArenaSetup() {
     return () => clearTimeout(t);
   }, [pedConfig]);
   
-  // Charger les données au montage (CACHE DÉSACTIVÉ pour stabilité)
+  // Charger les données au montage (ENDPOINT COMBINÉ + CACHE)
   useEffect(() => {
     console.log('[CrazyArena] 🔵 useEffect montage - loadedRef:', loadedRef.current, 'globalLoadLock:', globalLoadLock);
-    
-    // ⚠️ CACHE TEMPORAIREMENT DÉSACTIVÉ pour résoudre erreur de parsing JSON
-    // Vider tout cache existant au montage
-    try {
-      sessionStorage.removeItem(CACHE_KEY_TOURNAMENT);
-      sessionStorage.removeItem(CACHE_KEY_STUDENTS);
-      sessionStorage.removeItem(CACHE_KEY_GROUPS);
-      console.log('[CrazyArena] 🗑️ Cache vidé (désactivé temporairement)');
-    } catch (e) {
-      console.log('[CrazyArena] ⚠️ Erreur vidage cache:', e);
-    }
     
     // Protection double : useRef local + variable globale
     if (loadedRef.current || globalLoadLock) {
@@ -106,6 +95,23 @@ export default function CrazyArenaSetup() {
       globalLoadLock = false;
       console.log('[CrazyArena] 🔓 globalLoadLock libéré');
     }, 5000);
+
+    // Essayer le cache sessionStorage d'abord
+    try {
+      const cached = sessionStorage.getItem(CACHE_KEY_TOURNAMENT);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.students && Date.now() - (parsed._ts || 0) < 60000) {
+          console.log('[CrazyArena] ⚡ Cache hit — chargement instantané');
+          setTournament(parsed.tournament);
+          setStudents(parsed.students || []);
+          setGroups(parsed.groups || []);
+          if (parsed.tourStatus) setTourStatus(parsed.tourStatus);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch {}
     
     loadTournamentData();
   }, []);
@@ -116,19 +122,10 @@ export default function CrazyArenaSetup() {
       setLoading(true);
       
       const backendUrl = getBackendUrl();
-      console.log('[CrazyArena] 🌐 Backend URL:', backendUrl);
       
-      // 1. Récupérer le tournoi actif
-      const tournamentRes = await fetch(`${backendUrl}/api/tournament/tournaments/tour_2025_gp`, { headers: getAuthHeaders() });
-      const tournamentData = await tournamentRes.json();
-      console.log('[CrazyArena] 🏆 Tournament data:', tournamentData);
-      setTournament(tournamentData.tournament);
-      
-      // 2. Récupérer la liste des élèves de la classe
-      // ✅ FIX: Lire classId depuis URL params (rectorat dashboard) OU localStorage (prof)
+      // Lire classId depuis URL params (rectorat dashboard) OU localStorage (prof)
       const urlParams = new URLSearchParams(window.location.search);
       const classId = urlParams.get('classId') || localStorage.getItem('cc_class_id');
-      console.log('[CrazyArena] 📚 Class ID:', classId, '(source:', urlParams.get('classId') ? 'URL' : 'localStorage', ')');
       
       if (urlParams.get('classId')) {
         localStorage.setItem('cc_class_id', urlParams.get('classId'));
@@ -139,37 +136,39 @@ export default function CrazyArenaSetup() {
         throw new Error('Classe non trouvée. Veuillez vous reconnecter.');
       }
       
-      const studentsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/students`, { headers: getAuthHeaders() });
-      const studentsData = await studentsRes.json();
-      console.log('[CrazyArena] 👥 Students data:', studentsData);
-      console.log('[CrazyArena] 👥 Students count:', studentsData.students?.length || 0);
-      setStudents(studentsData.students || []);
+      // ✅ PERF: 1 seul appel au lieu de 4 — endpoint combiné avec requêtes parallèles
+      const t0 = performance.now();
+      const res = await fetch(
+        `${backendUrl}/api/tournament/classes/${classId}/setup-data?mode=arena&tournamentId=tour_2025_gp`,
+        { headers: getAuthHeaders() }
+      );
+      const data = await res.json();
+      const elapsed = Math.round(performance.now() - t0);
       
-      // 3. Récupérer les groupes déjà créés
-      const groupsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/groups?mode=arena`, { headers: getAuthHeaders() });
-      const groupsData = await groupsRes.json();
-      console.log('[CrazyArena] 👥 Groups data:', groupsData);
-      console.log('[CrazyArena] 👥 Groups count:', groupsData.groups?.length || 0);
-      setGroups(groupsData.groups || []);
+      if (!data.success) throw new Error(data.error || 'Erreur chargement');
       
-      // 4. Récupérer le statut des tours
+      setTournament(data.tournament);
+      setStudents(data.students || []);
+      setGroups(data.groups || []);
+      
+      if (data.tourStatus?.success) setTourStatus(data.tourStatus);
+      
+      console.log(`[CrazyArena] ✅ Chargement terminé en ${elapsed}ms (backend: ${data._timing}ms) — ${data.students?.length} élèves, ${data.groups?.length} groupes`);
+      
+      // Sauvegarder en cache sessionStorage (TTL 60s)
       try {
-        const tourRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/tour-status?mode=arena&phase_level=${tournamentData.tournament?.current_phase || 1}`, { headers: getAuthHeaders() });
-        const tourData = await tourRes.json();
-        if (tourData.success) setTourStatus(tourData);
-      } catch (e) { console.warn('[CrazyArena] Tour status non disponible:', e); }
-      
-      console.log('[CrazyArena] ✅ Chargement terminé!');
-      console.log('[CrazyArena] 📊 État final - Students:', studentsData.students?.length, 'Groups:', groupsData.groups?.length);
-      
-      // ⚠️ CACHE DÉSACTIVÉ TEMPORAIREMENT - Ne pas sauvegarder pour éviter erreurs parsing
-      console.log('[CrazyArena] ℹ️ Cache désactivé - données non sauvegardées');
+        sessionStorage.setItem(CACHE_KEY_TOURNAMENT, JSON.stringify({
+          tournament: data.tournament,
+          students: data.students,
+          groups: data.groups,
+          tourStatus: data.tourStatus,
+          _ts: Date.now()
+        }));
+      } catch {}
     } catch (error) {
       console.error('[CrazyArena] ❌ Error loading data:', error);
     } finally {
-      // IMPORTANT : setLoading(false) IMMÉDIAT sans setTimeout !
       setLoading(false);
-      console.log('[CrazyArena] 🏁 Loading = false');
     }
   };
   

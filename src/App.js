@@ -1,54 +1,65 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, lazy, Suspense } from 'react';
 import { flushSync } from 'react-dom';
 import './App.css';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import Carte from './components/Carte';
-import AdminPanel from './components/AdminPanel';
-import AdminDashboard from './components/AdminDashboard';
+// ── Imports statiques (toujours nécessaires au démarrage) ──
 import NavBar from './components/NavBar';
 import { DataProvider } from './context/DataContext';
 import Login from './components/Auth/Login';
-import ForgotPassword from './components/Auth/ForgotPassword';
-import ResetPassword from './components/Auth/ResetPassword';
-import ProgressDebug from './components/Debug/ProgressDebug';
-import Pricing from './components/Billing/Pricing';
-import Account from './components/Account';
-import ModeSelect from './components/Modes/ModeSelect';
-import SessionConfig from './components/Modes/SessionConfig';
-import CrazyArenaSetup from './components/Tournament/CrazyArenaSetup';
-import CrazyArenaLobby from './components/Tournament/CrazyArenaLobby';
-import TrainingArenaGame from './components/Training/TrainingArenaGame';
-import TrainingArenaSetup from './components/Teacher/TrainingArenaSetup';
-import TrainingArenaManagerDashboard from './components/Teacher/TrainingArenaManagerDashboard';
-import TrainingArenaLobby from './components/Teacher/TrainingArenaLobby';
-import ArenaManagerDashboard from './components/Tournament/ArenaManagerDashboard';
-import ArenaSpectator from './components/Tournament/ArenaSpectator';
-import CompetitionBracket from './components/Tournament/CompetitionBracket';
-import MatchResults from './components/Tournament/MatchResults';
-import GroupMatchHistory from './components/Tournament/GroupMatchHistory';
-import StudentPerformance from './components/Student/StudentPerformance';
-import AdminRoles from './components/Admin/AdminRoles';
-import MonitoringDashboard from './components/MonitoringDashboard';
-import AdminInvite from './components/Admin/AdminInvite';
-import RectoratDashboard from './components/Rectorat/RectoratDashboard';
-import TeacherModeSelector from './components/Teacher/TeacherModeSelector';
-import TeacherDashboard from './components/Teacher/TeacherDashboard';
-import TrainingSessionCreate from './components/Teacher/TrainingSessionCreate';
-import TrainingManagerDashboard from './components/Teacher/TrainingManagerDashboard';
-import TrainingPlayerLobby from './components/Teacher/TrainingPlayerLobby';
 import { fetchAndSyncStatus, getBackendUrl } from './utils/subscription';
 import supabase from './utils/supabaseClient';
 import NotificationBadge from './components/NotificationBadge';
-import GrandeSalle from './components/GrandeSalle/GrandeSalle';
-import TournamentAdmin from './components/GrandeSalle/TournamentAdmin';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import PWAUpdateButton from './components/PWAUpdateButton';
-import LearnMode from './components/Modes/LearnMode';
-import LegalPages from './components/LegalPages';
 import LandingPage from './components/LandingPage';
-import PresentationPage from './components/PresentationPage';
 import MaintenancePage, { hasMaintenanceBypass } from './components/MaintenancePage';
 import { startHeartbeat, stopHeartbeat } from './utils/presenceHeartbeat';
+// ── Code splitting: chargement à la demande (React.lazy) ──
+const Carte = lazy(() => import('./components/Carte'));
+const AdminPanel = lazy(() => import('./components/AdminPanel'));
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
+const ForgotPassword = lazy(() => import('./components/Auth/ForgotPassword'));
+const ResetPassword = lazy(() => import('./components/Auth/ResetPassword'));
+const ProgressDebug = lazy(() => import('./components/Debug/ProgressDebug'));
+const Pricing = lazy(() => import('./components/Billing/Pricing'));
+const Account = lazy(() => import('./components/Account'));
+const ModeSelect = lazy(() => import('./components/Modes/ModeSelect'));
+const SessionConfig = lazy(() => import('./components/Modes/SessionConfig'));
+const CrazyArenaSetup = lazy(() => import('./components/Tournament/CrazyArenaSetup'));
+const CrazyArenaLobby = lazy(() => import('./components/Tournament/CrazyArenaLobby'));
+const TrainingArenaGame = lazy(() => import('./components/Training/TrainingArenaGame'));
+const TrainingArenaSetup = lazy(() => import('./components/Teacher/TrainingArenaSetup'));
+const TrainingArenaManagerDashboard = lazy(() => import('./components/Teacher/TrainingArenaManagerDashboard'));
+const TrainingArenaLobby = lazy(() => import('./components/Teacher/TrainingArenaLobby'));
+const ArenaManagerDashboard = lazy(() => import('./components/Tournament/ArenaManagerDashboard'));
+const ArenaSpectator = lazy(() => import('./components/Tournament/ArenaSpectator'));
+const CompetitionBracket = lazy(() => import('./components/Tournament/CompetitionBracket'));
+const MatchResults = lazy(() => import('./components/Tournament/MatchResults'));
+const GroupMatchHistory = lazy(() => import('./components/Tournament/GroupMatchHistory'));
+const StudentPerformance = lazy(() => import('./components/Student/StudentPerformance'));
+const AdminRoles = lazy(() => import('./components/Admin/AdminRoles'));
+const MonitoringDashboard = lazy(() => import('./components/MonitoringDashboard'));
+const AdminInvite = lazy(() => import('./components/Admin/AdminInvite'));
+const RectoratDashboard = lazy(() => import('./components/Rectorat/RectoratDashboard'));
+const TeacherModeSelector = lazy(() => import('./components/Teacher/TeacherModeSelector'));
+const TeacherDashboard = lazy(() => import('./components/Teacher/TeacherDashboard'));
+const TrainingSessionCreate = lazy(() => import('./components/Teacher/TrainingSessionCreate'));
+const TrainingManagerDashboard = lazy(() => import('./components/Teacher/TrainingManagerDashboard'));
+const TrainingPlayerLobby = lazy(() => import('./components/Teacher/TrainingPlayerLobby'));
+const GrandeSalle = lazy(() => import('./components/GrandeSalle/GrandeSalle'));
+const TournamentAdmin = lazy(() => import('./components/GrandeSalle/TournamentAdmin'));
+const LearnMode = lazy(() => import('./components/Modes/LearnMode'));
+const LegalPages = lazy(() => import('./components/LegalPages'));
+const PresentationPage = lazy(() => import('./components/PresentationPage'));
+// Fallback de chargement pour Suspense
+const LazyFallback = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '40vh', color: '#0D6A7A', fontSize: 18 }}>
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ fontSize: 32, marginBottom: 8 }}>⏳</div>
+      Chargement...
+    </div>
+  </div>
+);
 
 // ⚠️ MAINTENANCE MODE: mettre à true pour bloquer l'accès public
 const MAINTENANCE_MODE = true;
@@ -463,6 +474,7 @@ function App() {
           {auth && <NotificationBadge />}
           {!gameMode && <NavBar />}
           <main>
+            <Suspense fallback={<LazyFallback />}>
             <Routes>
               <Route path="/" element={auth ? <Navigate to="/modes" replace /> : <LandingPage />} />
               <Route path="/login" element={<Login onLogin={(a) => { setAuth(a); try { localStorage.setItem('cc_auth', JSON.stringify(a)); } catch {}; }} />} />
@@ -516,6 +528,7 @@ function App() {
               <Route path="/legal" element={<LegalPages />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            </Suspense>
           </main>
           {!gameMode && (
             <footer style={{ background: '#0D6A7A', color: 'rgba(255,255,255,0.7)', padding: '16px 24px', textAlign: 'center', fontSize: 13 }}>

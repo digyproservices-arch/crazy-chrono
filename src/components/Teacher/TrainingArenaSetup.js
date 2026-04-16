@@ -84,20 +84,9 @@ export default function TrainingArenaSetup() {
     return () => clearTimeout(t);
   }, [pedConfig, isOfficial]);
   
-  // Charger les données au montage (CACHE DÉSACTIVÉ pour stabilité)
+  // Charger les données au montage (ENDPOINT COMBINÉ + CACHE)
   useEffect(() => {
     console.log('[TrainingArena] 🔵 useEffect montage - loadedRef:', loadedRef.current, 'globalLoadLock:', globalLoadLock);
-    
-    // ⚠️ CACHE TEMPORAIREMENT DÉSACTIVÉ pour résoudre erreur de parsing JSON
-    // Vider tout cache existant au montage
-    try {
-      sessionStorage.removeItem(CACHE_KEY_TOURNAMENT);
-      sessionStorage.removeItem(CACHE_KEY_STUDENTS);
-      sessionStorage.removeItem(CACHE_KEY_GROUPS);
-      console.log('[TrainingArena] 🗑️ Cache vidé (désactivé temporairement)');
-    } catch (e) {
-      console.log('[TrainingArena] ⚠️ Erreur vidage cache:', e);
-    }
     
     // Protection double : useRef local + variable globale
     if (loadedRef.current || globalLoadLock) {
@@ -114,6 +103,26 @@ export default function TrainingArenaSetup() {
       globalLoadLock = false;
       console.log('[TrainingArena] 🔓 globalLoadLock libéré');
     }, 5000);
+
+    // Essayer le cache sessionStorage d'abord
+    try {
+      const cached = sessionStorage.getItem(CACHE_KEY_TOURNAMENT);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.students && Date.now() - (parsed._ts || 0) < 60000) {
+          console.log('[TrainingArena] ⚡ Cache hit — chargement instantané');
+          setTournament(parsed.tournament);
+          setStudents(parsed.students || []);
+          setGroups(parsed.groups || []);
+          const map = {};
+          (parsed.performance || []).forEach(s => { map[s.studentId] = s; });
+          setPerfMap(map);
+          if (parsed.tourStatus) setTourStatus(parsed.tourStatus);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch {}
     
     loadTournamentData();
   }, []);
@@ -124,19 +133,10 @@ export default function TrainingArenaSetup() {
       setLoading(true);
       
       const backendUrl = getBackendUrl();
-      console.log('[TrainingArena] 🌐 Backend URL:', backendUrl);
       
-      // 1. Récupérer le tournoi actif
-      const tournamentRes = await fetch(`${backendUrl}/api/tournament/tournaments/tour_2025_gp`, { headers: getAuthHeaders() });
-      const tournamentData = await tournamentRes.json();
-      console.log('[TrainingArena] 🏆 Tournament data:', tournamentData);
-      setTournament(tournamentData.tournament);
-      
-      // 2. Récupérer la liste des élèves de la classe
-      // ✅ FIX: Lire classId depuis URL params (rectorat dashboard) OU localStorage (prof)
+      // Lire classId depuis URL params (rectorat dashboard) OU localStorage (prof)
       const urlParams = new URLSearchParams(window.location.search);
       const classId = urlParams.get('classId') || localStorage.getItem('cc_class_id');
-      console.log('[TrainingArena] 📚 Class ID:', classId, '(source:', urlParams.get('classId') ? 'URL' : 'localStorage', ')');
       
       if (urlParams.get('classId')) {
         localStorage.setItem('cc_class_id', urlParams.get('classId'));
@@ -147,51 +147,44 @@ export default function TrainingArenaSetup() {
         throw new Error('Classe non trouvée. Veuillez vous reconnecter.');
       }
       
-      const studentsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/students`, { headers: getAuthHeaders() });
-      const studentsData = await studentsRes.json();
-      console.log('[TrainingArena] 👥 Students data:', studentsData);
-      console.log('[TrainingArena] 👥 Students count:', studentsData.students?.length || 0);
-      setStudents(studentsData.students || []);
+      // ✅ PERF: 1 seul appel au lieu de 5 — endpoint combiné avec requêtes parallèles
+      const t0 = performance.now();
+      const res = await fetch(
+        `${backendUrl}/api/tournament/classes/${classId}/setup-data?mode=training&tournamentId=tour_2025_gp`,
+        { headers: getAuthHeaders() }
+      );
+      const data = await res.json();
+      const elapsed = Math.round(performance.now() - t0);
       
-      // 3. Récupérer les groupes déjà créés
-      const groupsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/groups?mode=training`, { headers: getAuthHeaders() });
-      const groupsData = await groupsRes.json();
-      console.log('[TrainingArena] 👥 Groups data:', groupsData);
-      console.log('[TrainingArena] 👥 Groups count:', groupsData.groups?.length || 0);
-      setGroups(groupsData.groups || []);
+      if (!data.success) throw new Error(data.error || 'Erreur chargement');
       
-      // 4. Récupérer les performances des élèves
+      setTournament(data.tournament);
+      setStudents(data.students || []);
+      setGroups(data.groups || []);
+      
+      const map = {};
+      (data.performance || []).forEach(s => { map[s.studentId] = s; });
+      setPerfMap(map);
+      
+      if (data.tourStatus?.success) setTourStatus(data.tourStatus);
+      
+      console.log(`[TrainingArena] ✅ Chargement terminé en ${elapsed}ms (backend: ${data._timing}ms) — ${data.students?.length} élèves, ${data.groups?.length} groupes`);
+      
+      // Sauvegarder en cache sessionStorage (TTL 60s)
       try {
-        const perfRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/students-performance`, { headers: getAuthHeaders() });
-        const perfData = await perfRes.json();
-        if (perfData.success && perfData.students) {
-          const map = {};
-          perfData.students.forEach(s => { map[s.studentId] = s; });
-          setPerfMap(map);
-          console.log('[TrainingArena] 📊 Performance data loaded for', perfData.students.length, 'students');
-        }
-      } catch (perfErr) {
-        console.warn('[TrainingArena] ⚠️ Performance data unavailable:', perfErr.message);
-      }
-      
-      // 5. Récupérer le statut des tours
-      try {
-        const tourRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/tour-status?mode=training&phase_level=${tournamentData.tournament?.current_phase || 1}`, { headers: getAuthHeaders() });
-        const tourData = await tourRes.json();
-        if (tourData.success) setTourStatus(tourData);
-      } catch (e) { console.warn('[TrainingArena] Tour status non disponible:', e); }
-      
-      console.log('[TrainingArena] ✅ Chargement terminé!');
-      console.log('[TrainingArena] 📊 État final - Students:', studentsData.students?.length, 'Groups:', groupsData.groups?.length);
-      
-      // ⚠️ CACHE DÉSACTIVÉ TEMPORAIREMENT - Ne pas sauvegarder pour éviter erreurs parsing
-      console.log('[TrainingArena] ℹ️ Cache désactivé - données non sauvegardées');
+        sessionStorage.setItem(CACHE_KEY_TOURNAMENT, JSON.stringify({
+          tournament: data.tournament,
+          students: data.students,
+          groups: data.groups,
+          performance: data.performance,
+          tourStatus: data.tourStatus,
+          _ts: Date.now()
+        }));
+      } catch {}
     } catch (error) {
       console.error('[TrainingArena] ❌ Error loading data:', error);
     } finally {
-      // IMPORTANT : setLoading(false) IMMÉDIAT sans setTimeout !
       setLoading(false);
-      console.log('[TrainingArena] 🏁 Loading = false');
     }
   };
   

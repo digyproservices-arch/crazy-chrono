@@ -3188,4 +3188,185 @@ router.post('/phases/:phaseId/send-results', requireSupabase, requireAuth, async
   }
 });
 
+// ==========================================
+// ENDPOINT COMBINÉ: SETUP DATA (1 requête au lieu de 5)
+// Retourne students + groups + performance + tour-status en parallèle
+// ==========================================
+router.get('/classes/:classId/setup-data', requireSupabase, requireAuth, ...validateParamClassId, async (req, res) => {
+  const t0 = Date.now();
+  try {
+    const { classId } = req.params;
+    const mode = req.query.mode || 'training';
+    const tournamentId = req.query.tournamentId || 'tour_2025_gp';
+    const phaseLevel = parseInt(req.query.phase_level) || 1;
+
+    // ── 1. Lancer en parallèle : tournoi + élèves + groupes ──
+    const [tournamentResult, studentsResult, groupsResult] = await Promise.all([
+      supabase.from('tournaments').select('*').eq('id', tournamentId).single(),
+      supabase.from('students')
+        .select('id, first_name, last_name, full_name, avatar_url, class_id, school_id, licensed')
+        .eq('class_id', classId)
+        .order('last_name', { ascending: true }),
+      supabase.from('tournament_groups')
+        .select('*')
+        .eq('class_id', classId)
+        .eq('mode', mode)
+        .order('created_at', { ascending: false })
+    ]);
+
+    const tournament = tournamentResult.data || null;
+    const students = studentsResult.data || [];
+    const groups = groupsResult.data || [];
+
+    // ── 2. Deuxième vague parallèle : performances + tour-status ──
+    // (dépend de students pour les IDs)
+    const studentIds = students.map(s => s.id);
+    const isValidUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+    const nonUuidIds = studentIds.filter(id => !isValidUuid(id));
+    const uuidIds = studentIds.filter(isValidUuid);
+
+    // Résoudre mappings + tour-status en parallèle
+    const [mappingsResult, tourGroupsResult] = await Promise.all([
+      nonUuidIds.length > 0
+        ? supabase.from('user_student_mapping').select('student_id, user_id').in('student_id', nonUuidIds).eq('active', true)
+        : Promise.resolve({ data: [] }),
+      supabase.from('tournament_groups')
+        .select('id, name, student_ids, status, winner_id, tour_number, match_id, mode')
+        .eq('class_id', classId)
+        .eq('phase_level', phaseLevel)
+        .eq('mode', mode)
+        .order('tour_number', { ascending: true })
+        .order('created_at', { ascending: true })
+    ]);
+
+    // Construire les maps d'ID
+    const idToAuthMap = {};
+    const authToIdMap = {};
+    for (const m of (mappingsResult.data || [])) {
+      idToAuthMap[m.student_id] = m.user_id;
+      authToIdMap[m.user_id] = m.student_id;
+      uuidIds.push(m.user_id);
+    }
+    const allAuthIds = [...new Set(uuidIds)];
+
+    // ── 3. Troisième vague parallèle : training_results + match_results + students pour tour-status ──
+    const tourGroups = tourGroupsResult.data || [];
+    const allTourStudentIds = new Set();
+    tourGroups.forEach(g => {
+      const ids = Array.isArray(g.student_ids) ? g.student_ids : (() => { try { return JSON.parse(g.student_ids || '[]'); } catch { return []; } })();
+      ids.forEach(id => allTourStudentIds.add(id));
+      if (g.winner_id) allTourStudentIds.add(g.winner_id);
+    });
+
+    const [trainingResult, arenaResult, tourStudentsResult] = await Promise.all([
+      allAuthIds.length > 0
+        ? supabase.from('training_results')
+            .select('student_id, position, score, time_ms, pairs_validated, errors, created_at')
+            .in('student_id', allAuthIds)
+            .order('created_at', { ascending: false })
+        : Promise.resolve({ data: [] }),
+      allAuthIds.length > 0
+        ? supabase.from('match_results')
+            .select('student_id, position, score, time_ms, pairs_validated, errors, created_at')
+            .in('student_id', allAuthIds)
+            .order('created_at', { ascending: false })
+        : Promise.resolve({ data: [] }),
+      allTourStudentIds.size > 0
+        ? supabase.from('students').select('id, full_name, first_name, avatar_url').in('id', Array.from(allTourStudentIds))
+        : Promise.resolve({ data: [] })
+    ]);
+
+    // ── 4. Calcul performances ──
+    const trainingResults = trainingResult.data || [];
+    const arenaResults = arenaResult.data || [];
+    const getOrigId = (authId) => authToIdMap[authId] || authId;
+
+    const perfMap = {};
+    for (const s of students) {
+      perfMap[s.id] = {
+        studentId: s.id,
+        name: s.full_name || s.first_name || s.id,
+        avatar: s.avatar_url || null,
+        totalMatches: 0, competitiveMatches: 0, wins: 0,
+        avgScore: 0, totalScore: 0, avgPairs: 0, totalPairs: 0,
+        totalErrors: 0, accuracy: 0, avgSpeed: 0,
+        level: null, levelScore: 0
+      };
+    }
+
+    for (const r of trainingResults) {
+      const stat = perfMap[getOrigId(r.student_id)];
+      if (!stat) continue;
+      stat.totalMatches++;
+      if (r.position != null) { stat.competitiveMatches++; if (r.position === 1) stat.wins++; }
+      stat.totalScore += r.score || 0;
+      stat.totalPairs += r.pairs_validated || 0;
+      stat.totalErrors += r.errors || 0;
+    }
+    for (const r of arenaResults) {
+      const stat = perfMap[getOrigId(r.student_id)];
+      if (!stat) continue;
+      stat.totalMatches++; stat.competitiveMatches++;
+      if (r.position === 1) stat.wins++;
+      stat.totalScore += r.score || 0;
+      stat.totalPairs += r.pairs_validated || 0;
+      stat.totalErrors += r.errors || 0;
+    }
+    for (const stat of Object.values(perfMap)) {
+      if (stat.totalMatches > 0) {
+        stat.avgScore = Math.round(stat.totalScore / stat.totalMatches);
+        stat.avgPairs = Math.round((stat.totalPairs / stat.totalMatches) * 10) / 10;
+        stat.accuracy = stat.totalPairs > 0 ? Math.round((stat.totalPairs / (stat.totalPairs + stat.totalErrors)) * 100) : 0;
+        stat.winRate = stat.competitiveMatches > 0 ? Math.round((stat.wins / stat.competitiveMatches) * 100) : 0;
+      }
+      stat.levelScore = Math.round((stat.avgScore * 0.4) + (stat.accuracy * 0.3) + ((stat.winRate || 0) * 0.3));
+      if (stat.totalMatches === 0) stat.level = 'Nouveau';
+      else if (stat.levelScore >= 70) stat.level = 'Expert';
+      else if (stat.levelScore >= 45) stat.level = 'Avancé';
+      else if (stat.levelScore >= 25) stat.level = 'Intermédiaire';
+      else stat.level = 'Débutant';
+    }
+
+    // ── 5. Calcul tour-status ──
+    const tourStudentsMap = Object.fromEntries((tourStudentsResult.data || []).map(s => [s.id, s]));
+    const tourMap = {};
+    for (const g of tourGroups) {
+      const t = g.tour_number || 1;
+      if (!tourMap[t]) tourMap[t] = [];
+      tourMap[t].push(g);
+    }
+    const tours = Object.entries(tourMap)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .map(([tourNum, tg]) => {
+        const finished = tg.filter(g => g.status === 'finished');
+        const winners = tg.filter(g => g.winner_id).map(g => ({
+          studentId: g.winner_id,
+          name: tourStudentsMap[g.winner_id]?.full_name || tourStudentsMap[g.winner_id]?.first_name || g.winner_id,
+          groupName: g.name
+        }));
+        return { tourNumber: Number(tourNum), totalGroups: tg.length, finishedGroups: finished.length, allFinished: finished.length === tg.length, winners };
+      });
+    const lastCompleteTour = tours.filter(t => t.allFinished).pop();
+    const currentTour = lastCompleteTour ? lastCompleteTour.tourNumber + 1 : 1;
+    let classWinner = null;
+    if (lastCompleteTour && lastCompleteTour.winners.length === 1) classWinner = lastCompleteTour.winners[0];
+
+    const elapsed = Date.now() - t0;
+    console.log(`[Tournament API] ⚡ setup-data class=${classId} mode=${mode}: ${students.length} students, ${groups.length} groups, ${elapsed}ms`);
+
+    res.json({
+      success: true,
+      tournament,
+      students,
+      groups,
+      performance: Object.values(perfMap),
+      tourStatus: { success: true, tours, currentTour, classWinner },
+      _timing: elapsed
+    });
+  } catch (error) {
+    console.error('[Tournament API] Error in setup-data:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 module.exports = router;
