@@ -232,7 +232,8 @@ class BattleRoyaleEngine {
 
   hasTie(ranking) {
     if (ranking.length < 2) return false;
-    return ranking[0].score === ranking[1].score;
+    // ✅ FIX: Comparer pairsValidated + errors (le score inclut des bonus rapidité invisibles)
+    return ranking[0].pairsValidated === ranking[1].pairsValidated && ranking[0].errors === ranking[1].errors;
   }
 
   async startTiebreaker() {
@@ -241,7 +242,7 @@ class BattleRoyaleEngine {
     this.status = 'tiebreaker';
     
     const ranking = this.calculateRanking();
-    const tiedPlayers = ranking.filter(p => p.score === ranking[0].score);
+    const tiedPlayers = ranking.filter(p => p.pairsValidated === ranking[0].pairsValidated && p.errors === ranking[0].errors);
 
     for (const tp of tiedPlayers) {
       const player = this.players.get(tp.studentId);

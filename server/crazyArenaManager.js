@@ -829,14 +829,17 @@ class CrazyArenaManager {
     });
 
     // ✅ CRITIQUE: Vérifier égalité au premier rang (COMME ARENA)
-    const topScore = ranking[0].score;
-    const tiedPlayers = ranking.filter(p => p.score === topScore);
+    // ✅ FIX: Comparer pairsValidated + errors (le score inclut des bonus rapidité invisibles)
+    const topPlayer = ranking[0];
+    const tiedPlayers = ranking.filter(p => 
+      p.pairsValidated === topPlayer.pairsValidated && p.errors === topPlayer.errors
+    );
     
     if (tiedPlayers.length > 1 && !match.isTiebreaker) {
       // ÉGALITÉ DÉTECTÉE - Attendre décision du professeur
-      logger.info(`[CrazyArena][Training] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topScore} pts`);
+      logger.info(`[CrazyArena][Training] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topPlayer.pairsValidated} paires, ${topPlayer.errors} erreurs`);
       logger.info(`[CrazyArena][Training] ⏸️ En attente décision professeur pour départage...`);
-      _logMatchEvent('TIE_DETECTED', matchId, { mode: 'training', tiedCount: tiedPlayers.length, topScore, tiedPlayers: tiedPlayers.map(p => ({ studentId: p.studentId, name: p.name, score: p.score })) });
+      _logMatchEvent('TIE_DETECTED', matchId, { mode: 'training', tiedCount: tiedPlayers.length, topPairs: topPlayer.pairsValidated, topErrors: topPlayer.errors, tiedPlayers: tiedPlayers.map(p => ({ studentId: p.studentId, name: p.name, score: p.score })) });
       
       // Mettre le match en attente de départage
       match.status = 'tie-waiting';
@@ -2391,14 +2394,17 @@ class CrazyArenaManager {
     });
 
     // Vérifier s'il y a égalité au premier rang
-    const topScore = ranking[0].score;
-    const tiedPlayers = ranking.filter(p => p.score === topScore);
+    // ✅ FIX: Comparer pairsValidated + errors (le score inclut des bonus rapidité invisibles)
+    const topPlayer = ranking[0];
+    const tiedPlayers = ranking.filter(p => 
+      p.pairsValidated === topPlayer.pairsValidated && p.errors === topPlayer.errors
+    );
     
     if (tiedPlayers.length > 1 && !match.isTiebreaker) {
       // ÉGALITÉ DÉTECTÉE - Attendre décision du professeur
-      logger.info(`[CrazyArena] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topScore} pts`);
+      logger.info(`[CrazyArena] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topPlayer.pairsValidated} paires, ${topPlayer.errors} erreurs`);
       logger.info(`[CrazyArena] ⏸️ En attente décision professeur pour départage...`);
-      _logMatchEvent('TIE_DETECTED', matchId, { mode: 'arena', tiedCount: tiedPlayers.length, topScore, tiedPlayers: tiedPlayers.map(p => ({ studentId: p.studentId, name: p.name, score: p.score })) });
+      _logMatchEvent('TIE_DETECTED', matchId, { mode: 'arena', tiedCount: tiedPlayers.length, topPairs: topPlayer.pairsValidated, topErrors: topPlayer.errors, tiedPlayers: tiedPlayers.map(p => ({ studentId: p.studentId, name: p.name, score: p.score })) });
       
       // Mettre le match en attente de départage
       match.status = 'tie-waiting';
