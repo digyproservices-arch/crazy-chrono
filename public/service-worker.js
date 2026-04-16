@@ -4,7 +4,7 @@
    Network-first pour les API
    ============================================ */
 
-const CACHE_NAME = 'crazy-chrono-v14';
+const CACHE_NAME = 'crazy-chrono-v15';
 
 // Assets à pré-cacher au moment de l'installation
 const PRECACHE_URLS = [
@@ -29,8 +29,9 @@ self.addEventListener('install', (event) => {
       });
     })
   );
-  // Activer immédiatement sans attendre la fermeture des onglets
-  self.skipWaiting();
+  // NE PAS appeler skipWaiting() ici — attendre le message SKIP_WAITING du client
+  // pour éviter une boucle de rechargement sur mobile
+  console.log('[SW] Installed, waiting for SKIP_WAITING message');
 });
 
 // Activation : nettoyer les anciens caches

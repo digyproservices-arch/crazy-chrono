@@ -15,14 +15,21 @@ const PWAUpdateButton = () => {
     // Vérifier si on peut détecter les mises à jour
     if (!('serviceWorker' in navigator)) return;
 
-    // Écouter les mises à jour du service worker
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      console.log('[PWA] New service worker controlling page');
-      window.location.reload();
-    });
+    // Garde anti-boucle: ne pas re-vérifier juste après un forceUpdate
+    const justUpdated = sessionStorage.getItem('pwa_just_updated');
+    if (justUpdated) {
+      const elapsed = Date.now() - parseInt(justUpdated, 10);
+      if (elapsed < 30000) {
+        console.log('[PWA] Skip update check — just updated', Math.round(elapsed / 1000), 's ago');
+        sessionStorage.removeItem('pwa_just_updated');
+        return;
+      }
+      sessionStorage.removeItem('pwa_just_updated');
+    }
 
-    // Vérifier immédiatement si une mise à jour est en attente
-    checkForUpdate();
+    // Vérifier après un délai (pas immédiatement au montage)
+    const timer = setTimeout(() => checkForUpdate(), 3000);
+    return () => clearTimeout(timer);
   }, []);
 
   const checkForUpdate = async () => {
@@ -70,25 +77,21 @@ const PWAUpdateButton = () => {
 
   const forceUpdate = async () => {
     try {
+      // Marquer pour empêcher la boucle de re-check au prochain montage
+      sessionStorage.setItem('pwa_just_updated', String(Date.now()));
+
       const reg = await navigator.serviceWorker.getRegistration();
-      if (!reg) return;
-
-      // Si un worker attend, lui dire de prendre le contrôle immédiatement
-      if (reg.waiting) {
+      if (reg && reg.waiting) {
+        // Dire au worker en attente de prendre le contrôle
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        // Attendre un instant que le controllerchange se propage
+        await new Promise(r => setTimeout(r, 300));
       }
 
-      // Sinon, désactiver le cache et recharger
-      if (window.caches) {
-        const cacheNames = await window.caches.keys();
-        await Promise.all(cacheNames.map(name => window.caches.delete(name)));
-      }
-
-      // Recharger la page
+      // Recharger la page une seule fois
       window.location.reload();
     } catch (err) {
       console.error('[PWA] Force update failed:', err);
-      // Fallback: rechargement simple
       window.location.reload();
     }
   };
