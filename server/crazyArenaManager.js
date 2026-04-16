@@ -2221,9 +2221,11 @@ class CrazyArenaManager {
 
     // ✅ SYNCHRONISER la paire validée à TOUS les joueurs
     if (isCorrect && pairId) {
+      const playerIdx = match.players.findIndex(p => p.studentId === studentId);
       const pairValidatedPayload = {
         studentId,
         playerName: player.name,
+        playerIdx,
         pairId,
         zoneAId,
         zoneBId,

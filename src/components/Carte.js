@@ -1895,6 +1895,36 @@ const Carte = () => {
           setRoundsPerSession(totalRounds);
         }
       });
+
+      // ✅ FIX T3: Écouter arena:pair-validated pour animer les bulles chez les adversaires
+      s.on('arena:pair-validated', ({ studentId, playerName, playerIdx, pairId, zoneAId, zoneBId }) => {
+        // Ignorer si c'est le joueur local (il a déjà ses propres bulles)
+        try {
+          const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
+          if (studentId === arenaData.myStudentId) return;
+        } catch {}
+
+        console.log('[ARENA] 🎯 Paire validée par adversaire', playerName, ':', pairId);
+
+        const currentZones = zonesRef.current || [];
+        const ZA = currentZones.find(z => z.id === zoneAId);
+        const ZB = currentZones.find(z => z.id === zoneBId);
+
+        if (ZA && ZB) {
+          let color = '#22c55e';
+          let borderColor = '#ffffff';
+          let label = '';
+          try {
+            if (typeof playerIdx === 'number' && playerIdx >= 0) {
+              const combo = getPlayerColorComboByIndex(playerIdx);
+              color = combo.primary;
+              borderColor = combo.border;
+              label = getInitials(playerName || 'Joueur');
+            }
+          } catch {}
+          animateBubblesFromZones(zoneAId, zoneBId, color, ZA, ZB, borderColor, label);
+        }
+      });
       
       s.on('disconnect', () => {
         console.log('[ARENA] Socket déconnecté');
@@ -1919,9 +1949,7 @@ const Carte = () => {
         s.disconnect();
       };
     }
-    
-    // Supprimer tout autostart pour éviter les courses avant le handshake/preload
-    // Avoid double-connect in strict mode by checking existing
+
     if (socketRef.current && socketRef.current.connected) return;
     const base = getBackendUrl();
     addDiag('socket:init', { url: base });
