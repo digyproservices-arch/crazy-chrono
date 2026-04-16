@@ -1896,33 +1896,106 @@ const Carte = () => {
         }
       });
 
+      // ✅ FIX T3: Écouter arena:timer-tick (comme training:timer-tick dans TrainingArenaGame)
+      s.on('arena:timer-tick', ({ timeLeft: serverTimeLeft, currentRound, totalRounds }) => {
+        setTimeLeft(serverTimeLeft);
+        if (typeof currentRound === 'number') {
+          setRoundsPlayed(currentRound);
+        }
+      });
+
+      // ✅ FIX SCORES: Écouter arena:scores-update (comme training:scores-update dans TrainingArenaGame)
+      s.on('arena:scores-update', ({ scores }) => {
+        console.log('[ARENA] 📊 Scores mis à jour:', scores);
+        if (Array.isArray(scores)) {
+          setArenaPlayers(scores);
+        }
+      });
+
       // ✅ FIX T3: Écouter arena:pair-validated pour animer les bulles chez les adversaires
       s.on('arena:pair-validated', ({ studentId, playerName, playerIdx, pairId, zoneAId, zoneBId }) => {
-        // Ignorer si c'est le joueur local (il a déjà ses propres bulles)
-        try {
-          const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
-          if (studentId === arenaData.myStudentId) return;
-        } catch {}
+        const isLocal = (() => {
+          try {
+            const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
+            return studentId === arenaData.myStudentId;
+          } catch { return false; }
+        })();
 
-        console.log('[ARENA] 🎯 Paire validée par adversaire', playerName, ':', pairId);
+        console.log('[ARENA] 🎯 Paire validée par', isLocal ? 'MOI' : playerName, ':', pairId);
 
         const currentZones = zonesRef.current || [];
         const ZA = currentZones.find(z => z.id === zoneAId);
         const ZB = currentZones.find(z => z.id === zoneBId);
 
-        if (ZA && ZB) {
-          let color = '#22c55e';
-          let borderColor = '#ffffff';
-          let label = '';
-          try {
-            if (typeof playerIdx === 'number' && playerIdx >= 0) {
-              const combo = getPlayerColorComboByIndex(playerIdx);
-              color = combo.primary;
-              borderColor = combo.border;
-              label = getInitials(playerName || 'Joueur');
-            }
-          } catch {}
+        let color = '#22c55e';
+        let borderColor = '#ffffff';
+        let label = '';
+        try {
+          if (typeof playerIdx === 'number' && playerIdx >= 0) {
+            const combo = getPlayerColorComboByIndex(playerIdx);
+            color = combo.primary;
+            borderColor = combo.border;
+            label = getInitials(playerName || 'Joueur');
+          }
+        } catch {}
+
+        // Animation bulles pour adversaires uniquement (le joueur local a déjà ses propres bulles)
+        if (!isLocal && ZA && ZB) {
           animateBubblesFromZones(zoneAId, zoneBId, color, ZA, ZB, borderColor, label);
+        }
+
+        // ✅ HISTORIQUE PÉDAGOGIQUE pour TOUS les joueurs (comme TrainingArenaGame)
+        if (ZA && ZB) {
+          try {
+            const textFor = (Z) => {
+              const t = (Z?.label || Z?.content || Z?.text || Z?.value || '').toString();
+              if (t && t.trim()) return t;
+              return pairId ? `[${pairId}]` : '…';
+            };
+            const textForCalc = (Z) => {
+              const t = (Z?.content || Z?.label || Z?.text || Z?.value || '').toString();
+              if (t && t.trim()) return t;
+              return pairId ? `[${pairId}]` : '…';
+            };
+            const textA = textFor(ZA);
+            const textB = textFor(ZB);
+            const typeA = ZA?.type || '';
+            const typeB = ZB?.type || '';
+            let kind = null, calcExpr = null, calcResult = null, imageSrc = null, imageLabel = null;
+            let displayText = `${textA || '…'} ↔ ${textB || '…'}`;
+            const resolveImageSrc = (raw) => {
+              if (!raw) return null;
+              const normalized = String(raw).startsWith('http') ? String(raw) : process.env.PUBLIC_URL + '/' + (String(raw).startsWith('/') ? String(raw).slice(1) : (String(raw).startsWith('images/') ? String(raw) : 'images/' + String(raw)));
+              return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
+            };
+            if ((typeA === 'calcul' && typeB === 'chiffre') || (typeA === 'chiffre' && typeB === 'calcul')) {
+              kind = 'calcnum';
+              const calcZone = typeA === 'calcul' ? ZA : ZB;
+              const numZone = typeA === 'chiffre' ? ZA : ZB;
+              calcExpr = textForCalc(calcZone);
+              calcResult = textForCalc(numZone);
+              displayText = (calcExpr && calcResult) ? `${calcExpr} = ${calcResult}` : displayText;
+            } else if ((typeA === 'image' && typeB === 'texte') || (typeA === 'texte' && typeB === 'image')) {
+              kind = 'imgtxt';
+              const imgZone = typeA === 'image' ? ZA : ZB;
+              const txtZone = typeA === 'texte' ? ZA : ZB;
+              const raw = imgZone?.content || imgZone?.url || imgZone?.path || imgZone?.src || '';
+              if (raw) imageSrc = resolveImageSrc(String(raw));
+              imageLabel = textFor(txtZone);
+              displayText = imageLabel || displayText;
+            }
+            const entry = {
+              a: zoneAId, b: zoneBId,
+              winnerId: studentId,
+              winnerName: playerName || 'Joueur',
+              color, borderColor, initials: label,
+              text: displayText, kind, calcExpr, calcResult, imageSrc, imageLabel
+            };
+            setLastWonPair(entry);
+            setWonPairsHistory(h => [entry, ...(Array.isArray(h) ? h : [])].slice(0, 25));
+          } catch (e) {
+            console.warn('[ARENA] Erreur mise à jour historique:', e);
+          }
         }
       });
       
@@ -4001,6 +4074,9 @@ const handleEditGreenZone = (zone) => {
   const [countdown, setCountdown] = useState(null);
   const [countdownT, setCountdownT] = useState(null);
   const [arenaPauseInfo, setArenaPauseInfo] = useState(null);
+  // ✅ ARENA: État joueurs dédié (comme TrainingArenaGame.js)
+  const [arenaPlayers, setArenaPlayers] = useState([]);
+  const [myArenaStudentId, setMyArenaStudentId] = useState(null);
   const [mpMsg, setMpMsg] = useState('');
   const [myReady, setMyReady] = useState(false);
   const [isHost, setIsHost] = useState(false);
@@ -4472,7 +4548,12 @@ const handleEditGreenZone = (zone) => {
           setLoading(false);
           setRoomStatus('playing');
           setFullScreen(true);
-          console.log('[ARENA] Mode jeu activé - bypass lobby, angles synced:', Object.keys(arenaAngles).length);
+          // ✅ ARENA: Initialiser joueurs et studentId (comme TrainingArenaGame)
+          if (Array.isArray(arenaData.players)) {
+            setArenaPlayers(arenaData.players.map(p => ({ ...p, score: p.score || 0, pairsValidated: p.pairsValidated || 0 })));
+          }
+          if (arenaData.myStudentId) setMyArenaStudentId(arenaData.myStudentId);
+          console.log('[ARENA] Mode jeu activé - bypass lobby, angles synced:', Object.keys(arenaAngles).length, 'players:', arenaData.players?.length);
           return;
         }
       } catch (e) {
@@ -7376,29 +7457,35 @@ setZones(dataWithRandomTexts);
           ))}
         </div>
       )}
+      {/* Bandeau compact scores Arena (mobile portrait) */}
+      {isMobile && isPortrait && arenaMatchId && arenaPlayers.length > 0 && (
+        <div style={{ display: 'flex', gap: 6, padding: '4px 8px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', borderBottom: '1px solid rgba(255,255,255,0.1)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          {[...arenaPlayers].sort((a, b) => (b.score || 0) - (a.score || 0)).map((player, idx) => {
+            const origIdx = arenaPlayers.findIndex(p => p.studentId === player.studentId);
+            const isMe = player.studentId === myArenaStudentId;
+            const { primary: pColor } = getPlayerColorComboByIndex(origIdx >= 0 ? origIdx : idx);
+            return (
+              <div key={player.studentId || idx} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 8, flexShrink: 0, background: isMe ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)', border: `1px solid ${isMe ? pColor + '66' : 'transparent'}` }}>
+                <div style={{ width: 18, height: 18, borderRadius: '50%', background: pColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', flexShrink: 0 }}>{(player.name || '?')[0].toUpperCase()}</div>
+                <span style={{ fontSize: 11, fontWeight: isMe ? 800 : 600, color: '#fff', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name || '?'}</span>
+                <span style={{ fontSize: 13, fontWeight: 900, color: pColor, fontVariantNumeric: 'tabular-nums' }}>{player.score || 0}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {hasSidebar && (
         <aside className="game-sidebar-fixed">
           <div className="sidebar-content">
             {/* HUD: Timer + Score + Manche */}
             <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
               {!isTiebreaker && !objectiveMode && (
-                <div style={{
-                  background: timeLeft < 10 ? 'rgba(220,38,38,0.85)' : 'rgba(0,0,0,0.3)',
-                  borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)',
-                  fontSize: 18, fontWeight: 900,
-                  color: timeLeft < 10 ? '#fff' : timeLeft <= 30 ? '#F5A623' : '#10b981',
-                  fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums'
-                }}>
+                <div style={{ background: timeLeft < 10 ? 'rgba(220,38,38,0.85)' : 'rgba(0,0,0,0.3)', borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)', fontSize: 18, fontWeight: 900, color: timeLeft < 10 ? '#fff' : timeLeft <= 30 ? '#F5A623' : '#10b981', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>
                   ⏱ {Math.max(0, timeLeft)}s
                 </div>
               )}
               {objectiveMode && (
-                <div style={{
-                  background: 'rgba(13,106,122,0.85)',
-                  borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)',
-                  fontSize: 18, fontWeight: 900, color: '#7dd3fc',
-                  fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums'
-                }}>
+                <div style={{ background: 'rgba(13,106,122,0.85)', borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)', fontSize: 18, fontWeight: 900, color: '#7dd3fc', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>
                   ⏱ {timeElapsed + helpPenalty}s
                   {helpPenalty > 0 && <span style={{ fontSize: 11, color: '#fca5a5', marginLeft: 4 }}>(+{helpPenalty})</span>}
                 </div>
@@ -7518,8 +7605,59 @@ setZones(dataWithRandomTexts);
                 </div>
               </div>
             </div>
-            {/* Classement — affiché uniquement en multijoueur */}
-            {!isSoloMode && (
+            {/* Classement Arena (avec couleurs par joueur, comme TrainingArenaGame) */}
+            {arenaMatchId && arenaPlayers.length > 0 && (
+              <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <h3 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700, color: '#fff' }}>🏆 Classement Arena</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {[...arenaPlayers].sort((a, b) => (b.score || 0) - (a.score || 0)).map((player, idx) => {
+                    const origIdx = arenaPlayers.findIndex(p => p.studentId === player.studentId);
+                    const isMe = player.studentId === myArenaStudentId;
+                    const { primary: pColor } = getPlayerColorComboByIndex(origIdx >= 0 ? origIdx : idx);
+                    return (
+                      <div key={player.studentId || idx} style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        padding: '8px 10px', borderRadius: 10,
+                        background: isMe ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)',
+                        border: `1px solid ${isMe ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)'}`,
+                        transition: 'all 0.3s ease'
+                      }}>
+                        <div style={{ fontSize: idx === 0 ? 20 : 14, fontWeight: 900, minWidth: 26, textAlign: 'center' }}>
+                          {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`}
+                        </div>
+                        <div style={{
+                          width: 30, height: 30, borderRadius: '50%',
+                          background: `linear-gradient(135deg, ${pColor}, ${pColor}88)`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 13, fontWeight: 800, color: '#fff', flexShrink: 0,
+                          border: `2px solid ${pColor}44`
+                        }}>
+                          {(player.name || '?')[0].toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: isMe ? 800 : 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {player.name || player.studentId} {isMe ? '(moi)' : ''}
+                          </div>
+                          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>
+                            {player.pairsValidated || 0} paires
+                          </div>
+                        </div>
+                        <div style={{
+                          background: '#fff', borderRadius: 10, padding: '3px 10px',
+                          minWidth: 36, textAlign: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
+                        }}>
+                          <div style={{ fontSize: 20, fontWeight: 900, color: pColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
+                            {player.score || 0}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {/* Classement multi classique (non-Arena) */}
+            {!isSoloMode && !arenaMatchId && (
               <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <h3 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700, color: '#fff' }}>{'\u{1F3C6}'} Classement</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
