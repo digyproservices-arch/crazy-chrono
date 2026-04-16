@@ -96,22 +96,24 @@ export default function CrazyArenaSetup() {
       console.log('[CrazyArena] 🔓 globalLoadLock libéré');
     }, 5000);
 
-    // Essayer le cache sessionStorage d'abord
+    // Essayer le cache sessionStorage d'abord (TTL 60s)
     try {
       const cached = sessionStorage.getItem(CACHE_KEY_TOURNAMENT);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed && parsed.students && Date.now() - (parsed._ts || 0) < 60000) {
+        if (parsed && Array.isArray(parsed.students) && parsed.students.length > 0 && Date.now() - (parsed._ts || 0) < 60000) {
           console.log('[CrazyArena] ⚡ Cache hit — chargement instantané');
           setTournament(parsed.tournament);
-          setStudents(parsed.students || []);
+          setStudents(parsed.students);
           setGroups(parsed.groups || []);
           if (parsed.tourStatus) setTourStatus(parsed.tourStatus);
           setLoading(false);
           return;
         }
+        // Cache invalide ou expiré → nettoyer
+        sessionStorage.removeItem(CACHE_KEY_TOURNAMENT);
       }
-    } catch {}
+    } catch { sessionStorage.removeItem(CACHE_KEY_TOURNAMENT); }
     
     loadTournamentData();
   }, []);
@@ -136,35 +138,59 @@ export default function CrazyArenaSetup() {
         throw new Error('Classe non trouvée. Veuillez vous reconnecter.');
       }
       
-      // ✅ PERF: 1 seul appel au lieu de 4 — endpoint combiné avec requêtes parallèles
-      const t0 = performance.now();
-      const res = await fetch(
-        `${backendUrl}/api/tournament/classes/${classId}/setup-data?mode=arena&tournamentId=tour_2025_gp`,
-        { headers: getAuthHeaders() }
-      );
-      const data = await res.json();
-      const elapsed = Math.round(performance.now() - t0);
-      
-      if (!data.success) throw new Error(data.error || 'Erreur chargement');
-      
-      setTournament(data.tournament);
-      setStudents(data.students || []);
-      setGroups(data.groups || []);
-      
-      if (data.tourStatus?.success) setTourStatus(data.tourStatus);
-      
-      console.log(`[CrazyArena] ✅ Chargement terminé en ${elapsed}ms (backend: ${data._timing}ms) — ${data.students?.length} élèves, ${data.groups?.length} groupes`);
-      
-      // Sauvegarder en cache sessionStorage (TTL 60s)
+      // ✅ PERF: Essayer l'endpoint combiné, sinon fallback séquentiel
+      let loaded = false;
       try {
-        sessionStorage.setItem(CACHE_KEY_TOURNAMENT, JSON.stringify({
-          tournament: data.tournament,
-          students: data.students,
-          groups: data.groups,
-          tourStatus: data.tourStatus,
-          _ts: Date.now()
-        }));
-      } catch {}
+        const t0 = performance.now();
+        const res = await fetch(
+          `${backendUrl}/api/tournament/classes/${classId}/setup-data?mode=arena&tournamentId=tour_2025_gp`,
+          { headers: getAuthHeaders() }
+        );
+        if (res.ok) {
+          const d = await res.json();
+          if (d.success && d.students) {
+            setTournament(d.tournament);
+            setStudents(d.students || []);
+            setGroups(d.groups || []);
+            if (d.tourStatus?.success) setTourStatus(d.tourStatus);
+            const elapsed = Math.round(performance.now() - t0);
+            console.log(`[CrazyArena] ✅ setup-data OK en ${elapsed}ms — ${d.students?.length} élèves, ${d.groups?.length} groupes`);
+            try {
+              sessionStorage.setItem(CACHE_KEY_TOURNAMENT, JSON.stringify({
+                tournament: d.tournament, students: d.students, groups: d.groups,
+                tourStatus: d.tourStatus, _ts: Date.now()
+              }));
+            } catch {}
+            loaded = true;
+          }
+        }
+      } catch (e) {
+        console.warn('[CrazyArena] ⚠️ setup-data indisponible, fallback séquentiel:', e.message);
+      }
+      
+      // Fallback : anciens endpoints séquentiels
+      if (!loaded) {
+        console.log('[CrazyArena] 🔄 Fallback: chargement séquentiel...');
+        const tournamentRes = await fetch(`${backendUrl}/api/tournament/tournaments/tour_2025_gp`, { headers: getAuthHeaders() });
+        const tournamentData = await tournamentRes.json();
+        setTournament(tournamentData.tournament);
+        
+        const studentsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/students`, { headers: getAuthHeaders() });
+        const studentsData = await studentsRes.json();
+        setStudents(studentsData.students || []);
+        
+        const groupsRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/groups?mode=arena`, { headers: getAuthHeaders() });
+        const groupsData = await groupsRes.json();
+        setGroups(groupsData.groups || []);
+        
+        try {
+          const tourRes = await fetch(`${backendUrl}/api/tournament/classes/${classId}/tour-status?mode=arena&phase_level=${tournamentData.tournament?.current_phase || 1}`, { headers: getAuthHeaders() });
+          const tourData = await tourRes.json();
+          if (tourData.success) setTourStatus(tourData);
+        } catch (e) { console.warn('[CrazyArena] Tour status non disponible:', e); }
+        
+        console.log('[CrazyArena] ✅ Fallback terminé — Students:', studentsData.students?.length, 'Groups:', groupsData.groups?.length);
+      }
     } catch (error) {
       console.error('[CrazyArena] ❌ Error loading data:', error);
     } finally {
