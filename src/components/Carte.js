@@ -1805,30 +1805,79 @@ const Carte = () => {
       });
 
       // Écouter fin de partie Arena
-      s.on('arena:game-end', ({ ranking, winner, duration }) => {
-        console.log('[ARENA] Partie terminée!', { winner: winner?.name, ranking });
+      s.on('arena:game-end', (data) => {
+        const { ranking, winner, duration, matchId: evtMatchId } = data || {};
+        console.log('[ARENA] 🏆 arena:game-end reçu!', { winner: winner?.name, rankingLen: ranking?.length, hasRanking: !!ranking, evtMatchId, dataKeys: Object.keys(data || {}) });
 
-        // Retirer podium égalité si présent
+        // Ignorer le broadcast global (qui n'a que matchId, pas de ranking)
+        if (!ranking || !Array.isArray(ranking) || ranking.length === 0) {
+          console.log('[ARENA] ⏭️ Ignoré (broadcast global sans ranking)');
+          return;
+        }
+
+        // Retirer overlays précédents si présents
         const tieOverlay = document.getElementById('arena-tie-overlay');
         if (tieOverlay) tieOverlay.remove();
+        const countdownOverlay = document.getElementById('arena-countdown-overlay');
+        if (countdownOverlay) countdownOverlay.remove();
 
         setGameActive(false);
 
-        // Afficher overlay podium professionnel
-        if (ranking && Array.isArray(ranking)) {
-          setArenaGameEndOverlay({
-            ranking,
-            winner,
-            duration,
-            timestamp: Date.now()
-          });
+        // Confetti + son
+        try { showConfetti?.(); } catch {}
+        try { playCorrectSound?.(); } catch {}
 
-          // Confetti + son pour célébrer
-          try { showConfetti?.(); } catch {}
-          try { playCorrectSound?.(); } catch {}
+        // ✅ Créer overlay podium via DOM (fiable même si React state glitch)
+        setTimeout(() => {
+          console.log('[ARENA] 🎨 Construction overlay podium DOM...');
+          const existing = document.getElementById('arena-podium-overlay');
+          if (existing) existing.remove();
 
-          console.log('[ARENA] Overlay podium affiché');
-        }
+          const overlay = document.createElement('div');
+          overlay.id = 'arena-podium-overlay';
+          overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#4f46e5 0%,#6366f1 100%);z-index:10000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;animation:fadeIn 0.5s;overflow-y:auto;';
+
+          const winnerName = winner?.name || ranking[0]?.name || 'Joueur';
+          const winnerScore = winner?.score ?? ranking[0]?.score ?? 0;
+
+          overlay.innerHTML = `
+            <div style="text-align:center;color:white;max-width:800px;width:100%;">
+              <h1 style="font-size:48px;margin-bottom:16px;text-shadow:0 2px 10px rgba(0,0,0,0.3);">
+                🏆 PARTIE TERMINÉE 🏆
+              </h1>
+              <div style="background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:24px;padding:24px;margin-bottom:24px;box-shadow:0 12px 48px rgba(251,191,36,0.4);display:inline-block;min-width:280px;">
+                <div style="font-size:64px;margin-bottom:8px;">🥇</div>
+                <div style="font-size:28px;font-weight:900;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.3);margin-bottom:8px;">${winnerName}</div>
+                <div style="font-size:48px;font-weight:900;color:#fff;text-shadow:0 4px 12px rgba(0,0,0,0.3);">${winnerScore} pts</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.95);border-radius:16px;padding:20px;box-shadow:0 8px 32px rgba(0,0,0,0.2);text-align:left;">
+                <div style="font-size:22px;font-weight:700;color:#4f46e5;margin-bottom:16px;text-align:center;">📊 Classement Final</div>
+                ${ranking.map((p, idx) => {
+                  const medals = ['🥇', '🥈', '🥉'];
+                  const isTop3 = idx < 3;
+                  const bgColors = ['linear-gradient(135deg,#fef3c7,#fde68a)', 'linear-gradient(135deg,#e5e7eb,#d1d5db)', 'linear-gradient(135deg,#fed7aa,#fdba74)'];
+                  return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;margin-bottom:8px;border-radius:12px;background:${isTop3 ? bgColors[idx] : '#f9fafb'};border:${isTop3 ? '2px solid rgba(0,0,0,0.1)' : '1px solid #e5e7eb'};">
+                    <div style="font-size:${isTop3 ? '28px' : '18px'};font-weight:900;min-width:40px;text-align:center;">${isTop3 ? medals[idx] : (idx + 1)}</div>
+                    <div style="flex:1;font-size:18px;font-weight:${isTop3 ? '700' : '600'};color:#1f2937;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</div>
+                    <div style="font-size:20px;font-weight:900;color:${isTop3 ? '#4f46e5' : '#6b7280'};min-width:60px;text-align:right;">${p.score} pts</div>
+                  </div>`;
+                }).join('')}
+              </div>
+              <div style="margin-top:24px;font-size:16px;color:rgba(255,255,255,0.7);">Cliquez pour fermer</div>
+            </div>
+          `;
+
+          overlay.onclick = () => {
+            overlay.remove();
+            setArenaGameEndOverlay(null);
+          };
+
+          document.body.appendChild(overlay);
+          console.log('[ARENA] ✅ Overlay podium DOM ajouté');
+
+          // Aussi setter React state pour cohérence
+          setArenaGameEndOverlay({ ranking, winner, duration, timestamp: Date.now() });
+        }, 500);
       });
 
       // Écouter nouvelle carte (après que toutes les paires sont trouvées)
@@ -7406,7 +7455,7 @@ setZones(dataWithRandomTexts);
                   : `Manche: ${Math.max(0, roundsPlayed || 0)}`}
               </div>
             )}
-            {helpEnabled && gameActive && (
+            {helpEnabled && gameActive && !arenaMatchId && !trainingMatchId && (
               <div style={{ display: 'flex', gap: 4 }}>
                 <button onClick={handleHintClick} disabled={helpLevel >= 1}
                   style={{ padding: '4px 8px', borderRadius: 8, border: 'none', background: helpLevel >= 1 ? '#94a3b8' : '#f59e0b', color: '#fff', fontSize: 11, fontWeight: 700, cursor: helpLevel >= 1 ? 'default' : 'pointer', opacity: helpLevel >= 1 ? 0.5 : 1 }}>
@@ -7552,7 +7601,7 @@ setZones(dataWithRandomTexts);
                         display: 'flex', alignItems: 'center', gap: 8,
                         padding: '8px 10px', borderRadius: 10,
                         background: isMe ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)',
-                        border: `1px solid ${isMe ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)'}`,
+                        border: `1px solid ${isMe ? pColor + '66' : 'transparent'}`,
                         transition: 'all 0.3s ease'
                       }}>
                         <div style={{ fontSize: idx === 0 ? 20 : 14, fontWeight: 900, minWidth: 26, textAlign: 'center' }}>
@@ -7610,8 +7659,8 @@ setZones(dataWithRandomTexts);
                 </div>
               </div>
             )}
-            {/* Boutons d'aide */}
-            {helpEnabled && gameActive && (
+            {/* Boutons d'aide — masqués en Arena et Training (compétition) */}
+            {helpEnabled && gameActive && !arenaMatchId && !trainingMatchId && (
               <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: 8, alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 600, marginRight: 4 }}>Aide:</span>
                 <button onClick={handleHintClick} disabled={helpLevel >= 1}
