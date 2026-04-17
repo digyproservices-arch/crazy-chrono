@@ -334,6 +334,7 @@ export default function CrazyArenaSetup() {
         objectiveTarget: pc.objectiveTarget || null,
         objectiveThemes: pc.objectiveThemes || [],
         helpEnabled: !!pc.helpEnabled,
+        selectedLevel: pc.selectedLevel || null,
       };
       
       console.log('[CrazyArena] 🚀 Lancement match - Phase:', tournament.current_phase, '→ ID:', phaseId);

@@ -1966,20 +1966,25 @@ class CrazyArenaManager {
         }
       }
       
+      // ✅ FIX: Transmettre selectedLevel pour filtrage LEVEL_INCLUDES côté serveur
+      const selectedLevel = config.selectedLevel || config.level || null;
+      
       logger.info('[ZoneGen] Config:', {
         seed,
         classes: finalClasses,
         themes: finalThemes,
         extras: finalExtras,
+        selectedLevel,
         excludedCount: excludedPairIds.size,
         hasDeck: !!deckState
       });
       
-      // IMPORTANT: Passer excludedPairIds + deckState + extras au générateur
+      // IMPORTANT: Passer excludedPairIds + deckState + extras + selectedLevel au générateur
       const result = generateRoundZones(seed, {
         classes: finalClasses,
         themes: finalThemes,
         extras: finalExtras,
+        selectedLevel: selectedLevel,
         excludedPairIds: excludedPairIds,
         deckState: deckState
       });
@@ -2574,7 +2579,7 @@ class CrazyArenaManager {
       rounds: 1 // Une seule manche avec moins de zones
     };
     
-    const zonesResult = await this.generateZones(tiebreakerConfig);
+    const zonesResult = await this.generateZones(tiebreakerConfig, matchId);
     
     // ✅ FIX: generateZones retourne {zones: [...]} pas [...]
     const zonesArray = Array.isArray(zonesResult) ? zonesResult : (zonesResult?.zones || []);
@@ -2645,13 +2650,8 @@ class CrazyArenaManager {
           
           logger.info(`[CrazyArena] ✅ arena:tiebreaker-start émis (room + broadcast)`);
           
-          // ✅ Safety timeout: si tiebreaker ne finit pas en 30s, forcer la fin
-          match.tiebreakerTimeout = setTimeout(() => {
-            if (match.status === 'tiebreaker') {
-              logger.warn(`[CrazyArena] ⏰ Tiebreaker timeout 30s pour match ${matchId} — forceEnd`);
-              this.endGame(matchId);
-            }
-          }, 30000);
+          // ✅ FIX: Pas de timeout pour le tiebreaker — il se termine quand les 3 paires sont trouvées
+          // (cohérent avec le mode Training qui n'a pas de timeout)
           
         } catch (error) {
           logger.error(`[CrazyArena] ❌ ERREUR émission arena:tiebreaker-start:`, error);

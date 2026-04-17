@@ -403,6 +403,67 @@ function generateRoundZones(seed, config = {}) {
       });
     }
     
+    // ===== LEVEL_INCLUDES: Filtrer les catégories math non incluses au niveau sélectionné =====
+    // Quand themes est vide (tous domaines activés), le filtre thème ne s'applique pas.
+    // Mais certaines catégories math (divisions, fractions, etc.) ne doivent apparaître
+    // que si elles sont explicitement dans LEVEL_INCLUDES ou ajoutées en extras.
+    const LEVEL_INCLUDES_SERVER = {
+      'CP':  new Set(['category:addition']),
+      'CE1': new Set(['category:addition', 'category:soustraction']),
+      'CE2': new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5']),
+      'CM1': new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5', 'category:table_6', 'category:table_7', 'category:table_8', 'category:table_9']),
+      'CM2': new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5', 'category:table_6', 'category:table_7', 'category:table_8', 'category:table_9', 'category:table_10', 'category:table_11', 'category:table_12']),
+      '6e':  new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5', 'category:table_6', 'category:table_7', 'category:table_8', 'category:table_9', 'category:table_10', 'category:table_11', 'category:table_12', 'category:division', 'category:numeration']),
+      '5e':  new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5', 'category:table_6', 'category:table_7', 'category:table_8', 'category:table_9', 'category:table_10', 'category:table_11', 'category:table_12', 'category:division', 'category:numeration', 'category:fraction']),
+      '4e':  new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5', 'category:table_6', 'category:table_7', 'category:table_8', 'category:table_9', 'category:table_10', 'category:table_11', 'category:table_12', 'category:division', 'category:numeration', 'category:fraction', 'category:equation']),
+      '3e':  new Set(['category:addition', 'category:soustraction', 'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5', 'category:table_6', 'category:table_7', 'category:table_8', 'category:table_9', 'category:table_10', 'category:table_11', 'category:table_12', 'category:division', 'category:numeration', 'category:fraction', 'category:equation', 'category:multiplication_avancee']),
+    };
+    
+    const ALL_MATH_CATEGORIES = new Set([
+      'category:addition', 'category:soustraction', 'category:division',
+      'category:fraction', 'category:equation', 'category:numeration',
+      'category:multiplication_avancee',
+      'category:table_2', 'category:table_3', 'category:table_4', 'category:table_5',
+      'category:table_6', 'category:table_7', 'category:table_8', 'category:table_9',
+      'category:table_10', 'category:table_11', 'category:table_12', 'category:table_15',
+    ]);
+    
+    // Déterminer le niveau sélectionné (depuis config ou max des classes)
+    const selectedLevel = config.selectedLevel || (maxClassIdx >= 0 ? CLASS_LEVELS[maxClassIdx] : null);
+    const levelAllowed = selectedLevel ? (LEVEL_INCLUDES_SERVER[selectedLevel] || null) : null;
+    
+    if (levelAllowed && selectedThemes.length === 0) {
+      // Quand themes est vide (tous domaines), filtrer les catégories math hors niveau
+      // Les extras explicites bypasses ce filtre
+      const isMathExcluded = (el) => {
+        const tags = Array.isArray(el?.themes) ? el.themes : [];
+        // Si l'élément a une catégorie math non incluse au niveau ET pas dans les extras
+        const hasMathCat = tags.some(t => ALL_MATH_CATEGORIES.has(t));
+        if (!hasMathCat) return false; // Pas une catégorie math → ne pas exclure
+        const hasAllowedCat = tags.some(t => levelAllowed.has(t));
+        const hasExtraCat = tags.some(t => extrasSet.has(t));
+        return !hasAllowedCat && !hasExtraCat;
+      };
+      
+      const calcB = calculs.length, numB = chiffres.length, assocB = associations.length;
+      calculs = calculs.filter(c => !isMathExcluded(c));
+      chiffres = chiffres.filter(n => !isMathExcluded(n));
+      associations = associations.filter(a => {
+        if (a.calculId || a.chiffreId) return !isMathExcluded(a);
+        return true;
+      });
+      
+      const removed = (calcB - calculs.length) + (numB - chiffres.length);
+      if (removed > 0) {
+        console.log('[ServerZoneGen] LEVEL_INCLUDES filter removed:', {
+          selectedLevel,
+          calculs: calcB - calculs.length,
+          chiffres: numB - chiffres.length,
+          associations: assocB - associations.length
+        });
+      }
+    }
+    
     // ===== CLEANUP: Retirer les éléments orphelins (sans association survivante) =====
     // Les orphelins ne peuvent jamais former de paire et polluent le pool de distracteurs
     {
