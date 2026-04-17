@@ -1636,6 +1636,72 @@ const Carte = () => {
         navigate('/');
       });
 
+      // ✅ Listener pour égalité détectée (en attente du professeur)
+      s.on('arena:tie-detected', ({ tiedPlayers, message }) => {
+        console.log('[ARENA] ⚖️ Égalité détectée !', tiedPlayers);
+        setGameActive(false);
+        
+        setTimeout(() => {
+          console.log('[ARENA] 🎨 Construction overlay égalité...');
+          
+          const overlay = document.createElement('div');
+          overlay.id = 'arena-tie-overlay';
+          overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);z-index:10000;display:flex;align-items:center;justify-content:center;';
+          
+          const container = document.createElement('div');
+          container.style.cssText = 'text-align:center;color:white;max-width:800px;padding:40px;';
+          
+          const contentDiv = document.createElement('div');
+          contentDiv.innerHTML = `<h1 style="font-size:64px;margin-bottom:20px;">⚖️</h1><h2 style="font-size:42px;margin-bottom:20px;text-shadow:0 2px 10px rgba(0,0,0,0.3);">ÉGALITÉ !</h2><p style="font-size:24px;margin-bottom:30px;">${message || 'Égalité entre les joueurs !'}</p><div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;">${(tiedPlayers || []).map(p => `<div style="background:white;border-radius:16px;padding:24px;border:4px solid #fbbf24;"><div style="font-size:48px;margin-bottom:12px;">🤝</div><div style="color:#111;font-weight:700;font-size:20px;margin-bottom:8px;">${p.name}</div><div style="color:#6b7280;font-size:16px;">Score: <span style="color:#f59e0b;font-weight:700;">${p.score}</span></div></div>`).join('')}</div><p style="margin-top:40px;font-size:18px;color:#fef3c7;">⏳ En attente de la décision du professeur...</p>`;
+          
+          const readyBtn = document.createElement('button');
+          readyBtn.id = 'arena-tie-ready-btn';
+          readyBtn.textContent = '✋ JE SUIS PRÊT';
+          readyBtn.style.cssText = 'margin-top:30px;padding:16px 40px;font-size:20px;font-weight:700;background:#fff;color:#f59e0b;border:3px solid #fbbf24;border-radius:12px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:all 0.3s;';
+          
+          const statusEl = document.createElement('p');
+          statusEl.id = 'arena-tie-status';
+          statusEl.style.cssText = 'margin-top:20px;font-size:16px;color:#fef3c7;min-height:24px;';
+          
+          readyBtn.onclick = () => {
+            console.log('[ARENA] ✋ CLIC BOUTON DÉTECTÉ !');
+            try {
+              const socket = socketRef.current;
+              if (!socket || !socket.connected) {
+                console.error('[ARENA] ❌ Socket non connecté!');
+                statusEl.textContent = '❌ Erreur: Connexion perdue';
+                return;
+              }
+              const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
+              const matchId = new URLSearchParams(window.location.search).get('arena');
+              const myStudentId = arenaData.myStudentId;
+              const myName = arenaData.players?.find(p => p.studentId === myStudentId)?.name || 'Joueur';
+              
+              console.log('[ARENA] 📤 Émission arena:player-ready-tiebreaker', { matchId, studentId: myStudentId, playerName: myName });
+              socket.emit('arena:player-ready-tiebreaker', { matchId, studentId: myStudentId, playerName: myName }, (ack) => {
+                console.log('[ARENA] ✅ ACK reçu:', ack);
+              });
+              
+              readyBtn.disabled = true;
+              readyBtn.style.opacity = '0.5';
+              readyBtn.style.cursor = 'not-allowed';
+              readyBtn.textContent = '✅ PRÊT !';
+              statusEl.textContent = '✅ Vous êtes prêt ! En attente des autres joueurs...';
+            } catch (e) {
+              console.error('[ARENA] ❌ Erreur:', e);
+              statusEl.textContent = '❌ Erreur: ' + e.message;
+            }
+          };
+          
+          container.appendChild(contentDiv);
+          container.appendChild(readyBtn);
+          container.appendChild(statusEl);
+          overlay.appendChild(container);
+          document.body.appendChild(overlay);
+          console.log('[ARENA] ✅ Overlay égalité ajouté au DOM');
+        }, 500);
+      });
+
       // ✅ Listener pour countdown 3-2-1 avant tiebreaker
       s.on('arena:countdown', ({ count }) => {
         console.log('[ARENA] 📣 Countdown reçu:', count);
@@ -1649,94 +1715,21 @@ const Carte = () => {
           }
         }
         
-        // Créer overlay countdown full-screen
+        // Créer ou mettre à jour overlay countdown
         let countdownOverlay = document.getElementById('arena-countdown-overlay');
         if (!countdownOverlay) {
-          setTimeout(() => {
           countdownOverlay = document.createElement('div');
           countdownOverlay.id = 'arena-countdown-overlay';
           countdownOverlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;';
-          
-          const container = document.createElement('div');
-          container.style.cssText = 'text-align:center;color:white;max-width:800px;padding:40px;';
-          
-          // Partie fixe du contenu (titres + cartes)
-          const contentDiv = document.createElement('div');
-          contentDiv.innerHTML = `<h1 style="font-size:64px;margin-bottom:20px;">⚖️</h1><h2 style="font-size:42px;margin-bottom:20px;text-shadow:0 2px 10px rgba(0,0,0,0.3);">ÉGALITÉ !</h2><p style="font-size:24px;margin-bottom:30px;">${message}</p><div style="display:flex;gap:20px;justify-content:center;">${tiedPlayers.map(p => `<div style="background:white;border-radius:16px;padding:24px;border:4px solid #fbbf24;"><div style="font-size:48px;margin-bottom:12px;">🤝</div><div style="color:#111;font-weight:700;font-size:20px;margin-bottom:8px;">${p.name}</div><div style="color:#6b7280;font-size:16px;">Score: <span style="color:#f59e0b;font-weight:700;">${p.score}</span></div></div>`).join('')}</div><p style="margin-top:40px;font-size:18px;color:#fef3c7;">⏳ En attente de la décision du professeur...</p>`;
-          
-          // Créer le bouton comme élément DOM natif
-          const readyBtn = document.createElement('button');
-          readyBtn.id = 'arena-tie-ready-btn';
-          readyBtn.textContent = '✋ JE SUIS PRÊT';
-          readyBtn.style.cssText = 'margin-top:30px;padding:16px 40px;font-size:20px;font-weight:700;background:#fff;color:#f59e0b;border:3px solid #fbbf24;border-radius:12px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:all 0.3s;';
-          
-          // Créer élément de status
-          const statusEl = document.createElement('p');
-          statusEl.id = 'arena-tie-status';
-          statusEl.style.cssText = 'margin-top:20px;font-size:16px;color:#fef3c7;min-height:24px;';
-          
-          // CRITIQUE: Attacher onclick AVANT appendChild
-          readyBtn.onclick = () => {
-            console.log('[ARENA] ✋ CLIC BOUTON DÉTECTÉ !');
-            
-            try {
-              const socket = socketRef.current;
-              
-              console.log('[ARENA] 🔍 État socket:', {
-                exists: !!socket,
-                connected: socket?.connected,
-                id: socket?.id,
-                io: socket?.io?.uri || 'N/A'
-              });
-              
-              if (!socket || !socket.connected) {
-                console.error('[ARENA] ❌ Socket non connecté!');
-                statusEl.textContent = '❌ Erreur: Connexion perdue';
-                return;
-              }
-              
-              const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
-              const matchId = new URLSearchParams(window.location.search).get('arena');
-              const myStudentId = arenaData.myStudentId;
-              const myName = arenaData.players?.find(p => p.studentId === myStudentId)?.name || 'Joueur';
-              
-              console.log('[ARENA] 📤 Tentative émission arena:player-ready-tiebreaker', { 
-                matchId, 
-                studentId: myStudentId, 
-                playerName: myName,
-                socketId: socket.id
-              });
-              
-              socket.emit('arena:player-ready-tiebreaker', {
-                matchId,
-                studentId: myStudentId,
-                playerName: myName
-              }, (ack) => {
-                console.log('[ARENA] ✅ Acknowledgement reçu du backend:', ack);
-              });
-              
-              console.log('[ARENA] 📤 Événement émis (attente ACK...)');
-              
-              // Désactiver bouton
-              readyBtn.disabled = true;
-              readyBtn.style.opacity = '0.5';
-              readyBtn.style.cursor = 'not-allowed';
-              readyBtn.textContent = '✅ PRÊT !';
-              statusEl.textContent = '✅ Vous êtes prêt ! En attente des autres joueurs...';
-            } catch (e) {
-              console.error('[ARENA] ❌ Erreur:', e);
-              statusEl.textContent = '❌ Erreur: ' + e.message;
-            }
-          };
-          
-          // Assembler le DOM
-          container.appendChild(contentDiv);
-          container.appendChild(readyBtn);
-          container.appendChild(statusEl);
-          countdownOverlay.appendChild(container);
           document.body.appendChild(countdownOverlay);
-          console.log('[ARENA] ✅ Overlay ajouté au DOM avec onclick attaché');
-          }, 500);
+        }
+        countdownOverlay.innerHTML = `<div style="text-align:center;"><div style="font-size:120px;color:#fff;font-weight:900;text-shadow:0 4px 20px rgba(0,0,0,0.5);animation:scaleIn 0.5s ease-out;">${count}</div><div style="font-size:24px;color:#fbbf24;margin-top:16px;font-weight:700;">Départage imminent...</div></div>`;
+        
+        if (count <= 0) {
+          setTimeout(() => {
+            const el = document.getElementById('arena-countdown-overlay');
+            if (el) el.remove();
+          }, 800);
         }
       });
 
@@ -7545,67 +7538,7 @@ setZones(dataWithRandomTexts);
                 </div>
               )
             )}
-            {/* Boutons d'aide */}
-            {helpEnabled && gameActive && (
-              <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 600, marginRight: 4 }}>Aide:</span>
-                <button onClick={handleHintClick} disabled={helpLevel >= 1}
-                  style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: 'none', background: helpLevel >= 1 ? '#475569' : '#f59e0b', color: '#fff', fontSize: 12, fontWeight: 700, cursor: helpLevel >= 1 ? 'default' : 'pointer', opacity: helpLevel >= 1 ? 0.5 : 1, transition: 'all 0.2s' }}>
-                  💡 Indice (+{HINT_PENALTY}s)
-                </button>
-                <button onClick={handleAnswerClick} disabled={helpLevel < 1 || helpLevel >= 2}
-                  style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: 'none', background: (helpLevel < 1 || helpLevel >= 2) ? '#475569' : '#ef4444', color: '#fff', fontSize: 12, fontWeight: 700, cursor: (helpLevel < 1 || helpLevel >= 2) ? 'default' : 'pointer', opacity: (helpLevel < 1 || helpLevel >= 2) ? 0.5 : 1, transition: 'all 0.2s' }}>
-                  🎯 Réponse (+{ANSWER_PENALTY}s)
-                </button>
-              </div>
-            )}
-            {/* Salle + Paramètres + Terminer */}
-            <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 13, color: '#fff' }}>{roomId ? `Salle: ${roomId}` : 'Mode Solo'}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{Number.isFinite(roundsPerSession) ? `${roundsPerSession} manches` : 'manches ∞'} · {gameDuration}s</div>
-              </div>
-              <button onClick={handleEndSessionNow} style={{ background: 'rgba(220,38,38,0.8)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '6px 12px', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Terminer</button>
-            </div>
-            {/* Mon record personnel — affiché dans tous les modes */}
-            <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div>
-                <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#fbbf24' }}>🏅 Mon record</h3>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires</div>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: score > soloPersonalBest.bestScore ? '#22c55e' : '#fff', fontVariantNumeric: 'tabular-nums' }}>
-                      {soloPersonalBest.bestScore || '—'}
-                    </div>
-                  </div>
-                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires/min</div>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
-                      {soloPersonalBest.bestPPM || '—'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {/* Record à battre (global) */}
-              <div>
-                <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#f87171' }}>🔥 Record à battre</h3>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires</div>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: soloGlobalBest.bestScore > 0 ? '#f87171' : '#64748b', fontVariantNumeric: 'tabular-nums' }}>
-                      {soloGlobalBest.bestScore || '—'}
-                    </div>
-                  </div>
-                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires/min</div>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: soloGlobalBest.bestPPM > 0 ? '#f87171' : '#64748b', fontVariantNumeric: 'tabular-nums' }}>
-                      {soloGlobalBest.bestPPM || '—'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {/* Classement Arena (avec couleurs par joueur, comme TrainingArenaGame) */}
+            {/* Classement Arena (avec couleurs par joueur) */}
             {arenaMatchId && arenaPlayers.length > 0 && (
               <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <h3 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700, color: '#fff' }}>🏆 Classement Arena</h3>
@@ -7677,6 +7610,68 @@ setZones(dataWithRandomTexts);
                 </div>
               </div>
             )}
+            {/* Boutons d'aide */}
+            {helpEnabled && gameActive && (
+              <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 600, marginRight: 4 }}>Aide:</span>
+                <button onClick={handleHintClick} disabled={helpLevel >= 1}
+                  style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: 'none', background: helpLevel >= 1 ? '#475569' : '#f59e0b', color: '#fff', fontSize: 12, fontWeight: 700, cursor: helpLevel >= 1 ? 'default' : 'pointer', opacity: helpLevel >= 1 ? 0.5 : 1, transition: 'all 0.2s' }}>
+                  💡 Indice (+{HINT_PENALTY}s)
+                </button>
+                <button onClick={handleAnswerClick} disabled={helpLevel < 1 || helpLevel >= 2}
+                  style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: 'none', background: (helpLevel < 1 || helpLevel >= 2) ? '#475569' : '#ef4444', color: '#fff', fontSize: 12, fontWeight: 700, cursor: (helpLevel < 1 || helpLevel >= 2) ? 'default' : 'pointer', opacity: (helpLevel < 1 || helpLevel >= 2) ? 0.5 : 1, transition: 'all 0.2s' }}>
+                  🎯 Réponse (+{ANSWER_PENALTY}s)
+                </button>
+              </div>
+            )}
+            {/* Salle + Paramètres + Terminer */}
+            <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#fff' }}>{roomId ? `Salle: ${roomId}` : 'Mode Solo'}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{Number.isFinite(roundsPerSession) ? `${roundsPerSession} manches` : 'manches ∞'} · {gameDuration}s</div>
+              </div>
+              <button onClick={handleEndSessionNow} style={{ background: 'rgba(220,38,38,0.8)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '6px 12px', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Terminer</button>
+            </div>
+            {/* Mon record personnel — masqué en Arena */}
+            {!arenaMatchId && (
+            <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div>
+                <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#fbbf24' }}>🏅 Mon record</h3>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: score > soloPersonalBest.bestScore ? '#22c55e' : '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                      {soloPersonalBest.bestScore || '—'}
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires/min</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                      {soloPersonalBest.bestPPM || '—'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {/* Record à battre (global) */}
+              <div>
+                <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#f87171' }}>🔥 Record à battre</h3>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: soloGlobalBest.bestScore > 0 ? '#f87171' : '#64748b', fontVariantNumeric: 'tabular-nums' }}>
+                      {soloGlobalBest.bestScore || '—'}
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires/min</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: soloGlobalBest.bestPPM > 0 ? '#f87171' : '#64748b', fontVariantNumeric: 'tabular-nums' }}>
+                      {soloGlobalBest.bestPPM || '—'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            )}
             {/* Progression Maîtrise */}
             {masteryProgress.length > 0 && (
               <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -7685,7 +7680,7 @@ setZones(dataWithRandomTexts);
                   {masteryProgress.slice(0, 5).map(t => (
                     <div key={t.key}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#cbd5e1', fontWeight: 600, marginBottom: 2 }}>
-                        <span>{t.tiers.gold ? '\u{1F947}' : t.tiers.silver ? '\u{1F948}' : t.tiers.bronze ? '\u{1F949}' : '\u{1F3AF}'} {t.label}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{t.tiers.gold ? '\u{1F947}' : t.tiers.silver ? '\u{1F948}' : t.tiers.bronze ? '\u{1F949}' : '\u{1F3AF}'} {t.label}</span>
                         <span style={{ color: '#94a3b8' }}>{t.found}/{t.total}</span>
                       </div>
                       <div style={{ height: 5, background: 'rgba(255,255,255,0.1)', borderRadius: 3, overflow: 'hidden' }}>
