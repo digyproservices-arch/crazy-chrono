@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import io from 'socket.io-client';
 import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
 import { DataContext } from '../../context/DataContext';
 import PedagogicConfig, { CARD, SECTION_TITLE, CLASS_LEVELS, CONTENT_DOMAINS } from '../Shared/PedagogicConfig';
@@ -60,6 +61,10 @@ export default function TrainingArenaSetup() {
   const [groupConfigs, setGroupConfigs] = useState({}); // groupId → config snapshot
   const [tourStatus, setTourStatus] = useState(null); // { tours, currentTour, classWinner }
   const [creatingNextTour, setCreatingNextTour] = useState(false);
+  // Live match data from Socket.IO (inline cockpit)
+  const [matchesLive, setMatchesLive] = useState({}); // matchId → { connectedPlayers, readyPlayers, players[], status, tiedPlayers, playersReadyCount, playersTotalCount }
+  const socketRef = useRef(null);
+  const [bulkStarting, setBulkStarting] = useState(false);
 
   // ===== Configuration pédagogique (composant partagé PedagogicConfig) =====
   const [pedConfig, setPedConfig] = useState(null);
@@ -295,12 +300,11 @@ export default function TrainingArenaSetup() {
     });
   };
 
-  const selectAllPendingGroups = () => {
-    const pending = groups.filter(g => g.status === 'pending' && !g.match_id);
-    if (checkedGroups.size === pending.length) {
+  const selectAllGroups = () => {
+    if (checkedGroups.size === groups.length && groups.length > 0) {
       setCheckedGroups(new Set());
     } else {
-      setCheckedGroups(new Set(pending.map(g => g.id)));
+      setCheckedGroups(new Set(groups.map(g => g.id)));
     }
   };
 
@@ -438,7 +442,180 @@ export default function TrainingArenaSetup() {
       console.error('[TrainingArena] Error deleting group:', error);
     }
   };
-  
+
+  // === SOCKET.IO: Real-time match management (inline cockpit) ===
+  const activeMatchIds = useMemo(() => groups.filter(g => g.match_id).map(g => g.match_id), [groups]);
+
+  useEffect(() => {
+    if (activeMatchIds.length === 0) {
+      if (socketRef.current) { socketRef.current.disconnect(); socketRef.current = null; }
+      return;
+    }
+    if (socketRef.current?.connected) {
+      // Re-subscribe to new match rooms
+      socketRef.current.emit('training:teacher-join', { matchIds: activeMatchIds });
+      return;
+    }
+
+    const socket = io(getBackendUrl(), { transports: ['websocket'], reconnection: true });
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('[TrainingSetup] Socket connecté, rejoindre rooms:', activeMatchIds.length);
+      socket.emit('training:teacher-join', { matchIds: activeMatchIds });
+    });
+
+    const updateMatch = (matchId, patch) => {
+      setMatchesLive(prev => ({ ...prev, [matchId]: { ...(prev[matchId] || {}), ...patch } }));
+    };
+
+    socket.on('training:players-update', ({ matchId, players }) => {
+      updateMatch(matchId, {
+        connectedPlayers: players.length,
+        readyPlayers: players.filter(p => p.ready).length,
+        players
+      });
+    });
+    socket.on('training:game-start', ({ matchId }) => {
+      updateMatch(matchId, { status: 'playing' });
+      // Update group status locally
+      setGroups(prev => prev.map(g => g.match_id === matchId ? { ...g, status: 'playing' } : g));
+    });
+    socket.on('training:game-end', ({ matchId }) => {
+      updateMatch(matchId, { status: 'finished' });
+      setGroups(prev => prev.map(g => g.match_id === matchId ? { ...g, status: 'finished' } : g));
+    });
+    socket.on('training:tie-waiting-teacher', ({ matchId, tiedPlayers, ranking }) => {
+      updateMatch(matchId, { status: 'tie-waiting', tiedPlayers, ranking, playersReadyCount: 0, playersTotalCount: tiedPlayers?.length || 2 });
+      setGroups(prev => prev.map(g => g.match_id === matchId ? { ...g, status: 'tie-waiting' } : g));
+    });
+    socket.on('training:tiebreaker-ready-update', ({ matchId, readyCount, totalCount }) => {
+      updateMatch(matchId, { playersReadyCount: readyCount, playersTotalCount: totalCount });
+    });
+    socket.on('training:tiebreaker-start', ({ matchId }) => {
+      updateMatch(matchId, { status: 'playing', isTiebreaker: true });
+      setGroups(prev => prev.map(g => g.match_id === matchId ? { ...g, status: 'playing' } : g));
+    });
+
+    // Poll API for initial match data
+    const loadMatchData = async () => {
+      try {
+        const ccAuth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+        const teacherId = localStorage.getItem('cc_user_id') || ccAuth.id;
+        const params = new URLSearchParams();
+        if (teacherId) params.set('teacherId', teacherId);
+        if (ccAuth.email) params.set('teacherEmail', ccAuth.email);
+        const res = await fetch(`${getBackendUrl()}/api/tournament/active-matches?${params.toString()}`, { headers: getAuthHeaders() });
+        const data = await res.json();
+        if (data.success && data.matches) {
+          const trainingMatches = data.matches.filter(m => m.mode === 'training');
+          const live = {};
+          trainingMatches.forEach(m => {
+            live[m.matchId] = {
+              connectedPlayers: m.connectedPlayers || 0,
+              readyPlayers: m.readyPlayers || 0,
+              players: m.players || [],
+              status: m.status || 'waiting',
+              totalPlayers: m.totalPlayers || 0,
+              groupName: m.groupName,
+              roomCode: m.roomCode
+            };
+          });
+          setMatchesLive(prev => {
+            const merged = { ...live };
+            // Preserve socket-updated data over API data
+            Object.keys(prev).forEach(k => {
+              if (merged[k]) merged[k] = { ...merged[k], ...prev[k] };
+              else merged[k] = prev[k];
+            });
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.warn('[TrainingSetup] Erreur chargement matchs:', err.message);
+      }
+    };
+    loadMatchData();
+    const pollInterval = setInterval(loadMatchData, 8000);
+
+    return () => {
+      clearInterval(pollInterval);
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [activeMatchIds.join(',')]);
+
+  // Match management functions
+  const handleStartMatch = (matchId) => {
+    if (!socketRef.current) { alert('Socket non connecté'); return; }
+    const live = matchesLive[matchId];
+    if (!live || live.connectedPlayers < 2) { alert('Au moins 2 joueurs doivent être connectés.'); return; }
+    if (live.readyPlayers !== live.connectedPlayers) { alert(`Tous les joueurs doivent être prêts (${live.readyPlayers || 0}/${live.connectedPlayers}).`); return; }
+    const group = groups.find(g => g.match_id === matchId);
+    if (!window.confirm(`Démarrer le match "${group?.name || ''}" avec ${live.connectedPlayers} joueur(s) ?`)) return;
+    socketRef.current.emit('training:force-start', { matchId }, (response) => {
+      if (!response?.ok) alert('Erreur: ' + (response?.error || 'Inconnue'));
+    });
+  };
+
+  const handleStartTiebreaker = (matchId) => {
+    if (!socketRef.current) return;
+    if (!window.confirm('Lancer la manche de départage ?')) return;
+    socketRef.current.emit('training:start-tiebreaker', { matchId });
+  };
+
+  const handleDeleteMatch = (matchId) => {
+    if (!socketRef.current) { alert('Socket non connecté'); return; }
+    socketRef.current.emit('delete-match', { matchId }, (response) => {
+      setMatchesLive(prev => { const n = { ...prev }; delete n[matchId]; return n; });
+      // Reset group status
+      setGroups(prev => prev.map(g => g.match_id === matchId ? { ...g, match_id: null, status: 'pending' } : g));
+      if (response?.ok) { console.log('[TrainingSetup] Match supprimé'); }
+    });
+  };
+
+  const handleSpectate = (matchId) => {
+    navigate(`/crazy-arena/spectate/${matchId}`);
+  };
+
+  // Bulk delete groups
+  const bulkDeleteGroups = async () => {
+    const toDelete = groups.filter(g => checkedGroups.has(g.id));
+    if (toDelete.length === 0) return;
+    const playing = toDelete.filter(g => g.status === 'playing');
+    const msg = `Supprimer ${toDelete.length} groupe(s) ?${playing.length > 0 ? `\n\n⚠️ ${playing.length} match(s) en cours seront interrompus !` : ''}`;
+    if (!window.confirm(msg)) return;
+
+    for (const group of toDelete) {
+      try {
+        // If match exists, delete it via socket first
+        if (group.match_id && socketRef.current) {
+          socketRef.current.emit('delete-match', { matchId: group.match_id });
+        }
+        await fetch(`${getBackendUrl()}/api/tournament/groups/${group.id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      } catch (e) { console.error('[TrainingArena] Bulk delete error:', e); }
+    }
+    setCheckedGroups(new Set());
+    loadTournamentData();
+  };
+
+  // Bulk start all ready matches
+  const bulkStartReadyMatches = () => {
+    if (!socketRef.current) { alert('Socket non connecté'); return; }
+    const readyGroups = groups.filter(g => {
+      if (!g.match_id) return false;
+      const live = matchesLive[g.match_id];
+      return live && live.connectedPlayers >= 2 && live.readyPlayers === live.connectedPlayers && live.status !== 'playing' && live.status !== 'finished';
+    });
+    if (readyGroups.length === 0) { alert('Aucun match prêt à démarrer.'); return; }
+    if (!window.confirm(`Démarrer ${readyGroups.length} match(s) prêt(s) ?`)) return;
+    setBulkStarting(true);
+    readyGroups.forEach(g => {
+      socketRef.current.emit('training:force-start', { matchId: g.match_id });
+    });
+    setTimeout(() => { setBulkStarting(false); alert(`✅ ${readyGroups.length} match(s) démarré(s) !`); }, 1500);
+  };
+
   // Élèves déjà dans des groupes (useMemo pour éviter recalcul à chaque render)
   const studentsInGroups = useMemo(() => {
     const inGroups = new Set();
@@ -479,35 +656,31 @@ export default function TrainingArenaSetup() {
           </p>
         </div>
         
-        <button
-          onClick={() => navigate('/training-arena/manager')}
-          style={{
-            padding: '14px 28px',
-            background: 'linear-gradient(135deg, #1AACBE 0%, #148A9C 100%)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 12,
-            fontSize: 16,
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-            transition: 'all 0.2s',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)';
-            e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.4)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
-          }}
-        >
-          <span style={{ fontSize: 20 }}>📊</span>
-          <span>Gérer les matchs actifs</span>
-        </button>
+        {/* Mini-résumé des matchs actifs */}
+        {(() => {
+          const withMatch = groups.filter(g => g.match_id);
+          const playing = withMatch.filter(g => g.status === 'playing');
+          const waiting = withMatch.filter(g => g.status !== 'playing' && g.status !== 'finished');
+          const finished = withMatch.filter(g => g.status === 'finished');
+          const readyToStart = withMatch.filter(g => {
+            const live = matchesLive[g.match_id];
+            return live && live.connectedPlayers >= 2 && live.readyPlayers === live.connectedPlayers && live.status !== 'playing' && live.status !== 'finished';
+          });
+          if (withMatch.length === 0) return null;
+          return (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {playing.length > 0 && <span style={{ padding: '6px 14px', borderRadius: 999, background: '#dcfce7', color: '#15803d', fontSize: 13, fontWeight: 700 }}>🎮 {playing.length} en cours</span>}
+              {waiting.length > 0 && <span style={{ padding: '6px 14px', borderRadius: 999, background: '#fef3c7', color: '#92400e', fontSize: 13, fontWeight: 700 }}>⏳ {waiting.length} en attente</span>}
+              {finished.length > 0 && <span style={{ padding: '6px 14px', borderRadius: 999, background: '#e0f2fe', color: '#075985', fontSize: 13, fontWeight: 700 }}>✅ {finished.length} terminé(s)</span>}
+              {readyToStart.length > 0 && (
+                <button onClick={bulkStartReadyMatches} disabled={bulkStarting}
+                  style={{ padding: '8px 18px', borderRadius: 10, border: 'none', background: bulkStarting ? '#94a3b8' : 'linear-gradient(135deg, #f97316, #ea580c)', color: '#fff', fontSize: 13, fontWeight: 800, cursor: bulkStarting ? 'wait' : 'pointer', boxShadow: '0 4px 12px rgba(249,115,22,0.3)' }}>
+                  {bulkStarting ? '⏳...' : `🚀 Lancer ${readyToStart.length} match(s) prêt(s)`}
+                </button>
+              )}
+            </div>
+          );
+        })()}
       </div>
       
       {tournament && (
@@ -839,9 +1012,9 @@ export default function TrainingArenaSetup() {
                     🔁 Tour {tn} — {tourGroups.length} groupe(s)
                   </h3>
                 )}
-                {isTour1 && groups.filter(g => g.status === 'pending' && !g.match_id).length > 0 && (
-                  <button onClick={selectAllPendingGroups} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #6b7280', background: '#fff', color: '#374151', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                    {checkedGroups.size === groups.filter(g => g.status === 'pending' && !g.match_id).length ? '☐ Tout désélectionner' : '☑ Tout sélectionner'}
+                {isTour1 && tourGroups.length > 0 && (
+                  <button onClick={selectAllGroups} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #6b7280', background: '#fff', color: '#374151', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    {checkedGroups.size === groups.length && groups.length > 0 ? '☐ Tout désélectionner' : '☑ Tout sélectionner'}
                   </button>
                 )}
               </div>
@@ -869,22 +1042,25 @@ export default function TrainingArenaSetup() {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                  {isPending && (
-                    <input type="checkbox" checked={isChecked} onChange={() => toggleGroupCheck(group.id)}
-                      style={{ width: 20, height: 20, cursor: 'pointer', accentColor: '#1AACBE' }} />
-                  )}
+                  <input type="checkbox" checked={isChecked} onChange={() => toggleGroupCheck(group.id)}
+                    style={{ width: 20, height: 20, cursor: 'pointer', accentColor: '#1AACBE' }} />
                   <h4 style={{ margin: 0, flex: 1 }}>{group.name}</h4>
+                  {group.match_id && matchesLive[group.match_id]?.roomCode && (
+                    <span style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 700, color: '#1AACBE', background: '#f0fafb', padding: '2px 8px', borderRadius: 6 }}>
+                      {matchesLive[group.match_id].roomCode}
+                    </span>
+                  )}
                   <span 
                     style={{ 
                       padding: '4px 12px', 
                       borderRadius: 999, 
                       fontSize: 12, 
                       fontWeight: 700, 
-                      background: group.status === 'finished' ? '#148A9C' : group.status === 'playing' ? '#F5A623' : group.match_id ? '#3b82f6' : '#6b7280',
+                      background: group.status === 'tie-waiting' ? '#f59e0b' : group.status === 'finished' ? '#148A9C' : group.status === 'playing' ? '#F5A623' : group.match_id ? '#3b82f6' : '#6b7280',
                       color: '#fff'
                     }}
                   >
-                    {group.status === 'finished' ? 'Terminé' : group.status === 'playing' ? 'En cours' : group.match_id ? 'Salle créée' : 'En attente'}
+                    {group.status === 'tie-waiting' ? 'Egalité' : group.status === 'finished' ? 'Terminé' : group.status === 'playing' ? 'En cours' : group.match_id ? 'Salle créée' : 'En attente'}
                   </span>
                 </div>
                 
@@ -972,131 +1148,154 @@ export default function TrainingArenaSetup() {
                   </div>
                 )}
                 
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {isPending && (
+                {/* === INLINE MATCH COCKPIT === */}
+                {(() => {
+                  const live = group.match_id ? matchesLive[group.match_id] : null;
+                  const canStart = live && live.connectedPlayers >= 2 && live.readyPlayers === live.connectedPlayers && live.status !== 'playing' && live.status !== 'finished';
+
+                  return (
                     <>
-                      <button 
-                        onClick={() => launchMatch(group)}
-                        style={{ 
-                          padding: '8px 16px', 
-                          borderRadius: 8, 
-                          border: 'none', 
-                          background: 'linear-gradient(135deg, #1AACBE, #148A9C)', 
-                          color: '#fff', 
-                          fontWeight: 700,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        � Créer la salle et notifier
-                      </button>
-                      <button 
-                        onClick={() => deleteGroup(group.id)}
-                        style={{ 
-                          padding: '8px 16px', 
-                          borderRadius: 8, 
-                          border: '1px solid #ef4444', 
-                          background: '#fff', 
-                          color: '#ef4444',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        🗑️ Supprimer
-                      </button>
+                      {/* Live lobby stats (when match exists and not finished) */}
+                      {live && live.status !== 'finished' && (
+                        <div style={{ marginBottom: 10, padding: 10, background: '#f9fafb', borderRadius: 8, border: '1px solid #e5e7eb' }}>
+                          <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: live.players?.length > 0 ? 8 : 0 }}>
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ fontSize: 10, color: '#6b7280' }}>Total</div>
+                              <div style={{ fontSize: 18, fontWeight: 700 }}>{live.totalPlayers || parseStudentIds(group.student_ids).length}</div>
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ fontSize: 10, color: '#6b7280' }}>Connectés</div>
+                              <div style={{ fontSize: 18, fontWeight: 700, color: '#1AACBE' }}>{live.connectedPlayers || 0}</div>
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ fontSize: 10, color: '#6b7280' }}>Prêts</div>
+                              <div style={{ fontSize: 18, fontWeight: 700, color: '#148A9C' }}>{live.readyPlayers || 0} ✓</div>
+                            </div>
+                            {live.status === 'playing' && (
+                              <span style={{ marginLeft: 'auto', padding: '4px 10px', borderRadius: 8, background: '#dcfce7', color: '#15803d', fontSize: 12, fontWeight: 700, animation: 'pulse 2s infinite' }}>🎮 MATCH EN COURS</span>
+                            )}
+                          </div>
+                          {/* Players in lobby */}
+                          {live.players?.length > 0 && live.status !== 'playing' && (
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              {live.players.map((p, i) => (
+                                <span key={i} style={{ padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500, background: p.ready ? '#dcfce7' : '#f3f4f6', border: `1px solid ${p.ready ? '#86efac' : '#d1d5db'}`, color: '#1f2937' }}>
+                                  {p.name} {p.ready && '✓'}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Tie-waiting alert */}
+                      {live?.status === 'tie-waiting' && (
+                        <div style={{ marginBottom: 10, padding: 12, background: '#fef3c7', border: '2px solid #f59e0b', borderRadius: 8 }}>
+                          <div style={{ fontWeight: 700, color: '#92400e', marginBottom: 6 }}>⚖️ ÉGALITÉ DÉTECTÉE !</div>
+                          <div style={{ color: '#78350f', fontSize: 13, marginBottom: 6 }}>
+                            {live.tiedPlayers?.map(p => p.name).join(', ')} sont à égalité
+                          </div>
+                          <div style={{ color: '#15803d', fontSize: 13, fontWeight: 600, padding: '4px 8px', background: '#dcfce7', borderRadius: 6, display: 'inline-block', marginBottom: 8 }}>
+                            ✋ Joueurs prêts: {live.playersReadyCount ?? 0}/{live.playersTotalCount ?? (live.tiedPlayers?.length || 2)}
+                          </div>
+                          <br />
+                          <button onClick={() => handleStartTiebreaker(group.match_id)}
+                            style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#f59e0b', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
+                            🔄 LANCER DÉPARTAGE
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {isPending && (
+                          <button onClick={() => launchMatch(group)}
+                            style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #1AACBE, #148A9C)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                            📨 Créer la salle et notifier
+                          </button>
+                        )}
+                        {group.match_id && live && live.status !== 'playing' && live.status !== 'finished' && live.status !== 'tie-waiting' && (
+                          <button onClick={() => handleStartMatch(group.match_id)} disabled={!canStart}
+                            style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: canStart ? 'linear-gradient(135deg, #f97316, #ea580c)' : '#e5e7eb', color: canStart ? '#fff' : '#9ca3af', fontWeight: 700, cursor: canStart ? 'pointer' : 'not-allowed', opacity: canStart ? 1 : 0.7 }}>
+                            {canStart ? '🚀 DÉMARRER' : `⏳ ${live.readyPlayers || 0}/${live.connectedPlayers || 0} prêts`}
+                          </button>
+                        )}
+                        {group.match_id && live?.status === 'playing' && (
+                          <button onClick={() => handleSpectate(group.match_id)}
+                            style={{ padding: '8px 16px', borderRadius: 8, border: '2px solid #1AACBE', background: '#fff', color: '#1AACBE', fontWeight: 600, cursor: 'pointer' }}>
+                            👁️ Voir en direct
+                          </button>
+                        )}
+                        {group.status === 'finished' && (
+                          <>
+                            <button onClick={() => launchMatch(group)}
+                              style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #F5A623, #e6951a)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+                              🔄 Relancer
+                            </button>
+                            <button onClick={() => navigate(`/tournament/group/${group.id}/history`)}
+                              style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #6b7280', background: '#fff', color: '#111', cursor: 'pointer' }}>
+                              📊 Résultats
+                            </button>
+                          </>
+                        )}
+                        {group.match_id && live?.status !== 'playing' && live?.status !== 'finished' && (
+                          <button onClick={() => handleDeleteMatch(group.match_id)}
+                            style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #ef4444', background: '#fff', color: '#ef4444', cursor: 'pointer', fontSize: 12 }}>
+                            🗑️ Supprimer match
+                          </button>
+                        )}
+                      </div>
                     </>
-                  )}
-                  {group.status === 'finished' && (
-                    <>
-                      <button 
-                        onClick={() => launchMatch(group)}
-                        style={{ 
-                          padding: '8px 16px', 
-                          borderRadius: 8, 
-                          border: 'none', 
-                          background: 'linear-gradient(135deg, #F5A623, #e6951a)', 
-                          color: '#fff', 
-                          fontWeight: 700,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        🔄 Relancer le match
-                      </button>
-                      <button 
-                        onClick={() => deleteGroup(group.id)}
-                        style={{ 
-                          padding: '8px 16px', 
-                          borderRadius: 8, 
-                          border: '1px solid #ef4444', 
-                          background: '#fff', 
-                          color: '#ef4444',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        🗑️ Supprimer
-                      </button>
-                    </>
-                  )}
-                  {group.status === 'playing' && (
-                    <button 
-                      onClick={() => deleteGroup(group.id)}
-                      style={{ 
-                        padding: '8px 16px', 
-                        borderRadius: 8, 
-                        border: '1px solid #ef4444', 
-                        background: '#fff', 
-                        color: '#ef4444',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      🗑️ Supprimer
-                    </button>
-                  )}
-                  {group.match_id && (
-                    <button 
-                      onClick={() => navigate(`/tournament/group/${group.id}/history`)}
-                      style={{ 
-                        padding: '8px 16px', 
-                        borderRadius: 8, 
-                        border: '1px solid #6b7280', 
-                        background: '#fff', 
-                        color: '#111',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      📊 Voir résultats
-                    </button>
-                  )}
-                </div>
+                  );
+                })()}
               </div>
             );
           })}
         </div>
 
-              {/* Bouton bulk: Notifier tous les groupes sélectionnés (Tour 1 uniquement) */}
-              {isTour1 && checkedGroups.size > 0 && (
-                <div style={{ marginTop: 16, padding: 16, background: '#f0fafb', borderRadius: 12, border: '2px solid #1AACBE' }}>
-                  <button
-                    onClick={bulkNotifyGroups}
-                    disabled={bulkLoading}
-                    style={{
-                      width: '100%',
-                      padding: '14px 24px',
-                      borderRadius: 10,
-                      border: 'none',
-                      background: bulkLoading ? '#94a3b8' : 'linear-gradient(135deg, #1AACBE, #148A9C)',
-                      color: '#fff',
-                      fontWeight: 800,
-                      fontSize: 16,
-                      cursor: bulkLoading ? 'wait' : 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    {bulkLoading ? '⏳ Création des salles en cours...' : `📨 Créer les salles et notifier les élèves (${checkedGroups.size} groupe(s))`}
-                  </button>
-                  <p style={{ fontSize: 12, color: '#64748b', marginTop: 8, marginBottom: 0, textAlign: 'center' }}>
-                    Les élèves recevront une invitation à rejoindre leur salle de jeu. Ils devront se connecter avec leur code d'accès.
-                  </p>
-                </div>
-              )}
+              {/* Barre d'actions contextuelle — visible quand des groupes sont sélectionnés */}
+              {isTour1 && checkedGroups.size > 0 && (() => {
+                const selected = groups.filter(g => checkedGroups.has(g.id));
+                const pendingSelected = selected.filter(g => g.status === 'pending' && !g.match_id);
+                const readyToStartSelected = selected.filter(g => {
+                  if (!g.match_id) return false;
+                  const live = matchesLive[g.match_id];
+                  return live && live.connectedPlayers >= 2 && live.readyPlayers === live.connectedPlayers && live.status !== 'playing' && live.status !== 'finished';
+                });
+                return (
+                  <div style={{ marginTop: 16, padding: 16, background: 'linear-gradient(135deg, #f0fafb, #e0f7fa)', borderRadius: 12, border: '2px solid #1AACBE' }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#0D6A7A', marginBottom: 10 }}>
+                      {checkedGroups.size} groupe(s) sélectionné(s)
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      {/* Notify pending groups */}
+                      {pendingSelected.length > 0 && (
+                        <button onClick={bulkNotifyGroups} disabled={bulkLoading}
+                          style={{ flex: 1, minWidth: 200, padding: '12px 20px', borderRadius: 10, border: 'none', background: bulkLoading ? '#94a3b8' : 'linear-gradient(135deg, #1AACBE, #148A9C)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: bulkLoading ? 'wait' : 'pointer' }}>
+                          {bulkLoading ? '⏳ Création...' : `📨 Créer salles (${pendingSelected.length})`}
+                        </button>
+                      )}
+                      {/* Start ready matches */}
+                      {readyToStartSelected.length > 0 && (
+                        <button onClick={() => {
+                          if (!window.confirm(`Démarrer ${readyToStartSelected.length} match(s) prêt(s) ?`)) return;
+                          setBulkStarting(true);
+                          readyToStartSelected.forEach(g => { socketRef.current?.emit('training:force-start', { matchId: g.match_id }); });
+                          setTimeout(() => { setBulkStarting(false); }, 1500);
+                        }} disabled={bulkStarting}
+                          style={{ flex: 1, minWidth: 200, padding: '12px 20px', borderRadius: 10, border: 'none', background: bulkStarting ? '#94a3b8' : 'linear-gradient(135deg, #f97316, #ea580c)', color: '#fff', fontWeight: 800, fontSize: 14, cursor: bulkStarting ? 'wait' : 'pointer' }}>
+                          {bulkStarting ? '⏳...' : `� Démarrer (${readyToStartSelected.length})`}
+                        </button>
+                      )}
+                      {/* Delete selected groups */}
+                      <button onClick={bulkDeleteGroups}
+                        style={{ padding: '12px 20px', borderRadius: 10, border: '2px solid #ef4444', background: '#fff', color: '#ef4444', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>
+                        🗑️ Supprimer ({checkedGroups.size})
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
             </section>
           );
         });
