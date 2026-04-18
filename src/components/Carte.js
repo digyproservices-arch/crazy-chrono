@@ -4164,22 +4164,35 @@ const handleEditGreenZone = (zone) => {
     } catch { return { bestScore: 0, bestPPM: 0 }; }
   });
   const [soloGlobalBest, setSoloGlobalBest] = useState({ bestScore: 0, bestPPM: 0 });
-
-  // ... (rest of the code remains the same)
+  const [soloRecordComparable, setSoloRecordComparable] = useState(true);
 
   // Fetch global + personal records on mount (all modes, not just solo)
+  // Passe la config de session courante pour filtrage comparable
   useEffect(() => {
     const fetchRecords = async () => {
       try {
         const sid = getMyStudentId();
-        const url = sid
-          ? `${getBackendUrl()}/api/training/records?studentId=${encodeURIComponent(sid)}`
-          : `${getBackendUrl()}/api/training/records`;
+        const params = new URLSearchParams();
+        if (sid) params.set('studentId', sid);
+        // Lire la config de session pour filtrage comparable
+        try {
+          const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+          if (cfg) {
+            if (cfg.mode) params.set('mode', cfg.mode);
+            if (cfg.duration) params.set('duration', String(cfg.duration));
+            if (cfg.rounds) params.set('rounds', String(cfg.rounds));
+            // Niveau: selectedLevel ou premier élément de classes[]
+            const lvl = cfg.selectedLevel || (Array.isArray(cfg.classes) && cfg.classes.length > 0 ? cfg.classes[0] : null);
+            if (lvl) params.set('level', lvl);
+          }
+        } catch {}
+        const url = `${getBackendUrl()}/api/training/records?${params.toString()}`;
         const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
           if (data.success) {
             setSoloGlobalBest({ bestScore: data.bestScore || 0, bestPPM: Math.min(data.bestPPM || 0, 30) });
+            setSoloRecordComparable(data.comparable !== false);
             // Merge server personal best with localStorage (take max)
             if (sid && (data.myBestScore > 0 || data.myBestPPM > 0)) {
               setSoloPersonalBest(prev => {
@@ -4196,7 +4209,7 @@ const handleEditGreenZone = (zone) => {
       } catch {}
     };
     fetchRecords();
-  }, []); // Added missing closing bracket here
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Affichage colonne latérale de jeu (même sans plein écran)
   const hasSidebar = fullScreen || roomStatus === 'playing' || gameActive;
@@ -7701,24 +7714,30 @@ setZones(dataWithRandomTexts);
                   </div>
                 </div>
               </div>
-              {/* Record à battre (global) */}
-              <div>
-                <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#f87171' }}>🔥 Record à battre</h3>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires</div>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: soloGlobalBest.bestScore > 0 ? '#f87171' : '#64748b', fontVariantNumeric: 'tabular-nums' }}>
-                      {soloGlobalBest.bestScore || '—'}
+              {/* Record à battre (global) — masqué si aucun record comparable */}
+              {soloRecordComparable && soloGlobalBest.bestScore > 0 ? (
+                <div>
+                  <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#f87171' }}>🔥 Record à battre</h3>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires</div>
+                      <div style={{ fontSize: 20, fontWeight: 900, color: '#f87171', fontVariantNumeric: 'tabular-nums' }}>
+                        {soloGlobalBest.bestScore || '—'}
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires/min</div>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: soloGlobalBest.bestPPM > 0 ? '#f87171' : '#64748b', fontVariantNumeric: 'tabular-nums' }}>
-                      {soloGlobalBest.bestPPM || '—'}
+                    <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires/min</div>
+                      <div style={{ fontSize: 20, fontWeight: 900, color: '#f87171', fontVariantNumeric: 'tabular-nums' }}>
+                        {soloGlobalBest.bestPPM || '—'}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div style={{ padding: '8px 0', textAlign: 'center' }}>
+                  <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>Aucun record comparable disponible</div>
+                </div>
+              )}
             </div>
             )}
             {/* Progression Maîtrise */}

@@ -2753,7 +2753,13 @@ function endSession(roomCode) {
         class_id: 'solo',
         teacher_id: null,
         session_name: isSoloRoom ? 'Session Solo' : `Multijoueur - ${roomCode}`,
-        config: { mode: isSoloRoom ? 'solo' : 'multiplayer', duration: room.duration || 60, roomCode },
+        config: {
+          mode: isSoloRoom ? 'solo' : 'multiplayer',
+          duration: room.duration || 60,
+          rounds: Number.isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
+          classes: Array.isArray(room.selectedClasses) && room.selectedClasses.length > 0 ? room.selectedClasses : null,
+          roomCode
+        },
         completed_at: new Date().toISOString(),
         created_at: new Date().toISOString()
       };

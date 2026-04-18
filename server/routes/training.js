@@ -231,69 +231,95 @@ router.get('/stats/student/:studentId', requireSupabase, requireAuth, ...validat
   }
 });
 
-// GET /api/training/records — Public: best solo score & paires/min across all users
+// GET /api/training/records — Best score & paires/min, filtré par config comparable
 // PPM cap: 30 paires/min max (1 paire toutes les 2s = déjà surhumain)
 // Durée minimum: 30s pour éviter les PPM aberrants sur sessions ultra-courtes
+// Query params optionnels pour filtrage comparable:
+//   ?mode=solo&duration=60&rounds=3&level=CE1&studentId=xxx
+// Si des filtres sont fournis, seules les sessions avec une config identique sont considérées.
+// Si aucun résultat comparable n'existe, bestScore=0 et comparable=false.
 const PPM_CAP = 30;
 const MIN_DURATION_MS = 30000;
 router.get('/records', requireSupabase, async (req, res) => {
   try {
-    // Best score (only from sessions >= 30s to filter out glitches)
-    const { data: bestRow } = await supabase
+    const { studentId: reqStudentId, mode, duration, rounds, level } = req.query;
+    const hasFilters = !!(mode || duration || rounds || level);
+
+    // ── Step 1: Si des filtres sont fournis, trouver les session_ids correspondantes ──
+    let filteredSessionIds = null; // null = pas de filtre (tout prendre)
+    if (hasFilters) {
+      let sessionQuery = supabase.from('training_sessions').select('id');
+      if (mode) sessionQuery = sessionQuery.filter('config->>mode', 'eq', mode);
+      if (duration) sessionQuery = sessionQuery.filter('config->>duration', 'eq', String(duration));
+      if (rounds) sessionQuery = sessionQuery.filter('config->>rounds', 'eq', String(rounds));
+      // Pour le niveau: on vérifie si config->>selectedLevel correspond OU si config->classes contient le niveau
+      // Supabase PostgREST: config->classes @> '["CE1"]' (containment)
+      if (level) {
+        sessionQuery = sessionQuery.or(`config->>selectedLevel.eq.${level},config->classes.cs.["${level}"]`);
+      }
+      const { data: sessions } = await sessionQuery.limit(1000);
+      filteredSessionIds = (sessions || []).map(s => s.id);
+      // Si aucune session comparable trouvée, renvoyer immédiatement
+      if (filteredSessionIds.length === 0) {
+        let myBestScore = 0, myBestPPM = 0;
+        // Quand même chercher le personal best (non filtré) pour ne pas casser l'affichage
+        if (reqStudentId) {
+          try {
+            const ids = await resolveStudentIds(reqStudentId);
+            const { data: myRows } = await supabase
+              .from('training_results')
+              .select('score, pairs_validated, time_ms')
+              .in('student_id', ids)
+              .gte('time_ms', MIN_DURATION_MS)
+              .order('score', { ascending: false })
+              .limit(20);
+            if (myRows) {
+              for (const r of myRows) {
+                if ((r.score || 0) > myBestScore) myBestScore = r.score;
+                const dur = (r.time_ms || 0) / 1000;
+                if (dur > 0) {
+                  const ppm = Math.min(PPM_CAP, (r.pairs_validated || r.score || 0) / dur * 60);
+                  if (ppm > myBestPPM) myBestPPM = parseFloat(ppm.toFixed(1));
+                }
+              }
+            }
+          } catch {}
+        }
+        return res.json({ success: true, bestScore: 0, bestPPM: 0, bestStudent: null, myBestScore, myBestPPM, comparable: false });
+      }
+    }
+
+    // ── Step 2: Best score global (filtré par sessions si applicable) ──
+    let resultsQuery = supabase
       .from('training_results')
       .select('student_id, score, pairs_validated, time_ms, created_at')
       .gte('time_ms', MIN_DURATION_MS)
       .order('score', { ascending: false })
-      .limit(1);
+      .limit(50);
+    if (filteredSessionIds) resultsQuery = resultsQuery.in('session_id', filteredSessionIds);
+
+    const { data: allRows } = await resultsQuery;
 
     let bestScore = 0, bestPPM = 0, bestStudent = null;
-    if (bestRow && bestRow.length > 0) {
-      const r = bestRow[0];
-      bestScore = r.score || 0;
-      bestStudent = r.student_id;
-      const durationSec = (r.time_ms || 0) / 1000;
-      if (durationSec > 0) {
-        bestPPM = Math.min(PPM_CAP, parseFloat(((r.pairs_validated || r.score || 0) / durationSec * 60).toFixed(1)));
-      }
-    }
-
-    // Best PPM (may be a different player) — same filters
-    const { data: allRows } = await supabase
-      .from('training_results')
-      .select('student_id, score, pairs_validated, time_ms')
-      .gte('time_ms', MIN_DURATION_MS)
-      .order('score', { ascending: false })
-      .limit(50);
-
     if (allRows && allRows.length > 0) {
+      const top = allRows[0];
+      bestScore = top.score || 0;
+      bestStudent = top.student_id;
+      // Calculer le meilleur PPM parmi tous les résultats
       for (const r of allRows) {
         const dur = (r.time_ms || 0) / 1000;
         if (dur > 0) {
           const ppm = Math.min(PPM_CAP, (r.pairs_validated || r.score || 0) / dur * 60);
-          if (ppm > bestPPM) {
-            bestPPM = parseFloat(ppm.toFixed(1));
-          }
+          if (ppm > bestPPM) bestPPM = parseFloat(ppm.toFixed(1));
         }
       }
     }
 
-    // Per-student personal best (optional query param ?studentId=xxx)
+    // ── Step 3: Per-student personal best (NON filtré — toujours montrer le vrai record perso) ──
     let myBestScore = 0, myBestPPM = 0;
-    const reqStudentId = req.query.studentId;
     if (reqStudentId) {
       try {
-        // Resolve all possible IDs for this student (UUID ↔ student code)
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reqStudentId);
-        const ids = [reqStudentId];
-        try {
-          if (!isUuid) {
-            const { data: m } = await supabase.from('user_student_mapping').select('user_id').eq('student_id', reqStudentId).eq('active', true).single();
-            if (m?.user_id) ids.push(m.user_id);
-          } else {
-            const { data: m } = await supabase.from('user_student_mapping').select('student_id').eq('user_id', reqStudentId).eq('active', true).single();
-            if (m?.student_id && !ids.includes(m.student_id)) ids.push(m.student_id);
-          }
-        } catch {}
+        const ids = await resolveStudentIds(reqStudentId);
         const { data: myRows } = await supabase
           .from('training_results')
           .select('score, pairs_validated, time_ms')
@@ -316,11 +342,27 @@ router.get('/records', requireSupabase, async (req, res) => {
       }
     }
 
-    return res.json({ success: true, bestScore, bestPPM, bestStudent, myBestScore, myBestPPM });
+    return res.json({ success: true, bestScore, bestPPM, bestStudent, myBestScore, myBestPPM, comparable: hasFilters ? (bestScore > 0) : true });
   } catch (error) {
     console.error('[Training API] Error fetching records:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// Helper: résoudre les IDs d'un étudiant (UUID ↔ student code)
+async function resolveStudentIds(studentId) {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(studentId);
+  const ids = [studentId];
+  try {
+    if (!isUuid) {
+      const { data: m } = await supabase.from('user_student_mapping').select('user_id').eq('student_id', studentId).eq('active', true).single();
+      if (m?.user_id) ids.push(m.user_id);
+    } else {
+      const { data: m } = await supabase.from('user_student_mapping').select('student_id').eq('user_id', studentId).eq('active', true).single();
+      if (m?.student_id && !ids.includes(m.student_id)) ids.push(m.student_id);
+    }
+  } catch {}
+  return ids;
+}
 
 module.exports = router;
