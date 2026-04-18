@@ -432,8 +432,8 @@ function generateRoundZones(seed, config = {}) {
     const selectedLevel = config.selectedLevel || (maxClassIdx >= 0 ? CLASS_LEVELS[maxClassIdx] : null);
     const levelAllowed = selectedLevel ? (LEVEL_INCLUDES_SERVER[selectedLevel] || null) : null;
     
-    if (levelAllowed && selectedThemes.length === 0) {
-      // Quand themes est vide (tous domaines), filtrer les catégories math hors niveau
+    if (levelAllowed) {
+      // Filtrer les catégories math hors niveau (TOUJOURS, même quand des thèmes sont sélectionnés)
       // Les extras explicites bypasses ce filtre
       const isMathExcluded = (el) => {
         const tags = Array.isArray(el?.themes) ? el.themes : [];
