@@ -2584,12 +2584,21 @@ const Carte = () => {
         // FIX: Sync customTextSettings pour afficher le bon contenu texte
         try { const _ts={}; payload.zones.forEach(z=>{if(z.type==='texte')_ts[z.id]={ fontSize:32, fontFamily:'Arial', color:'#fff', angle:0, text:z.content||'' };}); setCustomTextSettings(_ts); } catch(e){}
         setPreparing(false);
+        // DESYNC MONITORING: Envoyer fingerprint au serveur pour vérification
+        try {
+          if (s && s.connected && payload.zonesFingerprint) {
+            const clientFp = payload.zones.map(z => `${z.id}:${(z.content||'').substring(0,12)}:${z.pairId||''}`).join('|').substring(0, 500);
+            s.emit('zones:ack', { fingerprint: clientFp, roundIndex: payload.roundIndex, zonesCount: payload.zones.length });
+          }
+        } catch {}
       } else {
         // Fallback sur génération locale si le serveur n'envoie pas de zones
         const seed = Number.isFinite(payload?.seed) ? payload.seed : undefined;
         const zonesFile = payload?.zonesFile || 'zones2';
-        console.log('[CC][client] MULTIPLAYER MODE: Fallback to local generation with seed:', seed);
+        console.warn('[CC][client] ⚠️ MULTIPLAYER MODE: Fallback to local generation with seed:', seed, '— DESYNC RISK!');
         safeHandleAutoAssign(seed, zonesFile);
+        // Report incident: local fallback is a desync risk
+        try { incidentReportIncident && incidentReportIncident('DESYNC_LOCAL_FALLBACK', { seed, zonesFile, roundIndex: payload?.roundIndex, hasZones: false }); } catch {}
       }
       // Charger config objectif depuis cc_session_cfg (sinon objectiveMode reste false => countdown au lieu de countup)
       try {

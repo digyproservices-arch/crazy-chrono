@@ -2573,12 +2573,16 @@ function startRound(roomCode) {
   
   // Générer les zones côté serveur pour synchronisation multijoueur
   if (!(room.selectedClasses || []).length) {
-    console.warn(`[MP][B2-diag] ⚠️ room.selectedClasses is EMPTY for room=${roomCode} — no level filtering will be applied!`);
+    const msg = `[MP][B2-diag] ⚠️ room.selectedClasses is EMPTY for room=${roomCode} — no level filtering will be applied! Divisions/fractions may appear!`;
+    console.warn(msg);
+    logger.warn(msg);
+    emitServerLog(roomCode, 'warn', msg, { roomCode, hostId: room.hostId, playersCount: room.players?.size || 0 });
   }
   emitServerLog(roomCode, 'info', '[MP] Starting zone generation', {
     seed,
     themes: room.selectedThemes || [],
     classes: room.selectedClasses || [],
+    extras: room.selectedExtras || [],
     themesCount: (room.selectedThemes || []).length,
     classesCount: (room.selectedClasses || []).length,
     excludedPairsCount: (room.validatedPairIds || new Set()).size
@@ -2607,13 +2611,20 @@ function startRound(roomCode) {
     sampleZone: zones[0] ? { id: zones[0].id, type: zones[0].type, hasContent: !!zones[0].content, pairId: zones[0].pairId } : null
   });
   
+  // Fingerprint des zones pour détection de désync côté client/serveur
+  const zonesFingerprint = zones.length > 0
+    ? zones.map(z => `${z.id}:${(z.content||'').substring(0,12)}:${z.pairId||''}`).join('|').substring(0, 500)
+    : '';
+  room.currentZonesFingerprint = zonesFingerprint;
+  
   const payload = {
     seed,
     duration: room.duration || 60,
     roundIndex: room.roundsPlayed,
     roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
     hasZones: true,
-    zones: zones // Envoyer les zones complètes
+    zones: zones, // Envoyer les zones complètes
+    zonesFingerprint // Pour vérification désync côté client
   };
   
   console.log(`[MP] Emitting round:new with payload:`, {
@@ -2883,15 +2894,25 @@ io.on('connection', (socket) => {
     emitRoomState(currentRoom);
     
     // Si une manche est en cours, envoyer immédiatement les données au joueur qui rejoint
+    // ⚠️ CRITIQUE: inclure room.currentZones pour éviter le fallback local → désync
     if (room.sessionActive && room.status === 'playing' && room.roundSeed) {
-      socket.emit('round:new', {
+      const latePayload = {
         seed: room.roundSeed,
         duration: room.duration || 60,
         roundIndex: room.roundsPlayed,
         roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
         zonesFile: 'zones2'
-      });
-      console.log(`[MP] Late joiner ${socket.id} synced to ongoing round ${room.roundsPlayed} in room ${currentRoom}`);
+      };
+      // Inclure les zones serveur pour synchronisation (évite fallback local)
+      if (Array.isArray(room.currentZones) && room.currentZones.length > 0) {
+        latePayload.zones = room.currentZones;
+        latePayload.hasZones = true;
+        if (room.currentZonesFingerprint) latePayload.zonesFingerprint = room.currentZonesFingerprint;
+      } else {
+        console.warn(`[MP] ⚠️ DESYNC RISK: Late joiner ${socket.id} in room ${currentRoom} — no currentZones stored! Will fallback to local generation.`);
+      }
+      socket.emit('round:new', latePayload);
+      console.log(`[MP] Late joiner ${socket.id} synced to ongoing round ${room.roundsPlayed} in room ${currentRoom} (zones: ${latePayload.zones ? latePayload.zones.length : 'NONE'})`);
     }
   });
 
@@ -2943,6 +2964,38 @@ io.on('connection', (socket) => {
     console.log(`[MP] Themes:`, room.selectedThemes);
     console.log(`[MP] Classes:`, room.selectedClasses);
     console.log(`[MP] Extras:`, room.selectedExtras);
+  });
+
+  // ====== DÉSYNC MONITORING ======
+  // Le client envoie un fingerprint des zones qu'il affiche → le serveur compare
+  socket.on('zones:ack', ({ fingerprint, roundIndex, zonesCount }) => {
+    if (!currentRoom) return;
+    const room = getRoom(currentRoom);
+    const expected = room.currentZonesFingerprint || '';
+    const match = expected && fingerprint && expected === fingerprint;
+    if (!match && expected && fingerprint) {
+      const msg = `[MP][DESYNC] ⚠️ Player ${socket.id} in room ${currentRoom} has DIFFERENT zones! round=${roundIndex} clientZones=${zonesCount} expected_fp=${expected.substring(0,80)} got_fp=${fingerprint.substring(0,80)}`;
+      console.error(msg);
+      logger.error(msg);
+      // Émettre un incident monitoring
+      try {
+        io.to(currentRoom).emit('server:log', { level: 'error', message: msg, data: { socketId: socket.id, roundIndex, zonesCount, match: false } });
+      } catch {}
+      // Corriger automatiquement: renvoyer les bonnes zones au joueur désynchronisé
+      if (Array.isArray(room.currentZones) && room.currentZones.length > 0) {
+        console.log(`[MP][DESYNC] Auto-correcting: resending ${room.currentZones.length} zones to ${socket.id}`);
+        socket.emit('round:new', {
+          seed: room.roundSeed,
+          duration: room.duration || 60,
+          roundIndex: room.roundsPlayed,
+          roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
+          hasZones: true,
+          zones: room.currentZones,
+          zonesFingerprint: expected,
+          desyncCorrection: true
+        });
+      }
+    }
   });
 
   // Toggle prêt/pas prêt
@@ -3160,6 +3213,12 @@ io.on('connection', (socket) => {
         room.resolved = false;
         room.foundPairs.clear();
         
+        // Mettre à jour le fingerprint pour la détection de désync
+        const regenFingerprint = newZones.length > 0
+          ? newZones.map(z => `${z.id}:${(z.content||'').substring(0,12)}:${z.pairId||''}`).join('|').substring(0, 500)
+          : '';
+        room.currentZonesFingerprint = regenFingerprint;
+        
         // Envoyer la nouvelle carte à tous les joueurs
         console.log(`[MP] About to emit round:new after validation with ${newZones.length} zones`);
         emitServerLog(currentRoom, 'info', '[MP] Emitting round:new after validation', {
@@ -3178,7 +3237,8 @@ io.on('connection', (socket) => {
           duration: room.duration || 60,
           roundIndex: room.roundsPlayed,
           roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
-          zonesFile: 'zones2'
+          zonesFile: 'zones2',
+          zonesFingerprint: regenFingerprint
         });
         
         // Compat: 'by' = premier cliqueur; ajoute tie + winners si égalité
