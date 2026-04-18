@@ -30,10 +30,11 @@ const STATUS_CONFIG = {
 const CIRCO_LABELS = {
   'circ_abymes_1': 'Les Abymes 1', 'circ_abymes_2': 'Les Abymes 2',
   'circ_baie_mahault': 'Baie-Mahault', 'circ_basse_terre': 'Basse-Terre',
-  'circ_bouillante': 'Bouillante', 'circ_capesterre': 'Capesterre-Belle-Eau',
+  'circ_bouillante': 'Bouillante', 'circ_capesterre': 'Capesterre',
   'circ_gosier': 'Le Gosier', 'circ_lamentin': 'Le Lamentin',
   'circ_moule': 'Le Moule', 'circ_pointe_a_pitre': 'Pointe-à-Pitre',
-  'circ_sainte_anne': 'Sainte-Anne',
+  'circ_sainte_anne': 'Sainte-Anne', 'circ_sainte_rose': 'Sainte-Rose',
+  'circ_morne_a_eau': 'Morne-à-l\'Eau', 'circ_gp_1': 'CIRC GP 1',
 };
 
 export default function CompetitionBracket() {
@@ -151,9 +152,17 @@ export default function CompetitionBracket() {
     return result;
   }, [groups, selectedPhase, filterSchool, filterCirco, filterStatus]);
 
-  // ===== Unique schools & circos for filters =====
-  const schoolOptions = useMemo(() => [...new Set(groups.map(g => g.schoolName))].sort(), [groups]);
-  const circoOptions = useMemo(() => [...new Set(groups.map(g => g.circonscriptionId))].filter(c => c !== '—').sort(), [groups]);
+  // ===== Unique schools & circos for filters (from ALL schools, not just groups) =====
+  const schoolOptions = useMemo(() => {
+    const fromApi = (data?.allSchoolsList || []).map(s => s.name);
+    const fromGroups = groups.map(g => g.schoolName);
+    return [...new Set([...fromApi, ...fromGroups])].filter(n => n && n !== '—').sort();
+  }, [data, groups]);
+  const circoOptions = useMemo(() => {
+    const fromApi = data?.allCirconscriptions || [];
+    const fromGroups = groups.map(g => g.circonscriptionId);
+    return [...new Set([...fromApi, ...fromGroups])].filter(c => c && c !== '—').sort();
+  }, [data, groups]);
 
   const formatTime = (ms) => {
     if (!ms) return '-';
@@ -162,7 +171,33 @@ export default function CompetitionBracket() {
     return m > 0 ? `${m}m ${s % 60}s` : `${s}s`;
   };
 
-  const circoLabel = (id) => CIRCO_LABELS[id] || id || '—';
+  const circoLabel = (id) => {
+    if (!id || id === '—') return '—';
+    if (CIRCO_LABELS[id]) return CIRCO_LABELS[id];
+    // Auto-format: circ_xxx_yyy → Xxx Yyy
+    return id.replace(/^circ_/, '').replace(/_/g, ' ').replace(/(^|\s)\w/g, l => l.toUpperCase());
+  };
+
+  // ===== Groups organized by circo → school =====
+  const groupedByCircoSchool = useMemo(() => {
+    const map = {};
+    filteredGroups.forEach(g => {
+      const circo = g.circonscriptionId || '—';
+      const school = g.schoolName || '—';
+      if (!map[circo]) map[circo] = {};
+      if (!map[circo][school]) map[circo][school] = [];
+      map[circo][school].push(g);
+    });
+    // Sort circos, then schools within each circo
+    const sorted = {};
+    Object.keys(map).sort((a, b) => circoLabel(a).localeCompare(circoLabel(b))).forEach(circo => {
+      sorted[circo] = {};
+      Object.keys(map[circo]).sort().forEach(school => {
+        sorted[circo][school] = map[circo][school];
+      });
+    });
+    return sorted;
+  }, [filteredGroups]);
 
   // ===== Stat badge helper =====
   const StatBadge = ({ icon, value, label, color }) => (
@@ -585,8 +620,39 @@ export default function CompetitionBracket() {
               </p>
             </div>
           ) : viewMode === 'groups' ? (
-            <div style={{ display: 'grid', gap: 8 }}>
-              {filteredGroups.map(group => renderGroupCard(group))}
+            <div style={{ display: 'grid', gap: 16 }}>
+              {Object.entries(groupedByCircoSchool).map(([circoId, schools]) => (
+                <div key={circoId}>
+                  {/* Circo header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, padding: '8px 14px', background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)', borderRadius: 10, color: '#fff' }}>
+                    <span style={{ fontSize: 18 }}>📍</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: 0.3 }}>{circoLabel(circoId)}</span>
+                    <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 'auto' }}>
+                      {Object.keys(schools).length} école(s) · {Object.values(schools).reduce((sum, arr) => sum + arr.length, 0)} groupe(s)
+                    </span>
+                  </div>
+                  {Object.entries(schools).map(([schoolName, schoolGroups]) => (
+                    <div key={schoolName} style={{ marginLeft: 12, marginBottom: 12 }}>
+                      {/* School sub-header */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, padding: '6px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
+                        <span style={{ fontSize: 15 }}>🏛️</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#0369a1' }}>{schoolName}</span>
+                        <span style={{ fontSize: 11, color: '#64748b', marginLeft: 4 }}>
+                          ({schoolGroups.length} groupe{schoolGroups.length > 1 ? 's' : ''})
+                        </span>
+                        {(() => {
+                          const done = schoolGroups.filter(g => g.matchStatus === 'finished').length;
+                          const total = schoolGroups.length;
+                          return done > 0 ? <span style={{ fontSize: 11, color: '#059669', fontWeight: 700, marginLeft: 'auto' }}>✅ {done}/{total}</span> : null;
+                        })()}
+                      </div>
+                      <div style={{ display: 'grid', gap: 6, marginLeft: 8 }}>
+                        {schoolGroups.map(group => renderGroupCard(group))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
             </div>
           ) : (
             /* TABLE VIEW */
@@ -628,23 +694,41 @@ export default function CompetitionBracket() {
       {activeTab === 'schools' && (
         <div>
           <div style={{ display: 'grid', gap: 12 }}>
-            {Object.entries(aggregations.bySchool || {}).sort((a, b) => a[0].localeCompare(b[0])).map(([schoolName, info]) => {
+            {/* Group schools by circo */}
+            {(() => {
+              const byCircoEntries = {};
+              Object.entries(aggregations.bySchool || {}).forEach(([schoolName, info]) => {
+                const circo = info.circo || '—';
+                if (!byCircoEntries[circo]) byCircoEntries[circo] = [];
+                byCircoEntries[circo].push([schoolName, info]);
+              });
+              return Object.entries(byCircoEntries).sort((a, b) => circoLabel(a[0]).localeCompare(circoLabel(b[0]))).map(([circoId, schoolList]) => (
+                <div key={circoId} style={{ marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, padding: '6px 12px', background: '#f1f5f9', borderRadius: 8 }}>
+                    <span style={{ fontSize: 15 }}>📍</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>{circoLabel(circoId)}</span>
+                    <span style={{ fontSize: 11, color: '#94a3b8' }}>— {schoolList.length} école(s)</span>
+                  </div>
+                  {schoolList.sort((a, b) => a[0].localeCompare(b[0])).map(([schoolName, info]) => {
               const pct = info.totalGroups > 0 ? Math.round((info.finished / info.totalGroups) * 100) : 0;
               const allDone = info.finished === info.totalGroups && info.totalGroups > 0;
-              const notStarted = info.finished === 0 && info.playing === 0;
+              const notStarted = info.totalGroups > 0 && info.finished === 0 && info.playing === 0;
+              const noGroups = info.totalGroups === 0;
               return (
-                <div key={schoolName} style={{ background: '#fff', borderRadius: 12, border: allDone ? '2px solid #059669' : notStarted ? '2px solid #ef4444' : '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                <div key={schoolName} style={{ background: '#fff', borderRadius: 12, border: allDone ? '2px solid #059669' : notStarted ? '2px solid #ef4444' : noGroups ? '1px dashed #d1d5db' : '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', marginBottom: 8, opacity: noGroups ? 0.6 : 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px' }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                        <span style={{ fontSize: 18 }}>{allDone ? '✅' : notStarted ? '🔴' : '🏛️'}</span>
+                        <span style={{ fontSize: 18 }}>{allDone ? '✅' : notStarted ? '🔴' : noGroups ? '⚪' : '🏛️'}</span>
                         <span style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{schoolName}</span>
+                        {noGroups && <span style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>Aucun groupe</span>}
                       </div>
                       <div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                         <span>📍 {circoLabel(info.circo)}</span>
                         <span>🏙️ {info.city || '—'}</span>
                       </div>
                     </div>
+                    {!noGroups && (
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                       <div style={{ textAlign: 'center' }}>
                         <div style={{ fontSize: 18, fontWeight: 800, color: allDone ? '#059669' : '#1e293b' }}>{info.finished}/{info.totalGroups}</div>
@@ -665,14 +749,20 @@ export default function CompetitionBracket() {
                         {pct}%
                       </div>
                     </div>
+                    )}
                   </div>
                   {/* Progress bar */}
+                  {!noGroups && (
                   <div style={{ height: 4, background: '#f1f5f9' }}>
                     <div style={{ height: '100%', width: `${pct}%`, background: allDone ? '#059669' : '#1AACBE', transition: 'width 0.5s' }} />
                   </div>
+                  )}
                 </div>
               );
             })}
+                </div>
+              ));
+            })()}
             {Object.keys(aggregations.bySchool || {}).length === 0 && (
               <div style={{ padding: 48, textAlign: 'center', background: '#fff', borderRadius: 12 }}>
                 <div style={{ fontSize: 48, marginBottom: 12 }}>🏛️</div>
@@ -713,15 +803,33 @@ export default function CompetitionBracket() {
             )}
           </div>
 
+          {/* Schools no groups */}
+          {(alerts.schoolsNoGroups || []).length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>
+                ⚪ Écoles sans aucun groupe créé ({(alerts.schoolsNoGroups || []).length})
+              </h3>
+              <div style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+                {(alerts.schoolsNoGroups || []).map(school => (
+                  <div key={school.name} style={{ background: '#fff', borderRadius: 8, border: '1px solid #e2e8f0', padding: '10px 14px' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>🏛️ {school.name}</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>📍 {circoLabel(school.circo)} · {school.city || '—'}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Circo overview */}
           <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>
-            📍 Vue par circonscription
+            📍 Vue par circonscription ({Object.keys(aggregations.byCirconscription || {}).length})
           </h3>
           <div style={{ display: 'grid', gap: 8 }}>
-            {Object.entries(aggregations.byCirconscription || {}).sort((a, b) => a[0].localeCompare(b[0])).map(([circoId, info]) => {
+            {Object.entries(aggregations.byCirconscription || {}).sort((a, b) => circoLabel(a[0]).localeCompare(circoLabel(b[0]))).map(([circoId, info]) => {
               const pct = info.totalGroups > 0 ? Math.round((info.finished / info.totalGroups) * 100) : 0;
+              const noGroups = info.totalGroups === 0;
               return (
-                <div key={circoId} style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: '12px 16px' }}>
+                <div key={circoId} style={{ background: '#fff', borderRadius: 10, border: noGroups ? '1px dashed #d1d5db' : '1px solid #e2e8f0', padding: '12px 16px', opacity: noGroups ? 0.7 : 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>📍 {circoLabel(circoId)}</div>

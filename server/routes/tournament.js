@@ -2103,6 +2103,25 @@ router.get('/:tournamentId/competition-overview', requireSupabase, async (req, r
       (studentsData || []).forEach(s => { studentsMap[s.id] = s; });
     }
 
+    // 6b. Charger TOUTES les écoles et classes (pas seulement celles des groupes)
+    const { data: allSchoolsData } = await supabase
+      .from('schools')
+      .select('id, name, type, city, circonscription_id, postal_code')
+      .order('name');
+    const allSchools = allSchoolsData || [];
+    allSchools.forEach(s => { if (!schoolsMap[s.id]) schoolsMap[s.id] = s; });
+
+    const allSchoolIds = allSchools.map(s => s.id);
+    const { data: allClassesData } = await supabase
+      .from('classes')
+      .select('id, name, level, teacher_name, school_id, student_count')
+      .in('school_id', allSchoolIds.length > 0 ? allSchoolIds : ['__none__']);
+    const allClasses = allClassesData || [];
+    allClasses.forEach(c => { if (!classesMap[c.id]) classesMap[c.id] = c; });
+
+    // All unique circonscriptions from all schools
+    const allCirconscriptions = [...new Set(allSchools.map(s => s.circonscription_id).filter(Boolean))].sort();
+
     // 7. Enrichir les groupes avec hiérarchie complète
     const enrichedGroups = (groups || []).map(group => {
       const cls = classesMap[group.class_id] || {};
@@ -2158,9 +2177,23 @@ router.get('/:tournamentId/competition-overview', requireSupabase, async (req, r
       };
     });
 
-    // 8. Agrégations par entité
+    // 8. Agrégations par entité — inclure TOUTES les écoles et circos
     const bySchool = {};
     const byCirco = {};
+
+    // D'abord, initialiser toutes les écoles et circos (même sans groupes)
+    allSchools.forEach(s => {
+      if (!bySchool[s.name]) {
+        bySchool[s.name] = { totalGroups: 0, finished: 0, pending: 0, playing: 0, noMatch: 0, city: s.city, circo: s.circonscription_id, schoolId: s.id };
+      }
+      const circo = s.circonscription_id;
+      if (circo && !byCirco[circo]) {
+        byCirco[circo] = { totalGroups: 0, finished: 0, pending: 0, playing: 0, schools: new Set() };
+      }
+      if (circo) byCirco[circo].schools.add(s.name);
+    });
+
+    // Ensuite, agréger les données des groupes
     enrichedGroups.forEach(g => {
       // Par école
       if (!bySchool[g.schoolName]) bySchool[g.schoolName] = { totalGroups: 0, finished: 0, pending: 0, playing: 0, noMatch: 0, city: g.schoolCity, circo: g.circonscriptionId };
@@ -2170,20 +2203,27 @@ router.get('/:tournamentId/competition-overview', requireSupabase, async (req, r
       else if (g.matchStatus === 'no_match' || g.matchStatus === 'pending') { bySchool[g.schoolName].pending++; bySchool[g.schoolName].noMatch++; }
       // Par circo
       const circo = g.circonscriptionId;
-      if (!byCirco[circo]) byCirco[circo] = { totalGroups: 0, finished: 0, pending: 0, playing: 0, schools: new Set() };
-      byCirco[circo].totalGroups++;
-      if (g.matchStatus === 'finished') byCirco[circo].finished++;
-      else if (g.matchStatus === 'playing' || g.matchStatus === 'active') byCirco[circo].playing++;
-      else byCirco[circo].pending++;
-      byCirco[circo].schools.add(g.schoolName);
+      if (circo && circo !== '—') {
+        if (!byCirco[circo]) byCirco[circo] = { totalGroups: 0, finished: 0, pending: 0, playing: 0, schools: new Set() };
+        byCirco[circo].totalGroups++;
+        if (g.matchStatus === 'finished') byCirco[circo].finished++;
+        else if (g.matchStatus === 'playing' || g.matchStatus === 'active') byCirco[circo].playing++;
+        else byCirco[circo].pending++;
+        byCirco[circo].schools.add(g.schoolName);
+      }
     });
     // Sérialiser les Sets
     Object.keys(byCirco).forEach(k => { byCirco[k].schools = [...byCirco[k].schools]; });
 
-    // 9. Écoles n'ayant pas encore démarré
+    // 9. Écoles n'ayant pas encore démarré (seulement celles avec des groupes)
     const schoolsNotStarted = Object.entries(bySchool)
-      .filter(([, v]) => v.finished === 0 && v.playing === 0)
+      .filter(([, v]) => v.totalGroups > 0 && v.finished === 0 && v.playing === 0)
       .map(([name, v]) => ({ name, city: v.city, circo: v.circo, pendingGroups: v.pending }));
+
+    // Écoles sans aucun groupe créé
+    const schoolsNoGroups = Object.entries(bySchool)
+      .filter(([, v]) => v.totalGroups === 0)
+      .map(([name, v]) => ({ name, city: v.city, circo: v.circo }));
 
     // 10. Stats globales par phase
     const phaseStats = phases.map(p => {
@@ -2208,14 +2248,16 @@ router.get('/:tournamentId/competition-overview', requireSupabase, async (req, r
       phaseStats,
       groups: enrichedGroups,
       aggregations: { bySchool, byCirconscription: byCirco },
-      alerts: { schoolsNotStarted },
+      alerts: { schoolsNotStarted, schoolsNoGroups },
+      allCirconscriptions,
+      allSchoolsList: allSchools.map(s => ({ id: s.id, name: s.name, city: s.city, circo: s.circonscription_id })),
       totals: {
         totalGroups: enrichedGroups.length,
         totalFinished: enrichedGroups.filter(g => g.matchStatus === 'finished').length,
         totalPlaying: enrichedGroups.filter(g => g.matchStatus === 'playing' || g.matchStatus === 'active').length,
         totalPending: enrichedGroups.filter(g => g.matchStatus === 'no_match' || g.matchStatus === 'pending').length,
-        totalSchools: Object.keys(bySchool).length,
-        totalCirconscriptions: Object.keys(byCirco).length,
+        totalSchools: allSchools.length,
+        totalCirconscriptions: allCirconscriptions.length,
         totalStudents: allStudentIds.size
       }
     });
