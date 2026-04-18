@@ -2006,6 +2006,226 @@ router.get('/classes/:classId/competition-results', requireSupabase, requireAuth
 });
 
 // ==========================================
+// VUE CADRES RECTORAT — OVERVIEW COMPÉTITION
+// Vision transversale toutes écoles/classes/circos
+// ==========================================
+
+/**
+ * GET /api/tournament/:tournamentId/competition-overview
+ * Vue complète pour les cadres du rectorat: toutes les écoles, classes, groupes
+ * avec infos hiérarchiques (école, prof, circo, académie)
+ * Query params: ?phase_level=1 (filtrer par phase, optionnel)
+ */
+router.get('/:tournamentId/competition-overview', requireSupabase, async (req, res) => {
+  try {
+    const { tournamentId } = req.params;
+    const phaseFilter = req.query.phase_level ? parseInt(req.query.phase_level) : null;
+
+    // 1. Tournoi + phases
+    const [tourRes, phasesRes] = await Promise.all([
+      supabase.from('tournaments').select('*').eq('id', tournamentId).single(),
+      supabase.from('tournament_phases').select('*').eq('tournament_id', tournamentId).order('level')
+    ]);
+    if (tourRes.error) throw tourRes.error;
+    const tournament = tourRes.data;
+    const phases = phasesRes.data || [];
+
+    // 2. Tous les groupes du tournoi (+ filtre phase optionnel)
+    let groupsQuery = supabase
+      .from('tournament_groups')
+      .select('id, name, student_ids, match_id, status, winner_id, phase_level, class_id, tour_number, created_at')
+      .eq('tournament_id', tournamentId)
+      .order('created_at', { ascending: true });
+    if (phaseFilter) groupsQuery = groupsQuery.eq('phase_level', phaseFilter);
+    const { data: groups, error: grpErr } = await groupsQuery;
+    if (grpErr) throw grpErr;
+
+    // 3. Récupérer les class_id uniques → charger classes + écoles
+    const classIds = [...new Set((groups || []).map(g => g.class_id).filter(Boolean))];
+    let classesMap = {};
+    let schoolsMap = {};
+
+    if (classIds.length > 0) {
+      const { data: classesData } = await supabase
+        .from('classes')
+        .select('id, name, level, teacher_name, teacher_email, school_id')
+        .in('id', classIds);
+      
+      (classesData || []).forEach(c => { classesMap[c.id] = c; });
+
+      const schoolIds = [...new Set((classesData || []).map(c => c.school_id).filter(Boolean))];
+      if (schoolIds.length > 0) {
+        const { data: schoolsData } = await supabase
+          .from('schools')
+          .select('id, name, type, city, circonscription_id, postal_code')
+          .in('id', schoolIds);
+        (schoolsData || []).forEach(s => { schoolsMap[s.id] = s; });
+      }
+    }
+
+    // 4. Matchs associés
+    const matchIds = (groups || []).map(g => g.match_id).filter(Boolean);
+    let matchesMap = {};
+    if (matchIds.length > 0) {
+      const { data: matchesData } = await supabase
+        .from('tournament_matches')
+        .select('id, status, room_code, created_at, finished_at, winner')
+        .in('id', matchIds);
+      (matchesData || []).forEach(m => { matchesMap[m.id] = m; });
+    }
+
+    // 5. Résultats
+    let resultsMap = {};
+    if (matchIds.length > 0) {
+      const { data: resultsData } = await supabase
+        .from('match_results')
+        .select('match_id, student_id, position, score, time_ms, pairs_validated, errors')
+        .in('match_id', matchIds)
+        .order('position', { ascending: true });
+      (resultsData || []).forEach(r => {
+        if (!resultsMap[r.match_id]) resultsMap[r.match_id] = [];
+        resultsMap[r.match_id].push(r);
+      });
+    }
+
+    // 6. Élèves (noms)
+    const allStudentIds = new Set();
+    (groups || []).forEach(g => {
+      const ids = Array.isArray(g.student_ids) ? g.student_ids : JSON.parse(g.student_ids || '[]');
+      ids.forEach(id => allStudentIds.add(id));
+    });
+    let studentsMap = {};
+    if (allStudentIds.size > 0) {
+      const { data: studentsData } = await supabase
+        .from('students')
+        .select('id, full_name, first_name, class_id, school_id')
+        .in('id', Array.from(allStudentIds));
+      (studentsData || []).forEach(s => { studentsMap[s.id] = s; });
+    }
+
+    // 7. Enrichir les groupes avec hiérarchie complète
+    const enrichedGroups = (groups || []).map(group => {
+      const cls = classesMap[group.class_id] || {};
+      const school = schoolsMap[cls.school_id] || {};
+      const match = matchesMap[group.match_id] || null;
+      const matchResults = resultsMap[group.match_id] || [];
+      const studentIds = Array.isArray(group.student_ids) ? group.student_ids : JSON.parse(group.student_ids || '[]');
+
+      let winner = null;
+      if (match?.winner) {
+        try { winner = typeof match.winner === 'string' ? JSON.parse(match.winner) : match.winner; } catch {}
+      }
+
+      return {
+        id: group.id,
+        name: group.name,
+        status: group.status,
+        phaseLevel: group.phase_level || 1,
+        tourNumber: group.tour_number || 1,
+        // Hiérarchie complète
+        className: cls.name || '—',
+        classLevel: cls.level || '—',
+        teacherName: cls.teacher_name || '—',
+        teacherEmail: cls.teacher_email || null,
+        schoolName: school.name || '—',
+        schoolCity: school.city || '—',
+        circonscriptionId: school.circonscription_id || '—',
+        academie: tournament.academy_code || '—',
+        // Match
+        matchStatus: match?.status || 'no_match',
+        roomCode: match?.room_code || null,
+        matchCreatedAt: match?.created_at || null,
+        matchFinishedAt: match?.finished_at || null,
+        // Gagnant
+        winnerId: group.winner_id,
+        winnerName: group.winner_id ? (studentsMap[group.winner_id]?.full_name || studentsMap[group.winner_id]?.first_name || '—') : null,
+        // Joueurs
+        playerCount: studentIds.length,
+        students: studentIds.map(sid => ({
+          id: sid,
+          name: studentsMap[sid]?.full_name || studentsMap[sid]?.first_name || sid
+        })),
+        // Résultats
+        results: matchResults.map(r => ({
+          studentId: r.student_id,
+          studentName: studentsMap[r.student_id]?.full_name || studentsMap[r.student_id]?.first_name || r.student_id,
+          position: r.position,
+          score: r.score,
+          pairsValidated: r.pairs_validated,
+          errors: r.errors,
+          timeMs: r.time_ms
+        }))
+      };
+    });
+
+    // 8. Agrégations par entité
+    const bySchool = {};
+    const byCirco = {};
+    enrichedGroups.forEach(g => {
+      // Par école
+      if (!bySchool[g.schoolName]) bySchool[g.schoolName] = { totalGroups: 0, finished: 0, pending: 0, playing: 0, noMatch: 0, city: g.schoolCity, circo: g.circonscriptionId };
+      bySchool[g.schoolName].totalGroups++;
+      if (g.matchStatus === 'finished') bySchool[g.schoolName].finished++;
+      else if (g.matchStatus === 'playing' || g.matchStatus === 'active') bySchool[g.schoolName].playing++;
+      else if (g.matchStatus === 'no_match' || g.matchStatus === 'pending') { bySchool[g.schoolName].pending++; bySchool[g.schoolName].noMatch++; }
+      // Par circo
+      const circo = g.circonscriptionId;
+      if (!byCirco[circo]) byCirco[circo] = { totalGroups: 0, finished: 0, pending: 0, playing: 0, schools: new Set() };
+      byCirco[circo].totalGroups++;
+      if (g.matchStatus === 'finished') byCirco[circo].finished++;
+      else if (g.matchStatus === 'playing' || g.matchStatus === 'active') byCirco[circo].playing++;
+      else byCirco[circo].pending++;
+      byCirco[circo].schools.add(g.schoolName);
+    });
+    // Sérialiser les Sets
+    Object.keys(byCirco).forEach(k => { byCirco[k].schools = [...byCirco[k].schools]; });
+
+    // 9. Écoles n'ayant pas encore démarré
+    const schoolsNotStarted = Object.entries(bySchool)
+      .filter(([, v]) => v.finished === 0 && v.playing === 0)
+      .map(([name, v]) => ({ name, city: v.city, circo: v.circo, pendingGroups: v.pending }));
+
+    // 10. Stats globales par phase
+    const phaseStats = phases.map(p => {
+      const phaseGroups = enrichedGroups.filter(g => g.phaseLevel === p.level);
+      return {
+        level: p.level,
+        name: p.name,
+        status: p.status,
+        totalGroups: phaseGroups.length,
+        finished: phaseGroups.filter(g => g.matchStatus === 'finished').length,
+        playing: phaseGroups.filter(g => g.matchStatus === 'playing' || g.matchStatus === 'active').length,
+        pending: phaseGroups.filter(g => g.matchStatus === 'no_match' || g.matchStatus === 'pending').length,
+        schoolsCount: new Set(phaseGroups.map(g => g.schoolName)).size,
+        classesCount: new Set(phaseGroups.map(g => g.className)).size,
+        winnersCount: phaseGroups.filter(g => g.winnerId).length
+      };
+    });
+
+    res.json({
+      success: true,
+      tournament: { id: tournament.id, name: tournament.name, academyCode: tournament.academy_code, currentPhase: tournament.current_phase, status: tournament.status },
+      phaseStats,
+      groups: enrichedGroups,
+      aggregations: { bySchool, byCirconscription: byCirco },
+      alerts: { schoolsNotStarted },
+      totals: {
+        totalGroups: enrichedGroups.length,
+        totalFinished: enrichedGroups.filter(g => g.matchStatus === 'finished').length,
+        totalPlaying: enrichedGroups.filter(g => g.matchStatus === 'playing' || g.matchStatus === 'active').length,
+        totalPending: enrichedGroups.filter(g => g.matchStatus === 'no_match' || g.matchStatus === 'pending').length,
+        totalSchools: Object.keys(bySchool).length,
+        totalCirconscriptions: Object.keys(byCirco).length,
+        totalStudents: allStudentIds.size
+      }
+    });
+  } catch (error) {
+    console.error('[Tournament API] Error fetching competition overview:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==========================================
 // PROGRESSION TOURNOI — TOURS SUCCESSIFS
 // ==========================================
 

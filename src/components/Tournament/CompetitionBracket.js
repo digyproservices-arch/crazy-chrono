@@ -1,10 +1,10 @@
 // ==========================================
-// COMPOSANT: DASHBOARD COMPÉTITION ARENA
-// Vue bracket/organigramme 4 phases + classement général
+// COMPOSANT: DASHBOARD COMPÉTITION — VUE CADRES RECTORAT
+// Vision world-class: hiérarchie complète, filtres, alertes, stats par entité
 // Phases: Crazy Winner Classe → École → Circonscription → Académique
 // ==========================================
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
 
@@ -23,11 +23,22 @@ const STATUS_CONFIG = {
   playing: { label: 'En cours', color: '#d97706', bg: '#fef3c7', icon: '🎮' },
   finished: { label: 'Terminé', color: '#059669', bg: '#d1fae5', icon: '✅' },
   active: { label: 'Active', color: '#1AACBE', bg: '#d4f0f4', icon: '▶️' },
+  no_match: { label: 'Non lancé', color: '#ef4444', bg: '#fef2f2', icon: '🔴' },
   'tie-waiting': { label: 'Égalité', color: '#7c3aed', bg: '#ede9fe', icon: '⚖️' }
+};
+
+const CIRCO_LABELS = {
+  'circ_abymes_1': 'Les Abymes 1', 'circ_abymes_2': 'Les Abymes 2',
+  'circ_baie_mahault': 'Baie-Mahault', 'circ_basse_terre': 'Basse-Terre',
+  'circ_bouillante': 'Bouillante', 'circ_capesterre': 'Capesterre-Belle-Eau',
+  'circ_gosier': 'Le Gosier', 'circ_lamentin': 'Le Lamentin',
+  'circ_moule': 'Le Moule', 'circ_pointe_a_pitre': 'Pointe-à-Pitre',
+  'circ_sainte_anne': 'Sainte-Anne',
 };
 
 export default function CompetitionBracket() {
   const navigate = useNavigate();
+  const [data, setData] = useState(null); // overview data from API
   const [groups, setGroups] = useState([]);
   const [overallRanking, setOverallRanking] = useState([]);
   const [stats, setStats] = useState(null);
@@ -35,14 +46,18 @@ export default function CompetitionBracket() {
   const [tournament, setTournament] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('phases'); // 'phases' | 'bracket' | 'ranking'
+  const [activeTab, setActiveTab] = useState('bracket'); // 'bracket' | 'schools' | 'alerts' | 'ranking'
   const [selectedPhase, setSelectedPhase] = useState(null);
   const [expandedGroup, setExpandedGroup] = useState(null);
-  const [emailModal, setEmailModal] = useState(null); // { phaseId, phaseLevel }
+  const [filterSchool, setFilterSchool] = useState('');
+  const [filterCirco, setFilterCirco] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [viewMode, setViewMode] = useState('groups'); // 'groups' | 'table'
+  const [emailModal, setEmailModal] = useState(null);
   const [emailAddress, setEmailAddress] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [sending, setSending] = useState(false);
-  const [sendResult, setSendResult] = useState(null); // { success, message }
+  const [sendResult, setSendResult] = useState(null);
 
   const sendResults = async () => {
     if (!emailAddress || !emailModal) return;
@@ -55,14 +70,10 @@ export default function CompetitionBracket() {
         headers: getAuthHeaders(),
         body: JSON.stringify({ recipientEmail: emailAddress, recipientName: recipientName || undefined })
       });
-      const data = await resp.json();
-      if (data.success) {
-        setSendResult({ success: true, message: data.message || 'Email envoyé avec succès !' });
-      } else {
-        setSendResult({ success: false, message: data.error || 'Erreur lors de l\'envoi' });
-      }
+      const d = await resp.json();
+      setSendResult(d.success ? { success: true, message: d.message || 'Email envoyé !' } : { success: false, message: d.error || 'Erreur' });
     } catch (err) {
-      setSendResult({ success: false, message: 'Erreur de connexion au serveur' });
+      setSendResult({ success: false, message: 'Erreur de connexion' });
     } finally {
       setSending(false);
     }
@@ -70,46 +81,45 @@ export default function CompetitionBracket() {
 
   const loadData = useCallback(async () => {
     try {
-      const classId = localStorage.getItem('cc_class_id');
-      if (!classId) {
-        setError('Classe non trouvée. Veuillez vous reconnecter.');
-        setLoading(false);
-        return;
-      }
-
       const backendUrl = getBackendUrl();
+      const classId = localStorage.getItem('cc_class_id');
 
-      // ✅ PERF: Charger résultats compétition + tournoi en parallèle
-      const [resComp, resTour] = await Promise.all([
-        fetch(`${backendUrl}/api/tournament/classes/${classId}/competition-results`, { headers: getAuthHeaders() }),
+      // Charger l'overview transversal (vue rectorat)
+      const [resTour] = await Promise.all([
         fetch(`${backendUrl}/api/tournament/tournaments/tour_2025_gp`, { headers: getAuthHeaders() })
       ]);
+      const dataTour = await resTour.json();
+      if (!dataTour.tournament) { setError('Tournoi introuvable'); setLoading(false); return; }
 
-      const dataComp = await resComp.json();
-      if (dataComp.success) {
-        setGroups(dataComp.groups || []);
-        setOverallRanking(dataComp.overallRanking || []);
-        setStats(dataComp.stats || null);
+      setTournament(dataTour.tournament);
+      const tournamentId = dataTour.tournament.id;
+
+      // Overview transversal (toutes écoles/classes)
+      const overviewUrl = selectedPhase
+        ? `${backendUrl}/api/tournament/${tournamentId}/competition-overview?phase_level=${selectedPhase}`
+        : `${backendUrl}/api/tournament/${tournamentId}/competition-overview`;
+      const resOverview = await fetch(overviewUrl, { headers: getAuthHeaders() });
+      const overviewData = await resOverview.json();
+
+      if (overviewData.success) {
+        setData(overviewData);
+        setGroups(overviewData.groups || []);
+        setPhases(overviewData.phaseStats || []);
+        if (!selectedPhase && overviewData.tournament?.currentPhase) {
+          setSelectedPhase(overviewData.tournament.currentPhase);
+        }
       }
 
-      // Charger phases (dépend du tournoi)
-      try {
-        const dataTour = await resTour.json();
-        if (dataTour.tournament) {
-          setTournament(dataTour.tournament);
-
-          const resPhases = await fetch(`${backendUrl}/api/tournament/${dataTour.tournament.id}/phases`, { headers: getAuthHeaders() });
-          const dataPhases = await resPhases.json();
-          if (dataPhases.success) {
-            setPhases(dataPhases.phases || []);
-            if (!selectedPhase && dataPhases.phases?.length > 0) {
-              const activePhase = dataPhases.phases.find(p => p.status === 'active');
-              setSelectedPhase(activePhase?.level || dataPhases.phases[0]?.level || 1);
-            }
+      // Classement général (depuis l'ancien endpoint si classId disponible)
+      if (classId) {
+        try {
+          const resComp = await fetch(`${backendUrl}/api/tournament/classes/${classId}/competition-results`, { headers: getAuthHeaders() });
+          const dataComp = await resComp.json();
+          if (dataComp.success) {
+            setOverallRanking(dataComp.overallRanking || []);
+            setStats(dataComp.stats || null);
           }
-        }
-      } catch (tourErr) {
-        console.warn('[Competition] Phases non disponibles:', tourErr);
+        } catch {}
       }
 
       setError(null);
@@ -119,13 +129,31 @@ export default function CompetitionBracket() {
     } finally {
       setLoading(false);
     }
-  }, [selectedPhase]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 10000);
+    const interval = setInterval(loadData, 15000);
     return () => clearInterval(interval);
   }, [loadData]);
+
+  // ===== Filtered groups =====
+  const filteredGroups = useMemo(() => {
+    let result = groups;
+    if (selectedPhase) result = result.filter(g => g.phaseLevel === selectedPhase);
+    if (filterSchool) result = result.filter(g => g.schoolName === filterSchool);
+    if (filterCirco) result = result.filter(g => g.circonscriptionId === filterCirco);
+    if (filterStatus) {
+      if (filterStatus === 'no_match') result = result.filter(g => g.matchStatus === 'no_match' || g.matchStatus === 'pending');
+      else result = result.filter(g => g.matchStatus === filterStatus);
+    }
+    return result;
+  }, [groups, selectedPhase, filterSchool, filterCirco, filterStatus]);
+
+  // ===== Unique schools & circos for filters =====
+  const schoolOptions = useMemo(() => [...new Set(groups.map(g => g.schoolName))].sort(), [groups]);
+  const circoOptions = useMemo(() => [...new Set(groups.map(g => g.circonscriptionId))].filter(c => c !== '—').sort(), [groups]);
 
   const formatTime = (ms) => {
     if (!ms) return '-';
@@ -134,108 +162,118 @@ export default function CompetitionBracket() {
     return m > 0 ? `${m}m ${s % 60}s` : `${s}s`;
   };
 
-  // Helper: render a group card (used in bracket tab)
+  const circoLabel = (id) => CIRCO_LABELS[id] || id || '—';
+
+  // ===== Stat badge helper =====
+  const StatBadge = ({ icon, value, label, color }) => (
+    <div style={{ textAlign: 'center', padding: '10px 16px', background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', minWidth: 80 }}>
+      <div style={{ fontSize: 20, marginBottom: 2 }}>{icon}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: color || '#1e293b' }}>{value}</div>
+      <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
+    </div>
+  );
+
+  // ===== Render group card =====
   const renderGroupCard = (group) => {
-    const statusCfg = STATUS_CONFIG[group.match?.status] || STATUS_CONFIG.pending;
+    const statusCfg = STATUS_CONFIG[group.matchStatus] || STATUS_CONFIG.pending;
     const isExpanded = expandedGroup === group.id;
-    const isFinished = group.match?.status === 'finished';
+    const isFinished = group.matchStatus === 'finished';
 
     return (
-      <div
-        key={group.id}
-        style={{
-          background: '#fff',
-          borderRadius: 12,
-          border: isFinished ? '2px solid #148A9C' : '1px solid #e2e8f0',
-          overflow: 'hidden',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
-        }}
-      >
-        <div
-          onClick={() => setExpandedGroup(isExpanded ? null : group.id)}
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '14px 18px',
-            cursor: 'pointer',
-            background: isFinished ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' : '#fff',
-            transition: 'background 0.2s'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
-            <div style={{ fontSize: 22 }}>{isFinished ? '🏆' : statusCfg.icon}</div>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{group.name}</div>
-              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                {group.students.length} joueurs
-                {group.winnerName && <span style={{ color: '#059669', fontWeight: 600 }}> • {group.winnerName}</span>}
+      <div key={group.id} style={{ background: '#fff', borderRadius: 12, border: isFinished ? '2px solid #148A9C' : '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', marginBottom: 8 }}>
+        <div onClick={() => setExpandedGroup(isExpanded ? null : group.id)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', cursor: 'pointer', background: isFinished ? 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' : '#fff', transition: 'background 0.2s' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 20 }}>{isFinished ? '🏆' : statusCfg.icon}</div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{group.name}</span>
+                <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>{group.playerCount} joueurs</span>
+              </div>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                <span title="Classe">🏫 {group.className}</span>
+                <span style={{ color: '#d1d5db' }}>|</span>
+                <span title="Professeur">👨‍🏫 {group.teacherName}</span>
+                <span style={{ color: '#d1d5db' }}>|</span>
+                <span title="École">🏛️ {group.schoolName}</span>
+                <span style={{ color: '#d1d5db' }}>|</span>
+                <span title="Circonscription">📍 {circoLabel(group.circonscriptionId)}</span>
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: statusCfg.bg, color: statusCfg.color }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {group.winnerName && <span style={{ fontSize: 12, color: '#059669', fontWeight: 700 }}>🏆 {group.winnerName}</span>}
+            <span style={{ padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: statusCfg.bg, color: statusCfg.color, whiteSpace: 'nowrap' }}>
               {statusCfg.icon} {statusCfg.label}
             </span>
-            <span style={{ fontSize: 16, color: '#94a3b8', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>▼</span>
+            <span style={{ fontSize: 14, color: '#94a3b8', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>▼</span>
           </div>
         </div>
 
         {isExpanded && (
-          <div style={{ padding: '0 18px 18px', borderTop: '1px solid #e2e8f0' }}>
-            <div style={{ marginTop: 14, marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Joueurs:</div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ padding: '0 16px 16px', borderTop: '1px solid #e2e8f0' }}>
+            {/* Hiérarchie détaillée */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginTop: 12, marginBottom: 12 }}>
+              {[
+                { label: 'Classe', value: group.className, icon: '🏫' },
+                { label: 'Niveau', value: group.classLevel, icon: '📚' },
+                { label: 'Professeur', value: group.teacherName, icon: '👨‍🏫' },
+                { label: 'École', value: group.schoolName, icon: '🏛️' },
+                { label: 'Circonscription', value: circoLabel(group.circonscriptionId), icon: '📍' },
+                { label: 'Académie', value: group.academie || '—', icon: '🎓' },
+              ].map(({ label, value, icon }) => (
+                <div key={label} style={{ background: '#f8fafc', borderRadius: 8, padding: '8px 10px', fontSize: 11 }}>
+                  <div style={{ color: '#94a3b8', fontWeight: 600, marginBottom: 2 }}>{icon} {label}</div>
+                  <div style={{ color: '#1e293b', fontWeight: 600 }}>{value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Joueurs */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Joueurs:</div>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 {group.students.map(s => (
-                  <div key={s.id} style={{
-                    padding: '5px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500,
-                    background: s.id === group.winnerId ? '#dcfce7' : '#f1f5f9',
-                    color: s.id === group.winnerId ? '#059669' : '#334155',
-                    border: s.id === group.winnerId ? '1px solid #86efac' : '1px solid #e2e8f0'
-                  }}>
+                  <span key={s.id} style={{ padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 500, background: s.id === group.winnerId ? '#dcfce7' : '#f1f5f9', color: s.id === group.winnerId ? '#059669' : '#334155', border: s.id === group.winnerId ? '1px solid #86efac' : '1px solid #e2e8f0' }}>
                     {s.id === group.winnerId && '🏆 '}{s.name}
-                  </div>
+                  </span>
                 ))}
               </div>
             </div>
 
-            {group.match && (
-              <div style={{ background: '#f8fafc', borderRadius: 8, padding: 12, marginBottom: 14, fontSize: 12, color: '#475569' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-                  <span>Code: <strong style={{ fontFamily: 'monospace', color: '#1AACBE' }}>{group.match.roomCode}</strong></span>
-                  {group.match.finishedAt && <span>Terminé: {new Date(group.match.finishedAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
-                </div>
+            {/* Match info */}
+            {group.roomCode && (
+              <div style={{ background: '#f8fafc', borderRadius: 8, padding: 10, marginBottom: 12, fontSize: 11, color: '#475569' }}>
+                <span>Code: <strong style={{ fontFamily: 'monospace', color: '#1AACBE' }}>{group.roomCode}</strong></span>
+                {group.matchFinishedAt && <span style={{ marginLeft: 16 }}>Terminé: {new Date(group.matchFinishedAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
               </div>
             )}
 
-            {group.results.length > 0 ? (
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            {/* Résultats */}
+            {group.results && group.results.length > 0 ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: '#f1f5f9' }}>
-                    <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: '#475569', borderBottom: '2px solid #e2e8f0' }}>#</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Joueur</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600, color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Score</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600, color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Paires</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600, color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Erreurs</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600, color: '#475569', borderBottom: '2px solid #e2e8f0' }}>Temps</th>
+                    {['#', 'Joueur', 'Score', 'Paires', 'Erreurs', 'Temps'].map(h => (
+                      <th key={h} style={{ padding: '6px 8px', textAlign: h === 'Joueur' ? 'left' : 'center', fontWeight: 600, color: '#475569', borderBottom: '2px solid #e2e8f0' }}>{h}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {group.results.map((r, idx) => (
                     <tr key={r.studentId} style={{ background: idx === 0 ? '#f0fdf4' : idx % 2 === 0 ? '#fff' : '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '8px 10px', fontWeight: 700, fontSize: 16 }}>{MEDAL_EMOJIS[idx] || `${idx + 1}`}</td>
-                      <td style={{ padding: '8px 10px', fontWeight: idx === 0 ? 700 : 500, color: idx === 0 ? '#059669' : '#1e293b' }}>{r.studentName}</td>
-                      <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: '#1AACBE' }}>{r.score} pts</td>
-                      <td style={{ padding: '8px 10px', textAlign: 'center' }}>{r.pairsValidated}</td>
-                      <td style={{ padding: '8px 10px', textAlign: 'center', color: r.errors > 0 ? '#dc2626' : '#059669' }}>{r.errors}</td>
-                      <td style={{ padding: '8px 10px', textAlign: 'center', fontFamily: 'monospace' }}>{formatTime(r.timeMs)}</td>
+                      <td style={{ padding: '6px 8px', fontWeight: 700, fontSize: 14, textAlign: 'center' }}>{MEDAL_EMOJIS[idx] || `${idx + 1}`}</td>
+                      <td style={{ padding: '6px 8px', fontWeight: idx === 0 ? 700 : 500, color: idx === 0 ? '#059669' : '#1e293b' }}>{r.studentName}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 700, color: '#1AACBE' }}>{r.score} pts</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'center' }}>{r.pairsValidated}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'center', color: r.errors > 0 ? '#dc2626' : '#059669' }}>{r.errors}</td>
+                      <td style={{ padding: '6px 8px', textAlign: 'center', fontFamily: 'monospace' }}>{formatTime(r.timeMs)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             ) : (
-              <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 13 }}>
-                {group.match ? 'Match en cours — résultats bientôt' : 'Match non encore lancé'}
+              <div style={{ textAlign: 'center', padding: 16, color: '#94a3b8', fontSize: 12 }}>
+                {group.matchStatus === 'playing' ? 'Match en cours — résultats bientôt' : 'Match non encore lancé'}
               </div>
             )}
           </div>
@@ -266,6 +304,10 @@ export default function CompetitionBracket() {
   });
 
   const currentPhase = tournament?.current_phase || 1;
+  const totals = data?.totals || {};
+  const alerts = data?.alerts || {};
+  const aggregations = data?.aggregations || {};
+  const alertCount = (alerts.schoolsNotStarted || []).length;
 
   return (
     <div style={{
@@ -303,6 +345,19 @@ export default function CompetitionBracket() {
         </div>
       </div>
 
+      {/* ===== STATS GLOBALES ===== */}
+      {totals.totalGroups > 0 && (
+        <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <StatBadge icon="🏫" value={totals.totalSchools || 0} label="Écoles" color="#1AACBE" />
+          <StatBadge icon="📍" value={totals.totalCirconscriptions || 0} label="Circos" color="#8b5cf6" />
+          <StatBadge icon="👥" value={totals.totalStudents || 0} label="Élèves" color="#1e293b" />
+          <StatBadge icon="🎮" value={totals.totalGroups || 0} label="Groupes" color="#475569" />
+          <StatBadge icon="✅" value={totals.totalFinished || 0} label="Terminés" color="#059669" />
+          <StatBadge icon="▶️" value={totals.totalPlaying || 0} label="En cours" color="#d97706" />
+          <StatBadge icon="🔴" value={totals.totalPending || 0} label="Non lancés" color="#ef4444" />
+        </div>
+      )}
+
       {/* ===== PYRAMIDE DES 4 PHASES ===== */}
       <div style={{
         background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
@@ -324,9 +379,10 @@ export default function CompetitionBracket() {
             const isFinished = phase?.status === 'finished';
             const isCurrent = currentPhase === level;
             const isPending = !phase || phase.status === 'pending';
-            const completedGroups = phase?.completedGroups || 0;
+            const completedGroups = phase?.finished || 0;
             const totalGroups = phase?.totalGroups || 0;
             const winnersCount = phase?.winnersCount || 0;
+            const schoolsCount = phase?.schoolsCount || 0;
 
             // Width shrinks as level increases (pyramid effect)
             const widthPct = level === 1 ? 100 : level === 2 ? 80 : level === 3 ? 60 : 45;
@@ -361,8 +417,8 @@ export default function CompetitionBracket() {
                       <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
                         {isFinished
                           ? `✅ Terminée — ${winnersCount} qualifié(s)`
-                          : isActive
-                            ? `▶️ En cours — ${completedGroups}/${totalGroups} groupes terminés`
+                          : isActive || totalGroups > 0
+                            ? `${totalGroups > 0 ? `${completedGroups}/${totalGroups} groupes` : '0 groupe'} | ${schoolsCount} école(s)`
                             : '⏳ En attente'}
                       </div>
                     </div>
@@ -378,9 +434,9 @@ export default function CompetitionBracket() {
                     </div>
                   )}
                 </div>
-                {isActive && totalGroups > 0 && (
+                {(isActive || totalGroups > 0) && totalGroups > 0 && (
                   <div style={{ marginTop: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, height: 4, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${totalGroups > 0 ? (completedGroups / totalGroups) * 100 : 0}%`, background: cfg.color, borderRadius: 4, transition: 'width 0.5s' }} />
+                    <div style={{ height: '100%', width: `${(completedGroups / totalGroups) * 100}%`, background: cfg.color, borderRadius: 4, transition: 'width 0.5s' }} />
                   </div>
                 )}
                 {isFinished && phase && (
@@ -393,19 +449,10 @@ export default function CompetitionBracket() {
                       setRecipientName('');
                     }}
                     style={{
-                      marginTop: 8,
-                      padding: '6px 14px',
-                      background: 'rgba(255,255,255,0.15)',
-                      border: '1px solid rgba(255,255,255,0.3)',
-                      borderRadius: 8,
-                      color: '#fff',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      transition: 'all 0.2s'
+                      marginTop: 8, padding: '6px 14px',
+                      background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)',
+                      borderRadius: 8, color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.2s'
                     }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
@@ -438,10 +485,17 @@ export default function CompetitionBracket() {
         marginBottom: 20,
         background: '#fff',
         borderRadius: '12px 12px 0 0',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        flexWrap: 'wrap'
       }}>
         <button onClick={() => setActiveTab('bracket')} style={tabStyle(activeTab === 'bracket')}>
           🏟️ Matchs {selectedPhase ? `(Phase ${selectedPhase})` : ''}
+        </button>
+        <button onClick={() => setActiveTab('schools')} style={tabStyle(activeTab === 'schools')}>
+          🏛️ Vue par école
+        </button>
+        <button onClick={() => setActiveTab('alerts')} style={tabStyle(activeTab === 'alerts')}>
+          🚨 Alertes {alertCount > 0 && <span style={{ background: '#ef4444', color: '#fff', borderRadius: 999, padding: '1px 7px', fontSize: 11, fontWeight: 800, marginLeft: 6 }}>{alertCount}</span>}
         </button>
         <button onClick={() => setActiveTab('ranking')} style={tabStyle(activeTab === 'ranking')}>
           📊 Classement Général
@@ -451,8 +505,8 @@ export default function CompetitionBracket() {
       {/* ===== BRACKET TAB ===== */}
       {activeTab === 'bracket' && (
         <div>
-          {/* Phase selector */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          {/* Phase selector + Filters */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             <button
               onClick={() => setSelectedPhase(null)}
               style={{
@@ -484,31 +538,214 @@ export default function CompetitionBracket() {
             })}
           </div>
 
-          {/* Filtered groups */}
-          {(() => {
-            const filteredGroups = selectedPhase
-              ? groups.filter(g => g.phaseLevel === selectedPhase)
-              : groups;
-            return (
-              <div style={{ display: 'grid', gap: 12 }}>
-                {filteredGroups.length === 0 ? (
-                  <div style={{ padding: 48, textAlign: 'center', background: '#fff', borderRadius: 12, border: '2px dashed #d1d5db' }}>
-                    <div style={{ fontSize: 48, marginBottom: 12 }}>🏟️</div>
-                    <h3 style={{ color: '#374151', marginBottom: 8 }}>
-                      {selectedPhase ? `Aucun match pour la Phase ${selectedPhase}` : 'Aucun match pour le moment'}
-                    </h3>
-                    <p style={{ color: '#6b7280', fontSize: 14 }}>
-                      {selectedPhase
-                        ? `Les matchs de ${PHASE_CONFIG[selectedPhase]?.name || ''} apparaîtront ici.`
-                        : 'Créez des groupes et lancez des matchs depuis la page de configuration.'}
-                    </p>
+          {/* Filters row */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            <select value={filterSchool} onChange={e => setFilterSchool(e.target.value)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 12, color: '#475569', background: '#fff', cursor: 'pointer' }}>
+              <option value="">🏛️ Toutes les écoles</option>
+              {schoolOptions.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select value={filterCirco} onChange={e => setFilterCirco(e.target.value)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 12, color: '#475569', background: '#fff', cursor: 'pointer' }}>
+              <option value="">📍 Toutes les circos</option>
+              {circoOptions.map(c => <option key={c} value={c}>{circoLabel(c)}</option>)}
+            </select>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 12, color: '#475569', background: '#fff', cursor: 'pointer' }}>
+              <option value="">📋 Tous les statuts</option>
+              <option value="finished">✅ Terminés</option>
+              <option value="playing">🎮 En cours</option>
+              <option value="no_match">🔴 Non lancés</option>
+            </select>
+            {(filterSchool || filterCirco || filterStatus) && (
+              <button onClick={() => { setFilterSchool(''); setFilterCirco(''); setFilterStatus(''); }} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                ✕ Réinitialiser
+              </button>
+            )}
+            <span style={{ fontSize: 12, color: '#94a3b8', alignSelf: 'center', marginLeft: 'auto' }}>
+              {filteredGroups.length} groupe(s)
+            </span>
+          </div>
+
+          {/* Group cards or table */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <button onClick={() => setViewMode('groups')} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: viewMode === 'groups' ? '#1e293b' : '#fff', color: viewMode === 'groups' ? '#fff' : '#475569', border: '1px solid #d1d5db' }}>
+              🃏 Cartes
+            </button>
+            <button onClick={() => setViewMode('table')} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', background: viewMode === 'table' ? '#1e293b' : '#fff', color: viewMode === 'table' ? '#fff' : '#475569', border: '1px solid #d1d5db' }}>
+              📊 Tableau
+            </button>
+          </div>
+
+          {filteredGroups.length === 0 ? (
+            <div style={{ padding: 48, textAlign: 'center', background: '#fff', borderRadius: 12, border: '2px dashed #d1d5db' }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🏟️</div>
+              <h3 style={{ color: '#374151', marginBottom: 8 }}>
+                {selectedPhase ? `Aucun match pour la Phase ${selectedPhase}` : 'Aucun match pour le moment'}
+              </h3>
+              <p style={{ color: '#6b7280', fontSize: 14 }}>
+                {(filterSchool || filterCirco || filterStatus) ? 'Essayez de modifier les filtres.' : 'Créez des groupes et lancez des matchs.'}
+              </p>
+            </div>
+          ) : viewMode === 'groups' ? (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {filteredGroups.map(group => renderGroupCard(group))}
+            </div>
+          ) : (
+            /* TABLE VIEW */
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 900 }}>
+                <thead>
+                  <tr style={{ background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' }}>
+                    {['Groupe', 'Classe', 'Professeur', 'École', 'Circonscription', 'Joueurs', 'Statut', 'Gagnant'].map(h => (
+                      <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredGroups.map((g, idx) => {
+                    const sc = STATUS_CONFIG[g.matchStatus] || STATUS_CONFIG.pending;
+                    return (
+                      <tr key={g.id} style={{ background: idx % 2 === 0 ? '#fff' : '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '8px 12px', fontWeight: 600, color: '#1e293b' }}>{g.name}</td>
+                        <td style={{ padding: '8px 12px', color: '#475569' }}>{g.className} ({g.classLevel})</td>
+                        <td style={{ padding: '8px 12px', color: '#475569' }}>{g.teacherName}</td>
+                        <td style={{ padding: '8px 12px', color: '#475569' }}>{g.schoolName}</td>
+                        <td style={{ padding: '8px 12px', color: '#475569' }}>{circoLabel(g.circonscriptionId)}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'center', color: '#475569' }}>{g.playerCount}</td>
+                        <td style={{ padding: '8px 12px' }}>
+                          <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: sc.bg, color: sc.color }}>{sc.icon} {sc.label}</span>
+                        </td>
+                        <td style={{ padding: '8px 12px', fontWeight: 600, color: g.winnerName ? '#059669' : '#94a3b8' }}>{g.winnerName || '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== SCHOOLS TAB ===== */}
+      {activeTab === 'schools' && (
+        <div>
+          <div style={{ display: 'grid', gap: 12 }}>
+            {Object.entries(aggregations.bySchool || {}).sort((a, b) => a[0].localeCompare(b[0])).map(([schoolName, info]) => {
+              const pct = info.totalGroups > 0 ? Math.round((info.finished / info.totalGroups) * 100) : 0;
+              const allDone = info.finished === info.totalGroups && info.totalGroups > 0;
+              const notStarted = info.finished === 0 && info.playing === 0;
+              return (
+                <div key={schoolName} style={{ background: '#fff', borderRadius: 12, border: allDone ? '2px solid #059669' : notStarted ? '2px solid #ef4444' : '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 18 }}>{allDone ? '✅' : notStarted ? '🔴' : '🏛️'}</span>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{schoolName}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                        <span>📍 {circoLabel(info.circo)}</span>
+                        <span>🏙️ {info.city || '—'}</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: allDone ? '#059669' : '#1e293b' }}>{info.finished}/{info.totalGroups}</div>
+                        <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>TERMINÉS</div>
+                      </div>
+                      {info.playing > 0 && (
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 18, fontWeight: 800, color: '#d97706' }}>{info.playing}</div>
+                          <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>EN COURS</div>
+                        </div>
+                      )}
+                      <div style={{
+                        width: 44, height: 44, borderRadius: '50%',
+                        background: allDone ? '#059669' : notStarted ? '#ef4444' : '#1AACBE',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 12, fontWeight: 800, color: '#fff'
+                      }}>
+                        {pct}%
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  filteredGroups.map(group => renderGroupCard(group))
-                )}
+                  {/* Progress bar */}
+                  <div style={{ height: 4, background: '#f1f5f9' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: allDone ? '#059669' : '#1AACBE', transition: 'width 0.5s' }} />
+                  </div>
+                </div>
+              );
+            })}
+            {Object.keys(aggregations.bySchool || {}).length === 0 && (
+              <div style={{ padding: 48, textAlign: 'center', background: '#fff', borderRadius: 12 }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>🏛️</div>
+                <p style={{ color: '#6b7280' }}>Aucune école inscrite pour le moment.</p>
               </div>
-            );
-          })()}
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== ALERTS TAB ===== */}
+      {activeTab === 'alerts' && (
+        <div>
+          {/* Schools not started */}
+          <div style={{ marginBottom: 24 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>
+              🔴 Écoles n'ayant pas encore démarré ({(alerts.schoolsNotStarted || []).length})
+            </h3>
+            {(alerts.schoolsNotStarted || []).length === 0 ? (
+              <div style={{ padding: 32, textAlign: 'center', background: '#f0fdf4', borderRadius: 12, border: '1px solid #86efac' }}>
+                <div style={{ fontSize: 36, marginBottom: 8 }}>🎉</div>
+                <p style={{ color: '#059669', fontWeight: 600, fontSize: 14 }}>Toutes les écoles ont démarré au moins un match !</p>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: 8 }}>
+                {(alerts.schoolsNotStarted || []).map(school => (
+                  <div key={school.name} style={{ background: '#fff', borderRadius: 10, border: '1px solid #fca5a5', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#991b1b' }}>🔴 {school.name}</div>
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                        📍 {circoLabel(school.circo)} | {school.pendingGroups} groupe(s) en attente
+                      </div>
+                    </div>
+                    <span style={{ padding: '4px 12px', borderRadius: 999, background: '#fef2f2', color: '#ef4444', fontSize: 11, fontWeight: 700 }}>Non démarré</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Circo overview */}
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>
+            📍 Vue par circonscription
+          </h3>
+          <div style={{ display: 'grid', gap: 8 }}>
+            {Object.entries(aggregations.byCirconscription || {}).sort((a, b) => a[0].localeCompare(b[0])).map(([circoId, info]) => {
+              const pct = info.totalGroups > 0 ? Math.round((info.finished / info.totalGroups) * 100) : 0;
+              return (
+                <div key={circoId} style={{ background: '#fff', borderRadius: 10, border: '1px solid #e2e8f0', padding: '12px 16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>📍 {circoLabel(circoId)}</div>
+                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{info.schools.length} école(s): {info.schools.join(', ')}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, color: '#059669', fontWeight: 700 }}>✅ {info.finished}</span>
+                      <span style={{ fontSize: 12, color: '#d97706', fontWeight: 700 }}>▶️ {info.playing}</span>
+                      <span style={{ fontSize: 12, color: '#ef4444', fontWeight: 700 }}>🔴 {info.pending}</span>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: '50%',
+                        background: pct === 100 ? '#059669' : '#1AACBE',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, fontWeight: 800, color: '#fff'
+                      }}>{pct}%</div>
+                    </div>
+                  </div>
+                  <div style={{ height: 3, background: '#f1f5f9', borderRadius: 3 }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? '#059669' : '#1AACBE', borderRadius: 3 }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
