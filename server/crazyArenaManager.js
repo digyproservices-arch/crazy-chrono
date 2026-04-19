@@ -1986,7 +1986,11 @@ class CrazyArenaManager {
         extras: finalExtras,
         selectedLevel: selectedLevel,
         excludedPairIds: excludedPairIds,
-        deckState: deckState
+        deckState: deckState,
+        logFn: (level, message, data) => {
+          const wLevel = (level === 'error' || level === 'warn' || level === 'info') ? level : 'info';
+          logger[wLevel](message, { room: matchId || 'arena', ...data });
+        }
       });
       
       // generateRoundZones retourne {zones: [], goodPairIds: {}}

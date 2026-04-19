@@ -433,16 +433,19 @@ function generateRoundZones(seed, config = {}) {
     const levelAllowed = selectedLevel ? (LEVEL_INCLUDES_SERVER[selectedLevel] || null) : null;
     
     if (levelAllowed) {
-      // Filtrer les catégories math hors niveau (TOUJOURS, même quand des thèmes sont sélectionnés)
-      // Les extras explicites bypasses ce filtre
+      // Filtrer les catégories math hors niveau, SAUF si explicitement sélectionnées en thème
+      // Les extras explicites et les thèmes explicites bypasses ce filtre
+      const selectedThemesSet = new Set(selectedThemes);
       const isMathExcluded = (el) => {
         const tags = Array.isArray(el?.themes) ? el.themes : [];
-        // Si l'élément a une catégorie math non incluse au niveau ET pas dans les extras
+        // Si l'élément a une catégorie math non incluse au niveau ET pas dans les extras/thèmes
         const hasMathCat = tags.some(t => ALL_MATH_CATEGORIES.has(t));
         if (!hasMathCat) return false; // Pas une catégorie math → ne pas exclure
         const hasAllowedCat = tags.some(t => levelAllowed.has(t));
         const hasExtraCat = tags.some(t => extrasSet.has(t));
-        return !hasAllowedCat && !hasExtraCat;
+        // FIX: Si l'utilisateur a explicitement sélectionné cette catégorie comme thème, ne pas l'exclure
+        const hasExplicitTheme = tags.some(t => selectedThemesSet.has(t));
+        return !hasAllowedCat && !hasExtraCat && !hasExplicitTheme;
       };
       
       const calcB = calculs.length, numB = chiffres.length, assocB = associations.length;
@@ -490,6 +493,8 @@ function generateRoundZones(seed, config = {}) {
     // ===== Maps COMPLÈTES de cross-référence (AVANT exclusion) =====
     // Ces maps gardent la connaissance de TOUS les liens entre éléments,
     // même les paires exclues, pour empêcher les fausses paires distracteurs.
+    // ✅ FIX: Utiliser les éléments FILTRÉS pour byId (affichage), mais les données
+    // ORIGINALES NON-FILTRÉES pour les maps complètes (fallback ZERO_VALID_PAIRS)
     const byId = (arr) => Object.fromEntries(arr.map(x => [x.id, x]));
     const textesById = byId(textes);
     const imagesById = byId(images);
@@ -501,27 +506,34 @@ function generateRoundZones(seed, config = {}) {
       m.get(a).add(b);
     };
     
+    // Maps complètes depuis les données ORIGINALES (non filtrées) pour le fallback
+    const origTextesById = byId(Array.isArray(associationsFile.textes) ? associationsFile.textes : []);
+    const origImagesById = byId(Array.isArray(associationsFile.images) ? associationsFile.images : []);
+    const origCalculsById = byId(Array.isArray(associationsFile.calculs) ? associationsFile.calculs : []);
+    const origChiffresById = byId(Array.isArray(associationsFile.chiffres) ? associationsFile.chiffres : []);
+    const origAssociations = Array.isArray(associationsFile.associations) ? associationsFile.associations : [];
+    
     const fullTexteToImages = new Map();
     const fullImageToTextes = new Map();
     const fullCalculToChiffres = new Map();
     const fullChiffreToCalculs = new Map();
     
-    for (const a of associations) {
+    for (const a of origAssociations) {
       if (a.texteId && a.imageId) {
-        if (textesById[a.texteId] && imagesById[a.imageId]) {
+        if (origTextesById[a.texteId] && origImagesById[a.imageId]) {
           addMap(fullTexteToImages, a.texteId, a.imageId);
           addMap(fullImageToTextes, a.imageId, a.texteId);
         }
       }
       if (a.calculId && a.chiffreId) {
-        if (calculsById[a.calculId] && chiffresById[a.chiffreId]) {
+        if (origCalculsById[a.calculId] && origChiffresById[a.chiffreId]) {
           addMap(fullCalculToChiffres, a.calculId, a.chiffreId);
           addMap(fullChiffreToCalculs, a.chiffreId, a.calculId);
         }
       }
     }
     
-    console.log('[ServerZoneGen] Full cross-ref maps built (before exclusion):', {
+    console.log('[ServerZoneGen] Full cross-ref maps built (from ORIGINAL data):', {
       fullImageToTextes: fullImageToTextes.size,
       fullTexteToImages: fullTexteToImages.size,
       fullCalculToChiffres: fullCalculToChiffres.size,
@@ -626,8 +638,42 @@ function generateRoundZones(seed, config = {}) {
     
     // ===== Choisir le type de paire à placer =====
     let placedPairType = null;
-    const canTI = imageZones.length && texteZones.length && imageIds.length && texteIds.length;
-    const canCC = calculZones.length && chiffreZones.length && calculIds.length && chiffreIds.length;
+    let canTI = imageZones.length && texteZones.length && imageIds.length && texteIds.length;
+    let canCC = calculZones.length && chiffreZones.length && calculIds.length && chiffreIds.length;
+    
+    // ===== SAFETY FALLBACK: Si aucune paire possible après filtrage, utiliser les maps non filtrées =====
+    if (!canTI && !canCC) {
+      console.warn('[ServerZoneGen] ⚠️ ZERO pairs after filtering — falling back to FULL unfiltered associations');
+      logFn('warn', '[ZoneGen] SAFETY FALLBACK: Zero pairs after filtering, restoring full data', {
+        canTI: false, canCC: false,
+        imageIds: imageIds.length, texteIds: texteIds.length,
+        calculIds: calculIds.length, chiffreIds: chiffreIds.length,
+        fullTI: fullTexteToImages.size, fullCC: fullCalculToChiffres.size
+      });
+      // Reconstruire les maps filtrées depuis les maps complètes (fullTexteToImages, fullImageToTextes, etc.)
+      for (const [k, v] of fullTexteToImages.entries()) { if (!texteToImages.has(k)) texteToImages.set(k, v); }
+      for (const [k, v] of fullImageToTextes.entries()) { if (!imageToTextes.has(k)) imageToTextes.set(k, v); }
+      for (const [k, v] of fullCalculToChiffres.entries()) { if (!calculToChiffres.has(k)) calculToChiffres.set(k, v); }
+      for (const [k, v] of fullChiffreToCalculs.entries()) { if (!chiffreToCalculs.has(k)) chiffreToCalculs.set(k, v); }
+      // Injecter les éléments originaux dans les byId pour que le placement puisse trouver le contenu
+      for (const [k, v] of Object.entries(origTextesById)) { if (!textesById[k]) textesById[k] = v; }
+      for (const [k, v] of Object.entries(origImagesById)) { if (!imagesById[k]) imagesById[k] = v; }
+      for (const [k, v] of Object.entries(origCalculsById)) { if (!calculsById[k]) calculsById[k] = v; }
+      for (const [k, v] of Object.entries(origChiffresById)) { if (!chiffresById[k]) chiffresById[k] = v; }
+      // Recalculer les IDs candidats
+      imageIds.length = 0; imageIds.push(...imageToTextes.keys());
+      texteIds.length = 0; texteIds.push(...texteToImages.keys());
+      calculIds.length = 0; calculIds.push(...calculToChiffres.keys());
+      chiffreIds.length = 0; chiffreIds.push(...chiffreToCalculs.keys());
+      canTI = imageZones.length && texteZones.length && imageIds.length && texteIds.length;
+      canCC = calculZones.length && chiffreZones.length && calculIds.length && chiffreIds.length;
+      console.log('[ServerZoneGen] After fallback: canTI=', !!canTI, 'canCC=', !!canCC, 'imageIds=', imageIds.length, 'texteIds=', texteIds.length, 'calculIds=', calculIds.length, 'chiffreIds=', chiffreIds.length);
+      logFn('info', '[ZoneGen] SAFETY FALLBACK result', {
+        canTI: !!canTI, canCC: !!canCC,
+        imageIds: imageIds.length, texteIds: texteIds.length,
+        calculIds: calculIds.length, chiffreIds: chiffreIds.length
+      });
+    }
     
     if (canTI && canCC) {
       placedPairType = rng() < 0.5 ? 'TI' : 'CC';
@@ -774,6 +820,20 @@ function generateRoundZones(seed, config = {}) {
           });
         }
       }
+    }
+    
+    // ===== CRITICAL: Log si aucune paire n'a pu être placée =====
+    if (!goodPairIds) {
+      console.error('[ServerZoneGen] ❌ CRITICAL: No pair could be placed! placedPairType=', placedPairType, 'canTI=', !!canTI, 'canCC=', !!canCC);
+      logFn('error', '[ZoneGen] ZERO_VALID_PAIRS: No pair placed', {
+        placedPairType,
+        canTI: !!canTI,
+        canCC: !!canCC,
+        imageIds: imageIds.length,
+        texteIds: texteIds.length,
+        calculIds: calculIds.length,
+        chiffreIds: chiffreIds.length
+      });
     }
     
     // ===== Remplir avec des distracteurs via deck (anti-répétition inter-manches) =====

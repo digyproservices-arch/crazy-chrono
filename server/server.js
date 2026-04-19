@@ -2130,6 +2130,8 @@ function createGrandeSalle(id, config = {}) {
       minPlayersToStart: config.minPlayersToStart || 3,
       themes: config.themes || [],
       classes: config.classes || [],
+      extras: config.extras || [],
+      selectedLevel: config.selectedLevel || null,
     },
     roundsPlayed: 0,
     eliminationWave: 0,
@@ -2263,8 +2265,11 @@ function gsStartRound(salleId) {
   const zoneGenResult = generateRoundZones(seed, {
     themes: salle.config.themes || [],
     classes: salle.config.classes || [],
+    extras: salle.config.extras || [],
+    selectedLevel: salle.config.selectedLevel || null,
     excludedPairIds: salle.validatedPairIds || new Set(),
     deckState: salle.deckState,
+    logFn: (level, message, data) => emitServerLog(salleId, level, message, data)
   });
   const zones = Array.isArray(zoneGenResult) ? zoneGenResult : (zoneGenResult?.zones || []);
   salle.currentZones = zones;
@@ -3825,8 +3830,11 @@ io.on('connection', (socket) => {
       const regenResult = generateRoundZones(newSeed, {
         themes: salle.config.themes || [],
         classes: salle.config.classes || [],
+        extras: salle.config.extras || [],
+        selectedLevel: salle.config.selectedLevel || null,
         excludedPairIds: new Set(),
         deckState: salle.deckState,
+        logFn: (level, message, data) => emitServerLog(salleId, level, message, data)
       });
       const newZones = Array.isArray(regenResult) ? regenResult : (regenResult?.zones || []);
       salle.currentZones = newZones;
