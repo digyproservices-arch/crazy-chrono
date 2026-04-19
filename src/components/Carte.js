@@ -2311,8 +2311,9 @@ const Carte = () => {
                   const themes2 = Array.isArray(cfg2?.themes) ? cfg2.themes : [];
                   const classes2 = Array.isArray(cfg2?.classes) ? cfg2.classes : [];
                   const extras2 = Array.isArray(cfg2?.extras) ? cfg2.extras : [];
-                  s.emit('room:setConfig', { themes: themes2, classes: classes2, extras: extras2 });
-                  console.log('[MP] Sent config to server:', { themes: themes2, classes: classes2, extras: extras2 });
+                  const selLvl2 = cfg2?.selectedLevel || (classes2.length > 0 ? classes2[classes2.length - 1] : null);
+                  s.emit('room:setConfig', { themes: themes2, classes: classes2, extras: extras2, selectedLevel: selLvl2 });
+                  console.log('[MP] Sent config to server:', { themes: themes2, classes: classes2, extras: extras2, selectedLevel: selLvl2 });
                   
                   configAppliedRef.current = true;
                 }
@@ -2339,8 +2340,9 @@ const Carte = () => {
                         const themes = Array.isArray(cfg3?.themes) ? cfg3.themes : [];
                         const classes = Array.isArray(cfg3?.classes) ? cfg3.classes : [];
                         const extras = Array.isArray(cfg3?.extras) ? cfg3.extras : [];
-                        s.emit('room:setConfig', { themes, classes, extras });
-                        console.log('[MP] Sent config to server:', { themes, classes, extras });
+                        const selLvl3 = cfg3?.selectedLevel || (classes.length > 0 ? classes[classes.length - 1] : null);
+                        s.emit('room:setConfig', { themes, classes, extras, selectedLevel: selLvl3 });
+                        console.log('[MP] Sent config to server:', { themes, classes, extras, selectedLevel: selLvl3 });
                         
                         configAppliedRef.current = true;
                       }
@@ -2376,8 +2378,9 @@ const Carte = () => {
             const themes = Array.isArray(cfgSolo?.themes) ? cfgSolo.themes : [];
             const classes = Array.isArray(cfgSolo?.classes) ? cfgSolo.classes : [];
             const extras = Array.isArray(cfgSolo?.extras) ? cfgSolo.extras : [];
-            s.emit('room:setConfig', { themes, classes, extras });
-            console.log('[MP][solo] Sent config to server:', { themes, classes, extras });
+            const selLvlSolo = cfgSolo?.selectedLevel || (classes.length > 0 ? classes[classes.length - 1] : null);
+            s.emit('room:setConfig', { themes, classes, extras, selectedLevel: selLvlSolo });
+            console.log('[MP][solo] Sent config to server:', { themes, classes, extras, selectedLevel: selLvlSolo });
           } catch {}
         }, 100);
         // Démarrage auto si mode=solo enregistré — avec quota check (Sprint A freemium)
@@ -3466,8 +3469,9 @@ async function doStart() {
         const _themes = Array.isArray(cfg2?.themes) ? cfg2.themes : [];
         const _classes = Array.isArray(cfg2?.classes) ? cfg2.classes : [];
         const _extras = Array.isArray(cfg2?.extras) ? cfg2.extras : [];
-        socket.emit('room:setConfig', { themes: _themes, classes: _classes, extras: _extras });
-        console.log('[CC][doStart] Sent room:setConfig:', { themes: _themes, classes: _classes, extras: _extras });
+        const _selLvl = cfg2?.selectedLevel || (_classes.length > 0 ? _classes[_classes.length - 1] : null);
+        socket.emit('room:setConfig', { themes: _themes, classes: _classes, extras: _extras, selectedLevel: _selLvl });
+        console.log('[CC][doStart] Sent room:setConfig:', { themes: _themes, classes: _classes, extras: _extras, selectedLevel: _selLvl });
       } catch {}
       try {
         if (Number.isFinite(wantDuration) && wantDuration >= 10 && wantDuration <= 600) {
@@ -4427,6 +4431,16 @@ const handleEditGreenZone = (zone) => {
   const handleStartRoom = () => {
     if (!socket) return;
     try {
+      // Safety net: re-send config right before starting to avoid stale/missing config
+      try {
+        let _cfg = null; try { _cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
+        const _t = Array.isArray(_cfg?.themes) ? _cfg.themes : [];
+        const _c = Array.isArray(_cfg?.classes) ? _cfg.classes : [];
+        const _e = Array.isArray(_cfg?.extras) ? _cfg.extras : [];
+        const _sl = _cfg?.selectedLevel || (_c.length > 0 ? _c[_c.length - 1] : null);
+        socket.emit('room:setConfig', { themes: _t, classes: _c, extras: _e, selectedLevel: _sl });
+        console.log('[MP] handleStartRoom safety-net config:', { themes: _t, classes: _c, extras: _e, selectedLevel: _sl });
+      } catch {}
       console.debug('[CC][client] emit room:start');
       socket.emit('room:start');
       // Lancer un timer de sécurité: si pas de 'round:new' sous 3s, prévenir dans les logs et l'UI
@@ -4468,6 +4482,22 @@ const handleEditGreenZone = (zone) => {
           setRoomId(res.roomCode);
           setMpMsg(`Salle créée: ${res.roomCode}`);
           try { socket.emit('joinRoom', { roomId: res.roomCode, name: playerName, studentId: getMyStudentId() }); } catch {}
+          // Envoyer la config pédagogique au serveur (niveau, thèmes, classes, extras)
+          setTimeout(() => {
+            try {
+              let cfg = null; try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
+              const themes = Array.isArray(cfg?.themes) ? cfg.themes : [];
+              const classes = Array.isArray(cfg?.classes) ? cfg.classes : [];
+              const extras = Array.isArray(cfg?.extras) ? cfg.extras : [];
+              const selectedLevel = cfg?.selectedLevel || (classes.length > 0 ? classes[classes.length - 1] : null);
+              const r = parseInt(cfg?.rounds, 10);
+              const d = parseInt(cfg?.duration, 10);
+              socket.emit('room:setConfig', { themes, classes, extras, selectedLevel });
+              if (Number.isFinite(d) && d >= 10 && d <= 600) socket.emit('room:duration:set', { duration: d });
+              if (Number.isFinite(r) && r >= 1 && r <= 20) socket.emit('room:setRounds', r);
+              console.log('[MP] handleCreateRoom sent config:', { themes, classes, extras, selectedLevel, rounds: r, duration: d });
+            } catch {}
+          }, 150);
         } else {
           setMpMsg('Création de salle impossible');
         }
