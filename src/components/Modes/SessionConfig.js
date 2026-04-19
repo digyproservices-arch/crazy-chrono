@@ -167,7 +167,7 @@ export default function SessionConfig() {
         data={data}
         onChange={setPedConfig}
         initialConfig={initialPedConfig}
-        options={{ showPlayerZone: true, showFreeLimits: true, showAllowEmptyMath: true, showObjectiveTarget: true }}
+        options={{ showPlayerZone: true, showFreeLimits: true, showAllowEmptyMath: true, showObjectiveTarget: true, hideHelp: mode === 'online' }}
       />
 
       {/* ===== 5. MODE-SPÉCIFIQUE: Multijoueur ===== */}

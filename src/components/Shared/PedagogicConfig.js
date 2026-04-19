@@ -144,6 +144,7 @@ export default function PedagogicConfig({ data, onChange, initialConfig, options
     showAllowEmptyMath = true,
     showObjectiveTarget = true,
     showObjectiveMode = true,
+    hideHelp = false,
   } = options;
 
   // ===== State =====
@@ -580,7 +581,8 @@ export default function PedagogicConfig({ data, onChange, initialConfig, options
           </div>
         )}
 
-        {/* Système d'aide */}
+        {/* Système d'aide (masqué en multijoueur) */}
+        {!hideHelp && (
         <div style={{ padding: '14px 16px', borderRadius: 12, border: helpEnabled ? '2px solid #f59e0b' : '2px solid #e2e8f0', background: helpEnabled ? '#fffbeb' : '#fff', transition: 'all 0.2s' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
             <input type="checkbox" checked={helpEnabled} onChange={e => setHelpEnabled(e.target.checked)}
@@ -593,6 +595,7 @@ export default function PedagogicConfig({ data, onChange, initialConfig, options
             </div>
           </label>
         </div>
+        )}
         {isFreeTier && (
           <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a', fontSize: 13, color: '#92400e', lineHeight: 1.5 }}>
             ⚠️ Plan gratuit : max {FREE_MAX_ROUNDS} manches et {FREE_MAX_DURATION}s par manche.
