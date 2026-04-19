@@ -8773,6 +8773,38 @@ setZones(dataWithRandomTexts);
                   {mpMsg && <div style={{ marginTop: 8, fontSize: 12, color: '#1AACBE', fontWeight: 500 }}>{mpMsg}</div>}
                 </div>
 
+                {/* Config summary badge */}
+                {(() => {
+                  try {
+                    const _lCfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+                    if (!_lCfg) return null;
+                    const _lvl = _lCfg.selectedLevel || (_lCfg.classes?.length ? _lCfg.classes[_lCfg.classes.length - 1] : null);
+                    const _thCount = Array.isArray(_lCfg.themes) ? _lCfg.themes.length : 0;
+                    const _dur = parseInt(_lCfg.duration, 10);
+                    const _rds = parseInt(_lCfg.rounds, 10);
+                    const parts = [];
+                    if (_lvl) parts.push(_lvl);
+                    if (_thCount > 0) parts.push(_thCount + ' th\u00e8me' + (_thCount > 1 ? 's' : ''));
+                    if (Number.isFinite(_dur) && _dur > 0) parts.push(_dur + 's');
+                    if (Number.isFinite(_rds) && _rds > 0) parts.push(_rds + ' manche' + (_rds > 1 ? 's' : ''));
+                    if (!parts.length) return null;
+                    return (
+                      <div style={{ marginBottom: isMobile ? 14 : 18, display: 'flex', justifyContent: 'center' }}>
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 8,
+                          background: 'rgba(13,106,122,0.15)', border: '1px solid rgba(26,172,190,0.25)',
+                          borderRadius: 12, padding: '7px 16px',
+                        }}>
+                          <span style={{ fontSize: 13 }}>{'\u2699\uFE0F'}</span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: '#1AACBE' }}>
+                            {parts.join(' \u00B7 ')}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  } catch { return null; }
+                })()}
+
                 {/* Player avatars */}
                 <div style={{ display: 'flex', justifyContent: 'center', gap: isMobile ? 14 : 24, flexWrap: 'wrap', marginBottom: isMobile ? 20 : 28 }}>
                   {roomPlayers.map((p, i) => {
