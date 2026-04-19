@@ -8655,302 +8655,201 @@ setZones(dataWithRandomTexts);
       )}
       {/* Lobby / Multijoueur UI (masqué en mode solo) */}
       {socket && !hasSidebar && !isSoloMode && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.95)', backdropFilter: 'blur(8px)' }}>
-          <div style={{
-            background: '#ffffff', borderRadius: 24, padding: isMobile ? 20 : 32, maxWidth: 620, width: isMobile ? '94vw' : '90vw',
-            boxShadow: '0 25px 50px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto', color: '#1e293b', position: 'relative'
-          }}>
-          {/* Compte à rebours */}
-          {countdownT !== null && !panelCollapsed && (
-            <div style={{ position: 'absolute', top: -20, left: '50%', transform: 'translateX(-50%)', background: 'linear-gradient(135deg, #0D6A7A, #1AACBE)', color: '#fff', padding: '8px 24px', borderRadius: 12, fontSize: 22, fontWeight: 900, zIndex: 3000, boxShadow: '0 4px 15px rgba(13,106,122,0.4)', letterSpacing: 1 }}>
-              {countdownT}
-            </div>
-          )}
-            {/* Header: réduit = minimal; étendu = toutes les actions */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                {!panelCollapsed && (
-                  <div style={{ fontWeight: 800, fontSize: 18, color: '#0D6A7A' }}>🎮 Salle <span style={{ fontFamily: 'monospace', background: '#f1f5f9', padding: '2px 8px', borderRadius: 6 }}>{roomId}</span></div>
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {!panelCollapsed && isHost && (
-                    <button
-                      onClick={() => { try { socket && socket.emit('session:end'); } catch {} }}
-                      title={'Terminer la session (hôte)'}
-                      style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
-                    >
-                      Terminer la session
-                    </button>
-                  )}
-                  {!panelCollapsed && isHost && (
-                    <input
-                      type="number"
-                      title="Nombre de manches de la session"
-                      min={1}
-                      max={20}
-                      step={1}
-                      value={Number.isFinite(roundsPerSession) ? roundsPerSession : 3}
-                      onChange={(e) => handleSetRounds(e.target.value)}
-                      style={{ width: 60, padding: '4px 6px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#1e293b', fontSize: 12 }}
-                    />
-                  )}
-                  {!panelCollapsed && (
-                    <button
-                      onClick={() => {
-                        setHistoryExpanded(h => {
-                          const next = !h;
-                          if (next && socket) {
-                            try {
-                              socket.emit('session:history:get', (res) => {
-                                if (res && res.ok && Array.isArray(res.sessions)) {
-                                  setSessions(res.sessions);
-                                  try { window.dispatchEvent(new CustomEvent('cc:sessionsUpdated', { detail: { sessions: res.sessions } })); } catch {}
-                                }
-                              });
-                            } catch {}
-                          }
-                          return next;
-                        });
-                      }}
-                      title={historyExpanded ? "Masquer l'historique" : "Afficher l'historique"}
-                      style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 8, padding: '4px 10px', fontSize: 12, color: '#475569', cursor: 'pointer' }}
-                    >
-                      Historique {sessions?.length ? `(${sessions.length})` : ''}
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setPanelCollapsed(c => !c)}
-                    title={panelCollapsed ? 'Déployer' : 'Réduire'}
-                    style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 8, padding: '4px 10px', fontSize: 12, color: '#475569', cursor: 'pointer' }}
-                  >
-                    {panelCollapsed ? '▢' : '—'}
-                  </button>
-                </div>
-              {/* Bandeau compact: affiche toujours la dernière paire dans l'en-tête */}
-              <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ fontSize: 12, color: '#64748b', whiteSpace: 'nowrap' }}>
-                    {Number.isFinite(roundsPerSession) ? (
-                    <>Manche: {Math.max(0, roundsPlayed || 0)} / {roundsPerSession}</>
-                  ) : (
-                    <>Manche: {Math.max(0, roundsPlayed || 0)}</>
-                  )}
-                </div>
-                <div data-cc-vignette="last-pair" ref={mpLastPairRef} style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                    <span style={{ width: 12, height: 12, borderRadius: 999, background: lastWonPair?.color || '#e2e8f0', boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#e2e8f0')}55` : 'none', border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none' }} />
-                    <span style={{ fontSize: 12, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {lastWonPair ? (<><b style={{ color: '#1e293b' }}>{lastWonPair.winnerName}</b>: {lastWonPair.text} {lastWonPair.tie && (<span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: '#fef3c7', border: '1px solid #fbbf24', color: '#92400e' }}>Égalité</span>)}</>) : 'Dernière paire: —'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              {/* Progression de la session */}
-              {!panelCollapsed && (
-                <div style={{ marginTop: 6, fontSize: 12, color: '#64748b' }}>
-                  {Number.isFinite(roundsPerSession) ? (
-                    <span>Manche: {Math.max(0, roundsPlayed || 0)} / {roundsPerSession}</span>
-                  ) : (
-                    <span>Manche: {Math.max(0, roundsPlayed || 0)}</span>
-                  )}
-                </div>
-              )}
-            </div>
-            {/* Overlay de contexte de manche */}
-            {roundOverlay && (
-              <div style={{ position: 'fixed', inset: 0, zIndex: 4000, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                <div style={{ background: 'rgba(0,0,0,0.65)', color: '#fff', padding: '24px 32px', borderRadius: 16, fontSize: isMobile ? 28 : 42, fontWeight: 900, textAlign: 'center', boxShadow: '0 8px 40px #0006' }}>
-                  {roundOverlay.text}
-                </div>
-              </div>
-            )}
-            {!panelCollapsed && (
-            <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
-              <input value={playerName} onChange={e => setPlayerName(e.target.value)} placeholder="Pseudo" style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#1e293b', fontSize: 13 }} />
-              <input value={roomId} onChange={e => setRoomId(e.target.value)} placeholder="Code salle" style={{ padding: '8px 12px', borderRadius: 10, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#1e293b', fontSize: 13 }} />
-              {/* Durée de manche (hôte uniquement) */}
-              {isHost ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <label style={{ fontSize: 12, color: '#333', minWidth: 50 }}>Durée:</label>
-                  <select value={roomDuration} onChange={e => handleSetRoomDuration(e.target.value)} style={{ flex: 1, padding: '6px 8px', borderRadius: 10, border: '1px solid #cbd5e1', background: '#fff', color: '#333', fontSize: 12 }} >
-                    <option value={30}>30 s</option>
-                    <option value={60}>60 s</option>
-                    <option value={90}>90 s</option>
-                  </select>
-                  {/* Sélection du nombre de manches (hôte) */}
-                  <label style={{ fontSize: 12, color: '#333', minWidth: 60 }}>Manches:</label>
-                  <input
-                    type="number"
-                    title="Nombre de manches de la session"
-                    min={1}
-                    max={20}
-                    step={1}
-                    value={Number.isFinite(roundsPerSession) ? roundsPerSession : 3}
-                    onChange={(e) => handleSetRounds(e.target.value)}
-                    style={{ flex: 1, padding: '6px 8px', borderRadius: 10, border: '1px solid #cbd5e1', background: '#fff', color: '#333', fontSize: 12 }}
-                  />
-                </div>
-              ) : (
-                <div style={{ fontSize: 12, color: '#333' }}>Durée: <b style={{ color: '#333' }}>{roomDuration}</b>s</div>
-              )}
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
-                <button
-                  onClick={handleCreateRoom}
-                  style={{ flex: 1, background: '#fff', border: '1px solid #ddd', borderRadius: 10, padding: '8px 10px', color: '#333', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
-                >
-                  Créer une salle
-                </button>
-                <button onClick={handleJoinRoom} style={{ flex: 1, background: '#0D6A7A', border: '1px solid #0D6A7A', borderRadius: 10, padding: '8px 10px', fontWeight: 700, fontSize: 13, color: '#fff', cursor: 'pointer' }}>Rejoindre</button>
-                <button onClick={handleLeaveRoom} style={{ flex: 1, background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 10, padding: '8px 10px', color: '#dc2626', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Quitter</button>
-              </div>
-            </div>
-            )}
-            {!panelCollapsed && <div style={{ marginTop: 10, fontWeight: 'bold', color: '#0D6A7A', fontSize: 15 }}>Joueurs</div>}
-            {!panelCollapsed && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6, maxHeight: isMobile ? '22vh' : 220, overflowY: 'auto' }}>
-              {[...(roomPlayers.length ? roomPlayers : (scoresMP || []).map(p => ({ id: p.id, nickname: p.name, score: p.score })))]
-                .sort((a, b) => (b.score || 0) - (a.score || 0))
-                .map(p => (
-                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 12px', borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 140 }}>
-                      {p.isHost && <span title="Hôte" style={{ color: '#d97706' }}>★</span>}
-                      <span style={{ color: '#1e293b', fontWeight: 600, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }} title={p.nickname || p.name}>{p.nickname || p.name || 'Joueur'}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {typeof p.ready === 'boolean' && (
-                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: p.ready ? '#dcfce7' : '#fee2e2', border: `1px solid ${p.ready ? '#86efac' : '#fca5a5'}`, color: p.ready ? '#166534' : '#dc2626', fontWeight: 600 }}>
-                          {p.ready ? 'Prêt' : 'Pas prêt'}
-                        </span>
-                      )}
-                      <div style={{ background: '#0D6A7A', borderRadius: 10, padding: '2px 8px', boxShadow: '0 2px 6px rgba(0,0,0,0.12)' }}>
-                        <span style={{ fontWeight: 900, color: '#fff', fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>{p.score ?? 0}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-            </div>
-            )}
-            {!panelCollapsed && roomStatus === 'lobby' && (
-            <>
-              <div style={{ marginTop: 10, padding: 10, borderRadius: 10, background: '#f0fdfa', border: '1px solid #99f6e4', fontSize: 13, color: '#0D6A7A', textAlign: 'center', fontWeight: 500 }}>
-                {(() => {
-                  const allReady = roomPlayers.length >= 2 && roomPlayers.every(p => p.ready);
-                  if (roomPlayers.length < 2) return '⏳ En attente d\'autres joueurs...';
-                  if (!myReady) return '👉 Cliquez sur "Je suis prêt" !';
-                  if (!allReady) return '⏳ En attente des autres joueurs...';
-                  if (isHost) return '✅ Tous prêts ! Vous pouvez démarrer !';
-                  return '✅ Tous prêts ! L\'hôte va démarrer.';
-                })()}
-              </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                <button onClick={handleToggleReady} style={{ flex: 1, background: myReady ? '#fef3c7' : '#0D6A7A', border: '2px solid ' + (myReady ? '#f59e0b' : '#0D6A7A'), borderRadius: 10, padding: '10px', fontWeight: 700, fontSize: 14, color: myReady ? '#92400e' : '#fff', cursor: 'pointer' }}>
-                  {myReady ? '❌ Pas prêt' : '✅ Je suis prêt'}
-                </button>
-                {(() => {
-                  const allReady = roomPlayers.length >= 2 && roomPlayers.every(p => p.ready);
-                  return (
-                    <button onClick={handleStartRoom} disabled={!isHost || !allReady} title={!isHost ? 'Réservé à l\'hôte' : (allReady ? 'Lancer la partie' : 'Tous les joueurs doivent être prêts')} style={{ flex: 1, background: isHost && allReady ? '#f59e0b' : '#e2e8f0', border: '2px solid ' + (isHost && allReady ? '#f59e0b' : '#cbd5e1'), borderRadius: 10, padding: '10px', fontWeight: 700, fontSize: 14, color: isHost && allReady ? '#fff' : '#94a3b8', cursor: !isHost || !allReady ? 'not-allowed' : 'pointer', opacity: !isHost || !allReady ? 0.6 : 1 }}>
-                      🚀 Démarrer
-                    </button>
-                  );
-                })()}
-              </div>
-            </>
-            )}
-            {mpMsg && !panelCollapsed && (
-              <div style={{ marginTop: 8, fontSize: 12, color: '#64748b' }}>{mpMsg}</div>
-            )}
-            {/* Dernière paire trouvée (vignette compacte) */}
-            {!panelCollapsed && (
-              <div ref={mpLastPairRef} style={{
-                marginTop: 10,
-                padding: '10px 12px',
-                borderRadius: 12,
-                border: '1px solid #e2e8f0',
-                background: '#f8fafc',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8
-              }}>
-                <div style={{
-                  width: 14,
-                  height: 14,
-                  borderRadius: 999,
-                  flexShrink: 0,
-                  background: lastWonPair?.color || '#fff',
-                  boxShadow: lastWonPair ? `0 0 6px 2px ${(lastWonPair.color || '#fff')}55` : 'none',
-                  border: lastWonPair?.borderColor ? `2px solid ${lastWonPair.borderColor}` : 'none'
-                }} />
-
-                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {lastWonPair ? `${lastWonPair.winnerName} a trouvé:` : 'Aucune paire trouvée'}
-                  </div>
-                  {lastWonPair && (
-                    <div style={{ fontSize: 12, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lastWonPair.text}>
-                      {lastWonPair.text} {lastWonPair.tie && (
-                        <span style={{ marginLeft: 8, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: '#fef3c7', border: '1px solid #fbbf24', color: '#92400e' }}>Égalité</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            {/* Historique défilant des dernières paires */}
-            {!panelCollapsed && (
-              <div style={{
-                marginTop: 8,
-                borderTop: '1px solid #e2e8f0',
-                paddingTop: 8,
-                maxHeight: isMobile ? '16vh' : 140,
-                overflowY: 'auto',
-              }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#0D6A7A', marginBottom: 4 }}>Dernières paires</div>
-                {Array.isArray(wonPairsHistory) && wonPairsHistory.length ? (
-                  wonPairsHistory.slice(0, 12).map((e, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
-                      <span style={{ width: 8, height: 8, borderRadius: 999, background: e.color || '#e2e8f0', display: 'inline-block', flexShrink: 0 }} />
-                      <span style={{ fontSize: 12, color: '#475569', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={e.text}>
-                        <b style={{ color: '#1e293b' }}>{e.winnerName}:</b> {e.text} {e.tie && (
-                          <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: '#fef3c7', border: '1px solid #fbbf24', color: '#92400e' }}>Égalité</span>
-                        )}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <div style={{ fontSize: 12, color: '#94a3b8' }}>—</div>
-                )}
-              </div>
-            )}
+        <div style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', overflow: 'hidden' }}>
+          <style>{`
+            @keyframes lobbyFloat { 0%,100% { transform: translateY(0) scale(1); opacity: 0.15; } 50% { transform: translateY(-20px) scale(1.05); opacity: 0.3; } }
+            @keyframes lobbyPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(26,172,190,0.4); } 70% { box-shadow: 0 0 0 14px rgba(26,172,190,0); } }
+            @keyframes lobbyReadyRing { 0%,100% { box-shadow: 0 0 6px rgba(34,197,94,0.3); } 50% { box-shadow: 0 0 20px rgba(34,197,94,0.6); } }
+            @keyframes lobbySlotIn { from { opacity: 0; transform: translateY(16px) scale(0.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
+            @keyframes lobbyCountBoom { 0% { transform: scale(0.3); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+            @keyframes lobbyWait { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+          `}</style>
+          {/* Decorative background circles */}
+          <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} style={{ position: 'absolute', width: 100 + i * 50, height: 100 + i * 50, borderRadius: '50%', border: '1px solid rgba(26,172,190,0.06)', top: `${10 + (i * 18) % 75}%`, left: `${8 + (i * 22) % 85}%`, animation: `lobbyFloat ${5 + i * 1.2}s ease-in-out infinite`, animationDelay: `${i * 0.7}s` }} />
+            ))}
           </div>
-          {/* Tableau d'historique sous le panneau multijoueur */}
-          {historyExpanded && (
-            <div style={{
-              background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.08)', padding: 12, marginTop: 12,
-              maxHeight: isMobile ? '25vh' : 220, overflowY: 'auto', color: '#1e293b'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ fontWeight: 'bold', color: '#0D6A7A' }}>Historique des sessions</div>
-                <button onClick={() => setHistoryExpanded(false)} style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 16, lineHeight: 1, cursor: 'pointer', color: '#475569', padding: '2px 8px' }}>×</button>
+
+          {/* Countdown fullscreen overlay */}
+          {countdownT !== null && (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', background: 'rgba(0,0,0,0.88)' }}>
+              <div style={{ fontSize: isMobile ? 120 : 180, fontWeight: 900, color: countdownT === 0 ? '#1AACBE' : '#F5A623', animation: 'lobbyCountBoom 0.5s ease-out', textShadow: '0 0 60px rgba(255,255,255,0.2)' }}>
+                {countdownT === 0 ? 'GO!' : countdownT}
               </div>
-              {Array.isArray(sessions) && sessions.length > 0 ? (
-                <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {sessions.slice().reverse().map((s, idx) => (
-                    <div key={idx} style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 8, background: '#f8fafc' }}>
-                      <div style={{ fontSize: 12, color: '#94a3b8' }}>{new Date(s.endedAt).toLocaleString()}</div>
-                      <div style={{ fontWeight: 700, marginTop: 2, color: '#1e293b' }}>
-                        {s.winnerTitle ? `${s.winnerTitle}: ` : 'Vainqueur: '}{s.winner?.name || '—'} {typeof s.winner?.score === 'number' ? `( ${s.winner.score} )` : ''}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                        {Array.isArray(s.scores) && s.scores.length > 0 ? s.scores.map(sc => `${sc.name || 'Joueur'}: ${sc.score ?? 0}`).join(', ') : '—'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8' }}>Aucun historique pour le moment.</div>
-              )}
+              {countdownT > 0 && <div style={{ fontSize: isMobile ? 16 : 22, color: 'rgba(255,255,255,0.6)', marginTop: 16, fontWeight: 500 }}>La partie va commencer...</div>}
             </div>
           )}
+
+          {/* Main lobby card */}
+          <div style={{
+            position: 'relative', zIndex: 1,
+            background: 'rgba(255,255,255,0.04)',
+            backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+            borderRadius: 28,
+            border: '1px solid rgba(255,255,255,0.08)',
+            padding: isMobile ? '28px 20px' : '44px 52px',
+            maxWidth: 520, width: isMobile ? '94vw' : '86vw',
+            maxHeight: '94vh', overflowY: 'auto',
+            color: '#fff',
+            boxShadow: '0 30px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
+          }}>
+
+            {/* ===== STATE A: Not in a room — join/create form ===== */}
+            {(!roomId || (!roomPlayers.length && roomStatus === 'lobby')) && !roomPlayers.length && (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: isMobile ? 24 : 30, fontWeight: 900, marginBottom: 6, background: 'linear-gradient(135deg, #1AACBE, #818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                  Salle Privée
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, marginBottom: 28 }}>
+                  Créez ou rejoignez une salle pour jouer ensemble
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 340, margin: '0 auto' }}>
+                  <input value={playerName} onChange={e => setPlayerName(e.target.value)} placeholder="Votre pseudo"
+                    style={{ padding: '12px 16px', borderRadius: 14, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#fff', fontSize: 15, outline: 'none', textAlign: 'center' }} />
+                  <input value={roomId} onChange={e => setRoomId(e.target.value.toUpperCase())} placeholder="Code salle (ex: ABC123)"
+                    style={{ padding: '12px 16px', borderRadius: 14, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#fff', fontSize: 15, outline: 'none', textAlign: 'center', fontFamily: 'monospace', letterSpacing: 3 }} />
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={handleCreateRoom} disabled={isCreatingRoom}
+                      style={{ flex: 1, padding: '13px', borderRadius: 14, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: isCreatingRoom ? 'wait' : 'pointer' }}>
+                      Créer
+                    </button>
+                    <button onClick={handleJoinRoom}
+                      style={{ flex: 1, padding: '13px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg, #0D6A7A, #1AACBE)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(26,172,190,0.3)' }}>
+                      Rejoindre
+                    </button>
+                  </div>
+                </div>
+                {mpMsg && <div style={{ marginTop: 14, fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>{mpMsg}</div>}
+              </div>
+            )}
+
+            {/* ===== STATE B: In a room — waiting lobby ===== */}
+            {roomId && roomPlayers.length > 0 && (
+              <div style={{ textAlign: 'center' }}>
+                {/* Room code header */}
+                <div style={{ marginBottom: isMobile ? 20 : 28 }}>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: 4, fontWeight: 700, marginBottom: 14 }}>
+                    Salle privée
+                  </div>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '10px 22px' }}>
+                    <span style={{ fontFamily: 'monospace', fontSize: isMobile ? 24 : 30, fontWeight: 900, letterSpacing: 5, color: '#fff' }}>{roomId}</span>
+                    <button onClick={() => { try { navigator.clipboard.writeText(roomId); setMpMsg('Code copié !'); setTimeout(() => setMpMsg(''), 2000); } catch {} }}
+                      title="Copier le code"
+                      style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, padding: '6px 10px', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', fontSize: 14, lineHeight: 1 }}>
+                      📋
+                    </button>
+                  </div>
+                  {mpMsg && <div style={{ marginTop: 8, fontSize: 12, color: '#1AACBE', fontWeight: 500 }}>{mpMsg}</div>}
+                </div>
+
+                {/* Player avatars */}
+                <div style={{ display: 'flex', justifyContent: 'center', gap: isMobile ? 14 : 24, flexWrap: 'wrap', marginBottom: isMobile ? 20 : 28 }}>
+                  {roomPlayers.map((p, i) => {
+                    const _AC = [['#6366f1','#8b5cf6'],['#ec4899','#f43f5e'],['#06b6d4','#0ea5e9'],['#f59e0b','#f97316'],['#10b981','#14b8a6'],['#a855f7','#c084fc']];
+                    const [c1, c2] = _AC[i % _AC.length];
+                    const _n = (p.nickname || p.name || 'J').trim();
+                    const _parts = _n.split(/\s+/);
+                    const initials = _parts.length >= 2 ? (_parts[0][0] + _parts[1][0]).toUpperCase() : _n.substring(0, 2).toUpperCase();
+                    const isMe = p.id === socket?.id;
+                    const sz = isMobile ? 60 : 76;
+                    return (
+                      <div key={p.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, animation: `lobbySlotIn 0.4s ease-out ${i * 0.08}s both`, minWidth: 0 }}>
+                        <div style={{ position: 'relative', width: sz, height: sz }}>
+                          {p.ready && <div style={{ position: 'absolute', inset: -5, borderRadius: '50%', border: '2.5px solid #22c55e', animation: 'lobbyReadyRing 2s ease-in-out infinite' }} />}
+                          <div style={{
+                            width: '100%', height: '100%', borderRadius: '50%',
+                            background: `linear-gradient(135deg, ${c1}, ${c2})`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: isMobile ? 20 : 26, fontWeight: 900, color: '#fff',
+                            boxShadow: `0 6px 24px ${c1}33`,
+                            border: isMe ? '2.5px solid rgba(255,255,255,0.8)' : '2.5px solid transparent',
+                          }}>
+                            {initials}
+                          </div>
+                          {p.isHost && <div style={{ position: 'absolute', top: -6, right: -4, fontSize: 14, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))' }}>👑</div>}
+                        </div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: isMe ? '#fff' : 'rgba(255,255,255,0.6)', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {p.nickname || p.name || 'Joueur'}
+                        </div>
+                        <div style={{
+                          fontSize: 10, fontWeight: 600, padding: '2px 10px', borderRadius: 999,
+                          background: p.ready ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)',
+                          color: p.ready ? '#4ade80' : 'rgba(255,255,255,0.3)',
+                          border: `1px solid ${p.ready ? 'rgba(34,197,94,0.25)' : 'rgba(255,255,255,0.08)'}`,
+                        }}>
+                          {p.ready ? '✓ Prêt' : 'En attente'}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {/* Empty slots */}
+                  {roomPlayers.length < 2 && [...Array(Math.max(0, 2 - roomPlayers.length))].map((_, i) => {
+                    const sz = isMobile ? 60 : 76;
+                    return (
+                      <div key={`empty-${i}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, opacity: 0.25 }}>
+                        <div style={{ width: sz, height: sz, borderRadius: '50%', border: '2px dashed rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, color: 'rgba(255,255,255,0.2)' }}>?</div>
+                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', animation: 'lobbyWait 2s ease-in-out infinite' }}>En attente</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Status banner */}
+                <div style={{ marginBottom: 16, padding: '10px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', fontSize: 13, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>
+                  {(() => {
+                    const allReady = roomPlayers.length >= 2 && roomPlayers.every(p => p.ready);
+                    if (roomPlayers.length < 2) return '⏳ En attente d\'autres joueurs...';
+                    if (!myReady) return '👉 Appuyez sur "Je suis prêt" pour commencer';
+                    if (!allReady) return '⏳ En attente que tous soient prêts...';
+                    if (isHost) return '✅ Tous prêts ! Lancez la partie !';
+                    return '✅ Tous prêts ! L\'hôte va lancer.';
+                  })()}
+                </div>
+
+                {/* Action buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 340, margin: '0 auto' }}>
+                  <button onClick={handleToggleReady}
+                    style={{
+                      padding: '14px 24px', borderRadius: 14, border: 'none',
+                      background: myReady ? 'rgba(255,255,255,0.06)' : 'linear-gradient(135deg, #0D6A7A, #1AACBE)',
+                      color: myReady ? 'rgba(255,255,255,0.5)' : '#fff',
+                      fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                      boxShadow: myReady ? 'none' : '0 4px 20px rgba(26,172,190,0.3)',
+                      transition: 'all 0.3s',
+                      animation: !myReady ? 'lobbyPulse 2s infinite' : 'none',
+                    }}>
+                    {myReady ? '✓ Prêt — annuler' : '✅ Je suis prêt'}
+                  </button>
+                  {isHost && (() => {
+                    const allReady = roomPlayers.length >= 2 && roomPlayers.every(p => p.ready);
+                    return (
+                      <button onClick={handleStartRoom} disabled={!allReady}
+                        style={{
+                          padding: '16px 24px', borderRadius: 14, border: 'none',
+                          background: allReady ? 'linear-gradient(135deg, #f59e0b, #f97316)' : 'rgba(255,255,255,0.04)',
+                          color: allReady ? '#fff' : 'rgba(255,255,255,0.2)',
+                          fontSize: 17, fontWeight: 900, cursor: allReady ? 'pointer' : 'not-allowed',
+                          boxShadow: allReady ? '0 6px 24px rgba(245,158,11,0.35)' : 'none',
+                          transition: 'all 0.3s', textTransform: 'uppercase', letterSpacing: 1,
+                        }}>
+                        🚀 Démarrer
+                      </button>
+                    );
+                  })()}
+                </div>
+
+                {/* Quit link */}
+                <button onClick={handleLeaveRoom}
+                  style={{ marginTop: 24, background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', fontSize: 12, cursor: 'pointer' }}
+                  onMouseEnter={e => e.target.style.color = 'rgba(255,255,255,0.5)'}
+                  onMouseLeave={e => e.target.style.color = 'rgba(255,255,255,0.25)'}>
+                  Quitter la salle
+                </button>
+              </div>
+            )}
+
+          </div>
         </div>
       )}
       {/* Overlay gagnant plein écran */}
