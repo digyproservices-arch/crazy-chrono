@@ -2537,8 +2537,8 @@ function emitRoomState(roomCode) {
 function startRound(roomCode) {
   const room = getRoom(roomCode);
   if (!room.sessionActive) return;
-  // Garde-fou: ne pas démarrer au-delà de la limite configurée
-  if (Number.isFinite(room.roundsPerSession) && (room.roundsPlayed || 0) >= room.roundsPerSession) {
+  // Garde-fou: ne pas démarrer au-delà de la limite configurée (sauf départage)
+  if (Number.isFinite(room.roundsPerSession) && (room.roundsPlayed || 0) >= room.roundsPerSession && !room._isTiebreaker) {
     console.warn(`[MP] startRound prevented: limit reached rp=${room.roundsPlayed}/${room.roundsPerSession} room=${roomCode}`);
     endSession(roomCode);
     return;
@@ -2714,14 +2714,67 @@ function endSession(roomCode) {
     const sc = pl.score || 0;
     if (sc > best) { best = sc; winner = { id, name: pl.name, score: sc }; }
   }
+
+  // ✅ Détection d'égalité — départage automatique en salle privée
+  if (entries.length >= 2 && !room._isTiebreaker) {
+    const topScore = best;
+    const tiedPlayers = entries.filter(([, pl]) => (pl.score || 0) === topScore);
+    if (tiedPlayers.length > 1 && topScore >= 0) {
+      console.log(`[MP] ⚖️ ÉGALITÉ détectée room=${roomCode}: ${tiedPlayers.length} joueurs à ${topScore} pts — lancement départage`);
+      room._isTiebreaker = true;
+      room.sessionActive = true;
+      room.status = 'playing';
+      // Informer les joueurs qu'un départage démarre
+      io.to(roomCode).emit('session:tiebreaker', {
+        message: 'Égalité ! Manche de départage — 30 secondes',
+        tiedPlayers: tiedPlayers.map(([id, pl]) => ({ id, name: pl.name, score: pl.score || 0 })),
+        duration: 30
+      });
+      // Petite pause avant le round de départage
+      const origDuration = room.duration;
+      room.duration = 30; // manche courte
+      setTimeout(() => {
+        const r = getRoom(roomCode);
+        if (!r || !r.sessionActive) return;
+        startRound(roomCode);
+        // Restaurer la durée originale après lancement
+        r.duration = origDuration;
+      }, 3000);
+      return;
+    }
+  }
+
+  // Si départage terminé, départager par erreurs si toujours égalité
+  if (room._isTiebreaker) {
+    const topScore = best;
+    const tiedPlayers = entries.filter(([, pl]) => (pl.score || 0) === topScore);
+    if (tiedPlayers.length > 1) {
+      // Départage par nombre d'erreurs (moins d'erreurs = gagnant)
+      tiedPlayers.sort((a, b) => (a[1].errors || 0) - (b[1].errors || 0));
+      const fewestErrors = tiedPlayers[0][1].errors || 0;
+      const stillTied = tiedPlayers.filter(([, pl]) => (pl.errors || 0) === fewestErrors);
+      if (stillTied.length === 1) {
+        winner = { id: stillTied[0][0], name: stillTied[0][1].name, score: stillTied[0][1].score || 0 };
+        console.log(`[MP] ⚖️ Départage par erreurs: ${winner.name} gagne (${fewestErrors} erreurs)`);
+      } else {
+        // Victoire partagée
+        const names = stillTied.map(([, pl]) => pl.name).join(' & ');
+        winner = { id: stillTied[0][0], name: names, score: topScore, shared: true };
+        console.log(`[MP] ⚖️ Égalité parfaite: victoire partagée ${names}`);
+      }
+    }
+    room._isTiebreaker = false;
+  }
+
   const sessionDurationSec = room.sessionStartedAt ? Math.round((Date.now() - room.sessionStartedAt) / 1000) : (room.duration || 60);
   const summary = {
     endedAt: Date.now(),
     roomCode,
     winner: winner || null,
-    winnerTitle: winner ? 'Crazy Winner' : null,
+    winnerTitle: winner ? (winner.shared ? 'Victoire partagée' : 'Crazy Winner') : null,
     scores: entries.map(([id, pl]) => ({ id, name: pl.name, score: pl.score || 0, errors: pl.errors || 0 })),
-    duration: sessionDurationSec
+    duration: sessionDurationSec,
+    wasTiebreaker: !!room._isTiebreaker
   };
   try { room.sessions.push(summary); } catch {}
   room.sessionActive = false;

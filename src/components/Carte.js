@@ -2659,6 +2659,14 @@ const Carte = () => {
       try { playWrongSound?.(); } catch {}
     });
 
+    // Départage en salle privée
+    s.on('session:tiebreaker', (data) => {
+      console.log('[CC] session:tiebreaker received', data);
+      setIsTiebreaker(true);
+      setMpMsg(data.message || 'Égalité ! Manche de départage…');
+      try { setRoundOverlay({ text: '⚖️ Départage !', until: Date.now() + 2500 }); setTimeout(() => setRoundOverlay(null), 2500); } catch {}
+    });
+
     // Fin de session
     s.on('session:end', (summary) => {
       console.log('[CC] session:end received', summary);
@@ -2677,6 +2685,7 @@ const Carte = () => {
       try { setGameActive(false); } catch {}
       try { setGameSelectedIds([]); } catch {}
       try { setCurrentTargetPairKey(null); } catch {}
+      try { setIsTiebreaker(false); } catch {}
       try { exitGameFullscreen(); } catch {}
 
       // Confetti + son pour célébrer
@@ -3989,33 +3998,55 @@ function handleGameClick(zone) {
 }
 
 // --- SYSTÈME D'AIDE: Handlers ---
+// Pénalités score (mode classique countdown)
+const HINT_SCORE_PENALTY = 1;
+const ANSWER_SCORE_PENALTY = 2;
+
 function handleHintClick() {
   if (!gameActive || !helpEnabled || helpLevel >= 1) return;
+  // Désactiver l'aide en multijoueur salle privée (>1 joueur)
+  const mpPlayers = Array.isArray(roomPlayersRef.current) ? roomPlayersRef.current : [];
+  if (mpPlayers.length > 1) return;
   const hint = generateHint(zones);
   if (!hint) return;
   setHelpLevel(1);
   setHelpBubble(hint);
-  setHelpPenalty(p => p + HINT_PENALTY);
+  if (objectiveModeRef.current) {
+    // Mode objectif: pénalité temps
+    setHelpPenalty(p => p + HINT_PENALTY);
+  } else {
+    // Mode classique: pénalité score (-1 pt)
+    setScore(s => Math.max(0, s - HINT_SCORE_PENALTY));
+  }
   helpStatsRef.current.hintsUsed += 1;
-  helpStatsRef.current.totalPenalty += HINT_PENALTY;
-  try { window.ccAddDiag && window.ccAddDiag('help:hint', { text: hint.text, kind: hint.kind, penalty: HINT_PENALTY }); } catch {}
+  helpStatsRef.current.totalPenalty += objectiveModeRef.current ? HINT_PENALTY : HINT_SCORE_PENALTY;
+  try { window.ccAddDiag && window.ccAddDiag('help:hint', { text: hint.text, kind: hint.kind, penalty: objectiveModeRef.current ? HINT_PENALTY : HINT_SCORE_PENALTY, mode: objectiveModeRef.current ? 'time' : 'score' }); } catch {}
   // Auto-masquer après 6s
   setTimeout(() => { setHelpBubble(prev => prev && prev.icon === '💡' ? null : prev); }, 6000);
 }
 
 function handleAnswerClick() {
   if (!gameActive || !helpEnabled || helpLevel < 1 || helpLevel >= 2) return;
+  // Désactiver l'aide en multijoueur salle privée (>1 joueur)
+  const mpPlayers = Array.isArray(roomPlayersRef.current) ? roomPlayersRef.current : [];
+  if (mpPlayers.length > 1) return;
   const answer = generateAnswer(zones);
   if (!answer) return;
   setHelpLevel(2);
   setHelpBubble(answer);
-  setHelpPenalty(p => p + ANSWER_PENALTY);
+  if (objectiveModeRef.current) {
+    // Mode objectif: pénalité temps
+    setHelpPenalty(p => p + ANSWER_PENALTY);
+  } else {
+    // Mode classique: pénalité score (-2 pts)
+    setScore(s => Math.max(0, s - ANSWER_SCORE_PENALTY));
+  }
   helpStatsRef.current.answersUsed += 1;
-  helpStatsRef.current.totalPenalty += ANSWER_PENALTY;
+  helpStatsRef.current.totalPenalty += objectiveModeRef.current ? ANSWER_PENALTY : ANSWER_SCORE_PENALTY;
   if (answer.zoneAId && answer.zoneBId) {
     setHighlightedZoneIds([answer.zoneAId, answer.zoneBId]);
   }
-  try { window.ccAddDiag && window.ccAddDiag('help:answer', { text: answer.text, kind: answer.kind, penalty: ANSWER_PENALTY, zoneA: answer.zoneAId, zoneB: answer.zoneBId }); } catch {}
+  try { window.ccAddDiag && window.ccAddDiag('help:answer', { text: answer.text, kind: answer.kind, penalty: objectiveModeRef.current ? ANSWER_PENALTY : ANSWER_SCORE_PENALTY, mode: objectiveModeRef.current ? 'time' : 'score', zoneA: answer.zoneAId, zoneB: answer.zoneBId }); } catch {}
   // Auto-masquer après 10s
   setTimeout(() => { setHelpBubble(prev => prev && prev.icon === '🎯' ? null : prev); setHighlightedZoneIds([]); }, 10000);
 }
@@ -7509,11 +7540,11 @@ setZones(dataWithRandomTexts);
               <div style={{ display: 'flex', gap: 4 }}>
                 <button onClick={handleHintClick} disabled={helpLevel >= 1}
                   style={{ padding: '4px 8px', borderRadius: 8, border: 'none', background: helpLevel >= 1 ? '#94a3b8' : '#f59e0b', color: '#fff', fontSize: 11, fontWeight: 700, cursor: helpLevel >= 1 ? 'default' : 'pointer', opacity: helpLevel >= 1 ? 0.5 : 1 }}>
-                  💡 +{HINT_PENALTY}s
+                  💡 {objectiveMode ? `+${HINT_PENALTY}s` : `-${HINT_SCORE_PENALTY} pt`}
                 </button>
                 <button onClick={handleAnswerClick} disabled={helpLevel < 1 || helpLevel >= 2}
                   style={{ padding: '4px 8px', borderRadius: 8, border: 'none', background: helpLevel < 1 || helpLevel >= 2 ? '#94a3b8' : '#ef4444', color: '#fff', fontSize: 11, fontWeight: 700, cursor: (helpLevel < 1 || helpLevel >= 2) ? 'default' : 'pointer', opacity: (helpLevel < 1 || helpLevel >= 2) ? 0.5 : 1 }}>
-                  🎯 +{ANSWER_PENALTY}s
+                  🎯 {objectiveMode ? `+${ANSWER_PENALTY}s` : `-${ANSWER_SCORE_PENALTY} pts`}
                 </button>
               </div>
             )}
@@ -7710,16 +7741,16 @@ setZones(dataWithRandomTexts);
               </div>
             )}
             {/* Boutons d'aide — masqués en Arena et Training (compétition) */}
-            {helpEnabled && gameActive && !arenaMatchId && !trainingMatchId && (
+            {helpEnabled && gameActive && !arenaMatchId && !trainingMatchId && !(Array.isArray(roomPlayersRef.current) && roomPlayersRef.current.length > 1) && (
               <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', gap: 8, alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: '#cbd5e1', fontWeight: 600, marginRight: 4 }}>Aide:</span>
                 <button onClick={handleHintClick} disabled={helpLevel >= 1}
                   style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: 'none', background: helpLevel >= 1 ? '#475569' : '#f59e0b', color: '#fff', fontSize: 12, fontWeight: 700, cursor: helpLevel >= 1 ? 'default' : 'pointer', opacity: helpLevel >= 1 ? 0.5 : 1, transition: 'all 0.2s' }}>
-                  💡 Indice (+{HINT_PENALTY}s)
+                  💡 Indice ({objectiveMode ? `+${HINT_PENALTY}s` : `-${HINT_SCORE_PENALTY} pt`})
                 </button>
                 <button onClick={handleAnswerClick} disabled={helpLevel < 1 || helpLevel >= 2}
                   style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: 'none', background: (helpLevel < 1 || helpLevel >= 2) ? '#475569' : '#ef4444', color: '#fff', fontSize: 12, fontWeight: 700, cursor: (helpLevel < 1 || helpLevel >= 2) ? 'default' : 'pointer', opacity: (helpLevel < 1 || helpLevel >= 2) ? 0.5 : 1, transition: 'all 0.2s' }}>
-                  🎯 Réponse (+{ANSWER_PENALTY}s)
+                  🎯 Réponse ({objectiveMode ? `+${ANSWER_PENALTY}s` : `-${ANSWER_SCORE_PENALTY} pts`})
                 </button>
               </div>
             )}
