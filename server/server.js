@@ -2715,31 +2715,26 @@ function endSession(roomCode) {
     if (sc > best) { best = sc; winner = { id, name: pl.name, score: sc }; }
   }
 
-  // ✅ Détection d'égalité — départage automatique en salle privée
+  // ✅ Détection d'égalité — départage en salle privée (modèle Training)
   if (entries.length >= 2 && !room._isTiebreaker) {
     const topScore = best;
     const tiedPlayers = entries.filter(([, pl]) => (pl.score || 0) === topScore);
     if (tiedPlayers.length > 1 && topScore >= 0) {
-      console.log(`[MP] ⚖️ ÉGALITÉ détectée room=${roomCode}: ${tiedPlayers.length} joueurs à ${topScore} pts — lancement départage`);
-      room._isTiebreaker = true;
-      room.sessionActive = true;
-      room.status = 'playing';
-      // Informer les joueurs qu'un départage démarre
+      console.log(`[MP] ⚖️ ÉGALITÉ détectée room=${roomCode}: ${tiedPlayers.length} joueurs à ${topScore} pts — attente départage`);
+      // Passer en mode attente de départage (comme Training)
+      room.status = 'tie-waiting';
+      room.sessionActive = false;
+      room._tiedPlayers = tiedPlayers.map(([id, pl]) => ({ id, name: pl.name, score: pl.score || 0 }));
+      room._playersReadyForTiebreaker = new Set();
+      if (room.roundTimer) { try { clearTimeout(room.roundTimer); } catch {} room.roundTimer = null; }
+      // Informer les joueurs de l'égalité
       io.to(roomCode).emit('session:tiebreaker', {
-        message: 'Égalité ! Manche de départage — 30 secondes',
-        tiedPlayers: tiedPlayers.map(([id, pl]) => ({ id, name: pl.name, score: pl.score || 0 })),
-        duration: 30
+        message: 'Égalité ! Cliquez sur « Je suis prêt » pour le départage.',
+        tiedPlayers: room._tiedPlayers,
+        readyCount: 0,
+        totalCount: tiedPlayers.length
       });
-      // Petite pause avant le round de départage
-      const origDuration = room.duration;
-      room.duration = 30; // manche courte
-      setTimeout(() => {
-        const r = getRoom(roomCode);
-        if (!r || !r.sessionActive) return;
-        startRound(roomCode);
-        // Restaurer la durée originale après lancement
-        r.duration = origDuration;
-      }, 3000);
+      emitRoomState(roomCode);
       return;
     }
   }
@@ -3351,7 +3346,55 @@ io.on('connection', (socket) => {
     if (typeof cb === 'function') cb({ ok: true, sessions: list });
   });
 
-  // (removed duplicate room:setRounds handler)
+  // ===== DÉPARTAGE SALLE PRIVÉE =====
+
+  // Joueur prêt pour le départage
+  socket.on('session:player-ready-tiebreaker', (cb) => {
+    if (!currentRoom) return;
+    const room = getRoom(currentRoom);
+    if (room.status !== 'tie-waiting') return;
+    if (!room._playersReadyForTiebreaker) room._playersReadyForTiebreaker = new Set();
+    room._playersReadyForTiebreaker.add(socket.id);
+    const readyCount = room._playersReadyForTiebreaker.size;
+    const totalCount = (room._tiedPlayers || []).length;
+    console.log(`[MP] ⚖️ Joueur prêt pour départage room=${currentRoom} (${readyCount}/${totalCount})`);
+    io.to(currentRoom).emit('session:tiebreaker-ready-update', {
+      readyCount,
+      totalCount,
+      readyPlayers: Array.from(room._playersReadyForTiebreaker)
+    });
+    if (typeof cb === 'function') cb({ ok: true, readyCount, totalCount });
+  });
+
+  // Hôte lance le départage
+  socket.on('session:start-tiebreaker', () => {
+    if (!currentRoom) return;
+    const room = getRoom(currentRoom);
+    if (room.status !== 'tie-waiting') return;
+    // Vérifier que c'est l'hôte
+    if (socket.id !== room.hostId) {
+      console.warn(`[MP] ⚖️ start-tiebreaker rejeté: ${socket.id} n'est pas l'hôte (${room.hostId})`);
+      return;
+    }
+    console.log(`[MP] ⚖️ Hôte lance le départage room=${currentRoom}`);
+    room._isTiebreaker = true;
+    room.sessionActive = true;
+    room.status = 'playing';
+    // Countdown 3-2-1
+    let count = 3;
+    const countdownInterval = setInterval(() => {
+      io.to(currentRoom).emit('session:tiebreaker-countdown', { count });
+      count--;
+      if (count < 0) {
+        clearInterval(countdownInterval);
+        // Lancer le round de départage (30s)
+        const origDuration = room.duration;
+        room.duration = 30;
+        startRound(currentRoom);
+        room.duration = origDuration;
+      }
+    }, 1000);
+  });
 
   // ===== TRAINING MODE EVENTS (Mode Entraînement) =====
   

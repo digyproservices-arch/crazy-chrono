@@ -2659,12 +2659,96 @@ const Carte = () => {
       try { playWrongSound?.(); } catch {}
     });
 
-    // Départage en salle privée
+    // Départage en salle privée (modèle Training)
     s.on('session:tiebreaker', (data) => {
       console.log('[CC] session:tiebreaker received', data);
       setIsTiebreaker(true);
-      setMpMsg(data.message || 'Égalité ! Manche de départage…');
-      try { setRoundOverlay({ text: '⚖️ Départage !', until: Date.now() + 2500 }); setTimeout(() => setRoundOverlay(null), 2500); } catch {}
+      setGameActive(false);
+      setMpMsg(data.message || 'Égalité ! Départage…');
+      // Créer overlay DOM (comme Training)
+      try { const old = document.getElementById('mp-tie-overlay'); if (old) old.remove(); } catch {}
+      const overlay = document.createElement('div');
+      overlay.id = 'mp-tie-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);display:flex;align-items:center;justify-content:center;';
+      const container = document.createElement('div');
+      container.style.cssText = 'text-align:center;color:white;max-width:500px;padding:40px;';
+      // Titre
+      const title = document.createElement('h1');
+      title.textContent = '⚖️ Égalité !';
+      title.style.cssText = 'font-size:48px;margin-bottom:10px;text-shadow:0 2px 10px rgba(0,0,0,0.3);';
+      // Joueurs à égalité
+      const info = document.createElement('p');
+      const names = (data.tiedPlayers || []).map(p => p.name).join(' vs ');
+      info.textContent = `${names} — ${(data.tiedPlayers || [])[0]?.score ?? 0} pts chacun`;
+      info.style.cssText = 'font-size:20px;color:#fbbf24;margin-bottom:30px;';
+      // Bouton "Je suis prêt"
+      const readyBtn = document.createElement('button');
+      readyBtn.id = 'mp-tie-ready-btn';
+      readyBtn.textContent = '✋ JE SUIS PRÊT';
+      readyBtn.style.cssText = 'padding:16px 40px;font-size:20px;font-weight:700;background:#fff;color:#f59e0b;border:3px solid #fbbf24;border-radius:12px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:all 0.3s;';
+      readyBtn.onclick = () => {
+        console.log('[CC] ✋ Clic Je suis prêt');
+        s.emit('session:player-ready-tiebreaker', (ack) => {
+          console.log('[CC] ack ready-tiebreaker', ack);
+        });
+        readyBtn.disabled = true;
+        readyBtn.style.opacity = '0.5';
+        readyBtn.style.cursor = 'not-allowed';
+        readyBtn.textContent = '✅ PRÊT !';
+      };
+      // Status texte
+      const statusEl = document.createElement('p');
+      statusEl.id = 'mp-tie-status';
+      statusEl.textContent = 'En attente des joueurs...';
+      statusEl.style.cssText = 'margin-top:20px;font-size:16px;color:#94a3b8;min-height:24px;';
+      // Bouton lancer (hôte seulement, caché initialement)
+      const startBtn = document.createElement('button');
+      startBtn.id = 'mp-tie-start-btn';
+      startBtn.textContent = '🚀 Lancer le départage';
+      startBtn.style.cssText = 'display:none;margin-top:16px;padding:14px 36px;font-size:18px;font-weight:700;background:#22c55e;color:#fff;border:none;border-radius:12px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);';
+      startBtn.onclick = () => {
+        console.log('[CC] 🚀 Hôte lance le départage');
+        s.emit('session:start-tiebreaker');
+        startBtn.disabled = true;
+        startBtn.style.opacity = '0.5';
+        startBtn.textContent = '⏳ Lancement...';
+      };
+      container.appendChild(title);
+      container.appendChild(info);
+      container.appendChild(readyBtn);
+      container.appendChild(statusEl);
+      container.appendChild(startBtn);
+      overlay.appendChild(container);
+      document.body.appendChild(overlay);
+    });
+
+    // Mise à jour du nombre de joueurs prêts pour le départage
+    s.on('session:tiebreaker-ready-update', ({ readyCount, totalCount }) => {
+      console.log('[CC] tiebreaker-ready-update', readyCount, '/', totalCount);
+      try {
+        const statusEl = document.getElementById('mp-tie-status');
+        if (statusEl) statusEl.textContent = `${readyCount}/${totalCount} joueurs prêts`;
+        // Afficher le bouton lancer pour l'hôte quand tous sont prêts
+        if (readyCount >= totalCount) {
+          const startBtn = document.getElementById('mp-tie-start-btn');
+          if (startBtn) startBtn.style.display = 'inline-block';
+        }
+      } catch {}
+    });
+
+    // Countdown 3-2-1 avant départage
+    s.on('session:tiebreaker-countdown', ({ count }) => {
+      console.log('[CC] tiebreaker-countdown', count);
+      try {
+        const statusEl = document.getElementById('mp-tie-status');
+        if (statusEl) statusEl.textContent = count > 0 ? `Départage dans ${count}...` : 'GO !';
+        if (count <= 0) {
+          // Supprimer l'overlay — round:new va arriver
+          setTimeout(() => {
+            try { const ov = document.getElementById('mp-tie-overlay'); if (ov) ov.remove(); } catch {}
+          }, 800);
+        }
+      } catch {}
     });
 
     // Fin de session
@@ -2686,6 +2770,7 @@ const Carte = () => {
       try { setGameSelectedIds([]); } catch {}
       try { setCurrentTargetPairKey(null); } catch {}
       try { setIsTiebreaker(false); } catch {}
+      try { const ov = document.getElementById('mp-tie-overlay'); if (ov) ov.remove(); } catch {}
       try { exitGameFullscreen(); } catch {}
 
       // Confetti + son pour célébrer
