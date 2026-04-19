@@ -2521,7 +2521,11 @@ function emitRoomState(roomCode) {
     duration: room.duration || 60,
     players: Array.from(room.players.entries()).map(([id, p]) => ({ id, nickname: p.name, score: p.score || 0, ready: !!p.ready, isHost: id === room.hostId })),
     roundsPerSession: room.roundsPerSession,
-    roundsPlayed: room.roundsPlayed
+    roundsPlayed: room.roundsPlayed,
+    selectedLevel: room.selectedLevel || null,
+    selectedThemes: room.selectedThemes || [],
+    selectedClasses: room.selectedClasses || [],
+    selectedExtras: room.selectedExtras || []
   };
   console.log(`[MP] emitRoomState room=${roomCode} status=${payload.status} duration=${payload.duration} rps=${isFinite(payload.roundsPerSession)?payload.roundsPerSession:'∞'} rp=${payload.roundsPlayed}`);
   io.to(roomCode).emit('room:state', payload);
@@ -2967,6 +2971,9 @@ io.on('connection', (socket) => {
     console.log(`[MP] Themes:`, room.selectedThemes);
     console.log(`[MP] Classes:`, room.selectedClasses);
     console.log(`[MP] Extras:`, room.selectedExtras);
+    
+    // Broadcast updated config to all players in the room
+    emitRoomState(currentRoom);
   });
 
   // ====== DÉSYNC MONITORING ======

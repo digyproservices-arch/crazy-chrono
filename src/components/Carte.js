@@ -2460,7 +2460,6 @@ const Carte = () => {
             const me = data.players.find(p => p.id === s.id);
             setIsHost(!!me?.isHost);
             setMyReady(!!me?.ready);
-            // Garder la liste des scores à part pour l'affichage compact
             const scoreList = data.players.map(p => ({ id: p.id, name: p.nickname ?? p.name, score: p.score || 0 }));
             setScoresMP(scoreList);
             scoresRef.current = scoreList;
@@ -2468,13 +2467,12 @@ const Carte = () => {
           if (Number.isFinite(data.roundsPerSession)) setRoundsPerSession(data.roundsPerSession);
           if (Number.isFinite(data.roundsPlayed)) setRoundsPlayed(data.roundsPlayed);
           if (typeof data.msg === 'string') setMpMsg(data.msg);
+          // Store pedagogical config from server so all players can see it
+          if (data.selectedLevel || (Array.isArray(data.selectedThemes) && data.selectedThemes.length) || (Array.isArray(data.selectedClasses) && data.selectedClasses.length)) {
+            setRoomConfig({ selectedLevel: data.selectedLevel, themes: data.selectedThemes, classes: data.selectedClasses, extras: data.selectedExtras, duration: data.duration, roundsPerSession: data.roundsPerSession });
+          }
         }
       } catch {}
-    });
-
-    // Début de manche (compte à rebours visuel)
-    s.on('room:countdown', ({ t }) => {
-      setCountdownT(typeof t === 'number' ? t : null);
     });
 
     // Mise à jour de scores en flux
@@ -2482,7 +2480,6 @@ const Carte = () => {
       const list = Array.isArray(scores) ? scores : [];
       setScoresMP(list);
       scoresRef.current = list;
-      // Refléter les scores sur la liste joueurs
       setRoomPlayers(prev => {
         if (!Array.isArray(prev) || !prev.length) return prev;
         const scoreMap = new Map(list.map(p => [p.id, p.score || 0]));
@@ -4124,6 +4121,7 @@ const handleEditGreenZone = (zone) => {
   const [hoveredZoneId, setHoveredZoneId] = useState(null);
   // --- Multiplayer state ---
   const [roomStatus, setRoomStatus] = useState('lobby');
+  const [roomConfig, setRoomConfig] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [isTiebreaker, setIsTiebreaker] = useState(false);
   const [countdown, setCountdown] = useState(null);
@@ -8773,15 +8771,16 @@ setZones(dataWithRandomTexts);
                   {mpMsg && <div style={{ marginTop: 8, fontSize: 12, color: '#1AACBE', fontWeight: 500 }}>{mpMsg}</div>}
                 </div>
 
-                {/* Config summary badge */}
+                {/* Config summary badge — uses server roomConfig (visible to all), fallback to localStorage for host */}
                 {(() => {
                   try {
-                    const _lCfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
-                    if (!_lCfg) return null;
-                    const _lvl = _lCfg.selectedLevel || (_lCfg.classes?.length ? _lCfg.classes[_lCfg.classes.length - 1] : null);
-                    const _thCount = Array.isArray(_lCfg.themes) ? _lCfg.themes.length : 0;
-                    const _dur = parseInt(_lCfg.duration, 10);
-                    const _rds = parseInt(_lCfg.rounds, 10);
+                    const _rc = roomConfig;
+                    const _lCfg = (() => { try { return JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch { return null; } })();
+                    const _lvl = _rc?.selectedLevel || _lCfg?.selectedLevel || (_lCfg?.classes?.length ? _lCfg.classes[_lCfg.classes.length - 1] : null);
+                    const _themes = _rc?.themes || (_lCfg?.themes || []);
+                    const _thCount = Array.isArray(_themes) ? _themes.length : 0;
+                    const _dur = _rc?.duration || parseInt(_lCfg?.duration, 10);
+                    const _rds = _rc?.roundsPerSession || parseInt(_lCfg?.rounds, 10);
                     const parts = [];
                     if (_lvl) parts.push(_lvl);
                     if (_thCount > 0) parts.push(_thCount + ' th\u00e8me' + (_thCount > 1 ? 's' : ''));
