@@ -4292,6 +4292,18 @@ const handleEditGreenZone = (zone) => {
   });
   const [soloGlobalBest, setSoloGlobalBest] = useState({ bestScore: 0, bestPPM: 0 });
   const [soloRecordComparable, setSoloRecordComparable] = useState(true);
+  const [recordBeatFlash, setRecordBeatFlash] = useState(false);
+  const recordBeatTriggeredRef = useRef(false);
+
+  // Détection live: le joueur vient de battre son record personnel
+  useEffect(() => {
+    if (score > 0 && soloPersonalBest.bestScore > 0 && score > soloPersonalBest.bestScore && !recordBeatTriggeredRef.current) {
+      recordBeatTriggeredRef.current = true;
+      setRecordBeatFlash(true);
+      setTimeout(() => setRecordBeatFlash(false), 4000);
+    }
+    if (score === 0) recordBeatTriggeredRef.current = false;
+  }, [score, soloPersonalBest.bestScore]);
 
   // Fetch global + personal records on mount (all modes, not just solo)
   // Passe la config de session courante pour filtrage comparable
@@ -7849,7 +7861,17 @@ setZones(dataWithRandomTexts);
             </div>
             {/* Mon record personnel — masqué en Arena */}
             {!arenaMatchId && (
-            <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', overflow: 'hidden' }}>
+              {/* Animation flamme quand record battu en live */}
+              {recordBeatFlash && (
+                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2, background: 'linear-gradient(180deg, rgba(251,191,36,0.25) 0%, rgba(239,68,68,0.15) 50%, transparent 100%)', animation: 'ccRecordFlash 4s ease-out forwards', borderRadius: 12 }}>
+                  <div style={{ position: 'absolute', top: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 14, fontWeight: 900, color: '#fbbf24', textShadow: '0 0 8px rgba(251,191,36,0.8)', whiteSpace: 'nowrap', animation: 'ccRecordText 4s ease-out forwards' }}>🔥 Nouveau record ! 🔥</div>
+                </div>
+              )}
+              <style>{`
+                @keyframes ccRecordFlash { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
+                @keyframes ccRecordText { 0% { opacity: 0; transform: translateX(-50%) scale(0.5); } 15% { opacity: 1; transform: translateX(-50%) scale(1.15); } 25% { transform: translateX(-50%) scale(1); } 70% { opacity: 1; } 100% { opacity: 0; } }
+              `}</style>
               <div>
                 <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#fbbf24' }}>🏅 Mon record</h3>
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -7867,8 +7889,12 @@ setZones(dataWithRandomTexts);
                   </div>
                 </div>
               </div>
-              {/* Record à battre (global) — masqué si aucun record comparable */}
-              {soloRecordComparable && soloGlobalBest.bestScore > 0 ? (
+              {/* Record à battre (global) — ou message si le joueur détient le record */}
+              {soloPersonalBest.bestScore > 0 && soloRecordComparable && soloPersonalBest.bestScore >= soloGlobalBest.bestScore ? (
+                <div style={{ padding: '10px 0', textAlign: 'center' }}>
+                  <div style={{ fontSize: 15, fontWeight: 900, color: '#fbbf24', textShadow: '0 0 6px rgba(251,191,36,0.4)' }}>🏆 Vous détenez le record !</div>
+                </div>
+              ) : soloRecordComparable && soloGlobalBest.bestScore > 0 ? (
                 <div>
                   <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#f87171' }}>🔥 Record à battre</h3>
                   <div style={{ display: 'flex', gap: 6 }}>
