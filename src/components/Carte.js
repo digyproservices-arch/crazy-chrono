@@ -4352,6 +4352,7 @@ const handleEditGreenZone = (zone) => {
 
   // Affichage colonne latérale de jeu (même sans plein écran)
   const hasSidebar = fullScreen || roomStatus === 'playing' || gameActive;
+  const sbc = isMobile && !isPortrait; // sidebar-compact flag for mobile landscape
   useEffect(() => {
     if (hasSidebar) {
       try { document.body.classList.add('cc-game'); document.body.style.overflow = 'hidden'; } catch {}
@@ -7734,7 +7735,7 @@ setZones(dataWithRandomTexts);
             </div>
             {/* Mon record personnel — masqué en Arena */}
             {!arenaMatchId && (
-            <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: '12px 14px', border: recordBeatFlash ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative', overflow: 'hidden', transition: 'border 0.3s' }}>
+            <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: sbc ? '6px 8px' : '12px 14px', border: recordBeatFlash ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: sbc ? 4 : 10, position: 'relative', overflow: 'hidden', transition: 'border 0.3s' }}>
               <style>{`
                 @keyframes ccFirePulse { 0%, 100% { text-shadow: 0 0 10px #fbbf24, 0 0 20px #f97316, 0 0 40px #ef4444; } 50% { text-shadow: 0 0 20px #fbbf24, 0 0 40px #f97316, 0 0 80px #ef4444, 0 0 100px #fbbf24; } }
                 @keyframes ccFireBg { 0% { opacity: 0; } 8% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
@@ -7759,17 +7760,17 @@ setZones(dataWithRandomTexts);
               ) : null}
               {/* === CONTENU NORMAL (masqué pendant le flash) === */}
               <div style={{ opacity: recordBeatFlash ? 0 : 1, transition: 'opacity 0.3s' }}>
-                <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#fbbf24' }}>🏅 Mon record</h3>
+                <h3 style={{ margin: sbc ? '0 0 2px' : '0 0 6px', fontSize: sbc ? 11 : 13, fontWeight: 700, color: '#fbbf24' }}>🏅 Mon record</h3>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: sbc ? '2px 6px' : '6px 8px', textAlign: 'center' }}>
                     <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires</div>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: score > (soloPersonalBest.bestScore || 0) ? '#22c55e' : '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                    <div style={{ fontSize: sbc ? 14 : 20, fontWeight: 900, color: score > (soloPersonalBest.bestScore || 0) ? '#22c55e' : '#fff', fontVariantNumeric: 'tabular-nums' }}>
                       {soloPersonalBest.bestScore || '—'}
                     </div>
                   </div>
-                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                  <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: sbc ? '2px 6px' : '6px 8px', textAlign: 'center' }}>
                     <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires/min</div>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+                    <div style={{ fontSize: sbc ? 14 : 20, fontWeight: 900, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
                       {soloPersonalBest.bestPPM || '—'}
                     </div>
                   </div>
@@ -7778,29 +7779,29 @@ setZones(dataWithRandomTexts);
               {/* Record à battre (global) — ou message si le joueur détient le record */}
               {!recordBeatFlash && (
                 soloPersonalBest.bestScore > 0 && soloRecordComparable && soloPersonalBest.bestScore >= soloGlobalBest.bestScore ? (
-                  <div style={{ padding: '10px 0', textAlign: 'center' }}>
-                    <div style={{ fontSize: 15, fontWeight: 900, color: '#fbbf24', textShadow: '0 0 6px rgba(251,191,36,0.4)' }}>🏆 Vous détenez le record !</div>
+                  <div style={{ padding: sbc ? '4px 0' : '10px 0', textAlign: 'center' }}>
+                    <div style={{ fontSize: sbc ? 12 : 15, fontWeight: 900, color: '#fbbf24', textShadow: '0 0 6px rgba(251,191,36,0.4)' }}>🏆 Vous détenez le record !</div>
                   </div>
                 ) : soloRecordComparable && soloGlobalBest.bestScore > 0 ? (
                   <div>
-                    <h3 style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#f87171' }}>🔥 Record à battre</h3>
+                    <h3 style={{ margin: sbc ? '0 0 2px' : '0 0 6px', fontSize: sbc ? 11 : 13, fontWeight: 700, color: '#f87171' }}>🔥 Record à battre</h3>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                      <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: sbc ? '2px 6px' : '6px 8px', textAlign: 'center' }}>
                         <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires</div>
-                        <div style={{ fontSize: 20, fontWeight: 900, color: '#f87171', fontVariantNumeric: 'tabular-nums' }}>
+                        <div style={{ fontSize: sbc ? 14 : 20, fontWeight: 900, color: '#f87171', fontVariantNumeric: 'tabular-nums' }}>
                           {soloGlobalBest.bestScore || '—'}
                         </div>
                       </div>
-                      <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: '6px 8px', textAlign: 'center' }}>
+                      <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, padding: sbc ? '2px 6px' : '6px 8px', textAlign: 'center' }}>
                         <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: 2 }}>Paires/min</div>
-                        <div style={{ fontSize: 20, fontWeight: 900, color: '#f87171', fontVariantNumeric: 'tabular-nums' }}>
+                        <div style={{ fontSize: sbc ? 14 : 20, fontWeight: 900, color: '#f87171', fontVariantNumeric: 'tabular-nums' }}>
                           {soloGlobalBest.bestPPM || '—'}
                         </div>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div style={{ padding: '8px 0', textAlign: 'center' }}>
+                  <div style={{ padding: sbc ? '2px 0' : '8px 0', textAlign: 'center' }}>
                     <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>Aucun record comparable disponible</div>
                   </div>
                 )
