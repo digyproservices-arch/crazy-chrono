@@ -260,32 +260,9 @@ router.get('/records', requireSupabase, async (req, res) => {
       const { data: sessions } = await sessionQuery.limit(1000);
       filteredSessionIds = (sessions || []).map(s => s.id);
       // Si aucune session comparable trouvée, renvoyer immédiatement
+      // Pas de record perso non plus puisqu'aucune session ne correspond à cette config
       if (filteredSessionIds.length === 0) {
-        let myBestScore = 0, myBestPPM = 0;
-        // Quand même chercher le personal best (non filtré) pour ne pas casser l'affichage
-        if (reqStudentId) {
-          try {
-            const ids = await resolveStudentIds(reqStudentId);
-            const { data: myRows } = await supabase
-              .from('training_results')
-              .select('score, pairs_validated, time_ms')
-              .in('student_id', ids)
-              .gte('time_ms', MIN_DURATION_MS)
-              .order('score', { ascending: false })
-              .limit(20);
-            if (myRows) {
-              for (const r of myRows) {
-                if ((r.score || 0) > myBestScore) myBestScore = r.score;
-                const dur = (r.time_ms || 0) / 1000;
-                if (dur > 0) {
-                  const ppm = Math.min(PPM_CAP, (r.pairs_validated || r.score || 0) / dur * 60);
-                  if (ppm > myBestPPM) myBestPPM = parseFloat(ppm.toFixed(1));
-                }
-              }
-            }
-          } catch {}
-        }
-        return res.json({ success: true, bestScore: 0, bestPPM: 0, bestStudent: null, myBestScore, myBestPPM, comparable: false });
+        return res.json({ success: true, bestScore: 0, bestPPM: 0, bestStudent: null, myBestScore: 0, myBestPPM: 0, comparable: false });
       }
     }
 
@@ -315,18 +292,20 @@ router.get('/records', requireSupabase, async (req, res) => {
       }
     }
 
-    // ── Step 3: Per-student personal best (NON filtré — toujours montrer le vrai record perso) ──
+    // ── Step 3: Per-student personal best (filtré par config comme le global) ──
     let myBestScore = 0, myBestPPM = 0;
     if (reqStudentId) {
       try {
         const ids = await resolveStudentIds(reqStudentId);
-        const { data: myRows } = await supabase
+        let myQuery = supabase
           .from('training_results')
           .select('score, pairs_validated, time_ms')
           .in('student_id', ids)
           .gte('time_ms', MIN_DURATION_MS)
           .order('score', { ascending: false })
           .limit(20);
+        if (filteredSessionIds) myQuery = myQuery.in('session_id', filteredSessionIds);
+        const { data: myRows } = await myQuery;
         if (myRows && myRows.length > 0) {
           for (const r of myRows) {
             if ((r.score || 0) > myBestScore) myBestScore = r.score;

@@ -4332,16 +4332,15 @@ const handleEditGreenZone = (zone) => {
           if (data.success) {
             setSoloGlobalBest({ bestScore: data.bestScore || 0, bestPPM: Math.min(data.bestPPM || 0, 30) });
             setSoloRecordComparable(data.comparable !== false);
-            // Merge server personal best with localStorage (take max)
-            if (sid && (data.myBestScore > 0 || data.myBestPPM > 0)) {
-              setSoloPersonalBest(prev => {
-                const merged = {
-                  bestScore: Math.max(prev.bestScore || 0, data.myBestScore || 0),
-                  bestPPM: Math.max(prev.bestPPM || 0, Math.min(data.myBestPPM || 0, 30)),
-                };
-                try { localStorage.setItem(`cc_solo_best_${sid}`, JSON.stringify(merged)); } catch {}
-                return merged;
-              });
+            // Record perso: utiliser la valeur serveur (filtrée par config)
+            // Ne PAS Math.max avec localStorage pour éviter pollution cross-config
+            if (sid) {
+              const serverBest = {
+                bestScore: data.myBestScore || 0,
+                bestPPM: Math.min(data.myBestPPM || 0, 30),
+              };
+              setSoloPersonalBest(serverBest);
+              try { localStorage.setItem(`cc_solo_best_${sid}`, JSON.stringify(serverBest)); } catch {}
             }
           }
         }
