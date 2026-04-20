@@ -4352,7 +4352,7 @@ const handleEditGreenZone = (zone) => {
 
   // Affichage colonne latérale de jeu (même sans plein écran)
   const hasSidebar = fullScreen || roomStatus === 'playing' || gameActive;
-  const sbc = isMobile && !isPortrait; // sidebar-compact flag for mobile landscape
+  const [sbc, setSbc] = useState(() => window.innerWidth <= 932 && window.innerWidth > window.innerHeight); // sidebar-compact flag for mobile landscape
   useEffect(() => {
     if (hasSidebar) {
       try { document.body.classList.add('cc-game'); document.body.style.overflow = 'hidden'; } catch {}
@@ -4408,6 +4408,7 @@ const handleEditGreenZone = (zone) => {
       const mobile = window.innerWidth <= 768;
       setIsMobile(mobile);
       setIsPortrait(window.innerHeight > window.innerWidth);
+      setSbc(window.innerWidth <= 932 && window.innerWidth > window.innerHeight);
       // Par défaut sur mobile, masquer l'historique
       setHistoryExpanded(!mobile);
     };
