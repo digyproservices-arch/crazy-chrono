@@ -330,8 +330,44 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
 
   // Sélectionne le type de paire à poser sans priorité: TI ou CC au hasard si les deux sont possibles
   let placedPairType = null;
-  const canTI = imageZones.length && texteZones.length && imageIds.length && texteIds.length;
-  const canCC = calculZones.length && chiffreZones.length && calculIds.length && chiffreIds.length;
+  let canTI = imageZones.length && texteZones.length && imageIds.length && texteIds.length;
+  let canCC = calculZones.length && chiffreZones.length && calculIds.length && chiffreIds.length;
+
+  // ===== SAFETY FALLBACK: Si aucune paire possible après filtrage, utiliser les données non filtrées =====
+  if (!canTI && !canCC) {
+    console.warn('[elementsLoader] ⚠️ ZERO pairs after filtering — falling back to FULL unfiltered associations');
+    const origTextes = Array.isArray(data.textes) ? data.textes : [];
+    const origImages = Array.isArray(data.images) ? data.images : [];
+    const origCalculs = Array.isArray(data.calculs) ? data.calculs : [];
+    const origChiffres = Array.isArray(data.chiffres) ? data.chiffres : [];
+    const origAssociations = Array.isArray(data.associations) ? data.associations : [];
+    const origTById = Object.fromEntries(origTextes.map(x => [x.id, x]));
+    const origIById = Object.fromEntries(origImages.map(x => [x.id, x]));
+    const origCById = Object.fromEntries(origCalculs.map(x => [x.id, x]));
+    const origNById = Object.fromEntries(origChiffres.map(x => [x.id, x]));
+    for (const a of origAssociations) {
+      if (a.texteId && a.imageId && origTById[a.texteId] && origIById[a.imageId]) {
+        addMap(texteToImages, a.texteId, a.imageId);
+        addMap(imageToTextes, a.imageId, a.texteId);
+        if (!textesById[a.texteId]) textesById[a.texteId] = origTById[a.texteId];
+        if (!imagesById[a.imageId]) imagesById[a.imageId] = origIById[a.imageId];
+      }
+      if (a.calculId && a.chiffreId && origCById[a.calculId] && origNById[a.chiffreId]) {
+        addMap(calculToChiffres, a.calculId, a.chiffreId);
+        addMap(chiffreToCalculs, a.chiffreId, a.calculId);
+        if (!calculsById[a.calculId]) calculsById[a.calculId] = origCById[a.calculId];
+        if (!chiffresById[a.chiffreId]) chiffresById[a.chiffreId] = origNById[a.chiffreId];
+      }
+    }
+    imageIds.length = 0; imageIds.push(...imageToTextes.keys());
+    texteIds.length = 0; texteIds.push(...texteToImages.keys());
+    calculIds.length = 0; calculIds.push(...calculToChiffres.keys());
+    chiffreIds.length = 0; chiffreIds.push(...chiffreToCalculs.keys());
+    canTI = imageZones.length && texteZones.length && imageIds.length && texteIds.length;
+    canCC = calculZones.length && chiffreZones.length && calculIds.length && chiffreIds.length;
+    console.log('[elementsLoader] After fallback: canTI=', !!canTI, 'canCC=', !!canCC);
+  }
+
   if (canTI && canCC) {
     placedPairType = (typeof rng === 'function' ? (rng() < 0.5) : (Math.random() < 0.5)) ? 'TI' : 'CC';
   } else if (canTI) {
