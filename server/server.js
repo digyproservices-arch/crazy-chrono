@@ -3302,7 +3302,8 @@ io.on('connection', (socket) => {
           roundIndex: room.roundsPlayed,
           roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
           zonesFile: 'zones2',
-          zonesFingerprint: regenFingerprint
+          zonesFingerprint: regenFingerprint,
+          isRegen: true
         });
         
         // Compat: 'by' = premier cliqueur; ajoute tie + winners si égalité

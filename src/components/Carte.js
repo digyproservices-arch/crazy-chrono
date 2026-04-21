@@ -2610,18 +2610,20 @@ const Carte = () => {
           setHelpEnabled(!!cfgObj.helpEnabled);
         }
       } catch {}
-      // Ensure game state is active
-      setGameActive(true);
-      // Prendre la duree cote serveur (sauf en mode objectif: pas de countdown)
-      try {
-        const cfgDur = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
-        const isObjMode = cfgDur && !!cfgDur.objectiveMode;
-        const d = parseInt(payload?.duration, 10);
-        if (Number.isFinite(d) && d > 0 && !isObjMode) {
-          setGameDuration(d);
-          setTimeLeft(d);
-        }
-      } catch {}
+      // FIX: Ne relancer le jeu/timer que pour un VRAI nouveau round (pas une régénération de carte)
+      if (!payload?.isRegen) {
+        setGameActive(true);
+        // Prendre la duree cote serveur (sauf en mode objectif: pas de countdown)
+        try {
+          const cfgDur = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+          const isObjMode = cfgDur && !!cfgDur.objectiveMode;
+          const d = parseInt(payload?.duration, 10);
+          if (Number.isFinite(d) && d > 0 && !isObjMode) {
+            setGameDuration(d);
+            setTimeLeft(d);
+          }
+        } catch {}
+      }
       setGameSelectedIds([]);
       setGameMsg('');
       // Reset de la paire cible cote client en attendant round:target
@@ -3273,10 +3275,32 @@ useEffect(() => {
         // Nombre de paires = score (chaque paire validée donne +1)
         const pairsCount = finalScore;
         
-        // Si le socket est connecté, session:end gère l'overlay + la sauvegarde → ne rien faire ici
+        // Si le socket est connecté, attendre session:end du backend (timeout 8s de sécurité)
         const s = socketRef.current;
         if (s && s.connected) {
-          emitMonitoringEvent('perf:save-skipped', { reason: 'socket connected, session:end handles overlay+save', studentId });
+          emitMonitoringEvent('perf:save-waiting', { reason: 'socket connected, waiting session:end (8s safety)', studentId });
+          // Filet de sécurité: si session:end n'arrive pas dans 8s, forcer la fin côté client
+          sessionSaveTimerRef.current = setTimeout(() => {
+            sessionSaveTimerRef.current = null;
+            console.warn('[CC] ⚠️ session:end never arrived after 8s — forcing local game end');
+            emitMonitoringEvent('perf:session-end-timeout', { reason: 'session:end not received after 8s safety timeout', studentId });
+            try { setGameActive(false); } catch {}
+            try { exitGameFullscreen(); } catch {}
+            const sessionElapsedFallback = sessionStartTimeRef.current
+              ? Math.round((Date.now() - sessionStartTimeRef.current) / 1000)
+              : gameDuration;
+            sessionStartTimeRef.current = null;
+            setSoloGameEndOverlay({
+              score: finalScore,
+              pairsValidated: finalScore,
+              duration: sessionElapsedFallback,
+              errors: 0,
+              mode,
+              timestamp: Date.now(),
+              masterySession: getActiveSessionProgress(),
+              masteryAll: getMasteryProgress()
+            });
+          }, 8000);
           return;
         }
         
@@ -7736,25 +7760,32 @@ setZones(dataWithRandomTexts);
             </div>
             {/* Mon record personnel — masqué en Arena */}
             {!arenaMatchId && (
-            <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: sbc ? '6px 8px' : '12px 14px', border: recordBeatFlash ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: sbc ? 4 : 10, position: 'relative', overflow: 'hidden', transition: 'border 0.3s' }}>
+            <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 12, padding: sbc ? '6px 8px' : '12px 14px', border: recordBeatFlash ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: sbc ? 4 : 10, position: 'relative', overflow: recordBeatFlash ? 'visible' : 'hidden', transition: 'border 0.3s' }}>
               <style>{`
                 @keyframes ccFirePulse { 0%, 100% { text-shadow: 0 0 10px #fbbf24, 0 0 20px #f97316, 0 0 40px #ef4444; } 50% { text-shadow: 0 0 20px #fbbf24, 0 0 40px #f97316, 0 0 80px #ef4444, 0 0 100px #fbbf24; } }
                 @keyframes ccFireBg { 0% { opacity: 0; } 8% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
                 @keyframes ccFireText { 0% { opacity: 0; transform: scale(0.3); } 12% { opacity: 1; transform: scale(1.3); } 20% { transform: scale(1); } 85% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.8); } }
-                @keyframes ccFireEmoji { 0% { transform: translateY(0) scale(1); opacity: 0.8; } 50% { transform: translateY(-8px) scale(1.3); opacity: 1; } 100% { transform: translateY(0) scale(1); opacity: 0.8; } }
-                @keyframes ccFireShake { 0%, 100% { transform: translateX(0); } 10% { transform: translateX(-2px); } 20% { transform: translateX(2px); } 30% { transform: translateX(-2px); } 40% { transform: translateX(2px); } 50% { transform: translateX(0); } }
+                @keyframes ccFireFloat1 { 0% { transform: translateY(0) scale(1) rotate(-8deg); opacity: 0.9; } 50% { transform: translateY(-10px) scale(1.4) rotate(8deg); opacity: 1; } 100% { transform: translateY(0) scale(1) rotate(-8deg); opacity: 0.9; } }
+                @keyframes ccFireFloat2 { 0% { transform: translateY(0) scale(1.1) rotate(5deg); opacity: 0.8; } 50% { transform: translateY(-14px) scale(1.5) rotate(-5deg); opacity: 1; } 100% { transform: translateY(0) scale(1.1) rotate(5deg); opacity: 0.8; } }
+                @keyframes ccFireFloat3 { 0% { transform: translateY(0) scale(0.9) rotate(-3deg); opacity: 0.7; } 50% { transform: translateY(-8px) scale(1.2) rotate(10deg); opacity: 1; } 100% { transform: translateY(0) scale(0.9) rotate(-3deg); opacity: 0.7; } }
+                @keyframes ccFireShake { 0%, 100% { transform: translateX(0); } 10% { transform: translateX(-3px); } 20% { transform: translateX(3px); } 30% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 50% { transform: translateX(0); } }
+                @keyframes ccScorePop { 0% { opacity: 0; transform: scale(0.2) translateY(10px); } 15% { opacity: 1; transform: scale(1.2) translateY(-4px); } 25% { transform: scale(1) translateY(0); } 85% { opacity: 1; } 100% { opacity: 0; } }
               `}</style>
               {/* === ANIMATION SPECTACULAIRE QUAND RECORD BATTU === */}
               {recordBeatFlash ? (
-                <div style={{ animation: 'ccFireBg 6s ease-out forwards', background: 'linear-gradient(180deg, rgba(251,191,36,0.35) 0%, rgba(249,115,22,0.25) 30%, rgba(239,68,68,0.2) 60%, rgba(0,0,0,0.3) 100%)', borderRadius: 12, position: 'absolute', inset: 0, zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 12 }}>
-                  <div style={{ fontSize: 32, animation: 'ccFireEmoji 0.6s ease-in-out infinite', lineHeight: 1 }}>🔥</div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: '#fbbf24', animation: 'ccFireText 6s ease-out forwards, ccFirePulse 1.2s ease-in-out infinite, ccFireShake 0.5s ease-in-out 3', textAlign: 'center', lineHeight: 1.3, letterSpacing: 0.5 }}>
+                <div style={{ animation: 'ccFireBg 6s ease-out forwards', background: 'linear-gradient(180deg, rgba(251,191,36,0.4) 0%, rgba(249,115,22,0.3) 30%, rgba(239,68,68,0.25) 60%, rgba(0,0,0,0.35) 100%)', borderRadius: 12, position: 'absolute', inset: -2, zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: sbc ? 2 : 6, padding: sbc ? '6px 4px' : 12, boxShadow: '0 0 30px rgba(251,191,36,0.5), 0 0 60px rgba(249,115,22,0.3)' }}>
+                  <div style={{ display: 'flex', gap: sbc ? 4 : 8, alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: sbc ? 18 : 26, animation: 'ccFireFloat1 0.5s ease-in-out infinite', lineHeight: 1, filter: 'drop-shadow(0 0 6px #f97316)' }}>🔥</span>
+                    <span style={{ fontSize: sbc ? 24 : 36, animation: 'ccFireFloat2 0.7s ease-in-out infinite', lineHeight: 1, filter: 'drop-shadow(0 0 8px #ef4444)' }}>🔥</span>
+                    <span style={{ fontSize: sbc ? 18 : 26, animation: 'ccFireFloat3 0.6s ease-in-out infinite', lineHeight: 1, filter: 'drop-shadow(0 0 6px #f97316)' }}>🔥</span>
+                  </div>
+                  <div style={{ fontSize: sbc ? 12 : 18, fontWeight: 900, color: '#fbbf24', animation: 'ccFireText 6s ease-out forwards, ccFirePulse 1.2s ease-in-out infinite, ccFireShake 0.5s ease-in-out 3', textAlign: 'center', lineHeight: 1.2, letterSpacing: 0.5, whiteSpace: 'nowrap' }}>
                     NOUVEAU RECORD !
                   </div>
-                  <div style={{ fontSize: 28, fontWeight: 900, color: '#fff', animation: 'ccFireText 6s ease-out forwards', textShadow: '0 0 12px rgba(251,191,36,0.6)', fontVariantNumeric: 'tabular-nums' }}>
-                    {score} paires
+                  <div style={{ fontSize: sbc ? 20 : 32, fontWeight: 900, color: '#fff', animation: 'ccScorePop 6s ease-out forwards', textShadow: '0 0 16px rgba(251,191,36,0.7), 0 2px 8px rgba(0,0,0,0.5)', fontVariantNumeric: 'tabular-nums', lineHeight: 1.1 }}>
+                    ⭐ {score} paires
                   </div>
-                  <div style={{ fontSize: 11, color: '#fde68a', fontWeight: 700, animation: 'ccFireText 6s ease-out forwards', opacity: 0.9 }}>
+                  <div style={{ fontSize: sbc ? 9 : 11, color: '#fde68a', fontWeight: 700, animation: 'ccFireText 6s ease-out forwards', opacity: 0.9, whiteSpace: 'nowrap' }}>
                     Tu es le nouveau champion !
                   </div>
                 </div>
