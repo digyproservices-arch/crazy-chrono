@@ -582,6 +582,13 @@ h3 {
     gap: 6px;
     font-size: 12px;
     overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    height: auto;
+  }
+
+  .game-sidebar-fixed .sidebar-content > * {
+    flex-shrink: 0;
   }
 
   /* Rendre les éléments sidebar plus compacts en landscape mobile */
