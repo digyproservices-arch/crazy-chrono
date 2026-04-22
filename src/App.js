@@ -14,6 +14,7 @@ import PWAUpdateButton from './components/PWAUpdateButton';
 import LandingPage from './components/LandingPage';
 import MaintenancePage, { hasMaintenanceBypass } from './components/MaintenancePage';
 import { startHeartbeat, stopHeartbeat } from './utils/presenceHeartbeat';
+import useIdleTimeout from './utils/useIdleTimeout';
 // ── Code splitting: chargement à la demande (React.lazy) ──
 const Carte = lazy(() => import('./components/Carte'));
 const AdminPanel = lazy(() => import('./components/AdminPanel'));
@@ -457,6 +458,8 @@ function App() {
     if (auth) { startHeartbeat(); } else { stopHeartbeat(); }
     return () => stopHeartbeat();
   }, [auth]);
+  // Auto-déconnexion après inactivité (tablettes partagées)
+  useIdleTimeout(auth);
   const carteVidePath = `${process.env.PUBLIC_URL}/images/carte-vide.png`;
   
   // Maintenance gate: bloquer tout accès si MAINTENANCE_MODE=true sauf bypass
