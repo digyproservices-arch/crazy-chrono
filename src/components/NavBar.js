@@ -79,10 +79,20 @@ const NavBar = () => {
   const onLogout = async () => {
     try { logAuth('logout', { email: auth?.email, nom: auth?.name || auth?.username }); } catch {}
     try { await supabase?.auth?.signOut?.(); } catch {}
-    try { localStorage.removeItem('cc_auth'); } catch {}
-    try { localStorage.removeItem('cc_student_name'); } catch {}
-    try { localStorage.removeItem('cc_student_id'); } catch {}
-    try { localStorage.removeItem('cc_session_cfg'); } catch {}
+    // Nettoyer TOUTES les clés utilisateur du localStorage pour éviter les fuites de session
+    const keysToRemove = [
+      'cc_auth', 'cc_student_name', 'cc_student_id', 'cc_user_id',
+      'cc_session_cfg', 'cc_subscription_status', 'cc_class_id',
+      'cc_auth_logs', 'cc_last_me_fetch_ts', 'cc_arena_cfg',
+      'cc_training_cfg', 'cc_crazy_arena_game', 'cc_training_arena_game',
+      'cc_player_zone', 'cc_free_quota', 'cc_admin_ui', 'cc_session_only',
+    ];
+    keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+    // Nettoyer aussi la clé Supabase auth-token au cas où signOut échoue
+    try {
+      const sbPrefix = 'sb-' + (process.env.REACT_APP_SUPABASE_URL || '').replace(/https?:\/\//, '').split('.')[0];
+      localStorage.removeItem(sbPrefix + '-auth-token');
+    } catch {}
     try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
     navigate('/login', { replace: true });
   };

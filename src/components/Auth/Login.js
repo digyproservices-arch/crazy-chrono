@@ -20,7 +20,7 @@ export default function Login({ onLogin }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [remember, setRemember] = useState(true);
+  const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
@@ -57,6 +57,19 @@ export default function Login({ onLogin }) {
         }
         
         if (supabase) {
+          // Si la session précédente était temporaire (remember=false), déconnecter
+          const isSessionOnly = localStorage.getItem('cc_session_only') === '1';
+          if (isSessionOnly) {
+            console.log('[Login] Session temporaire détectée — déconnexion automatique pour protéger les tablettes partagées');
+            try { await supabase.auth.signOut(); } catch {}
+            try { localStorage.removeItem('cc_auth'); } catch {}
+            try { localStorage.removeItem('cc_session_only'); } catch {}
+            try { localStorage.removeItem('cc_student_name'); } catch {}
+            try { localStorage.removeItem('cc_student_id'); } catch {}
+            try { localStorage.removeItem('cc_user_id'); } catch {}
+            try { localStorage.removeItem('cc_subscription_status'); } catch {}
+            return;
+          }
           const { data } = await supabase.auth.getSession();
           if (data?.session?.user) {
             const user = data.session.user;
@@ -122,9 +135,15 @@ export default function Login({ onLogin }) {
     })();
   }, [navigate, onLogin, searchParams]);
 
-  const saveAuth = (auth) => {
-    // TOUJOURS sauvegarder le token pour les API calls, même si remember=false
+  const saveAuth = (auth, rememberMe = true) => {
     try { localStorage.setItem('cc_auth', JSON.stringify(auth)); } catch {}
+    // Si l'utilisateur ne veut pas rester connecté, marquer la session comme temporaire
+    // Au prochain chargement de la page login, on déconnectera automatiquement
+    if (!rememberMe) {
+      try { localStorage.setItem('cc_session_only', '1'); } catch {}
+    } else {
+      try { localStorage.removeItem('cc_session_only'); } catch {}
+    }
     try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
   };
 
@@ -268,7 +287,7 @@ export default function Login({ onLogin }) {
         console.log('[Login] 🔍 DIAGNOSTIC NOM:', diagDetails);
         logAuth('login', diagDetails);
         
-        saveAuth(profile);
+        saveAuth(profile, remember);
         // B3-fix: nettoyer les clés étudiant stale lors d'un login non-étudiant
         // (empêche l'interférence d'identité entre comptes)
         if (profile.role !== 'student') {
@@ -313,8 +332,8 @@ export default function Login({ onLogin }) {
             if (applyData.ok) {
               profile.role = applyData.role;
               if (applyData.region) profile.region = applyData.region;
-              saveAuth(profile);
-              console.log(`[Login] Invitation appliquée: ${applyData.role}${applyData.region ? ` (${applyData.region})` : ''}`);
+              saveAuth(profile, remember);
+              console.log(`[Login] Invitation appliquée: ${applyData.role}${applyData.region ? ` (${applyData.region})` : ''}`)
             } else {
               console.warn('[Login] apply-invite failed:', applyData.error);
             }
@@ -482,7 +501,8 @@ export default function Login({ onLogin }) {
             token: authData?.session?.access_token,
             studentId: data.student.id,
           };
-          saveAuth(profile);
+          // Élèves sur tablettes partagées : toujours session temporaire pour la sécurité
+          saveAuth(profile, false);
           try { localStorage.setItem('cc_user_id', user.id); } catch {}
           try { localStorage.setItem('cc_student_id', data.student.id); } catch {}
           try { localStorage.setItem('cc_student_name', data.student.fullName || data.student.firstName || ''); } catch {}
