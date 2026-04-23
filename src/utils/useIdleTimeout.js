@@ -6,6 +6,10 @@
  * - Comptes avec "Se souvenir de moi" : pas de timeout
  *
  * Activité détectée : toucher, clic, clavier, scroll, mouvement souris.
+ *
+ * PWA-safe : le timestamp de dernière activité est stocké dans localStorage.
+ * Quand l'app revient au premier plan (visibilitychange), on vérifie si le
+ * timeout a été dépassé pendant que l'app était fermée/en arrière-plan.
  */
 import { useEffect, useRef, useCallback } from 'react';
 import supabase from './supabaseClient';
@@ -13,6 +17,11 @@ import supabase from './supabaseClient';
 const STUDENT_TIMEOUT_MS = 15 * 60 * 1000;  // 15 minutes
 const SESSION_ONLY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const WARNING_BEFORE_MS = 60 * 1000; // Avertissement 60s avant déconnexion
+const LS_LAST_ACTIVITY_KEY = 'cc_last_activity_ts';
+
+function saveLastActivity() {
+  try { localStorage.setItem(LS_LAST_ACTIVITY_KEY, String(Date.now())); } catch {}
+}
 
 export default function useIdleTimeout(auth) {
   const timerRef = useRef(null);
@@ -40,6 +49,7 @@ export default function useIdleTimeout(auth) {
       'cc_auth_logs', 'cc_last_me_fetch_ts', 'cc_arena_cfg',
       'cc_training_cfg', 'cc_crazy_arena_game', 'cc_training_arena_game',
       'cc_player_zone', 'cc_free_quota', 'cc_admin_ui', 'cc_session_only',
+      LS_LAST_ACTIVITY_KEY,
     ];
     keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });
     try {
@@ -71,6 +81,7 @@ export default function useIdleTimeout(auth) {
       btn.addEventListener('click', () => {
         try { document.body.removeChild(overlay); } catch {}
         warningShownRef.current = false;
+        saveLastActivity(); // L'utilisateur est actif
       });
     }
   }, []);
@@ -78,6 +89,9 @@ export default function useIdleTimeout(auth) {
   const resetTimers = useCallback(() => {
     const timeoutMs = getTimeoutMs();
     if (!timeoutMs) return;
+
+    // Sauvegarder le timestamp de dernière activité (pour PWA resume)
+    saveLastActivity();
 
     // Supprimer l'avertissement s'il est affiché
     if (warningShownRef.current) {
@@ -102,6 +116,36 @@ export default function useIdleTimeout(auth) {
     }, timeoutMs);
   }, [getTimeoutMs, showWarning, performLogout]);
 
+  // Vérifier au retour au premier plan (PWA, changement d'onglet, etc.)
+  // Les timers JS ne tournent pas quand l'app est en arrière-plan/fermée,
+  // donc on compare le timestamp stocké avec l'heure actuelle.
+  const checkOnResume = useCallback(() => {
+    const timeoutMs = getTimeoutMs();
+    if (!timeoutMs) return;
+    try {
+      const lastActivity = parseInt(localStorage.getItem(LS_LAST_ACTIVITY_KEY) || '0', 10);
+      if (!lastActivity) return;
+      const elapsed = Date.now() - lastActivity;
+      if (elapsed >= timeoutMs) {
+        console.log(`[IdleTimeout] PWA resume: ${Math.round(elapsed / 60000)}min d'inactivité — déconnexion`);
+        performLogout();
+      } else if (elapsed >= timeoutMs - WARNING_BEFORE_MS) {
+        showWarning();
+        // Déconnexion dans le temps restant
+        const remaining = timeoutMs - elapsed;
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => performLogout(), remaining);
+      } else {
+        // Pas encore expiré, relancer les timers avec le temps restant
+        const remaining = timeoutMs - elapsed;
+        if (timerRef.current) clearTimeout(timerRef.current);
+        if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
+        warningTimerRef.current = setTimeout(() => showWarning(), remaining - WARNING_BEFORE_MS);
+        timerRef.current = setTimeout(() => performLogout(), remaining);
+      }
+    } catch {}
+  }, [getTimeoutMs, performLogout, showWarning]);
+
   useEffect(() => {
     const timeoutMs = getTimeoutMs();
     if (!timeoutMs) return; // Pas de timeout pour cet utilisateur
@@ -118,11 +162,23 @@ export default function useIdleTimeout(auth) {
       }
     };
 
+    // PWA/onglet : vérifier au retour au premier plan
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkOnResume();
+      }
+    };
+
     EVENTS.forEach(evt => window.addEventListener(evt, throttledReset, { passive: true }));
-    resetTimers(); // Démarrer le premier timer
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    // Vérification initiale (au cas où l'app vient d'être rouverte)
+    checkOnResume();
+    resetTimers();
 
     return () => {
       EVENTS.forEach(evt => window.removeEventListener(evt, throttledReset));
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       if (timerRef.current) clearTimeout(timerRef.current);
       if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
       // Nettoyer l'overlay s'il existe
@@ -131,5 +187,5 @@ export default function useIdleTimeout(auth) {
         if (existing) document.body.removeChild(existing);
       } catch {}
     };
-  }, [getTimeoutMs, resetTimers]);
+  }, [getTimeoutMs, resetTimers, checkOnResume]);
 }
