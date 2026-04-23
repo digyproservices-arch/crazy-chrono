@@ -3365,7 +3365,7 @@ useEffect(() => {
             classId: null,
             teacherId: null,
             sessionName: isSolo ? 'Session Solo' : 'Session Multijoueur',
-            config: { mode, duration: sessionElapsedSec, classes: cfg?.classes || [], themes: cfg?.themes || [] },
+            config: { mode, duration: cfg?.duration || sessionElapsedSec, rounds: cfg?.rounds || null, selectedLevel: cfg?.selectedLevel || null, classes: cfg?.classes || [], themes: cfg?.themes || [] },
             completedAt: new Date().toISOString(),
             results: [{
               studentId,
@@ -4351,9 +4351,11 @@ const handleEditGreenZone = (zone) => {
           }
         } catch {}
         const url = `${getBackendUrl()}/api/training/records?${params.toString()}`;
+        console.log('[Records] fetchRecords URL:', url, 'sid:', sid);
         const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
+          console.log('[Records] Server response:', JSON.stringify(data));
           if (data.success) {
             setSoloGlobalBest({ bestScore: data.bestScore || 0, bestPPM: Math.min(data.bestPPM || 0, 30) });
             setSoloRecordComparable(data.comparable !== false);
@@ -4371,6 +4373,8 @@ const handleEditGreenZone = (zone) => {
                 bestScore: Math.max(serverBest.bestScore, localBest.bestScore || 0),
                 bestPPM: Math.max(serverBest.bestPPM, localBest.bestPPM || 0),
               };
+              console.log('[Records] serverBest:', serverBest, 'localBest:', localBest, 'merged:', merged, 'globalBest:', data.bestScore, 'comparable:', data.comparable);
+              console.log('[Records] Will show "Vous détenez le record"?', merged.bestScore > 0 && data.comparable !== false && merged.bestScore >= (data.bestScore || 0));
               setSoloPersonalBest(merged);
               try { localStorage.setItem(localKey, JSON.stringify(merged)); } catch {}
             }

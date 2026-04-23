@@ -321,7 +321,9 @@ router.get('/records', requireSupabase, async (req, res) => {
       }
     }
 
-    return res.json({ success: true, bestScore, bestPPM, bestStudent, myBestScore, myBestPPM, comparable: hasFilters ? (bestScore > 0) : true });
+    const response = { success: true, bestScore, bestPPM, bestStudent, myBestScore, myBestPPM, comparable: hasFilters ? (bestScore > 0) : true };
+    console.log(`[Training API] GET /records studentId=${reqStudentId || 'none'} filters={mode:${mode},duration:${duration},rounds:${rounds},level:${level}} filteredSessions=${filteredSessionIds ? filteredSessionIds.length : 'all'} → bestScore=${bestScore} myBestScore=${myBestScore} comparable=${response.comparable}`);
+    return res.json(response);
   } catch (error) {
     console.error('[Training API] Error fetching records:', error);
     return res.status(500).json({ success: false, error: error.message });

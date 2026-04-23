@@ -2827,6 +2827,7 @@ function endSession(roomCode) {
           mode: isSoloRoom ? 'solo' : 'multiplayer',
           duration: room.duration || 60,
           rounds: Number.isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
+          selectedLevel: room.selectedLevel || null,
           classes: Array.isArray(room.selectedClasses) && room.selectedClasses.length > 0 ? room.selectedClasses : null,
           roomCode
         },
