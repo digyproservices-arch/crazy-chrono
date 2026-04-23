@@ -110,7 +110,31 @@ function App() {
   const fetchOrigRef = useRef(null);
   const detachHandlersRef = useRef(() => {});
   const [auth, setAuth] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('cc_auth')) || null; } catch { return null; }
+    try {
+      // Sécurité tablettes partagées: si cc_session_only est actif, la session précédente
+      // ne voulait pas rester connectée → on efface tout AVANT de lire cc_auth.
+      // Sans ce check, l'utilisateur serait redirigé vers /modes et Login.js ne monterait jamais.
+      if (localStorage.getItem('cc_session_only') === '1') {
+        console.log('[App] Session temporaire détectée au démarrage — déconnexion immédiate');
+        const keysToRemove = [
+          'cc_auth', 'cc_student_name', 'cc_student_id', 'cc_user_id',
+          'cc_session_cfg', 'cc_subscription_status', 'cc_class_id',
+          'cc_auth_logs', 'cc_last_me_fetch_ts', 'cc_arena_cfg',
+          'cc_training_cfg', 'cc_crazy_arena_game', 'cc_training_arena_game',
+          'cc_player_zone', 'cc_free_quota', 'cc_admin_ui', 'cc_session_only',
+          'cc_last_activity_ts',
+        ];
+        keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+        try {
+          const sbPrefix = 'sb-' + (process.env.REACT_APP_SUPABASE_URL || '').replace(/https?:\/\//, '').split('.')[0];
+          localStorage.removeItem(sbPrefix + '-auth-token');
+        } catch {}
+        // Déconnecter Supabase en arrière-plan (fire-and-forget)
+        try { supabase?.auth?.signOut?.(); } catch {}
+        return null;
+      }
+      return JSON.parse(localStorage.getItem('cc_auth')) || null;
+    } catch { return null; }
   });
   useEffect(() => {
     const onGame = (e) => {
