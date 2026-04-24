@@ -3245,9 +3245,37 @@ useEffect(() => {
       roundEndTsRef.current = Date.now();
       try { window.ccAddDiag && window.ccAddDiag('round:timer:zero', { ts: roundEndTsRef.current }); } catch {}
       setGameActive(false);
+      // ── SOLO RECOVERY: si round:new n'arrive pas du serveur dans 2s, relancer localement ──
+      // Couvre le cas où le serveur a perdu la room (disconnect/reconnect, Render sleep, etc.)
+      try {
+        const cfgRec = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+        const isSoloRec = !cfgRec || cfgRec.mode === 'solo';
+        if (isSoloRec && socketRef.current?.connected) {
+          const wantRounds = parseInt(cfgRec?.rounds, 10) || 3;
+          roundNewTimerRef.current = setTimeout(() => {
+            roundNewTimerRef.current = null;
+            // Vérifier que gameActive est toujours false (round:new ne l'a pas relancé)
+            if (prevGameActiveRef.current) return; // round:new est arrivé, tout va bien
+            // Vérifier qu'il reste des manches (lire depuis lastRoomStateRef pour la valeur la plus récente)
+            const lastState = lastRoomStateRef.current;
+            const played = lastState?.roundsPlayed || 0;
+            const total = lastState?.roundsPerSession || wantRounds;
+            if (played >= total) return; // dernière manche → laisser le debounce normal gérer la fin
+            console.warn('[CC] ⚠️ round:new not received after 2s in solo mode — local recovery (played=' + played + '/' + total + ')');
+            try { window.ccAddDiag && window.ccAddDiag('solo:recovery', { played, total }); } catch {}
+            // Relancer localement: nouvelles zones + timer
+            try { safeHandleAutoAssign(); } catch {}
+            setRoundsPlayed(played + 1);
+            setGameActive(true);
+            setGameSelectedIds([]);
+            setGameMsg('');
+            setValidatedPairIds(new Set());
+          }, 2000);
+        }
+      } catch {}
     }
   }, 250);
-  return () => clearInterval(id);
+  return () => { clearInterval(id); if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } };
 }, [gameActive, gameDuration, arenaMatchId, objectiveMode]);
 
 // 💾 PERSISTANCE: Sauvegarder les performances Solo/Multijoueur en DB quand la SESSION se termine
