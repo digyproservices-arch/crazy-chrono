@@ -106,6 +106,8 @@ function App() {
   const [logsCopied, setLogsCopied] = useState(false);
   const [logsSent, setLogsSent] = useState(false);
   const [isAdminUI, setIsAdminUI] = useState(false);
+  const [showSessionModal, setShowSessionModal] = useState(false);
+  const sessionModalTimerRef = useRef(null);
   const consoleOrigRef = useRef({ log: null, warn: null, error: null });
   const fetchOrigRef = useRef(null);
   const detachHandlersRef = useRef(() => {});
@@ -127,10 +129,24 @@ function App() {
       } catch {}
       // ── FIN DIAGNOSTIC ──
       // Sécurité tablettes partagées: si cc_session_only est actif, la session précédente
-      // ne voulait pas rester connectée → on efface tout AVANT de lire cc_auth.
-      // Sans ce check, l'utilisateur serait redirigé vers /modes et Login.js ne monterait jamais.
+      // ne voulait pas rester connectée.
+      // DISTINCTION: refresh (sessionStorage survit) vs fermeture onglet (sessionStorage effacé)
       if (localStorage.getItem('cc_session_only') === '1') {
-        console.log('[App] Session temporaire détectée au démarrage — déconnexion immédiate');
+        const isRefresh = !!sessionStorage.getItem('cc_refresh_guard');
+        if (isRefresh) {
+          // C'est un REFRESH → garder la session, afficher le modal pour proposer de rester connecté
+          console.log('[App] Session temporaire + REFRESH détecté — session maintenue, modal affiché');
+          // On garde cc_refresh_guard pour les prochains refreshes
+          // Le modal sera affiché via un useEffect après le render initial
+          const parsed = JSON.parse(localStorage.getItem('cc_auth')) || null;
+          // Déclencher l'affichage du modal après le render (setTimeout car setState pas dispo dans init)
+          setTimeout(() => {
+            try { window.dispatchEvent(new CustomEvent('cc:showSessionModal')); } catch {}
+          }, 300);
+          return parsed;
+        }
+        // C'est une FERMETURE d'onglet suivie d'une nouvelle ouverture → déconnexion immédiate
+        console.log('[App] Session temporaire + NOUVEL ONGLET détecté — déconnexion immédiate');
         const keysToRemove = [
           'cc_auth', 'cc_student_name', 'cc_student_id', 'cc_user_id',
           'cc_session_cfg', 'cc_subscription_status', 'cc_class_id',
@@ -147,8 +163,6 @@ function App() {
           });
         } catch {}
         // Signaler à Login.js de forcer un signOut Supabase propre (vide le cache mémoire)
-        // Nécessaire car supabase.auth.getSession() retourne la session en mémoire même
-        // après suppression des clés sb-* du localStorage.
         try { localStorage.setItem('cc_forced_logout', '1'); } catch {}
         // Tenter aussi un signOut immédiat (fire-and-forget, peut ne pas aboutir à temps)
         try { supabase?.auth?.signOut?.(); } catch {}
@@ -167,6 +181,65 @@ function App() {
     window.addEventListener('cc:gameMode', onGame);
     return () => window.removeEventListener('cc:gameMode', onGame);
   }, []);
+
+  // ── Modal "Rester connecté ?" après un refresh avec session temporaire ──
+  const [sessionCountdown, setSessionCountdown] = useState(15);
+  useEffect(() => {
+    const onShowModal = () => setShowSessionModal(true);
+    window.addEventListener('cc:showSessionModal', onShowModal);
+    return () => window.removeEventListener('cc:showSessionModal', onShowModal);
+  }, []);
+  useEffect(() => {
+    if (!showSessionModal) return;
+    setSessionCountdown(15);
+    const interval = setInterval(() => {
+      setSessionCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          // Timeout → déconnexion
+          handleSessionModalLogout();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    sessionModalTimerRef.current = interval;
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showSessionModal]);
+  const handleSessionModalStay = (rememberForever = false) => {
+    if (sessionModalTimerRef.current) clearInterval(sessionModalTimerRef.current);
+    setShowSessionModal(false);
+    if (rememberForever) {
+      // Supprimer cc_session_only → plus jamais ce modal
+      try { localStorage.removeItem('cc_session_only'); } catch {}
+    }
+    // Garder cc_refresh_guard pour les prochains refreshes
+    try { sessionStorage.setItem('cc_refresh_guard', '1'); } catch {}
+  };
+  const handleSessionModalLogout = () => {
+    if (sessionModalTimerRef.current) clearInterval(sessionModalTimerRef.current);
+    setShowSessionModal(false);
+    const keysToRemove = [
+      'cc_auth', 'cc_student_name', 'cc_student_id', 'cc_user_id',
+      'cc_session_cfg', 'cc_subscription_status', 'cc_class_id',
+      'cc_auth_logs', 'cc_last_me_fetch_ts', 'cc_arena_cfg',
+      'cc_training_cfg', 'cc_crazy_arena_game', 'cc_training_arena_game',
+      'cc_player_zone', 'cc_free_quota', 'cc_admin_ui', 'cc_session_only',
+      'cc_last_activity_ts',
+    ];
+    keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+    try {
+      Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => {
+        try { localStorage.removeItem(k); } catch {}
+      });
+    } catch {}
+    try { localStorage.setItem('cc_forced_logout', '1'); } catch {}
+    try { supabase?.auth?.signOut?.(); } catch {}
+    try { sessionStorage.removeItem('cc_refresh_guard'); } catch {}
+    setAuth(null);
+    try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
+  };
 
   // ✅ FIX DÉFINITIF: Admin auto-detection SANS fetch /me au montage (éviter freeze UI)
   // Détection via URL admin=1, localStorage cc_admin_ui=1, ou cc_auth role uniquement
@@ -593,6 +666,42 @@ function App() {
         </div>
         <PWAInstallPrompt />
         <PWAUpdateButton />
+        {/* Modal "Rester connecté ?" après refresh avec session temporaire */}
+        {showSessionModal && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: '#fff', borderRadius: 16, padding: '32px 28px', maxWidth: 400, width: '90%', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🔄</div>
+              <h3 style={{ margin: '0 0 8px', fontSize: 18, color: '#111' }}>Page actualisée</h3>
+              <p style={{ margin: '0 0 16px', fontSize: 14, color: '#6b7280', lineHeight: 1.5 }}>
+                Vous n'avez pas coché « Se souvenir de moi ».<br />
+                Voulez-vous rester connecté ?
+              </p>
+              <p style={{ margin: '0 0 20px', fontSize: 13, color: '#9ca3af' }}>
+                Déconnexion automatique dans <strong style={{ color: '#ef4444', fontSize: 16 }}>{sessionCountdown}s</strong>
+              </p>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => handleSessionModalStay(false)}
+                  style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: '#0D6A7A', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+                >
+                  Rester connecté
+                </button>
+                <button
+                  onClick={() => handleSessionModalStay(true)}
+                  style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid #0D6A7A', background: '#f0f9ff', color: '#0D6A7A', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                >
+                  Rester + Se souvenir
+                </button>
+                <button
+                  onClick={handleSessionModalLogout}
+                  style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid #d1d5db', background: '#f9fafb', color: '#6b7280', fontWeight: 500, fontSize: 13, cursor: 'pointer' }}
+                >
+                  Se déconnecter
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </Router>
     </DataProvider>
   );

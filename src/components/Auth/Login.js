@@ -171,6 +171,8 @@ export default function Login({ onLogin }) {
     } else {
       try { localStorage.removeItem('cc_session_only'); } catch {}
     }
+    // Marqueur sessionStorage pour distinguer refresh (survit) vs fermeture onglet (effacé)
+    try { sessionStorage.setItem('cc_refresh_guard', '1'); } catch {}
     try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
   };
 
