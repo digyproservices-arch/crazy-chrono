@@ -4320,12 +4320,18 @@ const handleEditGreenZone = (zone) => {
   const recordBeatTriggeredRef = useRef(false);
 
   // Détection live: le joueur vient de battre le record (perso OU global)
+  // + Mise à jour en temps réel du record perso pour afficher "🏆 Vous détenez le record" pendant la session
   useEffect(() => {
     const recordToBeat = Math.max(soloPersonalBest.bestScore || 0, soloGlobalBest.bestScore || 0);
     if (score > 0 && recordToBeat > 0 && score > recordToBeat && !recordBeatTriggeredRef.current) {
       recordBeatTriggeredRef.current = true;
       setRecordBeatFlash(true);
       setTimeout(() => setRecordBeatFlash(false), 6000);
+    }
+    // Mise à jour live du record personnel quand le score dépasse le record
+    // Permet d'afficher "🏆 Vous détenez le record" dès que le joueur bat le record, sans attendre la fin de session
+    if (score > 0 && score > (soloPersonalBest.bestScore || 0)) {
+      setSoloPersonalBest(prev => ({ ...prev, bestScore: score }));
     }
     if (score === 0) recordBeatTriggeredRef.current = false;
   }, [score, soloPersonalBest.bestScore, soloGlobalBest.bestScore]);
