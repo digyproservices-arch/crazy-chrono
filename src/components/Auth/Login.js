@@ -57,10 +57,20 @@ export default function Login({ onLogin }) {
         }
         
         if (supabase) {
-          // Si la session précédente était temporaire (remember=false), déconnecter
+          // App.js a détecté cc_session_only et a nettoyé le localStorage,
+          // mais le cache mémoire Supabase contient encore la session.
+          // On force un signOut propre pour vider ce cache.
+          const forcedLogout = localStorage.getItem('cc_forced_logout');
+          if (forcedLogout) {
+            console.log('[Login] cc_forced_logout détecté — signOut Supabase pour vider le cache mémoire');
+            try { localStorage.removeItem('cc_forced_logout'); } catch {}
+            try { await supabase.auth.signOut(); } catch {}
+            return;
+          }
+          // Fallback: si cc_session_only est encore présent (cas où App.js n'a pas tourné)
           const isSessionOnly = localStorage.getItem('cc_session_only') === '1';
           if (isSessionOnly) {
-            console.log('[Login] Session temporaire détectée — déconnexion automatique pour protéger les tablettes partagées');
+            console.log('[Login] Session temporaire détectée — déconnexion automatique');
             try { await supabase.auth.signOut(); } catch {}
             try { localStorage.removeItem('cc_auth'); } catch {}
             try { localStorage.removeItem('cc_session_only'); } catch {}

@@ -131,7 +131,11 @@ function App() {
             try { localStorage.removeItem(k); } catch {}
           });
         } catch {}
-        // Déconnecter Supabase en arrière-plan (fire-and-forget)
+        // Signaler à Login.js de forcer un signOut Supabase propre (vide le cache mémoire)
+        // Nécessaire car supabase.auth.getSession() retourne la session en mémoire même
+        // après suppression des clés sb-* du localStorage.
+        try { localStorage.setItem('cc_forced_logout', '1'); } catch {}
+        // Tenter aussi un signOut immédiat (fire-and-forget, peut ne pas aboutir à temps)
         try { supabase?.auth?.signOut?.(); } catch {}
         return null;
       }
