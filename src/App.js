@@ -15,43 +15,62 @@ import LandingPage from './components/LandingPage';
 import MaintenancePage, { hasMaintenanceBypass } from './components/MaintenancePage';
 import { startHeartbeat, stopHeartbeat } from './utils/presenceHeartbeat';
 import useIdleTimeout from './utils/useIdleTimeout';
-// ── Code splitting: chargement à la demande (React.lazy) ──
-const Carte = lazy(() => import('./components/Carte'));
-const AdminPanel = lazy(() => import('./components/AdminPanel'));
-const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
-const ForgotPassword = lazy(() => import('./components/Auth/ForgotPassword'));
-const ResetPassword = lazy(() => import('./components/Auth/ResetPassword'));
-const ProgressDebug = lazy(() => import('./components/Debug/ProgressDebug'));
-const Pricing = lazy(() => import('./components/Billing/Pricing'));
-const Account = lazy(() => import('./components/Account'));
-const ModeSelect = lazy(() => import('./components/Modes/ModeSelect'));
-const SessionConfig = lazy(() => import('./components/Modes/SessionConfig'));
-const CrazyArenaSetup = lazy(() => import('./components/Tournament/CrazyArenaSetup'));
-const CrazyArenaLobby = lazy(() => import('./components/Tournament/CrazyArenaLobby'));
-const TrainingArenaGame = lazy(() => import('./components/Training/TrainingArenaGame'));
-const TrainingArenaSetup = lazy(() => import('./components/Teacher/TrainingArenaSetup'));
-const TrainingArenaManagerDashboard = lazy(() => import('./components/Teacher/TrainingArenaManagerDashboard'));
-const TrainingArenaLobby = lazy(() => import('./components/Teacher/TrainingArenaLobby'));
-const ArenaManagerDashboard = lazy(() => import('./components/Tournament/ArenaManagerDashboard'));
-const ArenaSpectator = lazy(() => import('./components/Tournament/ArenaSpectator'));
-const CompetitionBracket = lazy(() => import('./components/Tournament/CompetitionBracket'));
-const MatchResults = lazy(() => import('./components/Tournament/MatchResults'));
-const GroupMatchHistory = lazy(() => import('./components/Tournament/GroupMatchHistory'));
-const StudentPerformance = lazy(() => import('./components/Student/StudentPerformance'));
-const AdminRoles = lazy(() => import('./components/Admin/AdminRoles'));
-const MonitoringDashboard = lazy(() => import('./components/MonitoringDashboard'));
-const AdminInvite = lazy(() => import('./components/Admin/AdminInvite'));
-const RectoratDashboard = lazy(() => import('./components/Rectorat/RectoratDashboard'));
-const TeacherModeSelector = lazy(() => import('./components/Teacher/TeacherModeSelector'));
-const TeacherDashboard = lazy(() => import('./components/Teacher/TeacherDashboard'));
-const TrainingSessionCreate = lazy(() => import('./components/Teacher/TrainingSessionCreate'));
-const TrainingManagerDashboard = lazy(() => import('./components/Teacher/TrainingManagerDashboard'));
-const TrainingPlayerLobby = lazy(() => import('./components/Teacher/TrainingPlayerLobby'));
-const GrandeSalle = lazy(() => import('./components/GrandeSalle/GrandeSalle'));
-const TournamentAdmin = lazy(() => import('./components/GrandeSalle/TournamentAdmin'));
-const LearnMode = lazy(() => import('./components/Modes/LearnMode'));
-const LegalPages = lazy(() => import('./components/LegalPages'));
-const PresentationPage = lazy(() => import('./components/PresentationPage'));
+// ── Code splitting: chargement à la demande (React.lazy) avec auto-reload sur ChunkLoadError ──
+function lazyWithRetry(importFn) {
+  return lazy(() => new Promise((resolve, reject) => {
+    const alreadyRefreshed = JSON.parse(sessionStorage.getItem('cc_chunk_refreshed') || 'false');
+    importFn()
+      .then((mod) => {
+        sessionStorage.setItem('cc_chunk_refreshed', 'false');
+        resolve(mod);
+      })
+      .catch((error) => {
+        if (!alreadyRefreshed) {
+          sessionStorage.setItem('cc_chunk_refreshed', 'true');
+          console.warn('[App] ChunkLoadError détecté — rechargement auto de la page...');
+          window.location.reload();
+        } else {
+          reject(error);
+        }
+      });
+  }));
+}
+const Carte = lazyWithRetry(() => import('./components/Carte'));
+const AdminPanel = lazyWithRetry(() => import('./components/AdminPanel'));
+const AdminDashboard = lazyWithRetry(() => import('./components/AdminDashboard'));
+const ForgotPassword = lazyWithRetry(() => import('./components/Auth/ForgotPassword'));
+const ResetPassword = lazyWithRetry(() => import('./components/Auth/ResetPassword'));
+const ProgressDebug = lazyWithRetry(() => import('./components/Debug/ProgressDebug'));
+const Pricing = lazyWithRetry(() => import('./components/Billing/Pricing'));
+const Account = lazyWithRetry(() => import('./components/Account'));
+const ModeSelect = lazyWithRetry(() => import('./components/Modes/ModeSelect'));
+const SessionConfig = lazyWithRetry(() => import('./components/Modes/SessionConfig'));
+const CrazyArenaSetup = lazyWithRetry(() => import('./components/Tournament/CrazyArenaSetup'));
+const CrazyArenaLobby = lazyWithRetry(() => import('./components/Tournament/CrazyArenaLobby'));
+const TrainingArenaGame = lazyWithRetry(() => import('./components/Training/TrainingArenaGame'));
+const TrainingArenaSetup = lazyWithRetry(() => import('./components/Teacher/TrainingArenaSetup'));
+const TrainingArenaManagerDashboard = lazyWithRetry(() => import('./components/Teacher/TrainingArenaManagerDashboard'));
+const TrainingArenaLobby = lazyWithRetry(() => import('./components/Teacher/TrainingArenaLobby'));
+const ArenaManagerDashboard = lazyWithRetry(() => import('./components/Tournament/ArenaManagerDashboard'));
+const ArenaSpectator = lazyWithRetry(() => import('./components/Tournament/ArenaSpectator'));
+const CompetitionBracket = lazyWithRetry(() => import('./components/Tournament/CompetitionBracket'));
+const MatchResults = lazyWithRetry(() => import('./components/Tournament/MatchResults'));
+const GroupMatchHistory = lazyWithRetry(() => import('./components/Tournament/GroupMatchHistory'));
+const StudentPerformance = lazyWithRetry(() => import('./components/Student/StudentPerformance'));
+const AdminRoles = lazyWithRetry(() => import('./components/Admin/AdminRoles'));
+const MonitoringDashboard = lazyWithRetry(() => import('./components/MonitoringDashboard'));
+const AdminInvite = lazyWithRetry(() => import('./components/Admin/AdminInvite'));
+const RectoratDashboard = lazyWithRetry(() => import('./components/Rectorat/RectoratDashboard'));
+const TeacherModeSelector = lazyWithRetry(() => import('./components/Teacher/TeacherModeSelector'));
+const TeacherDashboard = lazyWithRetry(() => import('./components/Teacher/TeacherDashboard'));
+const TrainingSessionCreate = lazyWithRetry(() => import('./components/Teacher/TrainingSessionCreate'));
+const TrainingManagerDashboard = lazyWithRetry(() => import('./components/Teacher/TrainingManagerDashboard'));
+const TrainingPlayerLobby = lazyWithRetry(() => import('./components/Teacher/TrainingPlayerLobby'));
+const GrandeSalle = lazyWithRetry(() => import('./components/GrandeSalle/GrandeSalle'));
+const TournamentAdmin = lazyWithRetry(() => import('./components/GrandeSalle/TournamentAdmin'));
+const LearnMode = lazyWithRetry(() => import('./components/Modes/LearnMode'));
+const LegalPages = lazyWithRetry(() => import('./components/LegalPages'));
+const PresentationPage = lazyWithRetry(() => import('./components/PresentationPage'));
 // Fallback de chargement pour Suspense
 const LazyFallback = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '40vh', color: '#0D6A7A', fontSize: 18 }}>
@@ -61,6 +80,36 @@ const LazyFallback = () => (
     </div>
   </div>
 );
+
+// Error Boundary: attrape les ChunkLoadError résiduels et affiche un écran de récupération
+class AppErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error) {
+    console.error('[AppErrorBoundary]', error);
+    const isChunk = error?.name === 'ChunkLoadError' || error?.message?.includes('Loading chunk');
+    if (isChunk) {
+      const last = parseInt(sessionStorage.getItem('cc_boundary_reload_ts') || '0', 10);
+      if (Date.now() - last > 15000) {
+        sessionStorage.setItem('cc_boundary_reload_ts', String(Date.now()));
+        window.location.reload();
+      }
+    }
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0D6A7A', color: '#fff', textAlign: 'center', padding: 32 }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>🔄</div>
+          <h2 style={{ margin: '0 0 8px', fontSize: 22 }}>Mise à jour détectée</h2>
+          <p style={{ opacity: 0.8, marginBottom: 24, maxWidth: 400, lineHeight: 1.5 }}>L'application a été mise à jour. Cliquez ci-dessous pour recharger et profiter de la dernière version.</p>
+          <button onClick={() => { sessionStorage.removeItem('cc_chunk_refreshed'); window.location.reload(); }} style={{ padding: '12px 32px', borderRadius: 10, border: 'none', background: '#F5A623', color: '#4A3728', cursor: 'pointer', fontWeight: 700, fontSize: 16 }}>🔄 Recharger l'application</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ⚠️ MAINTENANCE MODE: mettre à true pour bloquer l'accès public
 const MAINTENANCE_MODE = true;
@@ -578,6 +627,60 @@ function App() {
     if (auth) { startHeartbeat(); } else { stopHeartbeat(); }
     return () => stopHeartbeat();
   }, [auth]);
+
+  // ── Auto-logout sur 401: déconnexion propre si le token est rejeté par le backend ──
+  const [tokenExpiredBanner, setTokenExpiredBanner] = useState(false);
+  useEffect(() => {
+    const backendUrl = getBackendUrl();
+    const origFetch = window.fetch;
+    const interceptedFetch = async function (...args) {
+      const res = await origFetch.apply(this, args);
+      try {
+        const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
+        if (res.status === 401 && url.includes(backendUrl) && url.includes('/api/')) {
+          const hasAuth = !!localStorage.getItem('cc_auth');
+          if (hasAuth) {
+            const lastTs = parseInt(sessionStorage.getItem('cc_401_logout_ts') || '0', 10);
+            if (Date.now() - lastTs > 60000) {
+              sessionStorage.setItem('cc_401_logout_ts', String(Date.now()));
+              console.warn('[Auth] 401 détecté sur', url, '— token expiré, déconnexion auto');
+              window.dispatchEvent(new CustomEvent('cc:tokenExpired'));
+            }
+          }
+        }
+      } catch {}
+      return res;
+    };
+    window.fetch = interceptedFetch;
+
+    const onTokenExpired = () => {
+      setTokenExpiredBanner(true);
+      setTimeout(() => {
+        const keysToRemove = [
+          'cc_auth', 'cc_student_name', 'cc_student_id', 'cc_user_id',
+          'cc_session_cfg', 'cc_subscription_status', 'cc_class_id',
+          'cc_auth_logs', 'cc_last_me_fetch_ts', 'cc_arena_cfg',
+          'cc_training_cfg', 'cc_crazy_arena_game', 'cc_training_arena_game',
+          'cc_player_zone', 'cc_free_quota', 'cc_admin_ui', 'cc_session_only',
+          'cc_last_activity_ts',
+        ];
+        keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+        try { Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k)); } catch {}
+        try { localStorage.setItem('cc_forced_logout', '1'); } catch {}
+        try { supabase?.auth?.signOut?.(); } catch {}
+        setAuth(null);
+        setTokenExpiredBanner(false);
+        try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
+      }, 4000);
+    };
+    window.addEventListener('cc:tokenExpired', onTokenExpired);
+
+    return () => {
+      window.fetch = origFetch;
+      window.removeEventListener('cc:tokenExpired', onTokenExpired);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Auto-déconnexion après inactivité (tablettes partagées)
   useIdleTimeout(auth);
   const carteVidePath = `${process.env.PUBLIC_URL}/images/carte-vide.png`;
@@ -597,6 +700,7 @@ function App() {
           {auth && <NotificationBadge />}
           {!gameMode && <NavBar />}
           <main>
+            <AppErrorBoundary>
             <Suspense fallback={<LazyFallback />}>
             <Routes>
               <Route path="/" element={auth ? <Navigate to="/modes" replace /> : <LandingPage />} />
@@ -652,6 +756,7 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             </Suspense>
+            </AppErrorBoundary>
           </main>
           {!gameMode && (
             <footer style={{ background: '#0D6A7A', color: 'rgba(255,255,255,0.7)', padding: '16px 24px', textAlign: 'center', fontSize: 13 }}>
@@ -666,6 +771,12 @@ function App() {
         </div>
         <PWAInstallPrompt />
         <PWAUpdateButton />
+        {/* Bannière token expiré — visible 4s avant déconnexion auto */}
+        {tokenExpiredBanner && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99998, background: '#ef4444', color: '#fff', padding: '12px 24px', textAlign: 'center', fontSize: 14, fontWeight: 600, boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}>
+            ⚠️ Votre session a expiré. Déconnexion automatique en cours...
+          </div>
+        )}
         {/* Modal "Rester connecté ?" après refresh avec session temporaire */}
         {showSessionModal && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
