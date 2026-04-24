@@ -3120,6 +3120,61 @@ io.on('connection', (socket) => {
     }, 1000);
   });
 
+  // ═══ REPLAY SYNCHRONISÉ (salle privée MP) ═══
+  // Chaque joueur émet room:requestReplay quand il clique "Rejouer".
+  // Le serveur attend que TOUS les joueurs de la salle aient émis l'événement,
+  // puis lance un countdown + startRound synchronisé (même mécanisme que room:start).
+  socket.on('room:requestReplay', () => {
+    if (!currentRoom) return;
+    const room = getRoom(currentRoom);
+    // Ignorer si une session est déjà en cours
+    if (room.sessionActive) {
+      console.warn(`[MP] room:requestReplay ignored: session already active room=${currentRoom}`);
+      return;
+    }
+    if (!room._replayReady) room._replayReady = new Set();
+    room._replayReady.add(socket.id);
+    const readyCount = room._replayReady.size;
+    const totalCount = room.players.size;
+    console.log(`[MP] room:requestReplay room=${currentRoom} (${readyCount}/${totalCount})`);
+    // Informer tous les joueurs de l'état d'attente
+    io.to(currentRoom).emit('room:replayWaiting', { readyCount, totalCount });
+    // Si tous les joueurs sont prêts → lancer la session
+    if (readyCount >= totalCount && totalCount >= 2) {
+      room._replayReady = null;
+      // Reset scores et erreurs
+      for (const [id, pl] of room.players.entries()) {
+        pl.score = 0;
+        pl.errors = 0;
+        pl.ready = false;
+        room.players.set(id, pl);
+      }
+      room.sessionActive = true;
+      room.sessionStartedAt = Date.now();
+      room.status = 'countdown';
+      room.roundsPlayed = 0;
+      emitRoomState(currentRoom);
+      // Countdown 3-2-1 synchronisé
+      let t = 3;
+      io.to(currentRoom).emit('room:countdown', { t });
+      const intv = setInterval(() => {
+        t -= 1;
+        if (t > 0) {
+          io.to(currentRoom).emit('room:countdown', { t });
+        } else {
+          clearInterval(intv);
+          room.resolved = false;
+          for (const [id, pl] of room.players.entries()) {
+            pl.ready = false;
+            room.players.set(id, pl);
+          }
+          emitRoomState(currentRoom);
+          startRound(currentRoom);
+        }
+      }, 1000);
+    }
+  });
+
   // startGame (compat): démarre une session solo/simple en suivant le même pipeline que room:start
   socket.on('startGame', () => {
     if (!currentRoom) return;
