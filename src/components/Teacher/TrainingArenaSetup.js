@@ -865,6 +865,12 @@ export default function TrainingArenaSetup() {
                         style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2, color: 'inherit' }}
                         title="Voir les performances"
                       >{s.full_name || s.first_name}</span>
+                      {s.access_code && (
+                        <code style={{ fontSize: 11, fontWeight: 700, color: '#0D6A7A', background: '#f0f9ff', padding: '1px 6px', borderRadius: 4, letterSpacing: 1, fontFamily: 'monospace', marginLeft: 4 }}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigator.clipboard?.writeText(s.access_code); }}
+                          title="Cliquer pour copier le code"
+                        >{s.access_code}</code>
+                      )}
                     </div>
                     {perf && perf.totalMatches > 0 && (
                       <div style={{ display: 'flex', gap: 6, marginTop: 3, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -1131,6 +1137,12 @@ export default function TrainingArenaSetup() {
                             style={{ fontWeight: 500, cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 2 }}
                             title="Voir les performances"
                           >{s.full_name || s.first_name}</span>
+                          {s.access_code && (
+                            <code style={{ fontSize: 11, fontWeight: 700, color: '#0D6A7A', background: '#f0f9ff', padding: '1px 6px', borderRadius: 4, letterSpacing: 1, fontFamily: 'monospace', cursor: 'pointer' }}
+                              onClick={() => navigator.clipboard?.writeText(s.access_code)}
+                              title="Cliquer pour copier"
+                            >{s.access_code}</code>
+                          )}
                           {perf && perf.totalMatches > 0 && (
                             <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 'auto' }}>
                               {perf.level} · {perf.avgScore} pts · 🎯{perf.accuracy}%

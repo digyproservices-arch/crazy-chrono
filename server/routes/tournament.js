@@ -486,7 +486,8 @@ router.get('/classes/:classId/students', requireSupabase, requireAuth, ...valida
         avatar_url,
         class_id,
         school_id,
-        licensed
+        licensed,
+        access_code
       `)
       .eq('class_id', classId)
       .order('last_name', { ascending: true });
@@ -3466,7 +3467,7 @@ router.get('/classes/:classId/setup-data', requireSupabase, requireAuth, ...vali
     const [tournamentResult, studentsResult, groupsResult] = await Promise.all([
       supabase.from('tournaments').select('*').eq('id', tournamentId).single(),
       supabase.from('students')
-        .select('id, first_name, last_name, full_name, avatar_url, class_id, school_id, licensed')
+        .select('id, first_name, last_name, full_name, avatar_url, class_id, school_id, licensed, access_code')
         .eq('class_id', classId)
         .order('last_name', { ascending: true }),
       supabase.from('tournament_groups')
