@@ -106,7 +106,8 @@ export default function CrazyArenaSetup() {
       const cached = sessionStorage.getItem(CACHE_KEY_TOURNAMENT);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed && Array.isArray(parsed.students) && parsed.students.length > 0 && Date.now() - (parsed._ts || 0) < 60000) {
+        const hasAccessCodes = parsed?.students?.some(s => s.access_code);
+        if (parsed && Array.isArray(parsed.students) && parsed.students.length > 0 && Date.now() - (parsed._ts || 0) < 60000 && hasAccessCodes) {
           console.log('[CrazyArena] ⚡ Cache hit — chargement instantané');
           setTournament(parsed.tournament);
           setStudents(parsed.students);
@@ -763,6 +764,12 @@ export default function CrazyArenaSetup() {
                     disabled={isDisabled}
                   />
                   <span>{s.full_name || s.first_name}</span>
+                  {s.access_code && (
+                    <code style={{ fontSize: 11, fontWeight: 700, color: '#0D6A7A', background: '#f0f9ff', padding: '1px 6px', borderRadius: 4, letterSpacing: 1, fontFamily: 'monospace', marginLeft: 4 }}
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigator.clipboard?.writeText(s.access_code); }}
+                      title="Cliquer pour copier le code"
+                    >{s.access_code}</code>
+                  )}
                   {isInGroup && <span style={{ fontSize: 11, marginLeft: 'auto' }}>📦 Déjà groupé</span>}
                 </label>
               );
@@ -924,7 +931,15 @@ export default function CrazyArenaSetup() {
                   <strong>Élèves:</strong>
                   <ul style={{ margin: '4px 0', paddingLeft: 20 }}>
                     {groupStudents.map(s => (
-                      <li key={s.id}>{s.full_name || s.first_name}</li>
+                      <li key={s.id}>
+                        {s.full_name || s.first_name}
+                        {s.access_code && (
+                          <code style={{ fontSize: 11, fontWeight: 700, color: '#0D6A7A', background: '#f0f9ff', padding: '1px 6px', borderRadius: 4, letterSpacing: 1, fontFamily: 'monospace', marginLeft: 6, cursor: 'pointer' }}
+                            onClick={() => navigator.clipboard?.writeText(s.access_code)}
+                            title="Cliquer pour copier"
+                          >{s.access_code}</code>
+                        )}
+                      </li>
                     ))}
                   </ul>
                 </div>
