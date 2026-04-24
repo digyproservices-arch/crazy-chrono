@@ -1,5 +1,5 @@
 // Build timestamp: 2025-12-10T12:48:00 - Force Vercel rebuild with token fix
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import supabase from '../../utils/supabaseClient';
 import { logAuth } from '../../utils/authLogger';
@@ -31,10 +31,14 @@ export default function Login({ onLogin }) {
   const [studentMode, setStudentMode] = useState(false);
   const [studentCode, setStudentCode] = useState('');
   const [acceptCgu, setAcceptCgu] = useState(false);
+  const autoLoginDoneRef = useRef(false);
 
   useEffect(() => {
     (async () => {
       try {
+        // Guard: empêcher les re-exécutions dues aux re-renders React
+        if (autoLoginDoneRef.current) return;
+        autoLoginDoneRef.current = true;
         // ── DIAGNOSTIC: état au montage de Login.js ──
         console.log('[Login:mount] cc_session_only=' + JSON.stringify(localStorage.getItem('cc_session_only')) + ' cc_forced_logout=' + JSON.stringify(localStorage.getItem('cc_forced_logout')) + ' cc_auth=' + (localStorage.getItem('cc_auth') ? 'EXISTS' : 'NULL') + ' sb-keys=' + JSON.stringify(Object.keys(localStorage).filter(k => k.startsWith('sb-'))));
         // ── FIN DIAGNOSTIC ──
