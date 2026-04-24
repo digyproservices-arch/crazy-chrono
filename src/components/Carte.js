@@ -780,20 +780,20 @@ const Carte = () => {
     fetchWithTimeout(`${getBackendUrl()}/healthz`, { cache: 'no-store' }, 1500).catch(() => {});
   }, []);
 
-  // Helper: sync cc_solo_round_trace vers le backend (pour diagnostic bug solo à distance)
-  const syncSoloTraceToServer = useCallback(() => {
+  // Helper: sync cc_game_trace vers le backend (pour diagnostic tous modes à distance)
+  const syncGameTraceToServer = useCallback(() => {
     try {
-      const traces = JSON.parse(localStorage.getItem('cc_solo_round_trace') || '[]');
+      const traces = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
       if (!traces.length) return;
       const deviceId = localStorage.getItem('cc_device_id') || null;
       let userId = null;
       try { userId = JSON.parse(localStorage.getItem('cc_auth') || '{}').id; } catch {}
-      fetch(`${getBackendUrl()}/api/monitoring/solo-trace`, {
+      fetch(`${getBackendUrl()}/api/monitoring/game-trace`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ events: traces, deviceId, userId })
       }).then(r => {
-        if (r.ok) localStorage.removeItem('cc_solo_round_trace');
+        if (r.ok) localStorage.removeItem('cc_game_trace');
       }).catch(() => {});
     } catch {}
   }, []);
@@ -2551,10 +2551,10 @@ const Carte = () => {
           socketId: s?.id || null,
           timeSinceTimerZero: roundEndTsRef.current ? (Date.now() - roundEndTsRef.current) : null
         };
-        const diags = JSON.parse(localStorage.getItem('cc_solo_round_trace') || '[]');
+        const diags = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
         diags.push(traceData);
         if (diags.length > 50) diags.splice(0, diags.length - 50);
-        localStorage.setItem('cc_solo_round_trace', JSON.stringify(diags));
+        localStorage.setItem('cc_game_trace', JSON.stringify(diags));
       } catch {}
       // --- Transition delay monitoring ---
       try {
@@ -2816,7 +2816,7 @@ const Carte = () => {
     // Fin de session
     s.on('session:end', (summary) => {
       console.log('[CC] session:end received', summary);
-      // ── TRAÇAGE BUG SOLO: log persistant quand session:end arrive ──
+      // ── TRAÇAGE: log persistant quand session:end arrive ──
       try {
         const traceData = {
           event: 'session:end',
@@ -2826,13 +2826,13 @@ const Carte = () => {
           duration: summary?.duration,
           timeSinceTimerZero: roundEndTsRef.current ? (Date.now() - roundEndTsRef.current) : null
         };
-        const diags = JSON.parse(localStorage.getItem('cc_solo_round_trace') || '[]');
+        const diags = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
         diags.push(traceData);
         if (diags.length > 50) diags.splice(0, diags.length - 50);
-        localStorage.setItem('cc_solo_round_trace', JSON.stringify(diags));
+        localStorage.setItem('cc_game_trace', JSON.stringify(diags));
       } catch {}
       // Sync traces au serveur pour lecture à distance
-      try { syncSoloTraceToServer(); } catch {}
+      try { syncGameTraceToServer(); } catch {}
       // En mode objectif, ignorer la fin de session serveur (le client gere la fin quand tous les objectifs sont atteints)
       try {
         const cfgCheck = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
@@ -3296,7 +3296,7 @@ useEffect(() => {
     if (remaining <= 0) {
       clearInterval(id);
       roundEndTsRef.current = Date.now();
-      // ── TRAÇAGE BUG SOLO: log persistant au moment où le timer atteint zéro ──
+      // ── TRAÇAGE: log persistant au moment où le timer atteint zéro ──
       try {
         const cfgTrace = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
         const lastSt = lastRoomStateRef.current;
@@ -3311,12 +3311,12 @@ useEffect(() => {
           cfgDuration: cfgTrace?.duration || null,
           gameDuration
         };
-        window.ccAddDiag && window.ccAddDiag('solo:trace:timer-zero', traceData);
+        window.ccAddDiag && window.ccAddDiag('game:trace:timer-zero', traceData);
         // Persister dans localStorage pour survie cross-tab
-        const diags = JSON.parse(localStorage.getItem('cc_solo_round_trace') || '[]');
+        const diags = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
         diags.push(traceData);
         if (diags.length > 50) diags.splice(0, diags.length - 50);
-        localStorage.setItem('cc_solo_round_trace', JSON.stringify(diags));
+        localStorage.setItem('cc_game_trace', JSON.stringify(diags));
       } catch {}
       setGameActive(false);
     }
@@ -3345,7 +3345,7 @@ useEffect(() => {
   // Détecter transition gameActive: true → false (fin de manche OU fin de session)
   if (wasActive && !gameActive && !arenaMatchId && !trainingMatchId) {
     emitMonitoringEvent('perf:transition', { from: 'active', to: 'inactive' });
-    // ── TRAÇAGE BUG SOLO: gameActive false → debounce 3s commence ──
+    // ── TRAÇAGE: gameActive false → debounce 3s commence ──
     try {
       const traceData = {
         event: 'gameActive:false',
@@ -3354,10 +3354,10 @@ useEffect(() => {
         socketId: socketRef.current?.id || null,
         roomState: lastRoomStateRef.current ? { roundsPlayed: lastRoomStateRef.current.roundsPlayed, roundsPerSession: lastRoomStateRef.current.roundsPerSession, sessionActive: lastRoomStateRef.current.sessionActive } : null
       };
-      const diags = JSON.parse(localStorage.getItem('cc_solo_round_trace') || '[]');
+      const diags = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
       diags.push(traceData);
       if (diags.length > 50) diags.splice(0, diags.length - 50);
-      localStorage.setItem('cc_solo_round_trace', JSON.stringify(diags));
+      localStorage.setItem('cc_game_trace', JSON.stringify(diags));
     } catch {}
     
     // Annuler tout timer précédent
@@ -3367,7 +3367,7 @@ useEffect(() => {
     // Sinon, c'est la vraie fin de session → sauvegarder
     sessionSaveTimerRef.current = setTimeout(() => {
       sessionSaveTimerRef.current = null;
-      // ── TRAÇAGE BUG SOLO: debounce 3s expiré = session considérée terminée ──
+      // ── TRAÇAGE: debounce 3s expiré = session considérée terminée ──
       try {
         const traceData = {
           event: 'debounce:expired',
@@ -3376,13 +3376,13 @@ useEffect(() => {
           socketId: socketRef.current?.id || null,
           score: scoreRef.current
         };
-        const diags = JSON.parse(localStorage.getItem('cc_solo_round_trace') || '[]');
+        const diags = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
         diags.push(traceData);
         if (diags.length > 50) diags.splice(0, diags.length - 50);
-        localStorage.setItem('cc_solo_round_trace', JSON.stringify(diags));
+        localStorage.setItem('cc_game_trace', JSON.stringify(diags));
       } catch {}
       // Sync traces au serveur pour lecture à distance
-      try { syncSoloTraceToServer(); } catch {}
+      try { syncGameTraceToServer(); } catch {}
       // Flush les tentatives restantes dans le buffer (progress.js)
       try { pgFlushAttempts(); } catch {}
       try {
