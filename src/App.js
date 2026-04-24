@@ -527,7 +527,7 @@ function App() {
             <Suspense fallback={<LazyFallback />}>
             <Routes>
               <Route path="/" element={auth ? <Navigate to="/modes" replace /> : <LandingPage />} />
-              <Route path="/login" element={<Login onLogin={(a) => { setAuth(a); try { localStorage.setItem('cc_auth', JSON.stringify(a)); } catch {}; }} />} />
+              <Route path="/login" element={<Login onLogin={(a) => { setAuth(a); }} />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/modes" element={<RequireAuth auth={auth}><ModeSelect auth={auth} /></RequireAuth>} />

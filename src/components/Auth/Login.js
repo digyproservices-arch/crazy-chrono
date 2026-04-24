@@ -60,29 +60,21 @@ export default function Login({ onLogin }) {
         }
         
         if (supabase) {
-          // App.js a détecté cc_session_only et a nettoyé le localStorage,
+          // App.js a détecté cc_session_only au fresh load et a nettoyé le localStorage,
           // mais le cache mémoire Supabase contient encore la session.
           // On force un signOut propre pour vider ce cache.
           const forcedLogout = localStorage.getItem('cc_forced_logout');
           if (forcedLogout) {
             console.log('[Login] cc_forced_logout détecté — signOut Supabase pour vider le cache mémoire');
+            persistLog('[Login] cc_forced_logout → signOut');
             try { localStorage.removeItem('cc_forced_logout'); } catch {}
             try { await supabase.auth.signOut(); } catch {}
             return;
           }
-          // Fallback: si cc_session_only est encore présent (cas où App.js n'a pas tourné)
-          const isSessionOnly = localStorage.getItem('cc_session_only') === '1';
-          if (isSessionOnly) {
-            console.log('[Login] Session temporaire détectée — déconnexion automatique');
-            try { await supabase.auth.signOut(); } catch {}
-            try { localStorage.removeItem('cc_auth'); } catch {}
-            try { localStorage.removeItem('cc_session_only'); } catch {}
-            try { localStorage.removeItem('cc_student_name'); } catch {}
-            try { localStorage.removeItem('cc_student_id'); } catch {}
-            try { localStorage.removeItem('cc_user_id'); } catch {}
-            try { localStorage.removeItem('cc_subscription_status'); } catch {}
-            return;
-          }
+          // NOTE: NE PAS vérifier cc_session_only ici.
+          // Login.js se remonte pendant le même login (React re-render via setAuth),
+          // et détruirait son propre flag. Seul App.js doit vérifier cc_session_only
+          // au démarrage d'un NOUVEAU chargement de page.
           const { data } = await supabase.auth.getSession();
           console.log('[Login:auto] getSession result: hasSession=' + !!(data?.session) + ' hasUser=' + !!(data?.session?.user) + ' userId=' + (data?.session?.user?.id || 'none'));
           if (data?.session?.user) {
