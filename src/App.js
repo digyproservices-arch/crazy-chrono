@@ -125,9 +125,11 @@ function App() {
           'cc_last_activity_ts',
         ];
         keysToRemove.forEach(k => { try { localStorage.removeItem(k); } catch {} });
+        // Supprimer TOUS les tokens Supabase (sb-*) pour empêcher l'auto-login
         try {
-          const sbPrefix = 'sb-' + (process.env.REACT_APP_SUPABASE_URL || '').replace(/https?:\/\//, '').split('.')[0];
-          localStorage.removeItem(sbPrefix + '-auth-token');
+          Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => {
+            try { localStorage.removeItem(k); } catch {}
+          });
         } catch {}
         // Déconnecter Supabase en arrière-plan (fire-and-forget)
         try { supabase?.auth?.signOut?.(); } catch {}

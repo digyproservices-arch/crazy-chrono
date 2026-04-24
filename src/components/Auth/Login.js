@@ -114,7 +114,7 @@ export default function Login({ onLogin }) {
               email_prefix: user.email?.split('@')[0],
               source: dbPseudo ? (dbPseudo === profile.name ? 'db' : 'existingAuth') : 'email_prefix',
             });
-            try { localStorage.setItem('cc_auth', JSON.stringify(profile)); } catch {}
+            saveAuth(profile, !localStorage.getItem('cc_session_only'));
             // B3-fix: nettoyer clés étudiant stale lors d'un auto-login non-étudiant
             if (profile.role !== 'student') {
               try { localStorage.removeItem('cc_student_name'); } catch {}
@@ -135,7 +135,7 @@ export default function Login({ onLogin }) {
     })();
   }, [navigate, onLogin, searchParams]);
 
-  const saveAuth = (auth, rememberMe = true) => {
+  const saveAuth = (auth, rememberMe = false) => {
     try { localStorage.setItem('cc_auth', JSON.stringify(auth)); } catch {}
     // Si l'utilisateur ne veut pas rester connecté, marquer la session comme temporaire
     // Au prochain chargement de la page login, on déconnectera automatiquement
