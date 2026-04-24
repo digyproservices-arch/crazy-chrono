@@ -2541,6 +2541,8 @@ function emitRoomState(roomCode) {
 // Démarre une nouvelle manche et pose un timer d'expiration
 function startRound(roomCode) {
   const room = getRoom(roomCode);
+  // ── TRAÇAGE BUG SOLO: log quand startRound est appelé ──
+  console.log(`[SOLO-TRACE] startRound called | room=${roomCode} sessionActive=${room.sessionActive} players=${room.players.size} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession}`);
   if (!room.sessionActive) return;
   // Garde-fou: ne pas démarrer au-delà de la limite configurée (sauf départage)
   if (Number.isFinite(room.roundsPerSession) && (room.roundsPlayed || 0) >= room.roundsPerSession && !room._isTiebreaker) {
@@ -2692,6 +2694,8 @@ function startRound(roomCode) {
     io.to(roomCode).emit('round:result', { winnerId, winnerName, roundIndex: room.roundsPlayed, roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null });
     // Enchaîner uniquement si la session est active et si on n'a pas atteint la limite
     const more = !isFinite(room.roundsPerSession) || (room.roundsPlayed < room.roundsPerSession);
+    // ── TRAÇAGE BUG SOLO: log décision après expiration du roundTimer ──
+    console.log(`[SOLO-TRACE] roundTimer expired | room=${roomCode} more=${more} sessionActive=${room.sessionActive} players=${room.players.size} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession}`);
     if (more && room.sessionActive) {
       console.log(`[MP] scheduling next round after timeout (idx=${room.roundsPlayed+1})`);
       // petite pause avant la prochaine manche
@@ -2711,6 +2715,8 @@ function startRound(roomCode) {
 
 function endSession(roomCode) {
   const room = getRoom(roomCode);
+  // ── TRAÇAGE BUG SOLO: log quand endSession est appelé ──
+  console.log(`[SOLO-TRACE] endSession called | room=${roomCode} sessionActive=${room.sessionActive} players=${room.players.size} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession}`);
   // calcul du gagnant global
   const entries = Array.from(room.players.entries());
   let winner = null;
@@ -3177,6 +3183,8 @@ io.on('connection', (socket) => {
 
   // startGame (compat): démarre une session solo/simple en suivant le même pipeline que room:start
   socket.on('startGame', () => {
+    // ── TRAÇAGE BUG SOLO: log quand startGame est reçu ──
+    console.log(`[SOLO-TRACE] startGame received | room=${currentRoom} socketId=${socket.id}`);
     if (!currentRoom) return;
     const room = getRoom(currentRoom);
     // Ne rien faire si une session est déjà en cours
@@ -3964,6 +3972,8 @@ io.on('connection', (socket) => {
     }
     // si plus personne, nettoyer les timers et supprimer la salle
     if (room.players.size === 0) {
+      // ── TRAÇAGE BUG SOLO: log quand une room est supprimée (possible cause racine) ──
+      console.warn(`[SOLO-TRACE] Room ${currentRoom} about to be deleted | sessionActive=${room.sessionActive} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession} roundTimer=${!!room.roundTimer} socketId=${socket.id} reason=${reason}`);
       if (room.roundTimer) { try { clearTimeout(room.roundTimer); } catch {} room.roundTimer = null; }
       try {
         if (room.pendingClaims && room.pendingClaims.size) {

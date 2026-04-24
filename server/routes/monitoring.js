@@ -440,6 +440,78 @@ router.post('/client-diag', (req, res) => {
   }
 });
 
+// ── Solo Round Trace Storage (for solo mode bug diagnosis) ────────
+const SOLO_TRACE_FILE = path.join(__dirname, '..', 'data', 'solo_round_trace.json');
+const MAX_SOLO_TRACES = 200;
+
+function loadSoloTraces() {
+  try {
+    const dir = path.dirname(SOLO_TRACE_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(SOLO_TRACE_FILE)) return [];
+    return JSON.parse(fs.readFileSync(SOLO_TRACE_FILE, 'utf8'));
+  } catch { return []; }
+}
+
+function saveSoloTraces(traces) {
+  try {
+    const dir = path.dirname(SOLO_TRACE_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(SOLO_TRACE_FILE, JSON.stringify(traces.slice(-MAX_SOLO_TRACES), null, 2), 'utf8');
+  } catch (e) { logger.error('[SoloTrace] Save failed:', e.message); }
+}
+
+/**
+ * POST /api/monitoring/solo-trace
+ * Receives solo round trace events from client localStorage (cc_solo_round_trace)
+ * Body: { events: [...], deviceId, userId }
+ */
+router.post('/solo-trace', (req, res) => {
+  try {
+    const { events, deviceId, userId } = req.body;
+    if (!Array.isArray(events)) return res.status(400).json({ ok: false, error: 'events must be array' });
+    const batch = events.slice(0, 50);
+    const existing = loadSoloTraces();
+    const enriched = batch.map(e => ({ ...e, deviceId: deviceId || null, userId: userId || null, receivedAt: Date.now() }));
+    const merged = [...existing, ...enriched].slice(-MAX_SOLO_TRACES);
+    saveSoloTraces(merged);
+    // Also log to Winston for Render console visibility
+    for (const evt of batch) {
+      logger.info(`[SOLO-TRACE][client] ${evt.event}`, { ...evt, deviceId, userId });
+    }
+    res.json({ ok: true, count: batch.length });
+  } catch (error) {
+    logger.error('[SoloTrace] POST error:', error.message);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/monitoring/solo-trace
+ * Returns all stored solo trace events (admin only)
+ */
+router.get('/solo-trace', requireAdminAuth, (req, res) => {
+  try {
+    const traces = loadSoloTraces();
+    res.json({ ok: true, count: traces.length, traces });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/monitoring/solo-trace
+ * Purge all solo trace events (admin only)
+ */
+router.delete('/solo-trace', requireAdminAuth, (req, res) => {
+  try {
+    saveSoloTraces([]);
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 // ── Game Incident Screenshots Storage ────────────────────
 const GAME_SS_DIR = path.join(__dirname, '..', 'data', 'game-screenshots');
 const MAX_GAME_SS = 200;
