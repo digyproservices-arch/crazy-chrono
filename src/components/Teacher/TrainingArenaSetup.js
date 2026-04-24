@@ -114,7 +114,8 @@ export default function TrainingArenaSetup() {
       const cached = sessionStorage.getItem(CACHE_KEY_TOURNAMENT);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed && Array.isArray(parsed.students) && parsed.students.length > 0 && Date.now() - (parsed._ts || 0) < 60000) {
+        const hasAccessCodes = parsed?.students?.some(s => s.access_code);
+        if (parsed && Array.isArray(parsed.students) && parsed.students.length > 0 && Date.now() - (parsed._ts || 0) < 60000 && hasAccessCodes) {
           console.log('[TrainingArena] ⚡ Cache hit — chargement instantané');
           setTournament(parsed.tournament);
           setStudents(parsed.students);
