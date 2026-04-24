@@ -1289,6 +1289,7 @@ const Carte = () => {
   // Overlay fin de partie Solo (performance du joueur)
   const [soloGameEndOverlay, setSoloGameEndOverlay] = useState(null); // { score, pairsValidated, duration, mode }
   const [replayWaiting, setReplayWaiting] = useState(null); // { readyCount, totalCount } ou null
+  const replayRequestedRef = useRef(false); // true si CE joueur a cliqué Rejouer
   // Session tracking refs (pour sauvegarder une seule fois en fin de session, pas par manche)
   const sessionStartTimeRef = useRef(null);
   const sessionSaveTimerRef = useRef(null);
@@ -2762,6 +2763,7 @@ const Carte = () => {
       if (t === 3) {
         setSoloGameEndOverlay(null);
         setReplayWaiting(null);
+        replayRequestedRef.current = false;
       }
       if (t <= 0) {
         // GO! → masquer après 800ms
@@ -9551,40 +9553,39 @@ setZones(dataWithRandomTexts);
                 </div>
               )}
               <div style={{ display: 'flex', gap: 16 }}>
-              <button
-                onClick={() => {
-                  if (ov.mode === 'multiplayer' && socketRef.current?.connected) {
-                    // MP: demander un replay synchronisé
-                    console.log('[CC] room:requestReplay emitted');
-                    socketRef.current.emit('room:requestReplay');
-                    setReplayWaiting(prev => prev || { readyCount: 0, totalCount: 0 });
-                  } else {
-                    // Solo: comportement habituel
-                    setSoloGameEndOverlay(null);
-                    startGame();
-                  }
-                }}
-                disabled={replayWaiting && replayWaiting.readyCount > 0 && ov.mode === 'multiplayer'}
-                style={{
-                  background: '#fff', color: ov.mode === 'multiplayer' ? '#4f46e5' : '#148A9C', border: 'none', borderRadius: 14,
-                  padding: isMobile ? '14px 28px' : '16px 40px', fontSize: isMobile ? 16 : 20,
-                  fontWeight: 800, cursor: replayWaiting && replayWaiting.readyCount > 0 && ov.mode === 'multiplayer' ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-                  opacity: replayWaiting && replayWaiting.readyCount > 0 && ov.mode === 'multiplayer' ? 0.6 : 1
-                }}
-              >
-                {replayWaiting && replayWaiting.readyCount > 0 && ov.mode === 'multiplayer' ? '✅ Prêt !' : '🔄 Rejouer'}
-              </button>
-              <button
-                onClick={() => { setSoloGameEndOverlay(null); try { navigate('/modes'); } catch {} }}
-                style={{
-                  background: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)',
-                  borderRadius: 14, padding: isMobile ? '14px 28px' : '16px 40px',
-                  fontSize: isMobile ? 16 : 20, fontWeight: 700, cursor: 'pointer'
-                }}
-              >
-                Quitter
-              </button>
+                <button
+                  onClick={() => {
+                    if (ov.mode === 'multiplayer' && socketRef.current?.connected) {
+                      console.log('[CC] room:requestReplay emitted');
+                      socketRef.current.emit('room:requestReplay');
+                      replayRequestedRef.current = true;
+                      setReplayWaiting(prev => prev || { readyCount: 0, totalCount: 0 });
+                    } else {
+                      setSoloGameEndOverlay(null);
+                      startGame();
+                    }
+                  }}
+                  disabled={replayRequestedRef.current && ov.mode === 'multiplayer'}
+                  style={{
+                    background: '#fff', color: ov.mode === 'multiplayer' ? '#4f46e5' : '#148A9C', border: 'none', borderRadius: 14,
+                    padding: isMobile ? '14px 28px' : '16px 40px', fontSize: isMobile ? 16 : 20,
+                    fontWeight: 800, cursor: replayRequestedRef.current && ov.mode === 'multiplayer' ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                    opacity: replayRequestedRef.current && ov.mode === 'multiplayer' ? 0.6 : 1
+                  }}
+                >
+                  {replayRequestedRef.current && ov.mode === 'multiplayer' ? '✅ Prêt !' : '🔄 Rejouer'}
+                </button>
+                <button
+                  onClick={() => { setSoloGameEndOverlay(null); try { navigate('/modes'); } catch {} }}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)',
+                    borderRadius: 14, padding: isMobile ? '14px 28px' : '16px 40px',
+                    fontSize: isMobile ? 16 : 20, fontWeight: 700, cursor: 'pointer'
+                  }}
+                >
+                  Quitter
+                </button>
               </div>
             </div>
             </div>
