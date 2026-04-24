@@ -111,6 +111,13 @@ function App() {
   const detachHandlersRef = useRef(() => {});
   const [auth, setAuth] = useState(() => {
     try {
+      // ── DIAGNOSTIC: état complet du localStorage au démarrage ──
+      const _so = localStorage.getItem('cc_session_only');
+      const _fl = localStorage.getItem('cc_forced_logout');
+      const _ca = localStorage.getItem('cc_auth');
+      const _sbKeys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
+      console.log('[App:init] cc_session_only=' + JSON.stringify(_so) + ' cc_forced_logout=' + JSON.stringify(_fl) + ' cc_auth=' + (_ca ? 'EXISTS(' + _ca.length + 'chars)' : 'NULL') + ' sb-keys=' + JSON.stringify(_sbKeys));
+      // ── FIN DIAGNOSTIC ──
       // Sécurité tablettes partagées: si cc_session_only est actif, la session précédente
       // ne voulait pas rester connectée → on efface tout AVANT de lire cc_auth.
       // Sans ce check, l'utilisateur serait redirigé vers /modes et Login.js ne monterait jamais.
@@ -139,7 +146,9 @@ function App() {
         try { supabase?.auth?.signOut?.(); } catch {}
         return null;
       }
-      return JSON.parse(localStorage.getItem('cc_auth')) || null;
+      const parsed = JSON.parse(localStorage.getItem('cc_auth')) || null;
+      console.log('[App:init] AUTH RESULT: ' + (parsed ? 'LOGGED IN as ' + (parsed.name || parsed.email || 'unknown') + ' role=' + (parsed.role || 'none') : 'NULL → will show login'));
+      return parsed;
     } catch { return null; }
   });
   useEffect(() => {

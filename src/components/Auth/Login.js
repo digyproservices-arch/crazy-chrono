@@ -35,6 +35,9 @@ export default function Login({ onLogin }) {
   useEffect(() => {
     (async () => {
       try {
+        // ── DIAGNOSTIC: état au montage de Login.js ──
+        console.log('[Login:mount] cc_session_only=' + JSON.stringify(localStorage.getItem('cc_session_only')) + ' cc_forced_logout=' + JSON.stringify(localStorage.getItem('cc_forced_logout')) + ' cc_auth=' + (localStorage.getItem('cc_auth') ? 'EXISTS' : 'NULL') + ' sb-keys=' + JSON.stringify(Object.keys(localStorage).filter(k => k.startsWith('sb-'))));
+        // ── FIN DIAGNOSTIC ──
         // Vérifier invitation
         const token = searchParams.get('invite');
         if (token) {
@@ -81,6 +84,7 @@ export default function Login({ onLogin }) {
             return;
           }
           const { data } = await supabase.auth.getSession();
+          console.log('[Login:auto] getSession result: hasSession=' + !!(data?.session) + ' hasUser=' + !!(data?.session?.user) + ' userId=' + (data?.session?.user?.id || 'none'));
           if (data?.session?.user) {
             const user = data.session.user;
             const existingAuth = (() => { try { return JSON.parse(localStorage.getItem('cc_auth') || '{}'); } catch { return {}; } })();
@@ -137,8 +141,10 @@ export default function Login({ onLogin }) {
         }
         // fallback local guest
         const saved = localStorage.getItem('cc_auth');
+        console.log('[Login:fallback] cc_auth=' + (saved ? 'EXISTS' : 'NULL'));
         if (saved) {
           const payload = JSON.parse(saved);
+          console.log('[Login:fallback] cc_auth has id=' + !!(payload?.id) + ' pseudo=' + !!(payload?.pseudo) + ' → navigating to ' + getPostLoginPath(payload));
           if (payload?.id || payload?.pseudo) navigate(getPostLoginPath(payload), { replace: true });
         }
       } catch {}
@@ -146,6 +152,7 @@ export default function Login({ onLogin }) {
   }, [navigate, onLogin, searchParams]);
 
   const saveAuth = (auth, rememberMe = false) => {
+    console.log('[Login:saveAuth] rememberMe=' + rememberMe + ' → cc_session_only=' + (!rememberMe ? '"1"' : 'REMOVED') + ' role=' + (auth?.role || 'none'));
     try { localStorage.setItem('cc_auth', JSON.stringify(auth)); } catch {}
     // Si l'utilisateur ne veut pas rester connecté, marquer la session comme temporaire
     // Au prochain chargement de la page login, on déconnectera automatiquement
