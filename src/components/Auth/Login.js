@@ -128,7 +128,9 @@ export default function Login({ onLogin }) {
               email_prefix: user.email?.split('@')[0],
               source: dbPseudo ? (dbPseudo === profile.name ? 'db' : 'existingAuth') : 'email_prefix',
             });
-            saveAuth(profile, !localStorage.getItem('cc_session_only'));
+            const autoRemember = !localStorage.getItem('cc_session_only');
+            persistLog('[autoLogin] supabase session found, email=' + (user.email || '?') + ' role=' + (profile.role || '?') + ' rememberMe=' + autoRemember);
+            saveAuth(profile, autoRemember);
             // B3-fix: nettoyer clés étudiant stale lors d'un auto-login non-étudiant
             if (profile.role !== 'student') {
               try { localStorage.removeItem('cc_student_name'); } catch {}
@@ -151,8 +153,20 @@ export default function Login({ onLogin }) {
     })();
   }, [navigate, onLogin, searchParams]);
 
+  // Logs persistants: survivent à la fermeture de l'onglet
+  const persistLog = (msg) => {
+    try {
+      const logs = JSON.parse(localStorage.getItem('cc_session_diag') || '[]');
+      logs.push(new Date().toISOString().slice(11,19) + ' ' + msg);
+      if (logs.length > 30) logs.splice(0, logs.length - 30);
+      localStorage.setItem('cc_session_diag', JSON.stringify(logs));
+    } catch {}
+  };
+
   const saveAuth = (auth, rememberMe = false) => {
-    console.log('[Login:saveAuth] rememberMe=' + rememberMe + ' → cc_session_only=' + (!rememberMe ? '"1"' : 'REMOVED') + ' role=' + (auth?.role || 'none'));
+    const msg = '[saveAuth] rememberMe=' + rememberMe + ' cc_session_only→' + (!rememberMe ? '1' : 'REMOVED') + ' role=' + (auth?.role || 'none');
+    console.log(msg);
+    persistLog(msg);
     try { localStorage.setItem('cc_auth', JSON.stringify(auth)); } catch {}
     // Si l'utilisateur ne veut pas rester connecté, marquer la session comme temporaire
     // Au prochain chargement de la page login, on déconnectera automatiquement
@@ -304,6 +318,7 @@ export default function Login({ onLogin }) {
         console.log('[Login] 🔍 DIAGNOSTIC NOM:', diagDetails);
         logAuth('login', diagDetails);
         
+        persistLog('[handleLogin] remember=' + remember + ' email=' + (profile.email || '?') + ' role=' + (profile.role || '?'));
         saveAuth(profile, remember);
         // B3-fix: nettoyer les clés étudiant stale lors d'un login non-étudiant
         // (empêche l'interférence d'identité entre comptes)

@@ -111,12 +111,20 @@ function App() {
   const detachHandlersRef = useRef(() => {});
   const [auth, setAuth] = useState(() => {
     try {
-      // ── DIAGNOSTIC: état complet du localStorage au démarrage ──
+      // ── DIAGNOSTIC PERSISTANT: afficher les logs de la session précédente ──
       const _so = localStorage.getItem('cc_session_only');
       const _fl = localStorage.getItem('cc_forced_logout');
       const _ca = localStorage.getItem('cc_auth');
       const _sbKeys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
       console.log('[App:init] cc_session_only=' + JSON.stringify(_so) + ' cc_forced_logout=' + JSON.stringify(_fl) + ' cc_auth=' + (_ca ? 'EXISTS(' + _ca.length + 'chars)' : 'NULL') + ' sb-keys=' + JSON.stringify(_sbKeys));
+      try {
+        const prevLogs = JSON.parse(localStorage.getItem('cc_session_diag') || '[]');
+        if (prevLogs.length > 0) {
+          console.log('[App:init] ══ LOGS SESSION PRÉCÉDENTE ══');
+          prevLogs.forEach(l => console.log('  ↳ ' + l));
+          console.log('[App:init] ══ FIN LOGS PRÉCÉDENTS ══');
+        }
+      } catch {}
       // ── FIN DIAGNOSTIC ──
       // Sécurité tablettes partagées: si cc_session_only est actif, la session précédente
       // ne voulait pas rester connectée → on efface tout AVANT de lire cc_auth.
