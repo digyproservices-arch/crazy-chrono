@@ -79,6 +79,9 @@ function MonitoringDashboard() {
   // ── Supabase diagnostic ──
   const [supabaseDiag, setSupabaseDiag] = useState(null);
 
+  // ── Solo Round Trace (diagnostic bug solo) ──
+  const [soloTraces, setSoloTraces] = useState([]);
+
   const copyToClipboard = async (text, source) => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -325,6 +328,20 @@ const clearIncidents = async () => {
     } catch (e) { console.warn('[Monitoring] Server clicks fetch failed:', e.message); }
   }, []);
 
+  const fetchSoloTraces = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/monitoring/solo-trace`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.traces)) setSoloTraces(data.traces);
+      }
+    } catch (e) { console.warn('[Monitoring] Solo traces fetch failed:', e.message); }
+  }, []);
+
   const fetchOnlinePlayers = useCallback(async () => {
     try {
       setOnlinePlayersError(null);
@@ -490,10 +507,10 @@ const clearIncidents = async () => {
 
   useEffect(() => {
     fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas();
-    fetchArenaStats(); fetchServerClicks(); fetchSupabaseDiag();
+    fetchArenaStats(); fetchServerClicks(); fetchSupabaseDiag(); fetchSoloTraces();
     setLoading(false);
     setLastRefresh(new Date());
-  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats, fetchServerClicks, fetchSupabaseDiag]);
+  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats, fetchServerClicks, fetchSupabaseDiag, fetchSoloTraces]);
 
   useEffect(() => {
     if (activeTab === 'incidents' || activeTab === 'report') {
@@ -515,11 +532,11 @@ const clearIncidents = async () => {
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(() => {
-      fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas(); fetchServerClicks();
+      fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas(); fetchServerClicks(); fetchSoloTraces();
       if (activeTab === 'players') { fetchOnlinePlayers(); fetchPaymentEvents(); }
     }, 30000);
     return () => clearInterval(interval);
-  }, [autoRefresh, fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchOnlinePlayers, fetchPaymentEvents, fetchServerClicks, activeTab]);
+  }, [autoRefresh, fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchOnlinePlayers, fetchPaymentEvents, fetchServerClicks, fetchSoloTraces, activeTab]);
 
   // Timer: mettre à jour le temps écoulé chaque seconde quand les tests tournent
   useEffect(() => {
@@ -632,7 +649,7 @@ const clearIncidents = async () => {
               Auto-refresh 30s
             </label>
             <button
-              onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchServerClicks(); }}
+              onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchServerClicks(); fetchSoloTraces(); }}
               style={btnStyle(COLORS.info)}
             >
               🔄 Rafraîchir
@@ -842,6 +859,27 @@ const clearIncidents = async () => {
                 }
                 sections.push('');
 
+                // Solo Round Trace (diagnostic bug solo)
+                sections.push(`--- TRACE BUG SOLO (${soloTraces.length} événements) ---`);
+                if (soloTraces.length === 0) {
+                  sections.push('Aucune trace solo enregistrée.');
+                } else {
+                  soloTraces.slice(-50).forEach((t, i) => {
+                    const ts = t.ts ? new Date(t.ts).toLocaleString('fr-FR') : 'N/A';
+                    const device = t.deviceId ? ` device=${t.deviceId}` : '';
+                    const socket = t.socketId ? ` sock=${t.socketId.slice(0,8)}` : '';
+                    const conn = typeof t.socketConnected === 'boolean' ? ` conn=${t.socketConnected}` : '';
+                    let extra = '';
+                    if (t.event === 'timer:zero') extra = ` mode=${t.mode} rounds=${t.cfgRounds} dur=${t.gameDuration}`;
+                    if (t.event === 'round:new') extra = ` idx=${t.roundIndex}/${t.roundsTotal} zones=${t.zonesCount} delay=${t.timeSinceTimerZero}ms`;
+                    if (t.event === 'session:end') extra = ` scores=${JSON.stringify(t.scores)} delay=${t.timeSinceTimerZero}ms`;
+                    if (t.event === 'gameActive:false') extra = ` state=${JSON.stringify(t.roomState || {})}`;
+                    if (t.event === 'debounce:expired') extra = ` score=${t.score}`;
+                    sections.push(`  [${i+1}] ${ts} | ${t.event}${socket}${conn}${device}${extra}`);
+                  });
+                }
+                sections.push('');
+
 sections.push(`===== FIN DU RAPPORT =====`);
                 return sections.join('\n');
               };
@@ -857,7 +895,7 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button
-                        onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchScreenshotMetas(); fetchServerClicks(); }}
+                        onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchScreenshotMetas(); fetchServerClicks(); fetchSoloTraces(); }}
                         style={btnStyle(COLORS.info)}
                       >
                         🔄 Rafraîchir tout
@@ -894,6 +932,7 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     <KPICard title="Manches" value={roundLogs.length} icon="🎮" color="#10b981" highlight={roundLogs.some(r => r.doublePairIssues > 0)} />
                     <KPICard title="Double paires" value={roundLogs.filter(r => r.doublePairIssues > 0).length} icon="🚨" color={COLORS.error} highlight={roundLogs.some(r => r.doublePairIssues > 0)} />
                     {(() => { try { const cs = getClickStats(); const ca = getClickAttempts(); const rejected = ca.filter(a => a.stage.startsWith('REJECTED')).length; const missed = ca.filter(a => a.stage === 'BOARD_CLICK').length; return (<><KPICard title="Clics acceptés" value={cs.ok || 0} icon="✅" color="#10b981" /><KPICard title="Clics rejetés" value={rejected} icon="🚫" color={COLORS.warn} highlight={rejected > 0} /><KPICard title="Clics perdus" value={missed} icon="❓" color={COLORS.error} highlight={missed > 0} /></>); } catch { return null; } })()}
+                    <KPICard title="Traces Solo" value={soloTraces.length} icon="🔍" color="#f59e0b" highlight={soloTraces.length > 0} />
                   </div>
 
                   {/* Audit Parser section */}
