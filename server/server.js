@@ -11,6 +11,7 @@ const { Server } = require('socket.io');
 const { generateRoundZones, createDeckState } = require('./utils/serverZoneGenerator');
 const { validateZonesServer } = require('./utils/validateZonesServer');
 const logger = require('./logger'); // ✅ Winston logger professionnel
+const sTrace = require('./utils/serverTraceBuffer');
 
 // Load env (safe)
 try { require('dotenv').config({ path: require('path').join(__dirname, '.env') }); } catch {}
@@ -2543,6 +2544,7 @@ function startRound(roomCode) {
   const room = getRoom(roomCode);
   // ── TRAÇAGE: log quand startRound est appelé ──
   console.log(`[GAME-TRACE] startRound called | room=${roomCode} sessionActive=${room.sessionActive} players=${room.players.size} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession}`);
+  sTrace.push('startRound', { room: roomCode, sessionActive: room.sessionActive, players: room.players.size, roundsPlayed: room.roundsPlayed, roundsPerSession: room.roundsPerSession, playerIds: Array.from(room.players.keys()) });
   if (!room.sessionActive) return;
   // Garde-fou: ne pas démarrer au-delà de la limite configurée (sauf départage)
   if (Number.isFinite(room.roundsPerSession) && (room.roundsPlayed || 0) >= room.roundsPerSession && !room._isTiebreaker) {
@@ -2669,6 +2671,7 @@ function startRound(roomCode) {
     const playerIds = Array.from(room.players.keys());
     const fp = (zones || []).slice(0, 4).map(z => `${z.id}:${(z.content||'').substring(0,15)}:${z.pairId||'none'}`).join(' | ');
     console.log(`[GAME-TRACE] round:new emitted | room=${roomCode} idx=${room.roundsPlayed}/${room.roundsPerSession} players=[${playerIds.join(',')}] zonesCount=${zones.length} fp=[${fp}]`);
+    sTrace.push('round:new', { room: roomCode, roundIndex: room.roundsPlayed, roundsPerSession: room.roundsPerSession, playerIds, zonesCount: zones.length, fingerprint: fp });
   } catch {}
   io.to(roomCode).emit('round:new', payload);
   // Timer d'expiration pour annoncer le résultat si personne n'a gagné
@@ -2677,6 +2680,7 @@ function startRound(roomCode) {
     const _roundTimerFiredAt = Date.now();
     // ── TRAÇAGE: timing précis du roundTimer ──
     console.log(`[GAME-TRACE] roundTimer fired | room=${roomCode} expectedDelay=${(room.duration||60)*1000}ms actualDelay=${_roundTimerFiredAt - _roundTimerSetAt}ms drift=${(_roundTimerFiredAt - _roundTimerSetAt) - (room.duration||60)*1000}ms`);
+    sTrace.push('roundTimer:fired', { room: roomCode, expectedMs: (room.duration||60)*1000, actualMs: _roundTimerFiredAt - _roundTimerSetAt, driftMs: (_roundTimerFiredAt - _roundTimerSetAt) - (room.duration||60)*1000 });
     // A l'expiration, invalider toute fenêtre d'égalité en cours
     try {
       if (room.pendingClaims && room.pendingClaims.size) {
@@ -2706,6 +2710,7 @@ function startRound(roomCode) {
     const more = !isFinite(room.roundsPerSession) || (room.roundsPlayed < room.roundsPerSession);
     // ── TRAÇAGE: log décision après expiration du roundTimer ──
     console.log(`[GAME-TRACE] roundTimer expired | room=${roomCode} more=${more} sessionActive=${room.sessionActive} players=${room.players.size} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession}`);
+    sTrace.push('roundTimer:expired', { room: roomCode, more, sessionActive: room.sessionActive, players: room.players.size, roundsPlayed: room.roundsPlayed, roundsPerSession: room.roundsPerSession });
     if (more && room.sessionActive) {
       console.log(`[MP] scheduling next round after timeout (idx=${room.roundsPlayed+1})`);
       // petite pause avant la prochaine manche
@@ -2715,6 +2720,7 @@ function startRound(roomCode) {
         const r = getRoom(roomCode);
         // ── TRAÇAGE: timing entre roundTimer expiry et startRound ──
         console.log(`[GAME-TRACE] nextRound scheduled→fired | room=${roomCode} scheduledDelay=400ms actualDelay=${Date.now() - _scheduleNextAt}ms sessionActive=${r?.sessionActive}`);
+        sTrace.push('nextRound:fired', { room: roomCode, scheduledMs: 400, actualMs: Date.now() - _scheduleNextAt, sessionActive: r?.sessionActive });
         if (!r || !r.sessionActive) return;
         startRound(roomCode);
       }, 400);
@@ -2730,6 +2736,7 @@ function endSession(roomCode) {
   const room = getRoom(roomCode);
   // ── TRAÇAGE: log quand endSession est appelé ──
   console.log(`[GAME-TRACE] endSession called | room=${roomCode} sessionActive=${room.sessionActive} players=${room.players.size} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession}`);
+  sTrace.push('endSession', { room: roomCode, sessionActive: room.sessionActive, players: room.players.size, roundsPlayed: room.roundsPlayed, roundsPerSession: room.roundsPerSession });
   // calcul du gagnant global
   const entries = Array.from(room.players.entries());
   let winner = null;
@@ -2962,6 +2969,7 @@ io.on('connection', (socket) => {
     room.players.set(socket.id, { name: playerName, score: existing.score || 0, errors: existing.errors || 0, ready: false, studentId: playerStudentId || existing.studentId || null });
     // ── TRAÇAGE: log quand un joueur rejoint une room ──
     console.log(`[GAME-TRACE] joinRoom | room=${currentRoom} socket=${socket.id} name=${playerName} playersNow=${room.players.size} sessionActive=${room.sessionActive} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession} existingScore=${existing.score||0}`);
+    sTrace.push('joinRoom', { room: currentRoom, socketId: socket.id, name: playerName, playersNow: room.players.size, sessionActive: room.sessionActive, roundsPlayed: room.roundsPlayed, roundsPerSession: room.roundsPerSession, existingScore: existing.score || 0 });
     // Le créateur de la salle récupère toujours le statut d'hôte quand il rejoint
     if (room._creatorId && room.players.has(room._creatorId)) {
       room.hostId = room._creatorId;
@@ -2997,6 +3005,7 @@ io.on('connection', (socket) => {
       try {
         const fp = (latePayload.zones || []).slice(0, 4).map(z => `${z.id}:${(z.content||'').substring(0,15)}:${z.pairId||'none'}`).join(' | ');
         console.log(`[GAME-TRACE] late-join round:new | room=${currentRoom} socket=${socket.id} idx=${room.roundsPlayed} zonesCount=${latePayload.zones?.length||0} hasZones=${!!latePayload.hasZones} fp=[${fp}]`);
+        sTrace.push('late-join:round:new', { room: currentRoom, socketId: socket.id, roundIndex: room.roundsPlayed, zonesCount: latePayload.zones?.length || 0, hasZones: !!latePayload.hasZones, fingerprint: fp });
       } catch {}
       console.log(`[MP] Late joiner ${socket.id} synced to ongoing round ${room.roundsPlayed} in room ${currentRoom} (zones: ${latePayload.zones ? latePayload.zones.length : 'NONE'})`);
     }
@@ -3205,6 +3214,7 @@ io.on('connection', (socket) => {
   socket.on('startGame', () => {
     // ── TRAÇAGE: log quand startGame est reçu ──
     console.log(`[GAME-TRACE] startGame received | room=${currentRoom} socketId=${socket.id}`);
+    sTrace.push('startGame', { room: currentRoom, socketId: socket.id });
     if (!currentRoom) return;
     const room = getRoom(currentRoom);
     // Ne rien faire si une session est déjà en cours
@@ -3986,6 +3996,7 @@ io.on('connection', (socket) => {
     const room = getRoom(currentRoom);
     // ── TRAÇAGE: log déconnexion avec contexte complet ──
     console.log(`[GAME-TRACE] disconnect | room=${currentRoom} socket=${socket.id} reason=${reason} sessionActive=${room.sessionActive} playersBeforeDelete=${room.players.size} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession} roundTimer=${!!room.roundTimer}`);
+    sTrace.push('disconnect', { room: currentRoom, socketId: socket.id, reason, sessionActive: room.sessionActive, playersBeforeDelete: room.players.size, roundsPlayed: room.roundsPlayed, roundsPerSession: room.roundsPerSession, roundTimer: !!room.roundTimer });
     room.players.delete(socket.id);
     if (room.hostId === socket.id) {
       // réassigner l'hôte si possible
@@ -3996,6 +4007,7 @@ io.on('connection', (socket) => {
     if (room.players.size === 0) {
       // ── TRAÇAGE: log quand une room est supprimée (possible cause racine) ──
       console.warn(`[GAME-TRACE] Room ${currentRoom} about to be deleted | sessionActive=${room.sessionActive} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession} roundTimer=${!!room.roundTimer} socketId=${socket.id} reason=${reason}`);
+      sTrace.push('room:deleted', { room: currentRoom, sessionActive: room.sessionActive, roundsPlayed: room.roundsPlayed, roundsPerSession: room.roundsPerSession, roundTimer: !!room.roundTimer, socketId: socket.id, reason });
       if (room.roundTimer) { try { clearTimeout(room.roundTimer); } catch {} room.roundTimer = null; }
       try {
         if (room.pendingClaims && room.pendingClaims.size) {

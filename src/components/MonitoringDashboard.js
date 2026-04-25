@@ -82,6 +82,9 @@ function MonitoringDashboard() {
   // ── Game Trace (diagnostic tous modes) ──
   const [soloTraces, setSoloTraces] = useState([]);
 
+  // ── Server Trace (GAME-TRACE serveur) ──
+  const [serverTraces, setServerTraces] = useState([]);
+
   const copyToClipboard = async (text, source) => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -249,6 +252,8 @@ const clearIncidents = async () => {
         fetch(`${backendUrl}/api/monitoring/arena-rounds`, { method: 'DELETE', headers }),
         fetch(`${backendUrl}/api/monitoring/client-rounds`, { method: 'DELETE', headers }),
         fetch(`${backendUrl}/api/monitoring/client-clicks`, { method: 'DELETE', headers }),
+        fetch(`${backendUrl}/api/monitoring/server-trace`, { method: 'DELETE', headers }),
+        fetch(`${backendUrl}/api/monitoring/game-trace`, { method: 'DELETE', headers }),
       ]);
       // Purge local data
       try { localStorage.removeItem('cc_game_incidents'); } catch {}
@@ -340,6 +345,20 @@ const clearIncidents = async () => {
         if (data.ok && Array.isArray(data.traces)) setSoloTraces(data.traces);
       }
     } catch (e) { console.warn('[Monitoring] Game traces fetch failed:', e.message); }
+  }, []);
+
+  const fetchServerTraces = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/monitoring/server-trace`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.traces)) setServerTraces(data.traces);
+      }
+    } catch (e) { console.warn('[Monitoring] Server traces fetch failed:', e.message); }
   }, []);
 
   const fetchOnlinePlayers = useCallback(async () => {
@@ -507,10 +526,10 @@ const clearIncidents = async () => {
 
   useEffect(() => {
     fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas();
-    fetchArenaStats(); fetchServerClicks(); fetchSupabaseDiag(); fetchGameTraces();
+    fetchArenaStats(); fetchServerClicks(); fetchSupabaseDiag(); fetchGameTraces(); fetchServerTraces();
     setLoading(false);
     setLastRefresh(new Date());
-  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats, fetchServerClicks, fetchSupabaseDiag, fetchGameTraces]);
+  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats, fetchServerClicks, fetchSupabaseDiag, fetchGameTraces, fetchServerTraces]);
 
   useEffect(() => {
     if (activeTab === 'incidents' || activeTab === 'report') {
@@ -532,11 +551,11 @@ const clearIncidents = async () => {
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(() => {
-      fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas(); fetchServerClicks(); fetchGameTraces();
+      fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas(); fetchServerClicks(); fetchGameTraces(); fetchServerTraces();
       if (activeTab === 'players') { fetchOnlinePlayers(); fetchPaymentEvents(); }
     }, 30000);
     return () => clearInterval(interval);
-  }, [autoRefresh, fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchOnlinePlayers, fetchPaymentEvents, fetchServerClicks, fetchGameTraces, activeTab]);
+  }, [autoRefresh, fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchOnlinePlayers, fetchPaymentEvents, fetchServerClicks, fetchGameTraces, fetchServerTraces, activeTab]);
 
   // Timer: mettre à jour le temps écoulé chaque seconde quand les tests tournent
   useEffect(() => {
@@ -649,7 +668,7 @@ const clearIncidents = async () => {
               Auto-refresh 30s
             </label>
             <button
-              onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchServerClicks(); fetchGameTraces(); }}
+              onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchServerClicks(); fetchGameTraces(); fetchServerTraces(); }}
               style={btnStyle(COLORS.info)}
             >
               🔄 Rafraîchir
@@ -859,6 +878,30 @@ const clearIncidents = async () => {
                 }
                 sections.push('');
 
+                // Server Trace (GAME-TRACE serveur)
+                sections.push(`--- TRACE SERVEUR (${serverTraces.length} événements) ---`);
+                if (serverTraces.length === 0) {
+                  sections.push('Aucune trace serveur enregistrée.');
+                } else {
+                  serverTraces.slice(-100).forEach((t, i) => {
+                    const ts = t.ts ? new Date(t.ts).toLocaleString('fr-FR') : 'N/A';
+                    let detail = '';
+                    if (t.event === 'joinRoom') detail = ` room=${t.room} socket=${(t.socketId||'').slice(0,8)} name=${t.name} players=${t.playersNow} session=${t.sessionActive} score=${t.existingScore||0}`;
+                    if (t.event === 'startRound') detail = ` room=${t.room} players=${t.players} played=${t.roundsPlayed}/${t.roundsPerSession} ids=[${(t.playerIds||[]).map(s=>s.slice(0,8)).join(',')}]`;
+                    if (t.event === 'round:new') detail = ` room=${t.room} idx=${t.roundIndex}/${t.roundsPerSession} zones=${t.zonesCount} players=[${(t.playerIds||[]).map(s=>s.slice(0,8)).join(',')}] fp=[${t.fingerprint||''}]`;
+                    if (t.event === 'roundTimer:fired') detail = ` room=${t.room} expected=${t.expectedMs}ms actual=${t.actualMs}ms drift=${t.driftMs}ms`;
+                    if (t.event === 'roundTimer:expired') detail = ` room=${t.room} more=${t.more} session=${t.sessionActive} players=${t.players} played=${t.roundsPlayed}/${t.roundsPerSession}`;
+                    if (t.event === 'nextRound:fired') detail = ` room=${t.room} scheduled=${t.scheduledMs}ms actual=${t.actualMs}ms session=${t.sessionActive}`;
+                    if (t.event === 'endSession') detail = ` room=${t.room} session=${t.sessionActive} players=${t.players} played=${t.roundsPlayed}/${t.roundsPerSession}`;
+                    if (t.event === 'startGame') detail = ` room=${t.room} socket=${(t.socketId||'').slice(0,8)}`;
+                    if (t.event === 'disconnect') detail = ` room=${t.room} socket=${(t.socketId||'').slice(0,8)} reason=${t.reason} session=${t.sessionActive} playersBefore=${t.playersBeforeDelete} played=${t.roundsPlayed}/${t.roundsPerSession} timer=${t.roundTimer}`;
+                    if (t.event === 'room:deleted') detail = ` room=${t.room} session=${t.sessionActive} played=${t.roundsPlayed}/${t.roundsPerSession} reason=${t.reason}`;
+                    if (t.event === 'late-join:round:new') detail = ` room=${t.room} socket=${(t.socketId||'').slice(0,8)} idx=${t.roundIndex} zones=${t.zonesCount} fp=[${t.fingerprint||''}]`;
+                    sections.push(`  [${i+1}] ${ts} | ${t.event}${detail}`);
+                  });
+                }
+                sections.push('');
+
                 // Game Trace (diagnostic tous modes)
                 sections.push(`--- TRACE JEU (${soloTraces.length} événements) ---`);
                 if (soloTraces.length === 0) {
@@ -895,7 +938,7 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button
-                        onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchScreenshotMetas(); fetchServerClicks(); fetchGameTraces(); }}
+                        onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchScreenshotMetas(); fetchServerClicks(); fetchGameTraces(); fetchServerTraces(); }}
                         style={btnStyle(COLORS.info)}
                       >
                         🔄 Rafraîchir tout

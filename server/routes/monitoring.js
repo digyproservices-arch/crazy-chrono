@@ -512,6 +512,35 @@ router.delete('/game-trace', requireAdminAuth, (req, res) => {
   }
 });
 
+// ── Server Trace (GAME-TRACE serveur) ─────────────────────
+const serverTraceBuffer = require('../utils/serverTraceBuffer');
+
+/**
+ * GET /api/monitoring/server-trace
+ * Returns all stored server-side GAME-TRACE events (admin only)
+ */
+router.get('/server-trace', requireAdminAuth, (req, res) => {
+  try {
+    const traces = serverTraceBuffer.getAll();
+    res.json({ ok: true, count: traces.length, traces });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/monitoring/server-trace
+ * Purge all server-side traces (admin only)
+ */
+router.delete('/server-trace', requireAdminAuth, (req, res) => {
+  try {
+    serverTraceBuffer.purge();
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 // ── Game Incident Screenshots Storage ────────────────────
 const GAME_SS_DIR = path.join(__dirname, '..', 'data', 'game-screenshots');
 const MAX_GAME_SS = 200;
