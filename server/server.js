@@ -2664,9 +2664,19 @@ function startRound(roomCode) {
   // Valider les zones avant émission (monitoring double PA / fausse paire)
   try { validateZonesServer(payload.zones, { source: 'mp:round-start', roomCode, roundIndex: payload.roundIndex }); } catch (e) { logger.warn('[MP] Zone validation error:', e.message); }
   
+  // ── TRAÇAGE: log fingerprint des zones envoyées à TOUS les joueurs (même payload) ──
+  try {
+    const playerIds = Array.from(room.players.keys());
+    const fp = (zones || []).slice(0, 4).map(z => `${z.id}:${(z.content||'').substring(0,15)}:${z.pairId||'none'}`).join(' | ');
+    console.log(`[GAME-TRACE] round:new emitted | room=${roomCode} idx=${room.roundsPlayed}/${room.roundsPerSession} players=[${playerIds.join(',')}] zonesCount=${zones.length} fp=[${fp}]`);
+  } catch {}
   io.to(roomCode).emit('round:new', payload);
   // Timer d'expiration pour annoncer le résultat si personne n'a gagné
+  const _roundTimerSetAt = Date.now();
   room.roundTimer = setTimeout(() => {
+    const _roundTimerFiredAt = Date.now();
+    // ── TRAÇAGE: timing précis du roundTimer ──
+    console.log(`[GAME-TRACE] roundTimer fired | room=${roomCode} expectedDelay=${(room.duration||60)*1000}ms actualDelay=${_roundTimerFiredAt - _roundTimerSetAt}ms drift=${(_roundTimerFiredAt - _roundTimerSetAt) - (room.duration||60)*1000}ms`);
     // A l'expiration, invalider toute fenêtre d'égalité en cours
     try {
       if (room.pendingClaims && room.pendingClaims.size) {
@@ -2700,8 +2710,11 @@ function startRound(roomCode) {
       console.log(`[MP] scheduling next round after timeout (idx=${room.roundsPlayed+1})`);
       // petite pause avant la prochaine manche
       try { if (room.roundTimer) { clearTimeout(room.roundTimer); } } catch {}
+      const _scheduleNextAt = Date.now();
       room.roundTimer = setTimeout(() => {
         const r = getRoom(roomCode);
+        // ── TRAÇAGE: timing entre roundTimer expiry et startRound ──
+        console.log(`[GAME-TRACE] nextRound scheduled→fired | room=${roomCode} scheduledDelay=400ms actualDelay=${Date.now() - _scheduleNextAt}ms sessionActive=${r?.sessionActive}`);
         if (!r || !r.sessionActive) return;
         startRound(roomCode);
       }, 400);
@@ -2947,6 +2960,8 @@ io.on('connection', (socket) => {
     const room = getRoom(currentRoom);
     const existing = room.players.get(socket.id) || {};
     room.players.set(socket.id, { name: playerName, score: existing.score || 0, errors: existing.errors || 0, ready: false, studentId: playerStudentId || existing.studentId || null });
+    // ── TRAÇAGE: log quand un joueur rejoint une room ──
+    console.log(`[GAME-TRACE] joinRoom | room=${currentRoom} socket=${socket.id} name=${playerName} playersNow=${room.players.size} sessionActive=${room.sessionActive} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession} existingScore=${existing.score||0}`);
     // Le créateur de la salle récupère toujours le statut d'hôte quand il rejoint
     if (room._creatorId && room.players.has(room._creatorId)) {
       room.hostId = room._creatorId;
@@ -2978,6 +2993,11 @@ io.on('connection', (socket) => {
         console.warn(`[MP] ⚠️ DESYNC RISK: Late joiner ${socket.id} in room ${currentRoom} — no currentZones stored! Will fallback to local generation.`);
       }
       socket.emit('round:new', latePayload);
+      // ── TRAÇAGE: log détaillé late-join avec fingerprint zones ──
+      try {
+        const fp = (latePayload.zones || []).slice(0, 4).map(z => `${z.id}:${(z.content||'').substring(0,15)}:${z.pairId||'none'}`).join(' | ');
+        console.log(`[GAME-TRACE] late-join round:new | room=${currentRoom} socket=${socket.id} idx=${room.roundsPlayed} zonesCount=${latePayload.zones?.length||0} hasZones=${!!latePayload.hasZones} fp=[${fp}]`);
+      } catch {}
       console.log(`[MP] Late joiner ${socket.id} synced to ongoing round ${room.roundsPlayed} in room ${currentRoom} (zones: ${latePayload.zones ? latePayload.zones.length : 'NONE'})`);
     }
   });
@@ -3964,6 +3984,8 @@ io.on('connection', (socket) => {
     // Gérer déconnexion multijoueur classique
     if (!currentRoom) return;
     const room = getRoom(currentRoom);
+    // ── TRAÇAGE: log déconnexion avec contexte complet ──
+    console.log(`[GAME-TRACE] disconnect | room=${currentRoom} socket=${socket.id} reason=${reason} sessionActive=${room.sessionActive} playersBeforeDelete=${room.players.size} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession} roundTimer=${!!room.roundTimer}`);
     room.players.delete(socket.id);
     if (room.hostId === socket.id) {
       // réassigner l'hôte si possible
