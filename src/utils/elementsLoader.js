@@ -307,6 +307,8 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   // Le filtre de Carte décode avant comparaison, donc l'appariement reste OK.
   const encodedImageUrl = (u) => {
     if (!u) return '';
+    // Préserver les URLs complètes (Supabase Storage CDN, etc.)
+    if (u.startsWith('http://') || u.startsWith('https://')) return u;
     try { u = decodeURIComponent(u); } catch {}
     const p = u.replace(/\\/g, '/');
     const filename = p.split('/').pop();

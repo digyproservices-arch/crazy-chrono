@@ -577,6 +577,8 @@ function generateRoundZones(seed, config = {}) {
     
     const encodedImageUrl = (u) => {
       if (!u) return '';
+      // Préserver les URLs complètes (Supabase Storage CDN, etc.)
+      if (u.startsWith('http://') || u.startsWith('https://')) return u;
       try { u = decodeURIComponent(u); } catch {}
       const p = u.replace(/\\/g, '/');
       const filename = p.split('/').pop();
