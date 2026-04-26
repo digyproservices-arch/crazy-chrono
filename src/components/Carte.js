@@ -758,6 +758,8 @@ const Carte = () => {
   const socket = socketRef.current;
   // Apply session config (rounds/duration) once when we are host
   const configAppliedRef = useRef(false);
+  // Guard: empêcher l'auto-start solo sur reconnexion Socket.IO (transport close → reconnect)
+  const soloAutoStartedRef = useRef(false);
   // Sync objectiveModeRef with state (avoid stale closures in setTimeout/async)
   useEffect(() => { objectiveModeRef.current = objectiveMode; }, [objectiveMode]);
   // Sync socketConnectedRef with state (avoid stale closures in useEffect([], []) socket handlers)
@@ -833,20 +835,6 @@ const Carte = () => {
       if (!auth.token) {
         emitMonitoringEvent('cc_student_id:missing', { reason: 'no auth token' });
         return;
-      }
-      fetch(`${getBackendUrl()}/api/auth/me`, {
-        headers: { 'Authorization': `Bearer ${auth.token}` }
-      }).then(r => r.json()).then(data => {
-        if (data.ok && data.student) {
-          localStorage.setItem('cc_student_id', data.student.id);
-          localStorage.setItem('cc_student_name', data.student.fullName || data.student.firstName || 'Joueur');
-          emitMonitoringEvent('cc_student_id:resolved', { studentId: data.student.id, source: 'api/auth/me' });
-        } else {
-          emitMonitoringEvent('cc_student_id:missing', { reason: 'no student in response', isTeacher: data.user?.role });
-        }
-      }).catch(e => {
-        emitMonitoringEvent('cc_student_id:missing', { reason: 'fetch error', error: e.message });
-      });
     } catch {}
   }, [emitMonitoringEvent]);
 
@@ -2089,7 +2077,7 @@ const Carte = () => {
       
       s.on('reconnect_error', (err) => {
         console.error('[ARENA] ❌ Échec reconnexion:', err?.message || err);
-      });
+      };
       
       return () => {
         cleanupResize();
@@ -2266,12 +2254,6 @@ const Carte = () => {
           } catch (e) { console.warn('[CC][GS] pair:valid animation error', e); }
         });
 
-        s.on('gs:pair:invalid', () => {
-          setGameSelectedIds([]);
-          try { playWrongSound(); } catch {}
-          try { showWrongFlash(); } catch {}
-        });
-
         s.on('gs:elimination', (data) => {
           console.log('[CC][GS] gs:elimination', data);
           const amEliminated = data?.eliminated?.some(e => e.id === s.id);
@@ -2417,7 +2399,8 @@ const Carte = () => {
           } catch {}
         }, 100);
         // Démarrage auto si mode=solo enregistré — avec quota check (Sprint A freemium)
-        if (cfgSolo && cfgSolo.mode === 'solo') {
+        if (cfgSolo && cfgSolo.mode === 'solo' && !soloAutoStartedRef.current) {
+          soloAutoStartedRef.current = true;
           const uid = getLocalUserId();
           serverAllowsStart(uid).then((res) => {
             try {
