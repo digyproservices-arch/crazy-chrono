@@ -3000,7 +3000,19 @@ io.on('connection', (socket) => {
     currentRoom = newRoom;
     socket.join(currentRoom);
     const room = getRoom(currentRoom);
-    const existing = room.players.get(socket.id) || {};
+    let existing = room.players.get(socket.id) || {};
+    // FIX BUG 4: Detect reconnection during active session — transfer score from old socket
+    if (room.sessionActive && !room.players.has(socket.id)) {
+      for (const [oldId, oldPlayer] of room.players.entries()) {
+        if (oldPlayer.name === playerName) {
+          console.log(`[MP] ♻️ Reconnexion détectée: "${playerName}" ancien=${oldId} nouveau=${socket.id} score=${oldPlayer.score||0} errors=${oldPlayer.errors||0}`);
+          sTrace.push('reconnect:score-transfer', { room: currentRoom, oldSocket: oldId, newSocket: socket.id, name: playerName, score: oldPlayer.score || 0, errors: oldPlayer.errors || 0 });
+          existing = { score: oldPlayer.score || 0, errors: oldPlayer.errors || 0, studentId: oldPlayer.studentId || null };
+          room.players.delete(oldId);
+          break;
+        }
+      }
+    }
     room.players.set(socket.id, { name: playerName, score: existing.score || 0, errors: existing.errors || 0, ready: false, studentId: playerStudentId || existing.studentId || null });
     // ── TRAÇAGE: log quand un joueur rejoint une room ──
     console.log(`[GAME-TRACE] joinRoom | room=${currentRoom} socket=${socket.id} name=${playerName} playersNow=${room.players.size} sessionActive=${room.sessionActive} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession} existingScore=${existing.score||0}`);
