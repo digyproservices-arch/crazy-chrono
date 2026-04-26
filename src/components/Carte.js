@@ -2552,23 +2552,26 @@ const Carte = () => {
     s.on('round:new', (payload) => {
       console.debug('[CC][client] round:new', payload);
       // ── TRAÇAGE BUG SOLO: log persistant quand round:new arrive ──
-      try {
-        const traceData = {
-          event: 'round:new',
-          ts: Date.now(),
-          roundIndex: payload?.roundIndex,
-          roundsTotal: payload?.roundsTotal,
-          duration: payload?.duration,
-          hasZones: !!payload?.zones,
-          zonesCount: payload?.zones?.length || 0,
-          socketId: s?.id || null,
-          timeSinceTimerZero: roundEndTsRef.current ? (Date.now() - roundEndTsRef.current) : null
-        };
-        const diags = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
-        diags.push(traceData);
-        if (diags.length > 50) diags.splice(0, diags.length - 50);
-        localStorage.setItem('cc_game_trace', JSON.stringify(diags));
-      } catch {}
+      // Skip les régénérations (isRegen=true) pour éviter le bruit dans les traces
+      if (!payload?.isRegen) {
+        try {
+          const traceData = {
+            event: 'round:new',
+            ts: Date.now(),
+            roundIndex: payload?.roundIndex,
+            roundsTotal: payload?.roundsTotal,
+            duration: payload?.duration,
+            hasZones: !!payload?.zones,
+            zonesCount: payload?.zones?.length || 0,
+            socketId: s?.id || null,
+            timeSinceTimerZero: roundEndTsRef.current ? (Date.now() - roundEndTsRef.current) : null
+          };
+          const diags = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
+          diags.push(traceData);
+          if (diags.length > 50) diags.splice(0, diags.length - 50);
+          localStorage.setItem('cc_game_trace', JSON.stringify(diags));
+        } catch {}
+      }
       // --- Transition delay monitoring ---
       try {
         if (roundEndTsRef.current) {
