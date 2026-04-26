@@ -1052,7 +1052,7 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     <KPICard title="Manches" value={roundLogs.length} icon="🎮" color="#10b981" highlight={roundLogs.some(r => r.doublePairIssues > 0)} />
                     <KPICard title="Double paires" value={roundLogs.filter(r => r.doublePairIssues > 0).length} icon="🚨" color={COLORS.error} highlight={roundLogs.some(r => r.doublePairIssues > 0)} />
                     {(() => { try { const cs = getClickStats(); const ca = getClickAttempts(); const rejected = ca.filter(a => a.stage.startsWith('REJECTED')).length; const missed = ca.filter(a => a.stage === 'BOARD_CLICK').length; return (<><KPICard title="Clics acceptés" value={cs.ok || 0} icon="✅" color="#10b981" /><KPICard title="Clics rejetés" value={rejected} icon="🚫" color={COLORS.warn} highlight={rejected > 0} /><KPICard title="Clics perdus" value={missed} icon="❓" color={COLORS.error} highlight={missed > 0} /></>); } catch { return null; } })()}
-                    <KPICard title="Traces Jeu" value={soloTraces.length} icon="🔍" color="#f59e0b" highlight={soloTraces.length > 0} />
+                    <KPICard title="Traces Jeu" value={soloTraces.length} icon="🔍" color="#f59e0b" />
                     <KPICard title="Télémétrie" value={clientTelemetryEvents.length} icon="📡" color="#06b6d4" highlight={clientTelemetryEvents.some(e => e.event?.startsWith('error:'))} />
                   </div>
 
