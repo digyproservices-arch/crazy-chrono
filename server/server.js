@@ -57,7 +57,12 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5173'
 ];
 const io = new Server(server, {
-  cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'], credentials: true }
+  cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'], credentials: true },
+  pingInterval: 10000,       // ping toutes les 10s (défaut 25s — trop lent pour Render)
+  pingTimeout: 5000,         // pong attendu dans 5s (défaut 20s)
+  transports: ['websocket', 'polling'], // websocket prioritaire, polling en fallback
+  allowUpgrades: true,       // upgrader polling → websocket automatiquement
+  upgradeTimeout: 10000,
 });
 
 logger.info('[Server] Starting Crazy Chrono backend...', { 

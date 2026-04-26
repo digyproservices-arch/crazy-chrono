@@ -1424,7 +1424,7 @@ const Carte = () => {
       
       const base = getBackendUrl();
       console.log('[TRAINING] Tentative connexion Socket.IO vers:', base);
-      const s = io(base, { transports: ['websocket'], withCredentials: false });
+      const s = io(base, { transports: ['websocket', 'polling'], withCredentials: false, reconnectionDelay: 1000, reconnectionDelayMax: 5000 });
       socketRef.current = s;
       _instrSocket(s, 'training', trainingMatchId);
       
@@ -1605,7 +1605,7 @@ const Carte = () => {
       
       const base = getBackendUrl();
       console.log('[ARENA] Tentative connexion Socket.IO vers:', base);
-      const s = io(base, { transports: ['websocket'], withCredentials: false });
+      const s = io(base, { transports: ['websocket', 'polling'], withCredentials: false, reconnectionDelay: 1000, reconnectionDelayMax: 5000 });
       socketRef.current = s;
       _instrSocket(s, 'arena', arenaMatchId);
       
@@ -2089,7 +2089,7 @@ const Carte = () => {
     if (socketRef.current && socketRef.current.connected) return;
     const base = getBackendUrl();
     addDiag('socket:init', { url: base });
-    const s = io(base, { transports: ['websocket'], withCredentials: false });
+    const s = io(base, { transports: ['websocket', 'polling'], withCredentials: false, reconnectionDelay: 1000, reconnectionDelayMax: 5000 });
     socketRef.current = s;
     _instrSocket(s, 'multiplayer', roomId);
 
@@ -2104,6 +2104,14 @@ const Carte = () => {
         const sid = (JSON.parse(localStorage.getItem('cc_auth') || '{}')).id || localStorage.getItem('cc_student_id') || null;
         if (sid) s.emit('mp:identify', { studentId: sid });
       } catch {}
+
+      // ✅ FIX PHANTOM SOLO ROOMS: Si un jeu est déjà actif (reconnexion après transport close),
+      // ne PAS recréer de room/startGame. Juste re-identify et laisser le serveur resync via room:state.
+      if (prevGameActiveRef.current) {
+        console.log('[CC][reconnect] Game already active — skipping room setup (transport close recovery)');
+        addDiag('reconnect:skip-setup', { gameActive: true, socketId: s.id });
+        return;
+      }
 
       // Listen room:state to know when we are host, then apply config once
       const onRoomState = (payload) => {
