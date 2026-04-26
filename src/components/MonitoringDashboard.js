@@ -897,6 +897,30 @@ const clearIncidents = async () => {
                     if (t.event === 'disconnect') detail = ` room=${t.room} socket=${(t.socketId||'').slice(0,8)} reason=${t.reason} session=${t.sessionActive} playersBefore=${t.playersBeforeDelete} played=${t.roundsPlayed}/${t.roundsPerSession} timer=${t.roundTimer}`;
                     if (t.event === 'room:deleted') detail = ` room=${t.room} session=${t.sessionActive} played=${t.roundsPlayed}/${t.roundsPerSession} reason=${t.reason}`;
                     if (t.event === 'late-join:round:new') detail = ` room=${t.room} socket=${(t.socketId||'').slice(0,8)} idx=${t.roundIndex} zones=${t.zonesCount} fp=[${t.fingerprint||''}]`;
+                    // Grande Salle events
+                    if (t.event === 'gs:join') detail = ` salle=${t.salle} socket=${(t.socketId||'').slice(0,8)} name=${t.name} players=${t.players} session=${t.sessionActive}`;
+                    if (t.event === 'gs:reconnect') detail = ` salle=${t.salle} name=${t.name} old=${(t.oldSocketId||'').slice(0,8)} new=${(t.newSocketId||'').slice(0,8)} score=${t.score}`;
+                    if (t.event === 'gs:disconnect') detail = ` salle=${t.salle} name=${t.name} reason=${t.reason} session=${t.sessionActive} kept=${t.keptForReconnect} players=${t.players}`;
+                    if (t.event === 'gs:startRound') detail = ` salle=${t.salle} round=${t.round} zones=${t.zonesCount} players=${t.players} dur=${t.duration}s`;
+                    if (t.event === 'gs:roundTimer:fired') detail = ` salle=${t.salle} round=${t.round} expected=${t.expectedMs}ms drift=${t.driftMs}ms`;
+                    if (t.event === 'gs:elimination') detail = ` salle=${t.salle} wave=${t.wave} eliminated=${t.eliminated} remaining=${t.remaining} pct=${t.elimPct}% names=[${(t.eliminatedNames||[]).join(',')}]`;
+                    if (t.event === 'gs:finish') detail = ` salle=${t.salle} winner=${t.winner} score=${t.winnerScore} players=${t.totalPlayers} rounds=${t.rounds} waves=${t.waves}`;
+                    // Arena/Training match events (from crazyArenaManager)
+                    if (t.event && t.event.startsWith('match:')) {
+                      const type = t.event.replace('match:', '');
+                      const mid = (t.matchId||'').slice(-8);
+                      const mode = t.mode || '?';
+                      if (type === 'MATCH_START') detail = ` [${mode}] match=${mid} players=${t.playersCount} names=[${(t.players||[]).map(p=>p.name).join(',')}]`;
+                      else if (type === 'MATCH_END') detail = ` [${mode}] match=${mid} dur=${t.duration ? Math.round(t.duration/1000)+'s' : '?'} players=[${(t.players||[]).map(p=>`${p.name}:${p.score}`).join(',')}]`;
+                      else if (type === 'ROUND_NEW') detail = ` [${mode}] match=${mid} round=${t.roundIndex} elapsed=${t.elapsed}s`;
+                      else if (type === 'PLAYER_DISCONNECT') detail = ` [${mode}] match=${mid} name=${t.name} status=${t.matchStatus}`;
+                      else if (type === 'PLAYER_RECONNECT') detail = ` [${mode}] match=${mid} name=${t.name}`;
+                      else if (type === 'MATCH_PAUSE') detail = ` [${mode}] match=${mid} player=${t.disconnectedPlayer} grace=${(t.gracePeriodMs||0)/1000}s`;
+                      else if (type === 'MATCH_RESUME') detail = ` [${mode}] match=${mid}`;
+                      else if (type === 'PLAYER_FORFEIT') detail = ` [${mode}] match=${mid} name=${t.name||t.studentId||'?'}`;
+                      else if (type === 'TIEBREAKER_START') detail = ` [${mode}] match=${mid}`;
+                      else detail = ` [${mode}] match=${mid} ${JSON.stringify(Object.fromEntries(Object.entries(t).filter(([k]) => !['event','ts','matchId','mode','id','type','timestamp'].includes(k)).slice(0,5)))}`;
+                    }
                     sections.push(`  [${i+1}] ${ts} | ${t.event}${detail}`);
                   });
                 }

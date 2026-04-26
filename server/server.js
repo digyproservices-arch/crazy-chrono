@@ -2285,13 +2285,17 @@ function gsStartRound(salleId) {
   };
   
   console.log(`[GS] Round ${salle.roundsPlayed} started in "${salleId}" with ${zones.length} zones, ${salle.players.size} players`);
+  sTrace.push('gs:startRound', { salle: salleId, round: salle.roundsPlayed, zonesCount: zones.length, players: salle.players.size, duration: salle.config.duration });
   // Valider les zones avant émission (monitoring double PA / fausse paire)
   try { validateZonesServer(zones, { source: 'gs:round-start', salleId, roundIndex: salle.roundsPlayed }); } catch (e) { logger.warn('[GS] Zone validation error:', e.message); }
   io.to(`gs:${salleId}`).emit('gs:round:new', payload);
   gsEmitState(salleId);
   
   // Round timer
+  const _gsTimerSetAt = Date.now();
   salle.roundTimer = setTimeout(() => {
+    const drift = Date.now() - _gsTimerSetAt - salle.config.duration * 1000;
+    sTrace.push('gs:roundTimer:fired', { salle: salleId, round: salle.roundsPlayed, expectedMs: salle.config.duration * 1000, driftMs: drift });
     gsEndRound(salleId);
   }, salle.config.duration * 1000);
 }
@@ -2389,6 +2393,7 @@ function gsEliminationWave(salleId) {
   const remaining = activePlayers.length - eliminateCount;
   
   console.log(`[GS] Elimination wave ${salle.eliminationWave} in "${salleId}": ${eliminateCount} eliminated, ${remaining} remaining`);
+  sTrace.push('gs:elimination', { salle: salleId, wave: salle.eliminationWave, eliminated: eliminateCount, remaining, elimPct, eliminatedNames: eliminatedNames.map(e => e.name) });
   
   io.to(`gs:${salleId}`).emit('gs:elimination', {
     wave: salle.eliminationWave,
@@ -2436,6 +2441,7 @@ async function gsFinish(salleId) {
   const winner = allPlayers[0] || null;
   
   console.log(`[GS] Grande Salle "${salleId}" finished. Winner: ${winner?.name || 'none'} with ${winner?.score || 0} points. ${allPlayers.length} total players.`);
+  sTrace.push('gs:finish', { salle: salleId, winner: winner?.name || 'none', winnerScore: winner?.score || 0, totalPlayers: allPlayers.length, rounds: salle.roundsPlayed, waves: salle.eliminationWave });
   
   // Save tournament results to Supabase
   if (salle.tournamentId && supabaseAdmin) {
@@ -3748,6 +3754,7 @@ io.on('connection', (socket) => {
           salle.spectators.delete(oldId);
           reconnected = true;
           console.log(`[GS] ${playerName} reconnected in "${id}" (${oldId} -> ${socket.id}), score=${playerData.score}`);
+          sTrace.push('gs:reconnect', { salle: id, name: playerName, oldSocketId: oldId, newSocketId: socket.id, score: playerData.score });
           // Send current round zones to the reconnected player
           if (salle.currentZones && Array.isArray(salle.currentZones)) {
             socket.emit('gs:round:new', {
@@ -3774,6 +3781,7 @@ io.on('connection', (socket) => {
         joinedAt: Date.now(),
       });
       console.log(`[GS] ${playerName} joined "${id}" (${salle.players.size} players)`);
+      sTrace.push('gs:join', { salle: id, socketId: socket.id, name: playerName, players: salle.players.size, sessionActive: salle.sessionActive });
       // Check auto-start when a new player joins the lobby
       gsCheckAutoStart(id);
     }
@@ -3976,6 +3984,7 @@ io.on('connection', (socket) => {
           if (player) {
             player.disconnectedAt = Date.now();
             console.log(`[GS] Player "${player.name}" disconnected from "${currentGS}" (kept for reconnection, ${salle.players.size} players)`);
+            sTrace.push('gs:disconnect', { salle: currentGS, name: player.name, socketId: socket.id, reason, sessionActive: true, keptForReconnect: true, players: salle.players.size });
           }
           salle.spectators.delete(socket.id);
         } else {

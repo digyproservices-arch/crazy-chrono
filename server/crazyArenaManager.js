@@ -10,6 +10,7 @@
 
 const logger = require('./logger');
 const { v4: uuidv4 } = require('uuid');
+const sTrace = require('./utils/serverTraceBuffer');
 const { validateZonesServer } = require('./utils/validateZonesServer');
 const fs = require('fs');
 const path = require('path');
@@ -60,6 +61,8 @@ function _logMatchEvent(eventType, matchId, data = {}) {
   };
   // Winston persistent (Supabase)
   logger.info(`[MatchEvent][${eventType}]`, event);
+  // Buffer for MonitoringDashboard report
+  sTrace.push(`match:${eventType}`, { matchId: matchId || 'unknown', mode: data.mode || 'arena', ...data });
   // JSON file backup (survit aux crashes, lisible dans monitoring)
   try {
     const dir = path.dirname(MATCH_EVENTS_FILE);
