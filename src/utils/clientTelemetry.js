@@ -19,6 +19,11 @@ const MAX_EVENTS = 300;
 const SYNC_INTERVAL_MS = 15000; // sync toutes les 15s
 const SYNC_BATCH_SIZE = 50;
 
+// FIX BUG 3: Anti-cascade — backoff exponentiel sur échec sync + rate-limit error:network
+let _syncFailCount = 0;
+const _networkErrorTimestamps = new Map(); // url → last timestamp
+const NETWORK_ERROR_COOLDOWN_MS = 30000; // 1 seul error:network par URL toutes les 30s
+
 // ── Helpers ──────────────────────────────────────────────
 
 function getDeviceId() {
@@ -89,6 +94,12 @@ let _syncTimer = null;
 
 async function syncToServer() {
   try {
+    // FIX BUG 3: Backoff exponentiel — ne pas marteler le serveur si indisponible
+    if (_syncFailCount > 0) {
+      const backoffMs = Math.min(SYNC_INTERVAL_MS * Math.pow(2, _syncFailCount), 300000); // max 5min
+      const lastFail = syncToServer._lastFailTs || 0;
+      if (Date.now() - lastFail < backoffMs) return;
+    }
     const buf = loadBuffer();
     if (!buf.length) return;
     const batch = buf.slice(0, SYNC_BATCH_SIZE);
@@ -97,7 +108,9 @@ async function syncToServer() {
     const token = (() => {
       try { return JSON.parse(localStorage.getItem('cc_auth') || '{}').token || null; } catch { return null; }
     })();
-    const res = await fetch(`${backendUrl}/api/monitoring/client-telemetry`, {
+    // FIX BUG 3: Utiliser origFetch pour éviter la boucle récursive du monkey-patch
+    const fetchFn = window._cc_origFetch || window.fetch;
+    const res = await fetchFn(`${backendUrl}/api/monitoring/client-telemetry`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -113,8 +126,15 @@ async function syncToServer() {
       // Supprimer les événements envoyés
       const remaining = buf.slice(batch.length);
       saveBuffer(remaining);
+      _syncFailCount = 0; // Reset backoff on success
+    } else {
+      _syncFailCount++;
+      syncToServer._lastFailTs = Date.now();
     }
-  } catch {}
+  } catch {
+    _syncFailCount++;
+    syncToServer._lastFailTs = Date.now();
+  }
 }
 
 // ── Capteurs ─────────────────────────────────────────────
@@ -173,11 +193,17 @@ function captureFetchErrors() {
       }
       return res;
     } catch (err) {
-      telemetry('error:network', {
-        fetchUrl: url.substring(0, 200),
-        message: err.message?.substring(0, 200) || 'Network error',
-        elapsed: Date.now() - start,
-      });
+      // FIX BUG 3: Rate-limit error:network par URL pour éviter la cascade
+      const urlKey = url.substring(0, 100);
+      const lastTs = _networkErrorTimestamps.get(urlKey) || 0;
+      if (Date.now() - lastTs >= NETWORK_ERROR_COOLDOWN_MS) {
+        _networkErrorTimestamps.set(urlKey, Date.now());
+        telemetry('error:network', {
+          fetchUrl: url.substring(0, 200),
+          message: err.message?.substring(0, 200) || 'Network error',
+          elapsed: Date.now() - start,
+        });
+      }
       throw err;
     }
   };
