@@ -1229,6 +1229,52 @@ function generateRoundZones(seed, config = {}) {
       }
     }
     
+    // ===== FINAL PASS: fill remaining empty-content zones with safe fallback =====
+    // FIX BUG 2: Prevents zones vides (content: "") causing invisible zones and pair_rejected
+    for (const z of result) {
+      if (z.content && String(z.content).trim() !== '') continue;
+      const type = z.type || 'image';
+      if (z.pairId) {
+        console.error('[ServerZoneGen] CRITICAL: Target pair zone has empty content!', { zoneId: z.id, type, pairId: z.pairId });
+        logFn('error', '[ZoneGen] Target pair zone has EMPTY content', { zoneId: z.id, type, pairId: z.pairId });
+        continue;
+      }
+      z.isDistractor = true;
+      z.pairId = '';
+      if (type === 'calcul') {
+        const a = Math.floor(rng() * 9) + 2, b = Math.floor(rng() * 9) + 2;
+        z.content = `${a} × ${b}`;
+      } else if (type === 'chiffre') {
+        z.content = String(Math.floor(rng() * 80) + 2);
+        z.label = z.content;
+      } else if (type === 'texte') {
+        const remaining = texteIds.filter(id => !used.texte.has(id));
+        if (remaining.length > 0) {
+          const tId = remaining[Math.floor(rng() * remaining.length)];
+          z.content = textesById[tId]?.content || '???';
+          z.label = z.content;
+          used.texte.add(tId);
+        } else {
+          z.content = '???';
+          z.label = '???';
+        }
+      } else if (type === 'image') {
+        const remaining = imageIds.filter(id => !used.image.has(id));
+        if (remaining.length > 0) {
+          const imgId = remaining[Math.floor(rng() * remaining.length)];
+          z.content = encodedImageUrl(imagesById[imgId]?.url || '');
+          used.image.add(imgId);
+        }
+      }
+      if (z.content && String(z.content).trim() !== '') {
+        console.log('[ServerZoneGen] FINAL PASS: Filled empty zone', z.id, type);
+        logFn('info', '[ZoneGen] FINAL PASS: Filled empty zone with fallback', { zoneId: z.id, type });
+      } else {
+        console.warn('[ServerZoneGen] FINAL PASS: Could not fill zone', z.id, type);
+        logFn('warn', '[ZoneGen] FINAL PASS: Could not fill zone — will remain empty', { zoneId: z.id, type });
+      }
+    }
+
     // Log final: toutes les zones avec pairId
     const finalPairIds = result
       .filter(z => z.pairId)

@@ -790,6 +790,47 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   // Nettoyage: supprimer _distId temporaire des zones
   for (const z of result) delete z._distId;
 
+  // ===== FINAL PASS: fill remaining empty-content zones with safe fallback =====
+  // FIX BUG 2: Prevents zones vides (content: "") causing invisible zones and pair_rejected
+  for (const z of result) {
+    if (z.content && String(z.content).trim() !== '') continue; // already has content
+    const type = z.type || 'image';
+    if (z.pairId) {
+      // Target pair zone with empty content — critical error, cannot safely generate fallback
+      console.error('[elementsLoader] CRITICAL: Target pair zone has empty content!', { zoneId: z.id, type, pairId: z.pairId });
+      continue;
+    }
+    z.isDistractor = true;
+    z.pairId = '';
+    if (type === 'calcul') {
+      const a = Math.floor(rng() * 9) + 2, b = Math.floor(rng() * 9) + 2;
+      z.content = `${a} × ${b}`;
+    } else if (type === 'chiffre') {
+      z.content = String(Math.floor(rng() * 80) + 2);
+    } else if (type === 'texte') {
+      const remaining = texteIds.filter(id => !used.texte.has(id));
+      if (remaining.length > 0) {
+        const tId = remaining[Math.floor(rng() * remaining.length)];
+        z.content = localizeText(textesById[tId]?.content || '???', locMap);
+        used.texte.add(tId);
+      } else {
+        z.content = '???';
+      }
+    } else if (type === 'image') {
+      const remaining = imageIds.filter(id => !used.image.has(id));
+      if (remaining.length > 0) {
+        const imgId = remaining[Math.floor(rng() * remaining.length)];
+        z.content = encodedImageUrl(imagesById[imgId]?.url || '');
+        used.image.add(imgId);
+      }
+    }
+    if (z.content && String(z.content).trim() !== '') {
+      console.log('[elementsLoader] FINAL PASS: Filled empty zone', z.id, type, 'with fallback content');
+    } else {
+      console.warn('[elementsLoader] FINAL PASS: Could not fill zone', z.id, type, '— zone will remain empty');
+    }
+  }
+
   // Increment round counter for logging (via monitoring pipeline)
   if (_deckState) {
     _deckState.roundCount++;
