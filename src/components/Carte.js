@@ -835,6 +835,7 @@ const Carte = () => {
       if (!auth.token) {
         emitMonitoringEvent('cc_student_id:missing', { reason: 'no auth token' });
         return;
+      }
     } catch {}
   }, [emitMonitoringEvent]);
 
@@ -2077,7 +2078,7 @@ const Carte = () => {
       
       s.on('reconnect_error', (err) => {
         console.error('[ARENA] ❌ Échec reconnexion:', err?.message || err);
-      };
+      });
       
       return () => {
         cleanupResize();

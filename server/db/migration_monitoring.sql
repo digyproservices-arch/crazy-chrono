@@ -94,24 +94,185 @@ WHERE created_at > NOW() - INTERVAL '7 days'
 GROUP BY hour, path
 ORDER BY hour DESC;
 
--- 7) Nettoyage automatique (garder 30 jours)
--- À exécuter comme cron job Supabase ou manuellement
--- DELETE FROM monitoring_events WHERE created_at < NOW() - INTERVAL '30 days';
--- DELETE FROM monitoring_apm WHERE created_at < NOW() - INTERVAL '30 days';
--- DELETE FROM monitoring_player_snapshots WHERE created_at < NOW() - INTERVAL '90 days';
+-- =============================================
+-- 7) Game Incidents (pair_rejected, missing_pair, etc.)
+-- Remplace game_incidents.json (éphémère sur Render)
+-- =============================================
+CREATE TABLE IF NOT EXISTS mon_game_incidents (
+  id BIGSERIAL PRIMARY KEY,
+  client_id TEXT,                    -- ID unique côté client (pour dédoublonnage)
+  incident_type TEXT NOT NULL,       -- 'pair_rejected', 'missing_pair', 'duplicate_pair', etc.
+  severity TEXT DEFAULT 'error',     -- 'warning', 'error', 'critical'
+  device_id TEXT,
+  user_id TEXT,
+  session_info JSONB DEFAULT '{}',   -- mode, roomId, roundIndex, etc.
+  details JSONB DEFAULT '{}',        -- message, pairId, zoneIds, contenu, etc.
+  zones_snapshot JSONB,              -- snapshot des zones au moment de l'incident (nullable)
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  received_at TIMESTAMPTZ DEFAULT NOW()
+);
 
--- 8) RLS policies (accès admin uniquement)
+CREATE INDEX IF NOT EXISTS idx_mon_gi_created ON mon_game_incidents(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mon_gi_type ON mon_game_incidents(incident_type);
+CREATE INDEX IF NOT EXISTS idx_mon_gi_severity ON mon_game_incidents(severity);
+CREATE INDEX IF NOT EXISTS idx_mon_gi_client_id ON mon_game_incidents(client_id);
+
+-- =============================================
+-- 8) Client Round Logs (zones snapshot par manche, synced from localStorage)
+-- Remplace client_round_logs.json
+-- =============================================
+CREATE TABLE IF NOT EXISTS mon_client_rounds (
+  id BIGSERIAL PRIMARY KEY,
+  client_id TEXT,                    -- ID unique côté client (dédoublonnage)
+  device_id TEXT,
+  user_id TEXT,
+  mode TEXT,                         -- 'solo', 'multiplayer', 'arena', 'training', 'gs'
+  round_index INT,
+  zones_count INT,
+  good_pairs INT,
+  distractors INT,
+  details JSONB DEFAULT '{}',        -- données complètes du round log
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  received_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_mon_cr_created ON mon_client_rounds(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mon_cr_client_id ON mon_client_rounds(client_id);
+CREATE INDEX IF NOT EXISTS idx_mon_cr_mode ON mon_client_rounds(mode);
+
+-- =============================================
+-- 9) Client Click Events (PAIR_OK / PAIR_FAIL synced from localStorage)
+-- Remplace client_click_events.json
+-- =============================================
+CREATE TABLE IF NOT EXISTS mon_client_clicks (
+  id BIGSERIAL PRIMARY KEY,
+  sync_id TEXT,                      -- ID unique côté client (dédoublonnage)
+  device_id TEXT,
+  user_id TEXT,
+  stage TEXT,                        -- 'PAIR_OK', 'PAIR_FAIL'
+  zone_id TEXT,
+  zone_type TEXT,
+  content TEXT,
+  reason TEXT,
+  details JSONB DEFAULT '{}',        -- données complètes du click event
+  ts BIGINT,                         -- timestamp client (ms)
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  received_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_mon_cc_created ON mon_client_clicks(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mon_cc_sync_id ON mon_client_clicks(sync_id);
+CREATE INDEX IF NOT EXISTS idx_mon_cc_stage ON mon_client_clicks(stage);
+
+-- =============================================
+-- 10) Arena Round Logs (server-side round data)
+-- Remplace arena_round_logs.json
+-- =============================================
+CREATE TABLE IF NOT EXISTS mon_arena_rounds (
+  id BIGSERIAL PRIMARY KEY,
+  details JSONB DEFAULT '{}',        -- données complètes du round Arena
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  received_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_mon_ar_created ON mon_arena_rounds(created_at DESC);
+
+-- =============================================
+-- 11) Game Traces (diagnostic events from cc_game_trace)
+-- Remplace game_trace.json
+-- =============================================
+CREATE TABLE IF NOT EXISTS mon_game_traces (
+  id BIGSERIAL PRIMARY KEY,
+  event TEXT NOT NULL,               -- 'timer:zero', 'session:end', 'round:new', etc.
+  device_id TEXT,
+  user_id TEXT,
+  details JSONB DEFAULT '{}',        -- données complètes de la trace
+  ts BIGINT,                         -- timestamp client (ms)
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  received_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_mon_gt_created ON mon_game_traces(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mon_gt_event ON mon_game_traces(event);
+
+-- =============================================
+-- 12) Client Telemetry (error:js, error:fetch, socket:connect, etc.)
+-- Remplace client_telemetry.json
+-- =============================================
+CREATE TABLE IF NOT EXISTS mon_client_telemetry (
+  id BIGSERIAL PRIMARY KEY,
+  event TEXT NOT NULL,               -- 'error:js', 'error:fetch', 'socket:connect', etc.
+  device_id TEXT,
+  user_id TEXT,
+  details JSONB DEFAULT '{}',        -- données complètes de l'événement
+  ts BIGINT,                         -- timestamp client (ms)
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  received_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_mon_ct_created ON mon_client_telemetry(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mon_ct_event ON mon_client_telemetry(event);
+
+-- =============================================
+-- 13) Nettoyage automatique — rétention 30 jours
+-- Exécuter via pg_cron OU appel périodique depuis le serveur
+-- =============================================
+CREATE OR REPLACE FUNCTION mon_cleanup_old_data() RETURNS void AS $$
+BEGIN
+  DELETE FROM monitoring_events WHERE created_at < NOW() - INTERVAL '30 days';
+  DELETE FROM monitoring_apm WHERE created_at < NOW() - INTERVAL '30 days';
+  DELETE FROM monitoring_player_snapshots WHERE created_at < NOW() - INTERVAL '90 days';
+  DELETE FROM mon_game_incidents WHERE created_at < NOW() - INTERVAL '30 days';
+  DELETE FROM mon_client_rounds WHERE created_at < NOW() - INTERVAL '30 days';
+  DELETE FROM mon_client_clicks WHERE created_at < NOW() - INTERVAL '30 days';
+  DELETE FROM mon_arena_rounds WHERE created_at < NOW() - INTERVAL '30 days';
+  DELETE FROM mon_game_traces WHERE created_at < NOW() - INTERVAL '30 days';
+  DELETE FROM mon_client_telemetry WHERE created_at < NOW() - INTERVAL '30 days';
+END;
+$$ LANGUAGE plpgsql;
+
+-- =============================================
+-- 14) RLS policies (accès admin uniquement via service_role)
+-- =============================================
 ALTER TABLE monitoring_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE monitoring_apm ENABLE ROW LEVEL SECURITY;
 ALTER TABLE monitoring_player_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE monitoring_alerts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mon_game_incidents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mon_client_rounds ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mon_client_clicks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mon_arena_rounds ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mon_game_traces ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mon_client_telemetry ENABLE ROW LEVEL SECURITY;
 
 -- Service role peut tout faire (utilisé par le backend)
+DROP POLICY IF EXISTS "service_role_all_monitoring_events" ON monitoring_events;
 CREATE POLICY "service_role_all_monitoring_events" ON monitoring_events
   FOR ALL USING (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "service_role_all_monitoring_apm" ON monitoring_apm;
 CREATE POLICY "service_role_all_monitoring_apm" ON monitoring_apm
   FOR ALL USING (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "service_role_all_monitoring_snapshots" ON monitoring_player_snapshots;
 CREATE POLICY "service_role_all_monitoring_snapshots" ON monitoring_player_snapshots
   FOR ALL USING (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "service_role_all_monitoring_alerts" ON monitoring_alerts;
 CREATE POLICY "service_role_all_monitoring_alerts" ON monitoring_alerts
+  FOR ALL USING (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "service_role_all_mon_gi" ON mon_game_incidents;
+CREATE POLICY "service_role_all_mon_gi" ON mon_game_incidents
+  FOR ALL USING (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "service_role_all_mon_cr" ON mon_client_rounds;
+CREATE POLICY "service_role_all_mon_cr" ON mon_client_rounds
+  FOR ALL USING (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "service_role_all_mon_cc" ON mon_client_clicks;
+CREATE POLICY "service_role_all_mon_cc" ON mon_client_clicks
+  FOR ALL USING (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "service_role_all_mon_ar" ON mon_arena_rounds;
+CREATE POLICY "service_role_all_mon_ar" ON mon_arena_rounds
+  FOR ALL USING (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "service_role_all_mon_gt" ON mon_game_traces;
+CREATE POLICY "service_role_all_mon_gt" ON mon_game_traces
+  FOR ALL USING (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "service_role_all_mon_ct" ON mon_client_telemetry;
+CREATE POLICY "service_role_all_mon_ct" ON mon_client_telemetry
   FOR ALL USING (auth.role() = 'service_role');

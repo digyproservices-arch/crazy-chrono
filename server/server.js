@@ -229,6 +229,15 @@ if (supabaseAdmin) {
   });
   // Alerte de démarrage
   alerting.alertDeployComplete(process.env.RENDER_GIT_COMMIT || 'local', process.env.RENDER_GIT_BRANCH || 'main');
+
+  // Purge automatique données monitoring > 30 jours (toutes les 6h)
+  setInterval(async () => {
+    try {
+      const { error } = await supabaseAdmin.rpc('mon_cleanup_old_data');
+      if (error) console.warn('[Monitoring] Cleanup error:', error.message);
+      else console.log('[Monitoring] ✅ Cleanup 30j effectué');
+    } catch (e) { console.warn('[Monitoring] Cleanup exception:', e.message); }
+  }, 6 * 3600 * 1000);
 }
 
 // ===== Internal: Screenshot Data for Puppeteer =====

@@ -6,103 +6,13 @@ const logger = require('../logger');
 const { requireAuth, requireAdminAuth } = require('../middleware/auth');
 const { recordImageUsage, analyzeImageUsage, sendEmailReport } = require('../imageMonitoring');
 
-// ── Game Incidents Storage ─────────────────────────────────
-const INCIDENTS_FILE = path.join(__dirname, '..', 'data', 'game_incidents.json');
-const MAX_INCIDENTS = 500;
+// ── Helper: get Supabase client from request ───────────────
+function _sb(req) { return req.app.locals.supabaseAdmin || null; }
 
-// ── Client Round Logs Storage (synced from client localStorage) ──
-const CLIENT_ROUNDS_FILE = path.join(__dirname, '..', 'data', 'client_round_logs.json');
-const MAX_CLIENT_ROUNDS = 500;
-
-// ── Client Click Events Storage (PAIR_FAIL / PAIR_OK synced from client) ──
-const CLIENT_CLICKS_FILE = path.join(__dirname, '..', 'data', 'client_click_events.json');
-const MAX_CLIENT_CLICKS = 1000;
-
-function loadClientClicks() {
-  try {
-    const dir = path.dirname(CLIENT_CLICKS_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    if (!fs.existsSync(CLIENT_CLICKS_FILE)) return [];
-    return JSON.parse(fs.readFileSync(CLIENT_CLICKS_FILE, 'utf8'));
-  } catch { return []; }
-}
-
-function saveClientClicks(clicks) {
-  try {
-    const dir = path.dirname(CLIENT_CLICKS_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    const trimmed = clicks.slice(-MAX_CLIENT_CLICKS);
-    fs.writeFileSync(CLIENT_CLICKS_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
-  } catch (e) {
-    logger.error('[ClientClicks] Save failed:', e.message);
-  }
-}
-
-function loadClientRounds() {
-  try {
-    const dir = path.dirname(CLIENT_ROUNDS_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    if (!fs.existsSync(CLIENT_ROUNDS_FILE)) return [];
-    return JSON.parse(fs.readFileSync(CLIENT_ROUNDS_FILE, 'utf8'));
-  } catch { return []; }
-}
-
-function saveClientRounds(rounds) {
-  try {
-    const dir = path.dirname(CLIENT_ROUNDS_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    const trimmed = rounds.slice(-MAX_CLIENT_ROUNDS);
-    fs.writeFileSync(CLIENT_ROUNDS_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
-  } catch (e) {
-    logger.error('[ClientRounds] Save failed:', e.message);
-  }
-}
-
-// ── Arena Round Logs Storage (server-side, pour le monitoring) ──
-const ARENA_ROUNDS_FILE = path.join(__dirname, '..', 'data', 'arena_round_logs.json');
-const MAX_ARENA_ROUNDS = 200;
-
-function loadArenaRounds() {
-  try {
-    const dir = path.dirname(ARENA_ROUNDS_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    if (!fs.existsSync(ARENA_ROUNDS_FILE)) return [];
-    return JSON.parse(fs.readFileSync(ARENA_ROUNDS_FILE, 'utf8'));
-  } catch { return []; }
-}
-
-function saveArenaRounds(rounds) {
-  try {
-    const dir = path.dirname(ARENA_ROUNDS_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    const trimmed = rounds.slice(-MAX_ARENA_ROUNDS);
-    fs.writeFileSync(ARENA_ROUNDS_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
-  } catch (e) {
-    logger.error('[ArenaRounds] Save failed:', e.message);
-  }
-}
-
+// ── Data dir for non-migratable files (screenshots, e2e) ──
 function ensureDataDir() {
-  const dir = path.dirname(INCIDENTS_FILE);
+  const dir = path.join(__dirname, '..', 'data');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
-
-function loadIncidents() {
-  try {
-    ensureDataDir();
-    if (!fs.existsSync(INCIDENTS_FILE)) return [];
-    return JSON.parse(fs.readFileSync(INCIDENTS_FILE, 'utf8'));
-  } catch { return []; }
-}
-
-function saveIncidents(incidents) {
-  try {
-    ensureDataDir();
-    const trimmed = incidents.slice(-MAX_INCIDENTS);
-    fs.writeFileSync(INCIDENTS_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
-  } catch (e) {
-    logger.error('[Incidents] Save failed:', e.message);
-  }
 }
 
 /**
@@ -181,15 +91,27 @@ router.post('/incidents', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'missing_incident' });
     }
 
-    const incidents = loadIncidents();
-    // Éviter les doublons par ID
-    if (incident.id && incidents.some(i => i.id === incident.id)) {
-      return res.json({ ok: true, duplicate: true });
+    const sb = _sb(req);
+    if (!sb) return res.status(503).json({ ok: false, error: 'supabase_unavailable' });
+
+    // Dédoublonnage par client_id
+    if (incident.id) {
+      const { data: dup } = await sb.from('mon_game_incidents').select('id').eq('client_id', incident.id).limit(1);
+      if (dup && dup.length > 0) return res.json({ ok: true, duplicate: true });
     }
 
-    incident.receivedAt = new Date().toISOString();
-    incidents.push(incident);
-    saveIncidents(incidents);
+    const { error } = await sb.from('mon_game_incidents').insert({
+      client_id: incident.id || null,
+      incident_type: incident.type,
+      severity: incident.severity || 'error',
+      device_id: incident.device || null,
+      user_id: incident.sessionInfo?.userId || null,
+      session_info: incident.sessionInfo || {},
+      details: incident.details || {},
+      zones_snapshot: incident.zonesSnapshot || null,
+      created_at: incident.timestamp || new Date().toISOString(),
+    });
+    if (error) throw new Error(error.message);
 
     logger.warn(`[Incidents] 🚨 ${incident.severity}: ${incident.type} - ${incident.details?.message || ''}`);
     res.json({ ok: true });
@@ -205,37 +127,37 @@ router.post('/incidents', async (req, res) => {
  */
 router.get('/incidents', requireAdminAuth, async (req, res) => {
   try {
-    let incidents = loadIncidents();
+    const sb = _sb(req);
+    if (!sb) return res.status(503).json({ ok: false, error: 'supabase_unavailable' });
 
-    // Filtrer par sévérité
-    if (req.query.severity) {
-      incidents = incidents.filter(i => i.severity === req.query.severity);
-    }
-    // Filtrer par type
-    if (req.query.type) {
-      incidents = incidents.filter(i => i.type === req.query.type);
-    }
-    // Filtrer par date
-    if (req.query.since) {
-      const since = new Date(req.query.since).toISOString();
-      incidents = incidents.filter(i => (i.timestamp || '') >= since);
-    }
-    // Limiter
     const limit = parseInt(req.query.limit) || 200;
-    incidents = incidents.slice(-limit);
+    let query = sb.from('mon_game_incidents').select('*').order('created_at', { ascending: false }).limit(limit);
+    if (req.query.severity) query = query.eq('severity', req.query.severity);
+    if (req.query.type) query = query.eq('incident_type', req.query.type);
+    if (req.query.since) query = query.gte('created_at', new Date(req.query.since).toISOString());
 
-    // Stats
-    const stats = {
-      total: incidents.length,
-      bySeverity: {},
-      byType: {},
-    };
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+
+    const incidents = (data || []).map(row => ({
+      id: row.client_id,
+      type: row.incident_type,
+      severity: row.severity,
+      device: row.device_id,
+      timestamp: row.created_at,
+      receivedAt: row.received_at,
+      sessionInfo: row.session_info,
+      details: row.details,
+      zonesSnapshot: row.zones_snapshot,
+    }));
+
+    const stats = { total: incidents.length, bySeverity: {}, byType: {} };
     for (const inc of incidents) {
       stats.bySeverity[inc.severity] = (stats.bySeverity[inc.severity] || 0) + 1;
       stats.byType[inc.type] = (stats.byType[inc.type] || 0) + 1;
     }
 
-    res.json({ ok: true, incidents: incidents.reverse(), stats });
+    res.json({ ok: true, incidents, stats });
   } catch (error) {
     logger.error('[Incidents] GET error:', error);
     res.status(500).json({ ok: false, error: error.message });
@@ -248,7 +170,11 @@ router.get('/incidents', requireAdminAuth, async (req, res) => {
  */
 router.delete('/incidents', requireAdminAuth, async (req, res) => {
   try {
-    saveIncidents([]);
+    const sb = _sb(req);
+    if (!sb) return res.status(503).json({ ok: false, error: 'supabase_unavailable' });
+    // Delete all rows (Supabase requires a filter, use created_at > epoch)
+    const { error } = await sb.from('mon_game_incidents').delete().gte('id', 0);
+    if (error) throw new Error(error.message);
     res.json({ ok: true, message: 'Incidents cleared' });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
@@ -263,9 +189,12 @@ router.delete('/incidents', requireAdminAuth, async (req, res) => {
  */
 router.get('/arena-rounds', requireAdminAuth, async (req, res) => {
   try {
-    const rounds = loadArenaRounds();
+    const sb = _sb(req);
+    if (!sb) return res.status(503).json({ ok: false, error: 'supabase_unavailable' });
     const limit = parseInt(req.query.limit) || 200;
-    res.json({ ok: true, rounds: rounds.slice(-limit).reverse(), total: rounds.length });
+    const { data, error, count } = await sb.from('mon_arena_rounds').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(limit);
+    if (error) throw new Error(error.message);
+    res.json({ ok: true, rounds: (data || []).map(r => ({ ...r.details, receivedAt: r.received_at })), total: count || 0 });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
   }
@@ -276,13 +205,14 @@ router.get('/arena-rounds', requireAdminAuth, async (req, res) => {
  * Enregistre une manche Arena (appelé par le serveur Arena internement)
  * Body: { round }
  */
-router.post('/arena-rounds', (req, res) => {
+router.post('/arena-rounds', async (req, res) => {
   try {
     const { round } = req.body;
     if (!round) return res.status(400).json({ ok: false, error: 'missing round' });
-    const rounds = loadArenaRounds();
-    rounds.push({ ...round, receivedAt: new Date().toISOString() });
-    saveArenaRounds(rounds);
+    const sb = _sb(req);
+    if (!sb) return res.status(503).json({ ok: false, error: 'supabase_unavailable' });
+    const { error } = await sb.from('mon_arena_rounds').insert({ details: round });
+    if (error) throw new Error(error.message);
     res.json({ ok: true });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
@@ -295,7 +225,10 @@ router.post('/arena-rounds', (req, res) => {
  */
 router.delete('/arena-rounds', requireAdminAuth, async (req, res) => {
   try {
-    saveArenaRounds([]);
+    const sb = _sb(req);
+    if (!sb) return res.status(503).json({ ok: false, error: 'supabase_unavailable' });
+    const { error } = await sb.from('mon_arena_rounds').delete().gte('id', 0);
+    if (error) throw new Error(error.message);
     res.json({ ok: true, message: 'Arena rounds cleared' });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
@@ -309,22 +242,39 @@ router.delete('/arena-rounds', requireAdminAuth, async (req, res) => {
  * Reçoit un batch de round logs depuis le client
  * Body: { rounds: [...] }
  */
-router.post('/client-rounds', (req, res) => {
+router.post('/client-rounds', async (req, res) => {
   try {
     const { rounds } = req.body;
     if (!Array.isArray(rounds)) return res.status(400).json({ ok: false, error: 'rounds must be array' });
-    const existing = loadClientRounds();
-    const existingIds = new Set(existing.map(r => r.id));
-    let added = 0;
-    for (const r of rounds.slice(0, 50)) {
-      if (r.id && !existingIds.has(r.id)) {
-        existing.push({ ...r, receivedAt: new Date().toISOString() });
-        existingIds.add(r.id);
-        added++;
-      }
+    const sb = _sb(req);
+    if (!sb) return res.status(503).json({ ok: false, error: 'supabase_unavailable' });
+
+    const batch = rounds.slice(0, 50).filter(r => r.id);
+    if (batch.length === 0) return res.json({ ok: true, added: 0, total: 0 });
+
+    // Dédoublonnage en batch
+    const ids = batch.map(r => r.id);
+    const { data: existing } = await sb.from('mon_client_rounds').select('client_id').in('client_id', ids);
+    const existingIds = new Set((existing || []).map(r => r.client_id));
+
+    const toInsert = batch.filter(r => !existingIds.has(r.id)).map(r => ({
+      client_id: r.id,
+      device_id: r.deviceId || null,
+      user_id: r.userId || null,
+      mode: r.mode || null,
+      round_index: r.roundIndex ?? null,
+      zones_count: r.zonesCount ?? null,
+      good_pairs: r.goodPairs ?? null,
+      distractors: r.distractors ?? null,
+      details: r,
+      created_at: r.timestamp || new Date().toISOString(),
+    }));
+
+    if (toInsert.length > 0) {
+      const { error } = await sb.from('mon_client_rounds').insert(toInsert);
+      if (error) throw new Error(error.message);
     }
-    if (added > 0) saveClientRounds(existing);
-    res.json({ ok: true, added, total: existing.length });
+    res.json({ ok: true, added: toInsert.length, total: toInsert.length });
   } catch (error) {
     logger.error('[ClientRounds] POST error:', error.message);
     res.status(500).json({ ok: false, error: error.message });
@@ -337,9 +287,12 @@ router.post('/client-rounds', (req, res) => {
  */
 router.get('/client-rounds', requireAdminAuth, async (req, res) => {
   try {
-    const rounds = loadClientRounds();
+    const sb = _sb(req);
+    if (!sb) return res.status(503).json({ ok: false, error: 'supabase_unavailable' });
     const limit = parseInt(req.query.limit) || 200;
-    res.json({ ok: true, rounds: rounds.slice(-limit).reverse(), total: rounds.length });
+    const { data, error, count } = await sb.from('mon_client_rounds').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(limit);
+    if (error) throw new Error(error.message);
+    res.json({ ok: true, rounds: (data || []).map(r => ({ ...r.details, receivedAt: r.received_at })), total: count || 0 });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
   }
@@ -351,7 +304,10 @@ router.get('/client-rounds', requireAdminAuth, async (req, res) => {
  */
 router.delete('/client-rounds', requireAdminAuth, async (req, res) => {
   try {
-    saveClientRounds([]);
+    const sb = _sb(req);
+    if (!sb) return res.status(503).json({ ok: false, error: 'supabase_unavailable' });
+    const { error } = await sb.from('mon_client_rounds').delete().gte('id', 0);
+    if (error) throw new Error(error.message);
     res.json({ ok: true, message: 'Client rounds cleared' });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
@@ -365,24 +321,44 @@ router.delete('/client-rounds', requireAdminAuth, async (req, res) => {
  * Reçoit un batch de click events depuis le client (PAIR_FAIL, PAIR_OK, etc.)
  * Body: { clicks: [...] }
  */
-router.post('/client-clicks', (req, res) => {
+router.post('/client-clicks', async (req, res) => {
   try {
     const { clicks } = req.body;
     if (!Array.isArray(clicks)) return res.status(400).json({ ok: false, error: 'clicks must be array' });
-    const existing = loadClientClicks();
-    const existingKeys = new Set(existing.map(c => c._syncId || `${c.ts}_${c.zoneId}`));
-    let added = 0;
-    for (const c of clicks.slice(0, 100)) {
+    const sb = _sb(req);
+    if (!sb) return res.status(503).json({ ok: false, error: 'supabase_unavailable' });
+
+    const batch = clicks.slice(0, 100);
+    if (batch.length === 0) return res.json({ ok: true, added: 0, total: 0 });
+
+    // Dédoublonnage par sync_id
+    const syncIds = batch.map(c => c._syncId || `${c.ts}_${c.zoneId}`);
+    const { data: existing } = await sb.from('mon_client_clicks').select('sync_id').in('sync_id', syncIds);
+    const existingKeys = new Set((existing || []).map(r => r.sync_id));
+
+    const toInsert = batch.filter(c => {
       const key = c._syncId || `${c.ts}_${c.zoneId}`;
-      if (!existingKeys.has(key)) {
-        existing.push({ ...c, receivedAt: new Date().toISOString() });
-        existingKeys.add(key);
-        added++;
-      }
+      return !existingKeys.has(key);
+    }).map(c => ({
+      sync_id: c._syncId || `${c.ts}_${c.zoneId}`,
+      device_id: c.deviceId || null,
+      user_id: c.userId || null,
+      stage: c.stage || null,
+      zone_id: c.zoneId || null,
+      zone_type: c.zoneType || null,
+      content: (c.content || '').substring(0, 500),
+      reason: c.reason || null,
+      details: c,
+      ts: c.ts || null,
+      created_at: c.timestamp || new Date().toISOString(),
+    }));
+
+    if (toInsert.length > 0) {
+      const { error } = await sb.from('mon_client_clicks').insert(toInsert);
+      if (error) throw new Error(error.message);
+      logger.info(`[ClientClicks] +${toInsert.length} click events reçus`);
     }
-    if (added > 0) saveClientClicks(existing);
-    if (added > 0) logger.info(`[ClientClicks] +${added} click events reçus (total: ${existing.length})`);
-    res.json({ ok: true, added, total: existing.length });
+    res.json({ ok: true, added: toInsert.length, total: toInsert.length });
   } catch (error) {
     logger.error('[ClientClicks] POST error:', error.message);
     res.status(500).json({ ok: false, error: error.message });
@@ -395,10 +371,14 @@ router.post('/client-clicks', (req, res) => {
  */
 router.get('/client-clicks', requireAdminAuth, async (req, res) => {
   try {
-    let clicks = loadClientClicks();
-    if (req.query.stage) clicks = clicks.filter(c => c.stage === req.query.stage);
+    const sb = _sb(req);
+    if (!sb) return res.status(503).json({ ok: false, error: 'supabase_unavailable' });
     const limit = parseInt(req.query.limit) || 200;
-    res.json({ ok: true, clicks: clicks.slice(-limit).reverse(), total: clicks.length });
+    let query = sb.from('mon_client_clicks').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(limit);
+    if (req.query.stage) query = query.eq('stage', req.query.stage);
+    const { data, error, count } = await query;
+    if (error) throw new Error(error.message);
+    res.json({ ok: true, clicks: (data || []).map(r => ({ ...r.details, receivedAt: r.received_at })), total: count || 0 });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
   }
@@ -410,7 +390,10 @@ router.get('/client-clicks', requireAdminAuth, async (req, res) => {
  */
 router.delete('/client-clicks', requireAdminAuth, async (req, res) => {
   try {
-    saveClientClicks([]);
+    const sb = _sb(req);
+    if (!sb) return res.status(503).json({ ok: false, error: 'supabase_unavailable' });
+    const { error } = await sb.from('mon_client_clicks').delete().gte('id', 0);
+    if (error) throw new Error(error.message);
     res.json({ ok: true, message: 'Client clicks cleared' });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
@@ -440,45 +423,38 @@ router.post('/client-diag', (req, res) => {
   }
 });
 
-// ── Game Trace Storage (diagnostic tous modes de jeu) ────────
-const GAME_TRACE_FILE = path.join(__dirname, '..', 'data', 'game_trace.json');
-const MAX_GAME_TRACES = 200;
-
-function loadGameTraces() {
-  try {
-    const dir = path.dirname(GAME_TRACE_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    if (!fs.existsSync(GAME_TRACE_FILE)) return [];
-    return JSON.parse(fs.readFileSync(GAME_TRACE_FILE, 'utf8'));
-  } catch { return []; }
-}
-
-function saveGameTraces(traces) {
-  try {
-    const dir = path.dirname(GAME_TRACE_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(GAME_TRACE_FILE, JSON.stringify(traces.slice(-MAX_GAME_TRACES), null, 2), 'utf8');
-  } catch (e) { logger.error('[GameTrace] Save failed:', e.message); }
-}
+// ── Game Trace Storage (diagnostic tous modes de jeu) ── Supabase ──
 
 /**
  * POST /api/monitoring/game-trace
  * Receives game trace events from client localStorage (cc_game_trace)
  * Body: { events: [...], deviceId, userId }
  */
-router.post('/game-trace', (req, res) => {
+router.post('/game-trace', async (req, res) => {
   try {
     const { events, deviceId, userId } = req.body;
     if (!Array.isArray(events)) return res.status(400).json({ ok: false, error: 'events must be array' });
+    const sb = _sb(req);
     const batch = events.slice(0, 50);
-    const existing = loadGameTraces();
-    const enriched = batch.map(e => ({ ...e, deviceId: deviceId || null, userId: userId || null, receivedAt: Date.now() }));
-    const merged = [...existing, ...enriched].slice(-MAX_GAME_TRACES);
-    saveGameTraces(merged);
-    // Also log to Winston for Render console visibility
+
+    // Always log to Winston for Render console visibility
     for (const evt of batch) {
       logger.info(`[GAME-TRACE][client] ${evt.event}`, { ...evt, deviceId, userId });
     }
+
+    if (sb) {
+      const rows = batch.map(e => ({
+        event: e.event || 'unknown',
+        device_id: e.deviceId || deviceId || null,
+        user_id: e.userId || userId || null,
+        details: e,
+        ts: e.ts || null,
+        created_at: e.ts ? new Date(e.ts).toISOString() : new Date().toISOString(),
+      }));
+      const { error } = await sb.from('mon_game_traces').insert(rows);
+      if (error) logger.warn('[GameTrace] Supabase insert error:', error.message);
+    }
+
     res.json({ ok: true, count: batch.length });
   } catch (error) {
     logger.error('[GameTrace] POST error:', error.message);
@@ -490,9 +466,14 @@ router.post('/game-trace', (req, res) => {
  * GET /api/monitoring/game-trace
  * Returns all stored game trace events (admin only)
  */
-router.get('/game-trace', requireAdminAuth, (req, res) => {
+router.get('/game-trace', requireAdminAuth, async (req, res) => {
   try {
-    const traces = loadGameTraces();
+    const sb = _sb(req);
+    if (!sb) return res.status(503).json({ ok: false, error: 'supabase_unavailable' });
+    const limit = parseInt(req.query.limit) || 200;
+    const { data, error } = await sb.from('mon_game_traces').select('*').order('created_at', { ascending: false }).limit(limit);
+    if (error) throw new Error(error.message);
+    const traces = (data || []).map(r => ({ ...r.details, deviceId: r.device_id, userId: r.user_id, receivedAt: r.received_at }));
     res.json({ ok: true, count: traces.length, traces });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
@@ -503,9 +484,12 @@ router.get('/game-trace', requireAdminAuth, (req, res) => {
  * DELETE /api/monitoring/game-trace
  * Purge all game trace events (admin only)
  */
-router.delete('/game-trace', requireAdminAuth, (req, res) => {
+router.delete('/game-trace', requireAdminAuth, async (req, res) => {
   try {
-    saveGameTraces([]);
+    const sb = _sb(req);
+    if (!sb) return res.status(503).json({ ok: false, error: 'supabase_unavailable' });
+    const { error } = await sb.from('mon_game_traces').delete().gte('id', 0);
+    if (error) throw new Error(error.message);
     res.json({ ok: true });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
@@ -541,30 +525,14 @@ router.delete('/server-trace', requireAdminAuth, (req, res) => {
   }
 });
 
-// ── Client Telemetry (erreurs JS, réseau, navigation, socket) ──
-const CLIENT_TELEMETRY_FILE = path.join(__dirname, '..', 'data', 'client_telemetry.json');
-const MAX_CLIENT_TELEMETRY = 1000;
-
-function loadClientTelemetry() {
-  try {
-    if (fs.existsSync(CLIENT_TELEMETRY_FILE)) return JSON.parse(fs.readFileSync(CLIENT_TELEMETRY_FILE, 'utf8'));
-  } catch {}
-  return [];
-}
-function saveClientTelemetry(data) {
-  try {
-    const dir = path.dirname(CLIENT_TELEMETRY_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(CLIENT_TELEMETRY_FILE, JSON.stringify(data.slice(-MAX_CLIENT_TELEMETRY), null, 2), 'utf8');
-  } catch (e) { logger.warn('[ClientTelemetry] Save failed:', e.message); }
-}
+// ── Client Telemetry (erreurs JS, réseau, navigation, socket) ── Supabase ──
 
 /**
  * POST /api/monitoring/client-telemetry
  * Reçoit les événements telemetry de tous les appareils (pas besoin d'auth).
  * Accepte aussi application/json via sendBeacon (Content-Type: text/plain;charset=UTF-8)
  */
-router.post('/client-telemetry', require('express').text({ type: 'text/plain', limit: '1mb' }), (req, res) => {
+router.post('/client-telemetry', require('express').text({ type: 'text/plain', limit: '1mb' }), async (req, res) => {
   try {
     let body = req.body;
     // sendBeacon envoie du text/plain, parser manuellement
@@ -574,17 +542,31 @@ router.post('/client-telemetry', require('express').text({ type: 'text/plain', l
     const { events, deviceId, userId } = body || {};
     if (!Array.isArray(events)) return res.status(400).json({ ok: false, error: 'events must be array' });
     const batch = events.slice(0, 50);
-    const existing = loadClientTelemetry();
-    const enriched = batch.map(e => ({ ...e, deviceId: e.deviceId || deviceId, userId: e.userId || userId, receivedAt: Date.now() }));
-    const merged = [...existing, ...enriched].slice(-MAX_CLIENT_TELEMETRY);
-    saveClientTelemetry(merged);
-    // Log erreurs critiques dans Winston pour Supabase
+
+    // Persist to Supabase mon_client_telemetry
+    const sb = _sb(req);
+    if (sb) {
+      const rows = batch.map(e => ({
+        event: e.event || 'telemetry',
+        device_id: e.deviceId || deviceId || null,
+        user_id: e.userId || userId || null,
+        details: e,
+        ts: e.ts || null,
+        created_at: e.ts ? new Date(e.ts).toISOString() : new Date().toISOString(),
+      }));
+      try {
+        const { error } = await sb.from('mon_client_telemetry').insert(rows);
+        if (error) logger.warn('[ClientTelemetry] Supabase insert error:', error.message);
+      } catch (e) { logger.warn('[ClientTelemetry] Supabase exception:', e.message); }
+    }
+
+    // Log erreurs critiques dans Winston pour Render console
     for (const evt of batch) {
       if (evt.event && evt.event.startsWith('error:')) {
         logger.warn(`[ClientTelemetry] ${evt.event}`, { deviceId: evt.deviceId || deviceId, url: evt.url, message: evt.message, fetchUrl: evt.fetchUrl, status: evt.status });
       }
     }
-    // Alertes automatiques + persistance Supabase
+    // Alertes automatiques + persistance monitoring_events (table déjà existante)
     try {
       const alertingMod = req.app.locals.alerting;
       if (alertingMod) alertingMod.checkAlertThresholds(batch);
@@ -611,9 +593,14 @@ router.post('/client-telemetry', require('express').text({ type: 'text/plain', l
  * GET /api/monitoring/client-telemetry
  * Retourne toute la telemetry client (admin only)
  */
-router.get('/client-telemetry', requireAdminAuth, (req, res) => {
+router.get('/client-telemetry', requireAdminAuth, async (req, res) => {
   try {
-    const events = loadClientTelemetry();
+    const sb = _sb(req);
+    if (!sb) return res.status(503).json({ ok: false, error: 'supabase_unavailable' });
+    const limit = parseInt(req.query.limit) || 200;
+    const { data, error } = await sb.from('mon_client_telemetry').select('*').order('created_at', { ascending: false }).limit(limit);
+    if (error) throw new Error(error.message);
+    const events = (data || []).map(r => ({ ...r.details, deviceId: r.device_id, userId: r.user_id, receivedAt: r.received_at }));
     res.json({ ok: true, count: events.length, events });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
@@ -624,9 +611,12 @@ router.get('/client-telemetry', requireAdminAuth, (req, res) => {
  * DELETE /api/monitoring/client-telemetry
  * Purge toute la telemetry client (admin only)
  */
-router.delete('/client-telemetry', requireAdminAuth, (req, res) => {
+router.delete('/client-telemetry', requireAdminAuth, async (req, res) => {
   try {
-    saveClientTelemetry([]);
+    const sb = _sb(req);
+    if (!sb) return res.status(503).json({ ok: false, error: 'supabase_unavailable' });
+    const { error } = await sb.from('mon_client_telemetry').delete().gte('id', 0);
+    if (error) throw new Error(error.message);
     res.json({ ok: true });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
