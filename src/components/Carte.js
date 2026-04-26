@@ -2102,7 +2102,7 @@ const Carte = () => {
     addDiag('socket:init', { url: base });
     const s = io(base, { transports: ['websocket'], withCredentials: false });
     socketRef.current = s;
-    _instrSocket(s, 'multiplayer', roomCode);
+    _instrSocket(s, 'multiplayer', roomId);
 
     const onConnect = () => {
       setSocketConnected(true);
