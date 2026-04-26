@@ -15,6 +15,7 @@ import LandingPage from './components/LandingPage';
 import MaintenancePage, { hasMaintenanceBypass } from './components/MaintenancePage';
 import { startHeartbeat, stopHeartbeat } from './utils/presenceHeartbeat';
 import useIdleTimeout from './utils/useIdleTimeout';
+import { initClientTelemetry } from './utils/clientTelemetry';
 // ── Code splitting: chargement à la demande (React.lazy) avec auto-reload sur ChunkLoadError ──
 function lazyWithRetry(importFn) {
   return lazy(() => new Promise((resolve, reject) => {
@@ -627,6 +628,12 @@ function App() {
     if (auth) { startHeartbeat(); } else { stopHeartbeat(); }
     return () => stopHeartbeat();
   }, [auth]);
+
+  // ── Client Telemetry: capture erreurs JS, réseau, navigation, etc. ──
+  useEffect(() => {
+    const cleanup = initClientTelemetry();
+    return cleanup;
+  }, []);
 
   // ── Auto-logout sur 401: déconnexion propre si le token est rejeté par le backend ──
   const [tokenExpiredBanner, setTokenExpiredBanner] = useState(false);

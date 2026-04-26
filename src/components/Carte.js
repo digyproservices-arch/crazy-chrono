@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import '../styles/Carte.css';
@@ -11,11 +11,21 @@ import { validateZones as incidentValidateZones, reportImageLoadError as inciden
 import { logRound } from '../utils/roundLogger';
 import { logClick, logClickAttempt, clearClickLogs } from '../utils/clickLogger';
 import { captureCardScreenshot } from '../utils/cardScreenshot';
+import { telemetry } from '../utils/clientTelemetry';
 import { isFree, canStartSessionToday, incrementSessionCount, setSubscriptionStatus, getDailyCounts } from '../utils/subscription';
 
 import { initMasteryTracker, resetMasterySession, recordPair as masteryRecordPair, getActiveSessionProgress, getMasteryProgress, isMasteryReady, syncToServer as masterySyncToServer, loadFromServer as masteryLoadFromServer } from '../utils/masteryTracker';
 import MasteryBubble from './MasteryBubble';
 import { generateHint, generateAnswer, findGoodPair, HINT_PENALTY, ANSWER_PENALTY } from '../utils/hintGenerator';
+
+// Instruments a socket with telemetry listeners (connect, disconnect, connect_error)
+function _instrSocket(s, mode, matchId) {
+  try {
+    s.on('connect', () => telemetry('socket:connect', { mode, matchId, socketId: s.id }));
+    s.on('disconnect', (reason) => telemetry('socket:disconnect', { mode, matchId, reason }));
+    s.on('connect_error', (err) => telemetry('socket:error', { mode, matchId, message: err?.message || '' }));
+  } catch {}
+}
 
 // Single shared AudioContext for smoother audio on low devices
 let __audioCtx = null;
@@ -1427,6 +1437,7 @@ const Carte = () => {
       console.log('[TRAINING] Tentative connexion Socket.IO vers:', base);
       const s = io(base, { transports: ['websocket'], withCredentials: false });
       socketRef.current = s;
+      _instrSocket(s, 'training', trainingMatchId);
       
       s.on('connect', () => {
         console.log('[TRAINING] ✅ Socket connecté, ID:', s.id);
@@ -1607,6 +1618,7 @@ const Carte = () => {
       console.log('[ARENA] Tentative connexion Socket.IO vers:', base);
       const s = io(base, { transports: ['websocket'], withCredentials: false });
       socketRef.current = s;
+      _instrSocket(s, 'arena', arenaMatchId);
       
       s.on('connecting', () => {
         console.log('[ARENA] 🔄 Socket en cours de connexion...');
@@ -2090,6 +2102,7 @@ const Carte = () => {
     addDiag('socket:init', { url: base });
     const s = io(base, { transports: ['websocket'], withCredentials: false });
     socketRef.current = s;
+    _instrSocket(s, 'multiplayer', roomCode);
 
     const onConnect = () => {
       setSocketConnected(true);

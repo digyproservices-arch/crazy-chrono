@@ -541,6 +541,81 @@ router.delete('/server-trace', requireAdminAuth, (req, res) => {
   }
 });
 
+// ── Client Telemetry (erreurs JS, réseau, navigation, socket) ──
+const CLIENT_TELEMETRY_FILE = path.join(__dirname, '..', 'data', 'client_telemetry.json');
+const MAX_CLIENT_TELEMETRY = 1000;
+
+function loadClientTelemetry() {
+  try {
+    if (fs.existsSync(CLIENT_TELEMETRY_FILE)) return JSON.parse(fs.readFileSync(CLIENT_TELEMETRY_FILE, 'utf8'));
+  } catch {}
+  return [];
+}
+function saveClientTelemetry(data) {
+  try {
+    const dir = path.dirname(CLIENT_TELEMETRY_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(CLIENT_TELEMETRY_FILE, JSON.stringify(data.slice(-MAX_CLIENT_TELEMETRY), null, 2), 'utf8');
+  } catch (e) { logger.warn('[ClientTelemetry] Save failed:', e.message); }
+}
+
+/**
+ * POST /api/monitoring/client-telemetry
+ * Reçoit les événements telemetry de tous les appareils (pas besoin d'auth).
+ * Accepte aussi application/json via sendBeacon (Content-Type: text/plain;charset=UTF-8)
+ */
+router.post('/client-telemetry', require('express').text({ type: 'text/plain', limit: '1mb' }), (req, res) => {
+  try {
+    let body = req.body;
+    // sendBeacon envoie du text/plain, parser manuellement
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch { return res.status(400).json({ ok: false, error: 'Invalid JSON' }); }
+    }
+    const { events, deviceId, userId } = body || {};
+    if (!Array.isArray(events)) return res.status(400).json({ ok: false, error: 'events must be array' });
+    const batch = events.slice(0, 50);
+    const existing = loadClientTelemetry();
+    const enriched = batch.map(e => ({ ...e, deviceId: e.deviceId || deviceId, userId: e.userId || userId, receivedAt: Date.now() }));
+    const merged = [...existing, ...enriched].slice(-MAX_CLIENT_TELEMETRY);
+    saveClientTelemetry(merged);
+    // Log erreurs critiques dans Winston pour Supabase
+    for (const evt of batch) {
+      if (evt.event && evt.event.startsWith('error:')) {
+        logger.warn(`[ClientTelemetry] ${evt.event}`, { deviceId: evt.deviceId || deviceId, url: evt.url, message: evt.message, fetchUrl: evt.fetchUrl, status: evt.status });
+      }
+    }
+    res.json({ ok: true, count: batch.length });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/monitoring/client-telemetry
+ * Retourne toute la telemetry client (admin only)
+ */
+router.get('/client-telemetry', requireAdminAuth, (req, res) => {
+  try {
+    const events = loadClientTelemetry();
+    res.json({ ok: true, count: events.length, events });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/monitoring/client-telemetry
+ * Purge toute la telemetry client (admin only)
+ */
+router.delete('/client-telemetry', requireAdminAuth, (req, res) => {
+  try {
+    saveClientTelemetry([]);
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 // ── Game Incident Screenshots Storage ────────────────────
 const GAME_SS_DIR = path.join(__dirname, '..', 'data', 'game-screenshots');
 const MAX_GAME_SS = 200;

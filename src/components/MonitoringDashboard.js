@@ -10,6 +10,7 @@ import { getRoundLogs, clearRoundLogs } from '../utils/roundLogger';
 import { getAuthLogs, clearAuthLogs } from '../utils/authLogger';
 import { getAllScreenshotMetas, getScreenshot } from '../utils/cardScreenshot';
 import { formatClickReport, getClickAttempts, getClickStats, clearClickLogs } from '../utils/clickLogger';
+import { getTelemetryEvents, clearTelemetry } from '../utils/clientTelemetry';
 
 const COLORS = {
   bg: '#0f172a',
@@ -84,6 +85,9 @@ function MonitoringDashboard() {
 
   // ── Server Trace (GAME-TRACE serveur) ──
   const [serverTraces, setServerTraces] = useState([]);
+
+  // ── Client Telemetry (erreurs JS, réseau, navigation, sockets) ──
+  const [clientTelemetryEvents, setClientTelemetryEvents] = useState([]);
 
   const copyToClipboard = async (text, source) => {
     try {
@@ -254,6 +258,7 @@ const clearIncidents = async () => {
         fetch(`${backendUrl}/api/monitoring/client-clicks`, { method: 'DELETE', headers }),
         fetch(`${backendUrl}/api/monitoring/server-trace`, { method: 'DELETE', headers }),
         fetch(`${backendUrl}/api/monitoring/game-trace`, { method: 'DELETE', headers }),
+        fetch(`${backendUrl}/api/monitoring/client-telemetry`, { method: 'DELETE', headers }),
       ]);
       // Purge local data
       try { localStorage.removeItem('cc_game_incidents'); } catch {}
@@ -264,7 +269,9 @@ const clearIncidents = async () => {
       setRoundLogs([]);
       setAuthLogs([]);
       setScreenshotMetas([]);
-      alert('✅ Tout a été purgé (incluant les logs de clics). Vous repartez à zéro.');
+      try { clearTelemetry(); } catch {}
+      setClientTelemetryEvents([]);
+      alert('✅ Tout a été purgé (incluant les logs de clics et télémétrie). Vous repartez à zéro.');
     } catch (err) {
       console.error('[Monitoring] Purge error:', err);
       alert('Erreur lors de la purge: ' + err.message);
@@ -359,6 +366,34 @@ const clearIncidents = async () => {
         if (data.ok && Array.isArray(data.traces)) setServerTraces(data.traces);
       }
     } catch (e) { console.warn('[Monitoring] Server traces fetch failed:', e.message); }
+  }, []);
+
+  const fetchClientTelemetry = useCallback(async () => {
+    try {
+      // 1) Local events (buffer localStorage)
+      const localEvents = getTelemetryEvents();
+      // 2) Server events (synced from all devices)
+      let serverEvents = [];
+      try {
+        const token = getAuthToken();
+        const backendUrl = getBackendUrl();
+        const res = await fetch(`${backendUrl}/api/monitoring/client-telemetry`, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && Array.isArray(data.events)) serverEvents = data.events;
+        }
+      } catch (e) { console.warn('[Monitoring] Client telemetry fetch failed:', e.message); }
+      // 3) Merge and deduplicate by ts+event+deviceId
+      const byKey = new Map();
+      for (const ev of [...localEvents, ...serverEvents]) {
+        const key = `${ev.ts}_${ev.event}_${ev.deviceId || ''}`;
+        if (!byKey.has(key)) byKey.set(key, ev);
+      }
+      const merged = [...byKey.values()].sort((a, b) => new Date(b.ts || 0) - new Date(a.ts || 0)).slice(0, 500);
+      setClientTelemetryEvents(merged);
+    } catch (e) { console.warn('[Monitoring] Client telemetry error:', e); }
   }, []);
 
   const fetchOnlinePlayers = useCallback(async () => {
@@ -526,10 +561,10 @@ const clearIncidents = async () => {
 
   useEffect(() => {
     fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas();
-    fetchArenaStats(); fetchServerClicks(); fetchSupabaseDiag(); fetchGameTraces(); fetchServerTraces();
+    fetchArenaStats(); fetchServerClicks(); fetchSupabaseDiag(); fetchGameTraces(); fetchServerTraces(); fetchClientTelemetry();
     setLoading(false);
     setLastRefresh(new Date());
-  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats, fetchServerClicks, fetchSupabaseDiag, fetchGameTraces, fetchServerTraces]);
+  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats, fetchServerClicks, fetchSupabaseDiag, fetchGameTraces, fetchServerTraces, fetchClientTelemetry]);
 
   useEffect(() => {
     if (activeTab === 'incidents' || activeTab === 'report') {
@@ -551,11 +586,11 @@ const clearIncidents = async () => {
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(() => {
-      fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas(); fetchServerClicks(); fetchGameTraces(); fetchServerTraces();
+      fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas(); fetchServerClicks(); fetchGameTraces(); fetchServerTraces(); fetchClientTelemetry();
       if (activeTab === 'players') { fetchOnlinePlayers(); fetchPaymentEvents(); }
     }, 30000);
     return () => clearInterval(interval);
-  }, [autoRefresh, fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchOnlinePlayers, fetchPaymentEvents, fetchServerClicks, fetchGameTraces, fetchServerTraces, activeTab]);
+  }, [autoRefresh, fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchOnlinePlayers, fetchPaymentEvents, fetchServerClicks, fetchGameTraces, fetchServerTraces, fetchClientTelemetry, activeTab]);
 
   // Timer: mettre à jour le temps écoulé chaque seconde quand les tests tournent
   useEffect(() => {
@@ -668,7 +703,7 @@ const clearIncidents = async () => {
               Auto-refresh 30s
             </label>
             <button
-              onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchServerClicks(); fetchGameTraces(); fetchServerTraces(); }}
+              onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchServerClicks(); fetchGameTraces(); fetchServerTraces(); fetchClientTelemetry(); }}
               style={btnStyle(COLORS.info)}
             >
               🔄 Rafraîchir
@@ -947,6 +982,23 @@ const clearIncidents = async () => {
                 }
                 sections.push('');
 
+                // Client Telemetry (erreurs JS, réseau, navigation, sockets)
+                sections.push(`--- TÉLÉMÉTRIE CLIENT (${clientTelemetryEvents.length} événements) ---`);
+                if (clientTelemetryEvents.length === 0) {
+                  sections.push('Aucun événement de télémétrie client.');
+                } else {
+                  const byType = {};
+                  clientTelemetryEvents.forEach(ev => { byType[ev.event] = (byType[ev.event] || 0) + 1; });
+                  sections.push(`Répartition: ${Object.entries(byType).map(([k, v]) => `${k}:${v}`).join(' | ')}`);
+                  clientTelemetryEvents.slice(0, 50).forEach((ev, i) => {
+                    const ts = ev.ts ? new Date(ev.ts).toLocaleString('fr-FR') : 'N/A';
+                    const device = ev.deviceId ? ` device=${ev.deviceId.slice(0, 8)}` : '';
+                    const msg = ev.data?.message || ev.data?.reason || ev.data?.url || ev.data?.socketId || '';
+                    sections.push(`  [${i + 1}] ${ts} | ${ev.event}${device} ${msg}`);
+                  });
+                }
+                sections.push('');
+
 sections.push(`===== FIN DU RAPPORT =====`);
                 return sections.join('\n');
               };
@@ -962,7 +1014,7 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button
-                        onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchScreenshotMetas(); fetchServerClicks(); fetchGameTraces(); fetchServerTraces(); }}
+                        onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchScreenshotMetas(); fetchServerClicks(); fetchGameTraces(); fetchServerTraces(); fetchClientTelemetry(); }}
                         style={btnStyle(COLORS.info)}
                       >
                         🔄 Rafraîchir tout
@@ -1000,6 +1052,7 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     <KPICard title="Double paires" value={roundLogs.filter(r => r.doublePairIssues > 0).length} icon="🚨" color={COLORS.error} highlight={roundLogs.some(r => r.doublePairIssues > 0)} />
                     {(() => { try { const cs = getClickStats(); const ca = getClickAttempts(); const rejected = ca.filter(a => a.stage.startsWith('REJECTED')).length; const missed = ca.filter(a => a.stage === 'BOARD_CLICK').length; return (<><KPICard title="Clics acceptés" value={cs.ok || 0} icon="✅" color="#10b981" /><KPICard title="Clics rejetés" value={rejected} icon="🚫" color={COLORS.warn} highlight={rejected > 0} /><KPICard title="Clics perdus" value={missed} icon="❓" color={COLORS.error} highlight={missed > 0} /></>); } catch { return null; } })()}
                     <KPICard title="Traces Jeu" value={soloTraces.length} icon="🔍" color="#f59e0b" highlight={soloTraces.length > 0} />
+                    <KPICard title="Télémétrie" value={clientTelemetryEvents.length} icon="📡" color="#06b6d4" highlight={clientTelemetryEvents.some(e => e.event?.startsWith('error:'))} />
                   </div>
 
                   {/* Audit Parser section */}
@@ -1359,6 +1412,95 @@ sections.push(`===== FIN DU RAPPORT =====`);
                       </div>
                     )}
                   </div>
+
+                  {/* Client Telemetry section */}
+                  {(() => {
+                    const errors = clientTelemetryEvents.filter(e => e.event?.startsWith('error:'));
+                    const sockets = clientTelemetryEvents.filter(e => e.event?.startsWith('socket:'));
+                    const nav = clientTelemetryEvents.filter(e => e.event?.startsWith('nav:') || e.event?.startsWith('app:'));
+                    const perf = clientTelemetryEvents.filter(e => e.event?.startsWith('perf:'));
+                    const hasErrors = errors.length > 0;
+                    return (
+                      <div style={{ ...cardStyle, marginBottom: 16, borderLeft: `4px solid ${hasErrors ? '#ef4444' : '#06b6d4'}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <h3 style={{ ...cardTitleStyle, color: hasErrors ? '#ef4444' : '#06b6d4', margin: 0 }}>
+                            {hasErrors
+                              ? `🚨 Télémétrie Client — ${errors.length} erreur(s) sur ${clientTelemetryEvents.length} événements`
+                              : `📡 Télémétrie Client — ${clientTelemetryEvents.length} événements`}
+                          </h3>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button onClick={() => fetchClientTelemetry()} style={btnStyle(COLORS.info)}>🔄</button>
+                            <button onClick={() => { try { clearTelemetry(); } catch {} setClientTelemetryEvents([]); }} style={btnStyle('#dc2626')}>🗑️</button>
+                          </div>
+                        </div>
+                        {clientTelemetryEvents.length === 0 ? (
+                          <p style={{ color: COLORS.textMuted, fontSize: 13, margin: 0 }}>Aucun événement capturé. La télémétrie capture les erreurs JS, réseau, navigation et sockets.</p>
+                        ) : (
+                          <>
+                            {/* Mini KPIs */}
+                            <div style={{ display: 'flex', gap: 12, marginBottom: 10, flexWrap: 'wrap', fontSize: 12 }}>
+                              <span style={{ padding: '2px 10px', borderRadius: 6, background: errors.length > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)', color: errors.length > 0 ? '#ef4444' : COLORS.textMuted, fontWeight: 700 }}>❌ Erreurs: {errors.length}</span>
+                              <span style={{ padding: '2px 10px', borderRadius: 6, background: 'rgba(6,182,212,0.1)', color: '#06b6d4', fontWeight: 700 }}>🔌 Sockets: {sockets.length}</span>
+                              <span style={{ padding: '2px 10px', borderRadius: 6, background: 'rgba(139,92,246,0.1)', color: '#a78bfa', fontWeight: 700 }}>🧭 Navigation: {nav.length}</span>
+                              {perf.length > 0 && <span style={{ padding: '2px 10px', borderRadius: 6, background: 'rgba(245,158,11,0.1)', color: '#f59e0b', fontWeight: 700 }}>⚡ Perf: {perf.length}</span>}
+                            </div>
+                            {/* Error list */}
+                            {errors.length > 0 && (
+                              <div style={{ marginBottom: 8 }}>
+                                <div style={{ fontWeight: 700, color: '#ef4444', fontSize: 13, marginBottom: 4 }}>Erreurs client :</div>
+                                <div style={{ maxHeight: 150, overflowY: 'auto' }}>
+                                  {errors.slice(0, 20).map((ev, i) => (
+                                    <div key={i} style={{ padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 4, marginBottom: 2, fontSize: 11, color: COLORS.text }}>
+                                      <span style={{ color: COLORS.textMuted }}>{ev.ts ? new Date(ev.ts).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}</span>{' '}
+                                      <span style={{ fontWeight: 700, color: '#ef4444' }}>{ev.event}</span>{' '}
+                                      {ev.data?.message && <span>{ev.data.message.substring(0, 120)}</span>}
+                                      {ev.data?.url && <span style={{ color: COLORS.textMuted }}> url={ev.data.url.substring(0, 60)}</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {/* Socket events */}
+                            {sockets.length > 0 && (
+                              <div style={{ marginBottom: 8 }}>
+                                <div style={{ fontWeight: 700, color: '#06b6d4', fontSize: 13, marginBottom: 4 }}>Événements socket :</div>
+                                <div style={{ maxHeight: 120, overflowY: 'auto' }}>
+                                  {sockets.slice(0, 15).map((ev, i) => (
+                                    <div key={i} style={{ padding: '3px 8px', background: 'rgba(6,182,212,0.06)', borderRadius: 4, marginBottom: 1, fontSize: 11, color: COLORS.text }}>
+                                      <span style={{ color: COLORS.textMuted }}>{ev.ts ? new Date(ev.ts).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}</span>{' '}
+                                      <span style={{ fontWeight: 600, color: ev.event === 'socket:error' ? '#ef4444' : ev.event === 'socket:disconnect' ? '#f59e0b' : '#06b6d4' }}>{ev.event}</span>{' '}
+                                      <span>mode={ev.data?.mode || '?'}</span>
+                                      {ev.data?.socketId && <span> id={ev.data.socketId.slice(0, 8)}</span>}
+                                      {ev.data?.reason && <span style={{ color: '#f59e0b' }}> reason={ev.data.reason}</span>}
+                                      {ev.data?.message && <span style={{ color: '#ef4444' }}> {ev.data.message.substring(0, 60)}</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {/* Full event log (collapsible) */}
+                            <details style={{ marginTop: 6 }}>
+                              <summary style={{ cursor: 'pointer', fontSize: 11, color: COLORS.textMuted }}>
+                                Voir tous les événements ({clientTelemetryEvents.length})
+                              </summary>
+                              <div style={{ maxHeight: 200, overflowY: 'auto', fontSize: 10, fontFamily: 'monospace', marginTop: 4, background: 'rgba(0,0,0,0.2)', padding: 6, borderRadius: 4 }}>
+                                {clientTelemetryEvents.slice(0, 100).map((ev, i) => {
+                                  const evColor = ev.event?.startsWith('error:') ? '#ef4444' : ev.event?.startsWith('socket:') ? '#06b6d4' : ev.event?.startsWith('nav:') ? '#a78bfa' : COLORS.textMuted;
+                                  return (
+                                    <div key={i} style={{ color: COLORS.text, marginBottom: 1 }}>
+                                      <span style={{ color: COLORS.textMuted }}>{ev.ts ? new Date(ev.ts).toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : ''}</span>{' '}
+                                      <span style={{ color: evColor, fontWeight: 600 }}>{ev.event}</span>{' '}
+                                      <span style={{ color: COLORS.textMuted }}>{JSON.stringify(ev.data || {}).substring(0, 120)}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </details>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Full text preview */}
                   <div style={cardStyle}>
