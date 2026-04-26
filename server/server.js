@@ -12,6 +12,9 @@ const { generateRoundZones, createDeckState } = require('./utils/serverZoneGener
 const { validateZonesServer } = require('./utils/validateZonesServer');
 const logger = require('./logger'); // ✅ Winston logger professionnel
 const sTrace = require('./utils/serverTraceBuffer');
+const { apmMiddleware, getApmMetrics, startApmFlush } = require('./middleware/apm');
+const monitoringService = require('./utils/monitoringService');
+const alerting = require('./utils/alerting');
 
 // Load env (safe)
 try { require('dotenv').config({ path: require('path').join(__dirname, '.env') }); } catch {}
@@ -32,6 +35,7 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+app.use(apmMiddleware); // APM: mesure temps de réponse de chaque requête
 app.use(express.json({ limit: '10mb' }));
 
 // Rate limiting — global (exempte /api/monitoring car déjà protégé par requireAdminAuth)
@@ -83,6 +87,8 @@ try {
     
     // ✅ Initialiser Winston avec transport Supabase pour logs persistants
     logger.initSupabase(supabaseAdmin);
+    // ✅ Initialiser APM flush vers Supabase
+    startApmFlush(supabaseAdmin);
   }
 } catch (e) {
   console.warn('[Server] Supabase admin not configured:', e.message);
@@ -201,6 +207,29 @@ app.post('/admin/users/role', async (req, res) => {
 const monitoringRoutes = require('./routes/monitoring');
 const { startWeeklyMonitoring, startDailyMonitoring } = require('./cronJobs');
 app.use('/api/monitoring', monitoringRoutes);
+
+// Exposer supabaseAdmin, APM, alerting et monitoringService aux routes
+app.locals.supabaseAdmin = supabaseAdmin;
+app.locals.getApmMetrics = getApmMetrics;
+app.locals.alerting = alerting;
+app.locals.monitoringService = monitoringService;
+
+// Initialiser le monitoring service (snapshots joueurs, flush événements)
+if (supabaseAdmin) {
+  const monRoutes = require('./routes/monitoring');
+  // Le getOnlinePlayers sera set quand les routes sont montées
+  monitoringService.init(supabaseAdmin, () => {
+    const map = monRoutes._onlinePlayers || new Map();
+    const players = [];
+    const now = Date.now();
+    for (const [, info] of map.entries()) {
+      if (now - (info.lastSeen || 0) <= 90000) players.push(info);
+    }
+    return players;
+  });
+  // Alerte de démarrage
+  alerting.alertDeployComplete(process.env.RENDER_GIT_COMMIT || 'local', process.env.RENDER_GIT_BRANCH || 'main');
+}
 
 // ===== Internal: Screenshot Data for Puppeteer =====
 app.get('/api/internal/screenshot-data/:id', (req, res) => {

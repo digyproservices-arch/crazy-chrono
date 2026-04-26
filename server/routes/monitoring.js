@@ -584,6 +584,23 @@ router.post('/client-telemetry', require('express').text({ type: 'text/plain', l
         logger.warn(`[ClientTelemetry] ${evt.event}`, { deviceId: evt.deviceId || deviceId, url: evt.url, message: evt.message, fetchUrl: evt.fetchUrl, status: evt.status });
       }
     }
+    // Alertes automatiques + persistance Supabase
+    try {
+      const alertingMod = req.app.locals.alerting;
+      if (alertingMod) alertingMod.checkAlertThresholds(batch);
+      const ms = req.app.locals.monitoringService;
+      if (ms) {
+        for (const evt of batch) {
+          ms.recordEvent(evt.event || 'telemetry', {
+            severity: (evt.event || '').startsWith('error:') ? 'error' : 'info',
+            message: evt.data?.message || evt.data?.reason || '',
+            deviceId: evt.deviceId || deviceId,
+            userId: evt.userId || userId,
+            metadata: evt.data || {},
+          });
+        }
+      }
+    } catch {}
     res.json({ ok: true, count: batch.length });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
@@ -1054,6 +1071,11 @@ router.post('/heartbeat', (req, res) => {
       logger.info(`[Presence] Nouveau joueur: ${pseudo || email || userId} (mode: ${mode || '?'})`);
     }
     savePresenceFile();
+    // Check milestone joueurs
+    try {
+      const alertingMod = req.app.locals.alerting;
+      if (alertingMod) alertingMod.checkPlayerMilestone(onlinePlayers.size);
+    } catch {}
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
@@ -1579,5 +1601,78 @@ router.get('/supabase-diagnostic', requireAdminAuth, async (req, res) => {
     res.json({ ok: false, diagnostic: diag });
   }
 });
+
+// ── APM Metrics Endpoint ───────────────────────────────
+/**
+ * GET /api/monitoring/apm-metrics
+ * Retourne les métriques APM agrégées (temps de réponse, erreurs par endpoint)
+ */
+router.get('/apm-metrics', requireAdminAuth, (req, res) => {
+  try {
+    const getApmMetrics = req.app.locals.getApmMetrics;
+    if (!getApmMetrics) return res.json({ ok: true, metrics: null, error: 'apm_not_configured' });
+    res.json({ ok: true, metrics: getApmMetrics() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// ── Time Series Endpoint (graphiques temporels) ────────
+/**
+ * GET /api/monitoring/time-series?hours=168
+ * Retourne erreurs/h, joueurs/h, APM/h depuis Supabase
+ */
+router.get('/time-series', requireAdminAuth, async (req, res) => {
+  try {
+    const ms = req.app.locals.monitoringService;
+    if (!ms) return res.json({ ok: true, data: { errors: [], players: [], apm: [] }, error: 'service_not_configured' });
+    const hours = parseInt(req.query.hours) || 168;
+    const data = await ms.getTimeSeries(hours);
+    res.json({ ok: true, data });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// ── Error Groups Endpoint (regroupement par fingerprint) ─
+/**
+ * GET /api/monitoring/error-groups?hours=24
+ * Retourne les erreurs groupées par fingerprint
+ */
+router.get('/error-groups', requireAdminAuth, async (req, res) => {
+  try {
+    const ms = req.app.locals.monitoringService;
+    if (!ms) return res.json({ ok: true, groups: [], error: 'service_not_configured' });
+    const hours = parseInt(req.query.hours) || 24;
+    const groups = await ms.getErrorGroups(hours);
+    res.json({ ok: true, groups, count: groups.length });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// ── Test Alert Endpoint ─────────────────────────────────
+/**
+ * POST /api/monitoring/test-alert
+ * Envoie une alerte test Discord (admin only)
+ */
+router.post('/test-alert', requireAdminAuth, async (req, res) => {
+  try {
+    const alertingMod = req.app.locals.alerting;
+    if (!alertingMod) return res.json({ ok: false, error: 'alerting_not_configured' });
+    const sent = await alertingMod.sendAlert('test_alert', {
+      title: 'Test d\'alerte',
+      message: 'Ceci est un test depuis le dashboard Monitoring.',
+      severity: 'info',
+      fields: [{ name: 'Envoyé par', value: req.adminUser?.email || 'admin' }],
+    });
+    res.json({ ok: true, sent, hint: !sent ? 'Vérifiez DISCORD_WEBHOOK_URL dans les variables d\'environnement Render' : null });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+// Exposer la Map onlinePlayers pour le monitoringService
+router._onlinePlayers = onlinePlayers;
 
 module.exports = router;

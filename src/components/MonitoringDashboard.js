@@ -11,6 +11,7 @@ import { getAuthLogs, clearAuthLogs } from '../utils/authLogger';
 import { getAllScreenshotMetas, getScreenshot } from '../utils/cardScreenshot';
 import { formatClickReport, getClickAttempts, getClickStats, clearClickLogs } from '../utils/clickLogger';
 import { getTelemetryEvents, clearTelemetry } from '../utils/clientTelemetry';
+import MonitoringCharts from './MonitoringCharts';
 
 const COLORS = {
   bg: '#0f172a',
@@ -1054,6 +1055,9 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     <KPICard title="Traces Jeu" value={soloTraces.length} icon="🔍" color="#f59e0b" highlight={soloTraces.length > 0} />
                     <KPICard title="Télémétrie" value={clientTelemetryEvents.length} icon="📡" color="#06b6d4" highlight={clientTelemetryEvents.some(e => e.event?.startsWith('error:'))} />
                   </div>
+
+                  {/* Graphiques temporels, APM, Erreurs groupées, Alertes */}
+                  <MonitoringCharts />
 
                   {/* Audit Parser section */}
                   <div style={{ ...cardStyle, marginBottom: 16, borderLeft: `4px solid ${auditResult ? (auditResult.standalone.failed === 0 && auditResult.pairs.mismatch === 0 ? '#10b981' : '#ef4444') : COLORS.info}` }}>
