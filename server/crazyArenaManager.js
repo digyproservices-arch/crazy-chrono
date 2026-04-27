@@ -15,6 +15,10 @@ const { validateZonesServer } = require('./utils/validateZonesServer');
 const fs = require('fs');
 const path = require('path');
 
+// Fenêtre d'égalité Arena (ms): si 2 joueurs cliquent la même paire dans cet intervalle,
+// les deux marquent le point. Au-delà, seul le premier marque.
+const ARENA_TIE_WINDOW_MS = 200;
+
 // ── Bridge monitoring: sauvegarder chaque round Arena dans arena_round_logs.json ──
 const ARENA_ROUNDS_FILE = path.join(__dirname, 'data', 'arena_round_logs.json');
 function _logArenaRound(roundData) {
@@ -1883,6 +1887,9 @@ class CrazyArenaManager {
         match.roundsPlayed = currentRound;
         logger.info(`[CrazyArena] 🔔 Nouvelle manche #${match.roundsPlayed + 1} démarrée (${elapsed}s écoulées)`);
         
+        // Réinitialiser le verrou de paire (nouvelle manche = nouvelle carte)
+        match._pairClaimLock = null;
+        
         // Générer nouvelle carte pour la nouvelle manche
         this.generateZones(match.config, matchId).then(newZones => {
           match.zones = newZones;
@@ -2077,6 +2084,41 @@ class CrazyArenaManager {
       fastBonus: timeMs < 3000
     });
 
+    // ✅ ANTI-DOUBLON: Fenêtre d'égalité 200ms pour empêcher le double score Arena
+    if (isCorrect && pairId) {
+      // Validation serveur: vérifier que le pairId correspond à la carte actuelle
+      if (match.zones && match.zones.length > 0) {
+        const validPairZones = match.zones.filter(z => z.pairId === pairId);
+        if (validPairZones.length < 2) {
+          logger.warn('[CrazyArena][Arena] ❌ pairId invalide (pas dans la carte actuelle)', { matchId, studentId, pairId });
+          return;
+        }
+      }
+
+      const now = Date.now();
+      if (match._pairClaimLock) {
+        // Un verrou existe déjà pour cette carte
+        if (match._pairClaimLock.claimants.has(studentId)) {
+          logger.info('[CrazyArena][Arena] Claim ignoré (doublon même joueur)', { matchId, studentId });
+          return;
+        }
+        const elapsed = now - match._pairClaimLock.timestamp;
+        if (elapsed > ARENA_TIE_WINDOW_MS) {
+          // Trop tard — la paire a déjà été validée par un autre joueur
+          logger.info('[CrazyArena][Arena] ⏰ Claim rejeté (hors fenêtre)', { matchId, studentId, elapsed, window: ARENA_TIE_WINDOW_MS });
+          socket.emit('arena:claim-rejected', { reason: 'late', pairId });
+          return;
+        }
+        // Égalité dans la fenêtre → ajouter aux réclamants
+        match._pairClaimLock.claimants.add(studentId);
+        logger.info('[CrazyArena][Arena] ⚡ Égalité détectée dans la fenêtre', { matchId, studentId, elapsed, window: ARENA_TIE_WINDOW_MS });
+      } else {
+        // Premier claim → créer le verrou
+        match._pairClaimLock = { pairId, timestamp: now, claimants: new Set([studentId]), cardGenScheduled: false };
+        logger.info('[CrazyArena][Arena] 🔒 Premier claim, verrou posé', { matchId, studentId, pairId });
+      }
+    }
+
     // Mettre à jour le score
     if (isCorrect) {
       // ✅ TIEBREAKER: Comptabiliser séparément pour addition finale
@@ -2090,7 +2132,11 @@ class CrazyArenaManager {
           logger.info('[CrazyArena][Arena] Bonus rapidité tiebreaker', { matchId, studentId, timeMs, bonusPoints: 1 });
         }
         
-        match.tiebreakerPairsFound = (match.tiebreakerPairsFound || 0) + 1;
+        // Incrémenter pairsFound uniquement pour le premier réclamant (pas les égalités)
+        const isFirstClaimTB = match._pairClaimLock && !match._pairClaimLock.cardGenScheduled;
+        if (isFirstClaimTB) {
+          match.tiebreakerPairsFound = (match.tiebreakerPairsFound || 0) + 1;
+        }
         
         logger.info('[CrazyArena][Arena] Score tiebreaker mis à jour', { 
           matchId, 
@@ -2099,7 +2145,8 @@ class CrazyArenaManager {
           oldScore,
           newScore: player.tiebreakerScore,
           pairsFound: match.tiebreakerPairsFound,
-          pairsToFind: match.tiebreakerPairsToFind
+          pairsToFind: match.tiebreakerPairsToFind,
+          isFirstClaim: isFirstClaimTB
         });
 
         // 💾 PERSISTENCE: Sauvegarder le score tiebreaker Arena en DB
@@ -2147,55 +2194,61 @@ class CrazyArenaManager {
         };
         this.io.to(matchId).emit('arena:scores-update', tbScoresPayload);
 
-        setTimeout(async () => {
-          try {
-            // ✅ FIX RACE CONDITION: Vérifier que le match est toujours en tiebreaker
-            // Si la dernière paire a été trouvée pendant le délai, endGame a déjà été appelé
-            if (match.status === 'finished') {
-              logger.info('[CrazyArena][Arena] ⚠️ Carte tiebreaker annulée — match déjà terminé', { matchId });
-              return;
+        // ✅ Générer nouvelle carte tiebreaker UNIQUEMENT pour le premier réclamant
+        if (isFirstClaimTB && match._pairClaimLock) {
+          match._pairClaimLock.cardGenScheduled = true;
+          setTimeout(async () => {
+            try {
+              // Libérer le verrou — nouvelle carte = nouveaux claims possibles
+              match._pairClaimLock = null;
+
+              // ✅ FIX RACE CONDITION: Vérifier que le match est toujours en tiebreaker
+              if (match.status === 'finished') {
+                logger.info('[CrazyArena][Arena] ⚠️ Carte tiebreaker annulée — match déjà terminé', { matchId });
+                return;
+              }
+              logger.info('[CrazyArena][Arena] Génération nouvelle carte tiebreaker', { 
+                matchId, 
+                cardNumber: match.tiebreakerPairsFound + 1,
+                totalCards: match.tiebreakerPairsToFind,
+                pairsRemaining: match.tiebreakerPairsToFind - match.tiebreakerPairsFound
+              });
+              
+              const newZones = await this.generateZones(match.config, matchId);
+              match.zones = newZones;
+              
+              logger.info('[CrazyArena][Arena] Carte tiebreaker générée', { 
+                matchId, 
+                zonesCount: newZones?.length || 0,
+                cardNumber: match.tiebreakerPairsFound + 1
+              });
+              
+              const payload = {
+                zones: newZones,
+                roundIndex: match.tiebreakerPairsFound,
+                totalRounds: match.tiebreakerPairsToFind,
+                timestamp: Date.now()
+              };
+              
+              // Valider les zones avant émission (monitoring double PA / fausse paire)
+              try { validateZonesServer(newZones, { source: 'arena:tiebreaker-round', matchId: matchId.slice(-8) }); } catch (e) { logger.warn('[CrazyArena] Zone validation error (tiebreaker):', e.message); }
+              this.io.to(matchId).emit('arena:round-new', payload);
+              
+              logger.info('[CrazyArena][Arena] Événement arena:round-new émis (tiebreaker)', { 
+                matchId, 
+                zonesCount: newZones?.length || 0,
+                roundIndex: match.tiebreakerPairsFound,
+                event: 'arena:round-new'
+              });
+            } catch (err) {
+              logger.error('[CrazyArena][Arena] Erreur génération carte tiebreaker', { 
+                matchId, 
+                error: err.message,
+                stack: err.stack?.slice(0, 200)
+              });
             }
-            logger.info('[CrazyArena][Arena] Génération nouvelle carte tiebreaker', { 
-              matchId, 
-              cardNumber: match.tiebreakerPairsFound + 1,
-              totalCards: match.tiebreakerPairsToFind,
-              pairsRemaining: match.tiebreakerPairsToFind - match.tiebreakerPairsFound
-            });
-            
-            const newZones = await this.generateZones(match.config, matchId);
-            match.zones = newZones;
-            
-            logger.info('[CrazyArena][Arena] Carte tiebreaker générée', { 
-              matchId, 
-              zonesCount: newZones?.length || 0,
-              cardNumber: match.tiebreakerPairsFound + 1
-            });
-            
-            const payload = {
-              zones: newZones,
-              roundIndex: match.tiebreakerPairsFound,
-              totalRounds: match.tiebreakerPairsToFind,
-              timestamp: Date.now()
-            };
-            
-            // Valider les zones avant émission (monitoring double PA / fausse paire)
-            try { validateZonesServer(newZones, { source: 'arena:tiebreaker-round', matchId: matchId.slice(-8) }); } catch (e) { logger.warn('[CrazyArena] Zone validation error (tiebreaker):', e.message); }
-            this.io.to(matchId).emit('arena:round-new', payload);
-            
-            logger.info('[CrazyArena][Arena] Événement arena:round-new émis (tiebreaker)', { 
-              matchId, 
-              zonesCount: newZones?.length || 0,
-              roundIndex: match.tiebreakerPairsFound,
-              event: 'arena:round-new'
-            });
-          } catch (err) {
-            logger.error('[CrazyArena][Arena] Erreur génération carte tiebreaker', { 
-              matchId, 
-              error: err.message,
-              stack: err.stack?.slice(0, 200)
-            });
-          }
-        }, 1500);
+          }, 1500);
+        }
         
         return; // Sortir pour éviter double génération
       } else {
@@ -2267,72 +2320,81 @@ class CrazyArenaManager {
         event: 'arena:pair-validated'
       });
       
-      if (!match.validatedPairIds) match.validatedPairIds = new Set();
-      
-      const MAX_EXCLUDED_PAIRS = 15;
-      
-      if (match.validatedPairIds.size >= MAX_EXCLUDED_PAIRS) {
-        const pairIdsArray = Array.from(match.validatedPairIds);
-        const oldestPairId = pairIdsArray[0];
-        match.validatedPairIds.delete(oldestPairId);
-        logger.info('[CrazyArena][Arena] FIFO: Paire la plus ancienne supprimée', { matchId, oldestPairId, maxSize: MAX_EXCLUDED_PAIRS });
-      }
-      
-      match.validatedPairIds.add(pairId);
-      
-      logger.info('[CrazyArena][Arena] FIFO: Paire ajoutée aux exclusions', { 
-        matchId, 
-        pairId,
-        excludedCount: match.validatedPairIds.size,
-        maxExcluded: MAX_EXCLUDED_PAIRS
-      });
-      
-      logger.info('[CrazyArena][Arena] Démarrage génération nouvelle carte', { 
-        matchId, 
-        excludedPairs: match.validatedPairIds.size
-      });
-      
-      setTimeout(async () => {
-        try {
-          logger.info('[CrazyArena][Arena] Génération nouvelle carte (mode normal)', { 
-            matchId, 
-            roundsPlayed: match.roundsPlayed || 0,
-            totalRounds: match.config.rounds || null
-          });
-          
-          const newZones = await this.generateZones(match.config, matchId);
-          match.zones = newZones;
-          
-          logger.info('[CrazyArena][Arena] Nouvelle carte générée', { 
-            matchId, 
-            zonesCount: newZones?.length || 0
-          });
-          
-          const roundPayload = {
-            zones: newZones,
-            roundIndex: match.roundsPlayed,
-            totalRounds: match.config.rounds || null,
-            timestamp: Date.now()
-          };
-          
-          // Valider les zones avant émission (monitoring double PA / fausse paire)
-          try { validateZonesServer(newZones, { source: 'arena:round-regen', matchId: matchId.slice(-8), roundIndex: match.roundsPlayed }); } catch (e) { logger.warn('[CrazyArena] Zone validation error (round-regen):', e.message); }
-          this.io.to(matchId).emit('arena:round-new', roundPayload);
-          
-          logger.info('[CrazyArena][Arena] Événement arena:round-new émis (mode normal)', { 
-            matchId, 
-            zonesCount: newZones?.length || 0,
-            roundIndex: match.roundsPlayed,
-            event: 'arena:round-new'
-          });
-        } catch (err) {
-          logger.error('[CrazyArena][Arena] Erreur génération carte (mode normal)', { 
-            matchId, 
-            error: err.message,
-            stack: err.stack?.slice(0, 200)
-          });
+      // ✅ FIFO + Génération nouvelle carte: UNIQUEMENT pour le premier réclamant
+      const isFirstClaimNormal = match._pairClaimLock && !match._pairClaimLock.cardGenScheduled;
+      if (isFirstClaimNormal) {
+        match._pairClaimLock.cardGenScheduled = true;
+
+        if (!match.validatedPairIds) match.validatedPairIds = new Set();
+        
+        const MAX_EXCLUDED_PAIRS = 15;
+        
+        if (match.validatedPairIds.size >= MAX_EXCLUDED_PAIRS) {
+          const pairIdsArray = Array.from(match.validatedPairIds);
+          const oldestPairId = pairIdsArray[0];
+          match.validatedPairIds.delete(oldestPairId);
+          logger.info('[CrazyArena][Arena] FIFO: Paire la plus ancienne supprimée', { matchId, oldestPairId, maxSize: MAX_EXCLUDED_PAIRS });
         }
-      }, 1500);
+        
+        match.validatedPairIds.add(pairId);
+        
+        logger.info('[CrazyArena][Arena] FIFO: Paire ajoutée aux exclusions', { 
+          matchId, 
+          pairId,
+          excludedCount: match.validatedPairIds.size,
+          maxExcluded: MAX_EXCLUDED_PAIRS
+        });
+        
+        logger.info('[CrazyArena][Arena] Démarrage génération nouvelle carte', { 
+          matchId, 
+          excludedPairs: match.validatedPairIds.size
+        });
+        
+        setTimeout(async () => {
+          try {
+            // Libérer le verrou — nouvelle carte = nouveaux claims possibles
+            match._pairClaimLock = null;
+
+            logger.info('[CrazyArena][Arena] Génération nouvelle carte (mode normal)', { 
+              matchId, 
+              roundsPlayed: match.roundsPlayed || 0,
+              totalRounds: match.config.rounds || null
+            });
+            
+            const newZones = await this.generateZones(match.config, matchId);
+            match.zones = newZones;
+            
+            logger.info('[CrazyArena][Arena] Nouvelle carte générée', { 
+              matchId, 
+              zonesCount: newZones?.length || 0
+            });
+            
+            const roundPayload = {
+              zones: newZones,
+              roundIndex: match.roundsPlayed,
+              totalRounds: match.config.rounds || null,
+              timestamp: Date.now()
+            };
+            
+            // Valider les zones avant émission (monitoring double PA / fausse paire)
+            try { validateZonesServer(newZones, { source: 'arena:round-regen', matchId: matchId.slice(-8), roundIndex: match.roundsPlayed }); } catch (e) { logger.warn('[CrazyArena] Zone validation error (round-regen):', e.message); }
+            this.io.to(matchId).emit('arena:round-new', roundPayload);
+            
+            logger.info('[CrazyArena][Arena] Événement arena:round-new émis (mode normal)', { 
+              matchId, 
+              zonesCount: newZones?.length || 0,
+              roundIndex: match.roundsPlayed,
+              event: 'arena:round-new'
+            });
+          } catch (err) {
+            logger.error('[CrazyArena][Arena] Erreur génération carte (mode normal)', { 
+              matchId, 
+              error: err.message,
+              stack: err.stack?.slice(0, 200)
+            });
+          }
+        }, 1500);
+      }
     }
 
     const scoresPayload = {
