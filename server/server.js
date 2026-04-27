@@ -58,8 +58,8 @@ const ALLOWED_ORIGINS = [
 ];
 const io = new Server(server, {
   cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'], credentials: true },
-  pingInterval: 10000,       // ping toutes les 10s (défaut 25s — trop lent pour Render)
-  pingTimeout: 5000,         // pong attendu dans 5s (défaut 20s)
+  pingInterval: 25000,       // ping toutes les 25s (défaut Socket.IO)
+  pingTimeout: 20000,        // pong attendu dans 20s (défaut Socket.IO — 5s était trop agressif, causait "transport close" sur connexions lentes)
   transports: ['websocket', 'polling'], // websocket prioritaire, polling en fallback
   allowUpgrades: true,       // upgrader polling → websocket automatiquement
   upgradeTimeout: 10000,
@@ -3026,6 +3026,13 @@ io.on('connection', (socket) => {
     currentRoom = newRoom;
     socket.join(currentRoom);
     const room = getRoom(currentRoom);
+    // ── FIX DÉCONNEXIONS SOLO: annuler le délai de grâce si un joueur rejoint ──
+    if (room._graceTimer) {
+      clearTimeout(room._graceTimer);
+      room._graceTimer = null;
+      console.log(`[MP] Solo room ${currentRoom} — grace timer cancelled (player rejoined)`);
+      sTrace.push('room:grace-cancelled', { room: currentRoom, socketId: socket.id });
+    }
     let existing = room.players.get(socket.id) || {};
     // FIX BUG 4: Detect reconnection during active session — transfer score from old socket
     if (room.sessionActive && !room.players.has(socket.id)) {
@@ -4136,6 +4143,23 @@ io.on('connection', (socket) => {
     }
     // si plus personne, nettoyer les timers et supprimer la salle
     if (room.players.size === 0) {
+      // ── FIX DÉCONNEXIONS SOLO: délai de grâce 15s pour reconnexion ──
+      if (currentRoom.startsWith('solo-') && room.sessionActive && reason === 'transport close') {
+        console.log(`[MP] Solo room ${currentRoom} — grace period 15s for reconnection (transport close)`);
+        sTrace.push('room:grace-start', { room: currentRoom, sessionActive: room.sessionActive, roundsPlayed: room.roundsPlayed, roundsPerSession: room.roundsPerSession, reason });
+        room._graceTimer = setTimeout(() => {
+          room._graceTimer = null;
+          if (room.players.size === 0) {
+            console.log(`[MP] Solo room ${currentRoom} — grace period expired, deleting`);
+            sTrace.push('room:grace-expired', { room: currentRoom });
+            if (room.roundTimer) { try { clearTimeout(room.roundTimer); } catch {} room.roundTimer = null; }
+            try { if (room.pendingClaims && room.pendingClaims.size) { for (const [, e] of room.pendingClaims.entries()) { try { if (e && e.timer) clearTimeout(e.timer); } catch {} } room.pendingClaims.clear(); } } catch {}
+            room.sessionActive = false;
+            rooms.delete(currentRoom);
+          }
+        }, 15000);
+        return; // ne pas supprimer tout de suite
+      }
       // ── TRAÇAGE: log quand une room est supprimée (possible cause racine) ──
       console.warn(`[GAME-TRACE] Room ${currentRoom} about to be deleted | sessionActive=${room.sessionActive} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession} roundTimer=${!!room.roundTimer} socketId=${socket.id} reason=${reason}`);
       sTrace.push('room:deleted', { room: currentRoom, sessionActive: room.sessionActive, roundsPlayed: room.roundsPlayed, roundsPerSession: room.roundsPerSession, roundTimer: !!room.roundTimer, socketId: socket.id, reason });

@@ -760,6 +760,8 @@ const Carte = () => {
   const configAppliedRef = useRef(false);
   // Guard: empêcher l'auto-start solo sur reconnexion Socket.IO (transport close → reconnect)
   const soloAutoStartedRef = useRef(false);
+  // Track active solo room name for reconnection after transport close
+  const soloRoomRef = useRef(null);
   // Sync objectiveModeRef with state (avoid stale closures in setTimeout/async)
   useEffect(() => { objectiveModeRef.current = objectiveMode; }, [objectiveMode]);
   // Sync socketConnectedRef with state (avoid stale closures in useEffect([], []) socket handlers)
@@ -2116,11 +2118,18 @@ const Carte = () => {
         if (sid) s.emit('mp:identify', { studentId: sid });
       } catch {}
 
-      // ✅ FIX PHANTOM SOLO ROOMS: Si un jeu est déjà actif (reconnexion après transport close),
-      // ne PAS recréer de room/startGame. Juste re-identify et laisser le serveur resync via room:state.
-      if (prevGameActiveRef.current) {
-        console.log('[CC][reconnect] Game already active — skipping room setup (transport close recovery)');
-        addDiag('reconnect:skip-setup', { gameActive: true, socketId: s.id });
+      // ✅ FIX DÉCONNEXIONS SOLO: Si un jeu est déjà actif (reconnexion après transport close),
+      // rejoindre la même salle solo (le serveur la garde 15s via délai de grâce).
+      if (prevGameActiveRef.current || soloRoomRef.current) {
+        const lastRoom = soloRoomRef.current;
+        if (lastRoom) {
+          console.log('[CC][reconnect] Rejoining solo room after transport close:', lastRoom);
+          addDiag('reconnect:rejoin-solo', { room: lastRoom, socketId: s.id });
+          try { s.emit('joinRoom', { roomId: lastRoom, name: playerName, studentId: getMyStudentId() }); } catch {}
+        } else {
+          console.log('[CC][reconnect] Game active but no soloRoom — skipping room setup');
+          addDiag('reconnect:skip-setup', { gameActive: true, socketId: s.id });
+        }
         return;
       }
 
@@ -2406,6 +2415,7 @@ const Carte = () => {
         // FIX: En mode solo, utiliser un roomId unique pour isoler chaque joueur
         let cfgSolo = null; try { cfgSolo = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
         const soloRoomId = (cfgSolo && cfgSolo.mode === 'solo') ? `solo-${s.id}` : roomId;
+        if (cfgSolo && cfgSolo.mode === 'solo') soloRoomRef.current = soloRoomId;
         try { s.emit('joinRoom', { roomId: soloRoomId, name: playerName, studentId: getMyStudentId() }); } catch {}
         // B2-fix: envoyer themes/classes au serveur même en solo (le serveur génère les zones)
         setTimeout(() => {
@@ -3784,6 +3794,7 @@ async function doStart() {
       // FIX: utiliser un roomId solo isolé (pas 'default') pour éviter conflits entre sessions
       const isSoloCfg = !cfg2 || cfg2.mode === 'solo';
       const effectiveRoomId = isSoloCfg ? `solo-${socket.id}` : roomId;
+      if (isSoloCfg) soloRoomRef.current = effectiveRoomId;
       try { socket.emit('joinRoom', { roomId: effectiveRoomId, name: playerName, studentId: getMyStudentId() }); } catch {}
       // FIX: TOUJOURS re-envoyer themes/classes/extras au serveur (crucial pour Rejouer)
       try {
