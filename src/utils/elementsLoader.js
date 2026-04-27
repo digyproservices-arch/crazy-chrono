@@ -663,8 +663,8 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
             used.texte.add(replacement);
             txtZ._distId = replacement;
           } else {
-            txtZ.content = '';
-            txtZ._distId = null;
+            // Garder le contenu original — une fausse paire visible est mieux qu'une zone invisible
+            console.warn('[elementsLoader] POST-VALIDATION: pas de remplacement — contenu original conservé:', txtZ.content);
           }
         }
       }
@@ -734,8 +734,8 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
             used.texte.add(replacement);
             txtZ._distId = replacement;
           } else {
-            txtZ.content = '';
-            txtZ._distId = null;
+            // Garder le contenu original — une fausse paire visible est mieux qu'une zone invisible
+            console.warn('[elementsLoader] POST-VALIDATION CONTENT: pas de remplacement — contenu original conservé:', txtZ.content);
           }
         }
       }
@@ -778,8 +778,8 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
               if (Number.isFinite(v)) placedChiffreValues.add(v);
               console.log(`[elementsLoader] POST-VALIDATION calc-num: chiffre remplacé par "${nz.content}"`);
             } else {
-              nz.content = '';
-              console.warn('[elementsLoader] POST-VALIDATION calc-num: aucun remplacement sûr trouvé');
+              // Garder le contenu original — une fausse paire visible est mieux qu'une zone invisible
+              console.warn('[elementsLoader] POST-VALIDATION calc-num: pas de remplacement — contenu original conservé:', nz.content);
             }
           }
         }
@@ -813,10 +813,17 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       const remaining = texteIds.filter(id => !used.texte.has(id));
       if (remaining.length > 0) {
         const tId = remaining[Math.floor(rng() * remaining.length)];
-        z.content = localizeText(textesById[tId]?.content || '???', locMap);
+        z.content = localizeText(textesById[tId]?.content || '', locMap);
         used.texte.add(tId);
       } else {
-        z.content = '???';
+        // Fallback: utiliser n'importe quel texte du pool complet (même déjà utilisé)
+        const allTextes = Array.isArray(data.textes) ? data.textes : [];
+        const anyT = allTextes.filter(t => t.content && String(t.content).trim() !== '');
+        if (anyT.length > 0) {
+          z.content = localizeText(anyT[Math.floor(rng() * anyT.length)].content, locMap);
+        } else {
+          z.content = String(Math.floor(rng() * 100) + 1);
+        }
       }
     } else if (type === 'image') {
       const remaining = imageIds.filter(id => !used.image.has(id));
@@ -824,6 +831,13 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
         const imgId = remaining[Math.floor(rng() * remaining.length)];
         z.content = encodedImageUrl(imagesById[imgId]?.url || '');
         used.image.add(imgId);
+      } else {
+        // Fallback: utiliser n'importe quelle image (même déjà utilisée)
+        const allImages = Array.isArray(data.images) ? data.images : [];
+        const anyI = allImages.filter(i => i.url && String(i.url).trim() !== '');
+        if (anyI.length > 0) {
+          z.content = encodedImageUrl(anyI[Math.floor(rng() * anyI.length)].url);
+        }
       }
     }
     if (z.content && String(z.content).trim() !== '') {

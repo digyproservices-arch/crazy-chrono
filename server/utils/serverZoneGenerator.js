@@ -1253,12 +1253,18 @@ function generateRoundZones(seed, config = {}) {
         const remaining = texteIds.filter(id => !used.texte.has(id));
         if (remaining.length > 0) {
           const tId = remaining[Math.floor(rng() * remaining.length)];
-          z.content = textesById[tId]?.content || '???';
+          z.content = textesById[tId]?.content || '';
           z.label = z.content;
           used.texte.add(tId);
         } else {
-          z.content = '???';
-          z.label = '???';
+          // Fallback: utiliser n'importe quel texte du pool complet (même déjà utilisé)
+          const anyT = textes.filter(t => t.content && String(t.content).trim() !== '');
+          if (anyT.length > 0) {
+            z.content = anyT[Math.floor(rng() * anyT.length)].content;
+          } else {
+            z.content = String(Math.floor(rng() * 100) + 1);
+          }
+          z.label = z.content;
         }
       } else if (type === 'image') {
         const remaining = imageIds.filter(id => !used.image.has(id));
@@ -1266,6 +1272,12 @@ function generateRoundZones(seed, config = {}) {
           const imgId = remaining[Math.floor(rng() * remaining.length)];
           z.content = encodedImageUrl(imagesById[imgId]?.url || '');
           used.image.add(imgId);
+        } else {
+          // Fallback: utiliser n'importe quelle image (même déjà utilisée)
+          const anyI = images.filter(i => i.url && String(i.url).trim() !== '');
+          if (anyI.length > 0) {
+            z.content = encodedImageUrl(anyI[Math.floor(rng() * anyI.length)].url);
+          }
         }
       }
       if (z.content && String(z.content).trim() !== '') {
