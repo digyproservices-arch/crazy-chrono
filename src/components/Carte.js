@@ -2710,8 +2710,11 @@ const Carte = () => {
     // Départage en salle privée (modèle Training)
     s.on('session:tiebreaker', (data) => {
       console.log('[CC] session:tiebreaker received', data);
+      // ✅ FIX: Annuler le debounce timer pour ne pas écraser l'overlay départage avec l'overlay fin de partie
+      if (sessionSaveTimerRef.current) { clearTimeout(sessionSaveTimerRef.current); sessionSaveTimerRef.current = null; }
       setIsTiebreaker(true);
       setGameActive(false);
+      setSoloGameEndOverlay(null);
       setMpMsg(data.message || 'Égalité ! Départage…');
       // Créer overlay DOM (comme Training)
       try { const old = document.getElementById('mp-tie-overlay'); if (old) old.remove(); } catch {}
@@ -2797,6 +2800,24 @@ const Carte = () => {
           }, 800);
         }
       } catch {}
+    });
+
+    // ═══ DÉPARTAGE: Config et résultats round par round ═══
+    s.on('session:tiebreaker-config', (cfg) => {
+      console.log('[CC] tiebreaker-config received', cfg);
+      setIsTiebreaker(true);
+      // Pas de timer en départage: forcer un timer très long pour que le countdown ne gêne pas
+      if (cfg.noTimer) setGameDuration(9999);
+    });
+
+    s.on('tiebreaker:round-result', (data) => {
+      console.log('[CC] tiebreaker:round-result', data);
+      const msg = data.tie
+        ? `Round ${data.roundIndex}/${data.totalRounds} — Égalité !`
+        : `Round ${data.roundIndex}/${data.totalRounds} — ${data.winnerName || 'Un joueur'} gagne !`;
+      setMpMsg(msg);
+      try { playCorrectSound?.(); } catch {}
+      try { setRoundOverlay({ text: msg, until: Date.now() + 1800 }); setTimeout(() => setRoundOverlay(null), 1800); } catch {}
     });
 
     // ═══ REPLAY SYNCHRONISÉ: Countdown 3-2-1 du serveur (room:start ou room:requestReplay) ═══
@@ -3110,6 +3131,11 @@ const Carte = () => {
         s.off('round:result');
         s.off('round:timeout');
         s.off('session:end');
+        s.off('session:tiebreaker');
+        s.off('session:tiebreaker-config');
+        s.off('session:tiebreaker-ready-update');
+        s.off('session:tiebreaker-countdown');
+        s.off('tiebreaker:round-result');
       } catch {}
       try { s.disconnect(); } catch {}
     };

@@ -2819,23 +2819,34 @@ function endSession(roomCode) {
     }
   }
 
-  // Si départage terminé, départager par erreurs si toujours égalité
+  // Si départage terminé, déterminer le gagnant par les scores départage
+  const wasTiebreaker = !!room._isTiebreaker;
   if (room._isTiebreaker) {
-    const topScore = best;
-    const tiedPlayers = entries.filter(([, pl]) => (pl.score || 0) === topScore);
-    if (tiedPlayers.length > 1) {
-      // Départage par nombre d'erreurs (moins d'erreurs = gagnant)
-      tiedPlayers.sort((a, b) => (a[1].errors || 0) - (b[1].errors || 0));
-      const fewestErrors = tiedPlayers[0][1].errors || 0;
-      const stillTied = tiedPlayers.filter(([, pl]) => (pl.errors || 0) === fewestErrors);
-      if (stillTied.length === 1) {
-        winner = { id: stillTied[0][0], name: stillTied[0][1].name, score: stillTied[0][1].score || 0 };
-        console.log(`[MP] ⚖️ Départage par erreurs: ${winner.name} gagne (${fewestErrors} erreurs)`);
+    // Utiliser les scores départage pour déterminer le gagnant
+    if (room._tiebreakerScores && room._tiebreakerScores.size > 0) {
+      let bestTB = -1; let tbWinners = [];
+      for (const [id, sc] of room._tiebreakerScores.entries()) {
+        if (sc > bestTB) { bestTB = sc; tbWinners = [id]; }
+        else if (sc === bestTB) { tbWinners.push(id); }
+      }
+      if (tbWinners.length === 1) {
+        const pl = room.players.get(tbWinners[0]);
+        winner = { id: tbWinners[0], name: pl?.name || '?', score: pl?.score || 0 };
+        console.log(`[MP] ⚖️ Départage: ${winner.name} gagne (${bestTB}/${room._tiebreakerTotal} rounds)`);
       } else {
-        // Victoire partagée
-        const names = stillTied.map(([, pl]) => pl.name).join(' & ');
-        winner = { id: stillTied[0][0], name: names, score: topScore, shared: true };
-        console.log(`[MP] ⚖️ Égalité parfaite: victoire partagée ${names}`);
+        // Encore égalité après départage → départager par erreurs
+        const tiedPlayers = entries.filter(([id]) => tbWinners.includes(id));
+        tiedPlayers.sort((a, b) => (a[1].errors || 0) - (b[1].errors || 0));
+        const fewestErrors = tiedPlayers[0][1].errors || 0;
+        const stillTied = tiedPlayers.filter(([, pl]) => (pl.errors || 0) === fewestErrors);
+        if (stillTied.length === 1) {
+          winner = { id: stillTied[0][0], name: stillTied[0][1].name, score: stillTied[0][1].score || 0 };
+          console.log(`[MP] ⚖️ Départage par erreurs: ${winner.name} gagne (${fewestErrors} erreurs)`);
+        } else {
+          const names = stillTied.map(([, pl]) => pl.name).join(' & ');
+          winner = { id: stillTied[0][0], name: names, score: best, shared: true };
+          console.log(`[MP] ⚖️ Égalité parfaite: victoire partagée ${names}`);
+        }
       }
     }
     room._isTiebreaker = false;
@@ -2849,7 +2860,8 @@ function endSession(roomCode) {
     winnerTitle: winner ? (winner.shared ? 'Victoire partagée' : 'Crazy Winner') : null,
     scores: entries.map(([id, pl]) => ({ id, name: pl.name, score: pl.score || 0, errors: pl.errors || 0 })),
     duration: sessionDurationSec,
-    wasTiebreaker: !!room._isTiebreaker
+    wasTiebreaker,
+    tiebreakerScores: room._tiebreakerScores ? Object.fromEntries(room._tiebreakerScores) : null
   };
   try { room.sessions.push(summary); } catch {}
   room.sessionActive = false;
@@ -3388,6 +3400,47 @@ io.on('connection', (socket) => {
         }
         const scores = Array.from(room.players.entries()).map(([id, pl]) => ({ id, name: pl.name, score: pl.score || 0 }));
         io.to(currentRoom).emit('score:update', { scores });
+
+        // ✅ DÉPARTAGE: Premier à trouver gagne le round → passer au suivant ou fin
+        if (room._isTiebreaker) {
+          room._tiebreakerPlayed = (room._tiebreakerPlayed || 0) + 1;
+          const winnerId = claimants[0] || null;
+          const winnerPl = winnerId ? room.players.get(winnerId) : null;
+          // Mettre à jour les scores départage
+          for (const id of claimants) {
+            room._tiebreakerScores.set(id, (room._tiebreakerScores.get(id) || 0) + 1);
+          }
+          console.log(`[MP] ⚖️ Départage round ${room._tiebreakerPlayed}/${room._tiebreakerTotal} — gagnant: ${winnerPl?.name || 'inconnu'} (${claimants.length} claimant(s))`);
+          // Informer les clients du résultat du round
+          io.to(currentRoom).emit('tiebreaker:round-result', {
+            roundIndex: room._tiebreakerPlayed,
+            totalRounds: room._tiebreakerTotal,
+            winnerId,
+            winnerName: winnerPl?.name || null,
+            tiebreakerScores: Object.fromEntries(room._tiebreakerScores),
+            tie: claimants.length >= 2
+          });
+          io.to(currentRoom).emit('pair:valid', { by: winnerId, a, b, ts: Date.now(), count: room.pairsValidated, tie: claimants.length >= 2, winners: claimants });
+          // Fin du départage ou round suivant ?
+          if (room._tiebreakerPlayed >= room._tiebreakerTotal) {
+            // Restaurer la durée originale avant endSession
+            room.duration = room._origDuration || room.duration;
+            console.log(`[MP] ⚖️ Départage terminé — scores: ${JSON.stringify(Object.fromEntries(room._tiebreakerScores))}`);
+            setTimeout(() => endSession(currentRoom), 1500);
+          } else {
+            // Round suivant après un délai
+            setTimeout(() => {
+              const r = getRoom(currentRoom);
+              if (!r || !r.sessionActive) return;
+              r.resolved = false;
+              r.foundPairs = new Set();
+              startRound(currentRoom);
+              // Annuler le roundTimer (pas de timer en départage)
+              if (r.roundTimer) { clearTimeout(r.roundTimer); r.roundTimer = null; }
+            }, 2000);
+          }
+          return; // Skip la régénération de carte normale
+        }
         
         // Régénérer une nouvelle carte avec les paires validées exclues
         const newSeed = Math.floor(Date.now() % 2147483647);
@@ -3539,8 +3592,20 @@ io.on('connection', (socket) => {
     }
     console.log(`[MP] ⚖️ Hôte lance le départage room=${currentRoom}`);
     room._isTiebreaker = true;
+    room._tiebreakerTotal = 3;
+    room._tiebreakerPlayed = 0;
+    room._tiebreakerScores = new Map();
+    (room._tiedPlayers || []).forEach(p => room._tiebreakerScores.set(p.id, 0));
     room.sessionActive = true;
     room.status = 'playing';
+    // Sauvegarder la durée originale pour la restaurer après
+    room._origDuration = room.duration;
+    // Informer les clients du mode départage (3 cartes, pas de timer)
+    io.to(currentRoom).emit('session:tiebreaker-config', {
+      totalRounds: 3,
+      mode: 'first-to-find',
+      noTimer: true
+    });
     // Countdown 3-2-1
     let count = 3;
     const countdownInterval = setInterval(() => {
@@ -3548,11 +3613,13 @@ io.on('connection', (socket) => {
       count--;
       if (count < 0) {
         clearInterval(countdownInterval);
-        // Lancer le round de départage (30s)
-        const origDuration = room.duration;
-        room.duration = 30;
+        // Lancer le premier round de départage SANS timer
+        room.roundsPerSession = room._tiebreakerTotal;
+        room.roundsPlayed = 0;
+        room.duration = 9999;
         startRound(currentRoom);
-        room.duration = origDuration;
+        // Annuler le roundTimer car pas de timer en départage
+        if (room.roundTimer) { clearTimeout(room.roundTimer); room.roundTimer = null; }
       }
     }, 1000);
   });
