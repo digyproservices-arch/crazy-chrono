@@ -2015,8 +2015,9 @@ const Carte = () => {
           }
         } catch {}
 
-        // Animation bulles pour adversaires uniquement (le joueur local a déjà ses propres bulles)
-        if (!isLocal && ZA && ZB) {
+        // Animation bulles pour TOUS les joueurs (confirmé par le serveur)
+        // Le joueur local n'anime plus au clic en Arena — c'est ici qu'il reçoit sa bulle
+        if (ZA && ZB) {
           animateBubblesFromZones(zoneAId, zoneBId, color, ZA, ZB, borderColor, label);
         }
 
@@ -2073,6 +2074,13 @@ const Carte = () => {
             console.warn('[ARENA] Erreur mise à jour historique:', e);
           }
         }
+      });
+
+      // ✅ Écouter arena:claim-rejected — le serveur a rejeté le claim (trop tard)
+      s.on('arena:claim-rejected', ({ reason, pairId }) => {
+        console.log('[ARENA] ❌ Claim rejeté:', reason, pairId);
+        setGameMsg('Trop tard !');
+        setTimeout(() => setGameMsg(''), 1200);
       });
       
       s.on('disconnect', () => {
@@ -4133,7 +4141,11 @@ function handleGameClick(zone) {
           
           const { primary, border } = myIdx >= 0 ? getPlayerColorComboByIndex(myIdx) : { primary: '#22c55e', border: '#ffffff' };
           const initials = getInitials(myName);
-          animateBubblesFromZones(a, b, primary, ZA, ZB, border, initials);
+          // ✅ En Arena, ne PAS animer localement — attendre confirmation serveur
+          // (empêche la bulle de s'envoler si le claim est rejeté par le serveur)
+          if (!arenaMatchId) {
+            animateBubblesFromZones(a, b, primary, ZA, ZB, border, initials);
+          }
         } catch {}
         if (socket && socket.connected) {
           // Mode Arena : émettre event spécifique arena:pair-validated
