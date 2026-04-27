@@ -3115,6 +3115,20 @@ const Carte = () => {
     });
 
     return () => {
+      try {
+        const diag = {
+          event: 'cleanup:unmount',
+          ts: Date.now(),
+          socketId: s?.id || null,
+          connected: !!s?.connected,
+          gameActive: gameActiveRef?.current ?? null,
+          visibilityState: document?.visibilityState || null,
+          pathname: window?.location?.pathname || null,
+          href: window?.location?.href || null,
+        };
+        console.warn('[CC] ⚠️ Carte.js useEffect CLEANUP — composant démonté', diag);
+        try { window.ccAddDiag && window.ccAddDiag('cleanup:unmount', diag); } catch {}
+      } catch {}
       try { cleanupResize(); } catch {}
       try {
         s.off('connect', onConnect);
