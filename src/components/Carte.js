@@ -1770,6 +1770,7 @@ const Carte = () => {
       // ✅ SIMPLE: Tiebreaker = Mettre à jour React directement
       s.on('arena:tiebreaker-start', ({ zones, duration, startTime, matchId }) => {
         console.log('[ARENA] 🎯 Tiebreaker start - Mise à jour React directe');
+        arenaGameFinishedRef.current = false; // Reset flag pour le nouveau tiebreaker
         
         if (!zones || zones.length === 0) {
           console.error('[ARENA] ❌ Zones manquantes');
@@ -1835,6 +1836,9 @@ const Carte = () => {
           console.log('[ARENA] ⏭️ Ignoré (broadcast global sans ranking)');
           return;
         }
+
+        // ✅ FIX RACE CONDITION: Marquer le match comme terminé pour bloquer arena:round-new tardif
+        arenaGameFinishedRef.current = true;
 
         // Retirer overlays précédents si présents
         const tieOverlay = document.getElementById('arena-tie-overlay');
@@ -1908,6 +1912,13 @@ const Carte = () => {
           roundIndex, 
           totalRounds 
         });
+        
+        // ✅ FIX RACE CONDITION: Ignorer si le match est déjà terminé
+        // (la carte a été générée par un setTimeout AVANT que endGame ne soit appelé)
+        if (arenaGameFinishedRef.current) {
+          console.log('[ARENA] ⚠️ arena:round-new ignoré — match déjà terminé');
+          return;
+        }
         
         // ✅ CRITIQUE: Annuler tout setTimeout précédent pour éviter race condition
         if (gameActiveTimeoutRef.current) {
@@ -3189,6 +3200,8 @@ const Carte = () => {
   }, [zones]);
   // ✅ CRITIQUE: Ref pour setTimeout de setGameActive (clearTimeout si double arena:round-new)
   const gameActiveTimeoutRef = useRef(null);
+  // ✅ FIX: Flag pour bloquer arena:round-new après arena:game-end (race condition tiebreaker)
+  const arenaGameFinishedRef = useRef(false);
   // Map rapide id -> zone pour récupérer les textes même après reshuffle
   const zonesByIdRef = useRef(new Map());
   useEffect(() => {
@@ -3392,6 +3405,12 @@ useEffect(() => {
   
   // Détecter transition gameActive: true → false (fin de manche OU fin de session)
   if (wasActive && !gameActive && !arenaMatchId && !trainingMatchId) {
+    // ✅ FIX RACE CONDITION: Si départage actif, ne pas lancer le debounce
+    // Le serveur a envoyé session:tiebreaker (pas de session:end), le debounce créerait un faux overlay de fin
+    if (isTiebreakerRef.current) {
+      console.log('[CC] ⚠️ gameActive:false pendant départage — debounce ignoré');
+      return;
+    }
     emitMonitoringEvent('perf:transition', { from: 'active', to: 'inactive' });
     // ── TRAÇAGE: gameActive false → debounce 3s commence ──
     try {
@@ -3415,6 +3434,11 @@ useEffect(() => {
     // Sinon, c'est la vraie fin de session → sauvegarder
     sessionSaveTimerRef.current = setTimeout(() => {
       sessionSaveTimerRef.current = null;
+      // ✅ FIX RACE CONDITION: Re-vérifier au moment du fire (tiebreaker peut avoir démarré entre-temps)
+      if (isTiebreakerRef.current) {
+        console.log('[CC] ⚠️ debounce expiré mais départage actif — ignoré');
+        return;
+      }
       // ── TRAÇAGE: debounce 3s expiré = session considérée terminée ──
       try {
         const traceData = {
@@ -3459,6 +3483,11 @@ useEffect(() => {
           // Filet de sécurité: si session:end n'arrive pas dans 8s, forcer la fin côté client
           sessionSaveTimerRef.current = setTimeout(() => {
             sessionSaveTimerRef.current = null;
+            // ✅ FIX: Dernière vérification — départage a pu démarrer pendant les 8s
+            if (isTiebreakerRef.current) {
+              console.log('[CC] ⚠️ 8s safety expiré mais départage actif — ignoré');
+              return;
+            }
             console.warn('[CC] ⚠️ session:end never arrived after 8s — forcing local game end');
             emitMonitoringEvent('perf:session-end-timeout', { reason: 'session:end not received after 8s safety timeout', studentId });
             try { setGameActive(false); } catch {}
@@ -4441,6 +4470,8 @@ const handleEditGreenZone = (zone) => {
   const [roomConfig, setRoomConfig] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [isTiebreaker, setIsTiebreaker] = useState(false);
+  const isTiebreakerRef = useRef(false);
+  isTiebreakerRef.current = isTiebreaker;
   const [countdown, setCountdown] = useState(null);
   const [countdownT, setCountdownT] = useState(null);
   const [arenaPauseInfo, setArenaPauseInfo] = useState(null);

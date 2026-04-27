@@ -1225,6 +1225,11 @@ class CrazyArenaManager {
         // Générer nouvelle carte tiebreaker
         setTimeout(async () => {
           try {
+            // ✅ FIX RACE CONDITION: Vérifier que le match est toujours en tiebreaker
+            if (match.status === 'finished') {
+              logger.info('[CrazyArena][Training] ⚠️ Carte tiebreaker annulée — match déjà terminé', { matchId });
+              return;
+            }
             logger.info('[CrazyArena][Training] Génération nouvelle carte tiebreaker', { 
               matchId, 
               pairsFound: match.tiebreakerPairsFound,
@@ -2144,6 +2149,12 @@ class CrazyArenaManager {
 
         setTimeout(async () => {
           try {
+            // ✅ FIX RACE CONDITION: Vérifier que le match est toujours en tiebreaker
+            // Si la dernière paire a été trouvée pendant le délai, endGame a déjà été appelé
+            if (match.status === 'finished') {
+              logger.info('[CrazyArena][Arena] ⚠️ Carte tiebreaker annulée — match déjà terminé', { matchId });
+              return;
+            }
             logger.info('[CrazyArena][Arena] Génération nouvelle carte tiebreaker', { 
               matchId, 
               cardNumber: match.tiebreakerPairsFound + 1,
