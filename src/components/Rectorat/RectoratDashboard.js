@@ -612,6 +612,20 @@ const RectoratDashboard = () => {
                       </div>
                       {c.teacherName && <div style={{ fontSize: 11, color: '#94a3b8' }}>👩‍🏫 {c.teacherName}</div>}
                     </div>
+                    {c.tournament && c.tournament.status !== 'not_started' && (() => {
+                      const t = c.tournament;
+                      const cfg = {
+                        finished:    { icon: '✅', label: `Terminé (Tour ${t.currentTour})`, bg: '#ecfdf5', color: '#059669', border: '#059669' },
+                        in_progress: { icon: '🔄', label: `En cours — Tour ${t.currentTour} (${t.finishedGroups}/${t.totalGroups} groupes joués)`, bg: '#fffbeb', color: '#b45309', border: '#f59e0b' },
+                        ready:       { icon: '⏳', label: 'Groupes créés, pas encore joué', bg: '#f0f9ff', color: '#0369a1', border: '#0ea5e9' },
+                      }[t.status] || null;
+                      if (!cfg) return null;
+                      return (
+                        <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, whiteSpace: 'nowrap' }}>
+                          {cfg.icon} {cfg.label}
+                        </span>
+                      );
+                    })()}
                     <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: 12, fontWeight: 700, background: '#eff6ff', color: '#1d4ed8' }}>
                       {c.students?.length || c.studentCount} élèves
                     </span>

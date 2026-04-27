@@ -295,26 +295,66 @@ router.get('/classes', requireRectoratAuth, async (req, res) => {
       .eq('licensed', true)
       .order('last_name');
 
-    const result = filtered.map(c => ({
-      id: c.id,
-      name: c.name,
-      level: c.level,
-      teacherName: c.teacher_name,
-      teacherEmail: c.teacher_email,
-      schoolId: c.school_id,
-      schoolName: c.schools?.name || '',
-      city: c.schools?.city || '',
-      circonscription: c.schools?.circonscription_id || '',
-      studentCount: c.student_count || 0,
-      students: (students || []).filter(s => s.class_id === c.id).map(s => ({
-        id: s.id,
-        firstName: s.first_name,
-        lastName: s.last_name,
-        fullName: s.full_name,
-        accessCode: s.access_code,
-        licensed: s.licensed,
-      })),
-    }));
+    // Charger la progression tournoi pour chaque classe (groupes Arena)
+    let groupsByClass = {};
+    try {
+      const { data: groups } = await supabase
+        .from('tournament_groups')
+        .select('id, class_id, status, winner_id, mode, tour_number')
+        .in('class_id', classIds);
+      if (groups) {
+        for (const g of groups) {
+          if (!groupsByClass[g.class_id]) groupsByClass[g.class_id] = [];
+          groupsByClass[g.class_id].push(g);
+        }
+      }
+    } catch (e) {
+      console.warn('[Rectorat API] groups query error (non-bloquant):', e.message);
+    }
+
+    const result = filtered.map(c => {
+      const classGroups = groupsByClass[c.id] || [];
+      const arenaGroups = classGroups.filter(g => g.mode !== 'training');
+      const totalGroups = arenaGroups.length;
+      const finishedGroups = arenaGroups.filter(g => g.status === 'finished').length;
+      const playingGroups = arenaGroups.filter(g => g.status === 'playing').length;
+      const maxTour = totalGroups > 0 ? Math.max(...arenaGroups.map(g => g.tour_number || 1)) : 0;
+
+      let tournamentStatus = 'not_started';
+      if (totalGroups > 0) {
+        if (finishedGroups === totalGroups) tournamentStatus = 'finished';
+        else if (finishedGroups > 0 || playingGroups > 0) tournamentStatus = 'in_progress';
+        else tournamentStatus = 'ready';
+      }
+
+      return {
+        id: c.id,
+        name: c.name,
+        level: c.level,
+        teacherName: c.teacher_name,
+        teacherEmail: c.teacher_email,
+        schoolId: c.school_id,
+        schoolName: c.schools?.name || '',
+        city: c.schools?.city || '',
+        circonscription: c.schools?.circonscription_id || '',
+        studentCount: c.student_count || 0,
+        tournament: {
+          totalGroups,
+          finishedGroups,
+          playingGroups,
+          currentTour: maxTour,
+          status: tournamentStatus,
+        },
+        students: (students || []).filter(s => s.class_id === c.id).map(s => ({
+          id: s.id,
+          firstName: s.first_name,
+          lastName: s.last_name,
+          fullName: s.full_name,
+          accessCode: s.access_code,
+          licensed: s.licensed,
+        })),
+      };
+    });
 
     res.json({ ok: true, classes: result });
   } catch (e) {
