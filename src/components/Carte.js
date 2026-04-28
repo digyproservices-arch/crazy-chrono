@@ -2021,6 +2021,14 @@ const Carte = () => {
           animateBubblesFromZones(zoneAId, zoneBId, color, ZA, ZB, borderColor, label);
         }
 
+        // ✅ Joueur local confirmé par le serveur → son + confetti + message
+        if (isLocal) {
+          try { playCorrectSound(); } catch {}
+          try { showConfetti(); } catch {}
+          setGameMsg('Bravo !');
+          setTimeout(() => setGameMsg(''), 1200);
+        }
+
         // ✅ HISTORIQUE PÉDAGOGIQUE pour TOUS les joueurs (comme TrainingArenaGame)
         if (ZA && ZB) {
           try {
@@ -4112,10 +4120,12 @@ function handleGameClick(zone) {
             return newSet;
           });
         }
-        // Effets visuels immédiats pour garantir le feedback, même en multijoueur
-        setGameMsg('Bravo !');
-        playCorrectSound();
-        showConfetti();
+        // Effets visuels immédiats — SAUF en Arena (attendre confirmation serveur)
+        if (!arenaMatchId) {
+          setGameMsg('Bravo !');
+          playCorrectSound();
+          showConfetti();
+        }
         // Utiliser la vraie couleur du joueur local
         try {
           let myIdx = -1;
@@ -4201,7 +4211,8 @@ function handleGameClick(zone) {
             }
           } catch {}
           // Réinitialiser la sélection rapidement pour fluidifier l'expérience
-          setTimeout(() => { setGameSelectedIds([]); setGameMsg(''); }, 450);
+          // En Arena, ne PAS effacer gameMsg (le serveur gère via pair-validated ou claim-rejected)
+          setTimeout(() => { setGameSelectedIds([]); if (!arenaMatchId) setGameMsg(''); }, 450);
           // Le score et le tableau des joueurs seront mis à jour via 'score:update' serveur
           
           // Fallback solo/local: pas de bulle en doublon (déjà lancée plus haut)
@@ -4278,7 +4289,8 @@ function handleGameClick(zone) {
           }
           setTimeout(() => {
             setGameSelectedIds([]);
-            setGameMsg('');
+            // En Arena, ne PAS effacer gameMsg (le serveur gère via pair-validated ou claim-rejected)
+            if (!arenaMatchId) setGameMsg('');
             // En mode multiplayer, le serveur gère la régénération après pair:valid
             // En mode solo ou objectif, on régénère localement (le serveur peut avoir terminé sa session en mode objectif)
             const isObjMode = objectiveModeRef.current || (() => { try { return !!JSON.parse(localStorage.getItem('cc_session_cfg') || 'null')?.objectiveMode; } catch { return false; } })();
