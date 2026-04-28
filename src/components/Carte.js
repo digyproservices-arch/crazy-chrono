@@ -1897,10 +1897,12 @@ const Carte = () => {
           overlay.onclick = () => {
             overlay.remove();
             setArenaGameEndOverlay(null);
+            try { localStorage.removeItem('cc_crazy_arena_game'); } catch {}
+            navigate('/');
           };
 
           document.body.appendChild(overlay);
-          console.log('[ARENA] ✅ Overlay podium DOM ajouté');
+          console.log('[ARENA] Overlay podium DOM ajouté');
 
           // Aussi setter React state pour cohérence
           setArenaGameEndOverlay({ ranking, winner, duration, timestamp: Date.now() });
@@ -9391,7 +9393,7 @@ setZones(dataWithRandomTexts);
               padding: isMobile ? '16px' : '32px',
               animation: 'fadeIn 0.5s ease-out'
             }}
-            onClick={() => setArenaGameEndOverlay(null)}
+            onClick={() => { setArenaGameEndOverlay(null); try { localStorage.removeItem('cc_crazy_arena_game'); } catch {} navigate('/'); }}
           >
             {/* Titre */}
             <div style={{
