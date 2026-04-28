@@ -408,6 +408,15 @@ function getInitials(name) {
   return parts.map(p => (p && p[0] ? p[0].toUpperCase() : '')).join('');
 }
 
+// Couleur stable basée sur le nom (insensible aux reconnexions socket)
+function stablePlayerIndex(playerName, allPlayerNames) {
+  // Trie les noms par ordre alphabétique pour un index stable
+  const sorted = [...new Set(allPlayerNames.map(n => String(n || '').trim().toLowerCase()))].sort();
+  const target = String(playerName || '').trim().toLowerCase();
+  const idx = sorted.indexOf(target);
+  return idx >= 0 ? idx : 0;
+}
+
 function ArenaPauseOverlay({ disconnectedPlayer, gracePeriodMs }) {
   const [secondsLeft, setSecondsLeft] = React.useState(Math.ceil((gracePeriodMs || 15000) / 1000));
   React.useEffect(() => {
@@ -3025,8 +3034,9 @@ const Carte = () => {
         };
         const winnerId = byId || (winners.length ? winners[0] : null);
         const winnerName = winnerId ? pickNameById(winnerId) : 'Joueur';
-        // Couleur déterministe par index (fond + contour) pour le joueur gagnant
-        const idx = Math.max(0, (Array.isArray(players) ? players.findIndex(x => x.id === winnerId) : 0));
+        // Couleur déterministe par NOM (stable même après reconnexion socket)
+        const allNames = players.map(p => p?.nickname || p?.name || '');
+        const idx = stablePlayerIndex(winnerName, allNames);
         const { primary, border } = getPlayerColorComboByIndex(idx);
         const color = primary;
         const initials = getInitials(winnerName);
@@ -3089,16 +3099,24 @@ const Carte = () => {
           displayText = imageLabel || `${textA || '…'} ↔ ${textB || '…'}`;
         }
         
+        // Construire les infos d'égalité (noms + couleurs de chaque gagnant)
+        const tieNames = tie ? winners.map(wId => {
+          const n = pickNameById(wId);
+          const wIdx = stablePlayerIndex(n, allNames);
+          const { primary: wPrimary } = getPlayerColorComboByIndex(wIdx);
+          return { id: wId, name: n, color: wPrimary };
+        }) : [];
         const entry = { 
           a: aId, 
           b: bId, 
           winnerId, 
-          winnerName, 
+          winnerName: tie && tieNames.length >= 2 ? tieNames.map(t => t.name).join(' & ') : winnerName, 
           color, 
           borderColor: border, 
           initials, 
           text: displayText, 
           tie,
+          tieNames,
           kind,
           calcExpr,
           calcResult,
@@ -7939,7 +7957,7 @@ setZones(dataWithRandomTexts);
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {lastWonPair ? (
                 <><b>{lastWonPair.winnerName}</b>: {lastWonPair.text}{lastWonPair.tie && (
-                  <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: '#fef3c7', border: '1px solid #f59e0b', color: '#92400e' }}>Égalité</span>
+                  <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: '#fef3c7', border: '1px solid #f59e0b', color: '#92400e' }}>⚖️ Égalité</span>
                 )}</>
               ) : 'Dernière paire: —'}
             </span>
@@ -7950,7 +7968,13 @@ setZones(dataWithRandomTexts);
         <div className="mobile-history-strip" aria-label="Historique des paires">
           {wonPairsHistory.slice(0, 10).map((e, i) => (
             <div key={i} className="hist-item" title={e.text}>
-              <span className="dot" style={{ background: e.color || '#e5e7eb', border: e.borderColor ? `2px solid ${e.borderColor}` : 'none' }} />
+              {e.tie && Array.isArray(e.tieNames) && e.tieNames.length >= 2 ? (
+                <span style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                  {e.tieNames.map((t, ti) => <span key={ti} className="dot" style={{ background: t.color || '#e5e7eb' }} />)}
+                </span>
+              ) : (
+                <span className="dot" style={{ background: e.color || '#e5e7eb', border: e.borderColor ? `2px solid ${e.borderColor}` : 'none' }} />
+              )}
               {e.kind === 'imgtxt' && e.imageSrc && (
                 <img src={e.imageSrc} alt={e.imageLabel || e.text || 'Image'} style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover', flexShrink: 0, marginRight: 4 }} />
               )}
@@ -8254,7 +8278,7 @@ setZones(dataWithRandomTexts);
               <span style={{ fontSize: 13, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {lastWonPair ? (
                   <><b>{lastWonPair.winnerName}</b>: {lastWonPair.text}{lastWonPair.tie && (
-                    <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: 'rgba(251,191,36,0.25)', border: '1px solid rgba(251,191,36,0.5)', color: '#fbbf24' }}>Égalité</span>
+                    <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: 'rgba(251,191,36,0.25)', border: '1px solid rgba(251,191,36,0.5)', color: '#fbbf24' }}>⚖️ Égalité</span>
                   )}</>
                 ) : 'Dernière paire: —'}
               </span>
@@ -8276,8 +8300,20 @@ setZones(dataWithRandomTexts);
                     return (
                       <div key={i} style={{ fontSize: 12, padding: '5px 8px', border: `1px solid ${h.color || 'rgba(255,255,255,0.1)'}44`, borderRadius: 8, background: 'rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: 3 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <span style={{ width: 8, height: 8, borderRadius: 999, background: h.color || '#e5e7eb', border: h.borderColor ? `2px solid ${h.borderColor}` : 'none', flexShrink: 0, boxShadow: `0 0 4px ${h.color || '#e5e7eb'}66` }} />
-                          <span style={{ fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11 }}>{h.winnerName || 'Joueur'}</span>
+                          {h.tie && Array.isArray(h.tieNames) && h.tieNames.length >= 2 ? (
+                            <>
+                              <span style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                                {h.tieNames.map((t, ti) => <span key={ti} style={{ width: 8, height: 8, borderRadius: 999, background: t.color || '#e5e7eb', boxShadow: `0 0 4px ${t.color || '#e5e7eb'}66` }} />)}
+                              </span>
+                              <span style={{ fontSize: 10, marginRight: 2 }}>⚖️</span>
+                              <span style={{ fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11 }}>{h.winnerName || 'Joueur'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span style={{ width: 8, height: 8, borderRadius: 999, background: h.color || '#e5e7eb', border: h.borderColor ? `2px solid ${h.borderColor}` : 'none', flexShrink: 0, boxShadow: `0 0 4px ${h.color || '#e5e7eb'}66` }} />
+                              <span style={{ fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11 }}>{h.winnerName || 'Joueur'}</span>
+                            </>
+                          )}
                         </div>
                         <div style={{ marginLeft: 14, display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
                           {h.kind === 'imgtxt' && h.imageSrc && (
@@ -8288,6 +8324,9 @@ setZones(dataWithRandomTexts);
                               <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{h.calcExpr}</span>
                               <span style={{ fontWeight: 800, margin: '0 3px', color: '#fbbf24' }}>=</span>
                               <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#fbbf24' }}>{h.calcResult}</span>
+                            {h.tie && (
+                              <span style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px', borderRadius: 999, background: 'rgba(251,191,36,0.25)', border: '1px solid rgba(251,191,36,0.5)', color: '#fbbf24' }}>⚖️ Égalité</span>
+                            )}
                             </span>
                           ) : (
                             <span style={{ fontSize: 11, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
