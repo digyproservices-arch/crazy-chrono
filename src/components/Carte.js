@@ -1531,7 +1531,7 @@ const Carte = () => {
         navigate('/');
       });
 
-      s.on('training:pair-validated', ({ pairId, zoneAId, zoneBId, playerName, studentId }) => {
+      s.on('training:pair-validated', ({ pairId, zoneAId, zoneBId, playerName, studentId, playerIdx }) => {
         console.log('[TRAINING] Paire validée par', playerName, ':', pairId);
         
         // Masquer les zones validées
@@ -1547,6 +1547,65 @@ const Carte = () => {
         // Désactiver le jeu pendant transition (1.5s)
         setGameActive(false);
         console.log('[TRAINING] ⚠️ gameActive=false (attente nouvelle carte)');
+
+        // ✅ HISTORIQUE PÉDAGOGIQUE Training
+        try {
+          const currentZones = zonesRef.current || [];
+          const ZA = currentZones.find(z => z.id === zoneAId);
+          const ZB = currentZones.find(z => z.id === zoneBId);
+          if (ZA && ZB) {
+            let color = '#22c55e', borderColor = '#ffffff';
+            if (typeof playerIdx === 'number' && playerIdx >= 0) {
+              const combo = getPlayerColorComboByIndex(playerIdx);
+              color = combo.primary; borderColor = combo.border;
+            }
+            const label = getInitials(playerName || 'Joueur');
+            const textFor = (Z) => {
+              const t = (Z?.label || Z?.content || Z?.text || Z?.value || '').toString();
+              if (t && t.trim()) return t;
+              const pid = getPairId(Z);
+              return pid ? `[${pid}]` : '…';
+            };
+            const textForCalc = (Z) => {
+              const t = (Z?.content || Z?.label || Z?.text || Z?.value || '').toString();
+              if (t && t.trim()) return t;
+              const pid = getPairId(Z);
+              return pid ? `[${pid}]` : '…';
+            };
+            const textA = textFor(ZA); const textB = textFor(ZB);
+            const typeA = ZA?.type || ''; const typeB = ZB?.type || '';
+            let kind = null, calcExpr = null, calcResult = null, imageSrc = null, imageLabel = null;
+            let displayText = `${textA || '…'} ↔ ${textB || '…'}`;
+            const resolveImageSrc = (raw) => {
+              if (!raw) return null;
+              const normalized = String(raw).startsWith('http') ? String(raw) : process.env.PUBLIC_URL + '/' + (String(raw).startsWith('/') ? String(raw).slice(1) : (String(raw).startsWith('images/') ? String(raw) : 'images/' + String(raw)));
+              return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
+            };
+            if ((typeA === 'calcul' && typeB === 'chiffre') || (typeA === 'chiffre' && typeB === 'calcul')) {
+              kind = 'calcnum';
+              const calcZone = typeA === 'calcul' ? ZA : ZB;
+              const numZone = typeA === 'chiffre' ? ZA : ZB;
+              calcExpr = textForCalc(calcZone); calcResult = textForCalc(numZone);
+              displayText = (calcExpr && calcResult) ? `${calcExpr} = ${calcResult}` : displayText;
+            } else if ((typeA === 'image' && typeB === 'texte') || (typeA === 'texte' && typeB === 'image')) {
+              kind = 'imgtxt';
+              const imgZone = typeA === 'image' ? ZA : ZB;
+              const txtZone = typeA === 'texte' ? ZA : ZB;
+              const raw = imgZone?.content || imgZone?.url || imgZone?.path || imgZone?.src || '';
+              if (raw) imageSrc = resolveImageSrc(String(raw));
+              imageLabel = textFor(txtZone);
+              displayText = imageLabel || displayText;
+            }
+            const entry = {
+              a: zoneAId, b: zoneBId, winnerId: studentId,
+              winnerName: playerName || 'Joueur',
+              color, borderColor, initials: label,
+              text: displayText, tie: false, tieNames: [], kind, calcExpr, calcResult, imageSrc, imageLabel
+            };
+            setLastWonPair(entry);
+            setWonPairsHistory(h => [entry, ...(Array.isArray(h) ? h : [])].slice(0, 25));
+          }
+        } catch (e) { console.warn('[TRAINING] Erreur mise à jour historique:', e); }
       });
 
       // Écouter timer tick du backend pour synchroniser timeLeft (comme Arena)
@@ -2080,12 +2139,14 @@ const Carte = () => {
               imageLabel = textFor(txtZone);
               displayText = imageLabel || displayText;
             }
+            const tie = false; // Arena n'a pas de fenêtre de tie mais on garde la structure
+            const tieNames = [];
             const entry = {
               a: zoneAId, b: zoneBId,
               winnerId: studentId,
               winnerName: playerName || 'Joueur',
               color, borderColor, initials: label,
-              text: displayText, kind, calcExpr, calcResult, imageSrc, imageLabel
+              text: displayText, tie, tieNames, kind, calcExpr, calcResult, imageSrc, imageLabel
             };
             setLastWonPair(entry);
             setWonPairsHistory(h => [entry, ...(Array.isArray(h) ? h : [])].slice(0, 25));
@@ -2293,20 +2354,75 @@ const Carte = () => {
             const ZB = zonesByIdRef.current?.get ? zonesByIdRef.current.get(bId) : null;
             const winnerId = payload?.by;
             const winnerName = payload?.playerName || 'Joueur';
+            // Couleur stable par NOM (insensible aux reconnexions socket)
             const players = Array.isArray(roomPlayersRef.current) ? roomPlayersRef.current : [];
-            const idx = Math.max(0, players.findIndex(x => x.id === winnerId));
+            const allNames = players.map(p => p?.nickname || p?.name || '');
+            const idx = stablePlayerIndex(winnerName, allNames);
             const { primary, border } = getPlayerColorComboByIndex(idx);
             const initials = getInitials(winnerName);
 
             const textFor = (Z) => {
               const t = (Z?.label || Z?.content || Z?.text || Z?.value || '').toString();
               if (t && t.trim()) return t;
-              // fallback: pairId visible si contenu vide (ex: image sans label)
+              const pid = getPairId(Z);
+              return pid ? `[${pid}]` : '…';
+            };
+            const textForCalc = (Z) => {
+              const t = (Z?.content || Z?.label || Z?.text || Z?.value || '').toString();
+              if (t && t.trim()) return t;
               const pid = getPairId(Z);
               return pid ? `[${pid}]` : '…';
             };
 
             animateBubblesFromZones(aId, bId, primary, ZA, ZB, border, initials);
+
+            // ✅ HISTORIQUE PÉDAGOGIQUE Grande Salle
+            if (ZA && ZB) {
+              const textA = textFor(ZA); const textB = textFor(ZB);
+              const typeA = ZA?.type || ''; const typeB = ZB?.type || '';
+              let kind = null, calcExpr = null, calcResult = null, imageSrc = null, imageLabel = null;
+              let displayText = `${textA || '…'} ↔ ${textB || '…'}`;
+              const resolveImageSrc = (raw) => {
+                if (!raw) return null;
+                const normalized = String(raw).startsWith('http') ? String(raw) : process.env.PUBLIC_URL + '/' + (String(raw).startsWith('/') ? String(raw).slice(1) : (String(raw).startsWith('images/') ? String(raw) : 'images/' + String(raw)));
+                return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
+              };
+              if ((typeA === 'calcul' && typeB === 'chiffre') || (typeA === 'chiffre' && typeB === 'calcul')) {
+                kind = 'calcnum';
+                const calcZone = typeA === 'calcul' ? ZA : ZB;
+                const numZone = typeA === 'chiffre' ? ZA : ZB;
+                calcExpr = textForCalc(calcZone); calcResult = textForCalc(numZone);
+                displayText = (calcExpr && calcResult) ? `${calcExpr} = ${calcResult}` : displayText;
+              } else if ((typeA === 'image' && typeB === 'texte') || (typeA === 'texte' && typeB === 'image')) {
+                kind = 'imgtxt';
+                const imgZone = typeA === 'image' ? ZA : ZB;
+                const txtZone = typeA === 'texte' ? ZA : ZB;
+                const raw = imgZone?.content || imgZone?.url || imgZone?.path || imgZone?.src || '';
+                if (raw) imageSrc = resolveImageSrc(String(raw));
+                imageLabel = textFor(txtZone);
+                displayText = imageLabel || displayText;
+              }
+              const tie = !!payload?.tie;
+              const winners = Array.isArray(payload?.winners) ? payload.winners : [];
+              const pickNameGS = (id) => {
+                const lb = Array.isArray(payload?.leaderboard) ? payload.leaderboard : [];
+                const found = lb.find(x => x.id === id);
+                return found?.name || 'Joueur';
+              };
+              const tieNames = tie ? winners.map(wId => {
+                const n = pickNameGS(wId);
+                const wIdx = stablePlayerIndex(n, allNames);
+                const { primary: wPrimary } = getPlayerColorComboByIndex(wIdx);
+                return { id: wId, name: n, color: wPrimary };
+              }) : [];
+              const entry = {
+                a: aId, b: bId, winnerId, winnerName: tie && tieNames.length >= 2 ? tieNames.map(t => t.name).join(' & ') : winnerName,
+                color: primary, borderColor: border, initials,
+                text: displayText, tie, tieNames, kind, calcExpr, calcResult, imageSrc, imageLabel
+              };
+              setLastWonPair(entry);
+              setWonPairsHistory(h => [entry, ...(Array.isArray(h) ? h : [])].slice(0, 25));
+            }
           } catch (e) { console.warn('[CC][GS] pair:valid animation error', e); }
         });
 
