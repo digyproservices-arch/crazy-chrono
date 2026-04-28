@@ -696,3 +696,31 @@ h3 {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.5; transform: scale(1.2); }
 }
+
+/* ===== GAME MSG ANIMATIONS ===== */
+@keyframes gameMsgBravo {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+  30%  { transform: translate(-50%, -50%) scale(1.35); opacity: 1; }
+  50%  { transform: translate(-50%, -50%) scale(0.9); }
+  70%  { transform: translate(-50%, -50%) scale(1.1); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes gameMsgBravoGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(34,197,94,0.4), 0 0 60px rgba(250,204,21,0.2); }
+  50%      { box-shadow: 0 0 40px rgba(34,197,94,0.7), 0 0 100px rgba(250,204,21,0.5); }
+}
+@keyframes gameMsgShake {
+  0%   { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+  20%  { transform: translate(-50%, -50%) scale(1.05); opacity: 1; }
+  30%  { transform: translate(-48%, -50%) scale(1); }
+  40%  { transform: translate(-52%, -50%) scale(1); }
+  50%  { transform: translate(-49%, -50%) scale(1); }
+  60%  { transform: translate(-51%, -50%) scale(1); }
+  70%  { transform: translate(-50%, -50%) scale(1); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes gameMsgFadeOut {
+  0%   { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+}

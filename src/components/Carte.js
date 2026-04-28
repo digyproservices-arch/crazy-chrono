@@ -8537,11 +8537,43 @@ setZones(dataWithRandomTexts);
             <div style={{ position: 'absolute', top: '50%', left: '50%', width: '120%', height: 16, background: 'rgba(220,0,0,0.85)', transform: 'translate(-50%, -50%) rotate(-45deg)', borderRadius: 8 }} />
           </div>
         )}
-        {gameMsg && (
-          <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', background: '#222', color: '#fff', padding: '6px 10px', borderRadius: 8, fontWeight: 700, zIndex: 7 }}>
-            {gameMsg}
-          </div>
-        )}
+        {gameMsg && (() => {
+          const isBravo = gameMsg === 'Bravo !';
+          const isTropTard = gameMsg === 'Trop tard !';
+          const isMauvaise = gameMsg === 'Mauvaise association';
+          return (
+            <div style={{
+              position: 'absolute', top: '50%', left: '50%',
+              transform: 'translate(-50%, -50%)',
+              background: isBravo
+                ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%)'
+                : (isTropTard || isMauvaise)
+                  ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%)'
+                  : 'rgba(30,30,30,0.92)',
+              color: '#fff',
+              padding: isMobile ? '16px 32px' : '22px 48px',
+              borderRadius: 24,
+              fontWeight: 900,
+              fontSize: isMobile ? 32 : 44,
+              zIndex: 50,
+              pointerEvents: 'none',
+              textAlign: 'center',
+              border: isBravo ? '3px solid rgba(250,204,21,0.6)' : (isTropTard || isMauvaise) ? '3px solid rgba(255,100,100,0.5)' : 'none',
+              textShadow: '0 3px 12px rgba(0,0,0,0.4)',
+              letterSpacing: 1.5,
+              animation: isBravo
+                ? 'gameMsgBravo 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards, gameMsgBravoGlow 1s ease-in-out 0.5s infinite'
+                : (isTropTard || isMauvaise)
+                  ? 'gameMsgShake 0.6s ease-out forwards'
+                  : 'fadeIn 0.2s ease-out',
+            }}>
+              {isBravo && <span style={{ fontSize: isMobile ? 36 : 48, marginRight: 8 }}>✨</span>}
+              {isTropTard && <span style={{ fontSize: isMobile ? 30 : 40, marginRight: 8 }}>⏰</span>}
+              {gameMsg}
+              {isBravo && <span style={{ fontSize: isMobile ? 36 : 48, marginLeft: 8 }}>✨</span>}
+            </div>
+          );
+        })()}
         {helpBubble && gameActive && (
           <div style={{
             position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
