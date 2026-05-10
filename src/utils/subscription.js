@@ -1,5 +1,6 @@
 // Lightweight freemium helpers for Sprint A
 // Storage keys
+import { getAuthToken } from './apiHelpers';
 const KEY_STATUS = 'cc_subscription_status'; // 'free' | 'pro'
 const KEY_QUOTA = 'cc_free_quota'; // { dayISO:string, sessions:number }
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com';
@@ -62,7 +63,8 @@ export async function fetchAndSyncStatus(userId) {
     const uid = String(userId || '').trim();
     if (!uid) return { ok: false, error: 'missing_user_id' };
     const url = `${BACKEND_URL}/me/subscription?user_id=${encodeURIComponent(uid)}`;
-    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    const token = getAuthToken();
+    const res = await fetch(url, { headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) } });
     const json = await res.json().catch(() => ({}));
     const active = !!(json && json.ok && (json.status === 'active' || json.status === 'trialing'));
     setSubscriptionStatus(active ? 'pro' : 'free');

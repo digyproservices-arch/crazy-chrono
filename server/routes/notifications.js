@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
+const { requireAuth } = require('../middleware/auth');
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -20,7 +21,7 @@ const requireSupabase = (req, res, next) => {
   next();
 };
 
-router.post('/qualification', requireSupabase, async (req, res) => {
+router.post('/qualification', requireAuth, requireSupabase, async (req, res) => {
   try {
     const { studentId, tournamentId, currentPhase, nextPhase, nextPhaseName, message } = req.body;
     

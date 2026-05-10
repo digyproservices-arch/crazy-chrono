@@ -300,7 +300,7 @@ app.use('/api/rgpd', rgpdRoutes);
 
 // POST /usage/can-start { user_id }
 // Returns { ok:true, allow:boolean, limit:number, sessionsToday:number, reason?:string }
-app.post('/usage/can-start', async (req, res) => {
+app.post('/usage/can-start', requireAuth, async (req, res) => {
   try {
     const userId = String(req.body?.user_id || '').trim();
     const FREE_LIMIT = Number(process.env.FREE_SESSIONS_PER_DAY || 3);
@@ -576,7 +576,7 @@ app.post('/webhooks/revenuecat', async (req, res) => {
 });
 
 // GET /me/subscription?user_id=...  -> { ok:true, status, current_period_end }
-app.get('/me/subscription', async (req, res) => {
+app.get('/me/subscription', requireAuth, async (req, res) => {
   try {
     const userId = String(req.query.user_id || req.headers['x-user-id'] || '').trim();
     if (!userId) return res.status(400).json({ ok: false, error: 'missing_user_id' });

@@ -60,7 +60,10 @@ const Account = () => {
     try {
       // Pour le portail Stripe, on a besoin du customer_id.
       // Approche simplifiée: rediriger vers la page pricing avec info
-      const res = await fetch(`${BACKEND_URL}/me/subscription?user_id=${encodeURIComponent(auth?.id || '')}`);
+      const tokenSub = getAuthToken();
+      const res = await fetch(`${BACKEND_URL}/me/subscription?user_id=${encodeURIComponent(auth?.id || '')}`, {
+        headers: { ...(tokenSub ? { 'Authorization': `Bearer ${tokenSub}` } : {}) }
+      });
       const json = await res.json();
       if (json?.customer_id) {
         const token = getAuthToken();
