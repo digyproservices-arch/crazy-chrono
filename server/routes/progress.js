@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requireAdminAuth } = require('../middleware/auth');
+const { requireAuth, requireAdminAuth } = require('../middleware/auth');
 
 // Helper: resolve non-UUID user_id (e.g. "s001") to auth UUID via user_student_mapping
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -24,7 +24,7 @@ async function resolveUserId(supabase, rawId) {
 }
 
 // POST /api/progress/session — Create a progress session (bypasses RLS via supabaseAdmin)
-router.post('/session', async (req, res) => {
+router.post('/session', requireAuth, async (req, res) => {
   try {
     const supabase = req.app.locals.supabaseAdmin;
     if (!supabase) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
@@ -59,7 +59,7 @@ router.post('/session', async (req, res) => {
 });
 
 // POST /api/progress/attempts — Flush buffered attempts (bypasses RLS via supabaseAdmin)
-router.post('/attempts', async (req, res) => {
+router.post('/attempts', requireAuth, async (req, res) => {
   try {
     const supabase = req.app.locals.supabaseAdmin;
     if (!supabase) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });

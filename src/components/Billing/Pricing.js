@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getAuthToken } from '../../utils/apiHelpers';
 
 // ==========================================
 // PAGE TARIFICATION — CRAZY CHRONO
@@ -148,9 +149,10 @@ export default function Pricing() {
       let userId = null;
       try { userId = JSON.parse(localStorage.getItem('cc_auth') || 'null')?.id || null; } catch {}
 
+      const token = getAuthToken();
       const resp = await fetch(`${BACKEND_URL}/stripe/create-checkout-session`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
         body: JSON.stringify({
           price_id: plan.priceId,
           user_id: userId || undefined,

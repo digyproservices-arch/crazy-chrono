@@ -1,4 +1,5 @@
 import { getBackendUrl } from './subscription';
+import { getAuthToken } from './apiHelpers';
 
 // Simple progress reporting helper
 // - startSession(cfg): creates a session row and stores sessionId in memory
@@ -74,9 +75,10 @@ export async function startSession(cfg = {}) {
       themes: Array.isArray(cfg?.themes) ? cfg.themes : [],
       duration_seconds: Number(cfg?.duration_seconds) || null,
     };
+    const token = getAuthToken();
     const resp = await fetch(`${backendUrl}/api/progress/session`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
       body: JSON.stringify(payload),
     });
     const result = await resp.json();
@@ -141,9 +143,10 @@ export async function flushAttempts() {
   buffer = [];
   try {
     const backendUrl = getBackendUrl();
+    const token = getAuthToken();
     const resp = await fetch(`${backendUrl}/api/progress/attempts`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
       body: JSON.stringify({ attempts: toSend }),
     });
     const result = await resp.json();

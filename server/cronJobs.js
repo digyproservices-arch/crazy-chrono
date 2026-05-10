@@ -85,7 +85,92 @@ function startDailyMonitoring() {
   logger.info('[Cron] Vérification quotidienne activée (tous les jours à 8h00)');
 }
 
+/**
+ * Tâche cron RGPD: Purge des comptes inactifs > 24 mois
+ * S'exécute le 1er de chaque mois à 3h00
+ * Conformité Art. 5.1.e RGPD — Limitation de la conservation
+ */
+function startRgpdPurge() {
+  // Le 1er de chaque mois à 3h00
+  cron.schedule('0 3 1 * *', async () => {
+    logger.info('[Cron][RGPD] Démarrage purge comptes inactifs > 24 mois...');
+
+    try {
+      const { createClient } = require('@supabase/supabase-js');
+      const url = process.env.SUPABASE_URL;
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (!url || !key) {
+        logger.warn('[Cron][RGPD] Supabase non configuré, purge annulée');
+        return;
+      }
+      const supabase = createClient(url, key, { auth: { persistSession: false } });
+
+      // Date limite: 24 mois en arrière
+      const cutoff = new Date();
+      cutoff.setMonth(cutoff.getMonth() - 24);
+      const cutoffISO = cutoff.toISOString();
+
+      // 1) Trouver les sessions dont le dernier jeu date de > 24 mois
+      const { data: inactiveUsers } = await supabase
+        .from('sessions')
+        .select('user_id')
+        .lt('created_at', cutoffISO);
+
+      if (!inactiveUsers || inactiveUsers.length === 0) {
+        logger.info('[Cron][RGPD] Aucun compte inactif > 24 mois. ✅');
+        return;
+      }
+
+      // Extraire les user_ids uniques
+      const allUserIds = [...new Set(inactiveUsers.map(s => s.user_id))];
+
+      // 2) Vérifier lesquels n'ont AUCUNE activité récente (< 24 mois)
+      const { data: recentSessions } = await supabase
+        .from('sessions')
+        .select('user_id')
+        .gte('created_at', cutoffISO);
+      const activeUserIds = new Set((recentSessions || []).map(s => s.user_id));
+
+      // Utilisateurs sans aucune session récente
+      const toPurge = allUserIds.filter(uid => !activeUserIds.has(uid));
+
+      if (toPurge.length === 0) {
+        logger.info('[Cron][RGPD] Aucun compte à purger (tous ont une activité récente). ✅');
+        return;
+      }
+
+      logger.info(`[Cron][RGPD] ${toPurge.length} compte(s) inactif(s) à purger`);
+
+      let purged = 0;
+      for (const userId of toPurge) {
+        try {
+          // Supprimer attempts → sessions → training_results → user_student_mapping → user_profiles
+          await supabase.from('attempts').delete().eq('user_id', userId);
+          await supabase.from('sessions').delete().eq('user_id', userId);
+          await supabase.from('training_results').delete().eq('student_id', userId);
+          await supabase.from('user_student_mapping').delete().eq('user_id', userId);
+          await supabase.from('user_profiles').delete().eq('id', userId);
+          // Supprimer le compte Auth (irréversible)
+          await supabase.auth.admin.deleteUser(userId);
+          purged++;
+        } catch (e) {
+          logger.warn(`[Cron][RGPD] Erreur purge userId=${userId}: ${e.message}`);
+        }
+      }
+
+      logger.info(`[Cron][RGPD] Purge terminée: ${purged}/${toPurge.length} comptes supprimés ✅`);
+    } catch (error) {
+      logger.error('[Cron][RGPD] Erreur lors de la purge:', error);
+    }
+  }, {
+    timezone: "Europe/Paris"
+  });
+
+  logger.info('[Cron][RGPD] Purge automatique activée (1er du mois à 3h00)');
+}
+
 module.exports = {
   startWeeklyMonitoring,
-  startDailyMonitoring
+  startDailyMonitoring,
+  startRgpdPurge
 };

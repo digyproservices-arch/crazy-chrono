@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
 import { fetchAndSyncStatus, getSubscriptionStatus } from '../utils/subscription';
 import { logAuth } from '../utils/authLogger';
+import { getAuthToken } from '../utils/apiHelpers';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com';
 const supabase = (process.env.REACT_APP_SUPABASE_URL && process.env.REACT_APP_SUPABASE_ANON_KEY)
@@ -62,9 +63,10 @@ const Account = () => {
       const res = await fetch(`${BACKEND_URL}/me/subscription?user_id=${encodeURIComponent(auth?.id || '')}`);
       const json = await res.json();
       if (json?.customer_id) {
+        const token = getAuthToken();
         const portalRes = await fetch(`${BACKEND_URL}/stripe/create-portal-session`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
           body: JSON.stringify({ customer_id: json.customer_id }),
         });
         const portalJson = await portalRes.json();

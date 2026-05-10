@@ -210,7 +210,7 @@ app.post('/admin/users/role', async (req, res) => {
 
 // ===== Image Monitoring System =====
 const monitoringRoutes = require('./routes/monitoring');
-const { startWeeklyMonitoring, startDailyMonitoring } = require('./cronJobs');
+const { startWeeklyMonitoring, startDailyMonitoring, startRgpdPurge } = require('./cronJobs');
 app.use('/api/monitoring', monitoringRoutes);
 
 // Exposer supabaseAdmin, APM, alerting et monitoringService aux routes
@@ -1860,7 +1860,7 @@ try {
 } catch (e) { console.warn('[Stripe] SDK not available:', e.message); }
 
 // Create Checkout Session (enhanced)
-app.post('/stripe/create-checkout-session', async (req, res) => {
+app.post('/stripe/create-checkout-session', requireAuth, async (req, res) => {
   try {
     const priceId = req.body?.price_id || process.env.STRIPE_PRICE_ID;
     const userId = req.body?.user_id ? String(req.body.user_id) : null;
@@ -1887,7 +1887,7 @@ app.post('/stripe/create-checkout-session', async (req, res) => {
 });
 
 // Create Customer Portal Session (skeleton)
-app.post('/stripe/create-portal-session', async (req, res) => {
+app.post('/stripe/create-portal-session', requireAuth, async (req, res) => {
   try {
     if (!stripe) {
       // Fallback de démo: renvoie pricing page
@@ -4188,6 +4188,7 @@ server.listen(PORT, '0.0.0.0', () => {
   try {
     startWeeklyMonitoring();
     startDailyMonitoring();
+    startRgpdPurge();
   } catch (err) {
     console.warn('[Monitoring] Erreur démarrage cron:', err.message);
   }
