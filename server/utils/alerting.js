@@ -146,21 +146,28 @@ async function alertDeployComplete(commit, branch) {
 
 const recentClientErrors = []; // rolling window
 const ERROR_WINDOW_MS = 5 * 60 * 1000; // 5 min
-const ERROR_THRESHOLD = 10; // seuil pour déclencher l'alerte
+const ERROR_THRESHOLD = 50; // seuil pour déclencher l'alerte (remonté: éviter faux positifs réseau)
 let _peakPlayers = 0;
 
 /**
  * Appelé à chaque événement telemetry reçu côté serveur
  * Déclenche les alertes automatiques si nécessaire
  */
+// Erreurs bénignes à ignorer dans le calcul de pics
+// error:network = coupure réseau temporaire, cold start Render, timeout
+// error:promise = conséquence d'une erreur réseau (fetch rejeté non catché)
+const BENIGN_ERROR_EVENTS = new Set(['error:network', 'error:promise']);
+
 function checkAlertThresholds(events) {
   if (!Array.isArray(events)) return;
   const now = Date.now();
 
   for (const evt of events) {
-    if (evt.event && evt.event.startsWith('error:')) {
-      recentClientErrors.push({ ...evt, _receivedAt: now });
-    }
+    if (!evt.event || !evt.event.startsWith('error:')) continue;
+    if (BENIGN_ERROR_EVENTS.has(evt.event)) continue;
+    // error:fetch avec status 4xx = erreur d'auth/client, pas un bug serveur
+    if (evt.event === 'error:fetch' && evt.status && evt.status < 500) continue;
+    recentClientErrors.push({ ...evt, _receivedAt: now });
   }
 
   // Nettoyage fenêtre glissante
