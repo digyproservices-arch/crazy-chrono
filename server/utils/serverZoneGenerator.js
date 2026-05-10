@@ -749,7 +749,18 @@ function generateRoundZones(seed, config = {}) {
         if (tzId && izId) {
           used.texte.add(chosen.tId);
           used.image.add(chosen.imgId);
-          goodPairIds = { texteId: chosen.tId, imageId: chosen.imgId, pairId };
+          // Extraire theme/level depuis l'association ou les éléments
+          const _tiAssoc = associations.find(a => a.imageId === chosen.imgId && a.texteId === chosen.tId);
+          const _tiThemes = _tiAssoc?.themes || textesById[chosen.tId]?.themes || imagesById[chosen.imgId]?.themes || [];
+          const _tiLevel = _tiAssoc?.levelClass || textesById[chosen.tId]?.levelClass || imagesById[chosen.imgId]?.levelClass || '';
+          goodPairIds = {
+            texteId: chosen.tId, imageId: chosen.imgId, pairId,
+            pairType: 'TI',
+            theme: (Array.isArray(_tiThemes) ? _tiThemes[0] : _tiThemes) || '',
+            level: _tiLevel,
+            contentA: textesById[chosen.tId]?.content || '',
+            contentB: encodedImageUrl(imagesById[chosen.imgId]?.url || '')
+          };
           console.log('[ServerZoneGen] Placed TI pair:', pairId);
           logFn('info', '[ZoneGen] Placed Image-Texte pair', {
             pairId,
@@ -811,7 +822,18 @@ function generateRoundZones(seed, config = {}) {
         if (czId && nzId) {
           used.calcul.add(chosen.cId);
           used.chiffre.add(chosen.nId);
-          goodPairIds = { calculId: chosen.cId, chiffreId: chosen.nId, pairId };
+          // Extraire theme/level depuis l'association ou les éléments
+          const _ccAssoc = associations.find(a => a.calculId === chosen.cId && a.chiffreId === chosen.nId);
+          const _ccThemes = _ccAssoc?.themes || calculsById[chosen.cId]?.themes || chiffresById[chosen.nId]?.themes || [];
+          const _ccLevel = _ccAssoc?.levelClass || calculsById[chosen.cId]?.levelClass || chiffresById[chosen.nId]?.levelClass || '';
+          goodPairIds = {
+            calculId: chosen.cId, chiffreId: chosen.nId, pairId,
+            pairType: 'CC',
+            theme: (Array.isArray(_ccThemes) ? _ccThemes[0] : _ccThemes) || '',
+            level: _ccLevel,
+            contentA: calculsById[chosen.cId]?.content || '',
+            contentB: chiffresById[chosen.nId]?.content || ''
+          };
           console.log('[ServerZoneGen] Placed CC pair:', pairId);
           logFn('info', '[ZoneGen] Placed Calcul-Chiffre pair', {
             pairId,

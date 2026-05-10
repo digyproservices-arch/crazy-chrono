@@ -3,9 +3,10 @@
 // Affiche tous les matchs joués avec dates + podium du dernier match
 // ==========================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
+import { RoundCard, PlayerSummaryCard } from '../Shared/CardViewer';
 
 
 const medalEmojis = ['🥇', '🥈', '🥉'];
@@ -67,6 +68,61 @@ export default function GroupMatchHistory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedMatch, setExpandedMatch] = useState(null);
+  const [activeTab, setActiveTab] = useState('classement'); // 'classement' | 'cartes' | 'bilan'
+  const [rounds, setRounds] = useState([]);
+  const [summaries, setSummaries] = useState([]);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [notesSaving, setNotesSaving] = useState(null);
+
+  const fetchDiagnostic = useCallback(async (sessionId) => {
+    if (!sessionId) return;
+    setDiagLoading(true);
+    try {
+      const [roundsRes, summaryRes] = await Promise.all([
+        fetch(`${getBackendUrl()}/api/match-rounds/${sessionId}/rounds`, { headers: getAuthHeaders() }).then(r => r.json()),
+        fetch(`${getBackendUrl()}/api/match-rounds/${sessionId}/summary`, { headers: getAuthHeaders() }).then(r => r.json())
+      ]);
+      setRounds(roundsRes.success ? roundsRes.rounds : []);
+      setSummaries(summaryRes.success ? summaryRes.summaries : []);
+    } catch (err) {
+      console.error('[GroupMatchHistory] Diagnostic fetch error:', err);
+      setRounds([]);
+      setSummaries([]);
+    } finally {
+      setDiagLoading(false);
+    }
+  }, []);
+
+  const handleSaveNotes = useCallback(async (sessionId, playerId, notes) => {
+    setNotesSaving(playerId);
+    try {
+      await fetch(`${getBackendUrl()}/api/match-rounds/${sessionId}/summary/${encodeURIComponent(playerId)}/notes`, {
+        method: 'PATCH',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes })
+      });
+    } catch (err) {
+      console.error('[GroupMatchHistory] Save notes error:', err);
+    } finally {
+      setNotesSaving(null);
+    }
+  }, []);
+
+  const handleExport = useCallback(async (sessionId) => {
+    try {
+      const url = `${getBackendUrl()}/api/match-rounds/${sessionId}/export?format=csv`;
+      const res = await fetch(url, { headers: getAuthHeaders() });
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `session_${sessionId.substring(0, 8)}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (err) {
+      console.error('[GroupMatchHistory] Export error:', err);
+      alert('Erreur lors de l\'export');
+    }
+  }, []);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -190,7 +246,12 @@ export default function GroupMatchHistory() {
             }}>
               {/* Match header - clickable */}
               <div
-                onClick={() => setExpandedMatch(isExpanded ? null : match.sessionId)}
+                onClick={() => {
+                  const nextExpanded = isExpanded ? null : match.sessionId;
+                  setExpandedMatch(nextExpanded);
+                  setActiveTab('classement');
+                  if (nextExpanded) fetchDiagnostic(nextExpanded);
+                }}
                 style={{
                   padding: '14px 16px',
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -221,55 +282,164 @@ export default function GroupMatchHistory() {
                 </span>
               </div>
 
-              {/* Match details - expandable */}
-              {isExpanded && match.results.length > 0 && (
+              {/* Match details - expandable with tabs */}
+              {isExpanded && (
                 <div style={{ borderTop: '1px solid #f3f4f6' }}>
-                  {/* Table header */}
+                  {/* Tab bar */}
                   <div style={{
-                    padding: '8px 16px',
-                    background: '#f9fafb',
-                    borderBottom: '1px solid #e5e7eb',
-                    fontWeight: 700, fontSize: 12, color: '#6b7280',
-                    display: 'grid',
-                    gridTemplateColumns: '40px 1fr 70px 70px 70px',
-                    gap: 6, textTransform: 'uppercase', letterSpacing: '0.5px'
+                    display: 'flex', gap: 0, borderBottom: '2px solid #e5e7eb',
+                    background: '#f9fafb'
                   }}>
-                    <span>#</span>
-                    <span>Joueur</span>
-                    <span style={{ textAlign: 'center' }}>Score</span>
-                    <span style={{ textAlign: 'center' }}>Paires</span>
-                    <span style={{ textAlign: 'center' }}>Erreurs</span>
-                  </div>
-                  {/* Results rows */}
-                  {match.results.map((r, idx) => (
-                    <div
-                      key={r.studentId}
+                    {[
+                      { id: 'classement', label: '🏆 Classement' },
+                      { id: 'cartes', label: '📋 Cartes jouées' },
+                      { id: 'bilan', label: '📊 Bilan élèves' }
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        style={{
+                          padding: '10px 16px',
+                          fontSize: 13,
+                          fontWeight: activeTab === tab.id ? 700 : 500,
+                          color: activeTab === tab.id ? '#1AACBE' : '#6b7280',
+                          background: 'transparent',
+                          border: 'none',
+                          borderBottom: activeTab === tab.id ? '2px solid #1AACBE' : '2px solid transparent',
+                          cursor: 'pointer',
+                          marginBottom: -2,
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                    <div style={{ flex: 1 }} />
+                    <button
+                      onClick={() => handleExport(match.sessionId)}
                       style={{
-                        padding: '10px 16px',
-                        borderBottom: idx < match.results.length - 1 ? '1px solid #f3f4f6' : 'none',
-                        display: 'grid',
-                        gridTemplateColumns: '40px 1fr 70px 70px 70px',
-                        gap: 6, alignItems: 'center',
-                        background: idx === 0 ? '#fefce8' : '#fff'
+                        padding: '8px 14px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: '#374151',
+                        background: '#fff',
+                        border: '1px solid #d1d5db',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        margin: '6px 12px 6px 0'
                       }}
                     >
-                      <span style={{ fontSize: 18 }}>
-                        {medalEmojis[idx] || `${idx + 1}.`}
-                      </span>
-                      <span style={{ fontWeight: idx === 0 ? 700 : 500, color: '#1f2937', fontSize: 14 }}>
-                        {r.studentName}
-                      </span>
-                      <span style={{ textAlign: 'center', fontWeight: 700, color: '#1AACBE', fontSize: 16 }}>
-                        {r.score}
-                      </span>
-                      <span style={{ textAlign: 'center', color: '#6b7280', fontSize: 13 }}>
-                        {r.pairs_validated ?? '-'}
-                      </span>
-                      <span style={{ textAlign: 'center', color: r.errors > 0 ? '#ef4444' : '#6b7280', fontSize: 13 }}>
-                        {r.errors ?? '-'}
-                      </span>
+                      📥 Exporter CSV
+                    </button>
+                  </div>
+
+                  {/* Tab: Classement */}
+                  {activeTab === 'classement' && match.results.length > 0 && (
+                    <div>
+                      <div style={{
+                        padding: '8px 16px',
+                        background: '#f9fafb',
+                        borderBottom: '1px solid #e5e7eb',
+                        fontWeight: 700, fontSize: 12, color: '#6b7280',
+                        display: 'grid',
+                        gridTemplateColumns: '40px 1fr 70px 70px 70px',
+                        gap: 6, textTransform: 'uppercase', letterSpacing: '0.5px'
+                      }}>
+                        <span>#</span>
+                        <span>Joueur</span>
+                        <span style={{ textAlign: 'center' }}>Score</span>
+                        <span style={{ textAlign: 'center' }}>Paires</span>
+                        <span style={{ textAlign: 'center' }}>Erreurs</span>
+                      </div>
+                      {match.results.map((r, idx) => (
+                        <div
+                          key={r.studentId}
+                          style={{
+                            padding: '10px 16px',
+                            borderBottom: idx < match.results.length - 1 ? '1px solid #f3f4f6' : 'none',
+                            display: 'grid',
+                            gridTemplateColumns: '40px 1fr 70px 70px 70px',
+                            gap: 6, alignItems: 'center',
+                            background: idx === 0 ? '#fefce8' : '#fff'
+                          }}
+                        >
+                          <span style={{ fontSize: 18 }}>
+                            {medalEmojis[idx] || `${idx + 1}.`}
+                          </span>
+                          <span style={{ fontWeight: idx === 0 ? 700 : 500, color: '#1f2937', fontSize: 14 }}>
+                            {r.studentName}
+                          </span>
+                          <span style={{ textAlign: 'center', fontWeight: 700, color: '#1AACBE', fontSize: 16 }}>
+                            {r.score}
+                          </span>
+                          <span style={{ textAlign: 'center', color: '#6b7280', fontSize: 13 }}>
+                            {r.pairs_validated ?? '-'}
+                          </span>
+                          <span style={{ textAlign: 'center', color: r.errors > 0 ? '#ef4444' : '#6b7280', fontSize: 13 }}>
+                            {r.errors ?? '-'}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+
+                  {/* Tab: Cartes jouées */}
+                  {activeTab === 'cartes' && (
+                    <div style={{ padding: 16 }}>
+                      {diagLoading ? (
+                        <div style={{ textAlign: 'center', padding: 24, color: '#6b7280' }}>Chargement des cartes jouées...</div>
+                      ) : rounds.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: 24, color: '#9ca3af' }}>
+                          <div style={{ fontSize: 36, marginBottom: 8 }}>📋</div>
+                          <p>Aucune donnée de cartes jouées disponible pour ce match.</p>
+                          <p style={{ fontSize: 12 }}>Les cartes jouées seront enregistrées pour les prochains matchs.</p>
+                        </div>
+                      ) : (
+                        rounds.map(r => (
+                          <RoundCard
+                            key={r.id}
+                            zones={r.zones}
+                            goodPairType={r.good_pair_type}
+                            goodPairContent={r.good_pair_content}
+                            winnerDisplayName={r.winner_display_name}
+                            winnerTimeMs={r.winner_time_ms}
+                            errors={r.errors}
+                            roundNumber={r.round_number}
+                            goodPairTheme={r.good_pair_theme}
+                            goodPairLevel={r.good_pair_level}
+                          />
+                        ))
+                      )}
+                    </div>
+                  )}
+
+                  {/* Tab: Bilan élèves */}
+                  {activeTab === 'bilan' && (
+                    <div style={{ padding: 16 }}>
+                      {diagLoading ? (
+                        <div style={{ textAlign: 'center', padding: 24, color: '#6b7280' }}>Chargement des bilans...</div>
+                      ) : summaries.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: 24, color: '#9ca3af' }}>
+                          <div style={{ fontSize: 36, marginBottom: 8 }}>📊</div>
+                          <p>Aucun bilan pédagogique disponible pour ce match.</p>
+                          <p style={{ fontSize: 12 }}>Les bilans seront générés pour les prochains matchs.</p>
+                        </div>
+                      ) : (
+                        summaries.map(s => (
+                          <PlayerSummaryCard
+                            key={s.id}
+                            summary={s}
+                            onNotesChange={(notes) => {
+                              setSummaries(prev => prev.map(ps => ps.id === s.id ? { ...ps, teacher_notes: notes } : ps));
+                              // Debounced save
+                              clearTimeout(s._saveTimeout);
+                              s._saveTimeout = setTimeout(() => handleSaveNotes(match.sessionId, s.player_id, notes), 1000);
+                            }}
+                          />
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

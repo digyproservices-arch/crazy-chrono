@@ -159,6 +159,27 @@ function startRgpdPurge() {
       }
 
       logger.info(`[Cron][RGPD] Purge terminée: ${purged}/${toPurge.length} comptes supprimés ✅`);
+
+      // Purge des données diagnostic pédagogique > 24 mois (match_rounds + match_player_summary)
+      try {
+        const { data: oldRounds, error: mrErr } = await supabase
+          .from('match_rounds')
+          .delete()
+          .lt('created_at', cutoffISO)
+          .select('id');
+        const { data: oldSummaries, error: psErr } = await supabase
+          .from('match_player_summary')
+          .delete()
+          .lt('created_at', cutoffISO)
+          .select('id');
+        const roundsDeleted = oldRounds?.length || 0;
+        const summariesDeleted = oldSummaries?.length || 0;
+        if (roundsDeleted > 0 || summariesDeleted > 0) {
+          logger.info(`[Cron][RGPD] Purge diagnostic: ${roundsDeleted} match_rounds + ${summariesDeleted} match_player_summary supprimés ✅`);
+        }
+      } catch (diagPurgeErr) {
+        logger.warn(`[Cron][RGPD] Erreur purge diagnostic: ${diagPurgeErr.message}`);
+      }
     } catch (error) {
       logger.error('[Cron][RGPD] Erreur lors de la purge:', error);
     }

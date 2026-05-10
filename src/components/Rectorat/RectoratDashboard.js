@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getBackendUrl } from '../../utils/subscription';
 import { getAuthHeaders } from '../../utils/apiHelpers';
+import { RoundCard, PlayerSummaryCard } from '../Shared/CardViewer';
 import './RectoratDashboard.css';
 
 const CARD = { background: '#fff', borderRadius: 16, padding: '20px 24px', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0', marginBottom: 16 };
@@ -425,13 +426,42 @@ const RectoratDashboard = () => {
                     </button>
                   </div>
 
-                  {(!matchCards.rounds || matchCards.rounds.length === 0) ? (
+                  {/* Diagnostic pédagogique (nouveau format match_rounds) */}
+                  {matchCards.diagnosticRounds && matchCards.diagnosticRounds.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>📋 Cartes jouées (diagnostic)</h3>
+                      {matchCards.diagnosticRounds.map(r => (
+                        <RoundCard
+                          key={r.id}
+                          zones={r.zones}
+                          goodPairType={r.good_pair_type}
+                          goodPairContent={r.good_pair_content}
+                          winnerDisplayName={r.winner_display_name}
+                          winnerTimeMs={r.winner_time_ms}
+                          errors={r.errors}
+                          roundNumber={r.round_number}
+                          goodPairTheme={r.good_pair_theme}
+                          goodPairLevel={r.good_pair_level}
+                        />
+                      ))}
+                      {matchCards.playerSummaries && matchCards.playerSummaries.length > 0 && (
+                        <div style={{ marginTop: 16 }}>
+                          <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>📊 Bilans par élève</h3>
+                          {matchCards.playerSummaries.map(s => (
+                            <PlayerSummaryCard key={s.id} summary={s} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {(!matchCards.rounds || matchCards.rounds.length === 0) && (!matchCards.diagnosticRounds || matchCards.diagnosticRounds.length === 0) ? (
                     <div style={{ ...CARD, textAlign: 'center', color: '#94a3b8', padding: 40 }}>
                       <div style={{ fontSize: 40, marginBottom: 8 }}>📭</div>
                       <p>Aucune carte archivée pour ce match</p>
                       <p style={{ fontSize: 12 }}>Les cartes sont archivées pour les matchs joués après l'activation de cette fonctionnalité.</p>
                     </div>
-                  ) : (
+                  ) : matchCards.rounds && matchCards.rounds.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {matchCards.rounds.map((round, ri) => (
                         <div key={ri} style={CARD}>
@@ -472,7 +502,7 @@ const RectoratDashboard = () => {
                         </div>
                       ))}
                     </div>
-                  )}
+                  ) : null}
                 </>
               )}
             </div>

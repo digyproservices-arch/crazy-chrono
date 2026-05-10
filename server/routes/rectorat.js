@@ -177,18 +177,53 @@ router.get('/match/:id/cards', requireRectoratAuth, async (req, res) => {
       .single();
 
     if (session) {
-      const roundsData = session.rounds_data
+      let roundsData = session.rounds_data
         ? (typeof session.rounds_data === 'string' ? JSON.parse(session.rounds_data) : session.rounds_data)
         : [];
+
+      // Si rounds_data vide, essayer match_rounds (nouveau format diagnostic)
+      let diagnosticRounds = [];
+      let playerSummaries = [];
+      if (roundsData.length === 0) {
+        try {
+          const [mrRes, psRes] = await Promise.all([
+            supabase.from('match_rounds').select('*').eq('session_id', matchId).order('round_number'),
+            supabase.from('match_player_summary').select('*').eq('session_id', matchId).order('total_score', { ascending: false })
+          ]);
+          diagnosticRounds = mrRes.data || [];
+          playerSummaries = psRes.data || [];
+        } catch {}
+      }
+
       return res.json({
         ok: true,
         type: 'training',
         matchId,
         rounds: roundsData,
+        diagnosticRounds,
+        playerSummaries,
         config: typeof session.config === 'string' ? JSON.parse(session.config) : session.config,
         name: session.session_name,
       });
     }
+
+    // Dernière tentative: chercher dans match_rounds directement par session_id
+    try {
+      const { data: directRounds } = await supabase.from('match_rounds').select('*').eq('session_id', matchId).order('round_number');
+      if (directRounds && directRounds.length > 0) {
+        const { data: directSummaries } = await supabase.from('match_player_summary').select('*').eq('session_id', matchId).order('total_score', { ascending: false });
+        return res.json({
+          ok: true,
+          type: 'training',
+          matchId,
+          rounds: [],
+          diagnosticRounds: directRounds,
+          playerSummaries: directSummaries || [],
+          config: {},
+          name: '',
+        });
+      }
+    } catch {}
 
     res.status(404).json({ ok: false, error: 'Match non trouvé' });
   } catch (e) {

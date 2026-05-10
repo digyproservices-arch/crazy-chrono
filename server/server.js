@@ -265,6 +265,10 @@ app.use('/api/tournament', tournamentRoutes);
 const trainingRoutes = require('./routes/training');
 app.use('/api/training', trainingRoutes);
 
+// ===== Match Rounds Routes (Diagnostic pédagogique — cartes jouées) =====
+const matchRoundsRoutes = require('./routes/matchRounds');
+app.use('/api/match-rounds', matchRoundsRoutes);
+
 // ===== Notifications Routes =====
 const notificationsRoutes = require('./routes/notifications');
 app.use('/api/notifications', notificationsRoutes);
@@ -2535,6 +2539,7 @@ function getRoom(roomCode) {
   if (!r.deckState) r.deckState = createDeckState();
   if (!r.selectedThemes) r.selectedThemes = [];
   if (!r.selectedClasses) r.selectedClasses = [];
+  if (!r.roundHistory) r.roundHistory = []; // Buffer pour cartes jouées (diagnostic pédagogique)
   return r;
 }
 
@@ -2666,6 +2671,25 @@ function startRound(roomCode) {
   
   // Stocker les zones dans la room pour validation ultérieure
   room.currentZones = zones;
+  
+  // Buffer pour diagnostic pédagogique (cartes jouées)
+  const goodPairInfo = (!Array.isArray(zoneGenResult) && zoneGenResult?.goodPairIds) || null;
+  room.currentGoodPairInfo = goodPairInfo;
+  room.currentRoundStartedAt = Date.now();
+  room.currentRoundErrors = []; // erreurs pour ce round spécifique
+  room.roundHistory.push({
+    roundNumber: room.roundsPlayed,
+    zones: zones.map(z => ({ id: z.id, type: z.type || 'image', content: String(z.content || '').substring(0, 200), pairId: z.pairId || '', isDistractor: !!z.isDistractor, angle: z.angle })),
+    goodPairType: goodPairInfo?.pairType || null,
+    goodPairTheme: goodPairInfo?.theme || null,
+    goodPairLevel: goodPairInfo?.level || null,
+    goodPairContent: goodPairInfo ? { a: goodPairInfo.contentA || '', b: goodPairInfo.contentB || '' } : null,
+    winnerPlayerId: null,
+    winnerDisplayName: null,
+    winnerTimeMs: null,
+    errors: [],
+    startedAt: Date.now()
+  });
   
   console.log(`[MP] Generated ${zones.length} zones for room=${roomCode}`);
   console.log(`[MP] Sample zone:`, zones[0] ? { id: zones[0].id, type: zones[0].type, hasContent: !!zones[0].content, pairId: zones[0].pairId } : 'NONE');
@@ -2943,6 +2967,130 @@ function endSession(roomCode) {
           }
         }
         emitPerfEvent('save:success', { room: roomCode, players: identifiedPlayers.length, sessionId });
+        
+        // ===== Diagnostic pédagogique: persister match_rounds + match_player_summary =====
+        try {
+          const roundHistory = room.roundHistory || [];
+          if (roundHistory.length > 0) {
+            // 1) Insérer les rounds
+            const roundRows = roundHistory.map(rh => ({
+              session_id: sessionId,
+              round_number: rh.roundNumber,
+              zones: rh.zones,
+              good_pair_type: rh.goodPairType,
+              good_pair_theme: rh.goodPairTheme,
+              good_pair_level: rh.goodPairLevel,
+              good_pair_content: rh.goodPairContent,
+              winner_player_id: rh.winnerPlayerId,
+              winner_display_name: rh.winnerDisplayName,
+              winner_time_ms: rh.winnerTimeMs,
+              errors: rh.errors || []
+            }));
+            const { error: roundErr } = await supabaseAdmin.from('match_rounds').insert(roundRows);
+            if (roundErr) {
+              console.error('[MP] match_rounds insert error:', roundErr.message);
+            } else {
+              console.log(`[MP] Saved ${roundRows.length} match_rounds for session ${sessionId}`);
+            }
+
+            // 2) Calculer et insérer les résumés par joueur
+            const playerMap = new Map(); // playerId -> stats
+            for (const rh of roundHistory) {
+              const theme = rh.goodPairTheme || 'unknown';
+              const pairType = rh.goodPairType || 'unknown';
+              // Initialiser les joueurs depuis la room
+              for (const [, pl] of room.players.entries()) {
+                const pid = pl.studentId || pl.name;
+                if (!playerMap.has(pid)) {
+                  playerMap.set(pid, {
+                    player_id: pid,
+                    display_name: pl.name,
+                    total_score: pl.score || 0,
+                    total_errors: pl.errors || 0,
+                    byTheme: {},
+                    byType: {},
+                    responseTimes: [],
+                    roundsPlayed: 0
+                  });
+                }
+              }
+              // Qui a trouvé cette paire ?
+              const winnerId = rh.winnerPlayerId;
+              if (winnerId && playerMap.has(winnerId)) {
+                const ps = playerMap.get(winnerId);
+                if (!ps.byTheme[theme]) ps.byTheme[theme] = { found: 0, missed: 0, errors: 0 };
+                ps.byTheme[theme].found++;
+                if (!ps.byType[pairType]) ps.byType[pairType] = { found: 0 };
+                ps.byType[pairType].found++;
+                if (rh.winnerTimeMs) ps.responseTimes.push(rh.winnerTimeMs);
+                ps.roundsPlayed++;
+              }
+              // Qui a raté cette paire ?
+              for (const [, ps] of playerMap.entries()) {
+                if (ps.player_id !== winnerId) {
+                  if (!ps.byTheme[theme]) ps.byTheme[theme] = { found: 0, missed: 0, errors: 0 };
+                  ps.byTheme[theme].missed++;
+                }
+              }
+              // Erreurs sur ce round
+              for (const err of (rh.errors || [])) {
+                const pid = err.player_id;
+                if (playerMap.has(pid)) {
+                  const ps = playerMap.get(pid);
+                  if (!ps.byTheme[theme]) ps.byTheme[theme] = { found: 0, missed: 0, errors: 0 };
+                  ps.byTheme[theme].errors++;
+                }
+              }
+            }
+
+            // 3) Générer recommandations auto et insérer
+            const summaryRows = [];
+            for (const [, ps] of playerMap.entries()) {
+              const recommendations = [];
+              // Analyser par thématique
+              for (const [theme, stats] of Object.entries(ps.byTheme)) {
+                const total = stats.found + stats.missed;
+                if (total === 0) continue;
+                const rate = stats.found / total;
+                if (rate >= 0.8 && stats.errors === 0) {
+                  recommendations.push({ type: 'strength', theme, message: `Point fort : ${theme}` });
+                } else if (rate < 0.5) {
+                  recommendations.push({ type: 'improve', theme, message: `A travailler : ${theme} (${Math.round(rate * 100)}% de réussite)` });
+                }
+                if (stats.errors >= 3) {
+                  recommendations.push({ type: 'errors', theme, message: `Confusion fréquente sur ${theme} (${stats.errors} erreurs)` });
+                }
+              }
+              // Vitesse
+              const avgTime = ps.responseTimes.length > 0 ? Math.round(ps.responseTimes.reduce((a, b) => a + b, 0) / ps.responseTimes.length) : null;
+              
+              summaryRows.push({
+                session_id: sessionId,
+                player_id: ps.player_id,
+                display_name: ps.display_name,
+                total_score: ps.total_score,
+                total_pairs: ps.roundsPlayed,
+                total_errors: ps.total_errors,
+                stats_by_theme: ps.byTheme,
+                stats_by_type: ps.byType,
+                avg_response_time_ms: avgTime,
+                recommendations
+              });
+            }
+            if (summaryRows.length > 0) {
+              const { error: sumErr } = await supabaseAdmin.from('match_player_summary').insert(summaryRows);
+              if (sumErr) {
+                console.error('[MP] match_player_summary insert error:', sumErr.message);
+              } else {
+                console.log(`[MP] Saved ${summaryRows.length} match_player_summary for session ${sessionId}`);
+              }
+            }
+          }
+          // Vider le buffer
+          room.roundHistory = [];
+        } catch (diagErr) {
+          console.error('[MP] Diagnostic pédagogique save error:', diagErr.message);
+        }
       }
     } else if (identifiedPlayers.length === 0) {
       emitPerfEvent('save:skipped', { room: roomCode, reason: 'no identified players' });
@@ -3213,6 +3361,7 @@ io.on('connection', (socket) => {
     room.sessionStartedAt = Date.now();
     room.status = 'countdown';
     room.roundsPlayed = 0;
+    room.roundHistory = []; // Reset pour nouvelle session (diagnostic pédagogique)
     emitRoomState(currentRoom);
     // Compte à rebours
     let t = 3;
@@ -3268,6 +3417,7 @@ io.on('connection', (socket) => {
       room.sessionStartedAt = Date.now();
       room.status = 'countdown';
       room.roundsPlayed = 0;
+      room.roundHistory = []; // Reset pour nouvelle session (diagnostic pédagogique)
       emitRoomState(currentRoom);
       // Countdown 3-2-1 synchronisé
       let t = 3;
@@ -3308,6 +3458,7 @@ io.on('connection', (socket) => {
     room.status = 'playing';
     room.resolved = false;
     room.roundsPlayed = 0;
+    room.roundHistory = []; // Reset pour nouvelle session (diagnostic pédagogique)
     // Réinitialiser les erreurs de chaque joueur pour cette nouvelle session
     for (const [id, pl] of room.players.entries()) {
       pl.score = 0;
@@ -3407,6 +3558,18 @@ io.on('connection', (socket) => {
         }
         const scores = Array.from(room.players.entries()).map(([id, pl]) => ({ id, name: pl.name, score: pl.score || 0 }));
         io.to(currentRoom).emit('score:update', { scores });
+
+        // Enregistrer le gagnant dans roundHistory (diagnostic pédagogique)
+        try {
+          const lastRound = room.roundHistory && room.roundHistory[room.roundHistory.length - 1];
+          if (lastRound && !lastRound.winnerPlayerId) {
+            const winnerId = claimants[0] || null;
+            const winnerPl = winnerId ? room.players.get(winnerId) : null;
+            lastRound.winnerPlayerId = winnerPl?.studentId || winnerId || null;
+            lastRound.winnerDisplayName = winnerPl?.name || null;
+            lastRound.winnerTimeMs = room.currentRoundStartedAt ? (Date.now() - room.currentRoundStartedAt) : null;
+          }
+        } catch {}
 
         // ✅ DÉPARTAGE: Premier à trouver gagne le round → passer au suivant ou fin
         if (room._isTiebreaker) {
@@ -3549,6 +3712,13 @@ io.on('connection', (socket) => {
       pl.errors = (pl.errors || 0) + 1;
       room.players.set(socket.id, pl);
       console.log(`[MP] pair:error room=${currentRoom} player=${socket.id} errors=${pl.errors}`);
+      // Enregistrer l'erreur dans roundHistory (diagnostic pédagogique)
+      try {
+        const lastRound = room.roundHistory && room.roundHistory[room.roundHistory.length - 1];
+        if (lastRound) {
+          lastRound.errors.push({ player_id: pl.studentId || socket.id, display_name: pl.name, timestamp: Date.now() });
+        }
+      } catch {}
     }
   });
 
