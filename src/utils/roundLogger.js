@@ -85,12 +85,14 @@ function evalCalc(expr) {
     if (!Number.isNaN(a) && !Number.isNaN(b)) return _r8(a * b);
   }
 
-  // "A op ? = C"
+  // "A op ? = C" → résoudre pour ? (ex: "3 × ? = 27" → 27/3 = 9)
   const unkMatch = s.match(/([\d\s,.]+)\s*([+\-×x*÷\/])\s*\?\s*=\s*([\d\s,.]+)/);
   if (unkMatch) {
-    const c = parseFloat(unkMatch[3].replace(/\s/g, '').replace(',', '.'));
-    if (isNaN(c)) return null;
-    return _r8(c);
+    const a = _pn(unkMatch[1]), op = unkMatch[2], c = _pn(unkMatch[3]);
+    if (Number.isNaN(a) || Number.isNaN(c)) return null;
+    const opN = op === '×' || op === 'x' ? '*' : op === '÷' ? '/' : op;
+    let r; switch (opN) { case '+': r = c-a; break; case '-': r = a-c; break; case '*': r = a!==0?c/a:NaN; break; case '/': r = c!==0?a/c:NaN; break; default: return null; }
+    return Number.isFinite(r) ? _r8(r) : null;
   }
 
   // "? op B = C"
