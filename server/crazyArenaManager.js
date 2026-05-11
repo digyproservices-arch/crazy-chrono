@@ -933,6 +933,7 @@ class CrazyArenaManager {
     logger.info(`[Training] 📢 Broadcast training:match-finished pour ${matchId}`);
     
     // 💾 PERSISTENCE: Finaliser le match en DB (positions finales + completed_at)
+    _logMatchEvent('PERSIST_END_START', matchId, { mode: 'training', hasSessionId: !!match._sessionId, sessionId: match._sessionId || null, roundHistoryLength: match._roundHistory ? match._roundHistory.length : 0, path: match._sessionId ? 'persistMatchEnd' : 'saveTrainingResults (legacy)' });
     if (match._sessionId) {
       await this.persistMatchEnd(matchId, ranking);
     } else {
@@ -2934,6 +2935,7 @@ class CrazyArenaManager {
 
       if (sessErr) {
         logger.error('[CrazyArena][Training] ❌ Erreur insert training_sessions', { matchId, error: sessErr.message });
+        _logMatchEvent('PERSIST_START_FAIL', matchId, { mode: 'training', error: sessErr.message, code: sessErr.code });
         match._sessionId = null; // Permettre le fallback saveTrainingResults si l'insert échoue
         return;
       }
@@ -2986,8 +2988,10 @@ class CrazyArenaManager {
       }
 
       logger.info('[CrazyArena][Training] 💾 Match persisté en DB (start)', { matchId, sessionId, players: match.players.length });
+      _logMatchEvent('PERSIST_START_OK', matchId, { mode: 'training', sessionId, players: match.players.length });
     } catch (err) {
       logger.error('[CrazyArena][Training] ❌ Erreur persistMatchStart', { matchId, error: err.message });
+      _logMatchEvent('PERSIST_START_FAIL', matchId, { mode: 'training', error: err.message });
     }
   }
 
@@ -3206,11 +3210,14 @@ class CrazyArenaManager {
           const { error: mrInsertErr } = await this.supabase.from('match_rounds').insert(roundRows);
           if (mrInsertErr) {
             logger.error('[CrazyArena][Training] ❌ Erreur insert match_rounds:', { error: mrInsertErr.message, code: mrInsertErr.code, details: mrInsertErr.details, sessionId: match._sessionId, rowCount: roundRows.length });
+            _logMatchEvent('DIAGNOSTIC_INSERT_FAIL', matchId, { mode: 'training', table: 'match_rounds', error: mrInsertErr.message, code: mrInsertErr.code, sessionId: match._sessionId, rowCount: roundRows.length });
           } else {
             logger.info('[CrazyArena][Training] 📊 match_rounds insérés:', roundRows.length);
+            _logMatchEvent('DIAGNOSTIC_INSERT_OK', matchId, { mode: 'training', table: 'match_rounds', sessionId: match._sessionId, rowCount: roundRows.length });
           }
         } catch (mrErr) {
           logger.error('[CrazyArena][Training] ⚠️ Exception insert match_rounds:', mrErr.message);
+          _logMatchEvent('DIAGNOSTIC_INSERT_FAIL', matchId, { mode: 'training', table: 'match_rounds', error: mrErr.message, exception: true });
         }
 
         // Calculer match_player_summary
@@ -3275,16 +3282,20 @@ class CrazyArenaManager {
             const { error: psInsertErr } = await this.supabase.from('match_player_summary').insert(summaryRows);
             if (psInsertErr) {
               logger.error('[CrazyArena][Training] ❌ Erreur insert match_player_summary:', { error: psInsertErr.message, code: psInsertErr.code, details: psInsertErr.details, sessionId: match._sessionId });
+              _logMatchEvent('DIAGNOSTIC_INSERT_FAIL', matchId, { mode: 'training', table: 'match_player_summary', error: psInsertErr.message, code: psInsertErr.code });
             } else {
               logger.info('[CrazyArena][Training] 📊 match_player_summary insérés:', summaryRows.length);
+              _logMatchEvent('DIAGNOSTIC_INSERT_OK', matchId, { mode: 'training', table: 'match_player_summary', rowCount: summaryRows.length });
             }
           }
         } catch (psErr) {
           logger.error('[CrazyArena][Training] ⚠️ Exception insert match_player_summary:', psErr.message);
+          _logMatchEvent('DIAGNOSTIC_INSERT_FAIL', matchId, { mode: 'training', table: 'match_player_summary', error: psErr.message, exception: true });
         }
       }
 
       logger.info('[CrazyArena][Training] 💾 Match finalisé en DB', { matchId, sessionId: match._sessionId, players: ranking.length });
+      _logMatchEvent('PERSIST_END_OK', matchId, { mode: 'training', sessionId: match._sessionId });
     } catch (err) {
       logger.error('[CrazyArena][Training] ❌ Erreur persistMatchEnd', { matchId, error: err.message });
     }
