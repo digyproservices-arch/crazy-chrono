@@ -18,8 +18,13 @@ ALTER TABLE user_profiles ADD CONSTRAINT user_profiles_role_check
 -- NOTE: on garde 'rectorat' comme alias valide côté code pour rétrocompatibilité
 UPDATE user_profiles SET role = 'cpd' WHERE role = 'rectorat';
 
--- 3. Ajouter circonscription_id à la table invitations (pour stocker la circo lors de l'invitation CPC)
+-- 4. Ajouter circonscription_id à la table invitations (pour stocker la circo lors de l'invitation CPC)
 ALTER TABLE invitations ADD COLUMN IF NOT EXISTS circonscription_id VARCHAR(50);
+
+-- 5. Mettre à jour la contrainte CHECK sur le rôle de la table invitations
+ALTER TABLE invitations DROP CONSTRAINT IF EXISTS invitations_role_check;
+ALTER TABLE invitations ADD CONSTRAINT invitations_role_check 
+  CHECK (role IN ('admin', 'cpd', 'cpc', 'rectorat', 'teacher', 'editor', 'user'));
 
 -- 4. Index pour recherche rapide par rôle + circo
 CREATE INDEX IF NOT EXISTS idx_user_profiles_role ON user_profiles (role);

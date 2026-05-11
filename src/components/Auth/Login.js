@@ -25,6 +25,7 @@ export default function Login({ onLogin }) {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [signupMode, setSignupMode] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
   const [inviteToken, setInviteToken] = useState('');
   const [inviteRole, setInviteRole] = useState('');
   const [inviteRegion, setInviteRegion] = useState(null);
@@ -487,9 +488,11 @@ export default function Login({ onLogin }) {
       }
       // Cas standard: confirmation e‑mail requise
       if (user) {
+        setSignupSuccess(true);
         setInfo("Compte créé. Vérifie ta boîte e‑mail et clique sur le lien de confirmation pour activer ton compte.");
         return;
       }
+      setSignupSuccess(true);
       setInfo("Vérifie ton e‑mail pour confirmer l'inscription.");
     } catch (e1) {
       setError(e1.message || "Erreur d'inscription");
@@ -665,24 +668,35 @@ export default function Login({ onLogin }) {
             </a>
           </div>
         )}
-        <div style={{ marginTop: 10 }}>
-          <label><input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Se souvenir de moi</label>
+        <div style={{ marginTop: 12 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />
+            <span style={{ fontSize: 13, color: '#374151' }}>Se souvenir de moi</span>
+          </label>
         </div>
         {error && <div style={{ marginTop: 10, color: '#b91c1c' }}>{error}</div>}
-        {info && <div style={{ marginTop: 10, color: '#065f46' }}>{info}</div>}
+        {signupSuccess && info && (
+          <div style={{ marginTop: 16, padding: '16px 20px', borderRadius: 12, background: '#ecfdf5', border: '2px solid #10b981', textAlign: 'center' }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>✉️</div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#065f46', marginBottom: 4 }}>Inscription réussie !</div>
+            <div style={{ fontSize: 13, color: '#047857' }}>{info}</div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 8 }}>Pense à vérifier tes spams si tu ne trouves pas l'email.</div>
+          </div>
+        )}
+        {!signupSuccess && info && <div style={{ marginTop: 10, color: '#065f46' }}>{info}</div>}
         {signupMode ? (
           <>
             <button
               type="button"
               onClick={handleSignup}
-              disabled={loading}
-              style={{ marginTop: 16, width: '100%', padding: '12px 12px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #F5A623, #FFC940)', color: '#4A3728', fontWeight: 800, fontSize: 15, cursor: 'pointer', boxShadow: '0 3px 10px rgba(245,166,35,0.35)' }}
+              disabled={loading || signupSuccess}
+              style={{ marginTop: 16, width: '100%', padding: '12px 12px', borderRadius: 10, border: 'none', background: signupSuccess ? '#d1d5db' : 'linear-gradient(135deg, #F5A623, #FFC940)', color: signupSuccess ? '#6b7280' : '#4A3728', fontWeight: 800, fontSize: 15, cursor: signupSuccess ? 'default' : 'pointer', boxShadow: signupSuccess ? 'none' : '0 3px 10px rgba(245,166,35,0.35)' }}
             >
-              {loading ? 'Inscription…' : 'Valider l\u2019inscription'}
+              {loading ? 'Inscription…' : signupSuccess ? '✅ Inscription envoyée' : 'Valider l\u2019inscription'}
             </button>
             <button
               type="button"
-              onClick={() => { setSignupMode(false); setError(''); }}
+              onClick={() => { setSignupMode(false); setSignupSuccess(false); setError(''); }}
               disabled={loading}
               style={{ marginTop: 8, width: '100%', padding: '12px 12px', borderRadius: 10, border: '2px solid #1AACBE', background: 'transparent', color: '#1AACBE', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
             >
@@ -696,7 +710,7 @@ export default function Login({ onLogin }) {
             </button>
             <button
               type="button"
-              onClick={() => { setSignupMode(true); setInfo(''); setError(''); }}
+              onClick={() => { setSignupMode(true); setSignupSuccess(false); setInfo(''); setError(''); }}
               disabled={loading}
               style={{ marginTop: 8, width: '100%', padding: '12px 12px', borderRadius: 10, border: '2px solid #1AACBE', background: 'transparent', color: '#1AACBE', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
             >
