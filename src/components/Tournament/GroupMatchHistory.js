@@ -135,6 +135,7 @@ export default function GroupMatchHistory() {
           // Auto-expand the latest match
           if (json.matches && json.matches.length > 0) {
             setExpandedMatch(json.matches[0].sessionId);
+            fetchDiagnostic(json.matches[0].sessionId);
           }
         } else {
           setError(json.error || 'Erreur lors du chargement');
@@ -148,7 +149,7 @@ export default function GroupMatchHistory() {
     };
 
     if (groupId) fetchHistory();
-  }, [groupId]);
+  }, [groupId, fetchDiagnostic]);
 
   if (loading) {
     return (
