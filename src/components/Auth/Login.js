@@ -43,8 +43,8 @@ export default function Login({ onLogin }) {
         // ── DIAGNOSTIC: état au montage de Login.js ──
         console.log('[Login:mount] cc_session_only=' + JSON.stringify(localStorage.getItem('cc_session_only')) + ' cc_forced_logout=' + JSON.stringify(localStorage.getItem('cc_forced_logout')) + ' cc_auth=' + (localStorage.getItem('cc_auth') ? 'EXISTS' : 'NULL') + ' sb-keys=' + JSON.stringify(Object.keys(localStorage).filter(k => k.startsWith('sb-'))));
         // ── FIN DIAGNOSTIC ──
-        // Vérifier invitation
-        const token = searchParams.get('invite');
+        // Vérifier invitation (URL ou localStorage)
+        const token = searchParams.get('invite') || localStorage.getItem('cc_pending_invite');
         if (token) {
           const { data: inv } = await supabase
             .from('invitations')
@@ -54,6 +54,8 @@ export default function Login({ onLogin }) {
             .single();
           
           if (inv && new Date(inv.expires_at) > new Date()) {
+            // Persister le token pour le retrouver après confirmation email
+            try { localStorage.setItem('cc_pending_invite', token); } catch {}
             setInviteToken(token);
             setInviteRole(inv.role);
             if (inv.region) setInviteRegion(inv.region);
@@ -61,6 +63,9 @@ export default function Login({ onLogin }) {
             setSignupMode(true);
             setInfo(`Invitation pour ${inv.email} en tant que ${inv.role}${inv.region ? ` (${inv.region})` : ''}`);
             return;
+          } else {
+            // Invitation invalide ou expirée, nettoyer
+            try { localStorage.removeItem('cc_pending_invite'); } catch {}
           }
         }
         
@@ -125,6 +130,25 @@ export default function Login({ onLogin }) {
               email_prefix: user.email?.split('@')[0],
               source: dbPseudo ? (dbPseudo === profile.name ? 'db' : 'existingAuth') : 'email_prefix',
             });
+            // Auto-apply pending invite si token en localStorage
+            const pendingInvite = localStorage.getItem('cc_pending_invite');
+            if (pendingInvite && data?.session?.access_token) {
+              try {
+                const applyRes = await fetch(`${BACKEND_URL}/api/auth/apply-invite`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${data.session.access_token}` },
+                  body: JSON.stringify({ inviteToken: pendingInvite })
+                });
+                const applyData = await applyRes.json();
+                if (applyData.ok) {
+                  profile.role = applyData.role;
+                  if (applyData.region) profile.region = applyData.region;
+                  if (applyData.circonscription_id) profile.circonscription_id = applyData.circonscription_id;
+                  console.log(`[Login:auto] Invitation appliquée: ${applyData.role}`);
+                }
+                localStorage.removeItem('cc_pending_invite');
+              } catch (e) { console.warn('[Login:auto] apply-invite error:', e.message); }
+            }
             const autoRemember = !localStorage.getItem('cc_session_only');
             persistLog('[autoLogin] supabase session found, email=' + (user.email || '?') + ' role=' + (profile.role || '?') + ' rememberMe=' + autoRemember);
             saveAuth(profile, autoRemember);
@@ -348,8 +372,9 @@ export default function Login({ onLogin }) {
           }
         } catch (e) { console.warn('[Login] Auto-save pseudo failed:', e.message); }
 
-        // Si invitation en cours, appliquer le rôle via backend (compte existant)
-        if (inviteToken && data?.session?.access_token) {
+        // Si invitation en cours, appliquer le rôle via backend (state ou localStorage)
+        const tokenToApply = inviteToken || localStorage.getItem('cc_pending_invite');
+        if (tokenToApply && data?.session?.access_token) {
           try {
             const applyRes = await fetch(`${BACKEND_URL}/api/auth/apply-invite`, {
               method: 'POST',
@@ -357,17 +382,19 @@ export default function Login({ onLogin }) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${data.session.access_token}` 
               },
-              body: JSON.stringify({ inviteToken })
+              body: JSON.stringify({ inviteToken: tokenToApply })
             });
             const applyData = await applyRes.json();
             if (applyData.ok) {
               profile.role = applyData.role;
               if (applyData.region) profile.region = applyData.region;
+              if (applyData.circonscription_id) profile.circonscription_id = applyData.circonscription_id;
               saveAuth(profile, remember);
               console.log(`[Login] Invitation appliquée: ${applyData.role}${applyData.region ? ` (${applyData.region})` : ''}`)
             } else {
               console.warn('[Login] apply-invite failed:', applyData.error);
             }
+            localStorage.removeItem('cc_pending_invite');
           } catch (applyErr) {
             console.warn('[Login] apply-invite error:', applyErr.message);
           }
