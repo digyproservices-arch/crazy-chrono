@@ -3203,10 +3203,14 @@ class CrazyArenaManager {
             winner_time_ms: rh.winner_time_ms,
             errors: rh.errors || []
           }));
-          await this.supabase.from('match_rounds').insert(roundRows);
-          logger.info('[CrazyArena][Training] 📊 match_rounds insérés:', roundRows.length);
+          const { error: mrInsertErr } = await this.supabase.from('match_rounds').insert(roundRows);
+          if (mrInsertErr) {
+            logger.error('[CrazyArena][Training] ❌ Erreur insert match_rounds:', { error: mrInsertErr.message, code: mrInsertErr.code, details: mrInsertErr.details, sessionId: match._sessionId, rowCount: roundRows.length });
+          } else {
+            logger.info('[CrazyArena][Training] 📊 match_rounds insérés:', roundRows.length);
+          }
         } catch (mrErr) {
-          logger.warn('[CrazyArena][Training] ⚠️ Erreur insert match_rounds:', mrErr.message);
+          logger.error('[CrazyArena][Training] ⚠️ Exception insert match_rounds:', mrErr.message);
         }
 
         // Calculer match_player_summary
@@ -3268,11 +3272,15 @@ class CrazyArenaManager {
           });
 
           if (summaryRows.length > 0) {
-            await this.supabase.from('match_player_summary').insert(summaryRows);
-            logger.info('[CrazyArena][Training] 📊 match_player_summary insérés:', summaryRows.length);
+            const { error: psInsertErr } = await this.supabase.from('match_player_summary').insert(summaryRows);
+            if (psInsertErr) {
+              logger.error('[CrazyArena][Training] ❌ Erreur insert match_player_summary:', { error: psInsertErr.message, code: psInsertErr.code, details: psInsertErr.details, sessionId: match._sessionId });
+            } else {
+              logger.info('[CrazyArena][Training] 📊 match_player_summary insérés:', summaryRows.length);
+            }
           }
         } catch (psErr) {
-          logger.warn('[CrazyArena][Training] ⚠️ Erreur insert match_player_summary:', psErr.message);
+          logger.error('[CrazyArena][Training] ⚠️ Exception insert match_player_summary:', psErr.message);
         }
       }
 
@@ -3511,10 +3519,14 @@ class CrazyArenaManager {
             winner_time_ms: rh.winner_time_ms,
             errors: rh.errors || []
           }));
-          await this.supabase.from('match_rounds').insert(roundRows);
-          logger.info('[CrazyArena][Arena] 📊 match_rounds insérés:', roundRows.length);
+          const { error: mrInsertErrA } = await this.supabase.from('match_rounds').insert(roundRows);
+          if (mrInsertErrA) {
+            logger.error('[CrazyArena][Arena] ❌ Erreur insert match_rounds:', { error: mrInsertErrA.message, code: mrInsertErrA.code, details: mrInsertErrA.details, matchId, rowCount: roundRows.length });
+          } else {
+            logger.info('[CrazyArena][Arena] 📊 match_rounds insérés:', roundRows.length);
+          }
         } catch (mrErr) {
-          logger.warn('[CrazyArena][Arena] ⚠️ Erreur insert match_rounds:', mrErr.message);
+          logger.error('[CrazyArena][Arena] ⚠️ Exception insert match_rounds:', mrErr.message);
         }
 
         try {
@@ -3572,11 +3584,15 @@ class CrazyArenaManager {
           });
 
           if (summaryRowsA.length > 0) {
-            await this.supabase.from('match_player_summary').insert(summaryRowsA);
-            logger.info('[CrazyArena][Arena] 📊 match_player_summary insérés:', summaryRowsA.length);
+            const { error: psInsertErrA } = await this.supabase.from('match_player_summary').insert(summaryRowsA);
+            if (psInsertErrA) {
+              logger.error('[CrazyArena][Arena] ❌ Erreur insert match_player_summary:', { error: psInsertErrA.message, code: psInsertErrA.code, details: psInsertErrA.details, matchId });
+            } else {
+              logger.info('[CrazyArena][Arena] 📊 match_player_summary insérés:', summaryRowsA.length);
+            }
           }
         } catch (psErr) {
-          logger.warn('[CrazyArena][Arena] ⚠️ Erreur insert match_player_summary:', psErr.message);
+          logger.error('[CrazyArena][Arena] ⚠️ Exception insert match_player_summary:', psErr.message);
         }
       }
 
