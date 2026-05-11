@@ -23,7 +23,7 @@ const Account = () => {
   const [searchParams] = useSearchParams();
   const checkoutSuccess = searchParams.get('checkout') === 'success';
   const [auth, setAuth] = useState(() => readAuth());
-  const isAdmin = useMemo(() => !!(auth && (auth.isAdmin || auth.isEditor || auth.role === 'admin' || auth.role === 'editor')), [auth]);
+  const isAdmin = useMemo(() => !!(auth && (auth.isAdmin || auth.role === 'admin')), [auth]);
   const [subStatus, setSubStatus] = useState(() => getSubscriptionStatus());
   const [portalLoading, setPortalLoading] = useState(false);
 
@@ -389,11 +389,20 @@ const Account = () => {
           </div>
           <div>
             <label style={{ display: 'block', fontWeight: 600 }}>Rôle</label>
-            <select value={role} onChange={e => setRole(e.target.value)} disabled={!isAdmin} style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #d1d5db', background: !isAdmin ? '#f3f4f6' : '#fff' }}>
-              <option value="user">Utilisateur</option>
-              <option value="editor">Éditeur</option>
-              <option value="admin">Administrateur</option>
-            </select>
+            {isAdmin ? (
+              <select value={role} onChange={e => setRole(e.target.value)} style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #d1d5db' }}>
+                <option value="user">Utilisateur</option>
+                <option value="teacher">Enseignant</option>
+                <option value="editor">Éditeur</option>
+                <option value="cpd">CPD (Conseiller Péd. Départemental)</option>
+                <option value="cpc">CPC (Conseiller Péd. Circonscription)</option>
+                <option value="admin">Administrateur</option>
+              </select>
+            ) : (
+              <div style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #d1d5db', background: '#f3f4f6', color: '#374151' }}>
+                {{ admin: 'Administrateur', cpd: 'CPD — Conseiller Pédagogique Départemental', cpc: 'CPC — Conseiller Pédagogique de Circonscription', teacher: 'Enseignant', editor: 'Éditeur', user: 'Utilisateur' }[role] || role}
+              </div>
+            )}
             {!isAdmin && (
               <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>Seul un administrateur peut modifier le rôle.</div>
             )}
