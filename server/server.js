@@ -421,16 +421,22 @@ app.get('/me', async (req, res) => {
     }
     if (!user) return res.status(401).json({ ok: false, error: 'unauthorized' });
 
-    // 3) Role from user_profiles (default: 'user')
+    // 3) Role + region + circonscription from user_profiles (default: 'user')
     let role = 'user';
+    let region = null;
+    let circonscription_id = null;
     try {
       if (supabaseAdmin) {
         const { data: prof, error: perr } = await supabaseAdmin
           .from('user_profiles')
-          .select('role')
+          .select('role, region, circonscription_id')
           .eq('id', user.id)
           .limit(1);
-        if (!perr && Array.isArray(prof) && prof[0] && prof[0].role) role = prof[0].role;
+        if (!perr && Array.isArray(prof) && prof[0]) {
+          if (prof[0].role) role = prof[0].role;
+          if (prof[0].region) region = prof[0].region;
+          if (prof[0].circonscription_id) circonscription_id = prof[0].circonscription_id;
+        }
       }
     } catch {}
 
@@ -472,7 +478,7 @@ app.get('/me', async (req, res) => {
       }
     } catch {}
 
-    return res.json({ ok: true, user, role, subscription, student });
+    return res.json({ ok: true, user, role, region, circonscription_id, subscription, student });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'server_error' });
   }
@@ -708,7 +714,7 @@ app.post('/api/admin/send-invite', requireAdminAuth, express.json(), async (req,
   try {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
     
-    const { email, role, region } = req.body;
+    const { email, role, region, circonscription_id } = req.body;
     if (!email || !role) return res.status(400).json({ ok: false, error: 'email et role requis' });
     
     // Générer token unique
@@ -723,7 +729,8 @@ app.post('/api/admin/send-invite', requireAdminAuth, express.json(), async (req,
       token,
       expires_at,
       invited_by: req.adminUser?.email || 'admin',
-      region: role === 'rectorat' ? (region || null) : null
+      region: (role === 'cpd' || role === 'cpc' || role === 'rectorat') ? (region || null) : null,
+      circonscription_id: role === 'cpc' ? (circonscription_id || null) : null
     };
     
     const { data: inv, error: dbErr } = await supabaseAdmin
@@ -756,6 +763,8 @@ app.post('/api/admin/send-invite', requireAdminAuth, express.json(), async (req,
         });
         
         const roleLabel = {
+          cpd: 'CPD — Conseiller Pédagogique Départemental',
+          cpc: 'CPC — Conseiller Pédagogique de Circonscription',
           rectorat: 'Cadre académique (Rectorat)',
           admin: 'Administrateur',
           teacher: 'Enseignant',

@@ -21,7 +21,7 @@ export default function AdminRoles() {
     setMsg(''); setErr('');
     const em = String(email || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { setErr('Email invalide'); return; }
-    if (!['admin','editor','user'].includes(role)) { setErr('Rôle invalide'); return; }
+    if (!['admin','editor','user','teacher','cpd','cpc'].includes(role)) { setErr('Rôle invalide'); return; }
     if (!supabase) { setErr('Supabase non configuré'); return; }
     try {
       setLoading(true);
@@ -67,6 +67,9 @@ export default function AdminRoles() {
           Rôle
           <select value={role} onChange={(e)=>setRole(e.target.value)} style={{ width:'100%', padding:'10px 12px', border:'1px solid #d1d5db', borderRadius:8 }}>
             <option value="admin">admin</option>
+            <option value="cpd">cpd (Conseiller Péd. Départemental)</option>
+            <option value="cpc">cpc (Conseiller Péd. Circonscription)</option>
+            <option value="teacher">teacher (Enseignant)</option>
             <option value="editor">editor</option>
             <option value="user">user</option>
           </select>

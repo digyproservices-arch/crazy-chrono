@@ -589,6 +589,7 @@ router.post('/apply-invite', async (req, res) => {
     // Mettre à jour le profil utilisateur avec le rôle de l'invitation (upsert pour couvrir le cas où le profil n'existe pas encore)
     const upsertData = { id: user.id, email: user.email, role: inv.role };
     if (inv.region) upsertData.region = inv.region;
+    if (inv.circonscription_id) upsertData.circonscription_id = inv.circonscription_id;
 
     const { error: upErr } = await supabase
       .from('user_profiles')
@@ -605,8 +606,8 @@ router.post('/apply-invite', async (req, res) => {
       .update({ used: true, used_at: new Date().toISOString() })
       .eq('token', inviteToken);
 
-    console.log(`[Auth] Invitation appliquée: ${user.email} → ${inv.role}${inv.region ? ` (${inv.region})` : ''}`);
-    res.json({ ok: true, role: inv.role, region: inv.region || null });
+    console.log(`[Auth] Invitation appliquée: ${user.email} → ${inv.role}${inv.region ? ` (${inv.region})` : ''}${inv.circonscription_id ? ` [circo: ${inv.circonscription_id}]` : ''}`);
+    res.json({ ok: true, role: inv.role, region: inv.region || null, circonscription_id: inv.circonscription_id || null });
   } catch (err) {
     console.error('[Auth] apply-invite error:', err);
     res.status(500).json({ ok: false, error: err.message });

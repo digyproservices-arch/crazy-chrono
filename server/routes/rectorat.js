@@ -1,11 +1,12 @@
 // ==========================================
-// ROUTES API RECTORAT
+// ROUTES API RECTORAT / CPD / CPC
 // Dashboard académique - stats, compétitions, cartes jouées
+// CPD = vue globale région | CPC = vue limitée à 1 circonscription
 // ==========================================
 
 const express = require('express');
 const router = express.Router();
-const { requireRectoratAuth } = require('../middleware/auth');
+const { requireRectoratAuth, requireCPDOrCPCAuth } = require('../middleware/auth');
 const { createClient } = require('@supabase/supabase-js');
 
 let _supabase = null;
@@ -20,14 +21,25 @@ function getSupabase() {
 
 // ── GET /api/rectorat/stats ──
 // Vue d'ensemble: nombre d'écoles, élèves, matchs, sessions
-router.get('/stats', requireRectoratAuth, async (req, res) => {
+// CPD: stats globales | CPC: stats limitées à sa circonscription
+router.get('/stats', requireCPDOrCPCAuth, async (req, res) => {
   try {
     const supabase = getSupabase();
     if (!supabase) return res.status(503).json({ ok: false, error: 'db_unavailable' });
 
+    // CPC: filtrer par circonscription_id
+    const cpcCirco = req.acadUser?.isCPC ? req.acadUser.circonscription_id : null;
+
+    let schoolQuery = supabase.from('schools').select('id', { count: 'exact', head: true });
+    let studentQuery = supabase.from('students').select('id', { count: 'exact', head: true }).eq('licensed', true);
+    if (cpcCirco) {
+      schoolQuery = schoolQuery.eq('circonscription_id', cpcCirco);
+      studentQuery = studentQuery.eq('circonscription_id', cpcCirco);
+    }
+
     const [schools, students, matches, sessions] = await Promise.all([
-      supabase.from('schools').select('id', { count: 'exact', head: true }),
-      supabase.from('students').select('id', { count: 'exact', head: true }).eq('licensed', true),
+      schoolQuery,
+      studentQuery,
       supabase.from('tournament_matches').select('id', { count: 'exact', head: true }),
       supabase.from('training_sessions').select('id', { count: 'exact', head: true }),
     ]);
@@ -52,6 +64,8 @@ router.get('/stats', requireRectoratAuth, async (req, res) => {
 
     res.json({
       ok: true,
+      cpcCirconscription: cpcCirco || null,
+      isCPC: !!cpcCirco,
       stats: {
         schools: schools.count || 0,
         licensedStudents: students.count || 0,
@@ -68,7 +82,7 @@ router.get('/stats', requireRectoratAuth, async (req, res) => {
 
 // ── GET /api/rectorat/competitions ──
 // Liste des matchs (Arena + Training) avec filtres
-router.get('/competitions', requireRectoratAuth, async (req, res) => {
+router.get('/competitions', requireCPDOrCPCAuth, async (req, res) => {
   try {
     const supabase = getSupabase();
     if (!supabase) return res.status(503).json({ ok: false, error: 'db_unavailable' });
@@ -140,7 +154,7 @@ router.get('/competitions', requireRectoratAuth, async (req, res) => {
 
 // ── GET /api/rectorat/match/:id/cards ──
 // Cartes jouées pour un match donné (rounds_data)
-router.get('/match/:id/cards', requireRectoratAuth, async (req, res) => {
+router.get('/match/:id/cards', requireCPDOrCPCAuth, async (req, res) => {
   try {
     const supabase = getSupabase();
     if (!supabase) return res.status(503).json({ ok: false, error: 'db_unavailable' });
@@ -234,12 +248,15 @@ router.get('/match/:id/cards', requireRectoratAuth, async (req, res) => {
 
 // ── GET /api/rectorat/schools ──
 // Liste des écoles avec stats, classes et circonscription
-router.get('/schools', requireRectoratAuth, async (req, res) => {
+// CPC: forcé sur sa circo | CPD: filtre optionnel par query param
+router.get('/schools', requireCPDOrCPCAuth, async (req, res) => {
   try {
     const supabase = getSupabase();
     if (!supabase) return res.status(503).json({ ok: false, error: 'db_unavailable' });
 
-    const { circonscription } = req.query;
+    // CPC: forcer le filtre circo (ne peut PAS voir d'autres circos)
+    const cpcCirco = req.acadUser?.isCPC ? req.acadUser.circonscription_id : null;
+    const circonscription = cpcCirco || req.query.circonscription;
 
     let schoolQuery = supabase
       .from('schools')
@@ -263,9 +280,12 @@ router.get('/schools', requireRectoratAuth, async (req, res) => {
     const classes = classesRes.data || [];
     const students = studentsRes.data || [];
 
-    // Extraire TOUTES les circonscriptions (pas seulement celles filtrées)
+    // Extraire les circonscriptions visibles
+    // CPC: uniquement sa circo | CPD: toutes
     let circonscriptions;
-    if (circonscription) {
+    if (cpcCirco) {
+      circonscriptions = [cpcCirco];
+    } else if (circonscription) {
       const { data: allSchools } = await supabase.from('schools').select('circonscription_id');
       circonscriptions = [...new Set((allSchools || []).map(s => s.circonscription_id).filter(Boolean))].sort();
     } else {
@@ -291,7 +311,7 @@ router.get('/schools', requireRectoratAuth, async (req, res) => {
       };
     });
 
-    res.json({ ok: true, schools: schoolStats, circonscriptions });
+    res.json({ ok: true, schools: schoolStats, circonscriptions, isCPC: !!cpcCirco, cpcCirconscription: cpcCirco || null });
   } catch (e) {
     console.error('[Rectorat API] schools error:', e.message);
     res.status(500).json({ ok: false, error: e.message });
@@ -299,13 +319,15 @@ router.get('/schools', requireRectoratAuth, async (req, res) => {
 });
 
 // ── GET /api/rectorat/classes ──
-// Toutes les classes visibles par le rectorat (pour lancer entraînement / tournoi)
-router.get('/classes', requireRectoratAuth, async (req, res) => {
+// Toutes les classes visibles (CPD: toutes | CPC: sa circo uniquement)
+router.get('/classes', requireCPDOrCPCAuth, async (req, res) => {
   try {
     const supabase = getSupabase();
     if (!supabase) return res.status(503).json({ ok: false, error: 'db_unavailable' });
 
-    const { circonscription } = req.query;
+    // CPC: forcer le filtre circo
+    const cpcCirco = req.acadUser?.isCPC ? req.acadUser.circonscription_id : null;
+    const circonscription = cpcCirco || req.query.circonscription;
 
     let query = supabase
       .from('classes')
@@ -391,7 +413,7 @@ router.get('/classes', requireRectoratAuth, async (req, res) => {
       };
     });
 
-    res.json({ ok: true, classes: result });
+    res.json({ ok: true, classes: result, isCPC: !!cpcCirco, cpcCirconscription: cpcCirco || null });
   } catch (e) {
     console.error('[Rectorat API] classes error:', e.message);
     res.status(500).json({ ok: false, error: e.message });

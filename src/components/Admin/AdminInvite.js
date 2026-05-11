@@ -6,6 +6,8 @@ export default function AdminInvite() {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('editor');
   const [region, setRegion] = useState('guadeloupe');
+  const [circonscription, setCirconscription] = useState('');
+  const [circonscriptions, setCirconscriptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
@@ -13,7 +15,21 @@ export default function AdminInvite() {
 
   useEffect(() => {
     loadInvitations();
+    loadCirconscriptions();
   }, []);
+
+  const loadCirconscriptions = async () => {
+    try {
+      const res = await fetch(`${getBackendUrl()}/api/rectorat/schools`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      if (data.ok && data.circonscriptions) {
+        setCirconscriptions(data.circonscriptions);
+        if (data.circonscriptions.length > 0) setCirconscription(data.circonscriptions[0]);
+      }
+    } catch (e) {
+      console.warn('Impossible de charger les circonscriptions:', e);
+    }
+  };
 
   const loadInvitations = async () => {
     try {
@@ -44,7 +60,12 @@ export default function AdminInvite() {
       const res = await fetch(`${getBackendUrl()}/api/admin/send-invite`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ email: em, role, region: role === 'rectorat' ? region : null })
+        body: JSON.stringify({
+          email: em,
+          role,
+          region: (role === 'cpd' || role === 'cpc') ? region : null,
+          circonscription_id: role === 'cpc' ? circonscription : null
+        })
       });
       const data = await res.json();
       
@@ -91,12 +112,13 @@ export default function AdminInvite() {
               <option value="user">Utilisateur</option>
               <option value="teacher">Enseignant</option>
               <option value="editor">Éditeur</option>
-              <option value="rectorat">🏛️ Rectorat (cadre académique)</option>
+              <option value="cpd">🏛️ CPD — Conseiller Pédagogique Départemental</option>
+              <option value="cpc">📍 CPC — Conseiller Pédagogique de Circonscription</option>
               <option value="admin">Admin</option>
             </select>
           </label>
           
-          {role === 'rectorat' && (
+          {(role === 'cpd' || role === 'cpc') && (
             <label>
               Région académique
               <select
@@ -110,6 +132,22 @@ export default function AdminInvite() {
                 <option value="reunion">La Réunion</option>
                 <option value="mayotte">Mayotte</option>
                 <option value="metropole">Métropole</option>
+              </select>
+            </label>
+          )}
+
+          {role === 'cpc' && (
+            <label>
+              Circonscription
+              <select
+                value={circonscription}
+                onChange={(e) => setCirconscription(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, marginTop: 4 }}
+              >
+                {circonscriptions.length === 0 && <option value="">(Aucune circonscription disponible)</option>}
+                {circonscriptions.map(c => (
+                  <option key={c} value={c}>{c.replace(/^circ_/, '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</option>
+                ))}
               </select>
             </label>
           )}
@@ -148,7 +186,7 @@ export default function AdminInvite() {
                       padding: '4px 8px', 
                       borderRadius: 4, 
                       fontSize: 12,
-                      background: inv.role === 'admin' ? '#7c3aed' : inv.role === 'rectorat' ? '#1d4ed8' : inv.role === 'editor' ? '#0891b2' : inv.role === 'teacher' ? '#059669' : '#6b7280',
+                      background: inv.role === 'admin' ? '#7c3aed' : (inv.role === 'cpd' || inv.role === 'rectorat') ? '#1d4ed8' : inv.role === 'cpc' ? '#7c3aed' : inv.role === 'editor' ? '#0891b2' : inv.role === 'teacher' ? '#059669' : '#6b7280',
                       color: '#fff'
                     }}>
                       {inv.role}

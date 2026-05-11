@@ -23,13 +23,20 @@ const RectoratDashboard = () => {
   const [expandedSchool, setExpandedSchool] = useState(null);
   const [allClasses, setAllClasses] = useState([]);
   const [userRegion, setUserRegion] = useState('');
+  const [userRole, setUserRole] = useState('cpd');
+  const [userCirco, setUserCirco] = useState(null);
   const [competition, setCompetition] = useState(null);
   const [togglingCompetition, setTogglingCompetition] = useState(false);
+
+  const isCPC = userRole === 'cpc';
+  const isCPD = userRole === 'cpd' || userRole === 'rectorat' || userRole === 'admin';
 
   useEffect(() => {
     try {
       const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
       setUserRegion(auth.region || '');
+      setUserRole(auth.role || 'cpd');
+      setUserCirco(auth.circonscription_id || null);
     } catch {}
     // ✅ PERF: Chargement parallèle des 3 sources de données
     Promise.all([loadStats(), loadCompetitions(), loadCompetitionStatus()]);
@@ -179,10 +186,13 @@ const RectoratDashboard = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: '#1e293b', margin: 0 }}>
-            🏛️ Tableau de Bord Rectorat
+            {isCPC ? '📍' : '🏛️'} Dashboard {isCPC ? 'CPC' : 'CPD'}
           </h1>
           <p style={{ fontSize: 14, color: '#64748b', margin: '4px 0 0' }}>
-            Supervision académique {userRegion ? `— ${userRegion}` : ''}
+            {isCPC
+              ? `Conseiller Pédagogique de Circonscription${userCirco ? ` — ${userCirco.replace('circ_', '').replace(/_/g, ' ').replace(/(^|\s)\w/g, l => l.toUpperCase())}` : ''}`
+              : `Conseiller Pédagogique Départemental${userRegion ? ` — Région académique : ${userRegion.charAt(0).toUpperCase() + userRegion.slice(1)}` : ''}`
+            }
           </p>
         </div>
         <button
@@ -193,7 +203,7 @@ const RectoratDashboard = () => {
         </button>
       </div>
 
-      {/* BANDEAU COMPÉTITION */}
+      {/* BANDEAU COMPÉTITION (CPD uniquement peut toggle, CPC en lecture seule) */}
       {competition && (
         <div style={{
           ...CARD,
@@ -220,19 +230,21 @@ const RectoratDashboard = () => {
             }}>
               {competition.open ? '🟢 OUVERTE' : '🔴 FERMÉE'}
             </span>
-            <button
-              onClick={toggleCompetition}
-              disabled={togglingCompetition}
-              style={{
-                padding: '8px 18px', borderRadius: 10, border: 'none', fontWeight: 700, fontSize: 13,
-                cursor: togglingCompetition ? 'wait' : 'pointer',
-                background: competition.open ? '#ef4444' : '#10b981',
-                color: '#fff', opacity: togglingCompetition ? 0.6 : 1,
-                transition: 'opacity 0.2s'
-              }}
-            >
-              {togglingCompetition ? '...' : competition.open ? '🔴 Fermer la compétition' : '🟢 Ouvrir la compétition'}
-            </button>
+            {isCPD && (
+              <button
+                onClick={toggleCompetition}
+                disabled={togglingCompetition}
+                style={{
+                  padding: '8px 18px', borderRadius: 10, border: 'none', fontWeight: 700, fontSize: 13,
+                  cursor: togglingCompetition ? 'wait' : 'pointer',
+                  background: competition.open ? '#ef4444' : '#10b981',
+                  color: '#fff', opacity: togglingCompetition ? 0.6 : 1,
+                  transition: 'opacity 0.2s'
+                }}
+              >
+                {togglingCompetition ? '...' : competition.open ? '🔴 Fermer la compétition' : '🟢 Ouvrir la compétition'}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -514,19 +526,22 @@ const RectoratDashboard = () => {
       {activeTab === 'schools' && (
         <div>
           {/* Filtre par circonscription */}
+          {/* CPC: circo verrouillée, pas de bouton Toutes | CPD: filtre libre */}
           {circonscriptions.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>📍 Circonscription :</span>
-              <button
-                onClick={() => { setSelectedCirc(''); loadSchools(''); }}
-                style={{ padding: '6px 14px', borderRadius: 8, border: !selectedCirc ? '2px solid #1d4ed8' : '1px solid #e2e8f0', background: !selectedCirc ? '#eff6ff' : '#fff', color: !selectedCirc ? '#1d4ed8' : '#64748b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
-              >Toutes ({circonscriptions.length})</button>
+              {!isCPC && (
+                <button
+                  onClick={() => { setSelectedCirc(''); loadSchools(''); }}
+                  style={{ padding: '6px 14px', borderRadius: 8, border: !selectedCirc ? '2px solid #1d4ed8' : '1px solid #e2e8f0', background: !selectedCirc ? '#eff6ff' : '#fff', color: !selectedCirc ? '#1d4ed8' : '#64748b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                >Toutes ({circonscriptions.length})</button>
+              )}
               {circonscriptions.map(c => {
                 const label = c.replace('circ_', '').replace(/_/g, ' ').replace(/(^|\s)\w/g, l => l.toUpperCase());
                 return (
                   <button key={c}
-                    onClick={() => { setSelectedCirc(c); loadSchools(c); }}
-                    style={{ padding: '6px 14px', borderRadius: 8, border: selectedCirc === c ? '2px solid #1d4ed8' : '1px solid #e2e8f0', background: selectedCirc === c ? '#eff6ff' : '#fff', color: selectedCirc === c ? '#1d4ed8' : '#64748b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                    onClick={() => { if (!isCPC) { setSelectedCirc(c); loadSchools(c); } }}
+                    style={{ padding: '6px 14px', borderRadius: 8, border: (selectedCirc === c || (isCPC && c === userCirco)) ? '2px solid #1d4ed8' : '1px solid #e2e8f0', background: (selectedCirc === c || (isCPC && c === userCirco)) ? '#eff6ff' : '#fff', color: (selectedCirc === c || (isCPC && c === userCirco)) ? '#1d4ed8' : '#64748b', fontWeight: 600, fontSize: 12, cursor: isCPC ? 'default' : 'pointer' }}
                   >{label}</button>
                 );
               })}
@@ -601,19 +616,22 @@ const RectoratDashboard = () => {
       {activeTab === 'classes' && (
         <div>
           {/* Filtre par circonscription */}
+          {/* CPC: circo verrouillée | CPD: filtre libre */}
           {circonscriptions.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>📍 Circonscription :</span>
-              <button
-                onClick={() => { setSelectedCirc(''); loadClasses(''); }}
-                style={{ padding: '6px 14px', borderRadius: 8, border: !selectedCirc ? '2px solid #1d4ed8' : '1px solid #e2e8f0', background: !selectedCirc ? '#eff6ff' : '#fff', color: !selectedCirc ? '#1d4ed8' : '#64748b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
-              >Toutes</button>
+              {!isCPC && (
+                <button
+                  onClick={() => { setSelectedCirc(''); loadClasses(''); }}
+                  style={{ padding: '6px 14px', borderRadius: 8, border: !selectedCirc ? '2px solid #1d4ed8' : '1px solid #e2e8f0', background: !selectedCirc ? '#eff6ff' : '#fff', color: !selectedCirc ? '#1d4ed8' : '#64748b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                >Toutes</button>
+              )}
               {circonscriptions.map(c => {
                 const label = c.replace('circ_', '').replace(/_/g, ' ').replace(/(^|\s)\w/g, l => l.toUpperCase());
                 return (
                   <button key={c}
-                    onClick={() => { setSelectedCirc(c); loadClasses(c); }}
-                    style={{ padding: '6px 14px', borderRadius: 8, border: selectedCirc === c ? '2px solid #1d4ed8' : '1px solid #e2e8f0', background: selectedCirc === c ? '#eff6ff' : '#fff', color: selectedCirc === c ? '#1d4ed8' : '#64748b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                    onClick={() => { if (!isCPC) { setSelectedCirc(c); loadClasses(c); } }}
+                    style={{ padding: '6px 14px', borderRadius: 8, border: (selectedCirc === c || (isCPC && c === userCirco)) ? '2px solid #1d4ed8' : '1px solid #e2e8f0', background: (selectedCirc === c || (isCPC && c === userCirco)) ? '#eff6ff' : '#fff', color: (selectedCirc === c || (isCPC && c === userCirco)) ? '#1d4ed8' : '#64748b', fontWeight: 600, fontSize: 12, cursor: isCPC ? 'default' : 'pointer' }}
                   >{label}</button>
                 );
               })}

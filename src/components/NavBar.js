@@ -58,7 +58,8 @@ const NavBar = () => {
   const role = useMemo(() => {
     if (!auth) return 'guest';
     if (auth.role === 'admin' || auth.isAdmin) return 'admin';
-    if (auth.role === 'rectorat') return 'rectorat';
+    if (auth.role === 'cpd' || auth.role === 'rectorat') return 'cpd';
+    if (auth.role === 'cpc') return 'cpc';
     if (auth.role === 'teacher' || auth.role === 'editor' || auth.isEditor) return 'teacher';
     return 'student';
   }, [auth]);
@@ -156,20 +157,20 @@ const NavBar = () => {
         <div style={{
           display: 'flex', alignItems: 'center', gap: 2
         }} className="cc-nav-desktop">
-          <NavLink icon="🎮" label={(isTeacher || role === 'rectorat') ? "Modes de jeu" : "Jouer"} to="/modes" active={isActive('/modes')} navigate={navigate} />
+          <NavLink icon="🎮" label={(isTeacher || role === 'cpd' || role === 'cpc') ? "Modes de jeu" : "Jouer"} to="/modes" active={isActive('/modes')} navigate={navigate} />
 
-          {role === 'rectorat' && (
-            <NavLink icon="🏛️" label="Dashboard" to="/rectorat" active={isActive('/rectorat')} navigate={navigate} />
+          {(role === 'cpd' || role === 'cpc') && (
+            <NavLink icon="🏛️" label={role === 'cpd' ? "Dashboard CPD" : "Dashboard CPC"} to="/rectorat" active={isActive('/rectorat')} navigate={navigate} />
           )}
 
-          {(isTeacher || role === 'rectorat') && (
+          {(isTeacher || role === 'cpd' || role === 'cpc') && (
             <NavDropdown icon="📚" label="Entraînement" active={isActive('/training-arena')}>
               <DropdownItem icon="➕" label="Créer une session" to="/training-arena/setup" navigate={navigate} active={isActive('/training-arena/setup')} />
               <DropdownItem icon="📋" label="Gérer les matchs" to="/training-arena/manager" navigate={navigate} active={isActive('/training-arena/manager')} />
             </NavDropdown>
           )}
 
-          {(isTeacher || role === 'rectorat') && (
+          {(isTeacher || role === 'cpd' || role === 'cpc') && (
             <NavDropdown icon="🏆" label="Tournoi" active={isActive('/teacher/tournament') || isActive('/crazy-arena')}>
               <DropdownItem icon="⚙️" label="Configuration" to="/teacher/tournament" navigate={navigate} active={isActive('/teacher/tournament')} />
               <DropdownItem icon="📋" label="Gérer les matchs" to="/crazy-arena/manager" navigate={navigate} active={isActive('/crazy-arena/manager')} />
@@ -248,12 +249,13 @@ const NavBar = () => {
           display: 'flex', flexDirection: 'column', gap: 4,
           position: 'sticky', top: 62, zIndex: 999
         }}>
-          <MobileLink icon="🎮" label={isTeacher ? "Modes de jeu" : "Jouer"} to="/modes" navigate={navigate} active={isActive('/modes')} />
-          {isTeacher && <MobileLink icon="📚" label="Entraînement — Créer" to="/training-arena/setup" navigate={navigate} active={isActive('/training-arena/setup')} />}
-          {isTeacher && <MobileLink icon="📋" label="Entraînement — Matchs" to="/training-arena/manager" navigate={navigate} active={isActive('/training-arena/manager')} />}
-          {isTeacher && <MobileLink icon="🏆" label="Tournoi — Config" to="/teacher/tournament" navigate={navigate} active={isActive('/teacher/tournament')} />}
-          {isTeacher && <MobileLink icon="📋" label="Tournoi — Matchs" to="/crazy-arena/manager" navigate={navigate} active={isActive('/crazy-arena/manager')} />}
-          {isTeacher && <MobileLink icon="🏅" label="Compétition" to="/crazy-arena/competition" navigate={navigate} active={isActive('/crazy-arena/competition')} />}
+          <MobileLink icon="🎮" label={(isTeacher || role === 'cpd' || role === 'cpc') ? "Modes de jeu" : "Jouer"} to="/modes" navigate={navigate} active={isActive('/modes')} />
+          {(role === 'cpd' || role === 'cpc') && <MobileLink icon="🏛️" label={role === 'cpd' ? "Dashboard CPD" : "Dashboard CPC"} to="/rectorat" navigate={navigate} active={isActive('/rectorat')} />}
+          {(isTeacher || role === 'cpd' || role === 'cpc') && <MobileLink icon="📚" label="Entraînement — Créer" to="/training-arena/setup" navigate={navigate} active={isActive('/training-arena/setup')} />}
+          {(isTeacher || role === 'cpd' || role === 'cpc') && <MobileLink icon="📋" label="Entraînement — Matchs" to="/training-arena/manager" navigate={navigate} active={isActive('/training-arena/manager')} />}
+          {(isTeacher || role === 'cpd' || role === 'cpc') && <MobileLink icon="🏆" label="Tournoi — Config" to="/teacher/tournament" navigate={navigate} active={isActive('/teacher/tournament')} />}
+          {(isTeacher || role === 'cpd' || role === 'cpc') && <MobileLink icon="📋" label="Tournoi — Matchs" to="/crazy-arena/manager" navigate={navigate} active={isActive('/crazy-arena/manager')} />}
+          {(isTeacher || role === 'cpd' || role === 'cpc') && <MobileLink icon="🏅" label="Compétition" to="/crazy-arena/competition" navigate={navigate} active={isActive('/crazy-arena/competition')} />}
           {!isFree() && <MobileLink icon="📊" label="Performances" to="/my-performance" navigate={navigate} active={isActive('/my-performance')} />}
           <MobileLink icon="💰" label="Tarifs" to="/pricing" navigate={navigate} active={isActive('/pricing')} />
           <MobileLink icon="�" label="Présentation" to="/presentation" navigate={navigate} active={isActive('/presentation')} />

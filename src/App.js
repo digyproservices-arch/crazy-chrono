@@ -129,7 +129,7 @@ const RequireAdmin = ({ children }) => {
 const RequireRectorat = ({ children }) => {
   try {
     const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
-    if (a && (a.role === 'rectorat' || a.role === 'admin' || a.isAdmin)) return children;
+    if (a && (a.role === 'cpd' || a.role === 'cpc' || a.role === 'rectorat' || a.role === 'admin' || a.isAdmin)) return children;
   } catch {}
   return <Navigate to="/modes" replace />;
 };
@@ -580,7 +580,7 @@ function App() {
               const json = await res.json().catch(() => ({}));
               if (json && json.ok && json.user) {
                 const role = json.role || 'user';
-                const isPro = (json.subscription === 'active' || json.subscription === 'trialing' || role === 'admin' || role === 'teacher');
+                const isPro = (json.subscription === 'active' || json.subscription === 'trialing' || role === 'admin' || role === 'teacher' || role === 'cpd' || role === 'cpc' || role === 'rectorat');
                 try { localStorage.setItem('cc_subscription_status', isPro ? 'pro' : 'free'); } catch {}
                 try { localStorage.setItem('cc_user_id', json.user.id); } catch {}
                 try { 
@@ -590,6 +590,8 @@ function App() {
                     id: json.user.id, 
                     email: json.user.email, 
                     role, 
+                    region: json.region || null,
+                    circonscription_id: json.circonscription_id || null,
                     isAdmin: role === 'admin', 
                     isEditor: role !== 'user' 
                   };
