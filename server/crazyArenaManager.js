@@ -1911,6 +1911,23 @@ class CrazyArenaManager {
       zones: zones.map(z => ({ id: z.id, type: z.type, content: z.content, pairId: z.pairId || '', isDistractor: !!z.isDistractor, points: z.points, arcPoints: z.arcPoints, angle: z.angle, mathOffset: z.mathOffset }))
     });
 
+    // 📊 DIAGNOSTIC PÉDAGOGIQUE: Initialiser roundHistory (Arena)
+    match._roundHistory = [];
+    const gpA0 = match._lastGoodPairIds || {};
+    match._roundHistory.push({
+      round_number: 1,
+      zones: zones.map(z => ({ id: z.id, type: z.type, content: z.content, pairId: z.pairId || null, isDistractor: !!z.isDistractor })),
+      good_pair_type: gpA0.pairType || null,
+      good_pair_theme: gpA0.theme || null,
+      good_pair_level: gpA0.level || null,
+      good_pair_content: gpA0.contentA ? { a: gpA0.contentA, b: gpA0.contentB } : null,
+      winner_player_id: null,
+      winner_display_name: null,
+      winner_time_ms: null,
+      errors: [],
+      _startedAt: Date.now()
+    });
+
     // ✅ Log round to monitoring dashboard
     const pairZones = zones.filter(z => z.pairId);
     _logArenaRound({
@@ -1974,6 +1991,25 @@ class CrazyArenaManager {
             timestamp: new Date().toISOString(),
             zones: newZones.map(z => ({ id: z.id, type: z.type, content: z.content, pairId: z.pairId || '', isDistractor: !!z.isDistractor, points: z.points, arcPoints: z.arcPoints, angle: z.angle, mathOffset: z.mathOffset }))
           });
+
+          // 📊 DIAGNOSTIC: Pousser nouveau round (changement de manche par timer, Arena)
+          if (match._roundHistory) {
+            const gpATimer = match._lastGoodPairIds || {};
+            match._roundHistory.push({
+              round_number: match._roundHistory.length + 1,
+              zones: newZones.map(z => ({ id: z.id, type: z.type, content: z.content, pairId: z.pairId || null, isDistractor: !!z.isDistractor })),
+              good_pair_type: gpATimer.pairType || null,
+              good_pair_theme: gpATimer.theme || null,
+              good_pair_level: gpATimer.level || null,
+              good_pair_content: gpATimer.contentA ? { a: gpATimer.contentA, b: gpATimer.contentB } : null,
+              winner_player_id: null,
+              winner_display_name: null,
+              winner_time_ms: null,
+              errors: [],
+              _startedAt: Date.now()
+            });
+          }
+
           // ✅ Log round to monitoring
           const _pz = newZones.filter(z => z.pairId);
           _logArenaRound({
@@ -2358,6 +2394,12 @@ class CrazyArenaManager {
       });
       player.errors = (player.errors || 0) + 1;
 
+      // 📊 DIAGNOSTIC: Enregistrer l'erreur dans le roundHistory courant (Arena)
+      if (match._roundHistory && match._roundHistory.length > 0) {
+        const lastEntryA = match._roundHistory[match._roundHistory.length - 1];
+        lastEntryA.errors.push({ player_id: studentId, display_name: player.name, timestamp: Date.now() });
+      }
+
       // 💾 PERSISTENCE: Sauvegarder les erreurs Arena en DB
       this.persistArenaScoreUpdate(matchId, studentId);
     }
@@ -2422,6 +2464,16 @@ class CrazyArenaManager {
           maxExcluded: MAX_EXCLUDED_PAIRS
         });
         
+        // 📊 DIAGNOSTIC: Enregistrer le gagnant dans le roundHistory courant (Arena)
+        if (match._roundHistory && match._roundHistory.length > 0) {
+          const lastEntryAW = match._roundHistory[match._roundHistory.length - 1];
+          if (!lastEntryAW.winner_player_id) {
+            lastEntryAW.winner_player_id = studentId;
+            lastEntryAW.winner_display_name = player.name;
+            lastEntryAW.winner_time_ms = lastEntryAW._startedAt ? Date.now() - lastEntryAW._startedAt : (timeMs || null);
+          }
+        }
+
         logger.info('[CrazyArena][Arena] Démarrage génération nouvelle carte', { 
           matchId, 
           excludedPairs: match.validatedPairIds.size
@@ -2446,6 +2498,24 @@ class CrazyArenaManager {
               zonesCount: newZones?.length || 0
             });
             
+            // 📊 DIAGNOSTIC: Pousser nouveau round dans l'historique (Arena)
+            if (match._roundHistory) {
+              const gpANew = match._lastGoodPairIds || {};
+              match._roundHistory.push({
+                round_number: match._roundHistory.length + 1,
+                zones: newZones.map(z => ({ id: z.id, type: z.type, content: z.content, pairId: z.pairId || null, isDistractor: !!z.isDistractor })),
+                good_pair_type: gpANew.pairType || null,
+                good_pair_theme: gpANew.theme || null,
+                good_pair_level: gpANew.level || null,
+                good_pair_content: gpANew.contentA ? { a: gpANew.contentA, b: gpANew.contentB } : null,
+                winner_player_id: null,
+                winner_display_name: null,
+                winner_time_ms: null,
+                errors: [],
+                _startedAt: Date.now()
+              });
+            }
+
             const roundPayload = {
               zones: newZones,
               roundIndex: match.roundsPlayed,
@@ -3425,6 +3495,91 @@ class CrazyArenaManager {
           }
         }
       }
+      // 📊 DIAGNOSTIC PÉDAGOGIQUE: Persister match_rounds + match_player_summary (Arena)
+      if (match._roundHistory && match._roundHistory.length > 0) {
+        try {
+          const roundRows = match._roundHistory.map(rh => ({
+            session_id: matchId,
+            round_number: rh.round_number,
+            zones: rh.zones,
+            good_pair_type: rh.good_pair_type,
+            good_pair_theme: rh.good_pair_theme,
+            good_pair_level: rh.good_pair_level,
+            good_pair_content: rh.good_pair_content,
+            winner_player_id: rh.winner_player_id,
+            winner_display_name: rh.winner_display_name,
+            winner_time_ms: rh.winner_time_ms,
+            errors: rh.errors || []
+          }));
+          await this.supabase.from('match_rounds').insert(roundRows);
+          logger.info('[CrazyArena][Arena] 📊 match_rounds insérés:', roundRows.length);
+        } catch (mrErr) {
+          logger.warn('[CrazyArena][Arena] ⚠️ Erreur insert match_rounds:', mrErr.message);
+        }
+
+        try {
+          const playerMapA = {};
+          for (const rh of match._roundHistory) {
+            if (rh.winner_player_id) {
+              if (!playerMapA[rh.winner_player_id]) playerMapA[rh.winner_player_id] = { found: 0, errors: 0, themes: {}, types: {}, times: [], name: '' };
+              const ps = playerMapA[rh.winner_player_id];
+              ps.found++;
+              ps.name = rh.winner_display_name || ps.name;
+              if (rh.winner_time_ms) ps.times.push(rh.winner_time_ms);
+              if (rh.good_pair_theme) {
+                if (!ps.themes[rh.good_pair_theme]) ps.themes[rh.good_pair_theme] = { found: 0, missed: 0, errors: 0 };
+                ps.themes[rh.good_pair_theme].found++;
+              }
+              if (rh.good_pair_type) {
+                if (!ps.types[rh.good_pair_type]) ps.types[rh.good_pair_type] = { found: 0 };
+                ps.types[rh.good_pair_type].found++;
+              }
+            }
+            for (const err of (rh.errors || [])) {
+              if (!playerMapA[err.player_id]) playerMapA[err.player_id] = { found: 0, errors: 0, themes: {}, types: {}, times: [], name: '' };
+              playerMapA[err.player_id].errors++;
+              playerMapA[err.player_id].name = err.display_name || playerMapA[err.player_id].name;
+              if (rh.good_pair_theme) {
+                if (!playerMapA[err.player_id].themes[rh.good_pair_theme]) playerMapA[err.player_id].themes[rh.good_pair_theme] = { found: 0, missed: 0, errors: 0 };
+                playerMapA[err.player_id].themes[rh.good_pair_theme].errors++;
+              }
+            }
+          }
+
+          const summaryRowsA = Object.entries(playerMapA).map(([pid, ps]) => {
+            const matchPlayer = ranking.find(r => r.studentId === pid);
+            const recommendations = [];
+            for (const [theme, stats] of Object.entries(ps.themes)) {
+              if (stats.errors > stats.found) recommendations.push(`Renforcer le thème "${theme}" (${stats.errors} erreurs pour ${stats.found} réussites)`);
+            }
+            if (ps.times.length > 0) {
+              const avg = Math.round(ps.times.reduce((a, b) => a + b, 0) / ps.times.length);
+              if (avg > 10000) recommendations.push(`Temps de réponse élevé (${(avg / 1000).toFixed(1)}s en moyenne)`);
+            }
+            return {
+              session_id: matchId,
+              player_id: pid,
+              display_name: ps.name || (matchPlayer?.name) || pid,
+              total_score: matchPlayer?.score || ps.found,
+              total_pairs: ps.found,
+              total_errors: ps.errors,
+              stats_by_theme: ps.themes,
+              stats_by_type: ps.types,
+              avg_response_time_ms: ps.times.length > 0 ? Math.round(ps.times.reduce((a, b) => a + b, 0) / ps.times.length) : null,
+              recommendations,
+              teacher_notes: ''
+            };
+          });
+
+          if (summaryRowsA.length > 0) {
+            await this.supabase.from('match_player_summary').insert(summaryRowsA);
+            logger.info('[CrazyArena][Arena] 📊 match_player_summary insérés:', summaryRowsA.length);
+          }
+        } catch (psErr) {
+          logger.warn('[CrazyArena][Arena] ⚠️ Erreur insert match_player_summary:', psErr.message);
+        }
+      }
+
     } catch (err) {
       logger.error('[CrazyArena][Arena] ❌ Erreur persistArenaMatchEnd', { matchId, error: err.message });
     }
