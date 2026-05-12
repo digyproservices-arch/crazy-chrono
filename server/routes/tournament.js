@@ -833,6 +833,21 @@ router.get('/groups/:id/match-history', requireSupabase, requireAuth, async (req
 router.delete('/groups/:id', requireSupabase, requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
+    console.log(`[Tournament API] DELETE group id=${id} by user=${req.authUser?.email || '?'}`);
+    
+    // Vérifier que le groupe existe avant suppression
+    const { data: existing, error: checkErr } = await supabase
+      .from('tournament_groups')
+      .select('id, name, match_id, status')
+      .eq('id', id)
+      .single();
+    
+    if (checkErr || !existing) {
+      console.warn(`[Tournament API] Group ${id} not found for deletion:`, checkErr?.message);
+      return res.json({ success: false, error: 'Groupe introuvable' });
+    }
+    
+    console.log(`[Tournament API] Deleting group: ${existing.name} (status=${existing.status}, match_id=${existing.match_id || 'none'})`);
     
     const { error } = await supabase
       .from('tournament_groups')
@@ -841,6 +856,7 @@ router.delete('/groups/:id', requireSupabase, requireAuth, async (req, res) => {
     
     if (error) throw error;
     
+    console.log(`[Tournament API] ✅ Group ${id} deleted successfully`);
     res.json({ success: true });
   } catch (error) {
     console.error('[Tournament API] Error deleting group:', error);

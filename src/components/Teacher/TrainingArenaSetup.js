@@ -437,10 +437,15 @@ export default function TrainingArenaSetup() {
       
       if (data.success) {
         alert('Groupe supprimé.');
+        try { sessionStorage.removeItem(CACHE_KEY_TOURNAMENT); } catch {}
         loadTournamentData();
+      } else {
+        console.error('[TrainingArena] Delete group failed:', data.error);
+        alert('Erreur lors de la suppression du groupe : ' + (data.error || 'Erreur inconnue'));
       }
     } catch (error) {
       console.error('[TrainingArena] Error deleting group:', error);
+      alert('Erreur réseau lors de la suppression : ' + error.message);
     }
   };
 
@@ -587,17 +592,32 @@ export default function TrainingArenaSetup() {
     const msg = `Supprimer ${toDelete.length} groupe(s) ?${playing.length > 0 ? `\n\n⚠️ ${playing.length} match(s) en cours seront interrompus !` : ''}`;
     if (!window.confirm(msg)) return;
 
+    const failures = [];
     for (const group of toDelete) {
       try {
-        // If match exists, delete it via socket first
+        // If match exists, delete it via socket first and wait a bit
         if (group.match_id && socketRef.current) {
           socketRef.current.emit('delete-match', { matchId: group.match_id });
+          await new Promise(r => setTimeout(r, 300));
         }
-        await fetch(`${getBackendUrl()}/api/tournament/groups/${group.id}`, { method: 'DELETE', headers: getAuthHeaders() });
-      } catch (e) { console.error('[TrainingArena] Bulk delete error:', e); }
+        const res = await fetch(`${getBackendUrl()}/api/tournament/groups/${group.id}`, { method: 'DELETE', headers: getAuthHeaders() });
+        const data = await res.json();
+        if (!data.success) {
+          failures.push({ name: group.name || group.id, error: data.error || 'Erreur inconnue' });
+        }
+      } catch (e) {
+        console.error('[TrainingArena] Bulk delete error:', e);
+        failures.push({ name: group.name || group.id, error: e.message });
+      }
     }
     setCheckedGroups(new Set());
+    try { sessionStorage.removeItem(CACHE_KEY_TOURNAMENT); } catch {}
     loadTournamentData();
+    if (failures.length > 0) {
+      alert(`⚠️ ${failures.length} groupe(s) n'ont pas pu être supprimés :\n${failures.map(f => `• ${f.name}: ${f.error}`).join('\n')}`);
+    } else {
+      alert(`✅ ${toDelete.length} groupe(s) supprimé(s) avec succès.`);
+    }
   };
 
   // Bulk start all ready matches
