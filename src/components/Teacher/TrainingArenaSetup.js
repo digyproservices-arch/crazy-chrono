@@ -898,7 +898,7 @@ export default function TrainingArenaSetup() {
                         <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: lc.bg, color: lc.color, fontWeight: 700, border: `1px solid ${lc.border}22` }}>
                           {perf.level}
                         </span>
-                        <span style={{ fontSize: 10, color: '#6b7280' }}>📊 {perf.avgScore} pts</span>
+                        <span style={{ fontSize: 10, color: '#6b7280' }} title="Score moyen sur tous les matchs">📊 moy. {perf.avgScore} pts</span>
                         <span style={{ fontSize: 10, color: '#6b7280' }}>🎯 {perf.accuracy}%</span>
                         {perf.competitiveMatches > 0 && (
                           <span style={{ fontSize: 10, color: '#6b7280' }}>🏆 {perf.winRate}%</span>
@@ -1166,7 +1166,7 @@ export default function TrainingArenaSetup() {
                           )}
                           {perf && perf.totalMatches > 0 && (
                             <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 'auto' }}>
-                              {perf.level} · {perf.avgScore} pts · 🎯{perf.accuracy}%
+                              {perf.level} · moy. {perf.avgScore} pts · 🎯{perf.accuracy}%
                             </span>
                           )}
                         </div>
