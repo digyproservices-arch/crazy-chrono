@@ -487,8 +487,8 @@ export default function TrainingArenaSetup() {
       // Update group status locally
       setGroups(prev => prev.map(g => g.match_id === matchId ? { ...g, status: 'playing' } : g));
     });
-    socket.on('training:game-end', ({ matchId }) => {
-      updateMatch(matchId, { status: 'finished' });
+    socket.on('training:game-end', ({ matchId, ranking }) => {
+      updateMatch(matchId, { status: 'finished', ranking: ranking || [] });
       setGroups(prev => prev.map(g => g.match_id === matchId ? { ...g, status: 'finished' } : g));
     });
     socket.on('training:tie-waiting-teacher', ({ matchId, tiedPlayers, ranking }) => {
@@ -1150,6 +1150,8 @@ export default function TrainingArenaSetup() {
                         'Expert': '#f59e0b', 'Avancé': '#3b82f6',
                         'Intermédiaire': '#0ea5e9', 'Débutant': '#ef4444', 'Nouveau': '#9ca3af'
                       };
+                      const live = group.match_id ? matchesLive[group.match_id] : null;
+                      const matchResult = live?.ranking?.find(r => r.studentId === s.id);
                       return (
                         <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
                           <span style={{ width: 6, height: 6, borderRadius: '50%', background: levelColors[perf?.level] || '#9ca3af', flexShrink: 0 }} />
@@ -1164,11 +1166,19 @@ export default function TrainingArenaSetup() {
                               title="Cliquer pour copier"
                             >{s.access_code}</code>
                           )}
-                          {perf && perf.totalMatches > 0 && (
-                            <span style={{ fontSize: 11, color: '#6b7280', marginLeft: 'auto' }}>
-                              {perf.level} · moy. {perf.avgScore} pts · 🎯{perf.accuracy}%
-                            </span>
-                          )}
+                          <span style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+                            {matchResult && (
+                              <span style={{ fontSize: 11, fontWeight: 700, color: matchResult.position === 1 ? '#f59e0b' : '#1AACBE', background: matchResult.position === 1 ? '#fef3c7' : '#f0fafb', padding: '1px 6px', borderRadius: 4 }}
+                                title="Score du dernier match">
+                                {matchResult.score} pts
+                              </span>
+                            )}
+                            {perf && perf.totalMatches > 0 && (
+                              <span style={{ fontSize: 11, color: '#6b7280' }}>
+                                {perf.level} · moy. {perf.avgScore} pts · 🎯{perf.accuracy}%
+                              </span>
+                            )}
+                          </span>
                         </div>
                       );
                     })}
