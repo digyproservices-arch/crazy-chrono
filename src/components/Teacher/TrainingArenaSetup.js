@@ -61,6 +61,7 @@ export default function TrainingArenaSetup() {
   const [groupConfigs, setGroupConfigs] = useState({}); // groupId → config snapshot
   const [tourStatus, setTourStatus] = useState(null); // { tours, currentTour, classWinner }
   const [creatingNextTour, setCreatingNextTour] = useState(false);
+  const [groupLastResults, setGroupLastResults] = useState({}); // groupId → [{studentId, score, position}]
   // Live match data from Socket.IO (inline cockpit)
   const [matchesLive, setMatchesLive] = useState({}); // matchId → { connectedPlayers, readyPlayers, players[], status, tiedPlayers, playersReadyCount, playersTotalCount }
   const socketRef = useRef(null);
@@ -173,6 +174,7 @@ export default function TrainingArenaSetup() {
             (d.performance || []).forEach(s => { map[s.studentId] = s; });
             setPerfMap(map);
             if (d.tourStatus?.success) setTourStatus(d.tourStatus);
+            if (d.groupLastResults) setGroupLastResults(d.groupLastResults);
             const elapsed = Math.round(performance.now() - t0);
             console.log(`[TrainingArena] ✅ setup-data OK en ${elapsed}ms — ${d.students?.length} élèves, ${d.groups?.length} groupes`);
             try {
@@ -1151,7 +1153,8 @@ export default function TrainingArenaSetup() {
                         'Intermédiaire': '#0ea5e9', 'Débutant': '#ef4444', 'Nouveau': '#9ca3af'
                       };
                       const live = group.match_id ? matchesLive[group.match_id] : null;
-                      const matchResult = live?.ranking?.find(r => r.studentId === s.id);
+                      const matchResult = live?.ranking?.find(r => r.studentId === s.id)
+                        || (groupLastResults[group.id] || []).find(r => r.studentId === s.id);
                       return (
                         <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
                           <span style={{ width: 6, height: 6, borderRadius: '50%', background: levelColors[perf?.level] || '#9ca3af', flexShrink: 0 }} />

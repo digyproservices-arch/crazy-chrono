@@ -3630,6 +3630,61 @@ router.get('/classes/:classId/setup-data', requireSupabase, requireAuth, ...vali
     let classWinner = null;
     if (lastCompleteTour && lastCompleteTour.winners.length === 1) classWinner = lastCompleteTour.winners[0];
 
+    // ── 6. Charger les résultats du dernier match pour les groupes terminés ──
+    const finishedGroupsWithMatch = groups.filter(g => g.status === 'finished' && g.match_id);
+    let groupLastResults = {};
+    if (finishedGroupsWithMatch.length > 0) {
+      try {
+        const matchUuids = finishedGroupsWithMatch
+          .map(g => g.match_id.replace(/^match_/, ''))
+          .filter(id => isValidUuid(id));
+        
+        if (matchUuids.length > 0) {
+          const { data: sessions } = await supabase
+            .from('training_sessions')
+            .select('id, match_id')
+            .in('match_id', matchUuids);
+          
+          if (sessions && sessions.length > 0) {
+            const sessionIds = sessions.map(s => s.id);
+            const sessionToMatchId = Object.fromEntries(sessions.map(s => [s.id, s.match_id]));
+            
+            const { data: lastResults } = await supabase
+              .from('training_results')
+              .select('session_id, student_id, position, score, pairs_validated, errors')
+              .in('session_id', sessionIds)
+              .gt('score', 0)
+              .order('position', { ascending: true });
+            
+            if (lastResults && lastResults.length > 0) {
+              // Map: match_uuid → results array
+              const resultsByMatchUuid = {};
+              for (const r of lastResults) {
+                const matchUuid = sessionToMatchId[r.session_id];
+                if (!resultsByMatchUuid[matchUuid]) resultsByMatchUuid[matchUuid] = [];
+                resultsByMatchUuid[matchUuid].push({
+                  studentId: getOrigId(r.student_id),
+                  position: r.position,
+                  score: r.score,
+                  pairsValidated: r.pairs_validated,
+                  errors: r.errors
+                });
+              }
+              // Map: group.match_id → results
+              for (const g of finishedGroupsWithMatch) {
+                const uuid = g.match_id.replace(/^match_/, '');
+                if (resultsByMatchUuid[uuid]) {
+                  groupLastResults[g.id] = resultsByMatchUuid[uuid];
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Tournament API] ⚠️ Erreur chargement lastResults:', e.message);
+      }
+    }
+
     const elapsed = Date.now() - t0;
     console.log(`[Tournament API] ⚡ setup-data class=${classId} mode=${mode}: ${students.length} students, ${groups.length} groups, ${elapsed}ms`);
 
@@ -3640,6 +3695,7 @@ router.get('/classes/:classId/setup-data', requireSupabase, requireAuth, ...vali
       groups,
       performance: Object.values(perfMap),
       tourStatus: { success: true, tours, currentTour, classWinner },
+      groupLastResults,
       _timing: elapsed
     });
   } catch (error) {
