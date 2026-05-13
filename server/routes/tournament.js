@@ -2576,6 +2576,8 @@ router.get('/classes/:classId/students-performance', requireSupabase, requireAut
     }
     
     const allAuthIds = [...new Set(uuidIds)];
+    // Tous les IDs possibles (auth UUIDs + student IDs originaux)
+    const allQueryIds = [...new Set([...allAuthIds, ...studentIds])];
     
     // 3. Récupérer tous les training_results en une seule requête
     let trainingResults = [];
@@ -2588,13 +2590,13 @@ router.get('/classes/:classId/students-performance', requireSupabase, requireAut
       trainingResults = tr || [];
     }
     
-    // 4. Récupérer les match_results (Arena) aussi
+    // 4. Récupérer les match_results (Arena) aussi — chercher par TOUS les IDs possibles
     let arenaResults = [];
-    if (allAuthIds.length > 0) {
+    if (allQueryIds.length > 0) {
       const { data: ar } = await supabase
         .from('match_results')
         .select('student_id, position, score, time_ms, pairs_validated, errors, created_at')
-        .in('student_id', allAuthIds)
+        .in('student_id', allQueryIds)
         .order('created_at', { ascending: false });
       arenaResults = ar || [];
     }
@@ -3548,6 +3550,9 @@ router.get('/classes/:classId/setup-data', requireSupabase, requireAuth, ...vali
       uuidIds.push(m.user_id);
     }
     const allAuthIds = [...new Set(uuidIds)];
+    // Tous les IDs possibles (auth UUIDs + student IDs originaux comme CAMILLE-CE1A-4968)
+    // pour capturer les résultats enregistrés sous n'importe quel ID
+    const allQueryIds = [...new Set([...allAuthIds, ...studentIds])];
 
     // ── 3. Troisième vague parallèle : training_results + match_results + students pour tour-status ──
     const tourGroups = tourGroupsResult.data || [];
@@ -3565,10 +3570,10 @@ router.get('/classes/:classId/setup-data', requireSupabase, requireAuth, ...vali
             .in('student_id', allAuthIds)
             .order('created_at', { ascending: false })
         : Promise.resolve({ data: [] }),
-      allAuthIds.length > 0
+      allQueryIds.length > 0
         ? supabase.from('match_results')
             .select('student_id, position, score, time_ms, pairs_validated, errors, created_at')
-            .in('student_id', allAuthIds)
+            .in('student_id', allQueryIds)
             .order('created_at', { ascending: false })
         : Promise.resolve({ data: [] }),
       allTourStudentIds.size > 0
@@ -3596,11 +3601,17 @@ router.get('/classes/:classId/setup-data', requireSupabase, requireAuth, ...vali
 
     // Exclure les abandons (score=0 ET temps < 30s) — même logique que la page Performance
     const isAbandonResult = (r) => (r.score || 0) === 0 && (!r.time_ms || r.time_ms < 30000);
+    // Déduplications par élève: éviter de compter deux fois le même résultat sous différents IDs
+    const seenResults = {};
 
     for (const r of trainingResults) {
       if (isAbandonResult(r)) continue;
-      const stat = perfMap[getOrigId(r.student_id)];
+      const origId = getOrigId(r.student_id);
+      const stat = perfMap[origId];
       if (!stat) continue;
+      const key = `${origId}_${r.created_at}_${r.score}`;
+      if (seenResults[key]) continue;
+      seenResults[key] = true;
       stat.totalMatches++;
       if (r.position != null) { stat.competitiveMatches++; if (r.position === 1) stat.wins++; }
       stat.totalScore += r.score || 0;
@@ -3609,8 +3620,12 @@ router.get('/classes/:classId/setup-data', requireSupabase, requireAuth, ...vali
     }
     for (const r of arenaResults) {
       if (isAbandonResult(r)) continue;
-      const stat = perfMap[getOrigId(r.student_id)];
+      const origId = getOrigId(r.student_id);
+      const stat = perfMap[origId];
       if (!stat) continue;
+      const key = `${origId}_${r.created_at}_${r.score}`;
+      if (seenResults[key]) continue;
+      seenResults[key] = true;
       stat.totalMatches++; stat.competitiveMatches++;
       if (r.position === 1) stat.wins++;
       stat.totalScore += r.score || 0;
