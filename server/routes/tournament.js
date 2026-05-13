@@ -2876,19 +2876,28 @@ router.get('/students/:studentId/performance', requireSupabase, requireAuth, ...
     }
 
     // 3. Calculer les stats (séparer solo et compétitif)
-    const competitiveResults = results.filter(r => r.mode !== 'solo');
-    const soloResults = results.filter(r => r.mode === 'solo');
+    // Exclure les abandons (score=0 ET temps < 30s) des calculs de moyenne
+    const MIN_TIME_MS = 30000; // 30 secondes minimum
+    const isAbandon = (r) => (r.score || 0) === 0 && (!r.time_ms || r.time_ms < MIN_TIME_MS);
+    const validResults = results.filter(r => !isAbandon(r));
+    const abandonCount = results.length - validResults.length;
+    if (abandonCount > 0) {
+      console.log(`[Performance API] ${abandonCount} abandon(s) exclus des moyennes (score=0 + temps<30s)`);
+    }
+
+    const competitiveResults = validResults.filter(r => r.mode !== 'solo');
+    const soloResults = validResults.filter(r => r.mode === 'solo');
     const totalMatches = results.length;
+    const validMatches = validResults.length;
     const competitiveMatches = competitiveResults.length;
     const wins = competitiveResults.filter(r => r.position === 1).length;
-    const scores = results.map(r => r.score || 0);
-    const times = results.map(r => r.time_ms || 0).filter(t => t > 0);
-    const pairs = results.map(r => r.pairs_validated || 0);
-    const errors = results.map(r => r.errors || 0);
+    const scores = validResults.map(r => r.score || 0);
+    const times = validResults.map(r => r.time_ms || 0).filter(t => t > 0);
+    const pairs = validResults.map(r => r.pairs_validated || 0);
+    const errors = validResults.map(r => r.errors || 0);
 
-    // Vitesse = paires par minute (seuil minimum 30s pour éviter les valeurs aberrantes / abandons précoces)
-    const MIN_TIME_MS = 30000; // 30 secondes minimum pour un calcul de vitesse fiable
-    const speeds = results.map(r => {
+    // Vitesse = paires par minute
+    const speeds = validResults.map(r => {
       if (!r.time_ms || r.time_ms < MIN_TIME_MS || !r.pairs_validated) return 0;
       return (r.pairs_validated / (r.time_ms / 60000));
     }).filter(s => s > 0);
@@ -2905,6 +2914,8 @@ router.get('/students/:studentId/performance', requireSupabase, requireAuth, ...
 
     const stats = {
       totalMatches,
+      validMatches,
+      abandons: abandonCount,
       competitiveMatches,
       soloMatches: soloResults.length,
       totalWins: wins,
@@ -3573,7 +3584,11 @@ router.get('/classes/:classId/setup-data', requireSupabase, requireAuth, ...vali
       };
     }
 
+    // Exclure les abandons (score=0 ET temps < 30s) — même logique que la page Performance
+    const isAbandonResult = (r) => (r.score || 0) === 0 && (!r.time_ms || r.time_ms < 30000);
+
     for (const r of trainingResults) {
+      if (isAbandonResult(r)) continue;
       const stat = perfMap[getOrigId(r.student_id)];
       if (!stat) continue;
       stat.totalMatches++;
@@ -3583,6 +3598,7 @@ router.get('/classes/:classId/setup-data', requireSupabase, requireAuth, ...vali
       stat.totalErrors += r.errors || 0;
     }
     for (const r of arenaResults) {
+      if (isAbandonResult(r)) continue;
       const stat = perfMap[getOrigId(r.student_id)];
       if (!stat) continue;
       stat.totalMatches++; stat.competitiveMatches++;

@@ -756,6 +756,7 @@ export default function StudentPerformance() {
                   <tr style={{ background: 'linear-gradient(135deg, #0D6A7A 0%, #148A9C 100%)' }}>
                     <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff', width: 45 }}>#</th>
                     <th style={{ padding: '12px 14px', textAlign: 'left', fontWeight: 700, color: '#fff' }}>Date</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Mode</th>
                     <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Position</th>
                     <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Score</th>
                     <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Paires</th>
@@ -777,6 +778,15 @@ export default function StudentPerformance() {
                         </td>
                         <td style={{ padding: '10px 14px', fontSize: 12, color: '#475569' }}>
                           {formatDate(h.date)}
+                        </td>
+                        <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
+                            background: h.mode === 'solo' ? '#f0fdf4' : h.mode === 'training' ? '#eff6ff' : '#fef3c7',
+                            color: h.mode === 'solo' ? '#059669' : h.mode === 'training' ? '#2563eb' : '#d97706'
+                          }}>
+                            {h.mode === 'solo' ? 'Solo' : h.mode === 'training' ? 'Classe' : 'Arena'}
+                          </span>
                         </td>
                         <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                           {h.position <= 3 ? (
