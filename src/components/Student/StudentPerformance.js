@@ -14,6 +14,42 @@ import {
 
 const MEDAL_EMOJIS = ['🥇', '🥈', '🥉'];
 
+const HelpTip = ({ text }) => {
+  const [show, setShow] = React.useState(false);
+  return (
+    <span style={{ position: 'relative', display: 'inline-block', marginLeft: 4, verticalAlign: 'middle' }}>
+      <span
+        onClick={(e) => { e.stopPropagation(); setShow(!show); }}
+        style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: 15, height: 15, borderRadius: '50%', fontSize: 9, fontWeight: 700,
+          background: '#e2e8f0', color: '#64748b', cursor: 'pointer', userSelect: 'none',
+          border: '1px solid #cbd5e1', lineHeight: 1
+        }}
+        title={text}
+      >?</span>
+      {show && (
+        <>
+          <div onClick={() => setShow(false)} style={{ position: 'fixed', inset: 0, zIndex: 998 }} />
+          <div style={{
+            position: 'absolute', bottom: '120%', left: '50%', transform: 'translateX(-50%)',
+            background: '#1e293b', color: '#f8fafc', fontSize: 11, lineHeight: 1.5,
+            padding: '8px 12px', borderRadius: 8, minWidth: 180, maxWidth: 260,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.25)', zIndex: 999, textAlign: 'left', fontWeight: 400
+          }}>
+            {text}
+            <div style={{
+              position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
+              width: 0, height: 0, borderLeft: '6px solid transparent',
+              borderRight: '6px solid transparent', borderTop: '6px solid #1e293b'
+            }} />
+          </div>
+        </>
+      )}
+    </span>
+  );
+};
+
 const InfoBox = ({ items, title = 'Comment lire ces chiffres ?' }) => {
   const [open, setOpen] = React.useState(false);
   return (
@@ -578,7 +614,7 @@ export default function StudentPerformance() {
       {/* Mode filter */}
       {!noData && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Filtrer :</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Filtrer :<HelpTip text="Filtre les statistiques par mode de jeu. Solo = entraînement seul, Classe = session prof, Multijoueur = salle privée, Arena = compétition ouverte." /></span>
           {[
             { key: 'all', label: 'Tous les modes' },
             { key: 'solo', label: '🟢 Solo' },
@@ -625,17 +661,17 @@ export default function StudentPerformance() {
           {/* ===== STAT CARDS ===== */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 24 }}>
             {[
-              { label: 'Parties jouées', value: (filteredStats || stats).totalMatches, icon: '🎮', color: '#1AACBE' },
+              { label: 'Parties jouées', value: (filteredStats || stats).totalMatches, icon: '🎮', color: '#1AACBE', help: 'Nombre total de parties valides (les abandons de moins de 30s sont exclus).' },
               ...((filteredStats || stats).competitiveMatches > 0 ? [
-                { label: 'Victoires', value: `${(filteredStats || stats).totalWins} (${(filteredStats || stats).winRate}%)`, icon: '🏆', color: '#F5A623', subtitle: `sur ${(filteredStats || stats).competitiveMatches} matchs` }
+                { label: 'Victoires', value: `${(filteredStats || stats).totalWins} (${(filteredStats || stats).winRate}%)`, icon: '🏆', color: '#F5A623', help: `Nombre de 1ères places en modes compétitifs. Le pourcentage = victoires ÷ matchs compétitifs (${(filteredStats || stats).competitiveMatches}).` }
               ] : []),
               ...((filteredStats || stats).soloMatches > 0 ? [
-                { label: 'Sessions solo', value: (filteredStats || stats).soloMatches, icon: '🎯', color: '#0d9488' },
-                { label: 'Record solo', value: (filteredStats || stats).soloBestScore || 0, icon: '🔥', color: '#dc2626' }
+                { label: 'Sessions solo', value: (filteredStats || stats).soloMatches, icon: '🎯', color: '#0d9488', help: 'Nombre de parties jouées en mode Solo (entraînement individuel sans adversaire).' },
+                { label: 'Record solo', value: (filteredStats || stats).soloBestScore || 0, icon: '🔥', color: '#dc2626', help: 'Meilleur score obtenu en mode Solo.' }
               ] : []),
-              { label: 'Score moyen', value: (filteredStats || stats).avgScore, icon: '⭐', color: '#d97706' },
-              { label: 'Précision', value: `${(filteredStats || stats).accuracy}%`, icon: '🎯', color: '#8b5cf6' },
-              { label: 'Rapidité moy.', value: `${(filteredStats || stats).avgSpeed}/min`, icon: '⚡', color: '#0891b2' }
+              { label: 'Score moyen', value: (filteredStats || stats).avgScore, icon: '⭐', color: '#d97706', help: 'Moyenne de tous les scores (paires trouvées) sur les parties valides du filtre actif.' },
+              { label: 'Précision', value: `${(filteredStats || stats).accuracy}%`, icon: '🎯', color: '#8b5cf6', help: 'Paires validées ÷ (Paires + Erreurs) × 100. 100% = aucune erreur.' },
+              { label: 'Rapidité moy.', value: `${(filteredStats || stats).avgSpeed}/min`, icon: '⚡', color: '#0891b2', help: 'Paires validées par minute en moyenne. Seules les parties > 30 secondes comptent.' }
             ].map((s, i) => (
               <div key={i} style={{
                 background: '#fff', borderRadius: 12, padding: '16px 14px',
@@ -644,7 +680,7 @@ export default function StudentPerformance() {
               }}>
                 <div style={{ fontSize: 24, marginBottom: 4 }}>{s.icon}</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
-                <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginTop: 2 }}>{s.label}</div>
+                <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600, marginTop: 2 }}>{s.label}<HelpTip text={s.help} /></div>
               </div>
             ))}
           </div>
@@ -671,7 +707,7 @@ export default function StudentPerformance() {
                 }}>
                   <span style={{ fontSize: 28 }}>🔥</span>
                   <div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: '#059669' }}>{streaks.currentWin} victoire(s) d'affilée !</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#059669' }}>{streaks.currentWin} victoire(s) d'affilée !<HelpTip text="Nombre de victoires consécutives (1ère place) sans interruption. La série se termine dès qu'un match n'est pas gagné." /></div>
                     <div style={{ fontSize: 12, color: '#047857' }}>Série en cours — continue !</div>
                   </div>
                 </div>
@@ -709,7 +745,7 @@ export default function StudentPerformance() {
           {activeTab === 'overview' && (
             <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: '0 0 16px 0' }}>
-                📈 Progression du score
+                📈 Progression du score<HelpTip text="La courbe bleue montre le score de chaque partie. La courbe orange en pointillés est la moyenne glissante sur 5 matchs : si elle monte, l'élève progresse." />
               </h3>
               {filteredProgression.length < 2 ? (
                 <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
@@ -752,7 +788,7 @@ export default function StudentPerformance() {
           {activeTab === 'speed' && (
             <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: '0 0 4px 0' }}>
-                ⚡ Rapidité (paires validées par minute)
+                ⚡ Rapidité (paires validées par minute)<HelpTip text="Nombre de paires trouvées divisé par le temps en minutes. Ex : 6 paires en 2 min = 3/min. Les barres dorées = matchs gagnés." />
               </h3>
               <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px 0' }}>
                 Plus la barre est haute, plus tu es rapide
@@ -816,7 +852,7 @@ export default function StudentPerformance() {
           {activeTab === 'accuracy' && (
             <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: '0 0 4px 0' }}>
-                🎯 Précision (paires vs erreurs)
+                🎯 Précision (paires vs erreurs)<HelpTip text="Barres vertes = paires correctes, barres rouges = erreurs. Taux = paires ÷ (paires + erreurs) × 100. Au-dessus de 80% = excellent." />
               </h3>
               <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px 0' }}>
                 Compare tes bonnes réponses et tes erreurs match par match
@@ -900,13 +936,13 @@ export default function StudentPerformance() {
                   <tr style={{ background: 'linear-gradient(135deg, #0D6A7A 0%, #148A9C 100%)' }}>
                     <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff', width: 45 }}>#</th>
                     <th style={{ padding: '12px 14px', textAlign: 'left', fontWeight: 700, color: '#fff' }}>Date</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Mode</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Position</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Score</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Paires</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Erreurs</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Rapidité</th>
-                    <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Temps</th>
+                    <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Mode<HelpTip text="Solo = entraînement, Classe = session prof, Multi = salle privée, Arena = compétition." /></th>
+                    <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Position<HelpTip text="Classement dans le match (1er, 2e...). Vide en mode Solo car pas de compétition." /></th>
+                    <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Score<HelpTip text="Nombre total de paires trouvées dans cette partie." /></th>
+                    <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Paires<HelpTip text="Nombre de paires correctement validées." /></th>
+                    <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Erreurs<HelpTip text="Nombre de mauvaises tentatives (clics sur une mauvaise paire)." /></th>
+                    <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Rapidité<HelpTip text="Paires par minute. Calculé uniquement si la partie a duré plus de 30 secondes." /></th>
+                    <th style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#fff' }}>Temps<HelpTip text="Durée totale de la partie." /></th>
                   </tr>
                 </thead>
                 <tbody>
