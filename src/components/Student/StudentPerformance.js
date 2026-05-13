@@ -14,6 +14,35 @@ import {
 
 const MEDAL_EMOJIS = ['🥇', '🥈', '🥉'];
 
+const InfoBox = ({ items, title = 'Comment lire ces chiffres ?' }) => {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div style={{ marginTop: 14, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
+      <button
+        onClick={() => setOpen(!open)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+          padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer',
+          fontSize: 12, fontWeight: 600, color: '#64748b', textAlign: 'left'
+        }}
+      >
+        <span style={{ fontSize: 14 }}>💡</span>
+        <span style={{ flex: 1 }}>{title}</span>
+        <span style={{ fontSize: 16, transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'rotate(0)' }}>▾</span>
+      </button>
+      {open && (
+        <div style={{ padding: '0 14px 12px 14px', fontSize: 12, lineHeight: 1.7, color: '#475569' }}>
+          {items.map((item, i) => (
+            <div key={i} style={{ marginBottom: i < items.length - 1 ? 6 : 0 }}>
+              <strong style={{ color: '#1e293b' }}>{item.label}</strong> — {item.text}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Mapping nom de thème (table attempts) → clé catégorie (mastery_progress)
 const THEME_TO_CATEGORY = {
   'Table de 2': 'table_2', 'Table de 3': 'table_3', 'Table de 4': 'table_4',
@@ -620,6 +649,14 @@ export default function StudentPerformance() {
             ))}
           </div>
 
+          <InfoBox title="Comment sont calculées ces statistiques ?" items={[
+            { label: 'Score moyen', text: 'Moyenne arithmétique des scores sur toutes les parties valides (tous modes confondus sauf si un filtre est actif).' },
+            { label: 'Parties exclues', text: 'Les parties abandonnées (score = 0 et durée < 30 secondes) ne sont pas comptabilisées dans les moyennes.' },
+            { label: 'Précision', text: 'Paires validées / (Paires validées + Erreurs) × 100. Plus ce taux est élevé, moins l\u2019élève commet d\u2019erreurs.' },
+            { label: 'Rapidité moyenne', text: 'Nombre de paires validées par minute. Seules les parties de plus de 30 secondes sont prises en compte.' },
+            { label: 'Victoires', text: 'Nombre de 1ères places en modes compétitifs (Classe, Arena, Multijoueur). Les parties solo n\u2019ont pas de classement.' }
+          ]} />
+
           {/* Streaks (compétitif uniquement) */}
           {(filteredStats || stats).competitiveMatches > 0 && (streaks.currentWin > 0 || streaks.bestWin > 0) && (
             <div style={{
@@ -703,6 +740,11 @@ export default function StudentPerformance() {
                   </AreaChart>
                 </ResponsiveContainer>
               )}
+              <InfoBox title="Comment lire ce graphique ?" items={[
+                { label: 'Courbe bleue (Score)', text: 'Le score obtenu à chaque partie, affiché dans l\u2019ordre chronologique.' },
+                { label: 'Courbe orange (Moyenne 5 matchs)', text: 'Moyenne glissante sur les 5 derniers matchs. Elle lisse les variations et montre la tendance générale.' },
+                { label: 'Interprétation', text: 'Si la courbe orange monte, l\u2019élève progresse. Si elle stagne ou descend, cela peut indiquer un besoin d\u2019accompagnement.' }
+              ]} />
             </div>
           )}
 
@@ -761,6 +803,12 @@ export default function StudentPerformance() {
                   <div style={{ fontSize: 10, color: '#b45309' }}>par match</div>
                 </div>
               </div>
+              <InfoBox title="Comment est calculée la rapidité ?" items={[
+                { label: 'Rapidité (paires/min)', text: 'Nombre de paires validées divisé par le temps de jeu en minutes. Ex : 6 paires en 2 min = 3 paires/min.' },
+                { label: 'Seuil minimum', text: 'Les parties de moins de 30 secondes sont exclues du calcul pour éviter les valeurs aberrantes (abandons).' },
+                { label: 'Barres dorées', text: 'Les barres en or indiquent les matchs gagnés (1ère place en mode compétitif).' },
+                { label: 'Moyenne glissante', text: 'La courbe orange représente la moyenne des 5 derniers matchs pour visualiser la tendance.' }
+              ]} />
             </div>
           )}
 
@@ -829,6 +877,12 @@ export default function StudentPerformance() {
                   <div style={{ fontSize: 24, fontWeight: 800, color: '#7c3aed' }}>{(filteredStats || stats).avgErrors}</div>
                 </div>
               </div>
+              <InfoBox title="Comment est calculée la précision ?" items={[
+                { label: 'Taux de précision', text: 'Formule : Paires validées ÷ (Paires validées + Erreurs) × 100. Un taux de 100% signifie zéro erreur.' },
+                { label: 'Barres vertes', text: 'Nombre de paires correctement validées dans chaque match.' },
+                { label: 'Barres rouges', text: 'Nombre de mauvaises tentatives (clics sur une mauvaise paire).' },
+                { label: 'Interprétation', text: 'Un taux > 80% est excellent. Entre 60-80% : bon niveau. En dessous de 60% : l\u2019élève peut avoir besoin de retravailler certains thèmes.' }
+              ]} />
             </div>
           )}
 
@@ -839,6 +893,7 @@ export default function StudentPerformance() {
 
           {/* ===== HISTORY TAB ===== */}
           {activeTab === 'history' && (
+            <>
             <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
@@ -905,6 +960,14 @@ export default function StudentPerformance() {
                 </tbody>
               </table>
             </div>
+
+              <InfoBox title="Légende de l'historique" items={[
+                { label: 'Mode', text: 'Solo = entraînement individuel, Classe = session lancée par le professeur, Multi = salle privée entre amis, Arena = Crazy Arena compétitif.' },
+                { label: 'Score', text: 'Nombre de paires trouvées dans le temps imparti. Le score dépend du mode et de la durée configurée.' },
+                { label: 'Rapidité', text: 'Paires validées par minute. Affiché uniquement si la partie a duré plus de 30 secondes.' },
+                { label: 'Lignes vertes', text: 'Les lignes sur fond vert indiquent les matchs gagnés (1ère place).' }
+              ]} />
+            </>
           )}
         </>
       )}
