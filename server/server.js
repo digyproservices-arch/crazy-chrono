@@ -2940,7 +2940,7 @@ function endSession(roomCode) {
       const isSoloRoom = roomCode.startsWith('solo-');
       const sessionPayload = {
         match_id: uuidv4(),
-        class_id: 'solo',
+        class_id: isSoloRoom ? 'solo' : 'multiplayer',
         teacher_id: null,
         session_name: isSoloRoom ? 'Session Solo' : `Multijoueur - ${roomCode}`,
         config: {

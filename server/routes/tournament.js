@@ -2832,14 +2832,19 @@ router.get('/students/:studentId/performance', requireSupabase, requireAuth, ...
         trainingResults = tResults.map(r => {
           const session = sessionsMap[r.session_id] || {};
           const configMode = session.config?.mode || null;
-          const isSolo = session.class_id === 'solo' || configMode === 'solo' || r.position === null;
+          // Déterminer le mode: config.mode est la source primaire
+          let mode = 'training';
+          if (configMode === 'solo') mode = 'solo';
+          else if (configMode === 'multiplayer' || session.class_id === 'multiplayer') mode = 'multiplayer';
+          else if (session.class_id === 'solo' && configMode !== 'multiplayer') mode = 'solo';
+          else if (r.position === null) mode = 'solo';
           return {
             ...r,
             match_id: r.session_id,
-            mode: isSolo ? 'solo' : 'training'
+            mode
           };
         });
-        console.log('[Performance API] training_results:', tResults.length, 'rows (solo:', trainingResults.filter(r => r.mode === 'solo').length, ', compétitif:', trainingResults.filter(r => r.mode === 'training').length, ')');
+        console.log('[Performance API] training_results:', tResults.length, 'rows (solo:', trainingResults.filter(r => r.mode === 'solo').length, ', training:', trainingResults.filter(r => r.mode === 'training').length, ', multiplayer:', trainingResults.filter(r => r.mode === 'multiplayer').length, ')');
       } else if (tError) {
         console.warn('[Performance API] training_results query failed:', tError.message);
       }

@@ -3,7 +3,7 @@
 // Graphiques de progression, rapidité, précision
 // ==========================================
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
 import {
@@ -322,6 +322,7 @@ export default function StudentPerformance() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [modeFilter, setModeFilter] = useState('all'); // 'all', 'solo', 'training', 'arena'
 
   const getAllStudentIds = () => {
     // Si un studentId est passé via l'URL (vue prof), l'utiliser directement
@@ -449,6 +450,67 @@ export default function StudentPerformance() {
 
   const noData = !stats || stats.totalMatches === 0;
 
+  // Données filtrées par mode
+  const filteredHistory = useMemo(() => {
+    if (modeFilter === 'all') return history;
+    return history.filter(h => h.mode === modeFilter);
+  }, [history, modeFilter]);
+
+  const filteredProgression = useMemo(() => {
+    if (modeFilter === 'all') return progression;
+    // Recalculer la progression uniquement pour le mode sélectionné
+    const filtered = history.filter(h => h.mode === modeFilter);
+    return filtered.map((h, i) => {
+      const windowSize = Math.min(5, i + 1);
+      const window = filtered.slice(Math.max(0, i - windowSize + 1), i + 1);
+      return {
+        index: i + 1,
+        score: h.score,
+        pairs: h.pairsValidated,
+        errors: h.errors,
+        speed: h.speed,
+        isWin: h.isWin,
+        avgScore: Math.round(window.reduce((s, x) => s + x.score, 0) / window.length),
+        avgSpeed: Math.round(window.reduce((s, x) => s + (x.speed || 0), 0) / window.length * 10) / 10
+      };
+    });
+  }, [history, progression, modeFilter]);
+
+  const filteredStats = useMemo(() => {
+    if (modeFilter === 'all' || !stats) return stats;
+    const filtered = history.filter(h => h.mode === modeFilter);
+    if (filtered.length === 0) return null;
+    const scores = filtered.map(h => h.score);
+    const pairs = filtered.map(h => h.pairsValidated || 0);
+    const errors = filtered.map(h => h.errors || 0);
+    const speeds = filtered.map(h => h.speed || 0).filter(s => s > 0);
+    const times = filtered.map(h => h.timeMs || 0).filter(t => t > 0);
+    const sum = arr => arr.reduce((a, b) => a + b, 0);
+    const avg = arr => arr.length > 0 ? sum(arr) / arr.length : 0;
+    const competitive = filtered.filter(h => h.mode !== 'solo');
+    const wins = competitive.filter(h => h.isWin).length;
+    return {
+      ...stats,
+      totalMatches: filtered.length,
+      validMatches: filtered.length,
+      competitiveMatches: competitive.length,
+      soloMatches: filtered.filter(h => h.mode === 'solo').length,
+      totalWins: wins,
+      winRate: competitive.length > 0 ? Math.round((wins / competitive.length) * 100) : 0,
+      avgScore: Math.round(avg(scores)),
+      bestScore: Math.max(...scores, 0),
+      avgTime: Math.round(avg(times)),
+      bestTime: times.length > 0 ? Math.min(...times) : 0,
+      avgPairs: Math.round(avg(pairs) * 10) / 10,
+      totalPairs: sum(pairs),
+      avgErrors: Math.round(avg(errors) * 10) / 10,
+      totalErrors: sum(errors),
+      avgSpeed: Math.round(avg(speeds) * 10) / 10,
+      bestSpeed: speeds.length > 0 ? Math.round(Math.max(...speeds) * 10) / 10 : 0,
+      accuracy: sum(pairs) > 0 ? Math.round((sum(pairs) / (sum(pairs) + sum(errors))) * 100) : 0
+    };
+  }, [history, stats, modeFilter]);
+
   return (
     <div style={{
       maxWidth: 1100,
@@ -484,6 +546,33 @@ export default function StudentPerformance() {
         </div>
       )}
 
+      {/* Mode filter */}
+      {!noData && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>Filtrer :</span>
+          {[
+            { key: 'all', label: 'Tous les modes' },
+            { key: 'solo', label: '🟢 Solo' },
+            { key: 'multiplayer', label: '🟣 Multijoueur' },
+            { key: 'training', label: '🔵 Classe' },
+            { key: 'arena', label: '🟡 Arena' }
+          ].map(m => (
+            <button
+              key={m.key}
+              onClick={() => setModeFilter(m.key)}
+              style={{
+                padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                border: modeFilter === m.key ? '2px solid #1AACBE' : '1px solid #d1d5db',
+                background: modeFilter === m.key ? '#f0fdfa' : '#fff',
+                color: modeFilter === m.key ? '#0D6A7A' : '#6b7280'
+              }}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {noData ? (
         <div style={{ padding: 60, textAlign: 'center', background: '#fff', borderRadius: 16, border: '2px dashed #d1d5db' }}>
           <div style={{ fontSize: 64, marginBottom: 16 }}>🎮</div>
@@ -507,17 +596,17 @@ export default function StudentPerformance() {
           {/* ===== STAT CARDS ===== */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 24 }}>
             {[
-              { label: 'Parties jouées', value: stats.totalMatches, icon: '🎮', color: '#1AACBE' },
-              ...(stats.competitiveMatches > 0 ? [
-                { label: 'Victoires', value: `${stats.totalWins} (${stats.winRate}%)`, icon: '🏆', color: '#F5A623', subtitle: `sur ${stats.competitiveMatches} matchs` }
+              { label: 'Parties jouées', value: (filteredStats || stats).totalMatches, icon: '🎮', color: '#1AACBE' },
+              ...((filteredStats || stats).competitiveMatches > 0 ? [
+                { label: 'Victoires', value: `${(filteredStats || stats).totalWins} (${(filteredStats || stats).winRate}%)`, icon: '🏆', color: '#F5A623', subtitle: `sur ${(filteredStats || stats).competitiveMatches} matchs` }
               ] : []),
-              ...(stats.soloMatches > 0 ? [
-                { label: 'Sessions solo', value: stats.soloMatches, icon: '🎯', color: '#0d9488' },
-                { label: 'Record solo', value: stats.soloBestScore || 0, icon: '🔥', color: '#dc2626' }
+              ...((filteredStats || stats).soloMatches > 0 ? [
+                { label: 'Sessions solo', value: (filteredStats || stats).soloMatches, icon: '🎯', color: '#0d9488' },
+                { label: 'Record solo', value: (filteredStats || stats).soloBestScore || 0, icon: '🔥', color: '#dc2626' }
               ] : []),
-              { label: 'Score moyen', value: stats.avgScore, icon: '⭐', color: '#d97706' },
-              { label: 'Précision', value: `${stats.accuracy}%`, icon: '🎯', color: '#8b5cf6' },
-              { label: 'Rapidité moy.', value: `${stats.avgSpeed}/min`, icon: '⚡', color: '#0891b2' }
+              { label: 'Score moyen', value: (filteredStats || stats).avgScore, icon: '⭐', color: '#d97706' },
+              { label: 'Précision', value: `${(filteredStats || stats).accuracy}%`, icon: '🎯', color: '#8b5cf6' },
+              { label: 'Rapidité moy.', value: `${(filteredStats || stats).avgSpeed}/min`, icon: '⚡', color: '#0891b2' }
             ].map((s, i) => (
               <div key={i} style={{
                 background: '#fff', borderRadius: 12, padding: '16px 14px',
@@ -532,7 +621,7 @@ export default function StudentPerformance() {
           </div>
 
           {/* Streaks (compétitif uniquement) */}
-          {stats.competitiveMatches > 0 && (streaks.currentWin > 0 || streaks.bestWin > 0) && (
+          {(filteredStats || stats).competitiveMatches > 0 && (streaks.currentWin > 0 || streaks.bestWin > 0) && (
             <div style={{
               display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap'
             }}>
@@ -585,13 +674,13 @@ export default function StudentPerformance() {
               <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', margin: '0 0 16px 0' }}>
                 📈 Progression du score
               </h3>
-              {progression.length < 2 ? (
+              {filteredProgression.length < 2 ? (
                 <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
                   Joue au moins 2 parties pour voir ta progression
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={progression}>
+                  <AreaChart data={filteredProgression}>
                     <defs>
                       <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#1AACBE" stopOpacity={0.3} />
@@ -626,13 +715,13 @@ export default function StudentPerformance() {
               <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px 0' }}>
                 Plus la barre est haute, plus tu es rapide
               </p>
-              {progression.length < 2 ? (
+              {filteredProgression.length < 2 ? (
                 <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
                   Joue au moins 2 parties pour voir ta rapidité
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={progression}>
+                  <BarChart data={filteredProgression}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="index" fontSize={11} tick={{ fill: '#94a3b8' }} label={{ value: 'Match #', position: 'bottom', offset: -5, fill: '#94a3b8', fontSize: 11 }} />
                     <YAxis fontSize={11} tick={{ fill: '#94a3b8' }} label={{ value: 'paires/min', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 11 }} />
@@ -645,7 +734,7 @@ export default function StudentPerformance() {
                     />
                     <Legend />
                     <Bar dataKey="speed" name="Rapidité" radius={[4, 4, 0, 0]}>
-                      {progression.map((entry, idx) => (
+                      {filteredProgression.map((entry, idx) => (
                         <Cell key={idx} fill={entry.isWin ? '#F5A623' : '#1AACBE'} />
                       ))}
                     </Bar>
@@ -658,17 +747,17 @@ export default function StudentPerformance() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 20 }}>
                 <div style={{ textAlign: 'center', padding: 14, background: '#f0f9ff', borderRadius: 10 }}>
                   <div style={{ fontSize: 11, color: '#0369a1', fontWeight: 600 }}>Rapidité moyenne</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: '#0284c7' }}>{stats.avgSpeed}</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#0284c7' }}>{(filteredStats || stats).avgSpeed}</div>
                   <div style={{ fontSize: 10, color: '#0369a1' }}>paires/min</div>
                 </div>
                 <div style={{ textAlign: 'center', padding: 14, background: '#f0fdf4', borderRadius: 10 }}>
                   <div style={{ fontSize: 11, color: '#047857', fontWeight: 600 }}>Meilleure rapidité</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: '#059669' }}>{stats.bestSpeed}</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#059669' }}>{(filteredStats || stats).bestSpeed}</div>
                   <div style={{ fontSize: 10, color: '#047857' }}>paires/min</div>
                 </div>
                 <div style={{ textAlign: 'center', padding: 14, background: '#fffbeb', borderRadius: 10 }}>
                   <div style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>Temps moyen</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: '#d97706' }}>{formatTime(stats.avgTime)}</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#d97706' }}>{formatTime((filteredStats || stats).avgTime)}</div>
                   <div style={{ fontSize: 10, color: '#b45309' }}>par match</div>
                 </div>
               </div>
@@ -693,28 +782,28 @@ export default function StudentPerformance() {
                       <circle cx="70" cy="70" r="60" fill="none" stroke="#f1f5f9" strokeWidth="12" />
                       <circle
                         cx="70" cy="70" r="60" fill="none"
-                        stroke={stats.accuracy >= 80 ? '#059669' : stats.accuracy >= 60 ? '#d97706' : '#dc2626'}
+                        stroke={(filteredStats || stats).accuracy >= 80 ? '#059669' : (filteredStats || stats).accuracy >= 60 ? '#d97706' : '#dc2626'}
                         strokeWidth="12"
                         strokeLinecap="round"
-                        strokeDasharray={`${(stats.accuracy / 100) * 377} 377`}
+                        strokeDasharray={`${((filteredStats || stats).accuracy / 100) * 377} 377`}
                         transform="rotate(-90 70 70)"
                       />
                     </svg>
                     <div style={{
                       position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
                       fontSize: 28, fontWeight: 800,
-                      color: stats.accuracy >= 80 ? '#059669' : stats.accuracy >= 60 ? '#d97706' : '#dc2626'
+                      color: (filteredStats || stats).accuracy >= 80 ? '#059669' : (filteredStats || stats).accuracy >= 60 ? '#d97706' : '#dc2626'
                     }}>
-                      {stats.accuracy}%
+                      {(filteredStats || stats).accuracy}%
                     </div>
                   </div>
                   <div style={{ fontSize: 13, color: '#475569', fontWeight: 600, marginTop: 8 }}>Taux de précision</div>
                 </div>
               </div>
 
-              {progression.length >= 2 && (
+              {filteredProgression.length >= 2 && (
                 <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={progression}>
+                  <BarChart data={filteredProgression}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="index" fontSize={11} tick={{ fill: '#94a3b8' }} />
                     <YAxis fontSize={11} tick={{ fill: '#94a3b8' }} />
@@ -729,15 +818,15 @@ export default function StudentPerformance() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 20 }}>
                 <div style={{ textAlign: 'center', padding: 14, background: '#f0fdf4', borderRadius: 10 }}>
                   <div style={{ fontSize: 11, color: '#047857', fontWeight: 600 }}>Total paires</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: '#059669' }}>{stats.totalPairs}</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#059669' }}>{(filteredStats || stats).totalPairs}</div>
                 </div>
                 <div style={{ textAlign: 'center', padding: 14, background: '#fef2f2', borderRadius: 10 }}>
                   <div style={{ fontSize: 11, color: '#991b1b', fontWeight: 600 }}>Total erreurs</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: '#dc2626' }}>{stats.totalErrors}</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#dc2626' }}>{(filteredStats || stats).totalErrors}</div>
                 </div>
                 <div style={{ textAlign: 'center', padding: 14, background: '#f5f3ff', borderRadius: 10 }}>
                   <div style={{ fontSize: 11, color: '#6d28d9', fontWeight: 600 }}>Moy. erreurs/match</div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: '#7c3aed' }}>{stats.avgErrors}</div>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: '#7c3aed' }}>{(filteredStats || stats).avgErrors}</div>
                 </div>
               </div>
             </div>
@@ -766,8 +855,8 @@ export default function StudentPerformance() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...history].reverse().map((h, idx) => {
-                    const realIdx = history.length - 1 - idx;
+                  {[...filteredHistory].reverse().map((h, idx) => {
+                    const realIdx = filteredHistory.length - 1 - idx;
                     return (
                       <tr key={h.id} style={{
                         background: h.isWin ? '#f0fdf4' : idx % 2 === 0 ? '#fff' : '#f8fafc',
@@ -782,10 +871,10 @@ export default function StudentPerformance() {
                         <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                           <span style={{
                             fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
-                            background: h.mode === 'solo' ? '#f0fdf4' : h.mode === 'training' ? '#eff6ff' : '#fef3c7',
-                            color: h.mode === 'solo' ? '#059669' : h.mode === 'training' ? '#2563eb' : '#d97706'
+                            background: h.mode === 'solo' ? '#f0fdf4' : h.mode === 'multiplayer' ? '#f5f3ff' : h.mode === 'training' ? '#eff6ff' : '#fef3c7',
+                            color: h.mode === 'solo' ? '#059669' : h.mode === 'multiplayer' ? '#7c3aed' : h.mode === 'training' ? '#2563eb' : '#d97706'
                           }}>
-                            {h.mode === 'solo' ? 'Solo' : h.mode === 'training' ? 'Classe' : 'Arena'}
+                            {h.mode === 'solo' ? 'Solo' : h.mode === 'multiplayer' ? 'Multi' : h.mode === 'training' ? 'Classe' : 'Arena'}
                           </span>
                         </td>
                         <td style={{ padding: '10px 14px', textAlign: 'center' }}>
