@@ -456,30 +456,7 @@ export default function StudentPerformance() {
     return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   };
 
-  if (loading) {
-    return (
-      <div style={{ padding: 40, textAlign: 'center', fontFamily: 'system-ui, sans-serif' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
-        <h2>Chargement de tes performances...</h2>
-      </div>
-    );
-  }
-
-  const tabStyle = (active) => ({
-    padding: '10px 18px',
-    border: 'none',
-    borderBottom: active ? '3px solid #1AACBE' : '3px solid transparent',
-    background: 'none',
-    color: active ? '#1AACBE' : '#6b7280',
-    fontSize: 14,
-    fontWeight: active ? 700 : 500,
-    cursor: 'pointer',
-    transition: 'all 0.2s'
-  });
-
-  const noData = !stats || stats.totalMatches === 0;
-
-  // Données filtrées par mode
+  // Données filtrées par mode — MUST be before any early return (React hooks rules)
   const filteredHistory = useMemo(() => {
     if (modeFilter === 'all') return history;
     return history.filter(h => h.mode === modeFilter);
@@ -539,6 +516,29 @@ export default function StudentPerformance() {
       accuracy: sum(pairs) > 0 ? Math.round((sum(pairs) / (sum(pairs) + sum(errors))) * 100) : 0
     };
   }, [history, stats, modeFilter]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center', fontFamily: 'system-ui, sans-serif' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
+        <h2>Chargement de tes performances...</h2>
+      </div>
+    );
+  }
+
+  const tabStyle = (active) => ({
+    padding: '10px 18px',
+    border: 'none',
+    borderBottom: active ? '3px solid #1AACBE' : '3px solid transparent',
+    background: 'none',
+    color: active ? '#1AACBE' : '#6b7280',
+    fontSize: 14,
+    fontWeight: active ? 700 : 500,
+    cursor: 'pointer',
+    transition: 'all 0.2s'
+  });
+
+  const noData = !stats || stats.totalMatches === 0;
 
   return (
     <div style={{
