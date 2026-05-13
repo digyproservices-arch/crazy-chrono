@@ -2626,8 +2626,12 @@ router.get('/classes/:classId/students-performance', requireSupabase, requireAut
     // Helper: trouver l'ID original d'un auth UUID
     const getOrigId = (authId) => authToIdMap[authId] || authId;
     
+    // Exclure les abandons (score=0 ET temps < 30s) — même logique que la page Performance
+    const isAbandonResult = (r) => (r.score || 0) === 0 && (!r.time_ms || r.time_ms < 30000);
+
     // Agréger training_results
     for (const r of trainingResults) {
+      if (isAbandonResult(r)) continue;
       const origId = getOrigId(r.student_id);
       const stat = statsMap[origId];
       if (!stat) continue;
@@ -2643,6 +2647,7 @@ router.get('/classes/:classId/students-performance', requireSupabase, requireAut
     
     // Agréger arena results
     for (const r of arenaResults) {
+      if (isAbandonResult(r)) continue;
       const origId = getOrigId(r.student_id);
       const stat = statsMap[origId];
       if (!stat) continue;
