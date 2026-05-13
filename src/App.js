@@ -140,7 +140,7 @@ const RequirePro = ({ children, auth }) => {
     const status = localStorage.getItem('cc_subscription_status');
     if (status === 'pro') return children;
     const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
-    if (a && (a.role === 'admin' || a.role === 'teacher')) return children;
+    if (a && (a.role === 'admin' || a.role === 'teacher' || a.role === 'cpd' || a.role === 'cpc' || a.role === 'rectorat')) return children;
   } catch {}
   return <Navigate to="/pricing" replace />;
 };
