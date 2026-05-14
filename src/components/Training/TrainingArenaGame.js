@@ -1449,7 +1449,7 @@ export default function TrainingArenaGame() {
             <span style={{ fontSize: 13, color: '#666' }}>⭐</span>
             <span style={{
               fontSize: 22, fontWeight: 900,
-              color: (() => { const myIdx = players.findIndex(p => p.studentId === myStudentId); return myIdx >= 0 ? getPlayerColorComboByIndex(myIdx).primary : '#22c55e'; })(),
+              color: (() => { const me = players.find(p => p.studentId === myStudentId); const myIdx = typeof me?.playerIdx === 'number' ? me.playerIdx : players.findIndex(p => p.studentId === myStudentId); return myIdx >= 0 ? getPlayerColorComboByIndex(myIdx).primary : '#22c55e'; })(),
               fontVariantNumeric: 'tabular-nums', lineHeight: 1.1
             }}>
               {players.find(p => p.studentId === myStudentId)?.score || 0}
@@ -1484,7 +1484,7 @@ export default function TrainingArenaGame() {
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {[...players].sort((a, b) => (b.score || 0) - (a.score || 0)).map((player, idx) => {
-              const origIdx = players.findIndex(p => p.studentId === player.studentId);
+              const origIdx = typeof player.playerIdx === 'number' ? player.playerIdx : players.findIndex(p => p.studentId === player.studentId);
               const isMe = player.studentId === myStudentId;
               const { primary: pColor } = getPlayerColorComboByIndex(origIdx);
               return (

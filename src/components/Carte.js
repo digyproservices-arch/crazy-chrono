@@ -8203,7 +8203,7 @@ setZones(dataWithRandomTexts);
       {isMobile && isPortrait && arenaMatchId && arenaPlayers.length > 0 && (
         <div style={{ display: 'flex', gap: 6, padding: '4px 8px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', borderBottom: '1px solid rgba(255,255,255,0.1)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           {[...arenaPlayers].sort((a, b) => (b.score || 0) - (a.score || 0)).map((player, idx) => {
-            const origIdx = arenaPlayers.findIndex(p => p.studentId === player.studentId);
+            const origIdx = typeof player.playerIdx === 'number' ? player.playerIdx : arenaPlayers.findIndex(p => p.studentId === player.studentId);
             const isMe = player.studentId === myArenaStudentId;
             const { primary: pColor } = getPlayerColorComboByIndex(origIdx >= 0 ? origIdx : idx);
             return (
@@ -8375,7 +8375,7 @@ setZones(dataWithRandomTexts);
                 <h3 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 700, color: '#fff' }}>🏆 Classement Arena</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {[...arenaPlayers].sort((a, b) => (b.score || 0) - (a.score || 0)).map((player, idx) => {
-                    const origIdx = arenaPlayers.findIndex(p => p.studentId === player.studentId);
+                    const origIdx = typeof player.playerIdx === 'number' ? player.playerIdx : arenaPlayers.findIndex(p => p.studentId === player.studentId);
                     const isMe = player.studentId === myArenaStudentId;
                     const { primary: pColor } = getPlayerColorComboByIndex(origIdx >= 0 ? origIdx : idx);
                     return (

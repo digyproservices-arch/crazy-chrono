@@ -1537,9 +1537,10 @@ class CrazyArenaManager {
     // Diffuser les scores (combiné base + tiebreaker si départage en cours)
     const isTiebreaker = match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown';
     const scoresPayload = {
-      scores: match.players.map(p => ({
+      scores: match.players.map((p, idx) => ({
         studentId: p.studentId,
         name: p.name,
+        playerIdx: idx,
         score: isTiebreaker 
           ? (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0)
           : (p.score || 0),
@@ -2350,9 +2351,10 @@ class CrazyArenaManager {
         
         // ✅ Émettre scores-update pendant le tiebreaker (sinon UI reste à 0)
         const tbScoresPayload = {
-          scores: match.players.map(p => ({
+          scores: match.players.map((p, idx) => ({
             studentId: p.studentId,
             name: p.name,
+            playerIdx: idx,
             score: (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0),
             pairsValidated: (p.pairsBeforeTiebreaker || 0) + (p.tiebreakerPairs || 0)
           })).sort((a, b) => b.score - a.score)
@@ -2597,9 +2599,10 @@ class CrazyArenaManager {
     }
 
     const scoresPayload = {
-      scores: match.players.map(p => ({
+      scores: match.players.map((p, idx) => ({
         studentId: p.studentId,
         name: p.name,
+        playerIdx: idx,
         score: p.score,
         pairsValidated: p.pairsValidated
       })).sort((a, b) => b.score - a.score)
