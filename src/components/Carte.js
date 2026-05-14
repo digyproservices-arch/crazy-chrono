@@ -4188,9 +4188,30 @@ function handleGameClick(zone) {
         levelClass = Array.isArray(cfg?.classes) && cfg.classes[0] ? String(cfg.classes[0]) : '';
         cfgTheme = Array.isArray(cfg?.themes) && cfg.themes[0] ? String(cfg.themes[0]) : '';
       } catch {}
-      // Mapping thème code → label lisible
-      const THEME_DISPLAY = { 'botanique': 'Plantes médicinales', 'multiplication': 'Tables de multiplication', 'geographie': 'Géographie', 'animaux': 'Animaux', 'fruits': 'Fruits & Légumes' };
+      // Mapping complet thème code → label lisible (incluant tous les tags domain:, category:)
+      const THEME_DISPLAY = {
+        'botanique': 'Plantes médicinales', 'domain:botany': 'Plantes médicinales',
+        'animaux': 'Animaux', 'domain:zoology': 'Animaux',
+        'multiplication': 'Tables de multiplication', 'domain:math': 'Mathématiques',
+        'geographie': 'Géographie',
+        'fruits': 'Fruits', 'category:fruit': 'Fruits',
+        'category:epice': 'Épices', 'category:fleur': 'Fleurs',
+        'category:legumineuse': 'Légumineuses', 'category:plante_aromatique': 'Plantes aromatiques',
+        'category:plante_medicinale': 'Plantes médicinales', 'category:tubercule': 'Tubercules',
+        'category:addition': 'Additions', 'category:soustraction': 'Soustractions',
+        'category:division': 'Divisions', 'category:fraction': 'Fractions',
+        'category:equation': 'Équations', 'category:numeration': 'Numération',
+        'category:multiplication_avancee': 'Multiplications avancées'
+      };
       const themeLabel = (code) => { if (!code) return ''; const c = String(code).toLowerCase().trim(); return THEME_DISPLAY[c] || (c.charAt(0).toUpperCase() + c.slice(1)); };
+      // Extraire le meilleur thème lisible d'un tableau de tags (ignorer region:, préférer les connus)
+      const bestTheme = (tags) => {
+        if (!Array.isArray(tags) || tags.length === 0) return '';
+        const known = tags.find(t => THEME_DISPLAY[String(t).toLowerCase().trim()]);
+        if (known) return themeLabel(known);
+        const nonRegion = tags.find(t => !String(t).startsWith('region:'));
+        return nonRegion ? themeLabel(nonRegion) : '';
+      };
       // TOUJOURS extraire itemDetail et thème granulaire (même si config a un thème)
       if (item_type === 'calcnum') {
         const calculZone = t1 === 'calcul' ? ZA : ZB;
@@ -4219,17 +4240,37 @@ function handleGameClick(zone) {
         const imageZone = t1 === 'image' ? ZA : ZB;
         const textContent = String(texteZone?.content || texteZone?.label || '').trim();
         const imageUrl = String(imageZone?.content || '').trim();
-        // Chercher la catégorie réelle depuis assocData (ex: "botanique" → "Plantes médicinales")
+        // Chercher la catégorie RÉELLE de l'item depuis assocData
         let zoneTheme = '';
         try {
           const ad = assocDataRef.current || {};
           const lc = textContent.toLowerCase().trim();
+          // 1) Chercher par texte
           const texteEntry = (ad.textes || []).find(t => String(t.content || '').toLowerCase().trim() === lc);
-          if (texteEntry && Array.isArray(texteEntry.themes) && texteEntry.themes[0]) {
-            zoneTheme = themeLabel(texteEntry.themes[0]);
+          if (texteEntry && Array.isArray(texteEntry.themes)) {
+            zoneTheme = bestTheme(texteEntry.themes);
+          }
+          // 2) Si pas trouvé par texte, chercher par image URL dans les associations
+          if (!zoneTheme && imageUrl) {
+            const imgLc = imageUrl.toLowerCase().trim();
+            const imgEntry = (ad.images || []).find(img => String(img.url || img.src || '').toLowerCase().trim() === imgLc);
+            if (imgEntry && Array.isArray(imgEntry.themes)) {
+              zoneTheme = bestTheme(imgEntry.themes);
+            }
+            // 3) Chercher dans les associations par pairId
+            if (!zoneTheme) {
+              const pId = ZA?.pairId || ZB?.pairId;
+              if (pId) {
+                const assocEntry = (ad.associations || []).find(a => String(a.id || '') === String(pId));
+                if (assocEntry && Array.isArray(assocEntry.themes)) {
+                  zoneTheme = bestTheme(assocEntry.themes);
+                }
+              }
+            }
           }
         } catch {}
         theme = zoneTheme || (cfgTheme ? themeLabel(cfgTheme) : 'Images & Textes');
+        // itemDetail: utiliser le nom lisible du texte, pas le chemin image
         try { itemDetail = JSON.stringify({ text: textContent, img: imageUrl }); } catch { itemDetail = textContent; }
       }
       if (okPair) {

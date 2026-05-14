@@ -3124,7 +3124,7 @@ router.get('/students/:studentId/performance', requireSupabase, requireAuth, ...
             t.expectedItems = expected || t.items.length;
             const masteredItems = (t.items || []).filter(i => i.accuracy >= 80).length;
             t.uniqueItemsMastered = masteredItems;
-            t.coveragePct = t.expectedItems > 0 ? Math.round((masteredItems / t.expectedItems) * 100) : 0;
+            t.coveragePct = t.expectedItems > 0 ? Math.min(100, Math.round((masteredItems / t.expectedItems) * 100)) : 0;
           }
         }
       }

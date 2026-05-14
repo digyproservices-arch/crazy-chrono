@@ -87,10 +87,12 @@ const THEME_TO_CATEGORY = {
   'Additions': 'addition', 'Soustractions': 'soustraction', 'Divisions': 'division',
   'Multiplications avancées': 'multiplication_avancee', 'Équations': 'equation',
   'Fractions': 'fraction', 'Numération': 'numeration',
+  'Animaux': 'animaux', 'Domain:zoology': 'animaux',
   'Fruits': 'fruit', 'Légumes': 'legume', 'Tubercules': 'tubercule',
   'Fleurs': 'fleur', 'Plantes médicinales': 'plante_medicinale',
   'Plantes aromatiques': 'plante_aromatique', 'Épices': 'epice',
-  'Légumineuses': 'legumineuse',
+  'Légumineuses': 'legumineuse', 'Mathématiques': 'mathematiques',
+  'Géographie': 'geographie',
 };
 
 function MasteryTab({ themeMastery, masteryBadges }) {
@@ -168,6 +170,17 @@ function MasteryTab({ themeMastery, masteryBadges }) {
         return { text: parsed.text, img: parsed.img ? resolveImg(parsed.img) : null };
       }
     } catch {}
+    // Handle legacy format: raw image paths like "images/dauphin.jpeg = images/x.jpeg"
+    // or "images/dauphin.jpeg" — extract a readable name from the filename
+    if (/^images\//.test(raw) || /\.(jpeg|jpg|png|gif|webp|svg)/.test(raw)) {
+      const extractName = (path) => {
+        const name = path.replace(/^.*\//, '').replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ');
+        return name.charAt(0).toUpperCase() + name.slice(1);
+      };
+      const parts = raw.split(/\s*=\s*/);
+      const imgPath = parts[0].trim();
+      return { text: extractName(imgPath), img: resolveImg(imgPath) };
+    }
     return { text: raw, img: null };
   };
 
