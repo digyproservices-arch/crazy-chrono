@@ -2575,7 +2575,14 @@ const MP_THEME_DISPLAY = {
   'category:equation': 'Équations', 'category:numeration': 'Numération',
   'category:multiplication_avancee': 'Multiplications avancées'
 };
-function _mpThemeLabel(code) { return MP_THEME_DISPLAY[code] || code || ''; }
+function _mpThemeLabel(code) {
+  if (!code) return '';
+  const c = String(code).toLowerCase().trim();
+  if (MP_THEME_DISPLAY[c]) return MP_THEME_DISPLAY[c];
+  // Auto-label: category:poisson → Poisson, domain:music → Music
+  const stripped = c.replace(/^(category|domain|region):/, '');
+  return stripped.replace(/_/g, ' ').replace(/^./, s => s.toUpperCase());
+}
 function _mpBestTheme(tags) {
   if (!Array.isArray(tags) || !tags.length) return '';
   const cat = tags.find(t => t.startsWith('category:'));

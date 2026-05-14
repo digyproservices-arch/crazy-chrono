@@ -4229,17 +4229,25 @@ function handleGameClick(zone) {
         'category:equation': 'Équations', 'category:numeration': 'Numération',
         'category:multiplication_avancee': 'Multiplications avancées'
       };
-      const themeLabel = (code) => { if (!code) return ''; const c = String(code).toLowerCase().trim(); return THEME_DISPLAY[c] || (c.charAt(0).toUpperCase() + c.slice(1)); };
+      const themeLabel = (code) => {
+        if (!code) return '';
+        const c = String(code).toLowerCase().trim();
+        if (THEME_DISPLAY[c]) return THEME_DISPLAY[c];
+        // Auto-label: category:plante_medicinale → Plante médicinale, domain:zoology → Zoology
+        const stripped = c.replace(/^(category|domain|region):/, '');
+        return stripped.replace(/_/g, ' ').replace(/^./, s => s.toUpperCase());
+      };
       // Extraire le meilleur thème lisible d'un tableau de tags
       // PRIORITÉ: category: (précis) > domain: (large) > autre tag connu
       const bestTheme = (tags) => {
         if (!Array.isArray(tags) || tags.length === 0) return '';
-        const cat = tags.find(t => String(t).startsWith('category:') && THEME_DISPLAY[String(t).toLowerCase().trim()]);
+        // 1) N'importe quel category: (toujours le plus précis)
+        const cat = tags.find(t => String(t).startsWith('category:'));
         if (cat) return themeLabel(cat);
-        const dom = tags.find(t => String(t).startsWith('domain:') && THEME_DISPLAY[String(t).toLowerCase().trim()]);
+        // 2) domain: connu
+        const dom = tags.find(t => String(t).startsWith('domain:'));
         if (dom) return themeLabel(dom);
-        const known = tags.find(t => THEME_DISPLAY[String(t).toLowerCase().trim()]);
-        if (known) return themeLabel(known);
+        // 3) Autre tag non-region
         const nonRegion = tags.find(t => !String(t).startsWith('region:'));
         return nonRegion ? themeLabel(nonRegion) : '';
       };

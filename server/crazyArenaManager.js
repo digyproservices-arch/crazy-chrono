@@ -43,18 +43,23 @@ const THEME_DISPLAY_FULL = {
 };
 function _themeLabel(code) {
   if (!code) return '';
-  return THEME_DISPLAY_FULL[String(code).toLowerCase().trim()] || '';
+  const c = String(code).toLowerCase().trim();
+  if (THEME_DISPLAY_FULL[c]) return THEME_DISPLAY_FULL[c];
+  // Auto-label: category:poisson → Poisson, domain:music → Music
+  const stripped = c.replace(/^(category|domain|region):/, '');
+  return stripped.replace(/_/g, ' ').replace(/^./, s => s.toUpperCase());
 }
 // Trouver le meilleur thème lisible dans un tableau de tags
 // PRIORITÉ: category: (précis) > domain: (large) > autre tag connu
 function _bestTheme(tags) {
   if (!Array.isArray(tags) || tags.length === 0) return '';
-  const cat = tags.find(t => String(t).startsWith('category:') && THEME_DISPLAY_FULL[String(t).toLowerCase().trim()]);
+  // 1) N'importe quel category: (toujours le plus précis)
+  const cat = tags.find(t => String(t).startsWith('category:'));
   if (cat) return _themeLabel(cat);
-  const dom = tags.find(t => String(t).startsWith('domain:') && THEME_DISPLAY_FULL[String(t).toLowerCase().trim()]);
+  // 2) domain:
+  const dom = tags.find(t => String(t).startsWith('domain:'));
   if (dom) return _themeLabel(dom);
-  const known = tags.find(t => THEME_DISPLAY_FULL[String(t).toLowerCase().trim()]);
-  if (known) return _themeLabel(known);
+  // 3) Autre tag non-region
   const nonRegion = tags.find(t => !String(t).startsWith('region:'));
   return nonRegion ? _themeLabel(nonRegion) : '';
 }
