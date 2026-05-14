@@ -43,6 +43,7 @@ const SUB_FILTER_LABELS = {
   'domain:botany': {
     'category:fleur': '🌸 Fleurs',
     'category:fruit': '🍎 Fruits',
+    'category:legume': '🥬 Légumes',
     'category:legumineuse': '🫘 Légumineuses',
     'category:epice': '🌶️ Épices',
     'category:plante_aromatique': '🌿 Aromatiques',

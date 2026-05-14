@@ -2,10 +2,12 @@
   "_version": 2,
   "_description": "Stratégies d'apprentissage pour le mode Apprendre. Couvre zoologie, botanique, multiplications, additions et soustractions.",
   "_stats": {
-    "total": 275,
+    "total": 632,
     "generated": "2026-02-28T05:27:14.996Z",
     "division": 50,
-    "multiplication_rectorat": 48
+    "multiplication_rectorat": 48,
+    "generated_update": "2026-05-14T15:26:38.622Z",
+    "added_in_update": 260
   },
   "strategies": {
     "ta01:i1754579810850evmn": {
@@ -1933,6 +1935,1327 @@
       "title": "6 × 0,7",
       "strategy": "0,7 c'est 7 dixièmes. 6 fois 7 dixièmes c'est 42 dixièmes ou encore 4,2.",
       "hint": "Le résultat est 4,2."
+    },
+    "tb01:i5": {
+      "title": "Carambole",
+      "strategy": "La carambole a une forme d'étoile très reconnaissable quand on la coupe en tranches. Sa peau est lisse et jaune-vert.",
+      "ecoFact": "La carambole pousse sur un arbre appelé carambolier, originaire d'Asie du Sud-Est. Aux Antilles, on en fait du jus et des confitures. Elle est riche en vitamine C.",
+      "hint": "Cherche le fruit en forme d'étoile."
+    },
+    "tb02:i6": {
+      "title": "Sapotille",
+      "strategy": "La sapotille est un petit fruit rond à la peau rugueuse brun clair. Sa chair est sucrée et fondante, elle rappelle le caramel ou la poire.",
+      "ecoFact": "Le sapotillier produit aussi du chicle, la matière première des chewing-gums ! Cet arbre peut vivre plus de 100 ans et atteindre 30 mètres de haut.",
+      "hint": "Cherche le petit fruit brun à chair douce comme du caramel."
+    },
+    "tb03:i7": {
+      "title": "Nèfle",
+      "strategy": "La nèfle du Japon est un fruit ovale orangé avec une peau lisse. Elle pousse en grappes et a un gros noyau à l'intérieur.",
+      "ecoFact": "La nèfle est riche en fibres et en potassium. Aux Antilles, le néflier est un arbre d'ombrage apprécié dans les jardins créoles.",
+      "hint": "Cherche le fruit ovale orangé qui pousse en grappes."
+    },
+    "tb04:i8": {
+      "title": "Tamarin",
+      "strategy": "Le tamarin se présente en gousses brunes contenant une pulpe collante et acide. La coque est dure et cassante.",
+      "ecoFact": "Le tamarinier est un arbre majestueux qui peut vivre 200 ans. Sa pulpe est utilisée dans la cuisine antillaise pour faire des boissons, des confiseries et des sauces.",
+      "hint": "Cherche les gousses brunes avec une pulpe collante."
+    },
+    "tb05:i9": {
+      "title": "Quenette",
+      "strategy": "La quenette (ou kenep) est un petit fruit vert en grappes. On casse la fine coque verte pour accéder à la chair translucide et juteuse autour d'un gros noyau.",
+      "ecoFact": "La quenette est le fruit préféré des enfants aux Antilles ! Le quenettier fait partie du paysage créole. On dit que manger des quenettes tache les vêtements.",
+      "hint": "Cherche les petits fruits verts en grappes."
+    },
+    "tb06:i10": {
+      "title": "Corossol",
+      "strategy": "Le corossol est un gros fruit vert couvert de petites épines molles. Sa chair blanche est crémeuse et parfumée.",
+      "ecoFact": "Le corossolier est très apprécié aux Antilles pour ses fruits et ses feuilles utilisées en tisane. Le jus de corossol est une boisson populaire dans toute la Caraïbe.",
+      "hint": "Cherche le gros fruit vert avec des petites pointes."
+    },
+    "tb07:i11": {
+      "title": "Christophine",
+      "strategy": "La christophine (chayote) est un légume vert en forme de poire avec des plis. Sa peau peut être lisse ou légèrement épineuse.",
+      "ecoFact": "La christophine est un légume incontournable de la cuisine créole. On la mange en gratin, en purée ou en salade. Sa liane grimpe facilement sur les treilles.",
+      "hint": "Cherche le légume vert en forme de poire avec des plis."
+    },
+    "tb08:i1754579810850berq": {
+      "title": "Giraumon",
+      "strategy": "Le giraumon est une courge ronde et aplatie, souvent verte avec des taches orangées. Il ressemble à un petit potiron coloré.",
+      "ecoFact": "Le giraumon est à la base du célèbre « gratin de giraumon » antillais. Ce cucurbitacée est riche en bêta-carotène et en fibres.",
+      "hint": "Cherche la courge ronde verte et orange."
+    },
+    "tb09:i1754579810850v7un": {
+      "title": "Manioc",
+      "strategy": "Le manioc est un tubercule allongé à la peau brune et rugueuse, avec une chair blanche féculente à l'intérieur.",
+      "ecoFact": "Le manioc est un aliment de base aux Antilles et dans le monde entier. On en fait de la farine, des cassaves et du tapioca. Attention : il doit toujours être cuit car il contient de l'acide cyanhydrique cru.",
+      "hint": "Cherche le long tubercule brun à chair blanche."
+    },
+    "tb10:i1754579810850qk05": {
+      "title": "Gombo",
+      "strategy": "Le gombo est un petit légume vert allongé, en forme de capsule côtelée. Quand on le coupe, il libère un liquide visqueux caractéristique.",
+      "ecoFact": "Le gombo est utilisé dans les soupes et ragoûts créoles. Il est aussi un ingrédient clé du gumbo cajun en Louisiane. Il est riche en vitamines C et K.",
+      "hint": "Cherche le petit légume vert allongé et côtelé."
+    },
+    "tb11:i1754579810850xzsb": {
+      "title": "Cythère",
+      "strategy": "La cythère (pomme cythère) est un fruit ovale vert qui devient jaune à maturité. Sa chair est croquante et acidulée avec un gros noyau épineux.",
+      "ecoFact": "La cythère se mange verte avec du sel et du piment aux Antilles. L'arbre, le prunier de Cythère, produit de longues grappes de fruits.",
+      "hint": "Cherche le fruit ovale vert-jaune à chair croquante."
+    },
+    "tb12:i1754579810850f3vf": {
+      "title": "Maracuja",
+      "strategy": "Le maracuja (fruit de la passion) est rond ou ovale avec une peau épaisse violette ou jaune. À l'intérieur, des graines noires entourées d'une pulpe orange juteuse.",
+      "ecoFact": "Le maracuja pousse sur une liane grimpante aux fleurs spectaculaires appelées « fleurs de la passion ». Son jus parfumé est utilisé dans les cocktails et desserts tropicaux.",
+      "hint": "Cherche le fruit rond violet ou jaune rempli de graines."
+    },
+    "tb13:i17545798108503tl0": {
+      "title": "Madère",
+      "strategy": "Le madère est un tubercule à peau brune et chair blanche ou violacée. Il ressemble à une grosse pomme de terre allongée.",
+      "ecoFact": "Le madère (ou taro/dachine) est un tubercule traditionnel des Antilles. Il entre dans la composition du fameux « bouillon » créole, un plat de fête.",
+      "hint": "Cherche le tubercule brun allongé à chair blanche ou violette."
+    },
+    "tb14:i1754579810850mgcp": {
+      "title": "Igname",
+      "strategy": "L'igname est un gros tubercule irrégulier à la peau brune-noire et rugueuse. Sa chair est blanche et farineuse.",
+      "ecoFact": "L'igname est un aliment de base en Afrique et aux Antilles. Il existe des centaines de variétés. Aux Antilles, on le cuit en court-bouillon, en purée ou frit.",
+      "hint": "Cherche le gros tubercule irrégulier à peau rugueuse."
+    },
+    "tb15:i1754579810850tsef": {
+      "title": "Papaye",
+      "strategy": "La papaye est un gros fruit ovale, vert à l'extérieur qui devient jaune-orange à maturité. L'intérieur est orange vif avec des graines noires rondes.",
+      "ecoFact": "Le papayer pousse très vite et peut produire des fruits dès la première année ! La papaïne, une enzyme de la papaye, est utilisée pour attendrir la viande.",
+      "hint": "Cherche le gros fruit ovale orange avec des graines noires."
+    },
+    "tb16:i1754579810850kpy4": {
+      "title": "Goyave",
+      "strategy": "La goyave est un fruit rond ou en forme de poire, vert à l'extérieur avec une chair rose ou blanche très parfumée. Elle a de nombreuses petites graines.",
+      "ecoFact": "Le goyavier est l'un des arbres fruitiers les plus communs aux Antilles. On fait du jus, de la gelée et de la pâte de goyave (confiture épaisse) très appréciée.",
+      "hint": "Cherche le fruit vert rond à chair rose très parfumée."
+    },
+    "t9:i1754579810850bwvp": {
+      "title": "Raifort",
+      "strategy": "Le raifort (ou « zoranjé » en créole) est une plante médicinale aux feuilles très découpées et à l'odeur forte. Ses racines sont utilisées en phytothérapie.",
+      "ecoFact": "En médecine traditionnelle antillaise, le raifort est utilisé contre le rhume et la grippe. On prépare une décoction de ses feuilles et racines.",
+      "hint": "Cherche la plante aux feuilles très découpées et à l'odeur forte."
+    },
+    "tb17:i17545798108501vem": {
+      "title": "Tajétes",
+      "strategy": "Les tagètes (ou œillets d'Inde) sont des fleurs jaune-orange vives à l'odeur caractéristique. Elles poussent en touffes compactes.",
+      "ecoFact": "Les tagètes sont utilisées en médecine traditionnelle antillaise et comme répulsif naturel contre les moustiques et les pucerons au jardin.",
+      "hint": "Cherche les fleurs jaune-orange vives à odeur forte."
+    },
+    "tb18:i4": {
+      "title": "Cerise Péyi",
+      "strategy": "La cerise péyi (acérola) est un petit fruit rouge vif, rond et brillant. Elle pousse en grappes sur un arbuste.",
+      "ecoFact": "La cerise péyi est l'un des fruits les plus riches en vitamine C au monde — jusqu'à 40 fois plus que l'orange ! Aux Antilles, on en fait du jus et des sorbets.",
+      "hint": "Cherche le petit fruit rouge vif très brillant."
+    },
+    "tb06:i1754579810850ljmx": {
+      "title": "Corossol",
+      "strategy": "Le corossol est un gros fruit vert couvert de petites épines molles. Sa chair blanche est crémeuse et parfumée.",
+      "ecoFact": "Le corossolier est très apprécié aux Antilles pour ses fruits et ses feuilles utilisées en tisane. Le jus de corossol est une boisson populaire dans toute la Caraïbe.",
+      "hint": "Cherche le gros fruit vert avec des petites pointes."
+    },
+    "ta42:i1754579810850nqok": {
+      "title": "Zandoli",
+      "strategy": "Le zandoli (anolis) est un petit lézard vert vif très agile. Le mâle a une crête dorsale et un fanon gulaire orange-rouge qu'il déploie pour impressionner.",
+      "ecoFact": "Le zandoli est le lézard le plus commun des Antilles. Il régule les populations d'insectes et joue un rôle essentiel dans l'écosystème. Chaque île a souvent sa propre espèce d'anolis.",
+      "hint": "Cherche le petit lézard vert très agile."
+    },
+    "cdiv_1772258240371_1": {
+      "title": "la moitié de 150",
+      "strategy": "La moitié d'un nombre, c'est le diviser par 2. La moitié de 150, c'est 75.",
+      "hint": "Le résultat est 75."
+    },
+    "cdiv_1772258240371_2": {
+      "title": "242 ÷ 2",
+      "strategy": "Diviser par 2 c'est chercher la moitié. 242 divisé par 2 égale 121.",
+      "hint": "Le résultat est 121."
+    },
+    "cdiv_1772258240371_3": {
+      "title": "73 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 73 ÷ 100 = 0,73.",
+      "hint": "Le résultat est 0,73."
+    },
+    "cdiv_1772258240371_5": {
+      "title": "le tiers de 141",
+      "strategy": "Le tiers d'un nombre, c'est le diviser par 3. Le tiers de 141, c'est 47.",
+      "hint": "Le résultat est 47."
+    },
+    "cdiv_1772258240371_6": {
+      "title": "140 ÷ 4",
+      "strategy": "On cherche combien de fois 4 entre dans 140. 4 × 35 = 140, donc 140 ÷ 4 = 35.",
+      "hint": "Le résultat est 35."
+    },
+    "cdiv_1772258240371_7": {
+      "title": "136 ÷ 2",
+      "strategy": "Diviser par 2 c'est chercher la moitié. 136 divisé par 2 égale 68.",
+      "hint": "Le résultat est 68."
+    },
+    "cdiv_1772258240371_9": {
+      "title": "la moitié de 2,4",
+      "strategy": "La moitié d'un nombre, c'est le diviser par 2. La moitié de 2,4, c'est 1,2.",
+      "hint": "Le résultat est 1,2."
+    },
+    "cdiv_1772258240371_10": {
+      "title": "3,3 ÷ 3",
+      "strategy": "On cherche combien de fois 3 entre dans 3,3. 3 × 1,1 = 3,3, donc 3,3 ÷ 3 = 1,1.",
+      "hint": "Le résultat est 1,1."
+    },
+    "cdiv_1772258240371_11": {
+      "title": "8,2 ÷ 4",
+      "strategy": "On cherche combien de fois 4 entre dans 8,2. 4 × 2,05 = 8,2, donc 8,2 ÷ 4 = 2,05.",
+      "hint": "Le résultat est 2,05."
+    },
+    "cdiv_1772258240371_13": {
+      "title": "0,63 ÷ 9",
+      "strategy": "On cherche combien de fois 9 entre dans 0,63. 9 × 0,07 = 0,63, donc 0,63 ÷ 9 = 0,07.",
+      "hint": "Le résultat est 0,07."
+    },
+    "cdiv_1772258240371_14": {
+      "title": "0,6 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 0,6 ÷ 10 = 0,06.",
+      "hint": "Le résultat est 0,06."
+    },
+    "cdiv_1772258240371_15": {
+      "title": "6,3 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 6,3 ÷ 10 = 0,63.",
+      "hint": "Le résultat est 0,63."
+    },
+    "cdiv_1772258240371_17": {
+      "title": "24,3 ÷ 3",
+      "strategy": "On cherche combien de fois 3 entre dans 24,3. 3 × 8,1 = 24,3, donc 24,3 ÷ 3 = 8,1.",
+      "hint": "Le résultat est 8,1."
+    },
+    "cdiv_1772258240371_18": {
+      "title": "le tiers de 27",
+      "strategy": "Le tiers d'un nombre, c'est le diviser par 3. Le tiers de 27, c'est 9.",
+      "hint": "Le résultat est 9."
+    },
+    "cdiv_1772258240371_19": {
+      "title": "32,4 ÷ 8",
+      "strategy": "On cherche combien de fois 8 entre dans 32,4. 8 × 4,05 = 32,4, donc 32,4 ÷ 8 = 4,05.",
+      "hint": "Le résultat est 4,05."
+    },
+    "cdiv_1772258240371_21": {
+      "title": "36 ÷ 4",
+      "strategy": "On cherche combien de fois 4 entre dans 36. 4 × 9 = 36, donc 36 ÷ 4 = 9.",
+      "hint": "Le résultat est 9."
+    },
+    "cdiv_1772258240371_22": {
+      "title": "3,8 ÷ 2",
+      "strategy": "Diviser par 2 c'est chercher la moitié. 3,8 divisé par 2 égale 1,9.",
+      "hint": "Le résultat est 1,9."
+    },
+    "cdiv_1772258240371_23": {
+      "title": "6,3 ÷ 9",
+      "strategy": "On cherche combien de fois 9 entre dans 6,3. 9 × 0,7 = 6,3, donc 6,3 ÷ 9 = 0,7.",
+      "hint": "Le résultat est 0,7."
+    },
+    "cdiv_1772258240371_25": {
+      "title": "7 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 7 ÷ 100 = 0,07.",
+      "hint": "Le résultat est 0,07."
+    },
+    "cdiv_1772258240371_26": {
+      "title": "0,35 ÷ 7",
+      "strategy": "On cherche combien de fois 7 entre dans 0,35. 7 × 0,05 = 0,35, donc 0,35 ÷ 7 = 0,05.",
+      "hint": "Le résultat est 0,05."
+    },
+    "cdiv_1772258240371_27": {
+      "title": "0,5 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 0,5 ÷ 10 = 0,05.",
+      "hint": "Le résultat est 0,05."
+    },
+    "cdiv_1772258240371_29": {
+      "title": "6,2 ÷ 2",
+      "strategy": "Diviser par 2 c'est chercher la moitié. 6,2 divisé par 2 égale 3,1.",
+      "hint": "Le résultat est 3,1."
+    },
+    "cdiv_1772258240371_30": {
+      "title": "8 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 8 ÷ 100 = 0,08.",
+      "hint": "Le résultat est 0,08."
+    },
+    "cdiv_1772258240371_32": {
+      "title": "24,6 ÷ 2",
+      "strategy": "Diviser par 2 c'est chercher la moitié. 24,6 divisé par 2 égale 12,3.",
+      "hint": "Le résultat est 12,3."
+    },
+    "cdiv_1772258240371_33": {
+      "title": "21,9 ÷ 3",
+      "strategy": "On cherche combien de fois 3 entre dans 21,9. 3 × 7,3 = 21,9, donc 21,9 ÷ 3 = 7,3.",
+      "hint": "Le résultat est 7,3."
+    },
+    "cdiv_1772258240371_34": {
+      "title": "1,43 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 1,43 ÷ 10 = 0,143.",
+      "hint": "Le résultat est 0,143."
+    },
+    "cdiv_1772258240371_36": {
+      "title": "la moitié de 242",
+      "strategy": "La moitié d'un nombre, c'est le diviser par 2. La moitié de 242, c'est 121.",
+      "hint": "Le résultat est 121."
+    },
+    "cdiv_1772258240371_37": {
+      "title": "le tiers de 333",
+      "strategy": "Le tiers d'un nombre, c'est le diviser par 3. Le tiers de 333, c'est 111.",
+      "hint": "Le résultat est 111."
+    },
+    "cdiv_1772258240371_38": {
+      "title": "963 ÷ 3",
+      "strategy": "On cherche combien de fois 3 entre dans 963. 3 × 321 = 963, donc 963 ÷ 3 = 321.",
+      "hint": "Le résultat est 321."
+    },
+    "cdiv_1772258240371_40": {
+      "title": "350 ÷ 2",
+      "strategy": "Diviser par 2 c'est chercher la moitié. 350 divisé par 2 égale 175.",
+      "hint": "Le résultat est 175."
+    },
+    "cdiv_1772258240371_41": {
+      "title": "160 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 160 ÷ 10 = 16.",
+      "hint": "Le résultat est 16."
+    },
+    "cdiv_1772258240371_42": {
+      "title": "330 ÷ 3",
+      "strategy": "On cherche combien de fois 3 entre dans 330. 3 × 110 = 330, donc 330 ÷ 3 = 110.",
+      "hint": "Le résultat est 110."
+    },
+    "cdiv_1772258240371_44": {
+      "title": "570 ÷ 2",
+      "strategy": "Diviser par 2 c'est chercher la moitié. 570 divisé par 2 égale 285.",
+      "hint": "Le résultat est 285."
+    },
+    "cdiv_1772258240371_45": {
+      "title": "500 ÷ 4",
+      "strategy": "On cherche combien de fois 4 entre dans 500. 4 × 125 = 500, donc 500 ÷ 4 = 125.",
+      "hint": "Le résultat est 125."
+    },
+    "cdiv_1772258240371_46": {
+      "title": "321 ÷ 3",
+      "strategy": "On cherche combien de fois 3 entre dans 321. 3 × 107 = 321, donc 321 ÷ 3 = 107.",
+      "hint": "Le résultat est 107."
+    },
+    "cdiv_1772258240371_48": {
+      "title": "90 ÷ 5",
+      "strategy": "On cherche combien de fois 5 entre dans 90. 5 × 18 = 90, donc 90 ÷ 5 = 18.",
+      "hint": "Le résultat est 18."
+    },
+    "cdiv_1772258240371_49": {
+      "title": "125 ÷ 5",
+      "strategy": "On cherche combien de fois 5 entre dans 125. 5 × 25 = 125, donc 125 ÷ 5 = 25.",
+      "hint": "Le résultat est 25."
+    },
+    "cdiv_1772258240371_50": {
+      "title": "190 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 190 ÷ 10 = 19.",
+      "hint": "Le résultat est 19."
+    },
+    "cdiv_1772258240371_52": {
+      "title": "42,6 ÷ 6",
+      "strategy": "On cherche combien de fois 6 entre dans 42,6. 6 × 7,1 = 42,6, donc 42,6 ÷ 6 = 7,1.",
+      "hint": "Le résultat est 7,1."
+    },
+    "cdiv_1772258240371_53": {
+      "title": "56,7 ÷ 7",
+      "strategy": "On cherche combien de fois 7 entre dans 56,7. 7 × 8,1 = 56,7, donc 56,7 ÷ 7 = 8,1.",
+      "hint": "Le résultat est 8,1."
+    },
+    "cdiv_1772258240371_55": {
+      "title": "480 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 480 ÷ 100 = 4,8.",
+      "hint": "Le résultat est 4,8."
+    },
+    "cdiv_1772258240371_56": {
+      "title": "85 ÷ 5",
+      "strategy": "On cherche combien de fois 5 entre dans 85. 5 × 17 = 85, donc 85 ÷ 5 = 17.",
+      "hint": "Le résultat est 17."
+    },
+    "cdiv_1772258240371_57": {
+      "title": "84 ÷ 2",
+      "strategy": "Diviser par 2 c'est chercher la moitié. 84 divisé par 2 égale 42.",
+      "hint": "Le résultat est 42."
+    },
+    "cdiv_1772258240371_59": {
+      "title": "6,54 ÷ 6",
+      "strategy": "On cherche combien de fois 6 entre dans 6,54. 6 × 1,09 = 6,54, donc 6,54 ÷ 6 = 1,09.",
+      "hint": "Le résultat est 1,09."
+    },
+    "cdiv_1772258240371_60": {
+      "title": "54 ÷ 9",
+      "strategy": "On cherche combien de fois 9 entre dans 54. 9 × 6 = 54, donc 54 ÷ 9 = 6.",
+      "hint": "Le résultat est 6."
+    },
+    "cdiv_1772258240371_61": {
+      "title": "54 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 54 ÷ 10 = 5,4.",
+      "hint": "Le résultat est 5,4."
+    },
+    "cdiv_1772258240371_63": {
+      "title": "14,3 ÷ 1000",
+      "strategy": "Diviser par 1000 revient à déplacer la virgule de 3 rangs vers la gauche. 14,3 ÷ 1000 = 0,0143.",
+      "hint": "Le résultat est 0,0143."
+    },
+    "cdiv_1772258240371_64": {
+      "title": "2,4 ÷ 8",
+      "strategy": "On cherche combien de fois 8 entre dans 2,4. 8 × 0,3 = 2,4, donc 2,4 ÷ 8 = 0,3.",
+      "hint": "Le résultat est 0,3."
+    },
+    "cdiv_1772258240371_65": {
+      "title": "18,3 ÷ 3",
+      "strategy": "On cherche combien de fois 3 entre dans 18,3. 3 × 6,1 = 18,3, donc 18,3 ÷ 3 = 6,1.",
+      "hint": "Le résultat est 6,1."
+    },
+    "cdiv_1772258240371_67": {
+      "title": "250 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 250 ÷ 100 = 2,5.",
+      "hint": "Le résultat est 2,5."
+    },
+    "cdiv_1772258240371_68": {
+      "title": "84 ÷ 4",
+      "strategy": "On cherche combien de fois 4 entre dans 84. 4 × 21 = 84, donc 84 ÷ 4 = 21.",
+      "hint": "Le résultat est 21."
+    },
+    "cdiv_1772258240371_69": {
+      "title": "120 ÷ 5",
+      "strategy": "On cherche combien de fois 5 entre dans 120. 5 × 24 = 120, donc 120 ÷ 5 = 24.",
+      "hint": "Le résultat est 24."
+    },
+    "cdiv_1772258240371_71": {
+      "title": "90 ÷ 3",
+      "strategy": "On cherche combien de fois 3 entre dans 90. 3 × 30 = 90, donc 90 ÷ 3 = 30.",
+      "hint": "Le résultat est 30."
+    },
+    "cdiv_1772258240371_73": {
+      "title": "39 ÷ 3",
+      "strategy": "On cherche combien de fois 3 entre dans 39. 3 × 13 = 39, donc 39 ÷ 3 = 13.",
+      "hint": "Le résultat est 13."
+    },
+    "cdiv_1772258240371_74": {
+      "title": "55 ÷ 5",
+      "strategy": "On cherche combien de fois 5 entre dans 55. 5 × 11 = 55, donc 55 ÷ 5 = 11.",
+      "hint": "Le résultat est 11."
+    },
+    "cdiv_1772258240371_75": {
+      "title": "36 ÷ 2",
+      "strategy": "Diviser par 2 c'est chercher la moitié. 36 divisé par 2 égale 18.",
+      "hint": "Le résultat est 18."
+    },
+    "cdiv_1772258240371_77": {
+      "title": "42 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 42 ÷ 100 = 0,42.",
+      "hint": "Le résultat est 0,42."
+    },
+    "cdiv_1772258240371_78": {
+      "title": "75 ÷ 5",
+      "strategy": "On cherche combien de fois 5 entre dans 75. 5 × 15 = 75, donc 75 ÷ 5 = 15.",
+      "hint": "Le résultat est 15."
+    },
+    "cdiv_1772258240371_80": {
+      "title": "4,5 ÷ 5",
+      "strategy": "On cherche combien de fois 5 entre dans 4,5. 5 × 0,9 = 4,5, donc 4,5 ÷ 5 = 0,9.",
+      "hint": "Le résultat est 0,9."
+    },
+    "cdiv_1772258240371_81": {
+      "title": "120 ÷ 20",
+      "strategy": "On cherche combien de fois 20 entre dans 120. 20 × 6 = 120, donc 120 ÷ 20 = 6.",
+      "hint": "Le résultat est 6."
+    },
+    "cdiv_1772258240371_82": {
+      "title": "54,9 ÷ 9",
+      "strategy": "On cherche combien de fois 9 entre dans 54,9. 9 × 6,1 = 54,9, donc 54,9 ÷ 9 = 6,1.",
+      "hint": "Le résultat est 6,1."
+    },
+    "cdiv_1772258240371_84": {
+      "title": "la moitié de 34",
+      "strategy": "La moitié d'un nombre, c'est le diviser par 2. La moitié de 34, c'est 17.",
+      "hint": "Le résultat est 17."
+    },
+    "cdiv_1772258240371_85": {
+      "title": "le tiers de 45",
+      "strategy": "Le tiers d'un nombre, c'est le diviser par 3. Le tiers de 45, c'est 15.",
+      "hint": "Le résultat est 15."
+    },
+    "cdiv_1772258240371_86": {
+      "title": "175 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 175 ÷ 100 = 1,75.",
+      "hint": "Le résultat est 1,75."
+    },
+    "cdiv_1772258240371_88": {
+      "title": "126 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 126 ÷ 10 = 12,6.",
+      "hint": "Le résultat est 12,6."
+    },
+    "cdiv_1772258240371_89": {
+      "title": "67 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 67 ÷ 100 = 0,67.",
+      "hint": "Le résultat est 0,67."
+    },
+    "cdiv_1772258240371_91": {
+      "title": "la moitié de 610",
+      "strategy": "La moitié d'un nombre, c'est le diviser par 2. La moitié de 610, c'est 305.",
+      "hint": "Le résultat est 305."
+    },
+    "cdiv_1772258240371_92": {
+      "title": "550 ÷ 2",
+      "strategy": "Diviser par 2 c'est chercher la moitié. 550 divisé par 2 égale 275.",
+      "hint": "Le résultat est 275."
+    },
+    "cdiv_1772258240371_93": {
+      "title": "808 ÷ 2",
+      "strategy": "Diviser par 2 c'est chercher la moitié. 808 divisé par 2 égale 404.",
+      "hint": "Le résultat est 404."
+    },
+    "cdiv_1772258240371_95": {
+      "title": "129 ÷ 1 000",
+      "strategy": "On cherche combien de fois 1 entre dans 129. 1 × 0,129 = 129, donc 129 ÷ 1 = 0,129.",
+      "hint": "Le résultat est 0,129."
+    },
+    "cdiv_1772258240371_96": {
+      "title": "12 900 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 900 ÷ 100 = 129.",
+      "hint": "Le résultat est 129."
+    },
+    "cdiv_1772258240371_97": {
+      "title": "1 290 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 290 ÷ 10 = 129.",
+      "hint": "Le résultat est 129."
+    },
+    "cdiv_1772258240371_99": {
+      "title": "le double de 75",
+      "strategy": "Le résultat de le double de 75 est 150.",
+      "hint": "Le résultat est 150."
+    },
+    "cdiv_1772258240371_100": {
+      "title": "la moitié de 500",
+      "strategy": "La moitié d'un nombre, c'est le diviser par 2. La moitié de 500, c'est 250.",
+      "hint": "Le résultat est 250."
+    },
+    "cdiv_1772258240371_101": {
+      "title": "le tiers de 90",
+      "strategy": "Le tiers d'un nombre, c'est le diviser par 3. Le tiers de 90, c'est 30.",
+      "hint": "Le résultat est 30."
+    },
+    "cdiv_1772258240371_103": {
+      "title": "740 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 740 ÷ 100 = 7,4.",
+      "hint": "Le résultat est 7,4."
+    },
+    "cdiv_1772258240371_104": {
+      "title": "740 ÷ 74",
+      "strategy": "On cherche combien de fois 74 entre dans 740. 74 × 10 = 740, donc 740 ÷ 74 = 10.",
+      "hint": "Le résultat est 10."
+    },
+    "cdiv_1772258240371_105": {
+      "title": "7,4 ÷ 1 000",
+      "strategy": "On cherche combien de fois 1 entre dans 7,4. 1 × 0,0074 = 7,4, donc 7,4 ÷ 1 = 0,0074.",
+      "hint": "Le résultat est 0,0074."
+    },
+    "cdiv_1772258240371_107": {
+      "title": "56,14 ÷ 8",
+      "strategy": "On cherche combien de fois 8 entre dans 56,14. 8 × 7,0175 = 56,14, donc 56,14 ÷ 8 = 7,0175.",
+      "hint": "Le résultat est 7,0175."
+    },
+    "cdiv_1772258240371_108": {
+      "title": "561,4 ÷ 7",
+      "strategy": "On cherche combien de fois 7 entre dans 561,4. 7 × 80,2 = 561,4, donc 561,4 ÷ 7 = 80,2.",
+      "hint": "Le résultat est 80,2."
+    },
+    "cdiv_1772258240371_109": {
+      "title": "56,014 ÷ 7",
+      "strategy": "On cherche combien de fois 7 entre dans 56,014. 7 × 8,002 = 56,014, donc 56,014 ÷ 7 = 8,002.",
+      "hint": "Le résultat est 8,002."
+    },
+    "cdiv_1772258240371_111": {
+      "title": "26,04 ÷ 2",
+      "strategy": "Diviser par 2 c'est chercher la moitié. 26,04 divisé par 2 égale 13,02.",
+      "hint": "Le résultat est 13,02."
+    },
+    "cdiv_1772258240371_112": {
+      "title": "12,16 ÷ 2",
+      "strategy": "Diviser par 2 c'est chercher la moitié. 12,16 divisé par 2 égale 6,08.",
+      "hint": "Le résultat est 6,08."
+    },
+    "cdiv_1772258240371_113": {
+      "title": "14,06 ÷ 2",
+      "strategy": "Diviser par 2 c'est chercher la moitié. 14,06 divisé par 2 égale 7,03.",
+      "hint": "Le résultat est 7,03."
+    },
+    "cdiv_1772258240371_115": {
+      "title": "3,58 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 3,58 ÷ 100 = 0,0358.",
+      "hint": "Le résultat est 0,0358."
+    },
+    "cdiv_1772258240371_116": {
+      "title": "0,358 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 0,358 ÷ 10 = 0,0358.",
+      "hint": "Le résultat est 0,0358."
+    },
+    "cdiv_1772258240371_117": {
+      "title": "350,8 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 350,8 ÷ 100 = 3,508.",
+      "hint": "Le résultat est 3,508."
+    },
+    "cdiv_1772258240371_119": {
+      "title": "le double de 50",
+      "strategy": "Le résultat de le double de 50 est 100.",
+      "hint": "Le résultat est 100."
+    },
+    "cdiv_1772258240371_120": {
+      "title": "la moitié de 200",
+      "strategy": "La moitié d'un nombre, c'est le diviser par 2. La moitié de 200, c'est 100.",
+      "hint": "Le résultat est 100."
+    },
+    "cdiv_1772258240371_121": {
+      "title": "le quart de 75",
+      "strategy": "Le quart d'un nombre, c'est le diviser par 4. Le quart de 75, c'est 18,75.",
+      "hint": "Le résultat est 18,75."
+    },
+    "cdiv_1772258240371_123": {
+      "title": "le double de 30",
+      "strategy": "Le résultat de le double de 30 est 60.",
+      "hint": "Le résultat est 60."
+    },
+    "cdiv_1772258240371_124": {
+      "title": "la moitié de 120",
+      "strategy": "La moitié d'un nombre, c'est le diviser par 2. La moitié de 120, c'est 60.",
+      "hint": "Le résultat est 60."
+    },
+    "cdiv_1772258240371_125": {
+      "title": "le quart de 160",
+      "strategy": "Le quart d'un nombre, c'est le diviser par 4. Le quart de 160, c'est 40.",
+      "hint": "Le résultat est 40."
+    },
+    "cdiv_1772258240371_127": {
+      "title": "16 ÷ 4",
+      "strategy": "On cherche combien de fois 4 entre dans 16. 4 × 4 = 16, donc 16 ÷ 4 = 4.",
+      "hint": "Le résultat est 4."
+    },
+    "cdiv_1772258240371_128": {
+      "title": "4,128 ÷ 4",
+      "strategy": "On cherche combien de fois 4 entre dans 4,128. 4 × 1,032 = 4,128, donc 4,128 ÷ 4 = 1,032.",
+      "hint": "Le résultat est 1,032."
+    },
+    "cdiv_1772258240371_129": {
+      "title": "4,16 ÷ 4",
+      "strategy": "On cherche combien de fois 4 entre dans 4,16. 4 × 1,04 = 4,16, donc 4,16 ÷ 4 = 1,04.",
+      "hint": "Le résultat est 1,04."
+    },
+    "cdiv_1772258240371_131": {
+      "title": "le double de 180",
+      "strategy": "Le résultat de le double de 180 est 360.",
+      "hint": "Le résultat est 360."
+    },
+    "cdiv_1772258240371_132": {
+      "title": "la moitié de 180",
+      "strategy": "La moitié d'un nombre, c'est le diviser par 2. La moitié de 180, c'est 90.",
+      "hint": "Le résultat est 90."
+    },
+    "cdiv_1772258240371_133": {
+      "title": "le tiers de 120",
+      "strategy": "Le tiers d'un nombre, c'est le diviser par 3. Le tiers de 120, c'est 40.",
+      "hint": "Le résultat est 40."
+    },
+    "cdiv_1772258240371_135": {
+      "title": "7,6 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 7,6 ÷ 100 = 0,076.",
+      "hint": "Le résultat est 0,076."
+    },
+    "cdiv_1772258240371_136": {
+      "title": "760 ÷ 1 000",
+      "strategy": "On cherche combien de fois 1 entre dans 760. 1 × 0,76 = 760, donc 760 ÷ 1 = 0,76.",
+      "hint": "Le résultat est 0,76."
+    },
+    "cdiv_1772258240371_137": {
+      "title": "7 060 ÷ 1 000",
+      "strategy": "On cherche combien de fois 1 entre dans 060. 1 × 7,06 = 060, donc 060 ÷ 1 = 7,06.",
+      "hint": "Le résultat est 7,06."
+    },
+    "cdiv_1772258240371_139": {
+      "title": "10,25 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 10,25 ÷ 100 = 0,1025.",
+      "hint": "Le résultat est 0,1025."
+    },
+    "cdiv_1772258240371_140": {
+      "title": "10,25 ÷ 1 000",
+      "strategy": "On cherche combien de fois 1 entre dans 10,25. 1 × 0,01025 = 10,25, donc 10,25 ÷ 1 = 0,01025.",
+      "hint": "Le résultat est 0,01025."
+    },
+    "cdiv_1772258240371_141": {
+      "title": "1 250 ÷ 1 000",
+      "strategy": "On cherche combien de fois 1 entre dans 250. 1 × 1,25 = 250, donc 250 ÷ 1 = 1,25.",
+      "hint": "Le résultat est 1,25."
+    },
+    "cdiv_1772258240371_143": {
+      "title": "400,3 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 400,3 ÷ 100 = 4,003.",
+      "hint": "Le résultat est 4,003."
+    },
+    "cdiv_1772258240371_144": {
+      "title": "0,43 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 0,43 ÷ 10 = 0,043.",
+      "hint": "Le résultat est 0,043."
+    },
+    "cdiv_1772258240371_145": {
+      "title": "4 030 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 030 ÷ 100 = 40,3.",
+      "hint": "Le résultat est 40,3."
+    },
+    "cdiv_1772258240371_147": {
+      "title": "900,9 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 900,9 ÷ 100 = 9,009.",
+      "hint": "Le résultat est 9,009."
+    },
+    "cdiv_1772258240371_148": {
+      "title": "0,99 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 0,99 ÷ 10 = 0,099.",
+      "hint": "Le résultat est 0,099."
+    },
+    "cdiv_1772258240371_149": {
+      "title": "9 099 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 099 ÷ 100 = 90,99.",
+      "hint": "Le résultat est 90,99."
+    },
+    "cdiv_1772258240371_151": {
+      "title": "30 300 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 300 ÷ 100 = 303.",
+      "hint": "Le résultat est 303."
+    },
+    "cdiv_1772258240371_152": {
+      "title": "0,33 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 0,33 ÷ 10 = 0,033.",
+      "hint": "Le résultat est 0,033."
+    },
+    "cdiv_1772258240371_153": {
+      "title": "33 ÷ 1 000",
+      "strategy": "On cherche combien de fois 1 entre dans 33. 1 × 0,033 = 33, donc 33 ÷ 1 = 0,033.",
+      "hint": "Le résultat est 0,033."
+    },
+    "cdiv_1772258240371_155": {
+      "title": "5,08 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 5,08 ÷ 10 = 0,508.",
+      "hint": "Le résultat est 0,508."
+    },
+    "cdiv_1772258240371_156": {
+      "title": "508 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 508 ÷ 100 = 5,08.",
+      "hint": "Le résultat est 5,08."
+    },
+    "cdiv_1772258240371_157": {
+      "title": "5 080 ÷ 1 000",
+      "strategy": "On cherche combien de fois 1 entre dans 080. 1 × 5,08 = 080, donc 080 ÷ 1 = 5,08.",
+      "hint": "Le résultat est 5,08."
+    },
+    "cdiv_1772258240371_159": {
+      "title": "150 ÷ 25",
+      "strategy": "On cherche combien de fois 25 entre dans 150. 25 × 6 = 150, donc 150 ÷ 25 = 6.",
+      "hint": "Le résultat est 6."
+    },
+    "cdiv_1772258240371_160": {
+      "title": "43 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 43 ÷ 100 = 0,43.",
+      "hint": "Le résultat est 0,43."
+    },
+    "cdiv_1772258240371_161": {
+      "title": "250 ÷ 25",
+      "strategy": "On cherche combien de fois 25 entre dans 250. 25 × 10 = 250, donc 250 ÷ 25 = 10.",
+      "hint": "Le résultat est 10."
+    },
+    "cdiv_1772258240371_163": {
+      "title": "550 ÷ 25",
+      "strategy": "On cherche combien de fois 25 entre dans 550. 25 × 22 = 550, donc 550 ÷ 25 = 22.",
+      "hint": "Le résultat est 22."
+    },
+    "cdiv_1772258240371_164": {
+      "title": "24 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 24 ÷ 100 = 0,24.",
+      "hint": "Le résultat est 0,24."
+    },
+    "cdiv_1772258240371_165": {
+      "title": "525 ÷ 25",
+      "strategy": "On cherche combien de fois 25 entre dans 525. 25 × 21 = 525, donc 525 ÷ 25 = 21.",
+      "hint": "Le résultat est 21."
+    },
+    "cdiv_1772258240371_167": {
+      "title": "90 ÷ 15",
+      "strategy": "On cherche combien de fois 15 entre dans 90. 15 × 6 = 90, donc 90 ÷ 15 = 6.",
+      "hint": "Le résultat est 6."
+    },
+    "cdiv_1772258240371_168": {
+      "title": "180 ÷ 15",
+      "strategy": "On cherche combien de fois 15 entre dans 180. 15 × 12 = 180, donc 180 ÷ 15 = 12.",
+      "hint": "Le résultat est 12."
+    },
+    "cdiv_1772258240371_169": {
+      "title": "500 ÷ 25",
+      "strategy": "On cherche combien de fois 25 entre dans 500. 25 × 20 = 500, donc 500 ÷ 25 = 20.",
+      "hint": "Le résultat est 20."
+    },
+    "cdiv_1772258240371_171": {
+      "title": "150 ÷ 15",
+      "strategy": "On cherche combien de fois 15 entre dans 150. 15 × 10 = 150, donc 150 ÷ 15 = 10.",
+      "hint": "Le résultat est 10."
+    },
+    "cdiv_1772258240371_172": {
+      "title": "1 010 ÷ 100",
+      "strategy": "Diviser par 100 revient à déplacer la virgule de 2 rangs vers la gauche. 010 ÷ 100 = 10,1.",
+      "hint": "Le résultat est 10,1."
+    },
+    "cdiv_1772258240371_173": {
+      "title": "1 500 ÷ 25",
+      "strategy": "On cherche combien de fois 25 entre dans 500. 25 × 60 = 500, donc 500 ÷ 25 = 60.",
+      "hint": "Le résultat est 60."
+    },
+    "cdiv_1772258240371_175": {
+      "title": "90 ÷ 0,1",
+      "strategy": "On cherche combien de fois 0,1 entre dans 90. 0,1 × 900 = 90, donc 90 ÷ 0,1 = 900.",
+      "hint": "Le résultat est 900."
+    },
+    "cdiv_1772258240371_176": {
+      "title": "9 ÷ 1 000",
+      "strategy": "On cherche combien de fois 1 entre dans 9. 1 × 0,009 = 9, donc 9 ÷ 1 = 0,009.",
+      "hint": "Le résultat est 0,009."
+    },
+    "cdiv_1772258240371_177": {
+      "title": "7 200 ÷ 8",
+      "strategy": "On cherche combien de fois 8 entre dans 200. 8 × 900 = 200, donc 200 ÷ 8 = 900.",
+      "hint": "Le résultat est 900."
+    },
+    "cdiv_1772258240371_179": {
+      "title": "80 ÷ 0,1",
+      "strategy": "On cherche combien de fois 0,1 entre dans 80. 0,1 × 800 = 80, donc 80 ÷ 0,1 = 800.",
+      "hint": "Le résultat est 800."
+    },
+    "cdiv_1772258240371_180": {
+      "title": "80 ÷ 1 000",
+      "strategy": "On cherche combien de fois 1 entre dans 80. 1 × 0,08 = 80, donc 80 ÷ 1 = 0,08.",
+      "hint": "Le résultat est 0,08."
+    },
+    "cdiv_1772258240371_181": {
+      "title": "560 ÷ 80",
+      "strategy": "On cherche combien de fois 80 entre dans 560. 80 × 7 = 560, donc 560 ÷ 80 = 7.",
+      "hint": "Le résultat est 7."
+    },
+    "cdiv_1772258240371_183": {
+      "title": "40 ÷ 0,1",
+      "strategy": "On cherche combien de fois 0,1 entre dans 40. 0,1 × 400 = 40, donc 40 ÷ 0,1 = 400.",
+      "hint": "Le résultat est 400."
+    },
+    "cdiv_1772258240371_184": {
+      "title": "4 000 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 000 ÷ 10 = 400.",
+      "hint": "Le résultat est 400."
+    },
+    "cdiv_1772258240371_185": {
+      "title": "360 ÷ 90",
+      "strategy": "On cherche combien de fois 90 entre dans 360. 90 × 4 = 360, donc 360 ÷ 90 = 4.",
+      "hint": "Le résultat est 4."
+    },
+    "cdiv_1772258240371_187": {
+      "title": "9 ÷ 0,1",
+      "strategy": "On cherche combien de fois 0,1 entre dans 9. 0,1 × 90 = 9, donc 9 ÷ 0,1 = 90.",
+      "hint": "Le résultat est 90."
+    },
+    "cdiv_1772258240371_188": {
+      "title": "3 000 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 000 ÷ 10 = 300.",
+      "hint": "Le résultat est 300."
+    },
+    "cdiv_1772258240371_189": {
+      "title": "300 ÷ 3",
+      "strategy": "On cherche combien de fois 3 entre dans 300. 3 × 100 = 300, donc 300 ÷ 3 = 100.",
+      "hint": "Le résultat est 100."
+    },
+    "cdiv_1772258240371_191": {
+      "title": "4 500 ÷ 10",
+      "strategy": "Diviser par 10 revient à déplacer la virgule de 1 rang vers la gauche. 500 ÷ 10 = 450.",
+      "hint": "Le résultat est 450."
+    },
+    "cdiv_1772258240371_192": {
+      "title": "900 ÷ 2",
+      "strategy": "Diviser par 2 c'est chercher la moitié. 900 divisé par 2 égale 450.",
+      "hint": "Le résultat est 450."
+    },
+    "cmult_1772259541773_1": {
+      "title": "50 × 7",
+      "strategy": "Stratégie : 50 × 7 = 5 × 7 × 10. D'abord 5 × 7 = 35, puis 35 × 10 = 350.",
+      "hint": "Le résultat est 350."
+    },
+    "cmult_1772259541773_2": {
+      "title": "5 × 0,09",
+      "strategy": "5 × 0,09 = 0,45. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 0,45."
+    },
+    "cmult_1772259541773_4": {
+      "title": "10 × 92",
+      "strategy": "Stratégie : 10 × 92 = 1 × 92 × 10. D'abord 1 × 92 = 92, puis 92 × 10 = 920.",
+      "hint": "Le résultat est 920."
+    },
+    "cmult_1772259541773_5": {
+      "title": "4 × 52",
+      "strategy": "4 × 52 = 208. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 208."
+    },
+    "cmult_1772259541773_6": {
+      "title": "31 × 30",
+      "strategy": "Stratégie : 31 × 30 = 31 × 3 × 10. D'abord 31 × 3 = 93, puis 93 × 10 = 930.",
+      "hint": "Le résultat est 930."
+    },
+    "cmult_1772259541773_8": {
+      "title": "26 × 12",
+      "strategy": "26 × 12 = 312. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 312."
+    },
+    "cmult_1772259541773_9": {
+      "title": "5 × 51",
+      "strategy": "5 × 51 = 255. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 255."
+    },
+    "cmult_1772259541773_11": {
+      "title": "79 × 13",
+      "strategy": "79 × 13 = 1027. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 1027."
+    },
+    "cmult_1772259541773_13": {
+      "title": "20 × 9",
+      "strategy": "Stratégie : 20 × 9 = 2 × 9 × 10. D'abord 2 × 9 = 18, puis 18 × 10 = 180.",
+      "hint": "Le résultat est 180."
+    },
+    "cmult_1772259541773_14": {
+      "title": "2 × 190",
+      "strategy": "Stratégie : 2 × 190 = 2 × 19 × 10. D'abord 2 × 19 = 38, puis 38 × 10 = 380.",
+      "hint": "Le résultat est 380."
+    },
+    "cmult_1772259541773_15": {
+      "title": "67 × 8",
+      "strategy": "67 × 8 = 536. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 536."
+    },
+    "cmult_1772259541773_17": {
+      "title": "22 × 19",
+      "strategy": "22 × 19 = 418. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 418."
+    },
+    "cmult_1772259541773_19": {
+      "title": "63 × 14",
+      "strategy": "63 × 14 = 882. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 882."
+    },
+    "cmult_1772259541773_21": {
+      "title": "68 × 10",
+      "strategy": "Stratégie : 68 × 10 = 68 × 1 × 10. D'abord 68 × 1 = 68, puis 68 × 10 = 680.",
+      "hint": "Le résultat est 680."
+    },
+    "cmult_1772259541773_22": {
+      "title": "200 × 6",
+      "strategy": "Stratégie : 200 × 6 = 20 × 6 × 10. D'abord 20 × 6 = 120, puis 120 × 10 = 1200.",
+      "hint": "Le résultat est 1200."
+    },
+    "cmult_1772259541773_24": {
+      "title": "4 fois 3/4",
+      "strategy": "4 fois 3/4 = 3. Pour les fractions, pense à simplifier d'abord et à chercher les équivalences avec les entiers.",
+      "hint": "Le résultat est 3."
+    },
+    "cmult_1772259541773_25": {
+      "title": "3,4 × 10",
+      "strategy": "Stratégie : 3,4 × 10 = 3,4 × 1 × 10. D'abord 3,4 × 1 = 3, puis 3 × 10 = 34.",
+      "hint": "Le résultat est 34."
+    },
+    "cmult_1772259541773_26": {
+      "title": "3 × 0,4",
+      "strategy": "3 × 0,4 = 1,2. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 1,2."
+    },
+    "cmult_1772259541773_28": {
+      "title": "? × 7 = 21",
+      "strategy": "On cherche le nombre qui, multiplié par 7, donne 21. C'est 21 ÷ 7 = 3.",
+      "hint": "Le résultat est 3."
+    },
+    "cmult_1772259541773_32": {
+      "title": "6 × ? = 24",
+      "strategy": "On cherche le nombre qui, multiplié par 6, donne 24. C'est 24 ÷ 6 = 4.",
+      "hint": "Le résultat est 4."
+    },
+    "cmult_1772259541773_33": {
+      "title": "13 × 10",
+      "strategy": "Stratégie : 13 × 10 = 13 × 1 × 10. D'abord 13 × 1 = 13, puis 13 × 10 = 130.",
+      "hint": "Le résultat est 130."
+    },
+    "cmult_1772259541773_36": {
+      "title": "3 × 20",
+      "strategy": "Stratégie : 3 × 20 = 3 × 2 × 10. D'abord 3 × 2 = 6, puis 6 × 10 = 60.",
+      "hint": "Le résultat est 60."
+    },
+    "cmult_1772259541773_38": {
+      "title": "? × 15 = 45",
+      "strategy": "On cherche le nombre qui, multiplié par 15, donne 45. C'est 45 ÷ 15 = 3.",
+      "hint": "Le résultat est 3."
+    },
+    "cmult_1772259541773_39": {
+      "title": "10 × 1,5",
+      "strategy": "Stratégie : 10 × 1,5 = 1 × 1,5 × 10. D'abord 1 × 1,5 = 1, puis 1 × 10 = 15.",
+      "hint": "Le résultat est 15."
+    },
+    "cmult_1772259541773_41": {
+      "title": "3,2 × 10",
+      "strategy": "Stratégie : 3,2 × 10 = 3,2 × 1 × 10. D'abord 3,2 × 1 = 3, puis 3 × 10 = 32.",
+      "hint": "Le résultat est 32."
+    },
+    "cmult_1772259541773_44": {
+      "title": "double de 13",
+      "strategy": "Le résultat de double de 13 est 26.",
+      "hint": "Le résultat est 26."
+    },
+    "cmult_1772259541773_46": {
+      "title": "25 × 2",
+      "strategy": "25 × 2 = 50. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 50."
+    },
+    "cmult_1772259541773_47": {
+      "title": "2,5 × 10",
+      "strategy": "Stratégie : 2,5 × 10 = 2,5 × 1 × 10. D'abord 2,5 × 1 = 2, puis 2 × 10 = 25.",
+      "hint": "Le résultat est 25."
+    },
+    "cmult_1772259541773_48": {
+      "title": "4 × 15",
+      "strategy": "4 × 15 = 60. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 60."
+    },
+    "cmult_1772259541773_49": {
+      "title": "4 × 25",
+      "strategy": "4 × 25 = 100. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 100."
+    },
+    "cmult_1772259541773_51": {
+      "title": "4 × 0,7",
+      "strategy": "4 × 0,7 = 2,8. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 2,8."
+    },
+    "cmult_1772259541773_52": {
+      "title": "1,5 × 10",
+      "strategy": "Stratégie : 1,5 × 10 = 1,5 × 1 × 10. D'abord 1,5 × 1 = 1, puis 1 × 10 = 15.",
+      "hint": "Le résultat est 15."
+    },
+    "cmult_1772259541773_54": {
+      "title": "1,3 × 12",
+      "strategy": "1,3 × 12 = 15,6. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 15,6."
+    },
+    "cmult_1772259541773_56": {
+      "title": "2,5 × 4",
+      "strategy": "2,5 × 4 = 10. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 10."
+    },
+    "cmult_1772259541773_57": {
+      "title": "25 × 0,4",
+      "strategy": "25 × 0,4 = 10. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 10."
+    },
+    "cmult_1772259541773_58": {
+      "title": "2,5 × 20",
+      "strategy": "Stratégie : 2,5 × 20 = 2,5 × 2 × 10. D'abord 2,5 × 2 = 4, puis 4 × 10 = 50.",
+      "hint": "Le résultat est 50."
+    },
+    "cmult_1772259541773_60": {
+      "title": "0,89 × 10",
+      "strategy": "Stratégie : 0,89 × 10 = 0,89 × 1 × 10. D'abord 0,89 × 1 = 0, puis 0 × 10 = 8,9.",
+      "hint": "Le résultat est 8,9."
+    },
+    "cmult_1772259541773_61": {
+      "title": "0,89 × 100",
+      "strategy": "Stratégie : 0,89 × 100 = 0,89 × 10 × 10. D'abord 0,89 × 10 = 0, puis 0 × 10 = 89.",
+      "hint": "Le résultat est 89."
+    },
+    "cmult_1772259541773_62": {
+      "title": "89 × 0,1",
+      "strategy": "89 × 0,1 = 8,9. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 8,9."
+    },
+    "cmult_1772259541773_64": {
+      "title": "10 × 4,2",
+      "strategy": "Stratégie : 10 × 4,2 = 1 × 4,2 × 10. D'abord 1 × 4,2 = 4, puis 4 × 10 = 42.",
+      "hint": "Le résultat est 42."
+    },
+    "cmult_1772259541773_65": {
+      "title": "0,4 × 0,1",
+      "strategy": "0,4 × 0,1 = 0,04. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 0,04."
+    },
+    "cmult_1772259541773_66": {
+      "title": "4,2 × 100",
+      "strategy": "Stratégie : 4,2 × 100 = 4,2 × 10 × 10. D'abord 4,2 × 10 = 40, puis 40 × 10 = 420.",
+      "hint": "Le résultat est 420."
+    },
+    "cmult_1772259541773_68": {
+      "title": "25 × 5",
+      "strategy": "25 × 5 = 125. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 125."
+    },
+    "cmult_1772259541773_69": {
+      "title": "20 × 4",
+      "strategy": "Stratégie : 20 × 4 = 2 × 4 × 10. D'abord 2 × 4 = 8, puis 8 × 10 = 80.",
+      "hint": "Le résultat est 80."
+    },
+    "cmult_1772259541773_70": {
+      "title": "5,2 × 40",
+      "strategy": "Stratégie : 5,2 × 40 = 5,2 × 4 × 10. D'abord 5,2 × 4 = 20, puis 20 × 10 = 208.",
+      "hint": "Le résultat est 208."
+    },
+    "cmult_1772259541773_72": {
+      "title": "0,6 × 0,5",
+      "strategy": "0,6 × 0,5 = 0,3. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 0,3."
+    },
+    "cmult_1772259541773_73": {
+      "title": "60 × 50",
+      "strategy": "Stratégie : 60 × 50 = 60 × 5 × 10. D'abord 60 × 5 = 300, puis 300 × 10 = 3000.",
+      "hint": "Le résultat est 3000."
+    },
+    "cmult_1772259541773_74": {
+      "title": "? × 100 = 6",
+      "strategy": "On cherche le nombre qui, multiplié par 100, donne 6. C'est 6 ÷ 100 = 0,06.",
+      "hint": "Le résultat est 0,06."
+    },
+    "cmult_1772259541773_76": {
+      "title": "2 × 1,5",
+      "strategy": "2 × 1,5 = 3. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 3."
+    },
+    "cmult_1772259541773_77": {
+      "title": "3,1 × 2",
+      "strategy": "3,1 × 2 = 6,2. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 6,2."
+    },
+    "cmult_1772259541773_78": {
+      "title": "3,12 × 10",
+      "strategy": "Stratégie : 3,12 × 10 = 3,12 × 1 × 10. D'abord 3,12 × 1 = 3, puis 3 × 10 = 31,2.",
+      "hint": "Le résultat est 31,2."
+    },
+    "cmult_1772259541773_80": {
+      "title": "24 dizaines",
+      "strategy": "24 dizaines = 240. En numération, décompose le nombre en unités, dizaines, centaines pour mieux comprendre.",
+      "hint": "Le résultat est 240."
+    },
+    "cmult_1772259541773_81": {
+      "title": "2 × 1/6",
+      "strategy": "2 × 1/6 = 0,333333. Pour les fractions, pense à simplifier d'abord et à chercher les équivalences avec les entiers.",
+      "hint": "Le résultat est 0,333333."
+    },
+    "cmult_1772259541773_82": {
+      "title": "3 × 1/2",
+      "strategy": "3 × 1/2 = 1,5. Pour les fractions, pense à simplifier d'abord et à chercher les équivalences avec les entiers.",
+      "hint": "Le résultat est 1,5."
+    },
+    "cmult_1772259541773_84": {
+      "title": "6 × (1/6)",
+      "strategy": "6 × (1/6) = 1. Pour les fractions, pense à simplifier d'abord et à chercher les équivalences avec les entiers.",
+      "hint": "Le résultat est 1."
+    },
+    "cmult_1772259541773_85": {
+      "title": "3,1 × 0,1",
+      "strategy": "3,1 × 0,1 = 0,31. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 0,31."
+    },
+    "cmult_1772259541773_87": {
+      "title": "3,1 × 3",
+      "strategy": "3,1 × 3 = 9,3. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 9,3."
+    },
+    "cmult_1772259541773_88": {
+      "title": "9,14 × 10",
+      "strategy": "Stratégie : 9,14 × 10 = 9,14 × 1 × 10. D'abord 9,14 × 1 = 9, puis 9 × 10 = 91,4.",
+      "hint": "Le résultat est 91,4."
+    },
+    "cmult_1772259541773_89": {
+      "title": "8 × 1/4",
+      "strategy": "8 × 1/4 = 2. Pour les fractions, pense à simplifier d'abord et à chercher les équivalences avec les entiers.",
+      "hint": "Le résultat est 2."
+    },
+    "cmult_1772259541773_91": {
+      "title": "2 × (1/4)",
+      "strategy": "2 × (1/4) = 0,5. Pour les fractions, pense à simplifier d'abord et à chercher les équivalences avec les entiers.",
+      "hint": "Le résultat est 0,5."
+    },
+    "cmult_1772259541773_92": {
+      "title": "68 dizaines",
+      "strategy": "68 dizaines = 680. En numération, décompose le nombre en unités, dizaines, centaines pour mieux comprendre.",
+      "hint": "Le résultat est 680."
+    },
+    "cmult_1772259541773_93": {
+      "title": "6,8",
+      "strategy": "Le résultat de 6,8 est 6,8.",
+      "hint": "Le résultat est 6,8."
+    },
+    "cmult_1772259541773_95": {
+      "title": "4/10",
+      "strategy": "4/10 = 0,4. Pour les fractions, pense à simplifier d'abord et à chercher les équivalences avec les entiers.",
+      "hint": "Le résultat est 0,4."
+    },
+    "cmult_1772259541773_96": {
+      "title": "5/2",
+      "strategy": "5/2 = 2,5. Pour les fractions, pense à simplifier d'abord et à chercher les équivalences avec les entiers.",
+      "hint": "Le résultat est 2,5."
+    },
+    "cmult_1772259541773_98": {
+      "title": "12 dizaines",
+      "strategy": "12 dizaines = 120. En numération, décompose le nombre en unités, dizaines, centaines pour mieux comprendre.",
+      "hint": "Le résultat est 120."
+    },
+    "cmult_1772259541773_99": {
+      "title": "2 dixièmes",
+      "strategy": "2 dixièmes = 0,2. En numération, décompose le nombre en unités, dizaines, centaines pour mieux comprendre.",
+      "hint": "Le résultat est 0,2."
+    },
+    "cmult_1772259541773_100": {
+      "title": "4 quarts",
+      "strategy": "4 quarts = 1. Pour les fractions, pense à simplifier d'abord et à chercher les équivalences avec les entiers.",
+      "hint": "Le résultat est 1."
+    },
+    "cmult_1772259541773_102": {
+      "title": "10 × 0,2",
+      "strategy": "Stratégie : 10 × 0,2 = 1 × 0,2 × 10. D'abord 1 × 0,2 = 0, puis 0 × 10 = 2.",
+      "hint": "Le résultat est 2."
+    },
+    "cmult_1772259541773_103": {
+      "title": "21/100",
+      "strategy": "21/100 = 0,21. Pour les fractions, pense à simplifier d'abord et à chercher les équivalences avec les entiers.",
+      "hint": "Le résultat est 0,21."
+    },
+    "cmult_1772259541773_104": {
+      "title": "2 × 0,01",
+      "strategy": "2 × 0,01 = 0,02. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 0,02."
+    },
+    "cmult_1772259541773_106": {
+      "title": "4 centièmes",
+      "strategy": "4 centièmes = 0,04. En numération, décompose le nombre en unités, dizaines, centaines pour mieux comprendre.",
+      "hint": "Le résultat est 0,04."
+    },
+    "cmult_1772259541773_107": {
+      "title": "40/40",
+      "strategy": "40/40 = 1. Pour les fractions, pense à simplifier d'abord et à chercher les équivalences avec les entiers.",
+      "hint": "Le résultat est 1."
+    },
+    "cmult_1772259541773_108": {
+      "title": "2 fois 2 centièmes",
+      "strategy": "2 fois 2 centièmes = 0,04. En numération, décompose le nombre en unités, dizaines, centaines pour mieux comprendre.",
+      "hint": "Le résultat est 0,04."
+    },
+    "cmult_1772259541773_110": {
+      "title": "3 × 1,2",
+      "strategy": "3 × 1,2 = 3,6. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 3,6."
+    },
+    "cmult_1772259541773_111": {
+      "title": "10 × 0,32",
+      "strategy": "Stratégie : 10 × 0,32 = 1 × 0,32 × 10. D'abord 1 × 0,32 = 0, puis 0 × 10 = 3,2.",
+      "hint": "Le résultat est 3,2."
+    },
+    "cmult_1772259541773_112": {
+      "title": "10 × 3,02",
+      "strategy": "Stratégie : 10 × 3,02 = 1 × 3,02 × 10. D'abord 1 × 3,02 = 3, puis 3 × 10 = 30,2.",
+      "hint": "Le résultat est 30,2."
+    },
+    "cmult_1772259541773_115": {
+      "title": "4 × 20 × 8",
+      "strategy": "Stratégie : 4 × 20 = 4 × 2 × 10. D'abord 4 × 2 = 8, puis 8 × 10 = 640.",
+      "hint": "Le résultat est 640."
+    },
+    "cmult_1772259541773_116": {
+      "title": "50 × 50",
+      "strategy": "Stratégie : 50 × 50 = 50 × 5 × 10. D'abord 50 × 5 = 250, puis 250 × 10 = 2500.",
+      "hint": "Le résultat est 2500."
+    },
+    "cmult_1772259541773_117": {
+      "title": "12 × 50",
+      "strategy": "Stratégie : 12 × 50 = 12 × 5 × 10. D'abord 12 × 5 = 60, puis 60 × 10 = 600.",
+      "hint": "Le résultat est 600."
+    },
+    "cmult_1772259541773_119": {
+      "title": "30 × 40",
+      "strategy": "Stratégie : 30 × 40 = 30 × 4 × 10. D'abord 30 × 4 = 120, puis 120 × 10 = 1200.",
+      "hint": "Le résultat est 1200."
+    },
+    "cmult_1772259541773_120": {
+      "title": "30 × 6 × 10",
+      "strategy": "Stratégie : 30 × 6 = 3 × 6 × 10. D'abord 3 × 6 = 18, puis 18 × 10 = 1800.",
+      "hint": "Le résultat est 1800."
+    },
+    "cmult_1772259541773_121": {
+      "title": "40 × 4 × 5",
+      "strategy": "Stratégie : 40 × 4 = 4 × 4 × 10. D'abord 4 × 4 = 16, puis 16 × 10 = 800.",
+      "hint": "Le résultat est 800."
+    },
+    "cmult_1772259541773_123": {
+      "title": "60 × 30",
+      "strategy": "Stratégie : 60 × 30 = 60 × 3 × 10. D'abord 60 × 3 = 180, puis 180 × 10 = 1800.",
+      "hint": "Le résultat est 1800."
+    },
+    "cmult_1772259541773_124": {
+      "title": "5 × 8 × 50",
+      "strategy": "5 × 8 = 2000. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 2000."
+    },
+    "cmult_1772259541773_128": {
+      "title": "2 × 3 × 8",
+      "strategy": "2 × 3 = 48. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 48."
+    },
+    "cmult_1772259541773_129": {
+      "title": "3 × 3 × 9",
+      "strategy": "3 × 3 = 81. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 81."
+    },
+    "cmult_1772259541773_130": {
+      "title": "2 × 4 × 5",
+      "strategy": "2 × 4 = 40. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 40."
+    },
+    "cmult_1772259541773_132": {
+      "title": "2 × 3 × 10",
+      "strategy": "2 × 3 = 60. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 60."
+    },
+    "cmult_1772259541773_133": {
+      "title": "5 × 4 × 10",
+      "strategy": "5 × 4 = 200. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 200."
+    },
+    "cmult_1772259541773_134": {
+      "title": "5 × 4 × 9",
+      "strategy": "5 × 4 = 180. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 180."
+    },
+    "cmult_1772259541773_136": {
+      "title": "0,7 × 7",
+      "strategy": "0,7 × 7 = 4,9. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 4,9."
+    },
+    "cmult_1772259541773_137": {
+      "title": "6 × 8 × 0,1",
+      "strategy": "6 × 8 = 4,8. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 4,8."
+    },
+    "cmult_1772259541773_138": {
+      "title": "9 × 7 × 0,1",
+      "strategy": "9 × 7 = 6,3. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 6,3."
+    },
+    "cmult_1772259541773_140": {
+      "title": "0,9 × 0,6",
+      "strategy": "0,9 × 0,6 = 0,54. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 0,54."
+    },
+    "cmult_1772259541773_141": {
+      "title": "9 × 0,9",
+      "strategy": "9 × 0,9 = 8,1. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 8,1."
+    },
+    "cmult_1772259541773_142": {
+      "title": "8 × 0,1",
+      "strategy": "8 × 0,1 = 0,8. On peut décomposer : cherche les facteurs les plus simples pour vérifier.",
+      "hint": "Le résultat est 0,8."
     }
   }
 }
