@@ -45,9 +45,14 @@ function _themeLabel(code) {
   if (!code) return '';
   return THEME_DISPLAY_FULL[String(code).toLowerCase().trim()] || '';
 }
-// Trouver le meilleur thème lisible dans un tableau de tags (ignorer region:, préférer les connus)
+// Trouver le meilleur thème lisible dans un tableau de tags
+// PRIORITÉ: category: (précis) > domain: (large) > autre tag connu
 function _bestTheme(tags) {
   if (!Array.isArray(tags) || tags.length === 0) return '';
+  const cat = tags.find(t => String(t).startsWith('category:') && THEME_DISPLAY_FULL[String(t).toLowerCase().trim()]);
+  if (cat) return _themeLabel(cat);
+  const dom = tags.find(t => String(t).startsWith('domain:') && THEME_DISPLAY_FULL[String(t).toLowerCase().trim()]);
+  if (dom) return _themeLabel(dom);
   const known = tags.find(t => THEME_DISPLAY_FULL[String(t).toLowerCase().trim()]);
   if (known) return _themeLabel(known);
   const nonRegion = tags.find(t => !String(t).startsWith('region:'));

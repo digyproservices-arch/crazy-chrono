@@ -4209,7 +4209,7 @@ function handleGameClick(zone) {
         'geographie': 'Géographie',
         'fruits': 'Fruits', 'category:fruit': 'Fruits',
         'category:epice': 'Épices', 'category:fleur': 'Fleurs',
-        'category:legumineuse': 'Légumineuses', 'category:plante_aromatique': 'Plantes aromatiques',
+        'category:legumineuse': 'Légumineuses', 'category:legume': 'Légumes', 'category:plante_aromatique': 'Plantes aromatiques',
         'category:plante_medicinale': 'Plantes médicinales', 'category:tubercule': 'Tubercules',
         'category:addition': 'Additions', 'category:soustraction': 'Soustractions',
         'category:division': 'Divisions', 'category:fraction': 'Fractions',
@@ -4217,9 +4217,14 @@ function handleGameClick(zone) {
         'category:multiplication_avancee': 'Multiplications avancées'
       };
       const themeLabel = (code) => { if (!code) return ''; const c = String(code).toLowerCase().trim(); return THEME_DISPLAY[c] || (c.charAt(0).toUpperCase() + c.slice(1)); };
-      // Extraire le meilleur thème lisible d'un tableau de tags (ignorer region:, préférer les connus)
+      // Extraire le meilleur thème lisible d'un tableau de tags
+      // PRIORITÉ: category: (précis) > domain: (large) > autre tag connu
       const bestTheme = (tags) => {
         if (!Array.isArray(tags) || tags.length === 0) return '';
+        const cat = tags.find(t => String(t).startsWith('category:') && THEME_DISPLAY[String(t).toLowerCase().trim()]);
+        if (cat) return themeLabel(cat);
+        const dom = tags.find(t => String(t).startsWith('domain:') && THEME_DISPLAY[String(t).toLowerCase().trim()]);
+        if (dom) return themeLabel(dom);
         const known = tags.find(t => THEME_DISPLAY[String(t).toLowerCase().trim()]);
         if (known) return themeLabel(known);
         const nonRegion = tags.find(t => !String(t).startsWith('region:'));
@@ -4254,35 +4259,31 @@ function handleGameClick(zone) {
         const textContent = String(texteZone?.content || texteZone?.label || '').trim();
         const imageUrl = String(imageZone?.content || '').trim();
         // Chercher la catégorie RÉELLE de l'item depuis assocData
+        // PRIORITÉ: association (category: précis) > texte > image > config
         let zoneTheme = '';
         try {
           const ad = assocDataRef.current || {};
           const lc = textContent.toLowerCase().trim();
-          // 1) Chercher par texte
-          const texteEntry = (ad.textes || []).find(t => String(t.content || '').toLowerCase().trim() === lc);
-          if (texteEntry && Array.isArray(texteEntry.themes)) {
+          const imgLc = imageUrl.toLowerCase().trim();
+          const texteEntry = lc ? (ad.textes || []).find(t => String(t.content || '').toLowerCase().trim() === lc) : null;
+          const imgEntry = imgLc ? (ad.images || []).find(img => String(img.url || img.src || '').toLowerCase().trim() === imgLc) : null;
+          // 1) Association exacte par texteId+imageId (source de vérité pour les category:)
+          if (texteEntry && imgEntry) {
+            const assocEntry = (ad.associations || []).find(a => a.texteId === texteEntry.id && a.imageId === imgEntry.id);
+            if (assocEntry && Array.isArray(assocEntry.themes)) {
+              zoneTheme = bestTheme(assocEntry.themes);
+            }
+          }
+          // 2) Fallback: texte
+          if (!zoneTheme && texteEntry && Array.isArray(texteEntry.themes)) {
             zoneTheme = bestTheme(texteEntry.themes);
           }
-          // 2) Si pas trouvé par texte, chercher par image URL dans les associations
-          if (!zoneTheme && imageUrl) {
-            const imgLc = imageUrl.toLowerCase().trim();
-            const imgEntry = (ad.images || []).find(img => String(img.url || img.src || '').toLowerCase().trim() === imgLc);
-            if (imgEntry && Array.isArray(imgEntry.themes)) {
-              zoneTheme = bestTheme(imgEntry.themes);
-            }
-            // 3) Chercher dans les associations par pairId
-            if (!zoneTheme) {
-              const pId = ZA?.pairId || ZB?.pairId;
-              if (pId) {
-                const assocEntry = (ad.associations || []).find(a => String(a.id || '') === String(pId));
-                if (assocEntry && Array.isArray(assocEntry.themes)) {
-                  zoneTheme = bestTheme(assocEntry.themes);
-                }
-              }
-            }
+          // 3) Fallback: image
+          if (!zoneTheme && imgEntry && Array.isArray(imgEntry.themes)) {
+            zoneTheme = bestTheme(imgEntry.themes);
           }
         } catch {}
-        theme = zoneTheme || (cfgTheme ? themeLabel(cfgTheme) : 'Images & Textes');
+        theme = zoneTheme || (cfgTheme ? themeLabel(cfgTheme) : 'Nature');
         // itemDetail: utiliser le nom lisible du texte, pas le chemin image
         try { itemDetail = JSON.stringify({ text: textContent, img: imageUrl }); } catch { itemDetail = textContent; }
       }
