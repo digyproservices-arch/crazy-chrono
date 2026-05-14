@@ -26,6 +26,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
+    "prebuild": "node -e \"require('fs').copyFileSync('server/data/associations.json','public/data/associations.json')\"",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",

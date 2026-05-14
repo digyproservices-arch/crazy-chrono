@@ -40,9 +40,9 @@
 ### Phase 0 : Préparation (risque = zéro)
 - [x] **0.1** Créer branche `staging` depuis `main` ✅
 - [x] **0.2** Nettoyer documentation racine (fichiers obsolètes → DOCS/) ✅
-- [ ] **0.3** Pousser `staging` sur GitHub
-- [ ] **0.4** Configurer `crazy-chrono-staging` sur Render pour déployer la branche `staging`
-- [ ] **0.5** Vérifier que staging fonctionne identiquement à production
+- [x] **0.3** Pousser `staging` sur GitHub ✅
+- [x] **0.4** Configurer `crazy-chrono-staging` sur Render → branche `staging` ✅
+- [ ] **0.5** Vérifier que staging fonctionne (attente deploy Render)
 
 ### Phase 1 : Un seul associations.json (risque = faible)
 > *Actuellement 2 copies identiques à synchroniser manuellement = source de bugs*
