@@ -25,6 +25,7 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
+    "prestart": "node -e \"require('fs').copyFileSync('server/data/associations.json','public/data/associations.json')\"",
     "start": "react-scripts start",
     "prebuild": "node -e \"require('fs').copyFileSync('server/data/associations.json','public/data/associations.json')\"",
     "build": "node -e \"require('fs').copyFileSync('server/data/associations.json','public/data/associations.json')\" && react-scripts build",
