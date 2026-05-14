@@ -803,6 +803,19 @@ const Carte = () => {
     fetchWithTimeout(`${getBackendUrl()}/healthz`, { cache: 'no-store' }, 1500).catch(() => {});
   }, []);
 
+  // Charger assocData dès le montage pour que le theme detection fonctionne
+  // même quand les zones viennent du serveur (MP, training, arena)
+  useEffect(() => {
+    if (assocDataRef.current && Object.keys(assocDataRef.current).length > 0) return;
+    fetch(process.env.PUBLIC_URL + '/data/associations.json')
+      .then(r => r.json())
+      .then(data => {
+        assocDataRef.current = data;
+        console.log('[CC] assocData pré-chargé:', { textes: data.textes?.length, images: data.images?.length, associations: data.associations?.length });
+      })
+      .catch(e => console.warn('[CC] Échec pré-chargement assocData:', e.message));
+  }, []);
+
   // Helper: sync cc_game_trace vers le backend (pour diagnostic tous modes à distance)
   const syncGameTraceToServer = useCallback(() => {
     try {
