@@ -397,7 +397,11 @@
       "content": "Raton laveur",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:ameriques"
       ],
       "levelClass": "CP"
     },
@@ -406,7 +410,12 @@
       "content": "Dauphin",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CP"
     },
@@ -415,7 +424,12 @@
       "content": "Colibri",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CP"
     },
@@ -424,7 +438,12 @@
       "content": "Tourterelle",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CP"
     },
@@ -433,7 +452,10 @@
       "content": "Toucan",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CP"
     },
@@ -442,7 +464,11 @@
       "content": "Flamant rose",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:ameriques"
       ],
       "levelClass": "CP"
     },
@@ -451,7 +477,12 @@
       "content": "Cabri",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CP"
     },
@@ -460,7 +491,11 @@
       "content": "Lambi",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mollusque",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CP"
     },
@@ -469,7 +504,12 @@
       "content": "Tortue imbriquée",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:reptile",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CE1"
     },
@@ -478,7 +518,12 @@
       "content": "Pélican brun",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:ameriques"
       ],
       "levelClass": "CE1"
     },
@@ -487,7 +532,11 @@
       "content": "Langouste",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:crustace",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE1"
     },
@@ -496,7 +545,11 @@
       "content": "Ibis rouge",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CE1"
     },
@@ -505,7 +558,12 @@
       "content": "Bernard-l'hermite",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:crustace",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CE1"
     },
@@ -514,7 +572,11 @@
       "content": "Crabe de terre",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:crustace",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE1"
     },
@@ -523,7 +585,12 @@
       "content": "Manicou",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CE1"
     },
@@ -532,7 +599,12 @@
       "content": "Iguane vert",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:reptile",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CE1"
     },
@@ -541,7 +613,11 @@
       "content": "Mangouste",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE1"
     },
@@ -550,7 +626,12 @@
       "content": "Oursin",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mollusque",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CE1"
     },
@@ -559,7 +640,10 @@
       "content": "Tapir",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CE2"
     },
@@ -568,7 +652,10 @@
       "content": "Tatou",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CE2"
     },
@@ -577,7 +664,11 @@
       "content": "Vivaneau rouge",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE2"
     },
@@ -586,7 +677,12 @@
       "content": "Grande aigrette",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CE2"
     },
@@ -595,7 +691,11 @@
       "content": "Héron vert",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE2"
     },
@@ -604,7 +704,11 @@
       "content": "Sucrier à ventre jaune",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE2"
     },
@@ -613,7 +717,12 @@
       "content": "Scolopendre",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mollusque",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CE2"
     },
@@ -622,7 +731,12 @@
       "content": "Écrevisse",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:crustace",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CE2"
     },
@@ -631,7 +745,10 @@
       "content": "Paresseux",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CE2"
     },
@@ -640,7 +757,10 @@
       "content": "Jaguar",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CM1"
     },
@@ -649,7 +769,10 @@
       "content": "Fourmilier géant",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CM1"
     },
@@ -658,7 +781,11 @@
       "content": "Poisson-perroquet",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM1"
     },
@@ -667,7 +794,11 @@
       "content": "Poisson-écureuil",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM1"
     },
@@ -676,7 +807,12 @@
       "content": "Dorade coryphène",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CM1"
     },
@@ -685,7 +821,10 @@
       "content": "Caïman",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:reptile",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CM1"
     },
@@ -694,7 +833,10 @@
       "content": "Moqueur gorge-rouge",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:martinique"
       ],
       "levelClass": "CM1"
     },
@@ -703,7 +845,11 @@
       "content": "Vivaneau à queue jaune",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM1"
     },
@@ -712,7 +858,11 @@
       "content": "Orphie",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM1"
     },
@@ -721,7 +871,10 @@
       "content": "Raie manta",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:international"
       ],
       "levelClass": "CM2"
     },
@@ -730,7 +883,11 @@
       "content": "Corail corne d'élan",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:corail",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM2"
     },
@@ -739,7 +896,11 @@
       "content": "Corail tabulaire",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:corail",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM2"
     },
@@ -748,7 +909,11 @@
       "content": "Corail cerveau",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:corail",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM2"
     },
@@ -757,7 +922,12 @@
       "content": "Lamantin",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CM2"
     },
@@ -766,7 +936,11 @@
       "content": "Zandoli",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:reptile",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CP"
     }
@@ -1138,7 +1312,11 @@
       "content": "Zandoli",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:reptile",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CP"
     },
@@ -1148,7 +1326,10 @@
       "content": "Tapir",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CE2"
     },
@@ -1158,7 +1339,10 @@
       "content": "Tatou",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CE2"
     },
@@ -1168,7 +1352,10 @@
       "content": "Jaguar",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CM1"
     },
@@ -1178,7 +1365,12 @@
       "content": "Tortue imbriquée",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:reptile",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CE1"
     },
@@ -1188,7 +1380,10 @@
       "content": "Fourmilier géant",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CM1"
     },
@@ -1198,7 +1393,12 @@
       "content": "Pélican brun",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:ameriques"
       ],
       "levelClass": "CE1"
     },
@@ -1208,7 +1408,11 @@
       "content": "Poisson-perroquet",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM1"
     },
@@ -1218,7 +1422,11 @@
       "content": "Langouste",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:crustace",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE1"
     },
@@ -1228,7 +1436,11 @@
       "content": "Poisson-écureuil",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM1"
     },
@@ -1238,7 +1450,11 @@
       "content": "Raton laveur",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:ameriques"
       ],
       "levelClass": "CP"
     },
@@ -1248,7 +1464,10 @@
       "content": "Caïman",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:reptile",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CM1"
     },
@@ -1258,7 +1477,10 @@
       "content": "Raie manta",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:international"
       ],
       "levelClass": "CM2"
     },
@@ -1268,7 +1490,11 @@
       "content": "Corail corne d'élan",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:corail",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM2"
     },
@@ -1278,7 +1504,11 @@
       "content": "Vivaneau rouge",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE2"
     },
@@ -1288,7 +1518,12 @@
       "content": "Dorade coryphène",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CM1"
     },
@@ -1298,7 +1533,11 @@
       "content": "Corail tabulaire",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:corail",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM2"
     },
@@ -1308,7 +1547,12 @@
       "content": "Dauphin",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CP"
     },
@@ -1318,7 +1562,12 @@
       "content": "Grande aigrette",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CE2"
     },
@@ -1328,7 +1577,12 @@
       "content": "Colibri",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CP"
     },
@@ -1338,7 +1592,11 @@
       "content": "Héron vert",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE2"
     },
@@ -1348,7 +1606,12 @@
       "content": "Tourterelle",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CP"
     },
@@ -1358,7 +1621,10 @@
       "content": "Moqueur gorge-rouge",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:martinique"
       ],
       "levelClass": "CM1"
     },
@@ -1368,7 +1634,11 @@
       "content": "Sucrier à ventre jaune",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE2"
     },
@@ -1378,7 +1648,11 @@
       "content": "Ibis rouge",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CE1"
     },
@@ -1388,7 +1662,10 @@
       "content": "Toucan",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CP"
     },
@@ -1398,7 +1675,11 @@
       "content": "Flamant rose",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:ameriques"
       ],
       "levelClass": "CP"
     },
@@ -1408,7 +1689,12 @@
       "content": "Bernard-l'hermite",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:crustace",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CE1"
     },
@@ -1418,7 +1704,11 @@
       "content": "Crabe de terre",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:crustace",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE1"
     },
@@ -1428,7 +1718,12 @@
       "content": "Manicou",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CE1"
     },
@@ -1438,7 +1733,12 @@
       "content": "Cabri",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CP"
     },
@@ -1448,7 +1748,12 @@
       "content": "Scolopendre",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mollusque",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CE2"
     },
@@ -1458,7 +1763,11 @@
       "content": "Lambi",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mollusque",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CP"
     },
@@ -1468,7 +1777,12 @@
       "content": "Iguane vert",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:reptile",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CE1"
     },
@@ -1478,7 +1792,11 @@
       "content": "Mangouste",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE1"
     },
@@ -1488,7 +1806,12 @@
       "content": "Écrevisse",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:crustace",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CE2"
     },
@@ -1498,7 +1821,10 @@
       "content": "Paresseux",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CE2"
     },
@@ -1508,7 +1834,11 @@
       "content": "Corail cerveau",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:corail",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM2"
     },
@@ -1518,7 +1848,11 @@
       "content": "Vivaneau à queue jaune",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM1"
     },
@@ -1528,7 +1862,11 @@
       "content": "Orphie",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM1"
     },
@@ -1538,7 +1876,12 @@
       "content": "Oursin",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mollusque",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CE1"
     },
@@ -1548,7 +1891,12 @@
       "content": "Lamantin",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CM2"
     }
@@ -13873,7 +14221,11 @@
       "imageId": "i1754579810850evmn",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:ameriques"
       ],
       "levelClass": "CP"
     },
@@ -13882,7 +14234,12 @@
       "imageId": "i1754579810850cto2",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CP"
     },
@@ -13891,7 +14248,12 @@
       "imageId": "i175457981085078jn",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CP"
     },
@@ -13900,7 +14262,12 @@
       "imageId": "i1754579810850ec9m",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CP"
     },
@@ -13909,7 +14276,10 @@
       "imageId": "i1754579810850bx7w",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CP"
     },
@@ -13918,7 +14288,11 @@
       "imageId": "i17545798108503rlz",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:ameriques"
       ],
       "levelClass": "CP"
     },
@@ -13927,7 +14301,12 @@
       "imageId": "i1754579810850q9ps",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CP"
     },
@@ -13936,7 +14315,11 @@
       "imageId": "i1754579810850gdy2",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mollusque",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CP"
     },
@@ -13945,7 +14328,12 @@
       "imageId": "i1754579810850uebc",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:reptile",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CE1"
     },
@@ -13954,7 +14342,12 @@
       "imageId": "i1754579810850x95g",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:ameriques"
       ],
       "levelClass": "CE1"
     },
@@ -13963,7 +14356,11 @@
       "imageId": "i1754579810850moua",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:crustace",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE1"
     },
@@ -13972,7 +14369,11 @@
       "imageId": "i1754579810850w3ov",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CE1"
     },
@@ -13981,7 +14382,12 @@
       "imageId": "i1754579810850udsj",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:crustace",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CE1"
     },
@@ -13990,7 +14396,11 @@
       "imageId": "i1754579810850uce7",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:crustace",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE1"
     },
@@ -13999,7 +14409,12 @@
       "imageId": "i1754579810850gu16",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CE1"
     },
@@ -14008,7 +14423,12 @@
       "imageId": "i1754579810850a26e",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:reptile",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CE1"
     },
@@ -14017,7 +14437,11 @@
       "imageId": "i1754579810850ud63",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE1"
     },
@@ -14026,7 +14450,12 @@
       "imageId": "i1754579810850wcas",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mollusque",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CE1"
     },
@@ -14035,7 +14464,10 @@
       "imageId": "i1754579810850p3uq",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CE2"
     },
@@ -14044,7 +14476,10 @@
       "imageId": "i1754579810850al10",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CE2"
     },
@@ -14053,7 +14488,11 @@
       "imageId": "i1754579810850092a",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE2"
     },
@@ -14062,7 +14501,12 @@
       "imageId": "i1754579810850cu13",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CE2"
     },
@@ -14071,7 +14515,11 @@
       "imageId": "i1754579810850vy7k",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE2"
     },
@@ -14080,7 +14528,11 @@
       "imageId": "i17545798108501wob",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CE2"
     },
@@ -14089,7 +14541,12 @@
       "imageId": "i1754579810850drql",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mollusque",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CE2"
     },
@@ -14098,7 +14555,12 @@
       "imageId": "i1754579810850np2x",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:crustace",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CE2"
     },
@@ -14107,7 +14569,10 @@
       "imageId": "i1754579810850xphg",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CE2"
     },
@@ -14116,7 +14581,10 @@
       "imageId": "i1754579810850hjpg",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CM1"
     },
@@ -14125,7 +14593,10 @@
       "imageId": "i1754579810850585z",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CM1"
     },
@@ -14134,7 +14605,11 @@
       "imageId": "i1754579810850jxaw",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM1"
     },
@@ -14143,7 +14618,11 @@
       "imageId": "i1754579810850cqro",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM1"
     },
@@ -14152,7 +14631,12 @@
       "imageId": "i1754579810850n464",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:international"
       ],
       "levelClass": "CM1"
     },
@@ -14161,7 +14645,10 @@
       "imageId": "i1754579810850heoz",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:reptile",
+        "region:guyane",
+        "region:ameriques"
       ],
       "levelClass": "CM1"
     },
@@ -14170,7 +14657,10 @@
       "imageId": "i175457981085054ts",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:oiseau",
+        "region:caraibe",
+        "region:martinique"
       ],
       "levelClass": "CM1"
     },
@@ -14179,7 +14669,11 @@
       "imageId": "i1754579810850o2vj",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM1"
     },
@@ -14188,7 +14682,11 @@
       "imageId": "i1754579810850w00a",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM1"
     },
@@ -14197,7 +14695,10 @@
       "imageId": "i1754579810850ay9g",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:poisson",
+        "region:caraibe",
+        "region:international"
       ],
       "levelClass": "CM2"
     },
@@ -14206,7 +14707,11 @@
       "imageId": "i1754579810850qyln",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:corail",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM2"
     },
@@ -14215,7 +14720,11 @@
       "imageId": "i17545798108503qib",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:corail",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM2"
     },
@@ -14224,7 +14733,11 @@
       "imageId": "i1754579810850fb9q",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:corail",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CM2"
     },
@@ -14233,7 +14746,12 @@
       "imageId": "i175457981085024ai",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:mammifere",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique",
+        "region:guyane"
       ],
       "levelClass": "CM2"
     },
@@ -17266,10 +17784,14 @@
       "imageId": "i1754579810850nqok",
       "themes": [
         "domain:zoology",
-        "animaux"
+        "animaux",
+        "category:reptile",
+        "region:caraibe",
+        "region:guadeloupe",
+        "region:martinique"
       ],
       "levelClass": "CP"
     }
   ],
-  "_dataVersion": 7
+  "_dataVersion": 9
 }
