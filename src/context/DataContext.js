@@ -33,25 +33,21 @@ function mergeUserEdits(staticData, cached) {
   const cacheIndex = new Map();
   (cached.associations || []).forEach(a => cacheIndex.set(assocKey(a), a));
   
-  // Partir de la base statique et appliquer les modifications utilisateur
+  // Partir de la base statique et appliquer UNIQUEMENT les modifications user-only
+  // (localNameOverrides). Les themes et levelClass viennent TOUJOURS du fichier statique
+  // quand la version statique est plus récente, car les modifications de themes/level
+  // sont faites par le développeur, pas l'utilisateur final.
   const merged = { ...staticData };
   merged.associations = (staticData.associations || []).map(sa => {
     const key = assocKey(sa);
     const ca = cacheIndex.get(key);
     if (!ca) return sa; // pas de version en cache, garder la statique
     
-    // Si l'utilisateur a modifié themes, levelClass ou localNameOverrides, les préserver
-    const hasUserThemes = ca.themes && ca.themes.length > 0 &&
-      JSON.stringify(ca.themes.sort()) !== JSON.stringify((sa.themes || []).sort());
-    const hasUserLevel = ca.levelClass && ca.levelClass !== sa.levelClass;
+    // Seuls les localNameOverrides sont des modifications utilisateur à préserver
     const hasUserLocalNames = ca.localNameOverrides && Object.keys(ca.localNameOverrides).length > 0;
     
-    if (hasUserThemes || hasUserLevel || hasUserLocalNames) {
-      const result = { ...sa };
-      if (hasUserThemes) result.themes = ca.themes;
-      if (hasUserLevel) result.levelClass = ca.levelClass;
-      if (hasUserLocalNames) result.localNameOverrides = ca.localNameOverrides;
-      return result;
+    if (hasUserLocalNames) {
+      return { ...sa, localNameOverrides: ca.localNameOverrides };
     }
     return sa;
   });
@@ -64,26 +60,8 @@ function mergeUserEdits(staticData, cached) {
     console.log('[DataContext] Preserved ' + userAdded.length + ' user-added associations');
   }
   
-  // Préserver aussi les modifications sur textes/images/calculs/chiffres (levelClass, themes)
-  ['textes', 'images', 'calculs', 'chiffres'].forEach(arrKey => {
-    const cachedArr = cached[arrKey] || [];
-    if (!cachedArr.length) return;
-    const cMap = new Map(cachedArr.map(el => [el.id, el]));
-    merged[arrKey] = (staticData[arrKey] || []).map(sel => {
-      const cel = cMap.get(sel.id);
-      if (!cel) return sel;
-      const hasUserThemes = cel.themes && cel.themes.length > 0 &&
-        JSON.stringify((cel.themes || []).sort()) !== JSON.stringify((sel.themes || []).sort());
-      const hasUserLevel = cel.levelClass && cel.levelClass !== sel.levelClass;
-      if (hasUserThemes || hasUserLevel) {
-        const r = { ...sel };
-        if (hasUserThemes) r.themes = cel.themes;
-        if (hasUserLevel) r.levelClass = cel.levelClass;
-        return r;
-      }
-      return sel;
-    });
-  });
+  // Pour textes/images/calculs/chiffres : toujours utiliser les données statiques
+  // quand la version statique est plus récente (pas de modifications utilisateur à préserver)
   
   merged._dataVersion = staticData._dataVersion || 0;
   return merged;
