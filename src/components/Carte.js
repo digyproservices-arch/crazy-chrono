@@ -4272,31 +4272,45 @@ function handleGameClick(zone) {
         const textContent = String(texteZone?.content || texteZone?.label || '').trim();
         const imageUrl = String(imageZone?.content || '').trim();
         // Chercher la catégorie RÉELLE de l'item depuis assocData
-        // PRIORITÉ: association (category: précis) > texte > image > config
+        // PRIORITÉ: 1) pairId (fiable) > 2) texteId+imageId > 3) texte > 4) image
         let zoneTheme = '';
         try {
           const ad = assocDataRef.current || {};
-          const lc = textContent.toLowerCase().trim();
-          const imgLc = imageUrl.toLowerCase().trim();
-          const texteEntry = lc ? (ad.textes || []).find(t => String(t.content || '').toLowerCase().trim() === lc) : null;
-          const imgEntry = imgLc ? (ad.images || []).find(img => String(img.url || img.src || '').toLowerCase().trim() === imgLc) : null;
-          // 1) Association exacte par texteId+imageId (source de vérité pour les category:)
-          if (texteEntry && imgEntry) {
-            const assocEntry = (ad.associations || []).find(a => a.texteId === texteEntry.id && a.imageId === imgEntry.id);
-            if (assocEntry && Array.isArray(assocEntry.themes)) {
-              zoneTheme = bestTheme(assocEntry.themes);
+          const pId = (ZA?.pairId || ZB?.pairId || '').trim();
+          // 1) Lookup direct par pairId (format: assoc-img-{imageId}-txt-{texteId})
+          if (pId && ad.associations) {
+            const m = pId.match(/^assoc-img-(.+)-txt-(.+)$/);
+            if (m) {
+              const assocEntry = ad.associations.find(a => a.imageId === m[1] && a.texteId === m[2]);
+              if (assocEntry && Array.isArray(assocEntry.themes)) {
+                zoneTheme = bestTheme(assocEntry.themes);
+              }
             }
           }
-          // 2) Fallback: texte
-          if (!zoneTheme && texteEntry && Array.isArray(texteEntry.themes)) {
-            zoneTheme = bestTheme(texteEntry.themes);
-          }
-          // 3) Fallback: image
-          if (!zoneTheme && imgEntry && Array.isArray(imgEntry.themes)) {
-            zoneTheme = bestTheme(imgEntry.themes);
+          // 2) Fallback: texteId+imageId par matching de contenu
+          if (!zoneTheme) {
+            const lc = textContent.toLowerCase().trim();
+            const imgLc = imageUrl.toLowerCase().trim();
+            const texteEntry = lc ? (ad.textes || []).find(t => String(t.content || '').toLowerCase().trim() === lc) : null;
+            const imgEntry = imgLc ? (ad.images || []).find(img => String(img.url || img.src || '').toLowerCase().trim() === imgLc) : null;
+            if (texteEntry && imgEntry) {
+              const assocEntry = (ad.associations || []).find(a => a.texteId === texteEntry.id && a.imageId === imgEntry.id);
+              if (assocEntry && Array.isArray(assocEntry.themes)) {
+                zoneTheme = bestTheme(assocEntry.themes);
+              }
+            }
+            // 3) Fallback: texte themes
+            if (!zoneTheme && texteEntry && Array.isArray(texteEntry.themes)) {
+              zoneTheme = bestTheme(texteEntry.themes);
+            }
+            // 4) Fallback: image themes
+            if (!zoneTheme && imgEntry && Array.isArray(imgEntry.themes)) {
+              zoneTheme = bestTheme(imgEntry.themes);
+            }
           }
         } catch {}
-        theme = zoneTheme || (cfgTheme ? themeLabel(cfgTheme) : 'Nature');
+        // PAS de fallback vague — mieux vaut null que "Nature"
+        theme = zoneTheme || (cfgTheme ? themeLabel(cfgTheme) : '');
         // itemDetail: utiliser le nom lisible du texte, pas le chemin image
         try { itemDetail = JSON.stringify({ text: textContent, img: imageUrl }); } catch { itemDetail = textContent; }
       }

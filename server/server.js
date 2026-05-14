@@ -2635,26 +2635,35 @@ function persistMPAttempt(room, socketId, { isCorrect, zoneAId, zoneBId }) {
     } else if (imgZone || txtZone) {
       item_type = 'imgtxt';
       const textContent = String((txtZone || {}).content || '').trim();
-      // PRIORITÉ: association (a le category: précis) > texte > image > config
+      // PRIORITÉ: 1) pairId (fiable) > 2) texteId+imageId > 3) texte > 4) image
       let zoneTheme = '';
       try {
         const ad = _mpGetAssocData();
-        const lc = textContent.toLowerCase().trim();
-        const imgUrl = imgZone ? String(imgZone.content || '').toLowerCase().trim() : '';
-        const texteEntry = lc ? (ad.textes || []).find(t => String(t.content || '').toLowerCase().trim() === lc) : null;
-        const imgEntry = imgUrl ? (ad.images || []).find(img => String(img.url || img.src || '').toLowerCase().trim() === imgUrl) : null;
-        // 1) Association exacte (source de vérité pour les category:)
-        if (texteEntry && imgEntry) {
-          const assocEntry = (ad.associations || []).find(a => a.texteId === texteEntry.id && a.imageId === imgEntry.id);
-          if (assocEntry && Array.isArray(assocEntry.themes)) zoneTheme = _mpBestTheme(assocEntry.themes);
+        const rawPairId = String(zA?.pairId || zB?.pairId || '').trim();
+        // 1) Lookup direct par pairId (format: assoc-img-{imageId}-txt-{texteId})
+        if (rawPairId && ad.associations) {
+          const m = rawPairId.match(/^assoc-img-(.+)-txt-(.+)$/);
+          if (m) {
+            const assocEntry = ad.associations.find(a => a.imageId === m[1] && a.texteId === m[2]);
+            if (assocEntry && Array.isArray(assocEntry.themes)) zoneTheme = _mpBestTheme(assocEntry.themes);
+          }
         }
-        // 2) Fallback: texte
-        if (!zoneTheme && texteEntry && Array.isArray(texteEntry.themes)) zoneTheme = _mpBestTheme(texteEntry.themes);
-        // 3) Fallback: image
-        if (!zoneTheme && imgEntry && Array.isArray(imgEntry.themes)) zoneTheme = _mpBestTheme(imgEntry.themes);
+        // 2) Fallback: texteId+imageId par matching de contenu
+        if (!zoneTheme) {
+          const lc = textContent.toLowerCase().trim();
+          const imgUrl = imgZone ? String(imgZone.content || '').toLowerCase().trim() : '';
+          const texteEntry = lc ? (ad.textes || []).find(t => String(t.content || '').toLowerCase().trim() === lc) : null;
+          const imgEntry = imgUrl ? (ad.images || []).find(img => String(img.url || img.src || '').toLowerCase().trim() === imgUrl) : null;
+          if (texteEntry && imgEntry) {
+            const assocEntry = (ad.associations || []).find(a => a.texteId === texteEntry.id && a.imageId === imgEntry.id);
+            if (assocEntry && Array.isArray(assocEntry.themes)) zoneTheme = _mpBestTheme(assocEntry.themes);
+          }
+          if (!zoneTheme && texteEntry && Array.isArray(texteEntry.themes)) zoneTheme = _mpBestTheme(texteEntry.themes);
+          if (!zoneTheme && imgEntry && Array.isArray(imgEntry.themes)) zoneTheme = _mpBestTheme(imgEntry.themes);
+        }
       } catch {}
       const cfgTheme = (room.selectedThemes && room.selectedThemes[0]) || '';
-      theme = zoneTheme || _mpThemeLabel(cfgTheme) || cfgTheme || 'Nature';
+      theme = zoneTheme || _mpThemeLabel(cfgTheme) || cfgTheme || null;
       if (textContent) {
         item_id = JSON.stringify({ text: textContent, img: imgZone ? imgZone.content : null });
       }
