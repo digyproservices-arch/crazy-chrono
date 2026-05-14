@@ -11,6 +11,8 @@ import { pointsToBezierPath } from '../CarteUtils';
 import { animateBubblesFromZones, invalidateZoneCenterCache } from '../Carte';
 import '../../styles/Carte.css';
 import { getBackendUrl } from '../../utils/apiHelpers';
+import { PLAYER_PRIMARY_COLORS, PLAYER_BORDER_COLORS, getPlayerColorComboByIndex } from '../../utils/playerColors';
+import { getInitials } from '../../utils/pairDisplay';
 
 // Charte graphique Crazy Chrono
 const CC = {
@@ -25,16 +27,8 @@ const CC = {
   cardBorder: 'rgba(255,255,255,0.15)',
 };
 
-const PLAYER_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899', '#0ea5e9'];
-const PLAYER_BORDER_COLORS = ['#111827', '#fbbf24', '#dc2626'];
-
-function getInitials(name) {
-  const str = String(name || '').trim();
-  if (!str) return '';
-  const parts = str.split(/\s+/);
-  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
+// PLAYER_PRIMARY_COLORS, PLAYER_BORDER_COLORS, getPlayerColorComboByIndex → src/utils/playerColors.js
+// getInitials → src/utils/pairDisplay.js
 
 // --- SVG helpers (copie exacte TrainingArenaGame.js) ---
 function interpolateArc(points, idxStart, idxEnd, marginPx) {
@@ -367,10 +361,9 @@ function ArenaSpectatorInner() {
           const score = data?.score;
           const studentId = data?.studentId;
           const playerIdx = data?.playerIdx;
-          const color = (typeof playerIdx === 'number' && playerIdx >= 0) ? PLAYER_COLORS[playerIdx % PLAYER_COLORS.length] : '#22c55e';
-          const borderColor = (typeof playerIdx === 'number' && playerIdx >= 0)
-            ? PLAYER_BORDER_COLORS[Math.floor(playerIdx / PLAYER_COLORS.length) % PLAYER_BORDER_COLORS.length]
-            : '#ffffff';
+          const { primary: color, border: borderColor } = (typeof playerIdx === 'number' && playerIdx >= 0)
+            ? getPlayerColorComboByIndex(playerIdx)
+            : { primary: '#22c55e', border: '#ffffff' };
 
           // ✅ Historique pédagogique: extraire infos des zones (comme TrainingArenaGame)
           const currentZones = zonesRef.current || [];
@@ -550,7 +543,7 @@ function ArenaSpectatorInner() {
     return `#${idx + 1}`;
   };
 
-  const getPlayerColor = (idx) => PLAYER_COLORS[idx % PLAYER_COLORS.length];
+  const getPlayerColor = (idx) => PLAYER_PRIMARY_COLORS[idx % PLAYER_PRIMARY_COLORS.length];
 
   // Check if a zone is currently being flashed (pair just validated)
   const isFlashedZone = (zoneId) => flashPair && (flashPair.zoneAId === zoneId || flashPair.zoneBId === zoneId);

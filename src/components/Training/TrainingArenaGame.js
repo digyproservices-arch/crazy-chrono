@@ -12,27 +12,8 @@ import '../../styles/Carte.css';
 import { pointsToBezierPath } from '../CarteUtils';
 import { animateBubblesFromZones } from '../Carte';
 import { logRound } from '../../utils/roundLogger';
-
-// ✅ COPIE EXACTE Arena: Couleurs par joueur
-const PLAYER_PRIMARY_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899', '#0ea5e9'];
-const PLAYER_BORDER_COLORS = ['#111827', '#fbbf24', '#dc2626'];
-
-function getPlayerColorComboByIndex(idx) {
-  const safe = Number.isFinite(idx) ? idx : 0;
-  const base = safe < 0 ? 0 : safe;
-  const primary = PLAYER_PRIMARY_COLORS[base % PLAYER_PRIMARY_COLORS.length];
-  const group = Math.floor(base / PLAYER_PRIMARY_COLORS.length);
-  const border = PLAYER_BORDER_COLORS[group % PLAYER_BORDER_COLORS.length];
-  return { primary, border };
-}
-
-function getInitials(name) {
-  const str = String(name || '').trim();
-  if (!str) return '';
-  const parts = str.split(/\s+/);
-  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
+import { getPlayerColorComboByIndex } from '../../utils/playerColors';
+import { getInitials } from '../../utils/pairDisplay';
 
 // ✅ COPIE EXACTE Arena (Carte.js ligne 541-583): Fonctions helper SVG
 function interpolateArc(points, idxStart, idxEnd, marginPx) {

@@ -17,6 +17,8 @@ import { isFree, canStartSessionToday, incrementSessionCount, setSubscriptionSta
 import { initMasteryTracker, resetMasterySession, recordPair as masteryRecordPair, getActiveSessionProgress, getMasteryProgress, isMasteryReady, syncToServer as masterySyncToServer, loadFromServer as masteryLoadFromServer } from '../utils/masteryTracker';
 import MasteryBubble from './MasteryBubble';
 import { generateHint, generateAnswer, findGoodPair, HINT_PENALTY, ANSWER_PENALTY } from '../utils/hintGenerator';
+import { PLAYER_PRIMARY_COLORS, PLAYER_BORDER_COLORS, getPlayerColorComboByIndex } from '../utils/playerColors';
+import { getInitials } from '../utils/pairDisplay';
 
 // Instruments a socket with telemetry listeners (connect, disconnect, connect_error)
 function _instrSocket(s, mode, matchId) {
@@ -389,24 +391,8 @@ function resolveImageSrc(raw) {
   return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
 }
 
-const PLAYER_PRIMARY_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#ec4899', '#0ea5e9'];
-const PLAYER_BORDER_COLORS = ['#111827', '#fbbf24', '#dc2626'];
-
-function getPlayerColorComboByIndex(idx) {
-  const safe = Number.isFinite(idx) ? idx : 0;
-  const base = safe < 0 ? 0 : safe;
-  const primary = PLAYER_PRIMARY_COLORS[base % PLAYER_PRIMARY_COLORS.length];
-  const group = Math.floor(base / PLAYER_PRIMARY_COLORS.length);
-  const border = PLAYER_BORDER_COLORS[group % PLAYER_BORDER_COLORS.length];
-  return { primary, border };
-}
-
-function getInitials(name) {
-  const str = String(name || '').trim();
-  if (!str) return '';
-  const parts = str.split(/\s+/).slice(0, 2);
-  return parts.map(p => (p && p[0] ? p[0].toUpperCase() : '')).join('');
-}
+// PLAYER_PRIMARY_COLORS, PLAYER_BORDER_COLORS, getPlayerColorComboByIndex → src/utils/playerColors.js
+// getInitials → src/utils/pairDisplay.js
 
 // Couleur stable basée sur le nom (insensible aux reconnexions socket)
 function stablePlayerIndex(playerName, allPlayerNames) {
