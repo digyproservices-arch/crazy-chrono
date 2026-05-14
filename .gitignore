@@ -51,6 +51,3 @@ server/uploads/
 e2e-report/
 test-results/
 playwright-report/
-
-# Auto-generated from server/data/ by prebuild script (source unique)
-public/data/associations.json

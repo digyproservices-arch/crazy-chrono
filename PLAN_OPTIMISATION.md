@@ -42,12 +42,12 @@
 - [x] **0.2** Nettoyer documentation racine (fichiers obsolètes → DOCS/) ✅
 - [x] **0.3** Pousser `staging` sur GitHub ✅
 - [x] **0.4** Configurer `crazy-chrono-staging` sur Render → branche `staging` ✅
-- [ ] **0.5** Vérifier que staging fonctionne (attente deploy Render)
+- [x] **0.5** Vérifier que staging fonctionne ✅ (Render deployed)
 
 ### Phase 1 : Un seul associations.json (risque = faible)
 > *Actuellement 2 copies identiques à synchroniser manuellement = source de bugs*
-- [ ] **1.1** Ajouter script `prebuild` dans package.json : copie `server/data/associations.json` → `public/data/`
-- [ ] **1.2** Supprimer `public/data/associations.json` du Git (généré automatiquement)
+- [x] **1.1** Script `prebuild` ajouté dans package.json ✅
+- [x] **1.2** `public/data/associations.json` supprimé du Git + ajouté au .gitignore ✅
 - [ ] **1.3** Tester sur staging : solo + arena doivent fonctionner
 - [ ] **1.4** Valider en production
 
@@ -96,7 +96,10 @@
 | 2026-05-14 | — | Plan créé | ✅ | Monitoring OK, app stable |
 | 2026-05-14 | 0 | 0.1 Branche staging créée | ✅ | Depuis main@36e13e9 |
 | 2026-05-14 | 0 | 0.2 Ménage docs racine | ✅ | 4 fichiers → DOCS/ |
-| 2026-05-14 | 0 | 0.3 Push staging sur GitHub | ⏳ | En cours |
+| 2026-05-14 | 0 | 0.3 Push staging sur GitHub | ✅ | commit c349140 |
+| 2026-05-14 | 0 | 0.4 Config Render staging | ✅ | Branche changée → staging |
+| 2026-05-14 | 0 | 0.5 Staging deployed | ✅ | https://crazy-chrono-staging.onrender.com |
+| 2026-05-14 | 1 | 1.1+1.2 Source unique assoc.json | ✅ | prebuild + gitignore, commit caa78c9 |
 
 ---
 
