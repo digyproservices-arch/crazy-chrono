@@ -1322,6 +1322,7 @@ const Carte = () => {
   // Session tracking refs (pour sauvegarder une seule fois en fin de session, pas par manche)
   const sessionStartTimeRef = useRef(null);
   const sessionSaveTimerRef = useRef(null);
+  const sessionEndHandledRef = useRef(false);
   const scoreRef = useRef(0);
   // Rounds/session
   const [roundsPerSession, setRoundsPerSession] = useState(null); // null => infini
@@ -3010,6 +3011,7 @@ const Carte = () => {
     // Fin de session
     s.on('session:end', (summary) => {
       console.log('[CC] session:end received', summary);
+      sessionEndHandledRef.current = true;
       // ── TRAÇAGE: log persistant quand session:end arrive ──
       try {
         const traceData = {
@@ -3597,6 +3599,11 @@ useEffect(() => {
     // Sinon, c'est la vraie fin de session → sauvegarder
     sessionSaveTimerRef.current = setTimeout(() => {
       sessionSaveTimerRef.current = null;
+      // ✅ FIX: Si session:end a déjà été traité, ne pas écraser l'overlay
+      if (sessionEndHandledRef.current) {
+        console.log('[CC] ⚠️ debounce expiré mais session:end déjà traité — ignoré');
+        return;
+      }
       // ✅ FIX RACE CONDITION: Re-vérifier au moment du fire (tiebreaker peut avoir démarré entre-temps)
       if (isTiebreakerRef.current) {
         console.log('[CC] ⚠️ debounce expiré mais départage actif — ignoré');
@@ -3646,6 +3653,11 @@ useEffect(() => {
           // Filet de sécurité: si session:end n'arrive pas dans 8s, forcer la fin côté client
           sessionSaveTimerRef.current = setTimeout(() => {
             sessionSaveTimerRef.current = null;
+            // ✅ FIX: Si session:end a déjà été traité, ne pas écraser l'overlay
+            if (sessionEndHandledRef.current) {
+              console.log('[CC] ⚠️ 8s safety expiré mais session:end déjà traité — ignoré');
+              return;
+            }
             // ✅ FIX: Dernière vérification — départage a pu démarrer pendant les 8s
             if (isTiebreakerRef.current) {
               console.log('[CC] ⚠️ 8s safety expiré mais départage actif — ignoré');
@@ -3657,7 +3669,7 @@ useEffect(() => {
             try { exitGameFullscreen(); } catch {}
             const sessionElapsedFallback = sessionStartTimeRef.current
               ? Math.round((Date.now() - sessionStartTimeRef.current) / 1000)
-              : gameDuration;
+              : (gameDuration * (cfg?.rounds || 1));
             sessionStartTimeRef.current = null;
             setSoloGameEndOverlay({
               score: finalScore,
@@ -3676,7 +3688,7 @@ useEffect(() => {
         // Durée réelle de la session (toutes manches confondues)
         const sessionElapsedSec = sessionStartTimeRef.current
           ? Math.round((Date.now() - sessionStartTimeRef.current) / 1000)
-          : gameDuration;
+          : (gameDuration * (cfg?.rounds || 1));
         sessionStartTimeRef.current = null; // reset pour prochaine session
 
         // Afficher l'overlay de fin de partie (mode déconnecté / fallback)
@@ -3912,6 +3924,7 @@ async function doStart() {
     scoreRef.current = 0;
     // Enregistrer le début de la session pour calculer la durée totale
     sessionStartTimeRef.current = Date.now();
+    sessionEndHandledRef.current = false;
     // Annuler tout timer de sauvegarde en cours d'une session précédente
     if (sessionSaveTimerRef.current) { clearTimeout(sessionSaveTimerRef.current); sessionSaveTimerRef.current = null; }
     // Réinitialiser le Set des paires validées au début d'une nouvelle session
