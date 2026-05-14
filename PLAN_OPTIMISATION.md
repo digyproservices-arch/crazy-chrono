@@ -54,11 +54,11 @@
 
 ### Phase 2 : Utilitaires partagés (risque = faible)
 > *Éliminer le code copié-collé entre Carte.js, TrainingArenaGame.js, ArenaSpectator.js*
-- [ ] **2.1** Créer `src/utils/playerColors.js` (getPlayerColorComboByIndex, PLAYER_PRIMARY_COLORS, etc.)
-- [ ] **2.2** Créer `src/utils/pairDisplay.js` (textFor, textForCalc, getInitials)
-- [ ] **2.3** Remplacer les copies dans Carte.js, TrainingArenaGame.js, ArenaSpectator.js
-- [ ] **2.4** Tester sur staging : match training + arena + spectateur
-- [ ] **2.5** Valider en production
+- [x] **2.1** Créer `src/utils/playerColors.js` (getPlayerColorComboByIndex, PLAYER_PRIMARY_COLORS, etc.) ✅
+- [x] **2.2** Créer `src/utils/pairDisplay.js` (textFor, textForCalc, getInitials) ✅
+- [x] **2.3** Remplacer les copies dans Carte.js, TrainingArenaGame.js, ArenaSpectator.js ✅
+- [x] **2.4** Tester sur staging : solo OK ✅
+- [x] **2.5** Valider en production ✅
 
 ### Phase 3 : Tests automatisés serveur (risque = zéro)
 > *Ajouter un filet de sécurité pour les changements futurs*
@@ -103,6 +103,9 @@
 | 2026-05-14 | 1 | 1.1+1.2 Source unique assoc.json | ✅ | prebuild + gitignore, commit caa78c9 |
 | 2026-05-14 | 1 | 1.2 revert: fichier requis par Vercel | ✅ | commit c91b369 |
 | 2026-05-14 | 1 | 1.3 Test staging OK | ✅ | Nature 30, Animaux 27, Math OK |
+| 2026-05-14 | 1 | 1.4 CORS fix + merge main | ✅ | commit c1c1483 (CORS) + 10018c9 (merge) |
+| 2026-05-14 | 2 | 2.1-2.3 Utilitaires partagés | ✅ | playerColors.js + pairDisplay.js, commit 7b81d83 |
+| 2026-05-14 | 2 | 2.4-2.5 Test + merge main | ✅ | Solo OK, merge 3e12741 |
 
 ---
 
