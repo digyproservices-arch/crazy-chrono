@@ -5184,7 +5184,7 @@ const handleEditGreenZone = (zone) => {
     }
   };
 
-  // Référence de taille moyenne des zones chiffre pour homogénéiser leur taille
+  // Référence de taille médiane des zones chiffre pour homogénéiser leur taille
   const chiffreRefBase = useMemo(() => {
     try {
       if (!Array.isArray(zones) || zones.length === 0) return null;
@@ -5195,8 +5195,9 @@ const handleEditGreenZone = (zone) => {
           return Math.max(12, Math.min(b.width, b.height));
         });
       if (!bases.length) return null;
-      const avg = bases.reduce((a, b) => a + b, 0) / bases.length;
-      return avg;
+      const sorted = [...bases].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
     } catch {
       return null;
     }
@@ -9258,8 +9259,8 @@ setZones(dataWithRandomTexts);
                   const cx = bbox.x + bbox.width / 2;
                   const cy = bbox.y + bbox.height / 2;
                   const base = Math.max(12, Math.min(bbox.width, bbox.height));
-                  // Pour les chiffres, garantissons une taille minimale basée sur la moyenne des zones chiffre
-                  const chiffreBaseMin = chiffreRefBase ? 0.95 * chiffreRefBase : base;
+                  // Pour les chiffres, garantir une taille homogène basée sur la médiane
+                  const chiffreBaseMin = chiffreRefBase || base;
                   const effectiveBase = (zone.type === 'chiffre') ? Math.max(base, chiffreBaseMin) : base;
                   const rawFontSize = (zone.type === 'chiffre' ? 0.42 : 0.38) * effectiveBase;
                   // Adapter la taille du texte pour qu'il reste dans la zone
@@ -9267,7 +9268,8 @@ setZones(dataWithRandomTexts);
                   const charW = 0.52;
                   const fitW = contentStr.length > 0 ? (bbox.width * 0.92) / (contentStr.length * charW) : rawFontSize;
                   const fitH = bbox.height * 0.75;
-                  const fontSize = Math.max(10, Math.min(rawFontSize, fitW, fitH));
+                  // Pour chiffres: bbox ne reflète pas la taille visuelle (handles Bézier hors bbox), skip fitH
+                  const fontSize = Math.max(10, zone.type === 'chiffre' ? Math.min(rawFontSize, fitW) : Math.min(rawFontSize, fitW, fitH));
                   // In Training/Arena mode, use server zone data directly (bypass localStorage-derived state)
                   const isServerMode = trainingMatchId || arenaMatchId;
                   const angle = isServerMode ? Number(zone.angle || 0) : Number(calcAngles[zone.id] || 0);

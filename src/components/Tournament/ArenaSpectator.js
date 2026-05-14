@@ -4,7 +4,7 @@
 // Charte graphique Crazy Chrono (Teal/Yellow/Brown)
 // ==========================================
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import { pointsToBezierPath } from '../CarteUtils';
@@ -165,6 +165,17 @@ function ArenaSpectatorInner() {
   const [error, setError] = useState(null);
   const [zones, setZones] = useState([]);
   const zonesRef = useRef([]);
+  // Référence taille médiane zones chiffre pour homogénéiser
+  const chiffreRefBase = useMemo(() => {
+    if (!Array.isArray(zones) || zones.length === 0) return null;
+    const bases = zones
+      .filter(z => z?.type === 'chiffre' && Array.isArray(z.points) && z.points.length)
+      .map(z => { const b = getZoneBoundingBox(z.points); return Math.max(12, Math.min(b.width, b.height)); });
+    if (!bases.length) return null;
+    const sorted = [...bases].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  }, [zones]);
   const [pauseInfo, setPauseInfo] = useState(null);
   const [flashPair, setFlashPair] = useState(null); // { zoneAId, zoneBId, color, playerName }
 
@@ -794,7 +805,12 @@ function ArenaSpectatorInner() {
                         const cx = bbox.x + bbox.width / 2;
                         const cy = bbox.y + bbox.height / 2;
                         const base = Math.max(12, Math.min(bbox.width, bbox.height));
-                        const fontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * base;
+                        const chiffreBaseMin = chiffreRefBase || base;
+                        const effectiveBase = (zone.type === 'chiffre') ? Math.max(base, chiffreBaseMin) : base;
+                        const rawFontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * effectiveBase;
+                        const contentStr2 = String(zone.content ?? '').trim();
+                        const fitW = contentStr2.length > 0 ? (bbox.width * 0.92) / (contentStr2.length * 0.52) : rawFontSize;
+                        const fontSize = Math.max(10, zone.type === 'chiffre' ? Math.min(rawFontSize, fitW) : Math.min(rawFontSize, fitW, bbox.height * 0.75));
                         const angle = Number(zone.angle ?? 0);
                         const mo = zone.mathOffset || { x: 0, y: 0 };
                         const contentStr = String(zone.content ?? '').trim();

@@ -268,7 +268,7 @@ export default function TrainingArenaGame() {
     };
   }, []);
 
-  // ✅ COPIE EXACTE Arena (Carte.js ligne 2533): Référence taille moyenne zones chiffre
+  // Référence taille médiane zones chiffre pour homogénéiser
   const chiffreRefBase = React.useMemo(() => {
     try {
       if (!Array.isArray(zones) || zones.length === 0) return null;
@@ -289,7 +289,9 @@ export default function TrainingArenaGame() {
           return Math.max(12, Math.min(b.width, b.height));
         });
       if (!bases.length) return null;
-      return bases.reduce((a, b) => a + b, 0) / bases.length;
+      const sorted = [...bases].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
     } catch {
       return null;
     }
@@ -1343,7 +1345,7 @@ export default function TrainingArenaGame() {
                 const cx = bbox.x + bbox.width / 2;
                 const cy = bbox.y + bbox.height / 2;
                 const base = Math.max(12, Math.min(bbox.width, bbox.height));
-                const chiffreBaseMin = chiffreRefBase ? 0.95 * chiffreRefBase : base;
+                const chiffreBaseMin = chiffreRefBase || base;
                 const effectiveBase = (zone.type === 'chiffre') ? Math.max(base, chiffreBaseMin) : base;
                 const rawFontSize = (zone.type === 'chiffre' ? 0.42 : 0.38) * effectiveBase;
                 // Adapter la taille du texte pour qu'il reste dans la zone
@@ -1351,7 +1353,8 @@ export default function TrainingArenaGame() {
                 const charW = 0.52;
                 const fitW = contentStr.length > 0 ? (bbox.width * 0.92) / (contentStr.length * charW) : rawFontSize;
                 const fitH = bbox.height * 0.75;
-                const fontSize = Math.max(10, Math.min(rawFontSize, fitW, fitH));
+                // Pour chiffres: bbox ne reflète pas la taille visuelle (handles Bézier hors bbox), skip fitH
+                const fontSize = Math.max(10, zone.type === 'chiffre' ? Math.min(rawFontSize, fitW) : Math.min(rawFontSize, fitW, fitH));
                 const angle = Number(calcAngles[zone.id] ?? zone.angle ?? 0);
                 const mo = mathOffsets[zone.id] || zone.mathOffset || { x: 0, y: 0 };
                 const isSix = (zone.type === 'chiffre') && contentStr === '6';
