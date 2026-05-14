@@ -26,25 +26,49 @@ function getAssocData() {
   return _assocCache;
 }
 const LEVEL_ORDER = ['CP', 'CE1', 'CE2', 'CM1', 'CM2', '6e', '5e', '4e', '3e'];
-const THEME_TO_CODE = { 'Plantes médicinales': 'botanique', 'Géographie': 'geographie', 'Animaux': 'animaux', 'Fruits & Légumes': 'fruits' };
+const THEME_TO_CODE = {
+  'Plantes médicinales': 'botanique', 'Géographie': 'geographie',
+  'Animaux': 'animaux', 'Fruits': 'category:fruit', 'Fruits & Légumes': 'category:fruit',
+  'Épices': 'category:epice', 'Fleurs': 'category:fleur',
+  'Légumineuses': 'category:legumineuse', 'Plantes aromatiques': 'category:plante_aromatique',
+  'Tubercules': 'category:tubercule', 'Mathématiques': 'domain:math',
+  'Additions': 'category:addition', 'Soustractions': 'category:soustraction',
+  'Divisions': 'category:division', 'Fractions': 'category:fraction',
+  'Équations': 'category:equation', 'Numération': 'category:numeration',
+  'Multiplications avancées': 'category:multiplication_avancee'
+};
 
 function getExpectedItemsForTheme(themeName, studentLevel) {
   if (themeName.startsWith('Table de ')) return 10;
   const code = THEME_TO_CODE[themeName];
   if (!code) return null;
   const ad = getAssocData();
-  if (!ad.textes) return null;
+  if (!ad.textes && !ad.associations) return null;
   const maxIdx = studentLevel ? LEVEL_ORDER.indexOf(studentLevel) : -1;
-  if (maxIdx < 0) {
-    // Pas de niveau connu → compter tous les items du thème
-    return ad.textes.filter(t => (t.themes || []).includes(code)).length;
+  // Pour les thèmes basés sur textes (botanique, animaux, geographie)
+  const isTextTheme = ['botanique', 'animaux', 'geographie'].includes(code);
+  if (isTextTheme) {
+    if (!ad.textes) return null;
+    if (maxIdx < 0) {
+      return ad.textes.filter(t => (t.themes || []).includes(code)).length;
+    }
+    return ad.textes.filter(t => {
+      if (!(t.themes || []).includes(code)) return false;
+      const tIdx = LEVEL_ORDER.indexOf(t.levelClass);
+      return tIdx >= 0 && tIdx <= maxIdx;
+    }).length;
   }
-  // Compter les items dont le levelClass est <= au niveau du joueur
-  return ad.textes.filter(t => {
-    if (!(t.themes || []).includes(code)) return false;
-    const tIdx = LEVEL_ORDER.indexOf(t.levelClass);
-    return tIdx >= 0 && tIdx <= maxIdx;
-  }).length;
+  // Pour les thèmes basés sur associations (category:fruit, category:epice, etc.)
+  if (ad.associations) {
+    const assocs = ad.associations.filter(a => (a.themes || []).includes(code));
+    if (assocs.length > 0) return assocs.length;
+  }
+  // Fallback: chercher dans textes aussi
+  if (ad.textes) {
+    const count = ad.textes.filter(t => (t.themes || []).includes(code)).length;
+    if (count > 0) return count;
+  }
+  return null;
 }
 
 // Connexion Supabase

@@ -15,6 +15,45 @@ const { validateZonesServer } = require('./utils/validateZonesServer');
 const fs = require('fs');
 const path = require('path');
 
+// Cache associations.json pour lookup thème réel des items
+let _assocCache = null;
+function _getAssocData() {
+  if (_assocCache) return _assocCache;
+  try {
+    const p = path.join(__dirname, '..', 'public', 'data', 'associations.json');
+    _assocCache = JSON.parse(fs.readFileSync(p, 'utf-8'));
+  } catch { _assocCache = {}; }
+  return _assocCache;
+}
+
+// Mapping complet thème code → label lisible (aligné avec Carte.js)
+const THEME_DISPLAY_FULL = {
+  'botanique': 'Plantes médicinales', 'domain:botany': 'Plantes médicinales',
+  'animaux': 'Animaux', 'domain:zoology': 'Animaux',
+  'multiplication': 'Tables de multiplication', 'domain:math': 'Mathématiques',
+  'geographie': 'Géographie',
+  'fruits': 'Fruits', 'category:fruit': 'Fruits',
+  'category:epice': 'Épices', 'category:fleur': 'Fleurs',
+  'category:legumineuse': 'Légumineuses', 'category:plante_aromatique': 'Plantes aromatiques',
+  'category:plante_medicinale': 'Plantes médicinales', 'category:tubercule': 'Tubercules',
+  'category:addition': 'Additions', 'category:soustraction': 'Soustractions',
+  'category:division': 'Divisions', 'category:fraction': 'Fractions',
+  'category:equation': 'Équations', 'category:numeration': 'Numération',
+  'category:multiplication_avancee': 'Multiplications avancées'
+};
+function _themeLabel(code) {
+  if (!code) return '';
+  return THEME_DISPLAY_FULL[String(code).toLowerCase().trim()] || '';
+}
+// Trouver le meilleur thème lisible dans un tableau de tags (ignorer region:, préférer les connus)
+function _bestTheme(tags) {
+  if (!Array.isArray(tags) || tags.length === 0) return '';
+  const known = tags.find(t => THEME_DISPLAY_FULL[String(t).toLowerCase().trim()]);
+  if (known) return _themeLabel(known);
+  const nonRegion = tags.find(t => !String(t).startsWith('region:'));
+  return nonRegion ? _themeLabel(nonRegion) : '';
+}
+
 // Fenêtre d'égalité Arena (ms): si 2 joueurs cliquent la même paire dans cet intervalle,
 // les deux marquent le point. Au-delà, seul le premier marque.
 const ARENA_TIE_WINDOW_MS = 200;
@@ -3026,16 +3065,57 @@ class CrazyArenaManager {
 
       if (calcZone && numZone) {
         item_type = 'calcnum';
-        const m = calcZone.content ? calcZone.content.match(/^(\d+)\s*×/) : null;
-        theme = m ? `Table de ${m[1]}` : 'Multiplication';
-        item_id = calcZone.content || pairId;
+        const calcText = String(calcZone.content || '').trim();
+        const chiffreText = String(numZone.content || '').trim();
+        const mulMatch = calcText.match(/(\d+)\s*[×x*]\s*(\d+)/);
+        const addMatch = !mulMatch && calcText.match(/(\d+)\s*[+]\s*(\d+)/);
+        const subMatch = !mulMatch && !addMatch && calcText.match(/(\d+)\s*[-]\s*(\d+)/);
+        if (mulMatch) {
+          const table = Math.min(parseInt(mulMatch[1], 10), parseInt(mulMatch[2], 10));
+          theme = `Table de ${table}`;
+        } else if (addMatch) {
+          theme = 'Additions';
+        } else if (subMatch) {
+          theme = 'Soustractions';
+        } else {
+          theme = 'Calculs divers';
+        }
+        item_id = calcText ? `${calcText} = ${chiffreText}` : (pairId || item_id);
       } else if (imgZone || txtZone) {
         item_type = 'imgtxt';
-        const THEME_DISPLAY = { 'botanique': 'Plantes médicinales', 'multiplication': 'Tables de multiplication', 'geographie': 'Géographie', 'animaux': 'Animaux', 'fruits': 'Fruits & Légumes' };
+        const textContent = String((txtZone || {}).content || '').trim();
+        // Lookup thème réel depuis associations.json
+        let zoneTheme = '';
+        try {
+          const ad = _getAssocData();
+          const lc = textContent.toLowerCase().trim();
+          // 1) Chercher par texte
+          if (lc) {
+            const texteEntry = (ad.textes || []).find(t => String(t.content || '').toLowerCase().trim() === lc);
+            if (texteEntry && Array.isArray(texteEntry.themes)) {
+              zoneTheme = _bestTheme(texteEntry.themes);
+            }
+          }
+          // 2) Chercher par image
+          if (!zoneTheme && imgZone) {
+            const imgUrl = String(imgZone.content || '').toLowerCase().trim();
+            const imgEntry = (ad.images || []).find(img => String(img.url || img.src || '').toLowerCase().trim() === imgUrl);
+            if (imgEntry && Array.isArray(imgEntry.themes)) {
+              zoneTheme = _bestTheme(imgEntry.themes);
+            }
+          }
+          // 3) Chercher par pairId dans associations
+          if (!zoneTheme && pairId) {
+            const assocEntry = (ad.associations || []).find(a => String(a.id || '') === String(pairId));
+            if (assocEntry && Array.isArray(assocEntry.themes)) {
+              zoneTheme = _bestTheme(assocEntry.themes);
+            }
+          }
+        } catch {}
         const cfgTheme = (match.config && match.config.themes && match.config.themes[0]) || '';
-        theme = THEME_DISPLAY[cfgTheme] || cfgTheme || 'Images & Textes';
-        if (txtZone && txtZone.content) {
-          item_id = JSON.stringify({ text: txtZone.content, img: imgZone ? imgZone.content : null });
+        theme = zoneTheme || _themeLabel(cfgTheme) || cfgTheme || 'Images & Textes';
+        if (textContent) {
+          item_id = JSON.stringify({ text: textContent, img: imgZone ? imgZone.content : null });
         }
       }
 

@@ -2949,6 +2949,8 @@ function endSession(roomCode) {
           rounds: Number.isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
           selectedLevel: room.selectedLevel || null,
           classes: Array.isArray(room.selectedClasses) && room.selectedClasses.length > 0 ? room.selectedClasses : null,
+          themes: Array.isArray(room.selectedThemes) && room.selectedThemes.length > 0 ? room.selectedThemes : null,
+          extras: Array.isArray(room.selectedExtras) && room.selectedExtras.length > 0 ? room.selectedExtras : null,
           roomCode
         },
         completed_at: new Date().toISOString(),
