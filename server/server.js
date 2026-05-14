@@ -2570,6 +2570,8 @@ const MP_THEME_DISPLAY = {
   'category:epice': 'Épices', 'category:fleur': 'Fleurs',
   'category:legumineuse': 'Légumineuses', 'category:legume': 'Légumes', 'category:plante_aromatique': 'Plantes aromatiques',
   'category:plante_medicinale': 'Plantes médicinales', 'category:tubercule': 'Tubercules',
+  'category:oiseau': 'Oiseaux', 'category:mammifere': 'Mammifères', 'category:reptile': 'Reptiles',
+  'category:poisson': 'Poissons', 'category:crustace': 'Crustacés', 'category:corail': 'Coraux', 'category:mollusque': 'Mollusques',
   'category:addition': 'Additions', 'category:soustraction': 'Soustractions',
   'category:division': 'Divisions', 'category:fraction': 'Fractions',
   'category:equation': 'Équations', 'category:numeration': 'Numération',

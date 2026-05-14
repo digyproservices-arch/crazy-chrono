@@ -88,6 +88,8 @@ const THEME_TO_CATEGORY = {
   'Multiplications avancées': 'multiplication_avancee', 'Équations': 'equation',
   'Fractions': 'fraction', 'Numération': 'numeration',
   'Animaux': 'animaux', 'Domain:zoology': 'animaux',
+  'Oiseaux': 'oiseau', 'Mammifères': 'mammifere', 'Reptiles': 'reptile',
+  'Poissons': 'poisson', 'Crustacés': 'crustace', 'Coraux': 'corail', 'Mollusques': 'mollusque',
   'Fruits': 'fruit', 'Légumes': 'legume', 'Tubercules': 'tubercule',
   'Fleurs': 'fleur', 'Plantes médicinales': 'plante_medicinale',
   'Plantes aromatiques': 'plante_aromatique', 'Épices': 'epice',
