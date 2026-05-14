@@ -382,6 +382,7 @@ function ArenaSpectatorInner() {
             const typeA = ZA?.type || '';
             const typeB = ZB?.type || '';
             const textFor = (Z) => (Z?.label || Z?.content || Z?.text || Z?.value || '').toString().trim() || '…';
+            const textForCalc = (Z) => (Z?.content || Z?.label || Z?.text || Z?.value || '').toString().trim() || '…';
             const textA = textFor(ZA);
             const textB = textFor(ZB);
             let kind = null, calcExpr = null, calcResult = null, imageSrc = null, imageLabel = null;
@@ -391,8 +392,8 @@ function ArenaSpectatorInner() {
               kind = 'calcnum';
               const calcZone = typeA === 'calcul' ? ZA : ZB;
               const numZone = typeA === 'chiffre' ? ZA : ZB;
-              calcExpr = textFor(calcZone);
-              calcResult = textFor(numZone);
+              calcExpr = textForCalc(calcZone);
+              calcResult = textForCalc(numZone);
               displayText = `${calcExpr} = ${calcResult}`;
             } else if ((typeA === 'image' && typeB === 'texte') || (typeA === 'texte' && typeB === 'image')) {
               kind = 'imgtxt';
