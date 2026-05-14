@@ -34,7 +34,7 @@ const THEME_DISPLAY_FULL = {
   'geographie': 'Géographie',
   'fruits': 'Fruits', 'category:fruit': 'Fruits',
   'category:epice': 'Épices', 'category:fleur': 'Fleurs',
-  'category:legumineuse': 'Légumineuses', 'category:plante_aromatique': 'Plantes aromatiques',
+  'category:legumineuse': 'Légumineuses', 'category:legume': 'Légumes', 'category:plante_aromatique': 'Plantes aromatiques',
   'category:plante_medicinale': 'Plantes médicinales', 'category:tubercule': 'Tubercules',
   'category:addition': 'Additions', 'category:soustraction': 'Soustractions',
   'category:division': 'Divisions', 'category:fraction': 'Fractions',
@@ -3085,35 +3085,33 @@ class CrazyArenaManager {
         item_type = 'imgtxt';
         const textContent = String((txtZone || {}).content || '').trim();
         // Lookup thème réel depuis associations.json
+        // PRIORITÉ: association (a le category: précis) > texte > image > config
         let zoneTheme = '';
         try {
           const ad = _getAssocData();
           const lc = textContent.toLowerCase().trim();
-          // 1) Chercher par texte
-          if (lc) {
-            const texteEntry = (ad.textes || []).find(t => String(t.content || '').toLowerCase().trim() === lc);
-            if (texteEntry && Array.isArray(texteEntry.themes)) {
-              zoneTheme = _bestTheme(texteEntry.themes);
-            }
-          }
-          // 2) Chercher par image
-          if (!zoneTheme && imgZone) {
-            const imgUrl = String(imgZone.content || '').toLowerCase().trim();
-            const imgEntry = (ad.images || []).find(img => String(img.url || img.src || '').toLowerCase().trim() === imgUrl);
-            if (imgEntry && Array.isArray(imgEntry.themes)) {
-              zoneTheme = _bestTheme(imgEntry.themes);
-            }
-          }
-          // 3) Chercher par pairId dans associations
-          if (!zoneTheme && pairId) {
-            const assocEntry = (ad.associations || []).find(a => String(a.id || '') === String(pairId));
+          const imgUrl = imgZone ? String(imgZone.content || '').toLowerCase().trim() : '';
+          // Trouver texteId et imageId pour lookup association
+          const texteEntry = lc ? (ad.textes || []).find(t => String(t.content || '').toLowerCase().trim() === lc) : null;
+          const imgEntry = imgUrl ? (ad.images || []).find(img => String(img.url || img.src || '').toLowerCase().trim() === imgUrl) : null;
+          // 1) Chercher l'association exacte par texteId+imageId (source de vérité pour les category:)
+          if (texteEntry && imgEntry) {
+            const assocEntry = (ad.associations || []).find(a => a.texteId === texteEntry.id && a.imageId === imgEntry.id);
             if (assocEntry && Array.isArray(assocEntry.themes)) {
               zoneTheme = _bestTheme(assocEntry.themes);
             }
           }
+          // 2) Fallback: chercher par texte
+          if (!zoneTheme && texteEntry && Array.isArray(texteEntry.themes)) {
+            zoneTheme = _bestTheme(texteEntry.themes);
+          }
+          // 3) Fallback: chercher par image
+          if (!zoneTheme && imgEntry && Array.isArray(imgEntry.themes)) {
+            zoneTheme = _bestTheme(imgEntry.themes);
+          }
         } catch {}
         const cfgTheme = (match.config && match.config.themes && match.config.themes[0]) || '';
-        theme = zoneTheme || _themeLabel(cfgTheme) || cfgTheme || 'Images & Textes';
+        theme = zoneTheme || _themeLabel(cfgTheme) || cfgTheme || 'Nature';
         if (textContent) {
           item_id = JSON.stringify({ text: textContent, img: imgZone ? imgZone.content : null });
         }

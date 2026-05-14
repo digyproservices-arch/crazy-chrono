@@ -58,7 +58,7 @@ export const CATEGORY_LABELS = {
 export const CONTENT_DOMAINS = [
   { key: 'nature', domain: 'domain:botany', icon: '🌿', label: 'Nature',
     color: '#16a34a', bg: '#f0fdf4', tags: ['botanique', 'domain:botany'],
-    categories: ['category:plante_medicinale', 'category:epice', 'category:fruit', 'category:fleur', 'category:tubercule', 'category:legumineuse', 'category:plante_aromatique'],
+    categories: ['category:plante_medicinale', 'category:epice', 'category:fruit', 'category:fleur', 'category:tubercule', 'category:legumineuse', 'category:plante_aromatique', 'category:legume'],
     hasGeo: true },
   { key: 'animaux', domain: 'domain:zoology', icon: '🐾', label: 'Animaux',
     color: '#ea580c', bg: '#fff7ed', tags: ['animaux', 'domain:zoology'], categories: [] },

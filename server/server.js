@@ -623,33 +623,44 @@ const listImagesRouter = require('./listImages');
 app.use(listImagesRouter);
 
 // Endpoint pour sauvegarder le JSON associations
-app.post('/save-associations', requireAdminAuth, (req, res) => {
+app.post('/save-associations', requireAdminAuth, async (req, res) => {
   const data = req.body;
   const jsonStr = JSON.stringify(data, null, 2);
   const publicPath = path.join(__dirname, '../public/data/associations.json');
   const serverPath = path.join(__dirname, 'data', 'associations.json');
-  // Écrire aux DEUX emplacements pour garder client et serveur synchronisés
-  const writePublic = fs.promises.writeFile(publicPath, jsonStr);
-  const writeServer = fs.promises.writeFile(serverPath, jsonStr);
-  Promise.all([writePublic, writeServer])
-    .then(() => {
-      // Invalider le cache du générateur de zones pour prise en compte immédiate
-      try {
-        const { invalidateCache } = require('./utils/serverZoneGenerator');
-        if (typeof invalidateCache === 'function') invalidateCache();
-      } catch (e) { console.warn('[save-associations] Cache invalidation skipped:', e.message); }
-      // Invalider aussi le cache de validation
-      try {
-        const { validateZonesServer } = require('./utils/validateZonesServer');
-        if (validateZonesServer._assocCache) validateZonesServer._assocCache = null;
-      } catch (e) { /* ignore */ }
-      console.log('[save-associations] Écrit aux 2 emplacements + cache invalidé');
-      res.json({ success: true });
-    })
-    .catch(err => {
-      console.error('Erreur lors de la sauvegarde:', err);
-      res.status(500).json({ success: false, message: 'Erreur lors de la sauvegarde.' });
-    });
+  try {
+    // 1) Écrire aux DEUX emplacements locaux
+    await Promise.all([
+      fs.promises.writeFile(publicPath, jsonStr),
+      fs.promises.writeFile(serverPath, jsonStr)
+    ]);
+    // 2) Persister dans Supabase (survit aux redéploiements Render)
+    if (supabaseAdmin) {
+      const { error: dbErr } = await supabaseAdmin.from('content_store').upsert({
+        id: 'associations',
+        data: data,
+        updated_at: new Date().toISOString(),
+        updated_by: req.user?.id || 'admin'
+      });
+      if (dbErr) console.warn('[save-associations] ⚠️ Supabase upsert failed:', dbErr.message);
+      else console.log('[save-associations] ✅ Persisté dans Supabase content_store');
+    }
+    // 3) Invalider tous les caches
+    try {
+      const { invalidateCache } = require('./utils/serverZoneGenerator');
+      if (typeof invalidateCache === 'function') invalidateCache();
+    } catch (e) { console.warn('[save-associations] Cache invalidation skipped:', e.message); }
+    try {
+      const { validateZonesServer } = require('./utils/validateZonesServer');
+      if (validateZonesServer._assocCache) validateZonesServer._assocCache = null;
+    } catch (e) { /* ignore */ }
+    _mpAssocCache = null; // Invalider le cache de persistMPAttempt
+    console.log('[save-associations] Écrit aux 2 emplacements + cache invalidé');
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Erreur lors de la sauvegarde:', err);
+    res.status(500).json({ success: false, message: 'Erreur lors de la sauvegarde.' });
+  }
 });
 
 // Récupérer les positions/angles des éléments math enregistrés
@@ -2557,7 +2568,7 @@ const MP_THEME_DISPLAY = {
   'geographie': 'Géographie',
   'fruits': 'Fruits', 'category:fruit': 'Fruits',
   'category:epice': 'Épices', 'category:fleur': 'Fleurs',
-  'category:legumineuse': 'Légumineuses', 'category:plante_aromatique': 'Plantes aromatiques',
+  'category:legumineuse': 'Légumineuses', 'category:legume': 'Légumes', 'category:plante_aromatique': 'Plantes aromatiques',
   'category:plante_medicinale': 'Plantes médicinales', 'category:tubercule': 'Tubercules',
   'category:addition': 'Additions', 'category:soustraction': 'Soustractions',
   'category:division': 'Divisions', 'category:fraction': 'Fractions',
@@ -2624,26 +2635,26 @@ function persistMPAttempt(room, socketId, { isCorrect, zoneAId, zoneBId }) {
     } else if (imgZone || txtZone) {
       item_type = 'imgtxt';
       const textContent = String((txtZone || {}).content || '').trim();
+      // PRIORITÉ: association (a le category: précis) > texte > image > config
       let zoneTheme = '';
       try {
         const ad = _mpGetAssocData();
         const lc = textContent.toLowerCase().trim();
-        if (lc) {
-          const texteEntry = (ad.textes || []).find(t => String(t.content || '').toLowerCase().trim() === lc);
-          if (texteEntry && Array.isArray(texteEntry.themes)) zoneTheme = _mpBestTheme(texteEntry.themes);
-        }
-        if (!zoneTheme && imgZone) {
-          const imgUrl = String(imgZone.content || '').toLowerCase().trim();
-          const imgEntry = (ad.images || []).find(img => String(img.url || img.src || '').toLowerCase().trim() === imgUrl);
-          if (imgEntry && Array.isArray(imgEntry.themes)) zoneTheme = _mpBestTheme(imgEntry.themes);
-        }
-        if (!zoneTheme && pairId) {
-          const assocEntry = (ad.associations || []).find(a => String(a.id || '') === String(pairId));
+        const imgUrl = imgZone ? String(imgZone.content || '').toLowerCase().trim() : '';
+        const texteEntry = lc ? (ad.textes || []).find(t => String(t.content || '').toLowerCase().trim() === lc) : null;
+        const imgEntry = imgUrl ? (ad.images || []).find(img => String(img.url || img.src || '').toLowerCase().trim() === imgUrl) : null;
+        // 1) Association exacte (source de vérité pour les category:)
+        if (texteEntry && imgEntry) {
+          const assocEntry = (ad.associations || []).find(a => a.texteId === texteEntry.id && a.imageId === imgEntry.id);
           if (assocEntry && Array.isArray(assocEntry.themes)) zoneTheme = _mpBestTheme(assocEntry.themes);
         }
+        // 2) Fallback: texte
+        if (!zoneTheme && texteEntry && Array.isArray(texteEntry.themes)) zoneTheme = _mpBestTheme(texteEntry.themes);
+        // 3) Fallback: image
+        if (!zoneTheme && imgEntry && Array.isArray(imgEntry.themes)) zoneTheme = _mpBestTheme(imgEntry.themes);
       } catch {}
       const cfgTheme = (room.selectedThemes && room.selectedThemes[0]) || '';
-      theme = zoneTheme || _mpThemeLabel(cfgTheme) || cfgTheme || 'Images & Textes';
+      theme = zoneTheme || _mpThemeLabel(cfgTheme) || cfgTheme || 'Nature';
       if (textContent) {
         item_id = JSON.stringify({ text: textContent, img: imgZone ? imgZone.content : null });
       }
@@ -4495,8 +4506,56 @@ io.on('connection', (socket) => {
   });
 });
 
+// ═══ Charger les données admin depuis Supabase au démarrage (survit aux redéploiements) ═══
+async function loadContentFromSupabase() {
+  if (!supabaseAdmin) return;
+  try {
+    const { data: row, error } = await supabaseAdmin
+      .from('content_store')
+      .select('data, updated_at')
+      .eq('id', 'associations')
+      .single();
+    if (error) {
+      // Table n'existe pas encore → pas grave, on utilise le fichier local
+      if (error.code === 'PGRST116' || error.message?.includes('not found')) {
+        console.log('[ContentStore] Table content_store vide, utilisation du fichier local');
+      } else {
+        console.warn('[ContentStore] ⚠️ Erreur lecture Supabase:', error.message);
+      }
+      return;
+    }
+    if (!row?.data || typeof row.data !== 'object') {
+      console.log('[ContentStore] Données Supabase vides, utilisation du fichier local');
+      return;
+    }
+    // Vérifier que les données Supabase sont plus riches que le fichier local
+    const assocCount = row.data.associations?.length || 0;
+    if (assocCount === 0) {
+      console.log('[ContentStore] Supabase data vide (0 associations), skip');
+      return;
+    }
+    // Écrire dans les fichiers locaux
+    const jsonStr = JSON.stringify(row.data, null, 2);
+    const publicPath = path.join(__dirname, '..', 'public', 'data', 'associations.json');
+    const serverPath = path.join(__dirname, 'data', 'associations.json');
+    await Promise.all([
+      fs.promises.writeFile(publicPath, jsonStr),
+      fs.promises.writeFile(serverPath, jsonStr)
+    ]);
+    // Invalider les caches
+    _mpAssocCache = null;
+    try { const { invalidateCache } = require('./utils/serverZoneGenerator'); if (typeof invalidateCache === 'function') invalidateCache(); } catch {}
+    console.log(`[ContentStore] ✅ associations.json restauré depuis Supabase (${assocCount} associations, updated: ${row.updated_at})`);
+  } catch (err) {
+    console.warn('[ContentStore] Erreur chargement:', err.message);
+  }
+}
+
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Backend lancé sur http://localhost:${PORT}`);
+
+  // Charger les données admin depuis Supabase (survit aux redéploiements)
+  loadContentFromSupabase().catch(e => console.warn('[ContentStore] Init error:', e.message));
   
   // Démarrer les tâches cron de monitoring
   try {

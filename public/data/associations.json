@@ -12088,7 +12088,8 @@
         "region:guadeloupe",
         "region:martinique",
         "region:guyane",
-        "region:reunion"
+        "region:reunion",
+        "category:legume"
       ]
     },
     {
@@ -12100,7 +12101,8 @@
         "region:guadeloupe",
         "region:martinique",
         "region:guyane",
-        "region:haiti"
+        "region:haiti",
+        "category:legume"
       ]
     },
     {
@@ -12125,7 +12127,8 @@
         "region:guadeloupe",
         "region:martinique",
         "region:guyane",
-        "region:afrique"
+        "region:afrique",
+        "category:legume"
       ]
     },
     {
