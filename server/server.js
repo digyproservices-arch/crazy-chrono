@@ -27,7 +27,8 @@ const corsOptions = {
   origin: [
     'https://app.crazy-chrono.com',
     'http://localhost:3000',
-    'http://localhost:5173'
+    'http://localhost:5173',
+    /^https:\/\/crazy-chrono.*\.vercel\.app$/
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -54,7 +55,8 @@ const server = http.createServer(app);
 const ALLOWED_ORIGINS = [
   'https://app.crazy-chrono.com',
   'http://localhost:3000',
-  'http://localhost:5173'
+  'http://localhost:5173',
+  /^https:\/\/crazy-chrono.*\.vercel\.app$/
 ];
 const io = new Server(server, {
   cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'], credentials: true },
