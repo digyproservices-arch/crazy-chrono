@@ -104,7 +104,7 @@ export async function recordAttempt(a) {
     try {
       const cfg = (() => { try { return JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch { return null; } })();
       await startSession({
-        mode: 'solo',
+        mode: cfg?.mode || 'solo',
         classes: Array.isArray(cfg?.classes) ? cfg.classes : [],
         themes: Array.isArray(cfg?.themes) ? cfg.themes : [],
       });

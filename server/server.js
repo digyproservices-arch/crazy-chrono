@@ -2540,6 +2540,134 @@ async function gsFinish(salleId) {
   }, 30000);
 }
 
+// ═══ HELPERS MAÎTRISE (multiplayer classique) — même logique que crazyArenaManager ═══
+let _mpAssocCache = null;
+function _mpGetAssocData() {
+  if (_mpAssocCache) return _mpAssocCache;
+  try {
+    const p = path.join(__dirname, '..', 'public', 'data', 'associations.json');
+    _mpAssocCache = JSON.parse(fs.readFileSync(p, 'utf-8'));
+  } catch { _mpAssocCache = {}; }
+  return _mpAssocCache;
+}
+const MP_THEME_DISPLAY = {
+  'botanique': 'Plantes médicinales', 'domain:botany': 'Plantes médicinales',
+  'animaux': 'Animaux', 'domain:zoology': 'Animaux',
+  'multiplication': 'Tables de multiplication', 'domain:math': 'Mathématiques',
+  'geographie': 'Géographie',
+  'fruits': 'Fruits', 'category:fruit': 'Fruits',
+  'category:epice': 'Épices', 'category:fleur': 'Fleurs',
+  'category:legumineuse': 'Légumineuses', 'category:plante_aromatique': 'Plantes aromatiques',
+  'category:plante_medicinale': 'Plantes médicinales', 'category:tubercule': 'Tubercules',
+  'category:addition': 'Additions', 'category:soustraction': 'Soustractions',
+  'category:division': 'Divisions', 'category:fraction': 'Fractions',
+  'category:equation': 'Équations', 'category:numeration': 'Numération',
+  'category:multiplication_avancee': 'Multiplications avancées'
+};
+function _mpThemeLabel(code) { return MP_THEME_DISPLAY[code] || code || ''; }
+function _mpBestTheme(tags) {
+  if (!Array.isArray(tags) || !tags.length) return '';
+  const cat = tags.find(t => t.startsWith('category:'));
+  if (cat) return _mpThemeLabel(cat);
+  const dom = tags.find(t => t.startsWith('domain:'));
+  if (dom) return _mpThemeLabel(dom);
+  return _mpThemeLabel(tags[0]);
+}
+/**
+ * Persister une tentative dans la table attempts pour le mode multiplayer classique
+ * @param {Object} room - La room multiplayer
+ * @param {string} socketId - Le socket ID du joueur
+ * @param {Object} opts - { isCorrect, zoneAId, zoneBId }
+ */
+function persistMPAttempt(room, socketId, { isCorrect, zoneAId, zoneBId }) {
+  if (!supabaseAdmin) return;
+  const pl = room.players.get(socketId);
+  if (!pl || !pl.studentId) return;
+  const dbStudentId = pl.studentId;
+
+  try {
+    const now = Date.now();
+    const latencyMs = room.currentRoundStartedAt ? (now - room.currentRoundStartedAt) : null;
+
+    const zones = room.currentZones || [];
+    const zA = zones.find(z => String(z.id) === String(zoneAId));
+    const zB = zones.find(z => String(z.id) === String(zoneBId));
+    const pairId = (zA?.pairId && zB?.pairId && zA.pairId === zB.pairId) ? zA.pairId : `${zoneAId}|${zoneBId}`;
+
+    const calcZone = [zA, zB].find(z => z && z.type === 'calcul');
+    const numZone = [zA, zB].find(z => z && z.type === 'chiffre');
+    const imgZone = [zA, zB].find(z => z && z.type === 'image');
+    const txtZone = [zA, zB].find(z => z && z.type === 'texte');
+
+    let theme = null;
+    let item_type = null;
+    let item_id = pairId;
+
+    if (calcZone && numZone) {
+      item_type = 'calcnum';
+      const calcText = String(calcZone.content || '').trim();
+      const chiffreText = String(numZone.content || '').trim();
+      const mulMatch = calcText.match(/(\d+)\s*[×x*]\s*(\d+)/);
+      const addMatch = !mulMatch && calcText.match(/(\d+)\s*[+]\s*(\d+)/);
+      const subMatch = !mulMatch && !addMatch && calcText.match(/(\d+)\s*[-]\s*(\d+)/);
+      if (mulMatch) {
+        const table = Math.min(parseInt(mulMatch[1], 10), parseInt(mulMatch[2], 10));
+        theme = `Table de ${table}`;
+      } else if (addMatch) {
+        theme = 'Additions';
+      } else if (subMatch) {
+        theme = 'Soustractions';
+      } else {
+        theme = 'Calculs divers';
+      }
+      item_id = calcText ? `${calcText} = ${chiffreText}` : pairId;
+    } else if (imgZone || txtZone) {
+      item_type = 'imgtxt';
+      const textContent = String((txtZone || {}).content || '').trim();
+      let zoneTheme = '';
+      try {
+        const ad = _mpGetAssocData();
+        const lc = textContent.toLowerCase().trim();
+        if (lc) {
+          const texteEntry = (ad.textes || []).find(t => String(t.content || '').toLowerCase().trim() === lc);
+          if (texteEntry && Array.isArray(texteEntry.themes)) zoneTheme = _mpBestTheme(texteEntry.themes);
+        }
+        if (!zoneTheme && imgZone) {
+          const imgUrl = String(imgZone.content || '').toLowerCase().trim();
+          const imgEntry = (ad.images || []).find(img => String(img.url || img.src || '').toLowerCase().trim() === imgUrl);
+          if (imgEntry && Array.isArray(imgEntry.themes)) zoneTheme = _mpBestTheme(imgEntry.themes);
+        }
+        if (!zoneTheme && pairId) {
+          const assocEntry = (ad.associations || []).find(a => String(a.id || '') === String(pairId));
+          if (assocEntry && Array.isArray(assocEntry.themes)) zoneTheme = _mpBestTheme(assocEntry.themes);
+        }
+      } catch {}
+      const cfgTheme = (room.selectedThemes && room.selectedThemes[0]) || '';
+      theme = zoneTheme || _mpThemeLabel(cfgTheme) || cfgTheme || 'Images & Textes';
+      if (textContent) {
+        item_id = JSON.stringify({ text: textContent, img: imgZone ? imgZone.content : null });
+      }
+    }
+
+    supabaseAdmin.from('attempts').insert({
+      session_id: null,
+      user_id: dbStudentId,
+      item_type,
+      item_id,
+      objective_key: theme ? `multiplayer:${theme}` : null,
+      correct: isCorrect,
+      latency_ms: latencyMs && latencyMs > 0 && latencyMs < 300000 ? Math.round(latencyMs) : null,
+      level_class: (room.selectedClasses && room.selectedClasses[0]) || null,
+      theme,
+      round_index: room.roundsPlayed || 0
+    }).then(({ error }) => {
+      if (error) logger.warn('[MP] ⚠️ persistMPAttempt insert failed', { error: error.message, studentId: dbStudentId });
+    });
+  } catch (err) {
+    // best-effort, ne pas bloquer le jeu
+  }
+}
+
 function getRoom(roomCode) {
   if (!rooms.has(roomCode)) rooms.set(roomCode, { players: new Map(), resolved: false, status: 'lobby', hostId: null, duration: 60, sessionActive: false, sessions: [], roundsPerSession: 3, roundsPlayed: 0, roundTimer: null, pendingClaims: new Map(), validatedPairIds: new Set(), deckState: createDeckState(), selectedThemes: [], selectedClasses: [] });
   const r = rooms.get(roomCode);
@@ -3569,6 +3697,11 @@ io.on('connection', (socket) => {
         }
         const scores = Array.from(room.players.entries()).map(([id, pl]) => ({ id, name: pl.name, score: pl.score || 0 }));
         io.to(currentRoom).emit('score:update', { scores });
+
+        // 📊 MAÎTRISE: Enregistrer la tentative correcte pour chaque joueur
+        for (const id of claimants) {
+          try { persistMPAttempt(room, id, { isCorrect: true, zoneAId: a, zoneBId: b }); } catch {}
+        }
 
         // Enregistrer le gagnant dans roundHistory (diagnostic pédagogique)
         try {

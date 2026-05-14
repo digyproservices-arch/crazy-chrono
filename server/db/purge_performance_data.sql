@@ -33,6 +33,30 @@ DELETE FROM training_sessions;
 DELETE FROM sessions;
 
 -- =========================================================
+-- PURGE DES DONNÉES DE COMPÉTITION / TOURNOI
+-- ⚠️ Supprime les matchs/groupes/brackets mais GARDE les tournois,
+--    phases, écoles, classes et élèves intacts
+-- =========================================================
+
+-- 9. Table tournament_notifications (dépend de tournaments)
+DELETE FROM tournament_notifications;
+
+-- 10. Table tournament_brackets (dépend de tournaments)
+DELETE FROM tournament_brackets;
+
+-- 11. Table tournament_matches (dépend de tournament_phases + tournament_groups)
+DELETE FROM tournament_matches;
+
+-- 12. Table tournament_groups (dépend de tournaments + classes)
+DELETE FROM tournament_groups;
+
+-- 13. Reset des stats élèves (scores à zéro, badges vidés)
+UPDATE student_stats SET 
+  tournaments_played = 0, total_wins = 0, 
+  total_matches = 0, best_score = 0, 
+  badges = '[]', updated_at = NOW();
+
+-- =========================================================
 -- VÉRIFICATION: Compter les lignes restantes (tout doit être à 0)
 -- =========================================================
 SELECT 'attempts' AS table_name, COUNT(*) AS remaining FROM attempts
@@ -42,4 +66,8 @@ UNION ALL SELECT 'match_rounds', COUNT(*) FROM match_rounds
 UNION ALL SELECT 'training_results', COUNT(*) FROM training_results
 UNION ALL SELECT 'match_results', COUNT(*) FROM match_results
 UNION ALL SELECT 'training_sessions', COUNT(*) FROM training_sessions
-UNION ALL SELECT 'sessions', COUNT(*) FROM sessions;
+UNION ALL SELECT 'sessions', COUNT(*) FROM sessions
+UNION ALL SELECT 'tournament_matches', COUNT(*) FROM tournament_matches
+UNION ALL SELECT 'tournament_groups', COUNT(*) FROM tournament_groups
+UNION ALL SELECT 'tournament_brackets', COUNT(*) FROM tournament_brackets
+UNION ALL SELECT 'tournament_notifications', COUNT(*) FROM tournament_notifications;
