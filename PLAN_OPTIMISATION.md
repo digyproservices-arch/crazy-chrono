@@ -44,12 +44,13 @@
 - [x] **0.4** Configurer `crazy-chrono-staging` sur Render → branche `staging` ✅
 - [x] **0.5** Vérifier que staging fonctionne ✅ (Render deployed)
 
-### Phase 1 : Un seul associations.json (risque = faible)
-> *Actuellement 2 copies identiques à synchroniser manuellement = source de bugs*
-- [x] **1.1** Script `prebuild` ajouté dans package.json ✅
-- [x] **1.2** `public/data/associations.json` supprimé du Git + ajouté au .gitignore ✅
-- [ ] **1.3** Tester sur staging : solo + arena doivent fonctionner
-- [ ] **1.4** Valider en production
+### Phase 1 : Synchronisation associations.json (risque = faible)
+> *2 copies dans Git + scripts prebuild/prestart comme filet de sécurité*
+> *Vercel nécessite le fichier dans public/data/ au moment du build*
+- [x] **1.1** Scripts `prebuild` + `prestart` ajoutés (copie server→public) ✅
+- [x] **1.2** ~~Supprimer du Git~~ → Revert : fichier nécessaire pour Vercel ✅
+- [x] **1.3** Test staging : Nature 30, Animaux 27, Math OK ✅
+- [ ] **1.4** Valider en production (merge staging → main)
 
 ### Phase 2 : Utilitaires partagés (risque = faible)
 > *Éliminer le code copié-collé entre Carte.js, TrainingArenaGame.js, ArenaSpectator.js*
@@ -100,6 +101,8 @@
 | 2026-05-14 | 0 | 0.4 Config Render staging | ✅ | Branche changée → staging |
 | 2026-05-14 | 0 | 0.5 Staging deployed | ✅ | https://crazy-chrono-staging.onrender.com |
 | 2026-05-14 | 1 | 1.1+1.2 Source unique assoc.json | ✅ | prebuild + gitignore, commit caa78c9 |
+| 2026-05-14 | 1 | 1.2 revert: fichier requis par Vercel | ✅ | commit c91b369 |
+| 2026-05-14 | 1 | 1.3 Test staging OK | ✅ | Nature 30, Animaux 27, Math OK |
 
 ---
 
