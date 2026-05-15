@@ -19,6 +19,9 @@ import MasteryBubble from './MasteryBubble';
 import { generateHint, generateAnswer, findGoodPair, HINT_PENALTY, ANSWER_PENALTY } from '../utils/hintGenerator';
 import { PLAYER_PRIMARY_COLORS, PLAYER_BORDER_COLORS, getPlayerColorComboByIndex } from '../utils/playerColors';
 import { getInitials } from '../utils/pairDisplay';
+import { playCorrectSound, playWrongSound } from '../utils/gameAudio';
+import { loadAssociationsData, norm, normType, getPairId, mulberry32, makeRngFromSeed, shuffleArray, fetchWithTimeout } from '../utils/gameHelpers';
+import ArenaPauseOverlay from './ArenaPauseOverlay';
 
 // Instruments a socket with telemetry listeners (connect, disconnect, connect_error)
 function _instrSocket(s, mode, matchId) {
@@ -29,27 +32,7 @@ function _instrSocket(s, mode, matchId) {
   } catch {}
 }
 
-// Single shared AudioContext for smoother audio on low devices
-let __audioCtx = null;
-function getAudioCtx() {
-  try {
-    if (!__audioCtx) __audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  } catch {}
-  return __audioCtx;
-}
-function playCorrectSound() {
-  try {
-    const ctx = getAudioCtx(); if (!ctx) return;
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(880, ctx.currentTime);
-    g.gain.setValueAtTime(0.0001, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
-    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.26);
-  } catch {}
-}
+// playCorrectSound, playWrongSound → src/utils/gameAudio.js
 
 // Durée pendant laquelle on laisse les réponses visibles avant reshuffle
 const PAIR_REVEAL_MS = 2000; // enchaînement encore plus rapide
@@ -59,49 +42,8 @@ const BUBBLE_DURATION_MS = 5200; // ms (durée jugée bonne)
 const TRAIL_COUNT = 0; // uniquement 2 bulles (pas de traînée)
 const TRAIL_DELAY_MS = 0; // sans effet car TRAIL_COUNT=0
 
-function playWrongSound() {
-  try {
-    const ctx = getAudioCtx(); if (!ctx) return;
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = 'square';
-    o.frequency.setValueAtTime(220, ctx.currentTime);
-    g.gain.setValueAtTime(0.0001, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
-    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.36);
-  } catch {}
-}
+// loadAssociationsData, norm, normType, getPairId, mulberry32, makeRngFromSeed, shuffleArray, fetchWithTimeout → src/utils/gameHelpers.js
 
-// Helper: charge les associations depuis localStorage (éditions Admin) ou fichier statique
-async function loadAssociationsData() {
-  try {
-    const cached = localStorage.getItem('cc_data_cache');
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (parsed && Array.isArray(parsed.associations) && parsed.associations.length > 0) {
-        return parsed;
-      }
-    }
-  } catch {}
-  const resp = await fetch((process.env.PUBLIC_URL || '') + '/data/associations.json');
-  return await resp.json();
-}
-
-const norm = (v) => (v == null ? '' : String(v).trim().toLowerCase());
-const normType = (t) => {
-  const x = norm(t);
-  if (['texte', 'text', 'txt', 'label'].includes(x)) return 'texte';
-  if (['image', 'img', 'photo', 'picture', 'pic'].includes(x)) return 'image';
-  if (['chiffre', 'number', 'num', 'digit'].includes(x)) return 'chiffre';
-  if (['calcul', 'math', 'operation', 'op', 'calc'].includes(x)) return 'calcul';
-  return x || t;
-};
-const getPairId = (z) => {
-  if (!z) return '';
-  const cand = z.pairId ?? z.pairID ?? z.pairid ?? z.pair ?? z.groupId ?? z.groupID ?? z.group;
-  return norm(cand);
-};
 
 // Liste des textes à afficher aléatoirement, sans doublon
 const TEXTES_RANDOM = [
@@ -132,30 +74,6 @@ const TEXTES_RANDOM = [
   "Malnommée"
 ];
 
-// RNG déterministe à partir d'une seed (mulberry32)
-function mulberry32(seed) {
-  let t = (seed >>> 0) || 0;
-  return function() {
-    t += 0x6D2B79F5;
-    let r = Math.imul(t ^ (t >>> 15), 1 | t);
-    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-// Small helper: fetch with timeout (ms)
-async function fetchWithTimeout(url, options = {}, timeoutMs = 1500) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort('timeout'), timeoutMs);
-  try {
-    const res = await fetch(url, { ...options, signal: ctrl.signal });
-    clearTimeout(t);
-    return res;
-  } catch (e) {
-    clearTimeout(t);
-    throw e;
-  }
-}
 
 // Préchargement d'un lot d'images à partir des classes/thèmes sélectionnés
 function preloadAssets(cfg, data, onProgress, abortRef) {
@@ -251,20 +169,6 @@ function preloadAssets(cfg, data, onProgress, abortRef) {
   });
 }
 
-function makeRngFromSeed(seed) {
-  const s = Number(seed);
-  return Number.isFinite(s) ? mulberry32(s) : Math.random;
-}
-
-// Mélange un tableau (algorithme de Fisher-Yates) avec RNG injectable
-function shuffleArray(array, rng = Math.random) {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
 
 // ====== Helpers d'animation au niveau module (pas de dépendance à des refs React) ======
 // Cache simple des centres d'écran des zones pour limiter les querySelector/getBoundingClientRect
@@ -401,39 +305,6 @@ function stablePlayerIndex(playerName, allPlayerNames) {
   const target = String(playerName || '').trim().toLowerCase();
   const idx = sorted.indexOf(target);
   return idx >= 0 ? idx : 0;
-}
-
-function ArenaPauseOverlay({ disconnectedPlayer, gracePeriodMs }) {
-  const [secondsLeft, setSecondsLeft] = React.useState(Math.ceil((gracePeriodMs || 15000) / 1000));
-  React.useEffect(() => {
-    const iv = setInterval(() => {
-      setSecondsLeft(s => (s > 0 ? s - 1 : 0));
-    }, 1000);
-    return () => clearInterval(iv);
-  }, []);
-  return (
-    <div style={{
-      position: 'absolute', inset: 0, zIndex: 50,
-      background: 'rgba(0,0,0,0.75)',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      color: '#fff', textAlign: 'center', pointerEvents: 'all'
-    }}>
-      <div style={{ fontSize: 64, marginBottom: 16 }}>&#9208;</div>
-      <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Match en pause</div>
-      <div style={{ fontSize: 18, marginBottom: 20, opacity: 0.9 }}>
-        <strong>{disconnectedPlayer || 'Un joueur'}</strong> s'est d&#233;connect&#233;
-      </div>
-      <div style={{
-        fontSize: 48, fontWeight: 900, color: secondsLeft <= 5 ? '#ef4444' : '#f59e0b',
-        marginBottom: 12, transition: 'color 0.3s'
-      }}>
-        {secondsLeft}s
-      </div>
-      <div style={{ fontSize: 14, opacity: 0.7 }}>
-        Reprise automatique &#224; la reconnexion ou forfait dans {secondsLeft}s
-      </div>
-    </div>
-  );
 }
 
 // ✨⭐💫 Particules emoji lors de la validation d'une paire (tous modes)
