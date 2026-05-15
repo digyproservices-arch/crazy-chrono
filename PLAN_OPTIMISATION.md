@@ -76,13 +76,14 @@
 
 ### Phase 5 : Découpage Carte.js (risque = moyen)
 > *Extraire des modules de Carte.js pour faciliter la maintenance*
-> *On s'appuie sur les branches existantes refactor/carte-renderer et refactor/game-state-machine*
-- [ ] **5.1** Évaluer ce qui est récupérable des branches refactor existantes
-- [ ] **5.2** Extraire `useGameSocket.js` (handlers socket solo/MP)
-- [ ] **5.3** Extraire `useArenaMode.js` (handlers socket arena)
-- [ ] **5.4** Extraire `GameHUD.js` (affichage scores, classement, timer)
-- [ ] **5.5** Test complet sur staging : tous les modes
-- [ ] **5.6** Valider en production
+> *Branches refactor/carte-renderer et refactor/game-state-machine évaluées : trop anciennes (33K lignes divergence), non récupérables*
+- [x] **5.1** Évaluer branches refactor → trop anciennes, approche module-level choisie ✅
+- [x] **5.2** Extraire `src/utils/gameAudio.js` (playCorrectSound, playWrongSound) ✅
+- [x] **5.3** Extraire `src/utils/gameHelpers.js` (mulberry32, norm, normType, getPairId, shuffleArray, etc.) ✅
+- [x] **5.4** Extraire `src/components/ArenaPauseOverlay.js` (composant indépendant) ✅
+- [x] **5.5** Build production OK + 22 tests serveur OK ✅
+- [ ] **5.6** Valider sur staging (Vercel auto-deploy)
+> ⚠️ Socket handlers et animation bubbles NON extraits (trop de dépendances croisées, risque élevé)
 
 ### Phase 6 : CI/CD GitHub Actions (risque = zéro)
 - [ ] **6.1** Créer `.github/workflows/ci.yml` : build + tests sur chaque push
@@ -108,6 +109,7 @@
 | 2026-05-14 | 2 | 2.4-2.5 Test + merge main | ✅ | Solo OK, merge 3e12741 |
 | 2026-05-14 | 3 | 3.1-3.5 Tests automatisés | ✅ | 17 tests jest, Pre-Deploy Render, merge 5b3f936 |
 | 2026-05-14 | 4 | 4.1-4.3 Schéma zones | ✅ | ZONE_SCHEMA.md + validation + 22 tests, commit 4a14cee |
+| 2026-05-14 | 5 | 5.1-5.5 Découpage Carte.js | ✅ | gameAudio + gameHelpers + ArenaPauseOverlay, commit f760ba3 |
 
 ---
 
