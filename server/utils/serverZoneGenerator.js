@@ -1311,6 +1311,34 @@ function generateRoundZones(seed, config = {}) {
       }
     }
 
+    // ===== VALIDATION SCHÉMA (Phase 4) =====
+    // Vérifie que chaque zone respecte le schéma documenté dans DOCS/ZONE_SCHEMA.md
+    // Ne bloque jamais la génération — log les anomalies pour diagnostic
+    const VALID_TYPES = new Set(['texte', 'image', 'calcul', 'chiffre']);
+    let schemaWarnings = 0;
+    for (const z of result) {
+      const issues = [];
+      if (!z.id) issues.push('missing id');
+      if (!z.type || !VALID_TYPES.has(z.type)) issues.push(`invalid type "${z.type}"`);
+      const c = String(z.content || '').trim();
+      const l = String(z.label || '').trim();
+      if (!c && !l) issues.push('empty content AND label');
+      if (z.type === 'calcul' && c && !/[+\-×÷=]|double|triple|moiti|tiers/i.test(c)) {
+        issues.push(`calcul content looks wrong: "${c.substring(0, 30)}"`);
+      }
+      if (z.type === 'image' && c && !/(\.jpg|\.jpeg|\.png|\.gif|\.webp|\.svg|images\/|http)/i.test(c)) {
+        issues.push(`image content not a path/URL: "${c.substring(0, 30)}"`);
+      }
+      if (issues.length > 0) {
+        schemaWarnings++;
+        console.warn(`[ServerZoneGen] ⚠️ Schema: zone ${z.id} (${z.type}):`, issues.join(', '));
+        logFn('warn', '[ZoneGen] Schema validation issue', { zoneId: z.id, type: z.type, issues });
+      }
+    }
+    if (schemaWarnings > 0) {
+      console.warn(`[ServerZoneGen] Schema: ${schemaWarnings}/${result.length} zones with issues`);
+    }
+
     // Log final: toutes les zones avec pairId
     const finalPairIds = result
       .filter(z => z.pairId)
