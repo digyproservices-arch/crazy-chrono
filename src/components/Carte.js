@@ -1927,6 +1927,12 @@ const Carte = () => {
         console.log('[ARENA] 📊 Scores mis à jour:', scores);
         if (Array.isArray(scores)) {
           setArenaPlayers(scores);
+          // 📊 MONITORING: Stocker dans cc_game_trace pour le rapport monitoring
+          try {
+            const trace = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
+            trace.push({ t: Date.now(), ev: 'arena:scores-update', phase: 'ARENA', scores: scores.map(p => ({ n: p.name, s: p.score })) });
+            localStorage.setItem('cc_game_trace', JSON.stringify(trace.slice(-100)));
+          } catch {}
         }
       });
 
@@ -1940,6 +1946,13 @@ const Carte = () => {
         })();
 
         console.log('[ARENA] 🎯 Paire validée par', isLocal ? 'MOI' : playerName, ':', pairId);
+
+        // 📊 MONITORING: Stocker dans cc_game_trace
+        try {
+          const trace = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
+          trace.push({ t: Date.now(), ev: 'arena:pair-validated', phase: 'ARENA', playerName, pairId, isLocal });
+          localStorage.setItem('cc_game_trace', JSON.stringify(trace.slice(-100)));
+        } catch {}
 
         const currentZones = zonesRef.current || [];
         const ZA = currentZones.find(z => z.id === zoneAId);

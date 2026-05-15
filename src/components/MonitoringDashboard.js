@@ -779,7 +779,8 @@ const clearIncidents = async () => {
                 const _dedupSet = new Set();
                 let _dedupCount = 0;
                 for (const r of roundLogs) {
-                  const k = `${r.timestamp}|${(r.summary?.paired || []).map(p => p.pairId).join(',')}`;
+                  const tsR = r.timestamp ? new Date(r.timestamp).toISOString().slice(0, 19) : '';
+                  const k = `${tsR}|${r.mode || ''}|${(r.summary?.paired || []).map(p => p.pairId).sort().join(',')}`;
                   if (!_dedupSet.has(k)) { _dedupSet.add(k); _dedupCount++; }
                 }
                 // Pré-calcul cc_game_trace
@@ -827,11 +828,12 @@ const clearIncidents = async () => {
                 }
                 sections.push('');
 
-                // Round logs (manches jouées) — dédupliqués par timestamp+pairId
+                // Round logs (manches jouées) — dédupliqués par timestamp(arrondi à la seconde)+pairId+mode
                 const deduped = [];
                 const seenKeys = new Set();
                 for (const r of roundLogs) {
-                  const key = `${r.timestamp}|${(r.summary?.paired || []).map(p => p.pairId).join(',')}`;
+                  const tsRounded = r.timestamp ? new Date(r.timestamp).toISOString().slice(0, 19) : '';
+                  const key = `${tsRounded}|${r.mode || ''}|${(r.summary?.paired || []).map(p => p.pairId).sort().join(',')}`;
                   if (!seenKeys.has(key)) { seenKeys.add(key); deduped.push(r); }
                 }
                 const recentRounds = deduped.slice(0, 20);
@@ -957,6 +959,16 @@ const clearIncidents = async () => {
                     if (t.event === 'gs:roundTimer:fired') detail = ` salle=${t.salle} round=${t.round} expected=${t.expectedMs}ms drift=${t.driftMs}ms`;
                     if (t.event === 'gs:elimination') detail = ` salle=${t.salle} wave=${t.wave} eliminated=${t.eliminated} remaining=${t.remaining} pct=${t.elimPct}% names=[${(t.eliminatedNames||[]).join(',')}]`;
                     if (t.event === 'gs:finish') detail = ` salle=${t.salle} winner=${t.winner} score=${t.winnerScore} players=${t.totalPlayers} rounds=${t.rounds} waves=${t.waves}`;
+                    // Arena pair/equality events
+                    if (t.event === 'arena:pair-validated') {
+                      const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
+                      detail = ` match=${t.matchId} PAIR#${t.pairEvent} R${t.round} ${t.isTiebreaker ? 'DÉPARTAGE' : 'NORMAL'} claimants=${t.claimantsCount}(${(t.claimantNames||[]).join(',')})${warn} ${t.scoresBeforeUpdate ? 'avant=['+t.scoresBeforeUpdate.map(s=>`${s.name}=${s.score}`).join(',')+']' : ''} ${t.scoresAfter ? 'après=['+t.scoresAfter.map(s=>`${s.name}=${s.score}`).join(',')+']' : ''}`;
+                    }
+                    if (t.event === 'arena:score-update') {
+                      const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
+                      detail = ` match=${t.matchId} PAIR#${t.pairEvent} ${t.isTiebreaker ? 'DÉPARTAGE' : 'NORMAL'}${warn} après=[${(t.scoresAfter||[]).map(s=>`${s.name}=${s.score}`).join(',')}]`;
+                    }
+                    if (t.event === 'arena:equality-window') detail = ` match=${t.matchId} student=${t.studentId} elapsed=${t.elapsed}ms window=${t.windowMs}ms claimants=${t.claimants}`;
                     // Multiplayer pair/equality/session events
                     if (t.event === 'mp:pair-validated') {
                       const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
@@ -1030,17 +1042,18 @@ const clearIncidents = async () => {
                 }
                 sections.push('');
 
-                // cc_game_trace — Trace client persistante des paires MP (localStorage)
+                // cc_game_trace — Trace client persistante des paires (tous modes MP/Arena/Training)
                 try {
                   const gameTrace = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
-                  sections.push(`--- TRACE PAIRES MULTIPLAYER (${gameTrace.length} événements, localStorage) ---`);
+                  sections.push(`--- TRACE PAIRES CLIENT (${gameTrace.length} événements, localStorage) ---`);
                   if (gameTrace.length === 0) {
-                    sections.push('Aucune trace de paire MP enregistrée.');
+                    sections.push('Aucune trace de paire enregistrée.');
                   } else {
-                    // Résumé: détecter les doubles crédits
+                    // Résumé par phase
+                    const byPhase = {};
+                    gameTrace.forEach(e => { byPhase[e.phase || e.ev || '?'] = (byPhase[e.phase || e.ev || '?'] || 0) + 1; });
                     const doubles = gameTrace.filter(e => e.claimantsCount > 1);
-                    const tiebreakers = gameTrace.filter(e => e.phase === 'DÉPARTAGE');
-                    sections.push(`Total: ${gameTrace.length} paires | Doubles crédits: ${doubles.length} | Départage: ${tiebreakers.length}`);
+                    sections.push(`Total: ${gameTrace.length} | Phases: ${Object.entries(byPhase).map(([k,v]) => `${k}:${v}`).join(', ')} | Doubles crédits: ${doubles.length}`);
                     if (doubles.length > 0) {
                       sections.push(`⚠️ DOUBLES CRÉDITS DÉTECTÉS:`);
                       doubles.forEach((d, i) => {
@@ -1052,12 +1065,21 @@ const clearIncidents = async () => {
                     sections.push(`Chronologie:`);
                     gameTrace.slice(-30).forEach((e, i) => {
                       const ts = e.t ? new Date(e.t).toLocaleString('fr-FR') : 'N/A';
-                      const warn = e.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
-                      sections.push(`  [${i+1}] ${ts} PAIR#${e.pairEvent} [${e.phase}] ${e.claimantsCount} claim.${warn} → ${(e.scores||[]).map(s => `${s.n}=${s.s}`).join(', ')}`);
+                      const phase = e.phase || e.ev || '?';
+                      if (e.pairEvent) {
+                        const warn = e.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
+                        sections.push(`  [${i+1}] ${ts} PAIR#${e.pairEvent} [${phase}] ${e.claimantsCount} claim.${warn} → ${(e.scores||[]).map(s => `${s.n}=${s.s}`).join(', ')}`);
+                      } else if (e.ev === 'arena:pair-validated') {
+                        sections.push(`  [${i+1}] ${ts} [${phase}] ${e.isLocal ? 'MOI' : e.playerName} paire=${(e.pairId||'').slice(-12)}`);
+                      } else if (e.scores) {
+                        sections.push(`  [${i+1}] ${ts} [${phase}] scores: ${(e.scores||[]).map(s => `${s.n}=${s.s}`).join(', ')}`);
+                      } else {
+                        sections.push(`  [${i+1}] ${ts} [${phase}] ${e.ev || ''}`);
+                      }
                     });
                   }
                 } catch (e) {
-                  sections.push(`--- TRACE PAIRES MULTIPLAYER ---`);
+                  sections.push(`--- TRACE PAIRES CLIENT ---`);
                   sections.push(`Erreur lecture cc_game_trace: ${e.message || e}`);
                 }
                 sections.push('');

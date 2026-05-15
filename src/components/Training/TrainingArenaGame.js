@@ -412,6 +412,12 @@ export default function TrainingArenaGame() {
     socket.on('training:scores-update', ({ scores }) => {
       console.log('[TrainingArena] 📊 Scores mis à jour:', scores);
       setPlayers(scores);
+      // 📊 MONITORING: Stocker dans cc_game_trace pour le rapport monitoring
+      try {
+        const trace = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
+        trace.push({ t: Date.now(), ev: 'training:scores-update', phase: 'TRAINING', scores: (scores || []).map(p => ({ n: p.name, s: p.score })) });
+        localStorage.setItem('cc_game_trace', JSON.stringify(trace.slice(-100)));
+      } catch {}
     });
     
     // ✅ FIX: Écouter training:players-update (émis pendant tiebreaker)

@@ -2278,6 +2278,11 @@ class CrazyArenaManager {
         // Égalité dans la fenêtre → ajouter aux réclamants
         match._pairClaimLock.claimants.add(studentId);
         logger.info('[CrazyArena][Arena] ⚡ Égalité détectée dans la fenêtre', { matchId, studentId, elapsed, window: ARENA_TIE_WINDOW_MS });
+        sTrace.push('arena:equality-window', {
+          matchId: matchId.slice(-8), studentId: studentId.slice(-8),
+          elapsed, windowMs: ARENA_TIE_WINDOW_MS,
+          claimants: Array.from(match._pairClaimLock.claimants).length
+        });
       } else {
         // Premier claim → créer le verrou
         match._pairClaimLock = { pairId, timestamp: now, claimants: new Set([studentId]), cardGenScheduled: false };
@@ -2313,6 +2318,16 @@ class CrazyArenaManager {
           pairsFound: match.tiebreakerPairsFound,
           pairsToFind: match.tiebreakerPairsToFind,
           isFirstClaim: isFirstClaimTB
+        });
+
+        // 📊 MONITORING: Tracer tiebreaker pair dans sTrace
+        const _tbPairIdx = (match._pairEventCount = (match._pairEventCount || 0) + 1);
+        const _tbClaimants = match._pairClaimLock ? Array.from(match._pairClaimLock.claimants).map(sid => { const pl = match.players.find(p => p.studentId === sid); return pl?.name || sid.slice(-6); }) : [player.name];
+        const _tbScores = match.players.map(p => ({ name: p.name, score: (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0) }));
+        sTrace.push('arena:pair-validated', {
+          matchId: matchId.slice(-8), pairEvent: _tbPairIdx, round: match.tiebreakerPairsFound,
+          isTiebreaker: true, claimantsCount: _tbClaimants.length,
+          claimantNames: _tbClaimants, scoresAfter: _tbScores
         });
 
         // 💾 PERSISTENCE: Sauvegarder le score tiebreaker Arena en DB
@@ -2434,6 +2449,22 @@ class CrazyArenaManager {
           oldScore,
           newScore: player.score,
           pairsValidated: player.pairsValidated
+        });
+
+        // 📊 MONITORING: Tracer dans sTrace pour le rapport
+        const _arenaScoresBefore = match.players.map(p => ({ name: p.name, score: (p.studentId === studentId ? oldScore : p.score) }));
+        const _arenaScoresAfter = match.players.map(p => ({ name: p.name, score: p.score }));
+        const _arenaPairIdx = (match._pairEventCount = (match._pairEventCount || 0) + 1);
+        const _claimantNames = match._pairClaimLock ? Array.from(match._pairClaimLock.claimants).map(sid => { const pl = match.players.find(p => p.studentId === sid); return pl?.name || sid.slice(-6); }) : [player.name];
+        sTrace.push('arena:pair-validated', {
+          matchId: matchId.slice(-8), pairEvent: _arenaPairIdx, round: match.roundsPlayed,
+          isTiebreaker: false, claimantsCount: _claimantNames.length,
+          claimantNames: _claimantNames, scoresBeforeUpdate: _arenaScoresBefore
+        });
+        sTrace.push('arena:score-update', {
+          matchId: matchId.slice(-8), pairEvent: _arenaPairIdx, claimantsCount: _claimantNames.length,
+          claimantNames: _claimantNames, isTiebreaker: false,
+          scoresAfter: _arenaScoresAfter
         });
       }
 
