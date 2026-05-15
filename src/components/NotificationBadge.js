@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import { getAuthHeaders, getBackendUrl } from '../utils/apiHelpers';
+import { telemetry } from '../utils/clientTelemetry';
 
 
 /**
@@ -174,6 +175,7 @@ export default function NotificationBadge() {
     // ✅ NOUVEAU: Écouter invitations Training Mode
     socket.on(`training:invite:${studentId}`, (data) => {
       console.log(`[NotificationBadge] Invitation training reçue:`, data);
+      telemetry('training:invite-received', { matchId: data.matchId, groupSize: data.groupSize, studentId });
       const newInvite = {
         type: 'training',
         matchId: data.matchId,
@@ -192,6 +194,7 @@ export default function NotificationBadge() {
     // ✅ NOUVEAU: Écouter invitations Arena Mode (instant, comme Training)
     socket.on(`arena:invite:${studentId}`, (data) => {
       console.log(`[NotificationBadge] Invitation Arena reçue:`, data);
+      telemetry('arena:invite-received', { matchId: data.matchId, roomCode: data.roomCode, groupSize: data.groupSize, studentId });
       const newInvite = {
         matchId: data.matchId,
         roomCode: data.roomCode,
@@ -229,6 +232,7 @@ export default function NotificationBadge() {
 
   const handleJoinTraining = (invitation) => {
     console.log('[NotificationBadge] 🎯 handleJoinTraining appelé:', invitation);
+    telemetry('training:invite-accepted', { matchId: invitation.matchId, studentId });
     const targetUrl = `/training-arena/lobby/${invitation.matchId}`;
     console.log('[NotificationBadge] 🚀 Redirection vers:', targetUrl);
     setShowModal(false);

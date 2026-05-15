@@ -959,6 +959,10 @@ const clearIncidents = async () => {
                     if (t.event === 'gs:roundTimer:fired') detail = ` salle=${t.salle} round=${t.round} expected=${t.expectedMs}ms drift=${t.driftMs}ms`;
                     if (t.event === 'gs:elimination') detail = ` salle=${t.salle} wave=${t.wave} eliminated=${t.eliminated} remaining=${t.remaining} pct=${t.elimPct}% names=[${(t.eliminatedNames||[]).join(',')}]`;
                     if (t.event === 'gs:finish') detail = ` salle=${t.salle} winner=${t.winner} score=${t.winnerScore} players=${t.totalPlayers} rounds=${t.rounds} waves=${t.waves}`;
+                    // Training invitation events
+                    if (t.event === 'training:invites-sent') detail = ` match=${t.matchId} ${t.studentsCount} élèves=[${(t.studentIds||[]).join(',')}] sockets=${t.socketsConnected} déjàEnTraining=[${(t.alreadyInTraining||[]).join(',')}]`;
+                    if (t.event === 'training:join-ok') detail = ` match=${t.matchId} ✅ ${t.name} (${t.studentId}) socket=${t.socketId}`;
+                    if (t.event === 'training:join-fail') detail = ` match=${t.matchId} ❌ ${t.name} (${t.studentId}) socket=${t.socketId}`;
                     // Arena pair/equality events
                     if (t.event === 'arena:pair-validated') {
                       const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';

@@ -365,6 +365,16 @@ class CrazyArenaManager {
     
     logger.info(`[CrazyArena][Training][INVITE] ✅ ${emittedCount} notifications émises via Socket.IO`);
     logger.info(`[CrazyArena][Training] Match ${matchId} créé, en attente de ${studentIds.length} joueurs`);
+
+    // 📊 MONITORING: Tracer l'émission des invitations dans sTrace
+    sTrace.push('training:invites-sent', {
+      matchId: matchId.slice(-8),
+      studentsCount: studentIds.length,
+      studentIds: studentIds.map(s => s.slice(-8)),
+      socketsConnected: connectedSockets,
+      alreadyInTraining: alreadyConnected.map(s => s.slice(-8))
+    });
+
     return this.matches.get(matchId);
   }
 
