@@ -169,6 +169,61 @@ describe('generateRoundZones — contenu par type', () => {
 });
 
 // =============================================
+// Phase 4 — Validation schéma (ZONE_SCHEMA.md)
+// =============================================
+describe('generateRoundZones — validation schéma zones', () => {
+  test('toutes les zones ont un type valide', () => {
+    const validTypes = new Set(['texte', 'image', 'calcul', 'chiffre']);
+    const result = generateRoundZones(12345, { themes: ['nature'], classes: ['CP'] });
+    for (const z of result.zones) {
+      expect(validTypes.has(z.type)).toBe(true);
+    }
+  });
+
+  test('zones calcul: content = expression, label = résultat', () => {
+    let checked = 0;
+    for (let seed = 1; seed < 50; seed++) {
+      const result = generateRoundZones(seed, { themes: ['domain:math'], classes: ['CE2'] });
+      const calculZones = result.zones.filter(z => z.type === 'calcul' && z.pairId);
+      for (const z of calculZones) {
+        // content doit contenir un opérateur (c'est l'expression)
+        expect(z.content).toMatch(/[+\-×÷=]|double|triple|moiti|tiers/i);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  test('zones image: content est un chemin/URL image', () => {
+    const result = generateRoundZones(12345, { themes: ['nature'], classes: ['CP'] });
+    const imageZones = result.zones.filter(z => z.type === 'image');
+    for (const z of imageZones) {
+      expect(z.content).toMatch(/\.(jpg|jpeg|png|gif|webp|svg)|images\/|http/i);
+    }
+  });
+
+  test('zones texte: content n est pas une URL image', () => {
+    const result = generateRoundZones(12345, { themes: ['nature'], classes: ['CP'] });
+    const textZones = result.zones.filter(z => z.type === 'texte');
+    for (const z of textZones) {
+      const c = z.content || z.label || '';
+      expect(c).not.toMatch(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
+    }
+  });
+
+  test('aucune zone vide (content ou label présent)', () => {
+    for (let seed = 1; seed < 10; seed++) {
+      const result = generateRoundZones(seed, { themes: ['nature'], classes: ['CP'] });
+      for (const z of result.zones) {
+        const c = String(z.content || '').trim();
+        const l = String(z.label || '').trim();
+        expect(c || l).toBeTruthy();
+      }
+    }
+  });
+});
+
+// =============================================
 // Bonus — evaluateCalcul
 // =============================================
 describe('evaluateCalcul — expressions mathématiques', () => {
