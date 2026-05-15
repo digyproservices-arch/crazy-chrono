@@ -2537,8 +2537,25 @@ const Carte = () => {
     });
 
     // Mise à jour de scores en flux
-    s.on('score:update', ({ scores }) => {
+    s.on('score:update', (payload) => {
+      const { scores, pairEvent, claimantsCount, claimantNames, isTiebreaker } = payload || {};
       const list = Array.isArray(scores) ? scores : [];
+      // 📊 MONITORING: tracer CHAQUE mise à jour de score avec détails complets
+      if (pairEvent) {
+        const phase = isTiebreaker ? 'DÉPARTAGE' : 'SESSION';
+        const warn = claimantsCount > 1 ? ' ⚠️ DOUBLE CRÉDIT!' : '';
+        console.log(`[CC] 📊 score:update PAIR #${pairEvent} [${phase}] Claimants: ${claimantsCount} (${(claimantNames||[]).join(', ')})${warn} → ${list.map(p => `${p.name}=${p.score}`).join(', ')}`);
+        addDiag(`score:update:pair#${pairEvent}`, { phase, claimantsCount, claimantNames, scores: list.map(p => ({ name: p.name, score: p.score })) });
+        // Stocker dans le trace persistant
+        try {
+          const trace = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
+          trace.push({ t: Date.now(), ev: 'score:update', pairEvent, phase, claimantsCount, claimantNames, scores: list.map(p => ({ n: p.name, s: p.score })) });
+          localStorage.setItem('cc_game_trace', JSON.stringify(trace.slice(-100)));
+        } catch {}
+      } else if (isTiebreakerRef.current) {
+        console.log('[CC] score:update (départage)', list.map(p => `${p.name}: ${p.score}`).join(' | '));
+        addDiag('score:update:tiebreaker', { scores: list.map(p => ({ name: p.name, score: p.score })) });
+      }
       setScoresMP(list);
       scoresRef.current = list;
       setRoomPlayers(prev => {
@@ -2847,7 +2864,24 @@ const Carte = () => {
     });
 
     s.on('tiebreaker:round-result', (data) => {
-      console.log('[CC] tiebreaker:round-result', data);
+      console.log('[CC] tiebreaker:round-result', JSON.stringify(data));
+      addDiag('tiebreaker:round-result', {
+        round: data.roundIndex,
+        totalRounds: data.totalRounds,
+        winnerName: data.winnerName,
+        tie: data.tie,
+        claimantsCount: data.claimantsCount,
+        claimantNames: data.claimantNames,
+        tiebreakerScores: data.tiebreakerScores,
+        baseScores: data.baseScores
+      });
+      // Trace persistante pour monitoring
+      try {
+        const diags = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
+        diags.push({ event: 'tiebreaker:round-result', ts: Date.now(), ...data });
+        if (diags.length > 50) diags.splice(0, diags.length - 50);
+        localStorage.setItem('cc_game_trace', JSON.stringify(diags));
+      } catch {}
       const msg = data.tie
         ? `Round ${data.roundIndex}/${data.totalRounds} — Égalité !`
         : `Round ${data.roundIndex}/${data.totalRounds} — ${data.winnerName || 'Un joueur'} gagne !`;
