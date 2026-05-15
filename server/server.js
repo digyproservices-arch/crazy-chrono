@@ -3793,7 +3793,7 @@ io.on('connection', (socket) => {
         
         logger.info('[Server][Multijoueur] Démarrage régénération carte', { 
           roomCode: currentRoom, 
-          excludedPairs: 0,
+          excludedPairs: (room.validatedPairIds || new Set()).size,
           newSeed 
         });
         
@@ -3804,7 +3804,7 @@ io.on('connection', (socket) => {
             classes: room.selectedClasses || [],
             extras: room.selectedExtras || [],
             selectedLevel: room.selectedLevel || null,
-            excludedPairIds: new Set(),
+            excludedPairIds: room.validatedPairIds || new Set(),
             deckState: room.deckState,
             logFn: (level, message, data) => emitServerLog(currentRoom, level, message, data)
           };
@@ -4409,7 +4409,7 @@ io.on('connection', (socket) => {
         classes: salle.config.classes || [],
         extras: salle.config.extras || [],
         selectedLevel: salle.config.selectedLevel || null,
-        excludedPairIds: new Set(),
+        excludedPairIds: salle.validatedPairIds || new Set(),
         deckState: salle.deckState,
         logFn: (level, message, data) => emitServerLog(salleId, level, message, data)
       });

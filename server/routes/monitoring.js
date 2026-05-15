@@ -349,7 +349,7 @@ router.post('/client-clicks', async (req, res) => {
       content: (c.content || '').substring(0, 500),
       reason: c.reason || null,
       details: c,
-      ts: c.ts || null,
+      ts: typeof c.ts === 'number' ? c.ts : (c.ts ? new Date(c.ts).getTime() || null : null),
       created_at: c.timestamp || new Date().toISOString(),
     }));
 
