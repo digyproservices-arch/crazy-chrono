@@ -2995,6 +2995,11 @@ function endSession(roomCode) {
       console.log(`[MP] ⚖️ ÉGALITÉ détectée room=${roomCode}: ${tiedPlayers.length} joueurs à ${topScore} pts — attente départage`);
       const allScoresAtTie = entries.map(([id, pl]) => ({ id: id.slice(-6), name: pl.name, score: pl.score || 0 }));
       console.log(`[MP] 📊 SCORES AU MOMENT DE L'ÉGALITÉ: ${allScoresAtTie.map(s => `${s.name}=${s.score}`).join(', ')} | Paires totales validées: ${room._pairEventCount || 0}`);
+      sTrace.push('mp:equality-detected', {
+        room: roomCode, tiedCount: tiedPlayers.length, topScore,
+        allScores: allScoresAtTie, pairEventsTotal: room._pairEventCount || 0,
+        roundsPlayed: room.roundsPlayed
+      });
       emitServerLog(roomCode, 'info', '[MP] 📊 ÉGALITÉ DÉTECTÉE — scores figés', {
         allScores: allScoresAtTie,
         pairEventsTotal: room._pairEventCount || 0,
@@ -3075,6 +3080,17 @@ function endSession(roomCode) {
     const rhSummary = room.roundHistory.map((rh, i) => `  R${rh.roundNumber}${rh.isExtraPair ? '+' : ''}: ${rh.winnerDisplayName || '(vide)'} (${rh.claimantsCount || '?'} claim.)`);
     console.log(`[MP] 📊 ROUND HISTORY (${room.roundHistory.length} entrées):\n${rhSummary.join('\n')}`);
   }
+  sTrace.push('mp:session-end', {
+    room: roomCode, pairEventsTotal: room._pairEventCount || 0,
+    finalScores, wasTiebreaker,
+    tiebreakerScores: room._tiebreakerScores ? Object.fromEntries(room._tiebreakerScores) : null,
+    roundHistoryCount: room.roundHistory?.length || 0,
+    roundHistoryDetail: (room.roundHistory || []).map(rh => ({
+      round: rh.roundNumber, winner: rh.winnerDisplayName,
+      claimants: rh.claimantsCount, allClaimants: rh.allClaimants,
+      isExtra: rh.isExtraPair || false
+    }))
+  });
   emitServerLog(roomCode, 'info', '[MP] 📊 SESSION TERMINÉE — résumé final', {
     pairEventsTotal: room._pairEventCount || 0,
     finalScores,
@@ -3722,6 +3738,11 @@ io.on('connection', (socket) => {
         const scoresBeforeUpdate = Array.from(room.players.entries()).map(([id, pl]) => ({ id: id.slice(-6), name: pl.name, score: pl.score || 0 }));
         const pairEventIndex = (room._pairEventCount = (room._pairEventCount || 0) + 1);
         console.log(`[MP] 📊 PAIR #${pairEventIndex} | Round ${room.roundsPlayed} | ${room._isTiebreaker ? 'DÉPARTAGE' : 'SESSION'} | Claimants: ${claimants.length} (${claimantNames.join(', ')}) | Scores avant: ${scoresBeforeUpdate.map(s => `${s.name}=${s.score}`).join(', ')}`);
+        sTrace.push('mp:pair-validated', {
+          room: currentRoom, pairEvent: pairEventIndex, round: room.roundsPlayed,
+          isTiebreaker: !!room._isTiebreaker, claimantsCount: claimants.length,
+          claimantNames, scoresBeforeUpdate
+        });
         emitServerLog(currentRoom, 'info', `[MP] 📊 Paire validée #${pairEventIndex}`, {
           pairEvent: pairEventIndex,
           round: room.roundsPlayed,
@@ -3775,6 +3796,11 @@ io.on('connection', (socket) => {
         const scores = Array.from(room.players.entries()).map(([id, pl]) => ({ id, name: pl.name, score: pl.score || 0 }));
         io.to(currentRoom).emit('score:update', { scores, pairEvent: pairEventIndex, claimantsCount: claimants.length, claimantNames, isTiebreaker: !!room._isTiebreaker });
         console.log(`[MP] 📊 PAIR #${pairEventIndex} APRÈS: ${scores.map(s => `${s.name}=${s.score}`).join(', ')} | +1 distribué à ${claimants.length} joueur(s)`);
+        sTrace.push('mp:score-update', {
+          room: currentRoom, pairEvent: pairEventIndex, claimantsCount: claimants.length,
+          claimantNames, isTiebreaker: !!room._isTiebreaker,
+          scoresAfter: scores.map(s => ({ name: s.name, score: s.score }))
+        });
 
         // 📊 MAÎTRISE: Enregistrer la tentative correcte pour chaque joueur
         for (const id of claimants) {

@@ -775,7 +775,17 @@ const clearIncidents = async () => {
 
                 // KPIs
                 sections.push(`--- KPIs ---`);
-                sections.push(`Incidents: ${incidents.length} | Manches: ${roundLogs.length} | Auth: ${authLogs.length}`);
+                // Pré-calcul dédup rounds
+                const _dedupSet = new Set();
+                let _dedupCount = 0;
+                for (const r of roundLogs) {
+                  const k = `${r.timestamp}|${(r.summary?.paired || []).map(p => p.pairId).join(',')}`;
+                  if (!_dedupSet.has(k)) { _dedupSet.add(k); _dedupCount++; }
+                }
+                // Pré-calcul cc_game_trace
+                let _gameTraceCount = 0, _doublesCount = 0;
+                try { const gt = JSON.parse(localStorage.getItem('cc_game_trace') || '[]'); _gameTraceCount = gt.length; _doublesCount = gt.filter(e => e.claimantsCount > 1).length; } catch {}
+                sections.push(`Incidents: ${incidents.length} | Manches: ${_dedupCount}${_dedupCount < roundLogs.length ? ` (${roundLogs.length - _dedupCount} doublons)` : ''} | Auth: ${authLogs.length} | Paires MP: ${_gameTraceCount}${_doublesCount > 0 ? ` (⚠️ ${_doublesCount} doubles)` : ''}`);
                 sections.push('');
 
                 // Incidents (max 20)
@@ -817,9 +827,15 @@ const clearIncidents = async () => {
                 }
                 sections.push('');
 
-                // Round logs (manches jouées)
-                const recentRounds = roundLogs.slice(0, 20);
-                sections.push(`--- MANCHES JOUÉES (${recentRounds.length}/${roundLogs.length}) ---`);
+                // Round logs (manches jouées) — dédupliqués par timestamp+pairId
+                const deduped = [];
+                const seenKeys = new Set();
+                for (const r of roundLogs) {
+                  const key = `${r.timestamp}|${(r.summary?.paired || []).map(p => p.pairId).join(',')}`;
+                  if (!seenKeys.has(key)) { seenKeys.add(key); deduped.push(r); }
+                }
+                const recentRounds = deduped.slice(0, 20);
+                sections.push(`--- MANCHES JOUÉES (${recentRounds.length}/${deduped.length}${deduped.length < roundLogs.length ? `, ${roundLogs.length - deduped.length} doublons supprimés` : ''}) ---`);
                 if (recentRounds.length === 0) {
                   sections.push('Aucune manche enregistrée.');
                 } else {
@@ -941,6 +957,20 @@ const clearIncidents = async () => {
                     if (t.event === 'gs:roundTimer:fired') detail = ` salle=${t.salle} round=${t.round} expected=${t.expectedMs}ms drift=${t.driftMs}ms`;
                     if (t.event === 'gs:elimination') detail = ` salle=${t.salle} wave=${t.wave} eliminated=${t.eliminated} remaining=${t.remaining} pct=${t.elimPct}% names=[${(t.eliminatedNames||[]).join(',')}]`;
                     if (t.event === 'gs:finish') detail = ` salle=${t.salle} winner=${t.winner} score=${t.winnerScore} players=${t.totalPlayers} rounds=${t.rounds} waves=${t.waves}`;
+                    // Multiplayer pair/equality/session events
+                    if (t.event === 'mp:pair-validated') {
+                      const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
+                      detail = ` room=${t.room} PAIR#${t.pairEvent} R${t.round} ${t.isTiebreaker ? 'DÉPARTAGE' : 'SESSION'} claimants=${t.claimantsCount}(${(t.claimantNames||[]).join(',')})${warn} avant=[${(t.scoresBeforeUpdate||[]).map(s=>`${s.name}=${s.score}`).join(',')}]`;
+                    }
+                    if (t.event === 'mp:score-update') {
+                      const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
+                      detail = ` room=${t.room} PAIR#${t.pairEvent} ${t.isTiebreaker ? 'DÉPARTAGE' : 'SESSION'}${warn} après=[${(t.scoresAfter||[]).map(s=>`${s.name}=${s.score}`).join(',')}]`;
+                    }
+                    if (t.event === 'mp:equality-detected') detail = ` room=${t.room} ${t.tiedCount} joueurs à ${t.topScore}pts pairesTotal=${t.pairEventsTotal} rounds=${t.roundsPlayed} scores=[${(t.allScores||[]).map(s=>`${s.name}=${s.score}`).join(',')}]`;
+                    if (t.event === 'mp:session-end') {
+                      const tb = t.wasTiebreaker ? ' DÉPARTAGE' : '';
+                      detail = ` room=${t.room} pairesTotal=${t.pairEventsTotal}${tb} scores=[${(t.finalScores||[]).map(s=>`${s.name}=${s.score}`).join(',')}] roundHistory=${t.roundHistoryCount}`;
+                    }
                     // Arena/Training match events (from crazyArenaManager)
                     if (t.event && t.event.startsWith('match:')) {
                       const type = t.event.replace('match:', '');
@@ -1000,6 +1030,38 @@ const clearIncidents = async () => {
                 }
                 sections.push('');
 
+                // cc_game_trace — Trace client persistante des paires MP (localStorage)
+                try {
+                  const gameTrace = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
+                  sections.push(`--- TRACE PAIRES MULTIPLAYER (${gameTrace.length} événements, localStorage) ---`);
+                  if (gameTrace.length === 0) {
+                    sections.push('Aucune trace de paire MP enregistrée.');
+                  } else {
+                    // Résumé: détecter les doubles crédits
+                    const doubles = gameTrace.filter(e => e.claimantsCount > 1);
+                    const tiebreakers = gameTrace.filter(e => e.phase === 'DÉPARTAGE');
+                    sections.push(`Total: ${gameTrace.length} paires | Doubles crédits: ${doubles.length} | Départage: ${tiebreakers.length}`);
+                    if (doubles.length > 0) {
+                      sections.push(`⚠️ DOUBLES CRÉDITS DÉTECTÉS:`);
+                      doubles.forEach((d, i) => {
+                        const ts = d.t ? new Date(d.t).toLocaleString('fr-FR') : 'N/A';
+                        sections.push(`  [${i+1}] ${ts} PAIR#${d.pairEvent} [${d.phase}] ${d.claimantsCount} claimants (${(d.claimantNames||[]).join(', ')}) → ${(d.scores||[]).map(s => `${s.n}=${s.s}`).join(', ')}`);
+                      });
+                    }
+                    // Détail chronologique
+                    sections.push(`Chronologie:`);
+                    gameTrace.slice(-30).forEach((e, i) => {
+                      const ts = e.t ? new Date(e.t).toLocaleString('fr-FR') : 'N/A';
+                      const warn = e.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
+                      sections.push(`  [${i+1}] ${ts} PAIR#${e.pairEvent} [${e.phase}] ${e.claimantsCount} claim.${warn} → ${(e.scores||[]).map(s => `${s.n}=${s.s}`).join(', ')}`);
+                    });
+                  }
+                } catch (e) {
+                  sections.push(`--- TRACE PAIRES MULTIPLAYER ---`);
+                  sections.push(`Erreur lecture cc_game_trace: ${e.message || e}`);
+                }
+                sections.push('');
+
 sections.push(`===== FIN DU RAPPORT =====`);
                 return sections.join('\n');
               };
@@ -1052,6 +1114,8 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     <KPICard title="Manches" value={roundLogs.length} icon="🎮" color="#10b981" highlight={roundLogs.some(r => r.doublePairIssues > 0)} />
                     <KPICard title="Double paires" value={roundLogs.filter(r => r.doublePairIssues > 0).length} icon="🚨" color={COLORS.error} highlight={roundLogs.some(r => r.doublePairIssues > 0)} />
                     {(() => { try { const cs = getClickStats(); const ca = getClickAttempts(); const rejected = ca.filter(a => a.stage.startsWith('REJECTED')).length; const missed = ca.filter(a => a.stage === 'BOARD_CLICK').length; return (<><KPICard title="Clics acceptés" value={cs.ok || 0} icon="✅" color="#10b981" /><KPICard title="Clics rejetés" value={rejected} icon="🚫" color={COLORS.warn} highlight={rejected > 0} /><KPICard title="Clics perdus" value={missed} icon="❓" color={COLORS.error} highlight={missed > 0} /></>); } catch { return null; } })()}
+                    {(() => { try { const gt = JSON.parse(localStorage.getItem('cc_game_trace') || '[]'); const doubles = gt.filter(e => e.claimantsCount > 1).length; return (<><KPICard title="Paires MP" value={gt.length} icon="🎯" color="#8b5cf6" /><KPICard title="Doubles crédits" value={doubles} icon="⚠️" color={COLORS.error} highlight={doubles > 0} /></>); } catch { return null; } })()}
+                    <KPICard title="Traces Serveur" value={serverTraces.length} icon="🖥️" color="#f59e0b" />
                     <KPICard title="Traces Jeu" value={soloTraces.length} icon="🔍" color="#f59e0b" />
                     <KPICard title="Télémétrie" value={clientTelemetryEvents.length} icon="📡" color="#06b6d4" />
                   </div>
