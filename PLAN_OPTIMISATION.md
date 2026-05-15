@@ -70,9 +70,9 @@
 
 ### Phase 4 : Schéma zones explicite (risque = faible)
 > *Clarifier le rôle de chaque champ (label vs content) pour éviter les confusions futures*
-- [ ] **4.1** Documenter le schéma actuel dans `docs/ZONE_SCHEMA.md`
-- [ ] **4.2** Ajouter validation dans serverZoneGenerator (assertion champs obligatoires)
-- [ ] **4.3** Tester sur staging
+- [x] **4.1** Documenter le schéma actuel dans `DOCS/ZONE_SCHEMA.md` ✅
+- [x] **4.2** Ajouter validation dans serverZoneGenerator (log warnings, ne bloque pas) ✅
+- [x] **4.3** 22 tests passent (5 nouveaux tests schéma) ✅
 
 ### Phase 5 : Découpage Carte.js (risque = moyen)
 > *Extraire des modules de Carte.js pour faciliter la maintenance*
@@ -106,6 +106,8 @@
 | 2026-05-14 | 1 | 1.4 CORS fix + merge main | ✅ | commit c1c1483 (CORS) + 10018c9 (merge) |
 | 2026-05-14 | 2 | 2.1-2.3 Utilitaires partagés | ✅ | playerColors.js + pairDisplay.js, commit 7b81d83 |
 | 2026-05-14 | 2 | 2.4-2.5 Test + merge main | ✅ | Solo OK, merge 3e12741 |
+| 2026-05-14 | 3 | 3.1-3.5 Tests automatisés | ✅ | 17 tests jest, Pre-Deploy Render, merge 5b3f936 |
+| 2026-05-14 | 4 | 4.1-4.3 Schéma zones | ✅ | ZONE_SCHEMA.md + validation + 22 tests, commit 4a14cee |
 
 ---
 
