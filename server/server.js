@@ -2527,6 +2527,67 @@ async function gsFinish(salleId) {
       console.log(`[GS] Tournament ${salle.tournamentId} results saved to Supabase`);
     } catch (e) { console.error('[GS] Tournament save error:', e.message); }
   }
+
+  // ✅ Persistance Grande Salle: sauvegarder les résultats des joueurs identifiés dans training_sessions + training_results
+  if (supabaseAdmin) {
+    (async () => { try {
+      const isUUID = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+      // Récupérer les joueurs avec un studentId valide
+      const identifiedPlayers = Array.from(salle.players.entries())
+        .map(([id, p]) => ({ socketId: id, studentId: p.studentId, name: p.name, score: p.score || 0, errors: p.errors || 0 }))
+        .filter(p => p.studentId && isUUID(p.studentId))
+        .sort((a, b) => b.score - a.score)
+        .map((p, idx) => ({ ...p, position: idx + 1 }));
+
+      if (identifiedPlayers.length > 0) {
+        const { v4: uuidv4 } = require('uuid');
+        const timeMs = salle.startedAt ? (Date.now() - salle.startedAt) : ((salle.config.duration || 90) * salle.roundsPlayed * 1000);
+        const sessionPayload = {
+          match_id: uuidv4(),
+          class_id: 'grande-salle',
+          teacher_id: null,
+          session_name: salle.tournamentTitle ? `Grande Salle - ${salle.tournamentTitle}` : `Grande Salle - ${salleId}`,
+          config: {
+            mode: 'grande-salle',
+            duration: salle.config.duration || 90,
+            rounds: salle.roundsPlayed,
+            eliminationWaves: salle.eliminationWave,
+            totalPlayers: allPlayers.length,
+            themes: salle.config.themes || [],
+            classes: salle.config.classes || [],
+            selectedLevel: salle.config.selectedLevel || null,
+            salleId
+          },
+          completed_at: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        };
+        const { data: session, error: sessErr } = await supabaseAdmin
+          .from('training_sessions').insert(sessionPayload).select('id').single();
+        if (sessErr) {
+          console.error(`[GS] Persistance erreur (session_insert):`, sessErr.message);
+        } else {
+          const sessionId = session.id;
+          for (const p of identifiedPlayers) {
+            const { error: resErr } = await supabaseAdmin.from('training_results').insert({
+              session_id: sessionId,
+              student_id: p.studentId,
+              position: p.position,
+              score: p.score,
+              time_ms: timeMs,
+              pairs_validated: p.score,
+              errors: p.errors || 0
+            });
+            if (resErr) {
+              console.error(`[GS] Persistance erreur (result_insert) student=${p.studentId}:`, resErr.message);
+            }
+          }
+          console.log(`[GS] ✅ Résultats sauvegardés: ${identifiedPlayers.length} joueurs identifiés, session=${sessionId}`);
+        }
+      } else {
+        console.log(`[GS] Aucun joueur identifié (studentId) — résultats non sauvegardés`);
+      }
+    } catch (e) { console.error('[GS] Persistance erreur générale:', e.message); } })();
+  }
   
   io.to(`gs:${salleId}`).emit('gs:finish', {
     podium: allPlayers.slice(0, 10),
@@ -4321,7 +4382,7 @@ io.on('connection', (socket) => {
   // ===== GRANDE SALLE EVENTS =====
   let currentGS = null; // salleId the player is in
 
-  socket.on('gs:join', async ({ name, salleId, tournamentId }, cb) => {
+  socket.on('gs:join', async ({ name, salleId, tournamentId, studentId: gsStudentId }, cb) => {
     let id = salleId || 'grande-salle-publique';
     
     // If joining a tournament, use tournament ID as salle ID and load config
@@ -4426,6 +4487,7 @@ io.on('connection', (socket) => {
     } else {
       salle.players.set(socket.id, {
         name: playerName,
+        studentId: gsStudentId || null,
         score: 0,
         errors: 0,
         rank: 0,

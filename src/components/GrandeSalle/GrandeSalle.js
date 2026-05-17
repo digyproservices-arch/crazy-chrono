@@ -88,6 +88,7 @@ export default function GrandeSalle() {
     socket.on('connect', () => {
       setConnected(true); setMyId(socket.id);
       const joinPayload = { name: getPlayerName() };
+      try { const uid = localStorage.getItem('cc_user_id'); if (uid) joinPayload.studentId = uid; } catch {}
       if (tournamentId) joinPayload.tournamentId = tournamentId;
       else joinPayload.salleId = 'grande-salle-publique';
       socket.emit('gs:join', joinPayload, (res) => {

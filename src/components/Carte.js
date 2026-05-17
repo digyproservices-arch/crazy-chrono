@@ -2181,6 +2181,7 @@ const Carte = () => {
         console.log('[CC][GS] Grande Salle mode — joining', { salleId: gsSalleId, name: gsName, tournamentId: gsTournamentId });
 
         const joinPayload = { name: gsName };
+        try { const uid = localStorage.getItem('cc_user_id'); if (uid) joinPayload.studentId = uid; } catch {}
         if (gsTournamentId) joinPayload.tournamentId = gsTournamentId;
         else joinPayload.salleId = gsSalleId;
         s.emit('gs:join', joinPayload, (res) => {
