@@ -2358,6 +2358,21 @@ function gsStartRound(salleId) {
   salle.selectedClasses = salle.config.classes || [];
   salle.roundsPlayed = salle.roundsPlayed || 0;
 
+  // 📊 DIAGNOSTIC: Pousser entrée roundHistory
+  if (!salle.roundHistory) salle.roundHistory = [];
+  const goodPair = zones.find(z => z.pairId && !z.isDistractor);
+  salle.roundHistory.push({
+    round_number: salle.roundsPlayed,
+    zones: zones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 200), pairId: z.pairId || null, isDistractor: !!z.isDistractor })),
+    good_pair_type: goodPair?.type || null,
+    good_pair_theme: goodPair?.theme || null,
+    good_pair_level: goodPair?.levelClass || null,
+    good_pair_content: goodPair ? String(goodPair.content || '').substring(0, 200) : null,
+    started_at: Date.now(),
+    pairs_found: [],
+    errors: []
+  });
+
   console.log(`[GS] Round ${salle.roundsPlayed} started in "${salleId}" with ${zones.length} zones, ${salle.players.size} players`);
   sTrace.push('gs:startRound', { salle: salleId, round: salle.roundsPlayed, zonesCount: zones.length, players: salle.players.size, duration: salle.config.duration });
   // Valider les zones avant émission (monitoring double PA / fausse paire)
@@ -2587,6 +2602,76 @@ async function gsFinish(salleId) {
             }
           }
           console.log(`[GS] ✅ Résultats sauvegardés: ${identifiedPlayers.length} joueurs identifiés, session=${sessionId}`);
+
+          // 📊 DIAGNOSTIC: Persister match_rounds + match_player_summary
+          try {
+            const roundHistory = salle.roundHistory || [];
+            if (roundHistory.length > 0) {
+              const roundRows = roundHistory.map(rh => ({
+                session_id: sessionId,
+                round_number: rh.round_number,
+                zones: rh.zones,
+                good_pair_type: rh.good_pair_type,
+                good_pair_theme: rh.good_pair_theme,
+                good_pair_level: rh.good_pair_level,
+                good_pair_content: rh.good_pair_content,
+                winner_player_id: rh.pairs_found && rh.pairs_found[0] ? rh.pairs_found[0].player_id : null,
+                winner_display_name: rh.pairs_found && rh.pairs_found[0] ? rh.pairs_found[0].display_name : null,
+                winner_time_ms: rh.pairs_found && rh.pairs_found[0] ? rh.pairs_found[0].time_ms : null,
+                errors: rh.errors || []
+              }));
+              const { error: mrErr } = await supabaseAdmin.from('match_rounds').insert(roundRows);
+              if (mrErr) console.error(`[GS] match_rounds insert error:`, mrErr.message);
+              else console.log(`[GS] 📊 ${roundRows.length} match_rounds sauvegardés`);
+
+              // match_player_summary
+              const playerMap = {};
+              for (const rh of roundHistory) {
+                const theme = rh.good_pair_theme || 'unknown';
+                const pairType = rh.good_pair_type || 'unknown';
+                for (const pf of (rh.pairs_found || [])) {
+                  const pid = pf.player_id;
+                  if (!playerMap[pid]) playerMap[pid] = { player_id: pid, display_name: pf.display_name, total_score: 0, total_errors: 0, byTheme: {}, byType: {}, responseTimes: [], roundsPlayed: 0 };
+                  const ps = playerMap[pid];
+                  if (!ps.byTheme[theme]) ps.byTheme[theme] = { found: 0, missed: 0, errors: 0 };
+                  ps.byTheme[theme].found++;
+                  if (!ps.byType[pairType]) ps.byType[pairType] = { found: 0 };
+                  ps.byType[pairType].found++;
+                  if (pf.time_ms) ps.responseTimes.push(pf.time_ms);
+                  ps.roundsPlayed++;
+                  ps.total_score++;
+                }
+                for (const err of (rh.errors || [])) {
+                  const pid = err.player_id;
+                  if (!playerMap[pid]) playerMap[pid] = { player_id: pid, display_name: err.display_name, total_score: 0, total_errors: 0, byTheme: {}, byType: {}, responseTimes: [], roundsPlayed: 0 };
+                  playerMap[pid].total_errors++;
+                  if (!playerMap[pid].byTheme[theme]) playerMap[pid].byTheme[theme] = { found: 0, missed: 0, errors: 0 };
+                  playerMap[pid].byTheme[theme].errors++;
+                }
+              }
+              const summaryRows = Object.values(playerMap).map(ps => {
+                const recommendations = [];
+                for (const [t, stats] of Object.entries(ps.byTheme)) {
+                  const total = stats.found + (stats.missed || 0);
+                  if (total > 0 && stats.found / total >= 0.8 && stats.errors === 0) recommendations.push({ type: 'strength', theme: t, message: `Point fort : ${t}` });
+                  else if (total > 0 && stats.found / total < 0.5) recommendations.push({ type: 'improve', theme: t, message: `A travailler : ${t}` });
+                  if (stats.errors >= 3) recommendations.push({ type: 'errors', theme: t, message: `Confusion fréquente sur ${t} (${stats.errors} erreurs)` });
+                }
+                return {
+                  session_id: sessionId, player_id: ps.player_id, display_name: ps.display_name,
+                  total_score: ps.total_score, total_pairs: ps.roundsPlayed, total_errors: ps.total_errors,
+                  stats_by_theme: ps.byTheme, stats_by_type: ps.byType,
+                  avg_response_time_ms: ps.responseTimes.length > 0 ? Math.round(ps.responseTimes.reduce((a, b) => a + b, 0) / ps.responseTimes.length) : null,
+                  recommendations
+                };
+              });
+              if (summaryRows.length > 0) {
+                const { error: sumErr } = await supabaseAdmin.from('match_player_summary').insert(summaryRows);
+                if (sumErr) console.error(`[GS] match_player_summary insert error:`, sumErr.message);
+                else console.log(`[GS] 📊 ${summaryRows.length} match_player_summary sauvegardés`);
+              }
+            }
+          } catch (diagErr) { console.error('[GS] Diagnostic pédagogique save error:', diagErr.message); }
         }
       } else {
         console.log(`[GS] Aucun joueur identifié (studentId) — résultats non sauvegardés`);
@@ -4564,6 +4649,7 @@ io.on('connection', (socket) => {
     salle.roundsPlayed = 0;
     salle.eliminationWave = 0;
     salle.validatedPairIds = new Set();
+    salle.roundHistory = [];
     
     gsEmitState(id);
     
@@ -4611,6 +4697,8 @@ io.on('connection', (socket) => {
         socket.emit('gs:pair:invalid', { a, b });
         // 📊 Suivi tentative incorrecte pour la progression
         try { persistMPAttempt(salle, socket.id, { isCorrect: false, zoneAId: a, zoneBId: b }); } catch {}
+        // 📊 DIAGNOSTIC: Enregistrer l'erreur dans roundHistory
+        try { const lr = salle.roundHistory && salle.roundHistory[salle.roundHistory.length - 1]; if (lr) lr.errors.push({ player_id: player.studentId || socket.id, display_name: player.name, timestamp: Date.now() }); } catch {}
         return;
       }
     }
@@ -4620,6 +4708,8 @@ io.on('connection', (socket) => {
     player.score = (player.score || 0) + 1;
     // 📊 Suivi tentative correcte pour la progression
     try { persistMPAttempt(salle, socket.id, { isCorrect: true, zoneAId: a, zoneBId: b }); } catch {}
+    // 📊 DIAGNOSTIC: Enregistrer la paire trouvée dans roundHistory
+    try { const lr = salle.roundHistory && salle.roundHistory[salle.roundHistory.length - 1]; if (lr) lr.pairs_found.push({ player_id: player.studentId || socket.id, display_name: player.name, timestamp: Date.now(), time_ms: salle.currentRoundStartedAt ? (Date.now() - salle.currentRoundStartedAt) : null }); } catch {}
     
     // Track validated pairId for exclusion
     try {

@@ -239,27 +239,27 @@
           "id": "round_history_tracking",
           "name": "Enregistrement historique des manches (match_rounds)",
           "description": "Chaque manche est enregistrée en DB avec les 16 zones, la bonne paire, le gagnant, les erreurs",
-          "solo": "missing",
-          "salle_privee": "partial",
-          "grande_salle": "missing",
+          "solo": "na",
+          "salle_privee": "ok",
+          "grande_salle": "ok",
           "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js → _roundHistory → match_rounds", "server/server.js → room.roundHistory"],
+          "files": ["server/crazyArenaManager.js → _roundHistory → match_rounds", "server/server.js → room.roundHistory + salle.roundHistory"],
           "priority": "medium",
-          "note": "Solo: les manches ne sont pas tracées en DB (le mode est local-first). Salle Privée: roundHistory est maintenu en mémoire (server.js) et persisté en DB via endSession, mais la structure est simplifiée vs Training/Arena. Grande Salle: pas de roundHistory."
+          "note": "Solo: na (local-first, tentatives tracées via table attempts). Salle Privée: ok — roundHistory complet persisté dans match_rounds + match_player_summary via endSession. Grande Salle: ok — roundHistory ajouté (zones, paires trouvées, erreurs) persisté dans match_rounds + match_player_summary via gsFinish."
         },
         {
           "id": "player_summary_tracking",
           "name": "Bilan automatique par joueur (match_player_summary)",
           "description": "Stats par thème/type, temps de réponse moyen, recommandations automatiques, notes du professeur",
-          "solo": "missing",
-          "salle_privee": "missing",
-          "grande_salle": "missing",
+          "solo": "na",
+          "salle_privee": "ok",
+          "grande_salle": "ok",
           "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js → endGame/endTrainingGame → match_player_summary"],
+          "files": ["server/crazyArenaManager.js → endGame/endTrainingGame → match_player_summary", "server/server.js → endSession + gsFinish → match_player_summary"],
           "priority": "medium",
-          "note": "Ce bilan détaillé n'a de sens que dans un contexte pédagogique encadré (prof qui supervise). Solo: le joueur voit ses stats via StudentPerformance. Salle Privée: serait utile mais nécessite que le prof ait accès aux données (pas le cas aujourd'hui). Grande Salle: pas pertinent (événement public, pas pédagogique)."
+          "note": "Solo: na (local-first, pas de session serveur). Salle Privée: ok — bilan par joueur calculé et persisté via endSession. Grande Salle: ok — bilan par joueur calculé et persisté via gsFinish."
         }
       ]
     },
