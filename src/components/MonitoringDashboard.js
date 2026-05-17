@@ -973,6 +973,8 @@ const clearIncidents = async () => {
                       detail = ` match=${t.matchId} PAIR#${t.pairEvent} ${t.isTiebreaker ? 'DÉPARTAGE' : 'NORMAL'}${warn} après=[${(t.scoresAfter||[]).map(s=>`${s.name}=${s.score}`).join(',')}]`;
                     }
                     if (t.event === 'arena:equality-window') detail = ` match=${t.matchId} student=${t.studentId} elapsed=${t.elapsed}ms window=${t.windowMs}ms claimants=${t.claimants}`;
+                    if (t.event === 'arena:resync') detail = ` match=${t.matchId} 🔄 RESYNC → ${t.player} (${t.zones} zones, timer=${t.timer}s, manche ${t.round})`;
+                    if (t.event === 'training:resync') detail = ` match=${t.matchId} 🔄 RESYNC → ${t.player} (${t.zones} zones, timer=${t.timer}s, manche ${t.round})`;
                     // Multiplayer pair/equality/session events
                     if (t.event === 'mp:pair-validated') {
                       const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';

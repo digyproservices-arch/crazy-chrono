@@ -426,6 +426,51 @@ class CrazyArenaManager {
         count: match.players.length  // ✅ Comme Arena (reconnexion)
       });
       
+      // ✅ SYNC: Renvoyer l'état complet du jeu au joueur reconnecté (zones + scores + timer)
+      if (match.status === 'playing' || match.status === 'tiebreaker' || match.status === 'paused') {
+        const roundsPerMatch = match.config.rounds || match.config.roundsPerMatch || 3;
+        const durationPerRound = match.config.duration || match.config.durationPerRound || 60;
+        const totalDuration = roundsPerMatch * durationPerRound;
+        const elapsed = Math.floor((Date.now() - match.startTime) / 1000);
+        const elapsedInRound = elapsed % durationPerRound;
+        const timeLeftInRound = Math.max(0, durationPerRound - elapsedInRound);
+
+        // Envoyer les zones actuelles au joueur reconnecté
+        if (match.zones && match.zones.length > 0) {
+          socket.emit('training:round-new', {
+            zones: match.zones,
+            roundIndex: match.roundsPlayed,
+            totalRounds: roundsPerMatch,
+            timestamp: Date.now(),
+            _resync: true
+          });
+          logger.info(`[CrazyArena][Training] 📤 Resync zones envoyé à ${studentData.name}: ${match.zones.length} zones, manche ${match.roundsPlayed + 1}`);
+        }
+
+        // Envoyer les scores actuels
+        socket.emit('training:scores-update', {
+          scores: match.players.map(p => ({
+            studentId: p.studentId,
+            name: p.name,
+            avatar: p.avatar,
+            score: p.score || 0,
+            pairsValidated: p.pairsValidated || 0
+          })).sort((a, b) => b.score - a.score)
+        });
+
+        // Envoyer le timer actuel
+        socket.emit('training:timer-tick', {
+          timeLeft: timeLeftInRound,
+          elapsed,
+          duration: totalDuration,
+          currentRound: match.roundsPlayed + 1,
+          totalRounds: roundsPerMatch
+        });
+
+        logger.info(`[CrazyArena][Training] ✅ État complet renvoyé à ${studentData.name} (zones=${match.zones?.length || 0}, timer=${timeLeftInRound}s)`);
+        sTrace.push('training:resync', { matchId: matchId.slice(-8), player: studentData.name, zones: match.zones?.length || 0, timer: timeLeftInRound, round: match.roundsPlayed + 1 });
+      }
+
       // ✅ Si le match était en pause (joueur déconnecté), reprendre automatiquement
       if (match.status === 'paused' && match._pauseState && 
           match._pauseState.disconnectedStudentId === studentData.studentId) {
@@ -1701,6 +1746,52 @@ class CrazyArenaManager {
         count: match.players.length
       });
       
+      // ✅ SYNC: Renvoyer l'état complet du jeu au joueur reconnecté (zones + scores + timer)
+      if (match.status === 'playing' || match.status === 'tiebreaker' || match.status === 'paused') {
+        const roundsPerMatch = match.config.rounds || match.config.roundsPerMatch || 3;
+        const durationPerRound = match.config.duration || match.config.durationPerRound || 60;
+        const totalDuration = roundsPerMatch * durationPerRound;
+        const elapsed = Math.floor((Date.now() - match.startTime) / 1000);
+        const elapsedInRound = elapsed % durationPerRound;
+        const timeLeftInRound = Math.max(0, durationPerRound - elapsedInRound);
+
+        // Envoyer les zones actuelles au joueur reconnecté
+        if (match.zones && match.zones.length > 0) {
+          socket.emit('arena:round-new', {
+            zones: match.zones,
+            roundIndex: match.roundsPlayed,
+            totalRounds: roundsPerMatch,
+            timestamp: Date.now(),
+            _resync: true
+          });
+          logger.info(`[CrazyArena] 📤 Resync zones envoyé à ${studentData.name}: ${match.zones.length} zones, manche ${match.roundsPlayed + 1}`);
+        }
+
+        // Envoyer les scores actuels
+        const scoresPayload = {
+          scores: match.players.map(p => ({
+            studentId: p.studentId,
+            name: p.name,
+            avatar: p.avatar,
+            score: p.score || 0,
+            pairsValidated: p.pairsValidated || 0
+          })).sort((a, b) => b.score - a.score)
+        };
+        socket.emit('arena:scores-update', scoresPayload);
+
+        // Envoyer le timer actuel
+        socket.emit('arena:timer-tick', {
+          timeLeft: timeLeftInRound,
+          elapsed,
+          duration: totalDuration,
+          currentRound: match.roundsPlayed + 1,
+          totalRounds: roundsPerMatch
+        });
+
+        logger.info(`[CrazyArena] ✅ État complet renvoyé à ${studentData.name} (zones=${match.zones?.length || 0}, timer=${timeLeftInRound}s, scores=${match.players.length} joueurs)`);
+        sTrace.push('arena:resync', { matchId: matchId.slice(-8), player: studentData.name, zones: match.zones?.length || 0, timer: timeLeftInRound, round: match.roundsPlayed + 1 });
+      }
+
       // ✅ Si le match était en pause (joueur déconnecté), reprendre automatiquement
       if (match.status === 'paused' && match._pauseState && 
           match._pauseState.disconnectedStudentId === studentData.studentId) {
