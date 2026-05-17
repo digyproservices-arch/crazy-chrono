@@ -59,6 +59,7 @@ export default function CrazyArenaSetup() {
   const [tourStatus, setTourStatus] = useState(null); // { tours, currentTour, classWinner }
   const [creatingNextTour, setCreatingNextTour] = useState(false);
   const [groupLastResults, setGroupLastResults] = useState({}); // groupId → [{studentId, score, position}]
+  const [perfMap, setPerfMap] = useState({}); // studentId → performance stats
   // Live match data from Socket.IO (inline cockpit)
   const [matchesLive, setMatchesLive] = useState({}); // matchId → { connectedPlayers, readyPlayers, players[], status, ... }
   const socketRef = useRef(null);
@@ -114,6 +115,7 @@ export default function CrazyArenaSetup() {
           setStudents(parsed.students);
           setGroups(parsed.groups || []);
           if (parsed.tourStatus) setTourStatus(parsed.tourStatus);
+          if (parsed.performance) { const m = {}; parsed.performance.forEach(s => { m[s.studentId] = s; }); setPerfMap(m); }
           setLoading(false);
           return;
         }
@@ -161,12 +163,13 @@ export default function CrazyArenaSetup() {
             setGroups(d.groups || []);
             if (d.tourStatus?.success) setTourStatus(d.tourStatus);
             if (d.groupLastResults) setGroupLastResults(d.groupLastResults);
+            if (d.performance) { const m = {}; d.performance.forEach(s => { m[s.studentId] = s; }); setPerfMap(m); }
             const elapsed = Math.round(performance.now() - t0);
             console.log(`[CrazyArena] ✅ setup-data OK en ${elapsed}ms — ${d.students?.length} élèves, ${d.groups?.length} groupes`);
             try {
               sessionStorage.setItem(CACHE_KEY_TOURNAMENT, JSON.stringify({
                 tournament: d.tournament, students: d.students, groups: d.groups,
-                tourStatus: d.tourStatus, _ts: Date.now()
+                tourStatus: d.tourStatus, performance: d.performance, _ts: Date.now()
               }));
             } catch {}
             loaded = true;
@@ -765,14 +768,26 @@ export default function CrazyArenaSetup() {
                     onChange={() => toggleStudentSelection(s.id)}
                     disabled={isDisabled}
                   />
-                  <span>{s.full_name || s.first_name}</span>
-                  {s.access_code && (
-                    <code style={{ fontSize: 11, fontWeight: 700, color: '#0D6A7A', background: '#f0f9ff', padding: '1px 6px', borderRadius: 4, letterSpacing: 1, fontFamily: 'monospace', marginLeft: 4 }}
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigator.clipboard?.writeText(s.access_code); }}
-                      title="Cliquer pour copier le code"
-                    >{s.access_code}</code>
-                  )}
-                  {isInGroup && <span style={{ fontSize: 11, marginLeft: 'auto' }}>📦 Déjà groupé</span>}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span>{s.full_name || s.first_name}</span>
+                      {s.access_code && (
+                        <code style={{ fontSize: 11, fontWeight: 700, color: '#0D6A7A', background: '#f0f9ff', padding: '1px 6px', borderRadius: 4, letterSpacing: 1, fontFamily: 'monospace' }}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigator.clipboard?.writeText(s.access_code); }}
+                          title="Cliquer pour copier le code"
+                        >{s.access_code}</code>
+                      )}
+                      {isInGroup && <span style={{ fontSize: 11, marginLeft: 'auto' }}>📦 Déjà groupé</span>}
+                    </div>
+                    {perfMap[s.id] && perfMap[s.id].totalMatches > 0 && (
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: perfMap[s.id].level === 'Expert' ? '#fef3c7' : perfMap[s.id].level === 'Avancé' ? '#dbeafe' : perfMap[s.id].level === 'Intermédiaire' ? '#e0f2fe' : '#fee2e2', color: perfMap[s.id].level === 'Expert' ? '#92400e' : perfMap[s.id].level === 'Avancé' ? '#1e40af' : perfMap[s.id].level === 'Intermédiaire' ? '#0369a1' : '#991b1b', fontWeight: 700 }}>{perfMap[s.id].level}</span>
+                        <span style={{ fontSize: 10, color: isSelected ? '#e0f2fe' : '#6b7280' }}>📊 moy. {perfMap[s.id].avgScore} pts</span>
+                        <span style={{ fontSize: 10, color: isSelected ? '#e0f2fe' : '#6b7280' }}>🎯 {perfMap[s.id].accuracy}%</span>
+                        {perfMap[s.id].competitiveMatches > 0 && <span style={{ fontSize: 10, color: isSelected ? '#e0f2fe' : '#6b7280' }}>🏆 {perfMap[s.id].winRate}%</span>}
+                      </div>
+                    )}
+                  </div>
                 </label>
               );
             })}
@@ -934,8 +949,9 @@ export default function CrazyArenaSetup() {
                   <ul style={{ margin: '4px 0', paddingLeft: 20 }}>
                     {groupStudents.map(s => {
                       const matchResult = (groupLastResults[group.id] || []).find(r => r.studentId === s.id);
+                      const perf = perfMap[s.id];
                       return (
-                        <li key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <li key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                           <span>{s.full_name || s.first_name}</span>
                           {s.access_code && (
                             <code style={{ fontSize: 11, fontWeight: 700, color: '#0D6A7A', background: '#f0f9ff', padding: '1px 6px', borderRadius: 4, letterSpacing: 1, fontFamily: 'monospace', cursor: 'pointer' }}
@@ -947,6 +963,11 @@ export default function CrazyArenaSetup() {
                             <span style={{ fontSize: 11, fontWeight: 700, color: matchResult.position === 1 ? '#f59e0b' : '#1AACBE', background: matchResult.position === 1 ? '#fef3c7' : '#f0fafb', padding: '1px 6px', borderRadius: 4, marginLeft: 'auto' }}
                               title="Score du dernier match">
                               {matchResult.score} pts
+                            </span>
+                          )}
+                          {perf && perf.totalMatches > 0 && (
+                            <span style={{ fontSize: 11, color: '#6b7280' }}>
+                              {perf.level} · moy. {perf.avgScore} pts · 🎯{perf.accuracy}%
                             </span>
                           )}
                         </li>

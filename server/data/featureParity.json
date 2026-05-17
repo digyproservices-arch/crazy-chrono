@@ -98,26 +98,26 @@
           "name": "Pause/reprise sur déconnexion",
           "description": "Match mis en pause quand un joueur se déconnecte, reprise automatique à la reconnexion",
           "solo": "na",
-          "salle_privee": "partial",
+          "salle_privee": "ok",
           "grande_salle": "na",
           "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js → pauseMatch(), resumeMatch()", "server/server.js → disconnect handler"],
+          "files": ["server/crazyArenaManager.js → pauseMatch(), resumeMatch()", "server/server.js → disconnect handler (mp:match-paused, mp:match-resumed)"],
           "priority": "high",
-          "note": "Solo: na (jeu local, pas de pause réseau). Salle Privée: partial — le joueur déconnecté est gardé pour reconnexion (30s) mais le match ne se met pas en pause pour les autres. Grande Salle: na (élimination — un joueur qui déconnecte perd naturellement par inactivité)."
+          "note": "Solo: na (jeu local). Salle Privée: ok — match en pause quand un joueur déconnecte, timer gelé, grace period 15s, reprise auto à la reconnexion. Client Carte.js écoute mp:match-paused/mp:match-resumed/mp:player-forfeit. Grande Salle: na (élimination par vagues gère les absents)."
         },
         {
           "id": "forfeit_timeout",
-          "name": "Forfait automatique (60s déconnexion)",
-          "description": "Si un joueur reste déconnecté plus de 60s, il perd par forfait et le match reprend",
+          "name": "Forfait automatique (15s déconnexion)",
+          "description": "Si un joueur reste déconnecté plus de 15s, il perd par forfait et le match reprend",
           "solo": "na",
-          "salle_privee": "partial",
+          "salle_privee": "ok",
           "grande_salle": "na",
           "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js → FORFEIT_TIMEOUT_MS"],
+          "files": ["server/crazyArenaManager.js → FORFEIT_TIMEOUT_MS", "server/server.js → MP_GRACE_PERIOD_MS + mp:player-forfeit"],
           "priority": "medium",
-          "note": "Solo: na. Salle Privée: partial — le joueur est supprimé après 30s mais pas de mécanisme de forfait formel avec reprise. Grande Salle: na (mécanique d'élimination gère déjà les absents)."
+          "note": "Solo: na. Salle Privée: ok — grace period 15s, forfait auto + reprise du match pour les joueurs restants. Grande Salle: na (élimination gère les absents)."
         },
         {
           "id": "db_match_recovery",
@@ -343,10 +343,10 @@
           "salle_privee": "na",
           "grande_salle": "na",
           "training": "ok",
-          "arena": "missing",
-          "files": ["src/components/Teacher/TrainingArenaSetup.js → perfMap"],
+          "arena": "ok",
+          "files": ["src/components/Teacher/TrainingArenaSetup.js → perfMap", "src/components/Tournament/CrazyArenaSetup.js → perfMap"],
           "priority": "low",
-          "note": "Arena: nécessite un calcul dédié côté backend pour les matchs Arena."
+          "note": "Corrigé: CrazyArenaSetup.js récupère désormais les données performance du setup-data endpoint et affiche niveau, score moyen, précision et winRate pour chaque élève (liste de sélection + cartes de groupe)."
         },
         {
           "id": "group_card_winner",
