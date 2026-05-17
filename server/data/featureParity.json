@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-05-17T21:30",
+  "lastUpdated": "2026-05-17T22:30",
   "description": "Registre de parité des fonctionnalités entre TOUS les modes de jeu. Statuts: ok = implémenté, missing = absent, partial = partiel, na = non applicable (par nature du mode).",
   "modes": {
     "solo": "Mode Solo (1 joueur, Carte.js → server.js solo room)",
@@ -184,12 +184,12 @@
           "description": "Score final, position, paires validées, erreurs sauvegardés dans training_sessions + training_results (ou match_results pour Arena)",
           "solo": "ok",
           "salle_privee": "ok",
-          "grande_salle": "missing",
+          "grande_salle": "ok",
           "training": "ok",
           "arena": "ok",
-          "files": ["src/components/Carte.js → POST /api/training/sessions", "server/server.js → endSession() → training_sessions", "server/crazyArenaManager.js → persistMatchEnd()"],
+          "files": ["src/components/Carte.js → POST /api/training/sessions", "server/server.js → endSession() + gsFinish()", "server/crazyArenaManager.js → persistMatchEnd()"],
           "priority": "high",
-          "note": "Grande Salle: les résultats du tournoi sont sauvegardés dans la table tournaments (winner, results JSON) mais PAS dans training_results/match_results — les élèves ne voient pas leurs stats Grande Salle dans leur profil."
+          "note": "Corrigé: gsFinish() sauvegarde maintenant les résultats des joueurs identifiés dans training_sessions + training_results. Le client envoie studentId dans gs:join."
         },
         {
           "id": "live_score_persistence",
@@ -210,12 +210,12 @@
           "description": "Chaque tentative (correcte/incorrecte) est enregistrée avec item, thème, latence pour le suivi de progression",
           "solo": "ok",
           "salle_privee": "ok",
-          "grande_salle": "missing",
+          "grande_salle": "ok",
           "training": "ok",
           "arena": "ok",
           "files": ["src/utils/progress.js → recordAttempt()", "server/server.js → persistMPAttempt()", "server/crazyArenaManager.js → persistAttempt()"],
           "priority": "medium",
-          "note": "Grande Salle: aucun enregistrement dans la table attempts — les paires trouvées en Grande Salle ne contribuent pas à la progression de maîtrise de l'élève."
+          "note": "Corrigé: gs:attemptPair appelle désormais persistMPAttempt() pour les paires valides et invalides."
         },
         {
           "id": "mastery_tracking",
@@ -223,12 +223,12 @@
           "description": "Progression Bronze/Argent/Or par thème basée sur les paires trouvées et le temps de réponse",
           "solo": "ok",
           "salle_privee": "ok",
-          "grande_salle": "missing",
+          "grande_salle": "ok",
           "training": "ok",
           "arena": "ok",
-          "files": ["src/utils/masteryTracker.js", "server/crazyArenaManager.js → persistAttempt()"],
+          "files": ["src/utils/masteryTracker.js", "server/server.js → persistMPAttempt()", "server/crazyArenaManager.js → persistAttempt()"],
           "priority": "medium",
-          "note": "Solo et Salle Privée: suivi côté client (masteryTracker.js). Training et Arena: suivi côté serveur (persistAttempt). Grande Salle: aucun suivi — à ajouter si on veut que la Grande Salle contribue à la progression."
+          "note": "Corrigé: Grande Salle bénéficie du mastery tracker côté client (Carte.js) + persistance des tentatives côté serveur (persistMPAttempt dans gs:attemptPair)."
         }
       ]
     },
@@ -297,12 +297,12 @@
           "description": "L'élève peut voir son historique de sessions, sa progression, ses meilleurs scores",
           "solo": "ok",
           "salle_privee": "ok",
-          "grande_salle": "missing",
+          "grande_salle": "ok",
           "training": "ok",
           "arena": "ok",
-          "files": ["src/components/Student/StudentPerformance.js"],
+          "files": ["src/components/Student/StudentPerformance.js", "server/routes/tournament.js → students/:id/performance"],
           "priority": "medium",
-          "note": "Grande Salle: les résultats ne sont pas dans training_results → les sessions Grande Salle n'apparaissent pas dans StudentPerformance."
+          "note": "Corrigé: les résultats Grande Salle sont maintenant dans training_results et le mode 'grande-salle' est détecté par l'endpoint performance."
         },
         {
           "id": "personal_best",

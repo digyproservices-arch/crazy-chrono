@@ -2926,6 +2926,7 @@ router.get('/students/:studentId/performance', requireSupabase, requireAuth, ...
           // Déterminer le mode: config.mode est la source primaire
           let mode = 'training';
           if (configMode === 'solo') mode = 'solo';
+          else if (configMode === 'grande-salle' || session.class_id === 'grande-salle') mode = 'grande-salle';
           else if (configMode === 'multiplayer' || session.class_id === 'multiplayer') mode = 'multiplayer';
           else if (session.class_id === 'solo' && configMode !== 'multiplayer') mode = 'solo';
           else if (r.position === null) mode = 'solo';

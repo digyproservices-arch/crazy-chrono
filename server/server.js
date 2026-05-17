@@ -2353,6 +2353,11 @@ function gsStartRound(salleId) {
     eliminationWave: salle.eliminationWave,
   };
   
+  salle.currentRoundStartedAt = Date.now();
+  salle.selectedThemes = salle.config.themes || [];
+  salle.selectedClasses = salle.config.classes || [];
+  salle.roundsPlayed = salle.roundsPlayed || 0;
+
   console.log(`[GS] Round ${salle.roundsPlayed} started in "${salleId}" with ${zones.length} zones, ${salle.players.size} players`);
   sTrace.push('gs:startRound', { salle: salleId, round: salle.roundsPlayed, zonesCount: zones.length, players: salle.players.size, duration: salle.config.duration });
   // Valider les zones avant émission (monitoring double PA / fausse paire)
@@ -4604,6 +4609,8 @@ io.on('connection', (socket) => {
         // Invalid pair - increment errors
         player.errors = (player.errors || 0) + 1;
         socket.emit('gs:pair:invalid', { a, b });
+        // 📊 Suivi tentative incorrecte pour la progression
+        try { persistMPAttempt(salle, socket.id, { isCorrect: false, zoneAId: a, zoneBId: b }); } catch {}
         return;
       }
     }
@@ -4611,6 +4618,8 @@ io.on('connection', (socket) => {
     // Valid pair!
     salle.foundPairs.add(keyZones);
     player.score = (player.score || 0) + 1;
+    // 📊 Suivi tentative correcte pour la progression
+    try { persistMPAttempt(salle, socket.id, { isCorrect: true, zoneAId: a, zoneBId: b }); } catch {}
     
     // Track validated pairId for exclusion
     try {
