@@ -1360,7 +1360,8 @@ class CrazyArenaManager {
         }
         
         if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
-          // ✅ FIX ÉGALITÉ TIEBREAKER: Attendre la fenêtre d'égalité avant de terminer
+          // ✅ FIX ÉGALITÉ TIEBREAKER: Attendre la fenêtre d'égalité avant de terminer.
+          // Ensuite vérifier si c'est encore à égalité → prolonger avec une carte supplémentaire.
           if (!match._tiebreakerEndScheduled) {
             match._tiebreakerEndScheduled = true;
             logger.info('[CrazyArena][Training] Tiebreaker dernière paire trouvée — attente fenêtre égalité', { 
@@ -1369,8 +1370,60 @@ class CrazyArenaManager {
               pairsToFind: match.tiebreakerPairsToFind,
               delayMs: ARENA_TIE_WINDOW_MS + 100
             });
-            setTimeout(() => {
-              this.endTrainingGame(matchId);
+            setTimeout(async () => {
+              // Vérifier si les scores tiebreaker sont encore à égalité
+              const tbScores = match.players
+                .filter(p => p.tiebreakerScore !== undefined)
+                .map(p => p.tiebreakerScore || 0);
+              const maxTbScore = Math.max(...tbScores);
+              const playersAtMax = tbScores.filter(s => s === maxTbScore).length;
+
+              if (playersAtMax > 1 && maxTbScore > 0) {
+                // ⚡ Encore égalité ! Prolonger avec une carte supplémentaire
+                logger.info('[CrazyArena][Training] ⚡ Tiebreaker encore à égalité — prolongation !', {
+                  matchId,
+                  tbScores: match.players.map(p => ({ name: p.name, tbScore: p.tiebreakerScore })),
+                  newPairsToFind: match.tiebreakerPairsToFind + 1
+                });
+                match.tiebreakerPairsToFind += 1;
+                match._tiebreakerEndScheduled = false;
+
+                // Notifier les joueurs de la prolongation
+                this.io.to(matchId).emit('training:tiebreaker-extended', {
+                  reason: 'equality',
+                  newPairsToFind: match.tiebreakerPairsToFind,
+                  pairsFound: match.tiebreakerPairsFound,
+                  scores: match.players.map(p => ({ studentId: p.studentId, name: p.name, tbScore: p.tiebreakerScore }))
+                });
+
+                // Générer et envoyer une nouvelle carte
+                try {
+                  const newZones = await this.generateZones(match.config, matchId);
+                  match.zones = newZones;
+                  
+                  const payload = {
+                    zones: newZones,
+                    roundIndex: match.tiebreakerPairsFound,
+                    totalRounds: match.tiebreakerPairsToFind,
+                    timestamp: Date.now()
+                  };
+                  
+                  try { validateZonesServer(newZones, { source: 'training:tiebreaker-extension', matchId: matchId.slice(-8) }); } catch (e) { logger.warn('[CrazyArena][Training] Zone validation error (tiebreaker ext):', e.message); }
+                  this.io.to(matchId).emit('training:round-new', payload);
+                  
+                  logger.info('[CrazyArena][Training] Carte prolongation tiebreaker envoyée', {
+                    matchId,
+                    zonesCount: newZones?.length || 0,
+                    newPairsToFind: match.tiebreakerPairsToFind
+                  });
+                } catch (err) {
+                  logger.error('[CrazyArena][Training] Erreur génération carte prolongation', { matchId, error: err.message });
+                  this.endTrainingGame(matchId);
+                }
+              } else {
+                // Un joueur est en avance → terminer normalement
+                this.endTrainingGame(matchId);
+              }
             }, ARENA_TIE_WINDOW_MS + 100);
           }
           return;
@@ -2465,6 +2518,7 @@ class CrazyArenaManager {
           // ✅ FIX ÉGALITÉ TIEBREAKER: Ne pas terminer immédiatement !
           // Attendre la fenêtre d'égalité pour que le 2e joueur qui clique
           // simultanément puisse aussi marquer le point avant la fin.
+          // Ensuite vérifier si c'est encore à égalité → prolonger si oui.
           if (!match._tiebreakerEndScheduled) {
             match._tiebreakerEndScheduled = true;
             if (match._pairClaimLock) match._pairClaimLock.cardGenScheduled = true;
@@ -2474,8 +2528,61 @@ class CrazyArenaManager {
               pairsToFind: match.tiebreakerPairsToFind,
               delayMs: ARENA_TIE_WINDOW_MS + 100
             });
-            setTimeout(() => {
-              this.endGame(matchId);
+            setTimeout(async () => {
+              // Vérifier si les scores tiebreaker sont encore à égalité
+              const tbScores = match.players
+                .filter(p => p.tiebreakerScore !== undefined)
+                .map(p => p.tiebreakerScore || 0);
+              const maxTbScore = Math.max(...tbScores);
+              const playersAtMax = tbScores.filter(s => s === maxTbScore).length;
+
+              if (playersAtMax > 1 && maxTbScore > 0) {
+                // ⚡ Encore égalité ! Prolonger avec une carte supplémentaire
+                logger.info('[CrazyArena][Arena] ⚡ Tiebreaker encore à égalité — prolongation !', {
+                  matchId,
+                  tbScores: match.players.map(p => ({ name: p.name, tbScore: p.tiebreakerScore })),
+                  newPairsToFind: match.tiebreakerPairsToFind + 1
+                });
+                match.tiebreakerPairsToFind += 1;
+                match._tiebreakerEndScheduled = false;
+                match._pairClaimLock = null;
+
+                // Notifier les joueurs de la prolongation
+                this.io.to(matchId).emit('arena:tiebreaker-extended', {
+                  reason: 'equality',
+                  newPairsToFind: match.tiebreakerPairsToFind,
+                  pairsFound: match.tiebreakerPairsFound,
+                  scores: match.players.map(p => ({ studentId: p.studentId, name: p.name, tbScore: p.tiebreakerScore }))
+                });
+
+                // Générer et envoyer une nouvelle carte
+                try {
+                  const newZones = await this.generateZones(match.config, matchId);
+                  match.zones = newZones;
+                  
+                  const payload = {
+                    zones: newZones,
+                    roundIndex: match.tiebreakerPairsFound,
+                    totalRounds: match.tiebreakerPairsToFind,
+                    timestamp: Date.now()
+                  };
+                  
+                  try { validateZonesServer(newZones, { source: 'arena:tiebreaker-extension', matchId: matchId.slice(-8) }); } catch (e) { logger.warn('[CrazyArena] Zone validation error (tiebreaker ext):', e.message); }
+                  this.io.to(matchId).emit('arena:round-new', payload);
+                  
+                  logger.info('[CrazyArena][Arena] Carte prolongation tiebreaker envoyée', {
+                    matchId,
+                    zonesCount: newZones?.length || 0,
+                    newPairsToFind: match.tiebreakerPairsToFind
+                  });
+                } catch (err) {
+                  logger.error('[CrazyArena][Arena] Erreur génération carte prolongation', { matchId, error: err.message });
+                  this.endGame(matchId);
+                }
+              } else {
+                // Un joueur est en avance → terminer normalement
+                this.endGame(matchId);
+              }
             }, ARENA_TIE_WINDOW_MS + 100);
           }
           return;
