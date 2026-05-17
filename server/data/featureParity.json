@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-05-17",
+  "lastUpdated": "2026-05-17T21:00",
   "description": "Registre de parité des fonctionnalités entre les modes de jeu. Statuts: ok = implémenté, missing = absent, partial = partiel, na = non applicable.",
   "modes": {
     "training": "Entraînement (Salle privée prof)",
@@ -13,11 +13,11 @@
           "id": "tie_window",
           "name": "Fenêtre d'égalité (200ms)",
           "description": "Si 2 joueurs cliquent la même paire à moins de 200ms d'écart, les 2 marquent le point",
-          "training": "missing",
+          "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js → pairValidated()"],
+          "files": ["server/crazyArenaManager.js → pairValidated() + trainingPairValidated()"],
           "priority": "high",
-          "note": "Training n'a pas de _pairClaimLock, le premier clic reçu gagne toujours"
+          "note": "Corrigé: _pairClaimLock ajouté à Training (commit parité)"
         },
         {
           "id": "tiebreaker",
@@ -77,11 +77,11 @@
           "id": "anti_double_claim",
           "name": "Anti-doublon (verrou claim)",
           "description": "Empêche qu'un même joueur marque deux fois la même paire",
-          "training": "missing",
+          "training": "ok",
           "arena": "ok",
           "files": ["server/crazyArenaManager.js → _pairClaimLock"],
           "priority": "high",
-          "note": "Training n'a aucun mécanisme de verrou, double claim théoriquement possible"
+          "note": "Corrigé: _pairClaimLock ajouté à Training (commit parité)"
         },
         {
           "id": "score_persistence",
@@ -129,10 +129,10 @@
           "name": "Score par élève dans la carte du groupe",
           "description": "Affichage du score du dernier match à côté du nom de chaque élève",
           "training": "ok",
-          "arena": "missing",
-          "files": ["src/components/Teacher/TrainingArenaSetup.js → groupLastResults", "src/components/Tournament/CrazyArenaSetup.js"],
+          "arena": "ok",
+          "files": ["src/components/Teacher/TrainingArenaSetup.js", "src/components/Tournament/CrazyArenaSetup.js"],
           "priority": "high",
-          "note": "Arena n'a pas de state groupLastResults, pas de score affiché"
+          "note": "Corrigé: groupLastResults ajouté à Arena + backend étendu pour match_results (commit parité)"
         },
         {
           "id": "group_card_perf_stats",
@@ -141,8 +141,8 @@
           "training": "ok",
           "arena": "missing",
           "files": ["src/components/Teacher/TrainingArenaSetup.js → perfMap"],
-          "priority": "medium",
-          "note": "Arena n'affiche pas les statistiques de performance des élèves"
+          "priority": "low",
+          "note": "Arena n'affiche pas encore les stats perf (nécessite calcul côté backend pour Arena)"
         },
         {
           "id": "group_card_winner",
@@ -181,40 +181,40 @@
           "name": "Onglet Cartes jouées",
           "description": "Visualisation de chaque carte jouée avec les 16 zones, la bonne paire, le gagnant et le temps",
           "training": "ok",
-          "arena": "missing",
-          "files": ["GroupMatchHistory.js → tab cartes", "Shared/CardViewer.js → RoundCard"],
+          "arena": "ok",
+          "files": ["GroupMatchHistory.js → tab cartes"],
           "priority": "high",
-          "note": "Arena utilise MatchResults.js qui n'a pas d'onglets ni de cartes jouées"
+          "note": "Corrigé: Arena navigue maintenant vers GroupMatchHistory (commit parité)"
         },
         {
           "id": "results_student_summary",
           "name": "Onglet Bilan élèves",
           "description": "Bilan pédagogique par élève: stats par thème, recommandations, notes du professeur",
           "training": "ok",
-          "arena": "missing",
-          "files": ["GroupMatchHistory.js → tab bilan", "Shared/CardViewer.js → PlayerSummaryCard"],
+          "arena": "ok",
+          "files": ["GroupMatchHistory.js → tab bilan"],
           "priority": "high",
-          "note": "Arena n'a pas de bilan pédagogique"
+          "note": "Corrigé: Arena navigue maintenant vers GroupMatchHistory (commit parité)"
         },
         {
           "id": "results_csv_export",
           "name": "Export CSV",
           "description": "Téléchargement des résultats en fichier CSV",
           "training": "ok",
-          "arena": "missing",
-          "files": ["GroupMatchHistory.js → handleExport", "server/routes/matchRounds.js"],
+          "arena": "ok",
+          "files": ["GroupMatchHistory.js → handleExport"],
           "priority": "medium",
-          "note": "Arena n'a pas de bouton export CSV"
+          "note": "Corrigé: Arena navigue maintenant vers GroupMatchHistory (commit parité)"
         },
         {
           "id": "results_multi_match_history",
           "name": "Historique multi-matchs",
           "description": "Voir tous les matchs joués par un groupe (pas seulement le dernier)",
           "training": "ok",
-          "arena": "missing",
-          "files": ["GroupMatchHistory.js", "MatchResults.js"],
+          "arena": "ok",
+          "files": ["GroupMatchHistory.js"],
           "priority": "medium",
-          "note": "Arena navigue vers MatchResults (1 seul match), Training vers GroupMatchHistory (tous les matchs)"
+          "note": "Corrigé: Arena navigue maintenant vers GroupMatchHistory + endpoint fusionne training_results et match_results (commit parité)"
         }
       ]
     },

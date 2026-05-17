@@ -58,6 +58,7 @@ export default function CrazyArenaSetup() {
   const [groupConfigs, setGroupConfigs] = useState({}); // groupId → config snapshot
   const [tourStatus, setTourStatus] = useState(null); // { tours, currentTour, classWinner }
   const [creatingNextTour, setCreatingNextTour] = useState(false);
+  const [groupLastResults, setGroupLastResults] = useState({}); // groupId → [{studentId, score, position}]
   // Live match data from Socket.IO (inline cockpit)
   const [matchesLive, setMatchesLive] = useState({}); // matchId → { connectedPlayers, readyPlayers, players[], status, ... }
   const socketRef = useRef(null);
@@ -159,6 +160,7 @@ export default function CrazyArenaSetup() {
             setStudents(d.students || []);
             setGroups(d.groups || []);
             if (d.tourStatus?.success) setTourStatus(d.tourStatus);
+            if (d.groupLastResults) setGroupLastResults(d.groupLastResults);
             const elapsed = Math.round(performance.now() - t0);
             console.log(`[CrazyArena] ✅ setup-data OK en ${elapsed}ms — ${d.students?.length} élèves, ${d.groups?.length} groupes`);
             try {
@@ -930,17 +932,26 @@ export default function CrazyArenaSetup() {
                 <div style={{ marginBottom: 12 }}>
                   <strong>Élèves:</strong>
                   <ul style={{ margin: '4px 0', paddingLeft: 20 }}>
-                    {groupStudents.map(s => (
-                      <li key={s.id}>
-                        {s.full_name || s.first_name}
-                        {s.access_code && (
-                          <code style={{ fontSize: 11, fontWeight: 700, color: '#0D6A7A', background: '#f0f9ff', padding: '1px 6px', borderRadius: 4, letterSpacing: 1, fontFamily: 'monospace', marginLeft: 6, cursor: 'pointer' }}
-                            onClick={() => navigator.clipboard?.writeText(s.access_code)}
-                            title="Cliquer pour copier"
-                          >{s.access_code}</code>
-                        )}
-                      </li>
-                    ))}
+                    {groupStudents.map(s => {
+                      const matchResult = (groupLastResults[group.id] || []).find(r => r.studentId === s.id);
+                      return (
+                        <li key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span>{s.full_name || s.first_name}</span>
+                          {s.access_code && (
+                            <code style={{ fontSize: 11, fontWeight: 700, color: '#0D6A7A', background: '#f0f9ff', padding: '1px 6px', borderRadius: 4, letterSpacing: 1, fontFamily: 'monospace', cursor: 'pointer' }}
+                              onClick={() => navigator.clipboard?.writeText(s.access_code)}
+                              title="Cliquer pour copier"
+                            >{s.access_code}</code>
+                          )}
+                          {matchResult && (
+                            <span style={{ fontSize: 11, fontWeight: 700, color: matchResult.position === 1 ? '#f59e0b' : '#1AACBE', background: matchResult.position === 1 ? '#fef3c7' : '#f0fafb', padding: '1px 6px', borderRadius: 4, marginLeft: 'auto' }}
+                              title="Score du dernier match">
+                              {matchResult.score} pts
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
                 
@@ -1033,7 +1044,7 @@ export default function CrazyArenaSetup() {
                               style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #F5A623, #e6951a)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
                               🔄 Relancer
                             </button>
-                            <button onClick={() => navigate(`/tournament/match/${group.match_id}/results`)}
+                            <button onClick={() => navigate(`/tournament/group/${group.id}/history`)}
                               style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #6b7280', background: '#fff', color: '#111', cursor: 'pointer' }}>
                               📊 Résultats
                             </button>
