@@ -31,7 +31,28 @@ export default function GrandeSalle() {
   const [upcomingTournaments, setUpcomingTournaments] = useState([]);
   const [lobbyCountdown, setLobbyCountdown] = useState(null);
   const [eliminatedData, setEliminatedData] = useState(null);
+  const [newRecord, setNewRecord] = useState(null);
   const roundTimerRef = useRef(null);
+
+  const checkGSRecord = useCallback((finishData, socketId) => {
+    try {
+      const sid = localStorage.getItem('cc_user_id');
+      if (!sid) return;
+      const me = (finishData.fullRanking || []).find(p => p.id === socketId);
+      if (!me || !me.score) return;
+      const key = `cc_gs_best_${sid}`;
+      const prev = JSON.parse(localStorage.getItem(key) || 'null') || { bestScore: 0, bestPosition: 999 };
+      const updated = {
+        bestScore: Math.max(prev.bestScore || 0, me.score),
+        bestPosition: Math.min(prev.bestPosition || 999, me.finalRank || 999),
+      };
+      const isNew = updated.bestScore > (prev.bestScore || 0) || updated.bestPosition < (prev.bestPosition || 999);
+      if (isNew) {
+        localStorage.setItem(key, JSON.stringify(updated));
+        setNewRecord({ score: me.score, position: me.finalRank, prevBestScore: prev.bestScore || 0 });
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => { if (isFree()) navigate('/pricing', { replace: true }); }, [navigate]);
 
@@ -45,6 +66,8 @@ export default function GrandeSalle() {
         setFinish(data);
         setStatus('finished');
         if (data.leaderboard) setLeaderboard(data.leaderboard);
+        const gsSocketId = localStorage.getItem('cc_gs_my_socket_id');
+        if (gsSocketId) checkGSRecord(data, gsSocketId);
       }
     } catch {}
     // Check if returning from /carte after elimination
@@ -58,7 +81,7 @@ export default function GrandeSalle() {
         setStatus('elimination');
       }
     } catch {}
-  }, []);
+  }, [checkGSRecord]);
 
   // Fetch upcoming tournaments for lobby display
   useEffect(() => {
@@ -136,10 +159,10 @@ export default function GrandeSalle() {
       navigate('/carte?gs=' + encodeURIComponent(salleId));
     });
     // If finish arrives while still on this page (e.g. returned from /carte)
-    socket.on('gs:finish', (d) => { setFinish(d); setStatus('finished'); });
+    socket.on('gs:finish', (d) => { setFinish(d); setStatus('finished'); checkGSRecord(d, socket.id); });
 
     return () => { socket.emit('gs:leave'); socket.disconnect(); if(roundTimerRef.current)clearInterval(roundTimerRef.current); };
-  }, [getPlayerName, navigate, tournamentId]);
+  }, [getPlayerName, navigate, tournamentId, checkGSRecord]);
 
   const handleZoneClick = useCallback((zoneId) => {
     if (isSpectator || status !== 'playing') return;
@@ -316,7 +339,8 @@ export default function GrandeSalle() {
     <div style={PAGE}><div style={{ maxWidth: 600, margin: '0 auto', textAlign: 'center' }}>
       <div style={{ fontSize: 64, marginBottom: 16 }}>🏆</div>
       <h1 style={{ fontSize: 32, fontWeight: 900, margin: 0, background: 'linear-gradient(135deg, #F5A623, #ff6b35)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Fin de la Course !</h1>
-      <div style={{ fontSize: 16, color: '#94a3b8', marginTop: 8, marginBottom: 30 }}>{finish.totalPlayers} joueurs — {finish.roundsPlayed} manches — {finish.eliminationWaves} vagues</div>
+      <div style={{ fontSize: 16, color: '#94a3b8', marginTop: 8, marginBottom: newRecord ? 12 : 30 }}>{finish.totalPlayers} joueurs — {finish.roundsPlayed} manches — {finish.eliminationWaves} vagues</div>
+      {newRecord && <div style={{ background: 'linear-gradient(135deg, rgba(245,166,35,0.2), rgba(255,107,53,0.2))', border: '1px solid rgba(245,166,35,0.4)', borderRadius: 12, padding: '12px 20px', marginBottom: 20, animation: 'pulse 1.5s infinite' }}><span style={{ fontSize: 22 }}>🎉</span> <strong style={{ color: '#F5A623' }}>Nouveau record personnel !</strong> <span style={{ color: '#e2e8f0' }}>{newRecord.score} pts</span>{newRecord.prevBestScore > 0 && <span style={{ color: '#94a3b8', fontSize: 13 }}> (ancien : {newRecord.prevBestScore})</span>}</div>}
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 16, marginBottom: 30 }}>
         {(finish.podium||[]).slice(0, 3).map((p, i) => {
           const h = [160, 120, 100], em = ['🥇', '🥈', '🥉'], co = ['#F5A623', '#94a3b8', '#cd7f32'];

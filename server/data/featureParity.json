@@ -310,12 +310,12 @@
           "description": "Mémorisation du meilleur score et meilleur rythme de paires/minute",
           "solo": "ok",
           "salle_privee": "ok",
-          "grande_salle": "missing",
+          "grande_salle": "ok",
           "training": "na",
           "arena": "na",
-          "files": ["src/components/Carte.js → cc_solo_best localStorage"],
+          "files": ["src/components/Carte.js → cc_solo_best localStorage", "src/components/GrandeSalle/GrandeSalle.js → cc_gs_best localStorage"],
           "priority": "low",
-          "note": "Training/Arena: na (géré par le prof, pas de notion de record perso). Grande Salle: devrait être ajouté puisque l'overlay de fin existe déjà."
+          "note": "Training/Arena: na (géré par le prof, pas de notion de record perso). Grande Salle: record personnel (best score + meilleure position) avec bandeau 'Nouveau record' sur l'écran de fin."
         }
       ]
     },

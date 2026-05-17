@@ -2186,6 +2186,7 @@ const Carte = () => {
         else joinPayload.salleId = gsSalleId;
         s.emit('gs:join', joinPayload, (res) => {
           console.log('[CC][GS] gs:join response', res);
+          try { localStorage.setItem('cc_gs_my_socket_id', s.id); } catch {}
           // Fallback: load zones from localStorage if server reconnection is slow
           if (res?.ok) {
             setTimeout(() => {
