@@ -14,6 +14,7 @@ import { animateBubblesFromZones } from '../Carte';
 import { logRound } from '../../utils/roundLogger';
 import { getPlayerColorComboByIndex } from '../../utils/playerColors';
 import { getInitials } from '../../utils/pairDisplay';
+import { telemetry } from '../../utils/clientTelemetry';
 
 // ✅ COPIE EXACTE Arena (Carte.js ligne 541-583): Fonctions helper SVG
 function interpolateArc(points, idxStart, idxEnd, marginPx) {
@@ -412,11 +413,13 @@ export default function TrainingArenaGame() {
     socket.on('training:scores-update', ({ scores }) => {
       console.log('[TrainingArena] 📊 Scores mis à jour:', scores);
       setPlayers(scores);
-      // 📊 MONITORING: Stocker dans cc_game_trace pour le rapport monitoring
+      // 📊 MONITORING: Stocker dans cc_game_trace + telemetry serveur
       try {
         const trace = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
-        trace.push({ t: Date.now(), ev: 'training:scores-update', phase: 'TRAINING', scores: (scores || []).map(p => ({ n: p.name, s: p.score })) });
+        const scoresData = (scores || []).map(p => ({ n: p.name, s: p.score }));
+        trace.push({ t: Date.now(), ev: 'training:scores-update', phase: 'TRAINING', scores: scoresData });
         localStorage.setItem('cc_game_trace', JSON.stringify(trace.slice(-100)));
+        telemetry('training:scores-update', { phase: 'TRAINING', scores: scoresData });
       } catch {}
     });
     

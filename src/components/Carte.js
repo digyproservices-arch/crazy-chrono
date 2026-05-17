@@ -1927,11 +1927,13 @@ const Carte = () => {
         console.log('[ARENA] 📊 Scores mis à jour:', scores);
         if (Array.isArray(scores)) {
           setArenaPlayers(scores);
-          // 📊 MONITORING: Stocker dans cc_game_trace pour le rapport monitoring
+          // 📊 MONITORING: Stocker dans cc_game_trace + telemetry serveur
           try {
             const trace = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
-            trace.push({ t: Date.now(), ev: 'arena:scores-update', phase: 'ARENA', scores: scores.map(p => ({ n: p.name, s: p.score })) });
+            const scoresData = scores.map(p => ({ n: p.name, s: p.score }));
+            trace.push({ t: Date.now(), ev: 'arena:scores-update', phase: 'ARENA', scores: scoresData });
             localStorage.setItem('cc_game_trace', JSON.stringify(trace.slice(-100)));
+            telemetry('arena:scores-update', { phase: 'ARENA', scores: scoresData, matchId: arenaMatchId });
           } catch {}
         }
       });
@@ -1947,11 +1949,12 @@ const Carte = () => {
 
         console.log('[ARENA] 🎯 Paire validée par', isLocal ? 'MOI' : playerName, ':', pairId);
 
-        // 📊 MONITORING: Stocker dans cc_game_trace
+        // 📊 MONITORING: Stocker dans cc_game_trace + telemetry serveur
         try {
           const trace = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
           trace.push({ t: Date.now(), ev: 'arena:pair-validated', phase: 'ARENA', playerName, pairId, isLocal });
           localStorage.setItem('cc_game_trace', JSON.stringify(trace.slice(-100)));
+          telemetry('arena:pair-validated', { phase: 'ARENA', playerName, pairId, isLocal, matchId: arenaMatchId });
         } catch {}
 
         const currentZones = zonesRef.current || [];
