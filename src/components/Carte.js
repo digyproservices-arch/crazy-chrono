@@ -2051,6 +2051,24 @@ const Carte = () => {
         setTimeout(() => setGameMsg(''), 1200);
       });
       
+      // ⏸️ PAUSE: Un joueur s'est déconnecté pendant la partie
+      s.on('arena:match-paused', ({ disconnectedPlayer, gracePeriodMs }) => {
+        console.log('[ARENA] ⏸️ Match en PAUSE —', disconnectedPlayer, 'déconnecté');
+        setArenaPauseInfo({ paused: true, disconnectedPlayer, gracePeriodMs: gracePeriodMs || 15000 });
+      });
+
+      // ▶️ REPRISE: Le joueur déconnecté s'est reconnecté
+      s.on('arena:match-resumed', ({ reconnectedPlayer }) => {
+        console.log('[ARENA] ▶️ Match REPRIS —', reconnectedPlayer, 'reconnecté');
+        setArenaPauseInfo(null);
+      });
+
+      // 🏳️ FORFAIT: Un joueur n'a pas pu se reconnecter à temps
+      s.on('arena:player-forfeit', ({ forfeitStudentId, remainingPlayers }) => {
+        console.log('[ARENA] 🏳️ Forfait de', forfeitStudentId, '— joueurs restants:', remainingPlayers);
+        setArenaPauseInfo(null);
+      });
+
       s.on('disconnect', () => {
         console.log('[ARENA] Socket déconnecté');
         setSocketConnected(false);
