@@ -4,25 +4,42 @@ Ce fichier sert à garder une trace des échanges importants avec Cascade, synch
 
 ---
 
-## Session du : YYYY-MM-DD
+## Session du : 2026-05-17 — Parité des fonctionnalités (5 modes)
 
 ### Contexte
-- Résumé rapide de ce que tu faisais.
+- Audit complet des 5 modes de jeu (Solo, Salle Privée, Grande Salle, Training, Arena) pour identifier et corriger les disparités.
+
+### Tâches terminées ✅
+- [x] Arena: navigation Résultats → GroupMatchHistory + endpoint
+- [x] Arena: scores élèves dans la carte du groupe
+- [x] Training: fenêtre d'égalité 200ms + anti-doublon (_pairClaimLock)
+- [x] featureParity.json étendu aux 5 modes
+- [x] Suppression bonus rapidité caché (Training + Arena)
+- [x] Grande Salle: persistance résultats en DB (training_sessions + training_results)
+- [x] Grande Salle: suivi tentatives (persistMPAttempt) + mastery
+- [x] Grande Salle: sessions visibles dans StudentPerformance (mode 'grande-salle' détecté)
+- [x] Grande Salle: record personnel (best score + meilleure position)
 
 ### Décisions prises
-- Décision 1
-- Décision 2
+- Le bonus rapidité caché (+1 si <3s) a été **supprimé** de tous les modes (confusion scores)
+- Les items jugés **non pertinents** ont été marqués na/ignorés :
+  - Fenêtre d'égalité GS (chaque joueur joue seul)
+  - Pause/reprise en Salle Privée (sessions trop courtes)
+  - Score temps réel en DB (fin de session suffit)
+  - Bilan auto par joueur en Solo/SP/GS (pas de supervision prof)
 
-### Détails / Explications importantes
-- Copie ici les réponses clés de Cascade (explications, morceaux de code importants, stratégies, etc.).
+### Disparités restantes (faible priorité)
+- [ ] Stats perf dans carte groupe (Arena) — cosmétique
+- [ ] Historique détaillé manches (Solo + GS) — complexe, valeur limitée
+- [ ] Récupération matchs après crash serveur (SP + GS) — sessions courtes
 
-### Actions à faire plus tard (TODO)
-- [ ] Tâche 1
-- [ ] Tâche 2
+### Commits associés
+- `1fdfce3` — persistance résultats GS en DB
+- `69c87ce` — suivi tentatives + détection mode grande-salle
+- `082eb48` — record personnel Grande Salle
 
-### Liens / Références
-- Commit(s) associé(s) : `hash` ou message de commit
-- Fichiers impactés : `src/...`
+### Fichier de référence
+- `server/data/featureParity.json` — registre complet avec statut ok/missing/na par mode
 
 ---
 
