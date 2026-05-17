@@ -1,110 +1,161 @@
 {
-  "lastUpdated": "2026-05-17T21:00",
-  "description": "Registre de parité des fonctionnalités entre les modes de jeu. Statuts: ok = implémenté, missing = absent, partial = partiel, na = non applicable.",
+  "lastUpdated": "2026-05-17T21:30",
+  "description": "Registre de parité des fonctionnalités entre TOUS les modes de jeu. Statuts: ok = implémenté, missing = absent, partial = partiel, na = non applicable (par nature du mode).",
   "modes": {
-    "training": "Entraînement (Salle privée prof)",
-    "arena": "Crazy Arena (Tournoi)"
+    "solo": "Mode Solo (1 joueur, Carte.js → server.js solo room)",
+    "salle_privee": "Salle Privée (multijoueur avec code, Carte.js → server.js room)",
+    "grande_salle": "Grande Salle (course éliminatoire publique, GrandeSalle.js → server.js gs:)",
+    "training": "Entraînement Prof (groupes gérés par le prof, TrainingArenaGame.js → crazyArenaManager.js)",
+    "arena": "Crazy Arena Tournoi (groupes tournoi, CrazyArenaGame.js → crazyArenaManager.js)"
   },
   "categories": [
     {
-      "name": "Gameplay Backend",
+      "name": "Gameplay Backend — Équité multi-joueurs",
       "features": [
         {
           "id": "tie_window",
           "name": "Fenêtre d'égalité (200ms)",
           "description": "Si 2 joueurs cliquent la même paire à moins de 200ms d'écart, les 2 marquent le point",
+          "solo": "na",
+          "salle_privee": "ok",
+          "grande_salle": "missing",
           "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js → pairValidated() + trainingPairValidated()"],
+          "files": ["server/server.js → pendingClaims + TIE_WINDOW_MS", "server/crazyArenaManager.js → _pairClaimLock + ARENA_TIE_WINDOW_MS"],
+          "priority": "medium",
+          "note": "Solo: na (1 joueur). Grande Salle: chaque joueur joue sa propre carte indépendamment, donc moins critique — mais pourrait être pertinent si le gameplay évoluait vers carte partagée."
+        },
+        {
+          "id": "anti_double_claim",
+          "name": "Anti-doublon (verrou claim)",
+          "description": "Empêche qu'un même joueur marque deux fois la même paire sur un même clic",
+          "solo": "ok",
+          "salle_privee": "ok",
+          "grande_salle": "ok",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["server/server.js → foundPairs Set + pendingClaims", "server/crazyArenaManager.js → _pairClaimLock", "src/components/Carte.js → processingPairRef"],
           "priority": "high",
-          "note": "Corrigé: _pairClaimLock ajouté à Training (commit parité)"
+          "note": "Solo: géré côté client via processingPairRef (verrou 800ms). Salle Privée: foundPairs Set. Grande Salle: foundPairs Set. Training/Arena: _pairClaimLock."
         },
         {
           "id": "tiebreaker",
           "name": "Départage (tiebreaker)",
-          "description": "Mode départage quand égalité en fin de match",
+          "description": "Mode départage quand égalité en fin de match — cartes supplémentaires pour départager",
+          "solo": "na",
+          "salle_privee": "ok",
+          "grande_salle": "na",
           "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js"],
-          "priority": "high"
+          "files": ["server/server.js → session:tiebreaker", "server/crazyArenaManager.js → startTiebreaker()"],
+          "priority": "high",
+          "note": "Solo: na (pas de compétition). Grande Salle: na (utilise l'élimination par vagues — mécanique différente par nature)."
         },
         {
           "id": "tiebreaker_extension",
-          "name": "Prolongation tiebreaker si égalité",
+          "name": "Prolongation tiebreaker si encore égalité",
           "description": "Ajout de cartes supplémentaires si le tiebreaker finit en égalité",
+          "solo": "na",
+          "salle_privee": "ok",
+          "grande_salle": "na",
           "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js"],
+          "files": ["server/crazyArenaManager.js → tiebreakerPairsToFind++", "server/server.js → tiebreaker logic"],
           "priority": "high"
         },
         {
           "id": "tiebreaker_tie_window",
           "name": "Fenêtre d'égalité sur dernière paire tiebreaker",
           "description": "Attendre 200ms avant de terminer le tiebreaker pour laisser le 2e joueur marquer",
+          "solo": "na",
+          "salle_privee": "ok",
+          "grande_salle": "na",
           "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js"],
+          "files": ["server/crazyArenaManager.js → _tiebreakerEndScheduled"],
           "priority": "high"
         },
+        {
+          "id": "fast_bonus",
+          "name": "Bonus rapidité (<3s → +1 point)",
+          "description": "Point bonus si une paire est trouvée en moins de 3 secondes",
+          "solo": "na",
+          "salle_privee": "missing",
+          "grande_salle": "missing",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["server/crazyArenaManager.js → timeMs < 3000"],
+          "priority": "low",
+          "note": "Solo: na (pas de compétition, pas de sens d'ajouter un bonus). Salle Privée et Grande Salle: le bonus existe dans Training/Arena mais pas dans server.js — pourrait être ajouté mais faible impact car la mécanique de score est déjà différente (1 point par paire, pas de 'timeMs' transmis au serveur)."
+        }
+      ]
+    },
+    {
+      "name": "Gameplay Backend — Robustesse réseau",
+      "features": [
         {
           "id": "pause_disconnect",
           "name": "Pause/reprise sur déconnexion",
           "description": "Match mis en pause quand un joueur se déconnecte, reprise automatique à la reconnexion",
+          "solo": "na",
+          "salle_privee": "partial",
+          "grande_salle": "na",
           "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js → pauseMatch(), resumeMatch()"],
-          "priority": "high"
+          "files": ["server/crazyArenaManager.js → pauseMatch(), resumeMatch()", "server/server.js → disconnect handler"],
+          "priority": "high",
+          "note": "Solo: na (jeu local, pas de pause réseau). Salle Privée: partial — le joueur déconnecté est gardé pour reconnexion (30s) mais le match ne se met pas en pause pour les autres. Grande Salle: na (élimination — un joueur qui déconnecte perd naturellement par inactivité)."
         },
         {
           "id": "forfeit_timeout",
           "name": "Forfait automatique (60s déconnexion)",
-          "description": "Si un joueur reste déconnecté plus de 60s, il perd par forfait",
+          "description": "Si un joueur reste déconnecté plus de 60s, il perd par forfait et le match reprend",
+          "solo": "na",
+          "salle_privee": "partial",
+          "grande_salle": "na",
           "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js"],
-          "priority": "medium"
+          "files": ["server/crazyArenaManager.js → FORFEIT_TIMEOUT_MS"],
+          "priority": "medium",
+          "note": "Solo: na. Salle Privée: partial — le joueur est supprimé après 30s mais pas de mécanisme de forfait formel avec reprise. Grande Salle: na (mécanique d'élimination gère déjà les absents)."
         },
         {
-          "id": "fast_bonus",
-          "name": "Bonus rapidité (<3s)",
-          "description": "Point bonus si une paire est trouvée en moins de 3 secondes",
+          "id": "db_match_recovery",
+          "name": "Récupération de match depuis la DB",
+          "description": "Si le serveur redémarre, les matchs en cours peuvent être récupérés depuis Supabase",
+          "solo": "na",
+          "salle_privee": "missing",
+          "grande_salle": "missing",
           "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js"],
-          "priority": "medium"
-        },
-        {
-          "id": "anti_double_claim",
-          "name": "Anti-doublon (verrou claim)",
-          "description": "Empêche qu'un même joueur marque deux fois la même paire",
-          "training": "ok",
-          "arena": "ok",
-          "files": ["server/crazyArenaManager.js → _pairClaimLock"],
-          "priority": "high",
-          "note": "Corrigé: _pairClaimLock ajouté à Training (commit parité)"
-        },
-        {
-          "id": "score_persistence",
-          "name": "Persistance score en DB",
-          "description": "Scores sauvegardés en base de données pendant le match",
-          "training": "ok",
-          "arena": "ok",
-          "files": ["server/crazyArenaManager.js → persistScoreUpdate()"],
-          "priority": "high"
-        },
+          "files": ["server/crazyArenaManager.js → loadMatchFromDatabase()"],
+          "priority": "medium",
+          "note": "Solo: na (session locale courte). Salle Privée et Grande Salle: pas de persistance de l'état du match en DB — un redémarrage serveur perd les matchs en cours."
+        }
+      ]
+    },
+    {
+      "name": "Gameplay Backend — Génération de cartes",
+      "features": [
         {
           "id": "zone_validation",
-          "name": "Validation zones serveur",
-          "description": "Vérification côté serveur que les zones générées sont valides",
+          "name": "Validation zones serveur (double paire / fausse paire)",
+          "description": "Vérification côté serveur que les zones générées sont valides après chaque génération",
+          "solo": "ok",
+          "salle_privee": "ok",
+          "grande_salle": "ok",
           "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js → validateZonesServer()"],
+          "files": ["server/utils/serverZoneGenerator.js → validateZonesServer()"],
           "priority": "medium"
         },
         {
           "id": "cc_pair_verify",
           "name": "Vérification post-placement calcul-chiffre",
-          "description": "Correction automatique si le chiffre ne correspond pas au résultat du calcul",
+          "description": "Correction automatique si le chiffre placé ne correspond pas au résultat du calcul sur la carte",
+          "solo": "ok",
+          "salle_privee": "ok",
+          "grande_salle": "ok",
           "training": "ok",
           "arena": "ok",
           "files": ["server/utils/serverZoneGenerator.js", "src/utils/elementsLoader.js"],
@@ -112,109 +163,72 @@
         },
         {
           "id": "pair_fifo_exclusion",
-          "name": "Exclusion FIFO des paires récentes",
-          "description": "Les 15 dernières paires validées sont exclues de la génération suivante",
+          "name": "Exclusion FIFO des 15 paires récentes",
+          "description": "Les 15 dernières paires validées sont exclues de la prochaine carte générée pour éviter la répétition",
+          "solo": "ok",
+          "salle_privee": "ok",
+          "grande_salle": "ok",
           "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js → validatedPairIds"],
+          "files": ["server/server.js → validatedPairIds", "server/crazyArenaManager.js → validatedPairIds"],
           "priority": "medium"
         }
       ]
     },
     {
-      "name": "Dashboard Professeur — Carte du groupe",
+      "name": "Persistance et suivi — Résultats en DB",
       "features": [
         {
-          "id": "group_card_scores",
-          "name": "Score par élève dans la carte du groupe",
-          "description": "Affichage du score du dernier match à côté du nom de chaque élève",
+          "id": "session_results_db",
+          "name": "Enregistrement résultats de session en DB",
+          "description": "Score final, position, paires validées, erreurs sauvegardés dans training_sessions + training_results (ou match_results pour Arena)",
+          "solo": "ok",
+          "salle_privee": "ok",
+          "grande_salle": "missing",
           "training": "ok",
           "arena": "ok",
-          "files": ["src/components/Teacher/TrainingArenaSetup.js", "src/components/Tournament/CrazyArenaSetup.js"],
+          "files": ["src/components/Carte.js → POST /api/training/sessions", "server/server.js → endSession() → training_sessions", "server/crazyArenaManager.js → persistMatchEnd()"],
           "priority": "high",
-          "note": "Corrigé: groupLastResults ajouté à Arena + backend étendu pour match_results (commit parité)"
+          "note": "Grande Salle: les résultats du tournoi sont sauvegardés dans la table tournaments (winner, results JSON) mais PAS dans training_results/match_results — les élèves ne voient pas leurs stats Grande Salle dans leur profil."
         },
         {
-          "id": "group_card_perf_stats",
-          "name": "Stats performance (niveau, moyenne, précision)",
-          "description": "Affichage du niveau, score moyen et précision de chaque élève dans la carte du groupe",
+          "id": "live_score_persistence",
+          "name": "Persistance score en temps réel (pendant le match)",
+          "description": "Scores mis à jour en DB à chaque paire validée (pas seulement en fin de match)",
+          "solo": "na",
+          "salle_privee": "missing",
+          "grande_salle": "missing",
           "training": "ok",
-          "arena": "missing",
-          "files": ["src/components/Teacher/TrainingArenaSetup.js → perfMap"],
+          "arena": "ok",
+          "files": ["server/crazyArenaManager.js → persistScoreUpdate()"],
           "priority": "low",
-          "note": "Arena n'affiche pas encore les stats perf (nécessite calcul côté backend pour Arena)"
+          "note": "Solo: na (pas de match serveur persistant). Salle Privée et Grande Salle: les scores ne sont sauvegardés qu'en fin de session — si crash, les scores intermédiaires sont perdus. Faible priorité car les sessions sont courtes (1-3 min)."
         },
         {
-          "id": "group_card_winner",
-          "name": "Gagnant affiché dans la carte du groupe",
-          "description": "Nom du gagnant affiché dans un bandeau jaune",
+          "id": "progress_attempts_tracking",
+          "name": "Suivi des tentatives par paire (table attempts)",
+          "description": "Chaque tentative (correcte/incorrecte) est enregistrée avec item, thème, latence pour le suivi de progression",
+          "solo": "ok",
+          "salle_privee": "ok",
+          "grande_salle": "missing",
           "training": "ok",
           "arena": "ok",
-          "files": ["TrainingArenaSetup.js", "CrazyArenaSetup.js"],
-          "priority": "medium"
-        }
-      ]
-    },
-    {
-      "name": "Résultats de match — Vue professeur",
-      "features": [
-        {
-          "id": "results_podium",
-          "name": "Podium (top 3)",
-          "description": "Affichage visuel du podium avec médailles",
-          "training": "ok",
-          "arena": "ok",
-          "files": ["src/components/Tournament/GroupMatchHistory.js", "src/components/Tournament/MatchResults.js"],
-          "priority": "medium"
-        },
-        {
-          "id": "results_table",
-          "name": "Tableau classement (score, paires, erreurs)",
-          "description": "Tableau détaillé des résultats de chaque joueur",
-          "training": "ok",
-          "arena": "ok",
-          "files": ["GroupMatchHistory.js → tab classement", "MatchResults.js"],
-          "priority": "medium"
-        },
-        {
-          "id": "results_cards_played",
-          "name": "Onglet Cartes jouées",
-          "description": "Visualisation de chaque carte jouée avec les 16 zones, la bonne paire, le gagnant et le temps",
-          "training": "ok",
-          "arena": "ok",
-          "files": ["GroupMatchHistory.js → tab cartes"],
-          "priority": "high",
-          "note": "Corrigé: Arena navigue maintenant vers GroupMatchHistory (commit parité)"
-        },
-        {
-          "id": "results_student_summary",
-          "name": "Onglet Bilan élèves",
-          "description": "Bilan pédagogique par élève: stats par thème, recommandations, notes du professeur",
-          "training": "ok",
-          "arena": "ok",
-          "files": ["GroupMatchHistory.js → tab bilan"],
-          "priority": "high",
-          "note": "Corrigé: Arena navigue maintenant vers GroupMatchHistory (commit parité)"
-        },
-        {
-          "id": "results_csv_export",
-          "name": "Export CSV",
-          "description": "Téléchargement des résultats en fichier CSV",
-          "training": "ok",
-          "arena": "ok",
-          "files": ["GroupMatchHistory.js → handleExport"],
+          "files": ["src/utils/progress.js → recordAttempt()", "server/server.js → persistMPAttempt()", "server/crazyArenaManager.js → persistAttempt()"],
           "priority": "medium",
-          "note": "Corrigé: Arena navigue maintenant vers GroupMatchHistory (commit parité)"
+          "note": "Grande Salle: aucun enregistrement dans la table attempts — les paires trouvées en Grande Salle ne contribuent pas à la progression de maîtrise de l'élève."
         },
         {
-          "id": "results_multi_match_history",
-          "name": "Historique multi-matchs",
-          "description": "Voir tous les matchs joués par un groupe (pas seulement le dernier)",
+          "id": "mastery_tracking",
+          "name": "Suivi de maîtrise par thème (masteryTracker)",
+          "description": "Progression Bronze/Argent/Or par thème basée sur les paires trouvées et le temps de réponse",
+          "solo": "ok",
+          "salle_privee": "ok",
+          "grande_salle": "missing",
           "training": "ok",
           "arena": "ok",
-          "files": ["GroupMatchHistory.js"],
+          "files": ["src/utils/masteryTracker.js", "server/crazyArenaManager.js → persistAttempt()"],
           "priority": "medium",
-          "note": "Corrigé: Arena navigue maintenant vers GroupMatchHistory + endpoint fusionne training_results et match_results (commit parité)"
+          "note": "Solo et Salle Privée: suivi côté client (masteryTracker.js). Training et Arena: suivi côté serveur (persistAttempt). Grande Salle: aucun suivi — à ajouter si on veut que la Grande Salle contribue à la progression."
         }
       ]
     },
@@ -225,20 +239,168 @@
           "id": "round_history_tracking",
           "name": "Enregistrement historique des manches (match_rounds)",
           "description": "Chaque manche est enregistrée en DB avec les 16 zones, la bonne paire, le gagnant, les erreurs",
+          "solo": "missing",
+          "salle_privee": "partial",
+          "grande_salle": "missing",
           "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js → _roundHistory", "server/db/migration_match_rounds.sql"],
-          "priority": "high"
+          "files": ["server/crazyArenaManager.js → _roundHistory → match_rounds", "server/server.js → room.roundHistory"],
+          "priority": "medium",
+          "note": "Solo: les manches ne sont pas tracées en DB (le mode est local-first). Salle Privée: roundHistory est maintenu en mémoire (server.js) et persisté en DB via endSession, mais la structure est simplifiée vs Training/Arena. Grande Salle: pas de roundHistory."
         },
         {
           "id": "player_summary_tracking",
           "name": "Bilan automatique par joueur (match_player_summary)",
-          "description": "Stats par thème/type, temps de réponse moyen, recommandations automatiques",
+          "description": "Stats par thème/type, temps de réponse moyen, recommandations automatiques, notes du professeur",
+          "solo": "missing",
+          "salle_privee": "missing",
+          "grande_salle": "missing",
           "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js → endGame/endTrainingGame"],
+          "files": ["server/crazyArenaManager.js → endGame/endTrainingGame → match_player_summary"],
+          "priority": "medium",
+          "note": "Ce bilan détaillé n'a de sens que dans un contexte pédagogique encadré (prof qui supervise). Solo: le joueur voit ses stats via StudentPerformance. Salle Privée: serait utile mais nécessite que le prof ait accès aux données (pas le cas aujourd'hui). Grande Salle: pas pertinent (événement public, pas pédagogique)."
+        }
+      ]
+    },
+    {
+      "name": "Interface — Résultats et historique",
+      "features": [
+        {
+          "id": "end_game_overlay",
+          "name": "Écran de fin de partie (overlay résultats)",
+          "description": "Affichage des résultats à la fin de chaque session avec score, paires, durée",
+          "solo": "ok",
+          "salle_privee": "ok",
+          "grande_salle": "ok",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["src/components/Carte.js → soloGameEndOverlay, arenaGameEndOverlay", "src/components/GrandeSalle/GrandeSalle.js → gs:finish"],
+          "priority": "high"
+        },
+        {
+          "id": "results_match_history_ui",
+          "name": "Historique multi-matchs (vue prof)",
+          "description": "Page dédiée pour voir tous les matchs d'un groupe avec onglets (classement, cartes jouées, bilan, export CSV)",
+          "solo": "na",
+          "salle_privee": "na",
+          "grande_salle": "na",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["src/components/Tournament/GroupMatchHistory.js"],
           "priority": "high",
-          "note": "Les données sont sauvegardées mais Arena n'affiche pas le bilan côté frontend"
+          "note": "Solo/Salle Privée/Grande Salle: na — ces modes n'ont pas de notion de 'groupe' géré par un prof. L'historique individuel de l'élève est accessible via StudentPerformance."
+        },
+        {
+          "id": "student_performance_page",
+          "name": "Page Performances Élève (historique personnel)",
+          "description": "L'élève peut voir son historique de sessions, sa progression, ses meilleurs scores",
+          "solo": "ok",
+          "salle_privee": "ok",
+          "grande_salle": "missing",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["src/components/Student/StudentPerformance.js"],
+          "priority": "medium",
+          "note": "Grande Salle: les résultats ne sont pas dans training_results → les sessions Grande Salle n'apparaissent pas dans StudentPerformance."
+        },
+        {
+          "id": "personal_best",
+          "name": "Record personnel (best score / best PPM)",
+          "description": "Mémorisation du meilleur score et meilleur rythme de paires/minute",
+          "solo": "ok",
+          "salle_privee": "ok",
+          "grande_salle": "missing",
+          "training": "na",
+          "arena": "na",
+          "files": ["src/components/Carte.js → cc_solo_best localStorage"],
+          "priority": "low",
+          "note": "Training/Arena: na (géré par le prof, pas de notion de record perso). Grande Salle: devrait être ajouté puisque l'overlay de fin existe déjà."
+        }
+      ]
+    },
+    {
+      "name": "Dashboard Professeur — Carte du groupe",
+      "features": [
+        {
+          "id": "group_card_scores",
+          "name": "Score par élève dans la carte du groupe",
+          "description": "Affichage du score du dernier match à côté du nom de chaque élève",
+          "solo": "na",
+          "salle_privee": "na",
+          "grande_salle": "na",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["src/components/Teacher/TrainingArenaSetup.js → groupLastResults", "src/components/Tournament/CrazyArenaSetup.js → groupLastResults"],
+          "priority": "high",
+          "note": "Solo/Salle Privée/Grande Salle: na (pas de groupes gérés par le prof)."
+        },
+        {
+          "id": "group_card_perf_stats",
+          "name": "Stats performance (niveau, moyenne, précision) dans carte groupe",
+          "description": "Affichage du niveau, score moyen et précision de chaque élève dans la carte du groupe",
+          "solo": "na",
+          "salle_privee": "na",
+          "grande_salle": "na",
+          "training": "ok",
+          "arena": "missing",
+          "files": ["src/components/Teacher/TrainingArenaSetup.js → perfMap"],
+          "priority": "low",
+          "note": "Arena: nécessite un calcul dédié côté backend pour les matchs Arena."
+        },
+        {
+          "id": "group_card_winner",
+          "name": "Gagnant affiché dans la carte du groupe",
+          "description": "Nom du gagnant affiché dans un bandeau jaune dans la carte du groupe",
+          "solo": "na",
+          "salle_privee": "na",
+          "grande_salle": "na",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["TrainingArenaSetup.js", "CrazyArenaSetup.js"],
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "name": "Spécifique Grande Salle",
+      "features": [
+        {
+          "id": "elimination_waves",
+          "name": "Élimination par vagues",
+          "description": "Après chaque round, un % des joueurs les plus faibles sont éliminés (adaptatif selon le nombre de joueurs)",
+          "solo": "na",
+          "salle_privee": "na",
+          "grande_salle": "ok",
+          "training": "na",
+          "arena": "na",
+          "files": ["server/server.js → gsEliminationWave()"],
+          "priority": "high",
+          "note": "Mécanisme unique à la Grande Salle — remplace le départage."
+        },
+        {
+          "id": "spectator_mode",
+          "name": "Mode spectateur (joueurs éliminés)",
+          "description": "Les joueurs éliminés peuvent rester et regarder les autres jouer",
+          "solo": "na",
+          "salle_privee": "na",
+          "grande_salle": "ok",
+          "training": "na",
+          "arena": "na",
+          "files": ["server/server.js → salle.spectators"],
+          "priority": "medium"
+        },
+        {
+          "id": "auto_start",
+          "name": "Démarrage automatique quand assez de joueurs",
+          "description": "La salle démarre automatiquement quand le nombre minimum de joueurs est atteint",
+          "solo": "na",
+          "salle_privee": "na",
+          "grande_salle": "ok",
+          "training": "na",
+          "arena": "na",
+          "files": ["server/server.js → autoStartTimer"],
+          "priority": "medium"
         }
       ]
     }
