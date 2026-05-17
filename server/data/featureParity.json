@@ -1,0 +1,246 @@
+{
+  "lastUpdated": "2026-05-17",
+  "description": "Registre de parité des fonctionnalités entre les modes de jeu. Statuts: ok = implémenté, missing = absent, partial = partiel, na = non applicable.",
+  "modes": {
+    "training": "Entraînement (Salle privée prof)",
+    "arena": "Crazy Arena (Tournoi)"
+  },
+  "categories": [
+    {
+      "name": "Gameplay Backend",
+      "features": [
+        {
+          "id": "tie_window",
+          "name": "Fenêtre d'égalité (200ms)",
+          "description": "Si 2 joueurs cliquent la même paire à moins de 200ms d'écart, les 2 marquent le point",
+          "training": "missing",
+          "arena": "ok",
+          "files": ["server/crazyArenaManager.js → pairValidated()"],
+          "priority": "high",
+          "note": "Training n'a pas de _pairClaimLock, le premier clic reçu gagne toujours"
+        },
+        {
+          "id": "tiebreaker",
+          "name": "Départage (tiebreaker)",
+          "description": "Mode départage quand égalité en fin de match",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["server/crazyArenaManager.js"],
+          "priority": "high"
+        },
+        {
+          "id": "tiebreaker_extension",
+          "name": "Prolongation tiebreaker si égalité",
+          "description": "Ajout de cartes supplémentaires si le tiebreaker finit en égalité",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["server/crazyArenaManager.js"],
+          "priority": "high"
+        },
+        {
+          "id": "tiebreaker_tie_window",
+          "name": "Fenêtre d'égalité sur dernière paire tiebreaker",
+          "description": "Attendre 200ms avant de terminer le tiebreaker pour laisser le 2e joueur marquer",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["server/crazyArenaManager.js"],
+          "priority": "high"
+        },
+        {
+          "id": "pause_disconnect",
+          "name": "Pause/reprise sur déconnexion",
+          "description": "Match mis en pause quand un joueur se déconnecte, reprise automatique à la reconnexion",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["server/crazyArenaManager.js → pauseMatch(), resumeMatch()"],
+          "priority": "high"
+        },
+        {
+          "id": "forfeit_timeout",
+          "name": "Forfait automatique (60s déconnexion)",
+          "description": "Si un joueur reste déconnecté plus de 60s, il perd par forfait",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["server/crazyArenaManager.js"],
+          "priority": "medium"
+        },
+        {
+          "id": "fast_bonus",
+          "name": "Bonus rapidité (<3s)",
+          "description": "Point bonus si une paire est trouvée en moins de 3 secondes",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["server/crazyArenaManager.js"],
+          "priority": "medium"
+        },
+        {
+          "id": "anti_double_claim",
+          "name": "Anti-doublon (verrou claim)",
+          "description": "Empêche qu'un même joueur marque deux fois la même paire",
+          "training": "missing",
+          "arena": "ok",
+          "files": ["server/crazyArenaManager.js → _pairClaimLock"],
+          "priority": "high",
+          "note": "Training n'a aucun mécanisme de verrou, double claim théoriquement possible"
+        },
+        {
+          "id": "score_persistence",
+          "name": "Persistance score en DB",
+          "description": "Scores sauvegardés en base de données pendant le match",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["server/crazyArenaManager.js → persistScoreUpdate()"],
+          "priority": "high"
+        },
+        {
+          "id": "zone_validation",
+          "name": "Validation zones serveur",
+          "description": "Vérification côté serveur que les zones générées sont valides",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["server/crazyArenaManager.js → validateZonesServer()"],
+          "priority": "medium"
+        },
+        {
+          "id": "cc_pair_verify",
+          "name": "Vérification post-placement calcul-chiffre",
+          "description": "Correction automatique si le chiffre ne correspond pas au résultat du calcul",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["server/utils/serverZoneGenerator.js", "src/utils/elementsLoader.js"],
+          "priority": "high"
+        },
+        {
+          "id": "pair_fifo_exclusion",
+          "name": "Exclusion FIFO des paires récentes",
+          "description": "Les 15 dernières paires validées sont exclues de la génération suivante",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["server/crazyArenaManager.js → validatedPairIds"],
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "name": "Dashboard Professeur — Carte du groupe",
+      "features": [
+        {
+          "id": "group_card_scores",
+          "name": "Score par élève dans la carte du groupe",
+          "description": "Affichage du score du dernier match à côté du nom de chaque élève",
+          "training": "ok",
+          "arena": "missing",
+          "files": ["src/components/Teacher/TrainingArenaSetup.js → groupLastResults", "src/components/Tournament/CrazyArenaSetup.js"],
+          "priority": "high",
+          "note": "Arena n'a pas de state groupLastResults, pas de score affiché"
+        },
+        {
+          "id": "group_card_perf_stats",
+          "name": "Stats performance (niveau, moyenne, précision)",
+          "description": "Affichage du niveau, score moyen et précision de chaque élève dans la carte du groupe",
+          "training": "ok",
+          "arena": "missing",
+          "files": ["src/components/Teacher/TrainingArenaSetup.js → perfMap"],
+          "priority": "medium",
+          "note": "Arena n'affiche pas les statistiques de performance des élèves"
+        },
+        {
+          "id": "group_card_winner",
+          "name": "Gagnant affiché dans la carte du groupe",
+          "description": "Nom du gagnant affiché dans un bandeau jaune",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["TrainingArenaSetup.js", "CrazyArenaSetup.js"],
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "name": "Résultats de match — Vue professeur",
+      "features": [
+        {
+          "id": "results_podium",
+          "name": "Podium (top 3)",
+          "description": "Affichage visuel du podium avec médailles",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["src/components/Tournament/GroupMatchHistory.js", "src/components/Tournament/MatchResults.js"],
+          "priority": "medium"
+        },
+        {
+          "id": "results_table",
+          "name": "Tableau classement (score, paires, erreurs)",
+          "description": "Tableau détaillé des résultats de chaque joueur",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["GroupMatchHistory.js → tab classement", "MatchResults.js"],
+          "priority": "medium"
+        },
+        {
+          "id": "results_cards_played",
+          "name": "Onglet Cartes jouées",
+          "description": "Visualisation de chaque carte jouée avec les 16 zones, la bonne paire, le gagnant et le temps",
+          "training": "ok",
+          "arena": "missing",
+          "files": ["GroupMatchHistory.js → tab cartes", "Shared/CardViewer.js → RoundCard"],
+          "priority": "high",
+          "note": "Arena utilise MatchResults.js qui n'a pas d'onglets ni de cartes jouées"
+        },
+        {
+          "id": "results_student_summary",
+          "name": "Onglet Bilan élèves",
+          "description": "Bilan pédagogique par élève: stats par thème, recommandations, notes du professeur",
+          "training": "ok",
+          "arena": "missing",
+          "files": ["GroupMatchHistory.js → tab bilan", "Shared/CardViewer.js → PlayerSummaryCard"],
+          "priority": "high",
+          "note": "Arena n'a pas de bilan pédagogique"
+        },
+        {
+          "id": "results_csv_export",
+          "name": "Export CSV",
+          "description": "Téléchargement des résultats en fichier CSV",
+          "training": "ok",
+          "arena": "missing",
+          "files": ["GroupMatchHistory.js → handleExport", "server/routes/matchRounds.js"],
+          "priority": "medium",
+          "note": "Arena n'a pas de bouton export CSV"
+        },
+        {
+          "id": "results_multi_match_history",
+          "name": "Historique multi-matchs",
+          "description": "Voir tous les matchs joués par un groupe (pas seulement le dernier)",
+          "training": "ok",
+          "arena": "missing",
+          "files": ["GroupMatchHistory.js", "MatchResults.js"],
+          "priority": "medium",
+          "note": "Arena navigue vers MatchResults (1 seul match), Training vers GroupMatchHistory (tous les matchs)"
+        }
+      ]
+    },
+    {
+      "name": "Diagnostic pédagogique Backend",
+      "features": [
+        {
+          "id": "round_history_tracking",
+          "name": "Enregistrement historique des manches (match_rounds)",
+          "description": "Chaque manche est enregistrée en DB avec les 16 zones, la bonne paire, le gagnant, les erreurs",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["server/crazyArenaManager.js → _roundHistory", "server/db/migration_match_rounds.sql"],
+          "priority": "high"
+        },
+        {
+          "id": "player_summary_tracking",
+          "name": "Bilan automatique par joueur (match_player_summary)",
+          "description": "Stats par thème/type, temps de réponse moyen, recommandations automatiques",
+          "training": "ok",
+          "arena": "ok",
+          "files": ["server/crazyArenaManager.js → endGame/endTrainingGame"],
+          "priority": "high",
+          "note": "Les données sont sauvegardées mais Arena n'affiche pas le bilan côté frontend"
+        }
+      ]
+    }
+  ]
+}

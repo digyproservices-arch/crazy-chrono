@@ -1662,6 +1662,95 @@ router.post('/test-alert', requireAdminAuth, async (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════════════
+// GET /api/monitoring/feature-parity
+// Retourne le registre de parité des fonctionnalités entre modes de jeu
+// ══════════════════════════════════════════════════════════════════════
+router.get('/feature-parity', requireAdminAuth, (req, res) => {
+  try {
+    const registryPath = path.join(__dirname, '..', 'data', 'featureParity.json');
+    if (!fs.existsSync(registryPath)) {
+      return res.json({ ok: false, error: 'featureParity.json introuvable' });
+    }
+    const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+    const modes = Object.keys(registry.modes);
+    
+    // Calculer les stats
+    let totalFeatures = 0;
+    let missingByMode = {};
+    let disparities = [];
+    modes.forEach(m => { missingByMode[m] = []; });
+
+    for (const cat of registry.categories) {
+      for (const f of cat.features) {
+        totalFeatures++;
+        const statuses = modes.map(m => f[m]);
+        const hasDisparity = new Set(statuses.filter(s => s !== 'na')).size > 1;
+        
+        if (hasDisparity) {
+          const missingModes = modes.filter(m => f[m] === 'missing');
+          const partialModes = modes.filter(m => f[m] === 'partial');
+          disparities.push({
+            id: f.id,
+            name: f.name,
+            category: cat.name,
+            priority: f.priority || 'medium',
+            missingIn: missingModes.map(m => registry.modes[m]),
+            partialIn: partialModes.map(m => registry.modes[m]),
+            note: f.note || null,
+            files: f.files || []
+          });
+          missingModes.forEach(m => missingByMode[m].push(f.name));
+        }
+      }
+    }
+
+    // Trier par priorité
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    disparities.sort((a, b) => (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1));
+
+    // Générer le rapport texte
+    let textReport = '═══ RAPPORT PARITÉ DES FONCTIONNALITÉS ═══\n';
+    textReport += `Dernière mise à jour: ${registry.lastUpdated}\n`;
+    textReport += `Total fonctionnalités: ${totalFeatures}\n`;
+    textReport += `Disparités détectées: ${disparities.length}\n\n`;
+
+    for (const mode of modes) {
+      const count = missingByMode[mode].length;
+      textReport += `${registry.modes[mode]}: ${count} fonctionnalité(s) manquante(s)\n`;
+    }
+
+    if (disparities.length > 0) {
+      textReport += '\n── DISPARITÉS ──\n';
+      for (const d of disparities) {
+        const prio = d.priority === 'high' ? '🔴' : d.priority === 'medium' ? '🟡' : '🟢';
+        textReport += `\n${prio} [${d.priority.toUpperCase()}] ${d.name}\n`;
+        textReport += `   Catégorie: ${d.category}\n`;
+        if (d.missingIn.length > 0) textReport += `   ❌ Absent dans: ${d.missingIn.join(', ')}\n`;
+        if (d.partialIn.length > 0) textReport += `   ⚠️ Partiel dans: ${d.partialIn.join(', ')}\n`;
+        if (d.note) textReport += `   💬 ${d.note}\n`;
+        if (d.files.length > 0) textReport += `   📁 ${d.files.join(', ')}\n`;
+      }
+    } else {
+      textReport += '\n✅ Toutes les fonctionnalités sont au même niveau entre les modes !\n';
+    }
+
+    res.json({
+      ok: true,
+      lastUpdated: registry.lastUpdated,
+      totalFeatures,
+      disparityCount: disparities.length,
+      missingByMode,
+      disparities,
+      registry,
+      textReport
+    });
+  } catch (error) {
+    logger.error('[Monitoring] Erreur feature-parity:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 // Exposer la Map onlinePlayers pour le monitoringService
 router._onlinePlayers = onlinePlayers;
 

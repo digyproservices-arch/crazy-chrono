@@ -90,6 +90,9 @@ function MonitoringDashboard() {
   // ── Client Telemetry (erreurs JS, réseau, navigation, sockets) ──
   const [clientTelemetryEvents, setClientTelemetryEvents] = useState([]);
 
+  // ── Feature Parity (parité des fonctionnalités entre modes) ──
+  const [featureParity, setFeatureParity] = useState(null);
+
   const copyToClipboard = async (text, source) => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -560,12 +563,27 @@ const clearIncidents = async () => {
     }
   }, []);
 
+  const fetchFeatureParity = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${backendUrl}/api/monitoring/feature-parity`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) setFeatureParity(data);
+      }
+    } catch (err) {
+      console.warn('[Monitoring] Feature parity fetch error:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas();
-    fetchArenaStats(); fetchServerClicks(); fetchSupabaseDiag(); fetchGameTraces(); fetchServerTraces(); fetchClientTelemetry();
+    fetchArenaStats(); fetchServerClicks(); fetchSupabaseDiag(); fetchGameTraces(); fetchServerTraces(); fetchClientTelemetry(); fetchFeatureParity();
     setLoading(false);
     setLastRefresh(new Date());
-  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats, fetchServerClicks, fetchSupabaseDiag, fetchGameTraces, fetchServerTraces, fetchClientTelemetry]);
+  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats, fetchServerClicks, fetchSupabaseDiag, fetchGameTraces, fetchServerTraces, fetchClientTelemetry, fetchFeatureParity]);
 
   useEffect(() => {
     if (activeTab === 'incidents' || activeTab === 'report') {
@@ -573,6 +591,7 @@ const clearIncidents = async () => {
     }
     if (activeTab === 'report') {
       fetchArenaStats();
+      fetchFeatureParity();
     }
     if (activeTab === 'players') {
       fetchOnlinePlayers();
@@ -1093,6 +1112,15 @@ const clearIncidents = async () => {
                 } catch (e) {
                   sections.push(`--- TRACE PAIRES CLIENT ---`);
                   sections.push(`Erreur lecture cc_game_trace: ${e.message || e}`);
+                }
+                sections.push('');
+
+                // Parité des fonctionnalités entre modes
+                if (featureParity && featureParity.textReport) {
+                  sections.push(featureParity.textReport);
+                } else {
+                  sections.push(`═══ RAPPORT PARITÉ DES FONCTIONNALITÉS ═══`);
+                  sections.push(`Données non chargées (endpoint /api/monitoring/feature-parity).`);
                 }
                 sections.push('');
 
