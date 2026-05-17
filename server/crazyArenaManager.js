@@ -1360,12 +1360,19 @@ class CrazyArenaManager {
         }
         
         if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
-          logger.info('[CrazyArena][Training] Tiebreaker terminé - toutes paires trouvées', { 
-            matchId, 
-            pairsFound: match.tiebreakerPairsFound,
-            pairsToFind: match.tiebreakerPairsToFind
-          });
-          this.endTrainingGame(matchId);
+          // ✅ FIX ÉGALITÉ TIEBREAKER: Attendre la fenêtre d'égalité avant de terminer
+          if (!match._tiebreakerEndScheduled) {
+            match._tiebreakerEndScheduled = true;
+            logger.info('[CrazyArena][Training] Tiebreaker dernière paire trouvée — attente fenêtre égalité', { 
+              matchId, 
+              pairsFound: match.tiebreakerPairsFound,
+              pairsToFind: match.tiebreakerPairsToFind,
+              delayMs: ARENA_TIE_WINDOW_MS + 100
+            });
+            setTimeout(() => {
+              this.endTrainingGame(matchId);
+            }, ARENA_TIE_WINDOW_MS + 100);
+          }
           return;
         }
         
@@ -2455,13 +2462,22 @@ class CrazyArenaManager {
         }
         
         if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
-          logger.info('[CrazyArena][Arena] Tiebreaker terminé - toutes paires trouvées', { 
-            matchId, 
-            pairsFound: match.tiebreakerPairsFound,
-            pairsToFind: match.tiebreakerPairsToFind
-          });
-          
-          this.endGame(matchId);
+          // ✅ FIX ÉGALITÉ TIEBREAKER: Ne pas terminer immédiatement !
+          // Attendre la fenêtre d'égalité pour que le 2e joueur qui clique
+          // simultanément puisse aussi marquer le point avant la fin.
+          if (!match._tiebreakerEndScheduled) {
+            match._tiebreakerEndScheduled = true;
+            if (match._pairClaimLock) match._pairClaimLock.cardGenScheduled = true;
+            logger.info('[CrazyArena][Arena] Tiebreaker dernière paire trouvée — attente fenêtre égalité', { 
+              matchId, 
+              pairsFound: match.tiebreakerPairsFound,
+              pairsToFind: match.tiebreakerPairsToFind,
+              delayMs: ARENA_TIE_WINDOW_MS + 100
+            });
+            setTimeout(() => {
+              this.endGame(matchId);
+            }, ARENA_TIE_WINDOW_MS + 100);
+          }
           return;
         }
         
