@@ -981,7 +981,6 @@ class CrazyArenaManager {
     });
 
     // ✅ CRITIQUE: Vérifier égalité au premier rang (COMME ARENA)
-    // ✅ FIX: Comparer pairsValidated + errors (le score inclut des bonus rapidité invisibles)
     const topPlayer = ranking[0];
     const tiedPlayers = ranking.filter(p => 
       p.pairsValidated === topPlayer.pairsValidated && p.errors === topPlayer.errors
@@ -1289,8 +1288,7 @@ class CrazyArenaManager {
       pairId, 
       zoneA: zoneAId, 
       zoneB: zoneBId,
-      status: match.status,
-      fastBonus: timeMs < 3000
+      status: match.status
     });
 
     // Mettre à jour le score
@@ -1320,11 +1318,6 @@ class CrazyArenaManager {
         const oldScore = player.tiebreakerScore || 0;
         player.tiebreakerScore = oldScore + 1;
         player.tiebreakerPairs = (player.tiebreakerPairs || 0) + 1;
-        
-        if (timeMs < 3000) {
-          player.tiebreakerScore += 1;
-          logger.info('[CrazyArena][Training] Bonus rapidité tiebreaker', { matchId, studentId, timeMs, bonusPoints: 1 });
-        }
         
         // Incrémenter pairsFound uniquement pour le premier réclamant
         const isFirstClaimTB = match._pairClaimLock && !match._pairClaimLock.cardGenScheduled;
@@ -1512,11 +1505,6 @@ class CrazyArenaManager {
         const oldScore = player.score || 0;
         player.score = oldScore + 1;
         player.pairsValidated = (player.pairsValidated || 0) + 1;
-        
-        if (timeMs < 3000) {
-          player.score += 1;
-          logger.info('[CrazyArena][Training] Bonus rapidité (mode normal)', { matchId, studentId, timeMs, bonusPoints: 1 });
-        }
         
         logger.info('[CrazyArena][Training] Score mis à jour (mode normal)', { 
           matchId, 
@@ -2451,8 +2439,7 @@ class CrazyArenaManager {
       pairId, 
       zoneA: zoneAId, 
       zoneB: zoneBId,
-      status: match.status,
-      fastBonus: timeMs < 3000
+      status: match.status
     });
 
     // ✅ ANTI-DOUBLON: Fenêtre d'égalité 200ms pour empêcher le double score Arena
@@ -2502,11 +2489,6 @@ class CrazyArenaManager {
         const oldScore = player.tiebreakerScore || 0;
         player.tiebreakerScore = oldScore + 1;
         player.tiebreakerPairs = (player.tiebreakerPairs || 0) + 1;
-        
-        if (timeMs < 3000) {
-          player.tiebreakerScore += 1;
-          logger.info('[CrazyArena][Arena] Bonus rapidité tiebreaker', { matchId, studentId, timeMs, bonusPoints: 1 });
-        }
         
         // Incrémenter pairsFound uniquement pour le premier réclamant (pas les égalités)
         const isFirstClaimTB = match._pairClaimLock && !match._pairClaimLock.cardGenScheduled;
@@ -2705,11 +2687,6 @@ class CrazyArenaManager {
         const oldScore = player.score || 0;
         player.score = oldScore + 1;
         player.pairsValidated = (player.pairsValidated || 0) + 1;
-        
-        if (timeMs < 3000) {
-          player.score += 1;
-          logger.info('[CrazyArena][Arena] Bonus rapidité (mode normal)', { matchId, studentId, timeMs, bonusPoints: 1 });
-        }
         
         logger.info('[CrazyArena][Arena] Score mis à jour (mode normal)', { 
           matchId, 
@@ -2982,7 +2959,6 @@ class CrazyArenaManager {
     });
 
     // Vérifier s'il y a égalité au premier rang
-    // ✅ FIX: Comparer pairsValidated + errors (le score inclut des bonus rapidité invisibles)
     const topPlayer = ranking[0];
     const tiedPlayers = ranking.filter(p => 
       p.pairsValidated === topPlayer.pairsValidated && p.errors === topPlayer.errors

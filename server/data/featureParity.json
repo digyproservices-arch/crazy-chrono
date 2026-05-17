@@ -78,15 +78,15 @@
         {
           "id": "fast_bonus",
           "name": "Bonus rapidité (<3s → +1 point)",
-          "description": "Point bonus si une paire est trouvée en moins de 3 secondes",
+          "description": "Point bonus si une paire est trouvée en moins de 3 secondes — SUPPRIMÉ",
           "solo": "na",
-          "salle_privee": "missing",
-          "grande_salle": "missing",
-          "training": "ok",
-          "arena": "ok",
-          "files": ["server/crazyArenaManager.js → timeMs < 3000"],
-          "priority": "low",
-          "note": "Solo: na (pas de compétition, pas de sens d'ajouter un bonus). Salle Privée et Grande Salle: le bonus existe dans Training/Arena mais pas dans server.js — pourrait être ajouté mais faible impact car la mécanique de score est déjà différente (1 point par paire, pas de 'timeMs' transmis au serveur)."
+          "salle_privee": "na",
+          "grande_salle": "na",
+          "training": "na",
+          "arena": "na",
+          "files": [],
+          "priority": "na",
+          "note": "SUPPRIMÉ (décision produit) : le bonus était caché/invisible pour les joueurs, créait de la confusion (score ≠ paires trouvées) et faussait la détection d'égalité. Retiré de Training et Arena."
         }
       ]
     },
