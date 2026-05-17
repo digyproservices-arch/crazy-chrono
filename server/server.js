@@ -2258,7 +2258,8 @@ function gsCheckAutoStart(salleId) {
           s.startedAt = Date.now();
           s.status = 'countdown';
           for (const [, p] of s.players.entries()) { p.score = 0; p.errors = 0; p.rank = 0; p.eliminated = false; }
-          s.roundsPlayed = 0; s.eliminationWave = 0; s.validatedPairIds = new Set();
+          s.roundsPlayed = 0; s.eliminationWave = 0; s.validatedPairIds = new Set(); s.roundHistory = [];
+          persistSessionStart(s, 'grande-salle', salleId);
           gsEmitState(salleId);
           let t = 5;
           io.to(`gs:${salleId}`).emit('gs:countdown', { t });
@@ -2562,31 +2563,59 @@ async function gsFinish(salleId) {
       if (identifiedPlayers.length > 0) {
         const { v4: uuidv4 } = require('uuid');
         const timeMs = salle.startedAt ? (Date.now() - salle.startedAt) : ((salle.config.duration || 90) * salle.roundsPlayed * 1000);
-        const sessionPayload = {
-          match_id: uuidv4(),
-          class_id: 'grande-salle',
-          teacher_id: null,
-          session_name: salle.tournamentTitle ? `Grande Salle - ${salle.tournamentTitle}` : `Grande Salle - ${salleId}`,
-          config: {
-            mode: 'grande-salle',
-            duration: salle.config.duration || 90,
-            rounds: salle.roundsPlayed,
-            eliminationWaves: salle.eliminationWave,
-            totalPlayers: allPlayers.length,
-            themes: salle.config.themes || [],
-            classes: salle.config.classes || [],
-            selectedLevel: salle.config.selectedLevel || null,
-            salleId
-          },
-          completed_at: new Date().toISOString(),
-          created_at: new Date().toISOString()
-        };
-        const { data: session, error: sessErr } = await supabaseAdmin
-          .from('training_sessions').insert(sessionPayload).select('id').single();
-        if (sessErr) {
-          console.error(`[GS] Persistance erreur (session_insert):`, sessErr.message);
+        let sessionId = salle._sessionId || null;
+
+        // Si la session a été créée au démarrage (persistSessionStart), la finaliser
+        if (sessionId) {
+          const { error: updErr } = await supabaseAdmin
+            .from('training_sessions')
+            .update({
+              completed_at: new Date().toISOString(),
+              config: {
+                mode: 'grande-salle',
+                duration: salle.config.duration || 90,
+                rounds: salle.roundsPlayed,
+                eliminationWaves: salle.eliminationWave,
+                totalPlayers: allPlayers.length,
+                themes: salle.config.themes || [],
+                classes: salle.config.classes || [],
+                selectedLevel: salle.config.selectedLevel || null,
+                salleId
+              }
+            })
+            .eq('id', sessionId);
+          if (updErr) console.error(`[GS] persistSessionEnd update error:`, updErr.message);
         } else {
-          const sessionId = session.id;
+          // Fallback: créer la session maintenant
+          const sessionPayload = {
+            match_id: uuidv4(),
+            class_id: 'grande-salle',
+            teacher_id: null,
+            session_name: salle.tournamentTitle ? `Grande Salle - ${salle.tournamentTitle}` : `Grande Salle - ${salleId}`,
+            config: {
+              mode: 'grande-salle',
+              duration: salle.config.duration || 90,
+              rounds: salle.roundsPlayed,
+              eliminationWaves: salle.eliminationWave,
+              totalPlayers: allPlayers.length,
+              themes: salle.config.themes || [],
+              classes: salle.config.classes || [],
+              selectedLevel: salle.config.selectedLevel || null,
+              salleId
+            },
+            completed_at: new Date().toISOString(),
+            created_at: new Date().toISOString()
+          };
+          const { data: session, error: sessErr } = await supabaseAdmin
+            .from('training_sessions').insert(sessionPayload).select('id').single();
+          if (sessErr) {
+            console.error(`[GS] Persistance erreur (session_insert):`, sessErr.message);
+          } else {
+            sessionId = session.id;
+          }
+        }
+
+        if (sessionId) {
           for (const p of identifiedPlayers) {
             const { error: resErr } = await supabaseAdmin.from('training_results').insert({
               session_id: sessionId,
@@ -2848,6 +2877,48 @@ function persistMPAttempt(room, socketId, { isCorrect, zoneAId, zoneBId }) {
     });
   } catch (err) {
     // best-effort, ne pas bloquer le jeu
+  }
+}
+
+// 💾 Persister la session au DÉMARRAGE (SP/GS) pour pouvoir détecter les sessions abandonnées après crash
+async function persistSessionStart(roomOrSalle, mode, roomCode) {
+  if (!supabaseAdmin) return;
+  try {
+    const { v4: uuidv4 } = require('uuid');
+    const matchId = uuidv4();
+    const players = roomOrSalle.players instanceof Map ? Array.from(roomOrSalle.players.values()) : [];
+    const playerNames = players.map(p => p.name).filter(Boolean);
+    const config = {
+      mode,
+      duration: roomOrSalle.duration || roomOrSalle.config?.duration || 60,
+      rounds: roomOrSalle.roundsPerSession || roomOrSalle.config?.rounds || 3,
+      themes: roomOrSalle.selectedThemes || roomOrSalle.config?.themes || [],
+      classes: roomOrSalle.selectedClasses || roomOrSalle.config?.classes || [],
+      playerCount: players.length,
+      playerNames,
+      roomCode
+    };
+    const sessionPayload = {
+      match_id: matchId,
+      class_id: mode === 'grande-salle' ? 'grande-salle' : (roomOrSalle.classId || 'salle-privee'),
+      teacher_id: roomOrSalle.teacherId || null,
+      session_name: mode === 'grande-salle'
+        ? `Grande Salle - ${roomOrSalle.tournamentTitle || roomCode}`
+        : `Salle Privée - ${roomCode}`,
+      config,
+      created_at: new Date().toISOString()
+    };
+    const { data: session, error } = await supabaseAdmin
+      .from('training_sessions').insert(sessionPayload).select('id').single();
+    if (error) {
+      console.error(`[${mode}] persistSessionStart error:`, error.message);
+      return;
+    }
+    roomOrSalle._sessionId = session.id;
+    roomOrSalle._matchId = matchId;
+    console.log(`[${mode}] 💾 Session créée au démarrage: ${session.id} (${playerNames.length} joueurs)`);
+  } catch (e) {
+    console.error(`[${mode}] persistSessionStart exception:`, e.message);
   }
 }
 
@@ -3294,33 +3365,47 @@ function endSession(roomCode) {
     const identifiedPlayers = ranking.filter(p => p.studentId);
     emitPerfEvent('endSession:identified', { room: roomCode, identified: identifiedPlayers.length, total: ranking.length });
     if (identifiedPlayers.length > 0 && supabaseAdmin) {
-      // FIX: Insert directement via supabaseAdmin (l'ancien fetch HTTP échouait en 401 car pas de token auth)
       const { v4: uuidv4 } = require('uuid');
       const isSoloRoom = roomCode.startsWith('solo-');
-      const sessionPayload = {
-        match_id: uuidv4(),
-        class_id: isSoloRoom ? 'solo' : 'multiplayer',
-        teacher_id: null,
-        session_name: isSoloRoom ? 'Session Solo' : `Multijoueur - ${roomCode}`,
-        config: {
-          mode: isSoloRoom ? 'solo' : 'multiplayer',
-          duration: room.duration || 60,
-          rounds: Number.isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
-          selectedLevel: room.selectedLevel || null,
-          classes: Array.isArray(room.selectedClasses) && room.selectedClasses.length > 0 ? room.selectedClasses : null,
-          themes: Array.isArray(room.selectedThemes) && room.selectedThemes.length > 0 ? room.selectedThemes : null,
-          extras: Array.isArray(room.selectedExtras) && room.selectedExtras.length > 0 ? room.selectedExtras : null,
-          roomCode
-        },
-        completed_at: new Date().toISOString(),
-        created_at: new Date().toISOString()
-      };
-      const { data: session, error: sessErr } = await supabaseAdmin
-        .from('training_sessions').insert(sessionPayload).select('id').single();
-      if (sessErr) {
-        emitPerfEvent('save:error', { room: roomCode, step: 'session_insert', error: sessErr.message });
+      let sessionId = room._sessionId || null;
+
+      // Si la session a été créée au démarrage (persistSessionStart), on la finalise
+      if (sessionId) {
+        const { error: updErr } = await supabaseAdmin
+          .from('training_sessions')
+          .update({ completed_at: new Date().toISOString() })
+          .eq('id', sessionId);
+        if (updErr) emitPerfEvent('save:error', { room: roomCode, step: 'session_update', error: updErr.message });
       } else {
-        const sessionId = session.id;
+        // Fallback: créer la session maintenant (sessions non couvertes par persistSessionStart, ex: solo)
+        const sessionPayload = {
+          match_id: uuidv4(),
+          class_id: isSoloRoom ? 'solo' : 'multiplayer',
+          teacher_id: null,
+          session_name: isSoloRoom ? 'Session Solo' : `Multijoueur - ${roomCode}`,
+          config: {
+            mode: isSoloRoom ? 'solo' : 'multiplayer',
+            duration: room.duration || 60,
+            rounds: Number.isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
+            selectedLevel: room.selectedLevel || null,
+            classes: Array.isArray(room.selectedClasses) && room.selectedClasses.length > 0 ? room.selectedClasses : null,
+            themes: Array.isArray(room.selectedThemes) && room.selectedThemes.length > 0 ? room.selectedThemes : null,
+            extras: Array.isArray(room.selectedExtras) && room.selectedExtras.length > 0 ? room.selectedExtras : null,
+            roomCode
+          },
+          completed_at: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        };
+        const { data: session, error: sessErr } = await supabaseAdmin
+          .from('training_sessions').insert(sessionPayload).select('id').single();
+        if (sessErr) {
+          emitPerfEvent('save:error', { room: roomCode, step: 'session_insert', error: sessErr.message });
+        } else {
+          sessionId = session.id;
+        }
+      }
+
+      if (sessionId) {
         const timeMs = room.sessionStartedAt ? (Date.now() - room.sessionStartedAt) : ((room.duration || 60) * 1000);
         for (const p of identifiedPlayers) {
           const { error: resErr } = await supabaseAdmin.from('training_results').insert({
@@ -3770,6 +3855,7 @@ io.on('connection', (socket) => {
     room.status = 'countdown';
     room.roundsPlayed = 0;
     room.roundHistory = []; // Reset pour nouvelle session (diagnostic pédagogique)
+    persistSessionStart(room, 'salle-privee', currentRoom);
     emitRoomState(currentRoom);
     // Compte à rebours
     let t = 3;
@@ -3826,6 +3912,7 @@ io.on('connection', (socket) => {
       room.status = 'countdown';
       room.roundsPlayed = 0;
       room.roundHistory = []; // Reset pour nouvelle session (diagnostic pédagogique)
+      persistSessionStart(room, 'salle-privee', currentRoom);
       emitRoomState(currentRoom);
       // Countdown 3-2-1 synchronisé
       let t = 3;
@@ -3867,6 +3954,7 @@ io.on('connection', (socket) => {
     room.resolved = false;
     room.roundsPlayed = 0;
     room.roundHistory = []; // Reset pour nouvelle session (diagnostic pédagogique)
+    if (!currentRoom.startsWith('solo-')) persistSessionStart(room, 'salle-privee', currentRoom);
     // Réinitialiser les erreurs de chaque joueur pour cette nouvelle session
     for (const [id, pl] of room.players.entries()) {
       pl.score = 0;
@@ -4650,6 +4738,7 @@ io.on('connection', (socket) => {
     salle.eliminationWave = 0;
     salle.validatedPairIds = new Set();
     salle.roundHistory = [];
+    persistSessionStart(salle, 'grande-salle', id);
     
     gsEmitState(id);
     
@@ -5082,6 +5171,27 @@ server.listen(PORT, '0.0.0.0', () => {
 
   // Charger les données admin depuis Supabase (survit aux redéploiements)
   loadContentFromSupabase().catch(e => console.warn('[ContentStore] Init error:', e.message));
+
+  // 💾 Nettoyage des sessions orphelines (crash recovery): marquer les sessions SP/GS non terminées comme abandonnées
+  if (supabaseAdmin) {
+    (async () => {
+      try {
+        const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(); // sessions > 2h sans completed_at
+        const { data, error } = await supabaseAdmin
+          .from('training_sessions')
+          .update({ completed_at: new Date().toISOString() })
+          .is('completed_at', null)
+          .lt('created_at', cutoff)
+          .in('class_id', ['salle-privee', 'multiplayer', 'grande-salle'])
+          .select('id');
+        if (error) {
+          console.warn('[Boot] Orphan session cleanup error:', error.message);
+        } else if (data && data.length > 0) {
+          console.log(`[Boot] 🧹 ${data.length} sessions orphelines marquées comme terminées`);
+        }
+      } catch (e) { console.warn('[Boot] Orphan cleanup exception:', e.message); }
+    })();
+  }
   
   // Démarrer les tâches cron de monitoring
   try {

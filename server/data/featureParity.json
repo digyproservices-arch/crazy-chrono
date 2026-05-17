@@ -124,13 +124,13 @@
           "name": "Récupération de match depuis la DB",
           "description": "Si le serveur redémarre, les matchs en cours peuvent être récupérés depuis Supabase",
           "solo": "na",
-          "salle_privee": "missing",
-          "grande_salle": "missing",
+          "salle_privee": "ok",
+          "grande_salle": "ok",
           "training": "ok",
           "arena": "ok",
-          "files": ["server/crazyArenaManager.js → loadMatchFromDatabase()"],
+          "files": ["server/crazyArenaManager.js → loadMatchFromDatabase()", "server/server.js → persistSessionStart + orphan cleanup"],
           "priority": "medium",
-          "note": "Solo: na (session locale courte). Salle Privée et Grande Salle: pas de persistance de l'état du match en DB — un redémarrage serveur perd les matchs en cours."
+          "note": "Solo: na (session locale). SP/GS: session créée en DB au démarrage (persistSessionStart), finalisée avec completed_at à la fin. Au boot, les sessions orphelines (> 2h sans completed_at) sont marquées terminées."
         }
       ]
     },
