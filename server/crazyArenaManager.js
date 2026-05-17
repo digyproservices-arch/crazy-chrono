@@ -1368,7 +1368,7 @@ class CrazyArenaManager {
               matchId, 
               pairsFound: match.tiebreakerPairsFound,
               pairsToFind: match.tiebreakerPairsToFind,
-              delayMs: ARENA_TIE_WINDOW_MS + 100
+              delayMs: ARENA_TIE_WINDOW_MS
             });
             setTimeout(async () => {
               // Vérifier si les scores tiebreaker sont encore à égalité
@@ -1424,7 +1424,7 @@ class CrazyArenaManager {
                 // Un joueur est en avance → terminer normalement
                 this.endTrainingGame(matchId);
               }
-            }, ARENA_TIE_WINDOW_MS + 100);
+            }, ARENA_TIE_WINDOW_MS);
           }
           return;
         }
@@ -2526,7 +2526,7 @@ class CrazyArenaManager {
               matchId, 
               pairsFound: match.tiebreakerPairsFound,
               pairsToFind: match.tiebreakerPairsToFind,
-              delayMs: ARENA_TIE_WINDOW_MS + 100
+              delayMs: ARENA_TIE_WINDOW_MS
             });
             setTimeout(async () => {
               // Vérifier si les scores tiebreaker sont encore à égalité
@@ -2583,7 +2583,7 @@ class CrazyArenaManager {
                 // Un joueur est en avance → terminer normalement
                 this.endGame(matchId);
               }
-            }, ARENA_TIE_WINDOW_MS + 100);
+            }, ARENA_TIE_WINDOW_MS);
           }
           return;
         }
