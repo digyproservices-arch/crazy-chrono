@@ -452,6 +452,22 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       if (czId && nzId) {
         used.calcul.add(chosen.cId); used.chiffre.add(chosen.nId);
         goodPairIds = { calculId: chosen.cId, chiffreId: chosen.nId };
+        // ✅ POST-PLACEMENT VERIFY: force-correct chiffre if it doesn't match the calcul result
+        // Belt-and-suspenders fix for rare WRONG_CALC_RESULT bug (e.g. "400" instead of "3")
+        try {
+          const cZone = result.find(r => r.id === czId);
+          const nZone = result.find(r => r.id === nzId);
+          if (cZone && nZone) {
+            const cResult = _evalCalc(cZone.content);
+            const nValue = _parseNum(nZone.content);
+            if (Number.isFinite(cResult) && (_round8(cResult) !== _round8(nValue) || !Number.isFinite(nValue))) {
+              const correctStr = Number.isInteger(cResult) ? String(cResult) : String(_round8(cResult));
+              console.error('[elementsLoader] ⚠️ CC pair mismatch detected! calcul="' + cZone.content + '"=' + cResult + ' but chiffre="' + nZone.content + '" → forced to "' + correctStr + '"');
+              nZone.content = correctStr;
+              nZone.label = correctStr;
+            }
+          }
+        } catch (verifyErr) { console.warn('[elementsLoader] CC verify error:', verifyErr); }
       }
     }
   }

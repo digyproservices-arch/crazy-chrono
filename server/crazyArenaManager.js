@@ -934,10 +934,7 @@ class CrazyArenaManager {
       clearInterval(match.timerInterval);
     }
 
-    logger.info(`[CrazyArena][Training] 🏁 Match ${matchId} terminé`);
-    _logMatchEvent('MATCH_END', matchId, { mode: 'training', duration: match.endTime - match.startTime, playersCount: match.players.length, players: match.players.map(p => ({ studentId: p.studentId, name: p.name, score: p.score, pairsValidated: p.pairsValidated, errors: p.errors })) });
-
-    // ✅ FIX: Si on sort d'un tiebreaker, ADDITIONNER scores match normal + tiebreaker
+    // ✅ FIX: Si on sort d'un tiebreaker, ADDITIONNER scores match normal + tiebreaker AVANT le log
     if (match.isTiebreaker) {
       match.players.forEach(p => {
         const scoreNormal = p.scoreBeforeTiebreaker || 0;
@@ -951,6 +948,9 @@ class CrazyArenaManager {
         logger.info(`[CrazyArena][Training] 🏆 ${p.name}: Score final = ${scoreNormal} (normal) + ${scoreTiebreaker} (tiebreaker) = ${p.score} pts`);
       });
     }
+
+    logger.info(`[CrazyArena][Training] 🏁 Match ${matchId} terminé`);
+    _logMatchEvent('MATCH_END', matchId, { mode: 'training', duration: match.endTime - match.startTime, playersCount: match.players.length, players: match.players.map(p => ({ studentId: p.studentId, name: p.name, score: p.score, pairsValidated: p.pairsValidated, errors: p.errors })) });
 
     // Calculer les temps finaux
     match.players.forEach(p => {
@@ -2771,10 +2771,7 @@ class CrazyArenaManager {
       clearTimeout(match.tiebreakerTimeout);
     }
 
-    logger.info(`[CrazyArena] Partie terminée pour match ${matchId}`);
-    _logMatchEvent('MATCH_END', matchId, { mode: 'arena', duration: match.endTime - match.startTime, playersCount: match.players.length, players: match.players.map(p => ({ studentId: p.studentId, name: p.name, score: p.score, pairsValidated: p.pairsValidated, errors: p.errors })) });
-
-    // ✅ FIX: Si on sort d'un tiebreaker, ADDITIONNER scores match normal + tiebreaker
+    // ✅ FIX: Si on sort d'un tiebreaker, ADDITIONNER scores match normal + tiebreaker AVANT le log
     if (match.isTiebreaker) {
       match.players.forEach(p => {
         const scoreNormal = p.scoreBeforeTiebreaker || 0;
@@ -2788,6 +2785,9 @@ class CrazyArenaManager {
         logger.info(`[CrazyArena] 🏆 ${p.name}: Score final = ${scoreNormal} (normal) + ${scoreTiebreaker} (tiebreaker) = ${p.score} pts`);
       });
     }
+
+    logger.info(`[CrazyArena] Partie terminée pour match ${matchId}`);
+    _logMatchEvent('MATCH_END', matchId, { mode: 'arena', duration: match.endTime - match.startTime, playersCount: match.players.length, players: match.players.map(p => ({ studentId: p.studentId, name: p.name, score: p.score, pairsValidated: p.pairsValidated, errors: p.errors })) });
 
     // Calculer les temps finaux
     match.players.forEach(p => {
