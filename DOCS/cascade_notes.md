@@ -21,6 +21,9 @@ Ce fichier sert à garder une trace des échanges importants avec Cascade, synch
 - [x] Grande Salle: record personnel (best score + meilleure position)
 - [x] Salle Privée: pause/reprise sur déconnexion — déjà implémenté (registre corrigé de partial → ok)
 - [x] Arena: stats perf (niveau, moyenne, précision) dans carte du groupe
+- [x] Grande Salle: historique détaillé manches (match_rounds + match_player_summary)
+- [x] SP/GS: crash recovery — session persistée au démarrage + nettoyage orphelins au boot
+- [x] Salle Privée: round_history_tracking + player_summary_tracking corrigés de partial/missing → ok
 
 ### Décisions prises
 - Le bonus rapidité caché (+1 si <3s) a été **supprimé** de tous les modes (confusion scores)
@@ -30,15 +33,16 @@ Ce fichier sert à garder une trace des échanges importants avec Cascade, synch
   - Score temps réel en DB (fin de session suffit)
   - Bilan auto par joueur en Solo/SP/GS (pas de supervision prof)
 
-### Disparités restantes (faible priorité / non pertinent)
-- [ ] Historique détaillé manches (Solo + GS) — complexe, valeur limitée
-- [ ] Récupération matchs après crash serveur (SP + GS) — sessions courtes
+### Disparités restantes
+- **Aucune** — toutes les disparités identifiées sont résolues ou marquées na
 
 ### Commits associés
 - `1fdfce3` — persistance résultats GS en DB
 - `69c87ce` — suivi tentatives + détection mode grande-salle
 - `082eb48` — record personnel Grande Salle
 - `4b4b447` — stats perf dans carte du groupe Arena
+- `fa61389` — historique manches GS (match_rounds + match_player_summary)
+- `ebd288e` — crash recovery SP/GS + nettoyage orphelins
 
 ### Fichier de référence
 - `server/data/featureParity.json` — registre complet avec statut ok/missing/na par mode
