@@ -975,6 +975,12 @@ const clearIncidents = async () => {
                     if (t.event === 'arena:equality-window') detail = ` match=${t.matchId} student=${t.studentId} elapsed=${t.elapsed}ms window=${t.windowMs}ms claimants=${t.claimants}`;
                     if (t.event === 'arena:resync') detail = ` match=${t.matchId} 🔄 RESYNC → ${t.player} (${t.zones} zones, timer=${t.timer}s, manche ${t.round})`;
                     if (t.event === 'training:resync') detail = ` match=${t.matchId} 🔄 RESYNC → ${t.player} (${t.zones} zones, timer=${t.timer}s, manche ${t.round})`;
+                    if (t.event === 'mp:match-paused') detail = ` room=${t.room} ⏸️ PAUSE — ${t.player} déconnecté (grace ${(t.gracePeriodMs||15000)/1000}s, timer restant ${Math.round((t.remainingMs||0)/1000)}s)`;
+                    if (t.event === 'mp:match-resumed') detail = ` room=${t.room} ▶️ REPRISE — ${t.player} reconnecté (pause ${Math.round((t.pauseDurationMs||0)/1000)}s, timer restant ${Math.round((t.remainingMs||0)/1000)}s)`;
+                    if (t.event === 'mp:player-forfeit') detail = ` room=${t.room} 🏳️ FORFAIT — ${t.player}`;
+                    if (t.event === 'gs:match-paused') detail = ` salle=${t.salle} ⏸️ PAUSE — ${t.player} déconnecté (${t.activePlayers} joueurs actifs, timer restant ${Math.round((t.remainingMs||0)/1000)}s)`;
+                    if (t.event === 'gs:match-resumed') detail = ` salle=${t.salle} ▶️ REPRISE — ${t.player} reconnecté (pause ${Math.round((t.pauseDurationMs||0)/1000)}s)`;
+                    if (t.event === 'gs:player-forfeit') detail = ` salle=${t.salle} 🏳️ FORFAIT — ${t.player}`;
                     // Multiplayer pair/equality/session events
                     if (t.event === 'mp:pair-validated') {
                       const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';

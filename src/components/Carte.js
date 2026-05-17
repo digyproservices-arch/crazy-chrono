@@ -2366,6 +2366,20 @@ const Carte = () => {
           }
         });
 
+        // ⏸️ PAUSE: Un joueur s'est déconnecté pendant la partie (grande salle)
+        s.on('gs:match-paused', ({ disconnectedPlayer, gracePeriodMs }) => {
+          console.log('[GS] ⏸️ Match en PAUSE —', disconnectedPlayer, 'déconnecté');
+          setArenaPauseInfo({ paused: true, disconnectedPlayer, gracePeriodMs: gracePeriodMs || 15000 });
+        });
+        s.on('gs:match-resumed', ({ reconnectedPlayer }) => {
+          console.log('[GS] ▶️ Match REPRIS —', reconnectedPlayer, 'reconnecté');
+          setArenaPauseInfo(null);
+        });
+        s.on('gs:player-forfeit', ({ forfeitPlayer, remainingPlayers }) => {
+          console.log('[GS] 🏳️ Forfait de', forfeitPlayer, '— joueurs restants:', remainingPlayers);
+          setArenaPauseInfo(null);
+        });
+
         // Don't fall through to regular online/solo logic
         return;
       }
@@ -2944,6 +2958,20 @@ const Carte = () => {
     s.on('room:replayWaiting', ({ readyCount, totalCount }) => {
       console.log('[CC] room:replayWaiting', readyCount, '/', totalCount);
       setReplayWaiting({ readyCount, totalCount });
+    });
+
+    // ⏸️ PAUSE: Un joueur s'est déconnecté pendant la partie (salle privée)
+    s.on('mp:match-paused', ({ disconnectedPlayer, gracePeriodMs }) => {
+      console.log('[MP] ⏸️ Match en PAUSE —', disconnectedPlayer, 'déconnecté');
+      setArenaPauseInfo({ paused: true, disconnectedPlayer, gracePeriodMs: gracePeriodMs || 15000 });
+    });
+    s.on('mp:match-resumed', ({ reconnectedPlayer }) => {
+      console.log('[MP] ▶️ Match REPRIS —', reconnectedPlayer, 'reconnecté');
+      setArenaPauseInfo(null);
+    });
+    s.on('mp:player-forfeit', ({ forfeitPlayer, remainingPlayers }) => {
+      console.log('[MP] 🏳️ Forfait de', forfeitPlayer, '— joueurs restants:', remainingPlayers);
+      setArenaPauseInfo(null);
     });
 
     // Fin de session

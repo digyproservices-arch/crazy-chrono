@@ -2362,6 +2362,7 @@ function gsStartRound(salleId) {
   
   // Round timer
   const _gsTimerSetAt = Date.now();
+  salle._roundTimerSetAt = _gsTimerSetAt; // ✅ Pour calcul temps restant en cas de pause
   salle.roundTimer = setTimeout(() => {
     const drift = Date.now() - _gsTimerSetAt - salle.config.duration * 1000;
     sTrace.push('gs:roundTimer:fired', { salle: salleId, round: salle.roundsPlayed, expectedMs: salle.config.duration * 1000, driftMs: drift });
@@ -2917,6 +2918,7 @@ function startRound(roomCode) {
   io.to(roomCode).emit('round:new', payload);
   // Timer d'expiration pour annoncer le résultat si personne n'a gagné
   const _roundTimerSetAt = Date.now();
+  room._roundTimerSetAt = _roundTimerSetAt; // ✅ Pour calcul temps restant en cas de pause
   room.roundTimer = setTimeout(() => {
     const _roundTimerFiredAt = Date.now();
     // ── TRAÇAGE: timing précis du roundTimer ──
@@ -3426,10 +3428,48 @@ io.on('connection', (socket) => {
       room.status = 'lobby';
     }
     emitRoomState(currentRoom);
+
+    // ✅ RESUME: Si le match était en pause (joueur déconnecté), reprendre automatiquement
+    if (room.status === 'paused' && room._pauseState && room._pauseState.disconnectedPlayerName === playerName) {
+      // Annuler le timeout forfait
+      if (room._forfeitTimeout) { clearTimeout(room._forfeitTimeout); room._forfeitTimeout = null; }
+
+      const pauseState = room._pauseState;
+      const pauseDuration = Date.now() - pauseState.pausedAt;
+      room.status = pauseState.previousStatus || 'playing';
+
+      // Relancer le round timer avec le temps restant
+      const remMs = pauseState.remainingMs || 1000;
+      room._roundTimerSetAt = Date.now() - ((room.duration || 60) * 1000 - remMs);
+      room.roundTimer = setTimeout(() => {
+        try { if (room.pendingClaims && room.pendingClaims.size) { for (const [, e] of room.pendingClaims.entries()) { try { if (e && e.timer) clearTimeout(e.timer); } catch {} } room.pendingClaims.clear(); } } catch {}
+        const base = room.roundBaseScores instanceof Map ? room.roundBaseScores : new Map();
+        const deltas = Array.from(room.players.entries()).map(([id, pl]) => ({ id, name: pl.name, delta: (pl.score || 0) - (base.has(id) ? base.get(id) : 0), now: pl.score || 0 }));
+        let best = -Infinity; let winners = [];
+        for (const d of deltas) { if (d.delta > best) { best = d.delta; winners = [d]; } else if (d.delta === best) { winners.push(d); } }
+        let winnerId = null, winnerName = null;
+        if (best > 0 && winners.length === 1) { winnerId = winners[0].id; winnerName = winners[0].name; }
+        io.to(currentRoom).emit('round:result', { winnerId, winnerName, roundIndex: room.roundsPlayed, roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null });
+        const more = !isFinite(room.roundsPerSession) || (room.roundsPlayed < room.roundsPerSession);
+        if (more && room.sessionActive) { room.roundTimer = setTimeout(() => { const r = getRoom(currentRoom); if (!r || !r.sessionActive) return; startRound(currentRoom); }, 400); }
+        else { endSession(currentRoom); }
+      }, remMs);
+
+      delete room._pauseState;
+
+      // Notifier tous les joueurs
+      io.to(currentRoom).emit('mp:match-resumed', {
+        reconnectedPlayer: playerName,
+        pauseDurationMs: pauseDuration
+      });
+
+      console.log(`[MP] ▶️ Room ${currentRoom} REPRISE — pause de ${Math.round(pauseDuration / 1000)}s — ${playerName} reconnecté — timer restant ${Math.round(remMs / 1000)}s`);
+      sTrace.push('mp:match-resumed', { room: currentRoom, player: playerName, pauseDurationMs: pauseDuration, remainingMs: Math.round(remMs) });
+    }
     
     // Si une manche est en cours, envoyer immédiatement les données au joueur qui rejoint
     // ⚠️ CRITIQUE: inclure room.currentZones pour éviter le fallback local → désync
-    if (room.sessionActive && room.status === 'playing' && room.roundSeed) {
+    if (room.sessionActive && (room.status === 'playing' || room.status === 'paused') && room.roundSeed) {
       const latePayload = {
         seed: room.roundSeed,
         duration: room.duration || 60,
@@ -4336,7 +4376,9 @@ io.on('connection', (socket) => {
       for (const [oldId, p] of salle.players.entries()) {
         if (p.name === playerName && oldId !== socket.id) {
           // Transfer player data to new socket
-          const playerData = { ...p };
+          const playerData = { ...p, disconnected: false };
+          delete playerData.disconnectedAt;
+          delete playerData._oldSocketId;
           salle.players.delete(oldId);
           salle.players.set(socket.id, playerData);
           salle.spectators.delete(oldId);
@@ -4350,6 +4392,28 @@ io.on('connection', (socket) => {
               duration: salle.config.duration || 90,
               roundIndex: salle.roundsPlayed,
             });
+          }
+          // ✅ RESUME: Si le match était en pause à cause de ce joueur, reprendre
+          if (salle.status === 'paused' && salle._pauseState && salle._pauseState.disconnectedPlayerName === playerName) {
+            if (salle._forfeitTimeout) { clearTimeout(salle._forfeitTimeout); salle._forfeitTimeout = null; }
+
+            const pauseState = salle._pauseState;
+            const pauseDuration = Date.now() - pauseState.pausedAt;
+            salle.status = pauseState.previousStatus || 'playing';
+
+            const remMs = pauseState.remainingMs || 1000;
+            salle._roundTimerSetAt = Date.now() - ((salle.config.duration || 90) * 1000 - remMs);
+            salle.roundTimer = setTimeout(() => { gsEndRound(id); }, remMs);
+
+            delete salle._pauseState;
+
+            io.to(`gs:${id}`).emit('gs:match-resumed', {
+              reconnectedPlayer: playerName,
+              pauseDurationMs: pauseDuration
+            });
+
+            console.log(`[GS] ▶️ Salle "${id}" REPRISE — pause de ${Math.round(pauseDuration / 1000)}s — ${playerName} reconnecté — timer restant ${Math.round(remMs / 1000)}s`);
+            sTrace.push('gs:match-resumed', { salle: id, player: playerName, pauseDurationMs: pauseDuration, remainingMs: Math.round(remMs) });
           }
           break;
         }
@@ -4566,13 +4630,74 @@ io.on('connection', (socket) => {
       const salle = grandeSalles.get(currentGS);
       if (salle) {
         if (salle.sessionActive) {
-          // Session in progress: keep player data for reconnection from Carte.js
-          // Just mark as disconnected, don't delete
           const player = salle.players.get(socket.id);
           if (player) {
+            player.disconnected = true;
             player.disconnectedAt = Date.now();
+            player._oldSocketId = socket.id;
             console.log(`[GS] Player "${player.name}" disconnected from "${currentGS}" (kept for reconnection, ${salle.players.size} players)`);
             sTrace.push('gs:disconnect', { salle: currentGS, name: player.name, socketId: socket.id, reason, sessionActive: true, keptForReconnect: true, players: salle.players.size });
+
+            // ✅ PAUSE: Geler le match si peu de joueurs actifs (≤ 4 connectés restants)
+            const activePlayers = Array.from(salle.players.values()).filter(p => !p.disconnected && !p.eliminated);
+            if (salle.status === 'playing' && activePlayers.length <= 3 && !salle._pauseState) {
+              // Geler le round timer
+              let remainingMs = (salle.config.duration || 90) * 1000;
+              if (salle._roundTimerSetAt) {
+                const elapsed = Date.now() - salle._roundTimerSetAt;
+                remainingMs = Math.max(0, (salle.config.duration || 90) * 1000 - elapsed);
+              }
+              if (salle.roundTimer) { try { clearTimeout(salle.roundTimer); } catch {} salle.roundTimer = null; }
+
+              salle._pauseState = {
+                previousStatus: salle.status,
+                pausedAt: Date.now(),
+                remainingMs,
+                disconnectedSocketId: socket.id,
+                disconnectedPlayerName: player.name
+              };
+              salle.status = 'paused';
+
+              const GS_GRACE_PERIOD_MS = 15000;
+
+              io.to(`gs:${currentGS}`).emit('gs:match-paused', {
+                disconnectedPlayer: player.name,
+                gracePeriodMs: GS_GRACE_PERIOD_MS
+              });
+
+              console.log(`[GS] ⏸️ Salle "${currentGS}" en PAUSE — ${player.name} déconnecté — grace ${GS_GRACE_PERIOD_MS / 1000}s — timer restant ${Math.round(remainingMs / 1000)}s`);
+              sTrace.push('gs:match-paused', { salle: currentGS, player: player.name, gracePeriodMs: GS_GRACE_PERIOD_MS, remainingMs: Math.round(remainingMs), activePlayers: activePlayers.length });
+
+              salle._forfeitTimeout = setTimeout(() => {
+                if (!salle || salle.status !== 'paused') return;
+
+                const forfeitName = salle._pauseState?.disconnectedPlayerName || '?';
+                const forfeitSocketId = salle._pauseState?.disconnectedSocketId;
+
+                console.log(`[GS] ⏰ Grace period expirée — forfait de ${forfeitName} dans "${currentGS}"`);
+                sTrace.push('gs:player-forfeit', { salle: currentGS, player: forfeitName });
+
+                if (forfeitSocketId) salle.players.delete(forfeitSocketId);
+
+                io.to(`gs:${currentGS}`).emit('gs:player-forfeit', {
+                  forfeitPlayer: forfeitName,
+                  remainingPlayers: salle.players.size
+                });
+
+                // Reprendre
+                const ps = salle._pauseState;
+                salle.status = ps?.previousStatus || 'playing';
+                delete salle._pauseState;
+                salle._forfeitTimeout = null;
+
+                const remMs = ps?.remainingMs || 1000;
+                salle._roundTimerSetAt = Date.now() - ((salle.config.duration || 90) * 1000 - remMs);
+                salle.roundTimer = setTimeout(() => { gsEndRound(currentGS); }, remMs);
+
+                console.log(`[GS] ▶️ Salle "${currentGS}" reprise après forfait — ${salle.players.size} joueur(s) — timer restant ${Math.round(remMs / 1000)}s`);
+                gsEmitState(currentGS);
+              }, GS_GRACE_PERIOD_MS);
+            }
           }
           salle.spectators.delete(socket.id);
         } else {
@@ -4591,9 +4716,115 @@ io.on('connection', (socket) => {
     // Gérer déconnexion multijoueur classique
     if (!currentRoom) return;
     const room = getRoom(currentRoom);
+    const disconnectedPlayer = room.players.get(socket.id);
     // ── TRAÇAGE: log déconnexion avec contexte complet ──
-    console.log(`[GAME-TRACE] disconnect | room=${currentRoom} socket=${socket.id} reason=${reason} sessionActive=${room.sessionActive} playersBeforeDelete=${room.players.size} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession} roundTimer=${!!room.roundTimer}`);
-    sTrace.push('disconnect', { room: currentRoom, socketId: socket.id, reason, sessionActive: room.sessionActive, playersBeforeDelete: room.players.size, roundsPlayed: room.roundsPlayed, roundsPerSession: room.roundsPerSession, roundTimer: !!room.roundTimer });
+    console.log(`[GAME-TRACE] disconnect | room=${currentRoom} socket=${socket.id} name=${disconnectedPlayer?.name || '?'} reason=${reason} sessionActive=${room.sessionActive} playersBeforeDelete=${room.players.size} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession} roundTimer=${!!room.roundTimer}`);
+    sTrace.push('disconnect', { room: currentRoom, socketId: socket.id, name: disconnectedPlayer?.name, reason, sessionActive: room.sessionActive, playersBeforeDelete: room.players.size, roundsPlayed: room.roundsPlayed, roundsPerSession: room.roundsPerSession, roundTimer: !!room.roundTimer });
+
+    // ✅ PAUSE: Si session active avec 2+ joueurs (pas solo), geler le match au lieu de supprimer
+    if (room.sessionActive && room.status === 'playing' && disconnectedPlayer && room.players.size >= 2 && !currentRoom.startsWith('solo-')) {
+      // Marquer le joueur comme déconnecté (NE PAS supprimer)
+      disconnectedPlayer.disconnected = true;
+      disconnectedPlayer.disconnectedAt = Date.now();
+      disconnectedPlayer._oldSocketId = socket.id;
+
+      // Geler le round timer
+      let remainingMs = (room.duration || 60) * 1000;
+      if (room._roundTimerSetAt) {
+        const elapsed = Date.now() - room._roundTimerSetAt;
+        remainingMs = Math.max(0, (room.duration || 60) * 1000 - elapsed);
+      }
+      if (room.roundTimer) { try { clearTimeout(room.roundTimer); } catch {} room.roundTimer = null; }
+
+      // Sauvegarder l'état de pause
+      room._pauseState = {
+        previousStatus: room.status,
+        pausedAt: Date.now(),
+        remainingMs,
+        disconnectedSocketId: socket.id,
+        disconnectedPlayerName: disconnectedPlayer.name
+      };
+      room.status = 'paused';
+
+      const MP_GRACE_PERIOD_MS = 15000;
+
+      // Notifier les autres joueurs
+      io.to(currentRoom).emit('mp:match-paused', {
+        disconnectedPlayer: disconnectedPlayer.name,
+        gracePeriodMs: MP_GRACE_PERIOD_MS
+      });
+
+      console.log(`[MP] ⏸️ Room ${currentRoom} en PAUSE — ${disconnectedPlayer.name} déconnecté — grace period ${MP_GRACE_PERIOD_MS / 1000}s — timer restant ${Math.round(remainingMs / 1000)}s`);
+      sTrace.push('mp:match-paused', { room: currentRoom, player: disconnectedPlayer.name, gracePeriodMs: MP_GRACE_PERIOD_MS, remainingMs: Math.round(remainingMs) });
+
+      // Lancer le timeout forfait
+      room._forfeitTimeout = setTimeout(() => {
+        if (!room || room.status !== 'paused') return;
+
+        const forfeitName = room._pauseState?.disconnectedPlayerName || '?';
+        const forfeitSocketId = room._pauseState?.disconnectedSocketId;
+
+        console.log(`[MP] ⏰ Grace period expirée pour room ${currentRoom} — forfait de ${forfeitName}`);
+        sTrace.push('mp:player-forfeit', { room: currentRoom, player: forfeitName });
+
+        // Supprimer le joueur forfait
+        if (forfeitSocketId) room.players.delete(forfeitSocketId);
+
+        // Notifier
+        io.to(currentRoom).emit('mp:player-forfeit', {
+          forfeitPlayer: forfeitName,
+          remainingPlayers: room.players.size
+        });
+
+        // Reprendre le match si des joueurs restent
+        if (room.players.size >= 1) {
+          const pauseState = room._pauseState;
+          room.status = pauseState?.previousStatus || 'playing';
+          delete room._pauseState;
+          room._forfeitTimeout = null;
+
+          // Relancer le round timer avec le temps restant
+          const remMs = pauseState?.remainingMs || 1000;
+          room._roundTimerSetAt = Date.now() - ((room.duration || 60) * 1000 - remMs);
+          room.roundTimer = setTimeout(() => {
+            // Même logique que l'expiration normale du roundTimer
+            try { if (room.pendingClaims && room.pendingClaims.size) { for (const [, e] of room.pendingClaims.entries()) { try { if (e && e.timer) clearTimeout(e.timer); } catch {} } room.pendingClaims.clear(); } } catch {}
+            const base = room.roundBaseScores instanceof Map ? room.roundBaseScores : new Map();
+            const deltas = Array.from(room.players.entries()).map(([id, pl]) => ({ id, name: pl.name, delta: (pl.score || 0) - (base.has(id) ? base.get(id) : 0), now: pl.score || 0 }));
+            let best = -Infinity; let winners = [];
+            for (const d of deltas) { if (d.delta > best) { best = d.delta; winners = [d]; } else if (d.delta === best) { winners.push(d); } }
+            let winnerId = null, winnerName = null;
+            if (best > 0 && winners.length === 1) { winnerId = winners[0].id; winnerName = winners[0].name; }
+            io.to(currentRoom).emit('round:result', { winnerId, winnerName, roundIndex: room.roundsPlayed, roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null });
+            const more = !isFinite(room.roundsPerSession) || (room.roundsPlayed < room.roundsPerSession);
+            if (more && room.sessionActive) { room.roundTimer = setTimeout(() => { const r = getRoom(currentRoom); if (!r || !r.sessionActive) return; startRound(currentRoom); }, 400); }
+            else { endSession(currentRoom); }
+          }, remMs);
+
+          console.log(`[MP] ▶️ Room ${currentRoom} reprise après forfait — ${room.players.size} joueur(s) — timer restant ${Math.round(remMs / 1000)}s`);
+          emitRoomState(currentRoom);
+        } else {
+          // Plus personne
+          room.status = 'lobby';
+          room.sessionActive = false;
+          delete room._pauseState;
+          room._forfeitTimeout = null;
+          if (room.roundTimer) { try { clearTimeout(room.roundTimer); } catch {} room.roundTimer = null; }
+          rooms.delete(currentRoom);
+          console.log(`[MP] Room ${currentRoom} supprimée (forfait + 0 joueur restant)`);
+        }
+      }, MP_GRACE_PERIOD_MS);
+
+      // Réassigner l'hôte si nécessaire
+      if (room.hostId === socket.id) {
+        for (const [sid, p] of room.players.entries()) {
+          if (!p.disconnected) { room.hostId = sid; break; }
+        }
+      }
+      return; // ✅ Ne PAS supprimer le joueur ni la room
+    }
+
+    // Comportement normal (hors pause): supprimer le joueur
     room.players.delete(socket.id);
     if (room.hostId === socket.id) {
       // réassigner l'hôte si possible
