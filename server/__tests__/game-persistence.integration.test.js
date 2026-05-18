@@ -7,8 +7,11 @@
 // =============================================
 
 const { createClient } = require('@supabase/supabase-js');
-const { io: ioClient } = require('socket.io-client');
 const { v4: uuidv4 } = require('uuid');
+
+// socket.io-client n'est pas installé côté serveur (Render) — import conditionnel
+let ioClient;
+try { ioClient = require('socket.io-client').io; } catch { ioClient = null; }
 
 // ─────────────────────────────────────────────────────────
 // Configuration
