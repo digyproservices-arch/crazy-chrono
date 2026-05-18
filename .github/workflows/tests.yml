@@ -1,0 +1,37 @@
+name: Tests serveur (parité + persistance)
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
+
+jobs:
+  server-tests:
+    name: Tests Jest serveur
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install server dependencies
+        run: cd server && npm ci
+
+      - name: Run server tests
+        env:
+          CI: true
+          E2E_BACKEND_URL: https://crazy-chrono-backend.onrender.com
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node ./node_modules/jest/bin/jest.js server/__tests__/ --verbose --reporters=default --reporters=./server/jest-monitoring-reporter.js
