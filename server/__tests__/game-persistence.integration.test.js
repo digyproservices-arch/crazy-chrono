@@ -20,7 +20,12 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // Skip si pas de connexion Supabase configurée
 const canRunIntegration = SUPABASE_URL && SUPABASE_SERVICE_KEY;
 
+// Tests DB purs (pas besoin d'un backend actif)
 const describeIf = canRunIntegration ? describe : describe.skip;
+
+// Tests socket.io (nécessitent un backend actif) — skip en pre-deploy/CI
+const canRunSocket = canRunIntegration && process.env.TEST_BACKEND_URL;
+const describeSocket = canRunSocket ? describe : describe.skip;
 
 let supabase;
 if (canRunIntegration) {
@@ -80,7 +85,7 @@ afterAll(async () => {
 // Tests
 // ─────────────────────────────────────────────────────────
 
-describeIf('Salle Privée — Persistance en DB', () => {
+describeSocket('Salle Privée — Persistance en DB (nécessite backend actif)', () => {
   let socket1, socket2;
   let roomCode;
 
