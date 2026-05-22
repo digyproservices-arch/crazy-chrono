@@ -4154,15 +4154,46 @@ io.on('connection', (socket) => {
           io.to(currentRoom).emit('pair:valid', { by: winnerId, a, b, ts: Date.now(), count: room.pairsValidated, tie: claimants.length >= 2, winners: claimants });
           // Fin du départage ou round suivant ?
           if (room._tiebreakerPlayed >= room._tiebreakerTotal) {
-            // Restaurer la durée originale avant endSession
-            room.duration = room._origDuration || room.duration;
-            console.log(`[MP] ⚖️ Départage terminé — scores: ${JSON.stringify(Object.fromEntries(room._tiebreakerScores))}`);
-            emitServerLog(currentRoom, 'info', '[MP] ⚖️ Départage terminé', {
-              tiebreakerScores: Object.fromEntries(room._tiebreakerScores),
-              baseScores: Array.from(room.players.entries()).map(([id, pl]) => ({ name: pl.name, score: pl.score || 0 })),
-              roundsPlayed: room._tiebreakerPlayed
-            });
-            setTimeout(() => endSession(currentRoom), 1500);
+            // Vérifier s'il y a un vainqueur net AVANT de terminer
+            const tbScores = Array.from(room._tiebreakerScores.values());
+            const maxTB = Math.max(...tbScores);
+            const countAtMax = tbScores.filter(s => s === maxTB).length;
+            if (countAtMax > 1) {
+              // Encore à égalité → prolonger le départage d'un round
+              room._tiebreakerTotal += 1;
+              console.log(`[MP] ⚖️ Départage prolongé — toujours à égalité après ${room._tiebreakerPlayed} rounds, nouveau total: ${room._tiebreakerTotal}`);
+              emitServerLog(currentRoom, 'info', '[MP] ⚖️ Départage prolongé — égalité persistante', {
+                tiebreakerScores: Object.fromEntries(room._tiebreakerScores),
+                roundsPlayed: room._tiebreakerPlayed,
+                newTotal: room._tiebreakerTotal
+              });
+              io.to(currentRoom).emit('tiebreaker:extended', {
+                reason: 'still_tied',
+                roundsPlayed: room._tiebreakerPlayed,
+                newTotal: room._tiebreakerTotal,
+                tiebreakerScores: Object.fromEntries(room._tiebreakerScores)
+              });
+              // Lancer un round supplémentaire
+              setTimeout(() => {
+                const r = getRoom(currentRoom);
+                if (!r || !r.sessionActive) return;
+                r.resolved = false;
+                r.foundPairs = new Set();
+                r.roundsPerSession = r._tiebreakerTotal;
+                startRound(currentRoom);
+                if (r.roundTimer) { clearTimeout(r.roundTimer); r.roundTimer = null; }
+              }, 2000);
+            } else {
+              // Vainqueur net → fin du départage
+              room.duration = room._origDuration || room.duration;
+              console.log(`[MP] ⚖️ Départage terminé — scores: ${JSON.stringify(Object.fromEntries(room._tiebreakerScores))}`);
+              emitServerLog(currentRoom, 'info', '[MP] ⚖️ Départage terminé', {
+                tiebreakerScores: Object.fromEntries(room._tiebreakerScores),
+                baseScores: Array.from(room.players.entries()).map(([id, pl]) => ({ name: pl.name, score: pl.score || 0 })),
+                roundsPlayed: room._tiebreakerPlayed
+              });
+              setTimeout(() => endSession(currentRoom), 1500);
+            }
           } else {
             // Round suivant après un délai
             setTimeout(() => {
