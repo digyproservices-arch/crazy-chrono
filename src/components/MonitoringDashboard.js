@@ -982,6 +982,21 @@ const clearIncidents = async () => {
                     if (t.event === 'training:invites-sent') detail = ` match=${t.matchId} ${t.studentsCount} élèves=[${(t.studentIds||[]).join(',')}] sockets=${t.socketsConnected} déjàEnTraining=[${(t.alreadyInTraining||[]).join(',')}]`;
                     if (t.event === 'training:join-ok') detail = ` match=${t.matchId} ✅ ${t.name} (${t.studentId}) socket=${t.socketId}`;
                     if (t.event === 'training:join-fail') detail = ` match=${t.matchId} ❌ ${t.name} (${t.studentId}) socket=${t.socketId}`;
+                    if (t.event === 'training:join-reject') detail = ` match=${t.matchId} ⛔ ${t.studentName} (${t.studentId}) reason=${t.reason} socket=${t.socketId}`;
+                    if (t.event === 'training:player-joined') detail = ` match=${t.matchId} 👤 ${t.playerName} (${t.studentId}) joueurs=${t.playersCount}/${t.expectedCount} status=${t.matchStatus} all=[${(t.allPlayers||[]).map(p=>`${p.name}(${p.ready?'✅':'⏳'})`).join(',')}] rooms=[${(t.socketRooms||[]).join(',')}]`;
+                    if (t.event === 'training:reconnect') detail = ` match=${t.matchId} 🔄 ${t.playerName} (${t.studentId}) socket=${t.socketId} status=${t.matchStatus} wasDisconnected=${t.wasDisconnected}`;
+                    if (t.event === 'training:ready') detail = ` match=${t.matchId} ${t.studentId} socket=${t.socketId} result=${t.result}`;
+                    if (t.event === 'training:ready-ok') detail = ` match=${t.matchId} ✅ ${t.playerName} (${t.studentId}) ready=${t.readyCount}/${t.totalCount} all=[${(t.allPlayersState||[]).map(p=>`${p.name}(${p.ready?'✅':'⏳'})`).join(',')}] rooms=[${(t.socketRooms||[]).join(',')}]`;
+                    if (t.event === 'training:ready-fail') detail = ` match=${t.matchId} ❌ ${t.studentId} reason=${t.reason} socket=${t.socketId}${t.playersInMatch ? ' inMatch=['+t.playersInMatch.map(p=>`${p.name}(${p.sid})`).join(',')+']' : ''}`;
+                    // Arena lobby events
+                    if (t.event === 'arena:join-ok') detail = ` match=${t.matchId} ✅ ${t.name} (${t.studentId}) socket=${t.socketId} rooms=[${(t.rooms||[]).join(',')}]`;
+                    if (t.event === 'arena:join-fail') detail = ` match=${t.matchId} ❌ ${t.name} (${t.studentId}) socket=${t.socketId}`;
+                    if (t.event === 'arena:join-reject') detail = ` match=${t.matchId} ⛔ ${t.studentName} (${t.studentId}) reason=${t.reason} status=${t.matchStatus||'?'} socket=${t.socketId}`;
+                    if (t.event === 'arena:player-joined') detail = ` match=${t.matchId} 👤 ${t.playerName} (${t.studentId}) joueurs=${t.playersCount} status=${t.matchStatus} all=[${(t.allPlayers||[]).map(p=>`${p.name}(${p.ready?'✅':'⏳'})`).join(',')}] rooms=[${(t.socketRooms||[]).join(',')}]`;
+                    if (t.event === 'arena:reconnect') detail = ` match=${t.matchId} 🔄 ${t.playerName} (${t.studentId}) socket=${t.socketId} status=${t.matchStatus} wasDisconnected=${t.wasDisconnected}`;
+                    if (t.event === 'arena:ready') detail = ` ${t.studentId} socket=${t.socketId} result=${t.result}`;
+                    if (t.event === 'arena:ready-ok') detail = ` match=${t.matchId} ✅ ${t.playerName} (${t.studentId}) ready=${t.readyCount}/${t.totalCount} all=[${(t.allPlayersState||[]).map(p=>`${p.name}(${p.ready?'✅':'⏳'})`).join(',')}] rooms=[${(t.socketRooms||[]).join(',')}]`;
+                    if (t.event === 'arena:ready-fail') detail = ` match=${t.matchId||'?'} ❌ ${t.studentId} reason=${t.reason} socket=${t.socketId}${t.playersInMatch ? ' inMatch=['+t.playersInMatch.map(p=>`${p.name}(${p.sid})`).join(',')+']' : ''}${t.playerMatchesSize !== undefined ? ' playerMatchesSize='+t.playerMatchesSize : ''}`;
                     // Arena pair/equality events
                     if (t.event === 'arena:pair-validated') {
                       const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
