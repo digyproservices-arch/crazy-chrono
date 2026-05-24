@@ -4428,7 +4428,8 @@ io.on('connection', (socket) => {
 
   socket.on('training:ready', ({ matchId, studentId }) => {
     logger.info('[Server][Training] Joueur marque prêt', { matchId, studentId, socketId: socket.id });
-    crazyArena.trainingPlayerReady(socket, matchId, studentId);
+    const readyResult = crazyArena.trainingPlayerReady(socket, matchId, studentId);
+    sTrace.push('training:ready', { matchId: (matchId || '').slice(-8), studentId: (studentId || '').slice(-8), socketId: socket.id.slice(0, 8), result: readyResult || 'void' });
   });
 
   socket.on('training:teacher-join', ({ matchIds }) => {
@@ -4517,6 +4518,11 @@ io.on('connection', (socket) => {
   socket.on('arena:join', async ({ matchId, studentData }, cb) => {
     logger.info('[Server][Arena] Joueur rejoint', { matchId, studentId: studentData.studentId, name: studentData.name, socketId: socket.id });
     const success = await crazyArena.joinMatch(socket, matchId, studentData);
+    if (success) {
+      sTrace.push('arena:join-ok', { matchId: (matchId || '').slice(-8), studentId: (studentData.studentId || '').slice(-8), name: studentData.name, socketId: socket.id.slice(0, 8), rooms: Array.from(socket.rooms) });
+    } else {
+      sTrace.push('arena:join-fail', { matchId: (matchId || '').slice(-8), studentId: (studentData.studentId || '').slice(-8), name: studentData.name, socketId: socket.id.slice(0, 8) });
+    }
     if (typeof cb === 'function') {
       cb({ ok: success });
     }
@@ -4524,7 +4530,8 @@ io.on('connection', (socket) => {
 
   socket.on('arena:ready', ({ studentId }) => {
     logger.info('[Server][Arena] Joueur marque prêt (lobby)', { studentId, socketId: socket.id });
-    crazyArena.playerReady(socket, studentId);
+    const readyResult = crazyArena.playerReady(socket, studentId);
+    sTrace.push('arena:ready', { studentId: (studentId || '').slice(-8), socketId: socket.id.slice(0, 8), result: readyResult || 'void' });
   });
 
   socket.on('arena:pair-validated', (data) => {

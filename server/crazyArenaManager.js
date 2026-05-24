@@ -392,6 +392,7 @@ class CrazyArenaManager {
     
     if (!match) {
       logger.error(`[CrazyArena][Training] Match ${matchId} introuvable (mémoire + DB)`);
+      sTrace.push('training:join-reject', { reason: 'match_not_found', matchId: (matchId || '').slice(-8), studentName: studentData.name, studentId: (studentData.studentId || '').slice(-8), socketId: socket.id.slice(0, 8) });
       socket.emit('training:error', { message: 'Match introuvable' });
       socket.emit('training:match-lost', { reason: 'Match introuvable. Le serveur a peut-être redémarré.' });
       return false;
@@ -408,6 +409,7 @@ class CrazyArenaManager {
       }
       logger.info(`[CrazyArena][Training] ${studentData.name} reconnecté au match ${matchId} (old=${oldSocketId?.slice(-6)}, new=${socket.id.slice(-6)})`);
       _logMatchEvent('PLAYER_RECONNECT', matchId, { mode: 'training', studentId: studentData.studentId, name: studentData.name, matchStatus: match.status });
+      sTrace.push('training:reconnect', { matchId: matchId.slice(-8), playerName: studentData.name, studentId: (studentData.studentId || '').slice(-8), socketId: socket.id.slice(0, 8), matchStatus: match.status, wasDisconnected: !!existingPlayer.disconnected });
       existingPlayer.socketId = socket.id;
       existingPlayer.disconnected = false;
       delete existingPlayer.disconnectedAt;
@@ -542,6 +544,18 @@ class CrazyArenaManager {
       }))
     });
 
+    sTrace.push('training:player-joined', {
+      matchId: matchId.slice(-8),
+      playerName: studentData.name,
+      studentId: (studentData.studentId || '').slice(-8),
+      socketId: socket.id.slice(0, 8),
+      playersCount: match.players.length,
+      expectedCount: match.expectedPlayers.length,
+      matchStatus: match.status,
+      allPlayers: match.players.map(p => ({ name: p.name, sid: p.socketId?.slice(0, 8), ready: p.ready })),
+      socketRooms: Array.from(socket.rooms)
+    });
+
     // ✅ AUTO-RESTART: Si le match était en cours avant le redémarrage serveur,
     // relancer automatiquement le jeu quand tous les joueurs attendus ont rejoint
     if (match._needsGameRestart && match.players.length >= match.expectedPlayers.length) {
@@ -587,13 +601,15 @@ class CrazyArenaManager {
     const match = this.matches.get(matchId);
     if (!match) {
       logger.error('[CrazyArena][Training] trainingPlayerReady: Match introuvable', { matchId, studentId });
-      return;
+      sTrace.push('training:ready-fail', { reason: 'match_not_found', matchId: (matchId || '').slice(-8), studentId: (studentId || '').slice(-8), socketId: socket.id.slice(0, 8) });
+      return 'match_not_found';
     }
 
     const player = match.players.find(p => p.studentId === studentId);
     if (!player) {
-      logger.warn('[CrazyArena][Training] trainingPlayerReady: Joueur introuvable', { matchId, studentId });
-      return;
+      logger.warn('[CrazyArena][Training] trainingPlayerReady: Joueur introuvable', { matchId, studentId, playersInMatch: match.players.map(p => ({ name: p.name, studentId: p.studentId?.slice(-8), socketId: p.socketId?.slice(0, 8) })) });
+      sTrace.push('training:ready-fail', { reason: 'player_not_found', matchId: (matchId || '').slice(-8), studentId: (studentId || '').slice(-8), socketId: socket.id.slice(0, 8), playersInMatch: match.players.map(p => ({ name: p.name, sid: p.studentId?.slice(-8) })) });
+      return 'player_not_found';
     }
     
     player.ready = true;
@@ -629,12 +645,23 @@ class CrazyArenaManager {
       }))
     });
     
+    sTrace.push('training:ready-ok', { 
+      matchId: (matchId || '').slice(-8), 
+      playerName: player.name,
+      studentId: (studentId || '').slice(-8),
+      readyCount, 
+      totalCount,
+      allPlayersState: match.players.map(p => ({ name: p.name, ready: p.ready, sid: p.socketId?.slice(0, 8) })),
+      socketRooms: Array.from(socket.rooms)
+    });
+    
     logger.info('[CrazyArena][Training] Événements Socket.IO émis', { 
       matchId, 
       events: ['training:player-ready', 'training:players-update'],
       readyCount,
       totalCount
     });
+    return 'ok';
   }
 
   /**
@@ -1798,6 +1825,7 @@ class CrazyArenaManager {
       
       if (!match) {
         logger.error(`[CrazyArena] Match ${matchId} introuvable dans Supabase`);
+        sTrace.push('arena:join-reject', { reason: 'match_not_found', matchId: (matchId || '').slice(-8), studentName: studentData.name, studentId: (studentData.studentId || '').slice(-8), socketId: socket.id.slice(0, 8) });
         socket.emit('arena:error', { message: 'Match introuvable' });
         return false;
       }
@@ -1812,6 +1840,7 @@ class CrazyArenaManager {
       // RECONNEXION : Mettre à jour le socketId et rejoindre la room
       logger.info(`[CrazyArena] 🔄 Reconnexion de ${studentData.name} (status=${match.status}, wasDisconnected=${!!existingPlayer.disconnected})`);
       _logMatchEvent('PLAYER_RECONNECT', matchId, { mode: 'arena', studentId: studentData.studentId, name: studentData.name, matchStatus: match.status });
+      sTrace.push('arena:reconnect', { matchId: matchId.slice(-8), playerName: studentData.name, studentId: (studentData.studentId || '').slice(-8), socketId: socket.id.slice(0, 8), matchStatus: match.status, wasDisconnected: !!existingPlayer.disconnected });
       
       // Nettoyer l'ancien mapping socket si différent
       if (existingPlayer._oldSocketId && existingPlayer._oldSocketId !== socket.id) {
@@ -1896,6 +1925,7 @@ class CrazyArenaManager {
 
     // NOUVEAU JOUEUR : Vérifier les conditions d'entrée
     if (match.status !== 'waiting') {
+      sTrace.push('arena:join-reject', { reason: 'match_already_started', matchId: matchId.slice(-8), studentName: studentData.name, studentId: (studentData.studentId || '').slice(-8), matchStatus: match.status, socketId: socket.id.slice(0, 8) });
       socket.emit('arena:error', { message: 'Match déjà commencé - impossible de rejoindre' });
       return false;
     }
@@ -1953,6 +1983,17 @@ class CrazyArenaManager {
     });
     logger.info(`[CrazyArena] arena:player-joined et arena:players-update émis avec succès`);
 
+    sTrace.push('arena:player-joined', {
+      matchId: matchId.slice(-8),
+      playerName: studentData.name,
+      studentId: (studentData.studentId || '').slice(-8),
+      socketId: socket.id.slice(0, 8),
+      playersCount: match.players.length,
+      matchStatus: match.status,
+      allPlayers: match.players.map(p => ({ name: p.name, sid: p.socketId?.slice(0, 8), ready: p.ready })),
+      socketRooms: Array.from(socket.rooms)
+    });
+
     // ✅ AUTO-REPRISE: Si le match était in_progress avant un redémarrage serveur,
     // relancer automatiquement dès que 2+ joueurs se sont reconnectés
     if (match.wasInProgress && match.players.length >= 2 && match.status === 'waiting') {
@@ -1977,20 +2018,23 @@ class CrazyArenaManager {
   playerReady(socket, studentId) {
     const matchId = this.playerMatches.get(socket.id);
     if (!matchId) {
-      logger.warn('[CrazyArena][Arena] playerReady: Aucun match pour socket', { socketId: socket.id });
-      return;
+      logger.warn('[CrazyArena][Arena] playerReady: Aucun match pour socket', { socketId: socket.id, studentId });
+      sTrace.push('arena:ready-fail', { reason: 'no_match_for_socket', studentId: (studentId || '').slice(-8), socketId: socket.id.slice(0, 8), playerMatchesSize: this.playerMatches.size });
+      return 'no_match_for_socket';
     }
 
     const match = this.matches.get(matchId);
     if (!match) {
       logger.error('[CrazyArena][Arena] playerReady: Match introuvable', { matchId, socketId: socket.id });
-      return;
+      sTrace.push('arena:ready-fail', { reason: 'match_not_found', matchId: matchId.slice(-8), studentId: (studentId || '').slice(-8), socketId: socket.id.slice(0, 8) });
+      return 'match_not_found';
     }
 
     const player = match.players.find(p => p.socketId === socket.id);
     if (!player) {
-      logger.warn('[CrazyArena][Arena] playerReady: Joueur introuvable', { matchId, socketId: socket.id });
-      return;
+      logger.warn('[CrazyArena][Arena] playerReady: Joueur introuvable', { matchId, socketId: socket.id, playersInMatch: match.players.map(p => ({ name: p.name, socketId: p.socketId?.slice(0, 8) })) });
+      sTrace.push('arena:ready-fail', { reason: 'player_not_found_by_socket', matchId: matchId.slice(-8), studentId: (studentId || '').slice(-8), socketId: socket.id.slice(0, 8), playersInMatch: match.players.map(p => ({ name: p.name, sid: p.socketId?.slice(0, 8) })) });
+      return 'player_not_found';
     }
     
     player.ready = true;
@@ -2029,6 +2073,16 @@ class CrazyArenaManager {
       players: playersData
     });
     
+    sTrace.push('arena:ready-ok', { 
+      matchId: matchId.slice(-8), 
+      playerName: player.name,
+      studentId: (studentId || '').slice(-8),
+      readyCount, 
+      totalCount,
+      allPlayersState: match.players.map(p => ({ name: p.name, ready: p.ready, sid: p.socketId?.slice(0, 8) })),
+      socketRooms: Array.from(socket.rooms)
+    });
+    
     logger.info('[CrazyArena][Arena] Événements Socket.IO émis (lobby)', { 
       matchId, 
       events: ['arena:player-ready', 'arena:players-update'],
@@ -2037,6 +2091,7 @@ class CrazyArenaManager {
     });
 
     // NE PLUS démarrer automatiquement - attendre arena:force-start du professeur
+    return 'ok';
   }
 
   /**
