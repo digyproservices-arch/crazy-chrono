@@ -449,14 +449,16 @@ class CrazyArenaManager {
           logger.info(`[CrazyArena][Training] 📤 Resync zones envoyé à ${studentData.name}: ${match.zones.length} zones, manche ${match.roundsPlayed + 1}`);
         }
 
-        // Envoyer les scores actuels
+        // Envoyer les scores actuels (tiebreaker-aware)
+        const isTB = match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown';
         socket.emit('training:scores-update', {
-          scores: match.players.map(p => ({
+          scores: match.players.map((p, idx) => ({
             studentId: p.studentId,
             name: p.name,
             avatar: p.avatar,
-            score: p.score || 0,
-            pairsValidated: p.pairsValidated || 0
+            playerIdx: idx,
+            score: isTB ? (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0) : (p.score || 0),
+            pairsValidated: isTB ? (p.pairsBeforeTiebreaker || 0) + (p.tiebreakerPairs || 0) : (p.pairsValidated || 0)
           })).sort((a, b) => b.score - a.score)
         });
 
@@ -1407,6 +1409,18 @@ class CrazyArenaManager {
         }
         
         if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
+          // ✅ FIX: Émettre scores-update AVANT de return (sinon UI figée)
+          const tbScoresLast = {
+            scores: match.players.map((p, idx) => ({
+              studentId: p.studentId,
+              name: p.name,
+              playerIdx: idx,
+              score: (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0),
+              pairsValidated: (p.pairsBeforeTiebreaker || 0) + (p.tiebreakerPairs || 0)
+            })).sort((a, b) => b.score - a.score)
+          };
+          this.io.to(matchId).emit('training:scores-update', tbScoresLast);
+
           // ✅ FIX ÉGALITÉ TIEBREAKER: Attendre la fenêtre d'égalité avant de terminer.
           // Ensuite vérifier si c'est encore à égalité → prolonger avec une carte supplémentaire.
           if (!match._tiebreakerEndScheduled) {
@@ -1888,14 +1902,16 @@ class CrazyArenaManager {
           logger.info(`[CrazyArena] 📤 Resync zones envoyé à ${studentData.name}: ${match.zones.length} zones, manche ${match.roundsPlayed + 1}`);
         }
 
-        // Envoyer les scores actuels
+        // Envoyer les scores actuels (tiebreaker-aware)
+        const isTB = match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown';
         const scoresPayload = {
-          scores: match.players.map(p => ({
+          scores: match.players.map((p, idx) => ({
             studentId: p.studentId,
             name: p.name,
             avatar: p.avatar,
-            score: p.score || 0,
-            pairsValidated: p.pairsValidated || 0
+            playerIdx: idx,
+            score: isTB ? (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0) : (p.score || 0),
+            pairsValidated: isTB ? (p.pairsBeforeTiebreaker || 0) + (p.tiebreakerPairs || 0) : (p.pairsValidated || 0)
           })).sort((a, b) => b.score - a.score)
         };
         socket.emit('arena:scores-update', scoresPayload);
@@ -2596,6 +2612,18 @@ class CrazyArenaManager {
         }
         
         if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
+          // ✅ FIX: Émettre scores-update AVANT de return (sinon UI figée)
+          const tbScoresLast = {
+            scores: match.players.map((p, idx) => ({
+              studentId: p.studentId,
+              name: p.name,
+              playerIdx: idx,
+              score: (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0),
+              pairsValidated: (p.pairsBeforeTiebreaker || 0) + (p.tiebreakerPairs || 0)
+            })).sort((a, b) => b.score - a.score)
+          };
+          this.io.to(matchId).emit('arena:scores-update', tbScoresLast);
+
           // ✅ FIX ÉGALITÉ TIEBREAKER: Ne pas terminer immédiatement !
           // Attendre la fenêtre d'égalité pour que le 2e joueur qui clique
           // simultanément puisse aussi marquer le point avant la fin.
