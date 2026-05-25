@@ -584,6 +584,7 @@ const Carte = () => {
   const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélection d'arc
   // --- GAME STATE ---
   const [gameActive, setGameActive] = useState(false);
+  const [timerResetKey, setTimerResetKey] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
   const [score, setScore] = useState(0);
   // --- MODE OBJECTIF & AIDE ---
@@ -2811,6 +2812,7 @@ const Carte = () => {
       // FIX: Ne relancer le jeu/timer que pour un VRAI nouveau round (pas une régénération de carte)
       if (!payload?.isRegen) {
         setGameActive(true);
+        setTimerResetKey(k => k + 1);
         // Prendre la duree cote serveur (sauf en mode objectif: pas de countdown)
         try {
           const cfgDur = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
@@ -3565,7 +3567,7 @@ useEffect(() => {
     }
   }, 250);
   return () => clearInterval(id);
-}, [gameActive, gameDuration, arenaMatchId, objectiveMode]);
+}, [gameActive, gameDuration, arenaMatchId, objectiveMode, timerResetKey]);
 
 // 💾 PERSISTANCE: Sauvegarder les performances Solo/Multijoueur en DB quand la SESSION se termine
 // Utilise un debounce de 3s pour distinguer "fin de manche" (round:new relance gameActive) de "fin de session"
