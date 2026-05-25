@@ -1362,7 +1362,7 @@ const Carte = () => {
             console.log('[TRAINING] 🎮 Chargement zones:', trainingData.zones.length);
             trainingData.zones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
             let _trInc = []; try { _trInc = incidentValidateZones(trainingData.zones, { source: 'training:initial' }) || []; } catch {}
-            try { const _rl = logRound(trainingData.zones, { mode: 'training', source: 'training:initial' }); if (_rl && (_rl.doublePairIssues > 0 || _trInc.length > 0)) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues.length > 0 ? _rl.issues : _trInc, mode: 'training' }; } catch {}
+            // NB: PAS de logRound ici — TrainingArenaGame.js log déjà avec mode 'training-arena' (éviter doublons monitoring)
             try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: trainingData.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: trainingData.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
             setZones(trainingData.zones);
             // ✅ FIX: Synchroniser calcAngles depuis les angles serveur dès le chargement initial
@@ -1502,7 +1502,7 @@ const Carte = () => {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
           cleanZones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
           let _trInc2 = []; try { _trInc2 = incidentValidateZones(cleanZones, { source: 'training:round-new' }) || []; } catch {}
-          try { const _rl = logRound(cleanZones, { mode: 'training', source: 'training:round-new' }); if (_rl && (_rl.doublePairIssues > 0 || _trInc2.length > 0)) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues.length > 0 ? _rl.issues : _trInc2, mode: 'training' }; } catch {}
+          // NB: PAS de logRound ici — TrainingArenaGame.js log déjà avec mode 'training-arena' (éviter doublons monitoring)
           try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: cleanZones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: cleanZones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
           setZones(cleanZones);
           // ✅ FIX: Synchroniser calcAngles depuis les angles serveur pour éviter que le localStorage ne les écrase

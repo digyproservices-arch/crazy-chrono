@@ -218,11 +218,25 @@ function MonitoringDashboard() {
         }
       } catch (e) { console.warn('[Monitoring] Supabase rounds fetch failed:', e.message); }
       
-      // 4) Fusionner, dédupliquer par id, trier (plus récent en premier)
+      // 4) Fusionner, dédupliquer par id ET par contenu (fenêtre 5s + mode normalisé + pairIds)
       const byId = new Map();
+      const byContent = new Map();
       for (const log of [...localLogs, ...serverLogs, ...clientServerLogs, ...supabaseRounds]) {
-        const key = log.id || `${log.timestamp}_${log.mode}`;
-        if (!byId.has(key)) byId.set(key, log);
+        // Dédup par ID
+        const idKey = log.id || `${log.timestamp}_${log.mode}`;
+        if (byId.has(idKey)) continue;
+        // Dédup par contenu (même manche depuis différentes sources)
+        const modeNorm = (log.mode || '').replace('training-arena', 'training');
+        const ts = log.timestamp ? new Date(log.timestamp).getTime() : 0;
+        const tsWindow = Math.floor(ts / 5000);
+        let pairIds = '';
+        if (log.summary?.paired?.length > 0) pairIds = log.summary.paired.map(p => p.pairId).sort().join(',');
+        else if (log.pairDetails?.length > 0) pairIds = [...new Set(log.pairDetails.map(p => p.pairId))].sort().join(',');
+        else if (log.zonesSnapshot?.length > 0) pairIds = [...new Set(log.zonesSnapshot.filter(z => z.pairId).map(z => z.pairId))].sort().join(',');
+        const contentKey = `${tsWindow}|${modeNorm}|${pairIds}`;
+        if (byContent.has(contentKey)) continue;
+        byId.set(idKey, log);
+        if (pairIds) byContent.set(contentKey, log);
       }
       const allLogs = [...byId.values()];
       allLogs.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
@@ -847,12 +861,25 @@ const clearIncidents = async () => {
                 }
                 sections.push('');
 
-                // Round logs (manches jouées) — dédupliqués par timestamp(arrondi à la seconde)+pairId+mode
+                // Round logs (manches jouées) — dédupliqués par fenêtre 5s + pairIds normalisés
                 const deduped = [];
                 const seenKeys = new Set();
                 for (const r of roundLogs) {
-                  const tsRounded = r.timestamp ? new Date(r.timestamp).toISOString().slice(0, 19) : '';
-                  const key = `${tsRounded}|${r.mode || ''}|${(r.summary?.paired || []).map(p => p.pairId).sort().join(',')}`;
+                  // Normaliser mode: 'training' et 'training-arena' = même chose
+                  const modeNorm = (r.mode || '').replace('training-arena', 'training').replace(/^arena$/, 'arena');
+                  // Fenêtre de 5 secondes (au lieu de 1s) pour regrouper serveur + clients
+                  const ts = r.timestamp ? new Date(r.timestamp).getTime() : 0;
+                  const tsWindow = Math.floor(ts / 5000);
+                  // Extraire pairIds depuis n'importe quel format (client: summary.paired, serveur: pairDetails)
+                  let pairIds = '';
+                  if (r.summary?.paired?.length > 0) {
+                    pairIds = r.summary.paired.map(p => p.pairId).sort().join(',');
+                  } else if (r.pairDetails?.length > 0) {
+                    pairIds = [...new Set(r.pairDetails.map(p => p.pairId))].sort().join(',');
+                  } else if (r.zonesSnapshot?.length > 0) {
+                    pairIds = [...new Set(r.zonesSnapshot.filter(z => z.pairId).map(z => z.pairId))].sort().join(',');
+                  }
+                  const key = `${tsWindow}|${modeNorm}|${pairIds}`;
                   if (!seenKeys.has(key)) { seenKeys.add(key); deduped.push(r); }
                 }
                 const recentRounds = deduped.slice(0, 20);
@@ -863,7 +890,9 @@ const clearIncidents = async () => {
                   recentRounds.forEach((r, i) => {
                     const ts = r.timestamp ? new Date(r.timestamp).toLocaleString('fr-FR') : 'N/A';
                     const issues = r.doublePairIssues > 0 ? ` 🚨 ${r.doublePairIssues} DOUBLE PAIRE(S)` : '';
-                    sections.push(`[${i+1}] ${ts} | mode: ${r.mode} | paires: ${r.validPairs} | zones: ${r.summary?.totalZones || '?'}${issues}`);
+                    const pairesCount = r.validPairs ?? r.uniquePairs ?? '?';
+                    const zonesCount = r.summary?.totalZones || r.totalZones || '?';
+                    sections.push(`[${i+1}] ${ts} | mode: ${r.mode} | paires: ${pairesCount} | zones: ${zonesCount}${issues}`);
                     if (r.issues && r.issues.length > 0) {
                       r.issues.forEach(iss => {
                         sections.push(`    ⚠️ ${iss.message || JSON.stringify(iss)}`);
