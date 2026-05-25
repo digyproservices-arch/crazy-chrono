@@ -123,6 +123,7 @@ export default function TrainingArenaLobby() {
     };
 
     // Récupérer student_id puis connecter socket
+    let socketLocal = null;
     fetchUserData().then(async (userData) => {
       if (!userData) return; // Erreur, pas de student lié
       
@@ -140,6 +141,7 @@ export default function TrainingArenaLobby() {
         transports: ['websocket'],
         reconnection: true
       });
+      socketLocal = socket;
       socketRef.current = socket;
       
       socket.on('connect', () => {
@@ -218,8 +220,8 @@ export default function TrainingArenaLobby() {
         navigate('/training-arena/game');
       });
       
-      return () => socket.disconnect();
     });
+    return () => { if (socketLocal) socketLocal.disconnect(); };
   }, [roomCode, navigate]);
   
   const handleReady = () => {
