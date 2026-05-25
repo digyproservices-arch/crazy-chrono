@@ -4368,7 +4368,7 @@ class CrazyArenaManager {
       logger.info(`[CrazyArena] ⏸️ Timer gelé pour match ${matchId}`);
     }
 
-    const GRACE_PERIOD_MS = 15000; // 15 secondes
+    const GRACE_PERIOD_MS = 30000; // 30 secondes (20s ping timeout + marge reconnexion)
 
     // Notifier tous les joueurs connectés (préfixe selon le mode)
     const pausePrefix = (match.mode === 'training') ? 'training' : 'arena';

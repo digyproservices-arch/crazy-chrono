@@ -5034,7 +5034,7 @@ io.on('connection', (socket) => {
       };
       room.status = 'paused';
 
-      const MP_GRACE_PERIOD_MS = 15000;
+      const MP_GRACE_PERIOD_MS = 30000;
 
       // Notifier les autres joueurs
       io.to(currentRoom).emit('mp:match-paused', {
