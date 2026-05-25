@@ -214,6 +214,7 @@ export default function CrazyArenaLobby() {
           zones,
           duration,
           startTime,
+          savedAt: Date.now(),
           config,  // ✅ Stocker config avec themes et classes
           players: gamePlayers,
           myStudentId: studentId

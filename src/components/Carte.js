@@ -628,6 +628,8 @@ const Carte = () => {
   const soloAutoStartedRef = useRef(false);
   // Track active solo room name for reconnection after transport close
   const soloRoomRef = useRef(null);
+  // Track active MP room name for reconnection after transport close (salle privée)
+  const mpRoomRef = useRef(null);
   // Sync objectiveModeRef with state (avoid stale closures in setTimeout/async)
   useEffect(() => { objectiveModeRef.current = objectiveMode; }, [objectiveMode]);
   // Sync socketConnectedRef with state (avoid stale closures in useEffect([], []) socket handlers)
@@ -1398,6 +1400,8 @@ const Carte = () => {
       
       s.on('training:match-lost', ({ reason }) => {
         console.error('[TRAINING] ❌ Match perdu:', reason);
+        // ✅ COUCHE 5: Nettoyage sur match perdu
+        try { localStorage.removeItem('cc_training_game'); } catch {}
         setGameActive(false);
         alert('Le match a été interrompu : ' + reason + '\nVous allez être redirigé.');
         navigate('/');
@@ -1529,6 +1533,8 @@ const Carte = () => {
       s.on('training:game-end', ({ scores, duration }) => {
         console.log('[TRAINING] 🏁 Partie terminée!', { scores });
         trainingEndedRef.current = true;
+        // ✅ COUCHE 1: Nettoyage immédiat
+        try { localStorage.removeItem('cc_training_game'); } catch {}
         setGameActive(false);
         // TODO: Afficher écran de fin avec scores
       });
@@ -1583,6 +1589,10 @@ const Carte = () => {
             console.log('[ARENA] Callback arena:join reçu:', response);
             if (response && !response.ok) {
               console.error('[ARENA] ❌ Échec rejoin - match introuvable (serveur redémarré ?)');
+              // ✅ COUCHE 5: Nettoyage immédiat sur rejet + stop reconnexion parasite
+              try { localStorage.removeItem('cc_crazy_arena_game'); } catch {}
+              console.log('[ARENA] 🧹 cc_crazy_arena_game supprimé (join rejeté)');
+              arenaGameFinishedRef.current = true;
               alert('Le match a été interrompu (le serveur a redémarré). Vous allez être redirigé.');
               navigate('/');
             }
@@ -1594,6 +1604,9 @@ const Carte = () => {
       
       s.on('arena:match-lost', ({ reason }) => {
         console.error('[ARENA] ❌ Match perdu:', reason);
+        // ✅ COUCHE 5: Nettoyage sur match perdu
+        try { localStorage.removeItem('cc_crazy_arena_game'); } catch {}
+        arenaGameFinishedRef.current = true;
         setGameActive(false);
         alert('Le match a été interrompu : ' + reason + '\nVous allez être redirigé.');
         navigate('/');
@@ -1737,6 +1750,7 @@ const Carte = () => {
           zones,
           duration,
           startTime,
+          savedAt: Date.now(),
           isTiebreaker: true
         };
         localStorage.setItem('cc_crazy_arena_game', JSON.stringify(tiebreakerData));
@@ -1781,6 +1795,10 @@ const Carte = () => {
 
         // ✅ FIX RACE CONDITION: Marquer le match comme terminé pour bloquer arena:round-new tardif
         arenaGameFinishedRef.current = true;
+
+        // ✅ COUCHE 1: Nettoyage immédiat (ne pas attendre le clic podium)
+        try { localStorage.removeItem('cc_crazy_arena_game'); } catch {}
+        console.log('[ARENA] 🧹 cc_crazy_arena_game supprimé (game-end immédiat)');
 
         // Retirer overlays précédents si présents
         const tieOverlay = document.getElementById('arena-tie-overlay');
@@ -2112,16 +2130,43 @@ const Carte = () => {
         if (sid) s.emit('mp:identify', { studentId: sid });
       } catch {}
 
-      // ✅ FIX DÉCONNEXIONS SOLO: Si un jeu est déjà actif (reconnexion après transport close),
-      // rejoindre la même salle solo (le serveur la garde 15s via délai de grâce).
-      if (prevGameActiveRef.current || soloRoomRef.current) {
-        const lastRoom = soloRoomRef.current;
-        if (lastRoom) {
-          console.log('[CC][reconnect] Rejoining solo room after transport close:', lastRoom);
-          addDiag('reconnect:rejoin-solo', { room: lastRoom, socketId: s.id });
-          try { s.emit('joinRoom', { roomId: lastRoom, name: playerName, studentId: getMyStudentId() }); } catch {}
+      // ✅ COUCHE 2+3: Nettoyage données Arena/Training stales au démarrage MP
+      try {
+        const arenaRaw = localStorage.getItem('cc_crazy_arena_game');
+        if (arenaRaw) {
+          const arenaStale = JSON.parse(arenaRaw);
+          const savedAt = arenaStale.savedAt || arenaStale.startTime || 0;
+          const ageMin = savedAt ? (Date.now() - savedAt) / 60000 : Infinity;
+          // COUCHE 3: TTL 30 minutes (un match Arena dure max ~10 min)
+          if (ageMin > 30) {
+            localStorage.removeItem('cc_crazy_arena_game');
+            console.log('[CC] 🧹 cc_crazy_arena_game expiré (TTL 30min, age=' + Math.round(ageMin) + 'min)');
+          } else {
+            // COUCHE 2: En mode MP/solo, supprimer les données Arena (on n'est plus en Arena)
+            localStorage.removeItem('cc_crazy_arena_game');
+            console.log('[CC] 🧹 cc_crazy_arena_game nettoyé (changement mode → MP)');
+          }
+        }
+      } catch {}
+      // COUCHE 2: Nettoyage données Training stales aussi
+      try { localStorage.removeItem('cc_training_game'); } catch {}
+
+      // ✅ FIX DÉCONNEXIONS: Si un jeu est déjà actif (reconnexion après transport close),
+      // rejoindre la même salle (solo OU salle privée MP).
+      if (prevGameActiveRef.current || soloRoomRef.current || mpRoomRef.current) {
+        const lastSoloRoom = soloRoomRef.current;
+        const lastMpRoom = mpRoomRef.current;
+        if (lastMpRoom) {
+          // ✅ COUCHE 4: Reconnexion MP salle privée après transport close
+          console.log('[CC][reconnect] Rejoining MP room after transport close:', lastMpRoom);
+          addDiag('reconnect:rejoin-mp', { room: lastMpRoom, socketId: s.id });
+          try { s.emit('joinRoom', { roomId: lastMpRoom, name: playerName, studentId: getMyStudentId() }); } catch {}
+        } else if (lastSoloRoom) {
+          console.log('[CC][reconnect] Rejoining solo room after transport close:', lastSoloRoom);
+          addDiag('reconnect:rejoin-solo', { room: lastSoloRoom, socketId: s.id });
+          try { s.emit('joinRoom', { roomId: lastSoloRoom, name: playerName, studentId: getMyStudentId() }); } catch {}
         } else {
-          console.log('[CC][reconnect] Game active but no soloRoom — skipping room setup');
+          console.log('[CC][reconnect] Game active but no room ref — skipping room setup');
           addDiag('reconnect:skip-setup', { gameActive: true, socketId: s.id });
         }
         return;
@@ -2405,6 +2450,7 @@ const Carte = () => {
           if (code) {
             // Utiliser le code fourni puis rejoindre
             try { setRoomId(code); } catch {}
+            mpRoomRef.current = code;
             try { s.emit('joinRoom', { roomId: code, name: cfg.playerName || playerName, studentId: getMyStudentId() }); } catch {}
             // Appliquer la config mais ne pas auto-start en multijoueur
             setTimeout(() => {
@@ -2434,6 +2480,7 @@ const Carte = () => {
               s.emit('room:create', (res) => {
                 if (res && res.ok && res.roomCode) {
                   setRoomId(res.roomCode);
+                  mpRoomRef.current = res.roomCode;
                   s.emit('joinRoom', { roomId: res.roomCode, name: cfg.playerName || playerName, studentId: getMyStudentId() });
                   // Appliquer la config mais ne pas auto-start
                   setTimeout(() => {
@@ -2470,8 +2517,10 @@ const Carte = () => {
           // join
           if (code) {
             try { setRoomId(code); } catch {}
+            mpRoomRef.current = code;
             try { s.emit('joinRoom', { roomId: code, name: cfg.playerName || playerName, studentId: getMyStudentId() }); } catch {}
           } else {
+            mpRoomRef.current = roomId;
             try { s.emit('joinRoom', { roomId, name: cfg.playerName || playerName, studentId: getMyStudentId() }); } catch {}
           }
         }
@@ -5057,6 +5106,7 @@ const handleEditGreenZone = (zone) => {
     try {
       setMyReady(false);
       setRoomStatus('lobby');
+      mpRoomRef.current = null;
       socket.emit('joinRoom', { roomId: 'default', name: playerName, studentId: getMyStudentId() });
       setRoomId('default');
     } catch {}
@@ -5076,6 +5126,7 @@ const handleEditGreenZone = (zone) => {
         setIsCreatingRoom(false);
         if (res?.ok && res.roomCode) {
           setRoomId(res.roomCode);
+          mpRoomRef.current = res.roomCode;
           setMpMsg(`Salle créée: ${res.roomCode}`);
           try { socket.emit('joinRoom', { roomId: res.roomCode, name: playerName, studentId: getMyStudentId() }); } catch {}
           // Envoyer la config pédagogique au serveur (niveau, thèmes, classes, extras)
@@ -5108,6 +5159,7 @@ const handleEditGreenZone = (zone) => {
   // Rejoindre une salle existante avec le code saisi
   const handleJoinRoom = () => {
     if (!socket || !roomId) return;
+    mpRoomRef.current = roomId;
     try { socket.emit('joinRoom', { roomId, name: playerName, studentId: getMyStudentId() }); } catch {}
   };
 
