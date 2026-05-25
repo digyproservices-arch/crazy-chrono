@@ -476,10 +476,15 @@ class CrazyArenaManager {
       }
 
       // ✅ Si le match était en pause (joueur déconnecté), reprendre automatiquement
-      if (match.status === 'paused' && match._pauseState && 
-          match._pauseState.disconnectedStudentId === studentData.studentId) {
-        logger.info(`[CrazyArena][Training] ▶️ Joueur déconnecté ${studentData.name} reconnecté → reprise du match`);
-        this.resumeMatch(matchId);
+      // FIX: Reprendre SEULEMENT si TOUS les joueurs déconnectés sont revenus
+      if (match.status === 'paused' && match._pauseState) {
+        const stillDisconnected = match.players.filter(p => p.disconnected);
+        if (stillDisconnected.length === 0) {
+          logger.info(`[CrazyArena][Training] ▶️ Tous les joueurs déconnectés sont revenus → reprise du match`);
+          this.resumeMatch(matchId);
+        } else {
+          logger.info(`[CrazyArena][Training] ⏸️ ${studentData.name} reconnecté mais ${stillDisconnected.length} joueur(s) encore déconnecté(s): ${stillDisconnected.map(p => p.name).join(', ')}`);
+        }
       }
 
       // ✅ AUTO-RESTART sur reconnexion aussi (si dernier joueur attendu)
@@ -1930,10 +1935,15 @@ class CrazyArenaManager {
       }
 
       // ✅ Si le match était en pause (joueur déconnecté), reprendre automatiquement
-      if (match.status === 'paused' && match._pauseState && 
-          match._pauseState.disconnectedStudentId === studentData.studentId) {
-        logger.info(`[CrazyArena] ▶️ Joueur déconnecté ${studentData.name} reconnecté → reprise du match`);
-        this.resumeMatch(matchId);
+      // FIX: Reprendre SEULEMENT si TOUS les joueurs déconnectés sont revenus
+      if (match.status === 'paused' && match._pauseState) {
+        const stillDisconnected = match.players.filter(p => p.disconnected);
+        if (stillDisconnected.length === 0) {
+          logger.info(`[CrazyArena] ▶️ Tous les joueurs déconnectés sont revenus → reprise du match`);
+          this.resumeMatch(matchId);
+        } else {
+          logger.info(`[CrazyArena] ⏸️ ${studentData.name} reconnecté mais ${stillDisconnected.length} joueur(s) encore déconnecté(s): ${stillDisconnected.map(p => p.name).join(', ')}`);
+        }
       }
       
       return true;
@@ -4307,14 +4317,21 @@ class CrazyArenaManager {
     _logMatchEvent('PLAYER_DISCONNECT', matchId, { mode, studentId: player.studentId, name: player.name, matchStatus: match.status });
 
     // Si le match est en cours (playing/tiebreaker), mettre en PAUSE au lieu de retirer le joueur
-    if (match.status === 'playing' || match.status === 'tiebreaker') {
+    // ✅ FIX: Inclure 'paused' — quand 2 joueurs déconnectent simultanément (ex: navigation page jeu),
+    // le 1er déclenche pauseMatch, le 2nd arrive avec status='paused' et serait RETIRÉ du match sinon
+    if (match.status === 'playing' || match.status === 'tiebreaker' || match.status === 'paused') {
       player.disconnected = true;
       player.disconnectedAt = Date.now();
       // NE PAS supprimer le mapping playerMatches ici — on le garde pour la reconnexion éventuelle
       // Mais marquer l'ancien socketId comme invalide
       player._oldSocketId = socket.id;
 
-      this.pauseMatch(matchId, player);
+      // Ne déclencher pauseMatch que si le match n'est pas déjà en pause
+      if (match.status !== 'paused') {
+        this.pauseMatch(matchId, player);
+      } else {
+        logger.info(`[CrazyArena] ⏸️ Match ${matchId} déjà en pause — ${player.name} aussi marqué déconnecté`);
+      }
       return;
     }
 
