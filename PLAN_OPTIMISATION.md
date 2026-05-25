@@ -50,7 +50,7 @@
 - [x] **1.1** Scripts `prebuild` + `prestart` ajoutés (copie server→public) ✅
 - [x] **1.2** ~~Supprimer du Git~~ → Revert : fichier nécessaire pour Vercel ✅
 - [x] **1.3** Test staging : Nature 30, Animaux 27, Math OK ✅
-- [ ] **1.4** Valider en production (merge staging → main)
+- [x] **1.4** Valider en production (merge staging → main) ✅
 
 ### Phase 2 : Utilitaires partagés (risque = faible)
 > *Éliminer le code copié-collé entre Carte.js, TrainingArenaGame.js, ArenaSpectator.js*
@@ -62,11 +62,12 @@
 
 ### Phase 3 : Tests automatisés serveur (risque = zéro)
 > *Ajouter un filet de sécurité pour les changements futurs*
-- [ ] **3.1** Installer jest comme dépendance dev
-- [ ] **3.2** Test : serverZoneGenerator génère 16 zones avec 1 bonne paire
-- [ ] **3.3** Test : les zones ont des pairId cohérents (type calcul→chiffre, texte→image)
-- [ ] **3.4** Test : le contenu label/content est correct par type de zone
-- [ ] **3.5** Ajouter script `npm test` dans package.json
+- [x] **3.1** Installer jest comme dépendance dev ✅
+- [x] **3.2** Test : serverZoneGenerator génère 16 zones avec 1 bonne paire ✅
+- [x] **3.3** Test : les zones ont des pairId cohérents (type calcul→chiffre, texte→image) ✅
+- [x] **3.4** Test : le contenu label/content est correct par type de zone ✅
+- [x] **3.5** Ajouter script `npm test` dans package.json ✅
+> **État actuel : 30 tests (27 OK, 3 skippés)**
 
 ### Phase 4 : Schéma zones explicite (risque = faible)
 > *Clarifier le rôle de chaque champ (label vs content) pour éviter les confusions futures*
@@ -76,18 +77,57 @@
 
 ### Phase 5 : Découpage Carte.js (risque = moyen)
 > *Extraire des modules de Carte.js pour faciliter la maintenance*
-> *Branches refactor/carte-renderer et refactor/game-state-machine évaluées : trop anciennes (33K lignes divergence), non récupérables*
+> *Carte.js = 10 221 lignes actuellement*
 - [x] **5.1** Évaluer branches refactor → trop anciennes, approche module-level choisie ✅
 - [x] **5.2** Extraire `src/utils/gameAudio.js` (playCorrectSound, playWrongSound) ✅
 - [x] **5.3** Extraire `src/utils/gameHelpers.js` (mulberry32, norm, normType, getPairId, shuffleArray, etc.) ✅
 - [x] **5.4** Extraire `src/components/ArenaPauseOverlay.js` (composant indépendant) ✅
 - [x] **5.5** Build production OK + 22 tests serveur OK ✅
-- [ ] **5.6** Valider sur staging (Vercel auto-deploy)
+- [x] **5.6** Testé sur staging (bug fixes validés sur staging) ✅
 > ⚠️ Socket handlers et animation bubbles NON extraits (trop de dépendances croisées, risque élevé)
+> 📌 Prochaines extractions possibles (Phase 5b, à planifier) :
+> - Overlays (round result, tiebreaker, confetti) → composants séparés
+> - Timer logic → hook `useGameTimer`
+> - Socket event handlers → regrouper par mode (solo/MP/arena/training)
 
 ### Phase 6 : CI/CD GitHub Actions (risque = zéro)
-- [ ] **6.1** Créer `.github/workflows/ci.yml` : build + tests sur chaque push
-- [ ] **6.2** Ajouter badge status dans README
+- [x] **6.1** Tests automatiques à chaque push ✅ (commit 68eaf2c)
+- [ ] **6.2** Créer `.github/workflows/ci.yml` propre (optionnel)
+- [ ] **6.3** Ajouter badge status dans README (optionnel)
+
+### Phase 7 : Stabilité multijoueur (ajoutée sur staging)
+> *Corrections critiques pour tous les modes de jeu (SP, GS, Training, Arena)*
+> *42 commits sur staging depuis le dernier merge vers main*
+- [x] **7.1** Monitoring avancé : sTrace MP + cc_game_trace client + rapport mondial ✅
+- [x] **7.2** Monitoring Arena/Training : paires, lobby, notifications ✅
+- [x] **7.3** Fix tiebreaker : fenêtre égalité, prolongation infinie, vérification post-placement ✅
+- [x] **7.4** Pause/resume/forfait : système homogène pour SP + GS + Arena + Training ✅
+- [x] **7.5** Resync joueur reconnecté : zones + scores + timer ✅
+- [x] **7.6** Registre parité des fonctionnalités entre 5 modes de jeu ✅
+- [x] **7.7** Fix disparités Training-Arena (7/8 corrigées) ✅
+- [x] **7.8** Grande Salle : persistance résultats DB + record personnel + crash recovery ✅
+- [x] **7.9** Arena : stats perf (niveau, moyenne, précision) dans carte du groupe ✅
+- [x] **7.10** GS : historique manches (match_rounds + match_player_summary) ✅
+- [x] **7.11** Fix socket leak lobbys Training/Arena (useEffect cleanup) ✅
+- [x] **7.12** Fix grace period 15s → 30s pour MP et Arena/Training ✅
+- [x] **7.13** Fix duplicate round:result après forfait quand timer déjà expiré ✅
+- [x] **7.14** Fix timer desync client après reconnexion tardive (timerResetKey) ✅
+- [x] **7.15** Défense 5 couches contre forfait prématuré en salle privée ✅
+- [ ] **7.16** **→ MERGE staging → main** (42 commits)
+
+---
+
+## Avant merge staging → main : checklist
+
+- [x] Build frontend OK ✅
+- [x] 30 tests serveur OK (27 pass, 3 skip) ✅
+- [x] Test MP salle privée : 3 manches jouées, session:end reçu ✅
+- [x] Test déconnexion : reconnexion rapide OK, pas de forfait prématuré ✅
+- [ ] **Test mode solo** : vérifier que rien n'est cassé
+- [ ] **Test mode Arena** : vérifier une partie complète
+- [ ] **Test mode Training** : vérifier une partie complète
+- [ ] **Merge** : `git checkout main && git merge staging`
+- [ ] **Push main** : déclenche deploy Vercel + Render production
 
 ---
 
@@ -110,6 +150,8 @@
 | 2026-05-14 | 3 | 3.1-3.5 Tests automatisés | ✅ | 17 tests jest, Pre-Deploy Render, merge 5b3f936 |
 | 2026-05-14 | 4 | 4.1-4.3 Schéma zones | ✅ | ZONE_SCHEMA.md + validation + 22 tests, commit 4a14cee |
 | 2026-05-14 | 5 | 5.1-5.5 Découpage Carte.js | ✅ | gameAudio + gameHelpers + ArenaPauseOverlay, commit f760ba3 |
+| 2026-05-14→25 | 7 | 7.1-7.15 Stabilité MP | ✅ | 42 commits, monitoring + fixes + features |
+| 2026-05-25 | 7 | 7.14 timerResetKey | ✅ | Fix timer desync client, commit 99cf497 |
 
 ---
 
