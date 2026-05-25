@@ -3675,21 +3675,31 @@ io.on('connection', (socket) => {
       room.status = pauseState.previousStatus || 'playing';
 
       // Relancer le round timer avec le temps restant
-      const remMs = pauseState.remainingMs || 1000;
-      room._roundTimerSetAt = Date.now() - ((room.duration || 60) * 1000 - remMs);
-      room.roundTimer = setTimeout(() => {
-        try { if (room.pendingClaims && room.pendingClaims.size) { for (const [, e] of room.pendingClaims.entries()) { try { if (e && e.timer) clearTimeout(e.timer); } catch {} } room.pendingClaims.clear(); } } catch {}
-        const base = room.roundBaseScores instanceof Map ? room.roundBaseScores : new Map();
-        const deltas = Array.from(room.players.entries()).map(([id, pl]) => ({ id, name: pl.name, delta: (pl.score || 0) - (base.has(id) ? base.get(id) : 0), now: pl.score || 0 }));
-        let best = -Infinity; let winners = [];
-        for (const d of deltas) { if (d.delta > best) { best = d.delta; winners = [d]; } else if (d.delta === best) { winners.push(d); } }
-        let winnerId = null, winnerName = null;
-        if (best > 0 && winners.length === 1) { winnerId = winners[0].id; winnerName = winners[0].name; }
-        io.to(currentRoom).emit('round:result', { winnerId, winnerName, roundIndex: room.roundsPlayed, roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null });
+      const remMs = pauseState.remainingMs || 0;
+
+      // ✅ FIX: Si remainingMs=0, le round avait DÉJÀ expiré → round:result déjà émis → prochain round directement
+      if (remMs <= 0) {
+        console.log(`[MP] ▶️ RESUME: Round déjà expiré avant déco — skip round:result, lancement prochain round`);
         const more = !isFinite(room.roundsPerSession) || (room.roundsPlayed < room.roundsPerSession);
-        if (more && room.sessionActive) { room.roundTimer = setTimeout(() => { const r = getRoom(currentRoom); if (!r || !r.sessionActive) return; startRound(currentRoom); }, 400); }
-        else { endSession(currentRoom); }
-      }, remMs);
+        if (more && room.sessionActive) {
+          room.roundTimer = setTimeout(() => { const r = getRoom(currentRoom); if (!r || !r.sessionActive) return; startRound(currentRoom); }, 400);
+        } else { endSession(currentRoom); }
+      } else {
+        room._roundTimerSetAt = Date.now() - ((room.duration || 60) * 1000 - remMs);
+        room.roundTimer = setTimeout(() => {
+          try { if (room.pendingClaims && room.pendingClaims.size) { for (const [, e] of room.pendingClaims.entries()) { try { if (e && e.timer) clearTimeout(e.timer); } catch {} } room.pendingClaims.clear(); } } catch {}
+          const base = room.roundBaseScores instanceof Map ? room.roundBaseScores : new Map();
+          const deltas = Array.from(room.players.entries()).map(([id, pl]) => ({ id, name: pl.name, delta: (pl.score || 0) - (base.has(id) ? base.get(id) : 0), now: pl.score || 0 }));
+          let best = -Infinity; let winners = [];
+          for (const d of deltas) { if (d.delta > best) { best = d.delta; winners = [d]; } else if (d.delta === best) { winners.push(d); } }
+          let winnerId = null, winnerName = null;
+          if (best > 0 && winners.length === 1) { winnerId = winners[0].id; winnerName = winners[0].name; }
+          io.to(currentRoom).emit('round:result', { winnerId, winnerName, roundIndex: room.roundsPlayed, roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null });
+          const more = !isFinite(room.roundsPerSession) || (room.roundsPlayed < room.roundsPerSession);
+          if (more && room.sessionActive) { room.roundTimer = setTimeout(() => { const r = getRoom(currentRoom); if (!r || !r.sessionActive) return; startRound(currentRoom); }, 400); }
+          else { endSession(currentRoom); }
+        }, remMs);
+      }
 
       delete room._pauseState;
 
@@ -5072,22 +5082,33 @@ io.on('connection', (socket) => {
           room._forfeitTimeout = null;
 
           // Relancer le round timer avec le temps restant
-          const remMs = pauseState?.remainingMs || 1000;
-          room._roundTimerSetAt = Date.now() - ((room.duration || 60) * 1000 - remMs);
-          room.roundTimer = setTimeout(() => {
-            // Même logique que l'expiration normale du roundTimer
-            try { if (room.pendingClaims && room.pendingClaims.size) { for (const [, e] of room.pendingClaims.entries()) { try { if (e && e.timer) clearTimeout(e.timer); } catch {} } room.pendingClaims.clear(); } } catch {}
-            const base = room.roundBaseScores instanceof Map ? room.roundBaseScores : new Map();
-            const deltas = Array.from(room.players.entries()).map(([id, pl]) => ({ id, name: pl.name, delta: (pl.score || 0) - (base.has(id) ? base.get(id) : 0), now: pl.score || 0 }));
-            let best = -Infinity; let winners = [];
-            for (const d of deltas) { if (d.delta > best) { best = d.delta; winners = [d]; } else if (d.delta === best) { winners.push(d); } }
-            let winnerId = null, winnerName = null;
-            if (best > 0 && winners.length === 1) { winnerId = winners[0].id; winnerName = winners[0].name; }
-            io.to(currentRoom).emit('round:result', { winnerId, winnerName, roundIndex: room.roundsPlayed, roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null });
+          const remMs = pauseState?.remainingMs || 0;
+
+          // ✅ FIX: Si remainingMs=0, le round avait DÉJÀ expiré avant la déconnexion
+          // → round:result déjà émis par le timer normal → passer directement au round suivant
+          if (remMs <= 0) {
+            console.log(`[MP] ▶️ Round déjà expiré avant déco — skip round:result, lancement prochain round`);
             const more = !isFinite(room.roundsPerSession) || (room.roundsPlayed < room.roundsPerSession);
-            if (more && room.sessionActive) { room.roundTimer = setTimeout(() => { const r = getRoom(currentRoom); if (!r || !r.sessionActive) return; startRound(currentRoom); }, 400); }
-            else { endSession(currentRoom); }
-          }, remMs);
+            if (more && room.sessionActive) {
+              room.roundTimer = setTimeout(() => { const r = getRoom(currentRoom); if (!r || !r.sessionActive) return; startRound(currentRoom); }, 400);
+            } else { endSession(currentRoom); }
+          } else {
+            room._roundTimerSetAt = Date.now() - ((room.duration || 60) * 1000 - remMs);
+            room.roundTimer = setTimeout(() => {
+              // Même logique que l'expiration normale du roundTimer
+              try { if (room.pendingClaims && room.pendingClaims.size) { for (const [, e] of room.pendingClaims.entries()) { try { if (e && e.timer) clearTimeout(e.timer); } catch {} } room.pendingClaims.clear(); } } catch {}
+              const base = room.roundBaseScores instanceof Map ? room.roundBaseScores : new Map();
+              const deltas = Array.from(room.players.entries()).map(([id, pl]) => ({ id, name: pl.name, delta: (pl.score || 0) - (base.has(id) ? base.get(id) : 0), now: pl.score || 0 }));
+              let best = -Infinity; let winners = [];
+              for (const d of deltas) { if (d.delta > best) { best = d.delta; winners = [d]; } else if (d.delta === best) { winners.push(d); } }
+              let winnerId = null, winnerName = null;
+              if (best > 0 && winners.length === 1) { winnerId = winners[0].id; winnerName = winners[0].name; }
+              io.to(currentRoom).emit('round:result', { winnerId, winnerName, roundIndex: room.roundsPlayed, roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null });
+              const more = !isFinite(room.roundsPerSession) || (room.roundsPlayed < room.roundsPerSession);
+              if (more && room.sessionActive) { room.roundTimer = setTimeout(() => { const r = getRoom(currentRoom); if (!r || !r.sessionActive) return; startRound(currentRoom); }, 400); }
+              else { endSession(currentRoom); }
+            }, remMs);
+          }
 
           console.log(`[MP] ▶️ Room ${currentRoom} reprise après forfait — ${room.players.size} joueur(s) — timer restant ${Math.round(remMs / 1000)}s`);
           emitRoomState(currentRoom);
