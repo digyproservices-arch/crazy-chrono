@@ -57,6 +57,12 @@ footer {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ===== TOAST ANIMATION ===== */
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
 /* ===== BUTTON MICRO-INTERACTIONS ===== */
 .btn-press {
   transition: transform 0.12s ease, box-shadow 0.12s ease;

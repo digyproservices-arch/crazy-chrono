@@ -10,6 +10,7 @@ import { fetchAndSyncStatus, getBackendUrl } from './utils/subscription';
 import supabase from './utils/supabaseClient';
 import NotificationBadge from './components/NotificationBadge';
 import PageTransition from './components/PageTransition';
+import { ToastProvider } from './components/Toast';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import PWAUpdateButton from './components/PWAUpdateButton';
 import LandingPage from './components/LandingPage';
@@ -704,6 +705,7 @@ function App() {
 
   return (
     <DataProvider>
+      <ToastProvider>
       <Router>
         <div className="App">
           {/* Badge notifications Arena (visible partout) */}
@@ -826,6 +828,7 @@ function App() {
           </div>
         )}
       </Router>
+      </ToastProvider>
     </DataProvider>
   );
 }

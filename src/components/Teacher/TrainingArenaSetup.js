@@ -9,6 +9,7 @@ import io from 'socket.io-client';
 import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
 import { DataContext } from '../../context/DataContext';
 import PedagogicConfig, { CARD, SECTION_TITLE, CLASS_LEVELS, CONTENT_DOMAINS } from '../Shared/PedagogicConfig';
+import { useToast } from '../Toast';
 
 
 // Helper : Parser student_ids avec support multi-format
@@ -44,6 +45,7 @@ const CACHE_KEY_GROUPS = 'tr_cache_groups';
 
 export default function TrainingArenaSetup() {
   const navigate = useNavigate();
+  const toast = useToast();
   const loadedRef = useRef(false);
   const { data } = useContext(DataContext);
   
@@ -244,12 +246,12 @@ export default function TrainingArenaSetup() {
   
   const createGroup = async () => {
     if (selectedStudents.length < 2) {
-      alert('Vous devez sélectionner au moins 2 élèves pour former un groupe.');
+      toast.error('Vous devez sélectionner au moins 2 élèves pour former un groupe.');
       return;
     }
     
     if (!groupName.trim()) {
-      alert('Veuillez donner un nom au groupe.');
+      toast.error('Veuillez donner un nom au groupe.');
       return;
     }
     
@@ -257,7 +259,7 @@ export default function TrainingArenaSetup() {
       // ✅ FIX: Utiliser cc_class_id (identique à loadTournamentData)
       const classId = localStorage.getItem('cc_class_id');
       if (!classId) {
-        alert('Erreur: Classe non trouvée. Veuillez vous reconnecter.');
+        toast.error('Classe non trouvée. Veuillez vous reconnecter.');
         return;
       }
       const backendUrl = getBackendUrl();
@@ -282,16 +284,16 @@ export default function TrainingArenaSetup() {
         if (data.groupId && pedConfig) {
           setGroupConfigs(prev => ({ ...prev, [data.groupId]: { ...pedConfig } }));
         }
-        alert(`Groupe "${groupName}" créé avec succès !`);
+        toast.success(`Groupe "${groupName}" créé !`);
         setSelectedStudents([]);
         setGroupName('');
         loadTournamentData(); // Recharger
       } else {
-        alert('Erreur lors de la création du groupe: ' + data.error);
+        toast.error('Erreur: ' + data.error);
       }
     } catch (error) {
       console.error('[TrainingArena] Error creating group:', error);
-      alert('Erreur réseau lors de la création du groupe.');
+      toast.error('Erreur réseau lors de la création du groupe.');
     }
   };
   
@@ -331,7 +333,7 @@ export default function TrainingArenaSetup() {
     
     if (results.length > 0) {
       const recap = results.map(r => `• ${r.groupName}: Code ${r.roomCode}`).join('\n');
-      alert(`✅ ${results.length} salle(s) créée(s) !\n\n${recap}\n\nLes élèves doivent se connecter avec leur code d'accès et rejoindre la salle.`);
+      toast.success(`${results.length} salle(s) créée(s) ! Les élèves peuvent rejoindre.`);
     }
     loadTournamentData();
   };
@@ -341,7 +343,7 @@ export default function TrainingArenaSetup() {
       // ✅ FIX: Utiliser cc_class_id (identique à loadTournamentData)
       const classId = localStorage.getItem('cc_class_id');
       if (!classId) {
-        alert('Erreur: Classe non trouvée. Veuillez vous reconnecter.');
+        toast.error('Classe non trouvée. Veuillez vous reconnecter.');
         return;
       }
       const backendUrl = getBackendUrl();
@@ -411,16 +413,16 @@ export default function TrainingArenaSetup() {
           return { groupName: group.name, roomCode: data.roomCode, matchId: data.matchId, playerCount };
         }
         
-        alert(`✅ Salle créée !\n\nCode de salle: ${data.roomCode}\n\n📋 Les ${playerCount} élève(s) doivent se connecter avec leur code d'accès et rejoindre la salle.\n\nURL: https://app.crazy-chrono.com/training-arena/lobby/${data.roomCode}`);
+        toast.success(`Salle créée ! Code: ${data.roomCode} — ${playerCount} élève(s)`);
         loadTournamentData();
         return { groupName: group.name, roomCode: data.roomCode, matchId: data.matchId, playerCount };
       } else {
-        if (!silent) alert('Erreur lors de la création de la salle: ' + data.error);
+        if (!silent) toast.error('Erreur: ' + data.error);
         return null;
       }
     } catch (error) {
       console.error('[TrainingArena] Error launching match:', error);
-      if (!silent) alert('Erreur réseau lors de la création de la salle.');
+      if (!silent) toast.error('Erreur réseau lors de la création de la salle.');
       return null;
     }
   };
@@ -438,16 +440,16 @@ export default function TrainingArenaSetup() {
       const data = await res.json();
       
       if (data.success) {
-        alert('Groupe supprimé.');
+        toast.success('Groupe supprimé.');
         try { sessionStorage.removeItem(CACHE_KEY_TOURNAMENT); } catch {}
         loadTournamentData();
       } else {
         console.error('[TrainingArena] Delete group failed:', data.error);
-        alert('Erreur lors de la suppression du groupe : ' + (data.error || 'Erreur inconnue'));
+        toast.error('Erreur: ' + (data.error || 'Erreur inconnue'));
       }
     } catch (error) {
       console.error('[TrainingArena] Error deleting group:', error);
-      alert('Erreur réseau lors de la suppression : ' + error.message);
+      toast.error('Erreur réseau: ' + error.message);
     }
   };
 
@@ -555,14 +557,14 @@ export default function TrainingArenaSetup() {
 
   // Match management functions
   const handleStartMatch = (matchId) => {
-    if (!socketRef.current) { alert('Socket non connecté'); return; }
+    if (!socketRef.current) { toast.error('Socket non connecté'); return; }
     const live = matchesLive[matchId];
-    if (!live || live.connectedPlayers < 2) { alert('Au moins 2 joueurs doivent être connectés.'); return; }
-    if (live.readyPlayers !== live.connectedPlayers) { alert(`Tous les joueurs doivent être prêts (${live.readyPlayers || 0}/${live.connectedPlayers}).`); return; }
+    if (!live || live.connectedPlayers < 2) { toast.error('Au moins 2 joueurs doivent être connectés.'); return; }
+    if (live.readyPlayers !== live.connectedPlayers) { toast.error(`Tous les joueurs doivent être prêts (${live.readyPlayers || 0}/${live.connectedPlayers}).`); return; }
     const group = groups.find(g => g.match_id === matchId);
     if (!window.confirm(`Démarrer le match "${group?.name || ''}" avec ${live.connectedPlayers} joueur(s) ?`)) return;
     socketRef.current.emit('training:force-start', { matchId }, (response) => {
-      if (!response?.ok) alert('Erreur: ' + (response?.error || 'Inconnue'));
+      if (!response?.ok) toast.error('Erreur: ' + (response?.error || 'Inconnue'));
     });
   };
 
@@ -573,7 +575,7 @@ export default function TrainingArenaSetup() {
   };
 
   const handleDeleteMatch = (matchId) => {
-    if (!socketRef.current) { alert('Socket non connecté'); return; }
+    if (!socketRef.current) { toast.error('Socket non connecté'); return; }
     socketRef.current.emit('delete-match', { matchId }, (response) => {
       setMatchesLive(prev => { const n = { ...prev }; delete n[matchId]; return n; });
       // Reset group status
@@ -616,27 +618,27 @@ export default function TrainingArenaSetup() {
     try { sessionStorage.removeItem(CACHE_KEY_TOURNAMENT); } catch {}
     loadTournamentData();
     if (failures.length > 0) {
-      alert(`⚠️ ${failures.length} groupe(s) n'ont pas pu être supprimés :\n${failures.map(f => `• ${f.name}: ${f.error}`).join('\n')}`);
+      toast.error(`${failures.length} groupe(s) non supprimé(s)`);
     } else {
-      alert(`✅ ${toDelete.length} groupe(s) supprimé(s) avec succès.`);
+      toast.success(`${toDelete.length} groupe(s) supprimé(s)`);
     }
   };
 
   // Bulk start all ready matches
   const bulkStartReadyMatches = () => {
-    if (!socketRef.current) { alert('Socket non connecté'); return; }
+    if (!socketRef.current) { toast.error('Socket non connecté'); return; }
     const readyGroups = groups.filter(g => {
       if (!g.match_id) return false;
       const live = matchesLive[g.match_id];
       return live && live.connectedPlayers >= 2 && live.readyPlayers === live.connectedPlayers && live.status !== 'playing' && live.status !== 'finished';
     });
-    if (readyGroups.length === 0) { alert('Aucun match prêt à démarrer.'); return; }
+    if (readyGroups.length === 0) { toast.info('Aucun match prêt à démarrer.'); return; }
     if (!window.confirm(`Démarrer ${readyGroups.length} match(s) prêt(s) ?`)) return;
     setBulkStarting(true);
     readyGroups.forEach(g => {
       socketRef.current.emit('training:force-start', { matchId: g.match_id });
     });
-    setTimeout(() => { setBulkStarting(false); alert(`✅ ${readyGroups.length} match(s) démarré(s) !`); }, 1500);
+    setTimeout(() => { setBulkStarting(false); toast.success(`${readyGroups.length} match(s) démarré(s) !`); }, 1500);
   };
 
   // Élèves déjà dans des groupes (useMemo pour éviter recalcul à chaque render)
@@ -765,7 +767,7 @@ export default function TrainingArenaSetup() {
                   onClick={() => {
                     if (pedConfig) {
                       setGroupConfigs(prev => ({ ...prev, [g.id]: { ...pedConfig } }));
-                      alert(`Config appliquée au groupe "${g.name}" ✅`);
+                      toast.success(`Config appliquée au groupe "${g.name}"`);
                     }
                   }}
                   style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #93c5fd', background: '#fff', color: '#1e40af', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
@@ -780,7 +782,7 @@ export default function TrainingArenaSetup() {
                     const newConfigs = {};
                     pending.forEach(g => { newConfigs[g.id] = { ...pedConfig }; });
                     setGroupConfigs(prev => ({ ...prev, ...newConfigs }));
-                    alert(`Config appliquée à ${pending.length} groupe(s) ✅`);
+                    toast.success(`Config appliquée à ${pending.length} groupe(s)`);
                   }
                 }}
                 style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #1d4ed8', background: '#1d4ed8', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
@@ -959,7 +961,7 @@ export default function TrainingArenaSetup() {
                 // Filter valid groups (2-4 students)
                 const validGroups = buckets.filter(b => b.length >= 2);
                 if (validGroups.length === 0) {
-                  alert('Pas assez d\'élèves disponibles pour créer des groupes.');
+                  toast.error('Pas assez d\'élèves disponibles pour créer des groupes.');
                   return;
                 }
                 const msg = validGroups.map((g, i) => {
@@ -1131,7 +1133,7 @@ export default function TrainingArenaSetup() {
                               setGroupConfigs(prev => ({ ...prev, [group.id]: { ...pedConfig } }));
                             }
                             setConfigOpen(true);
-                            alert(`Pour modifier la config du groupe "${group.name}":\n\n1. Ajustez la Configuration pédagogique ci-dessus\n2. Cliquez sur "Appliquer à ${group.name}" qui apparaîtra`);
+                            toast.info(`Ajustez la config ci-dessus puis cliquez "Appliquer à ${group.name}"`);
                           }}
                           style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#6b7280', cursor: 'pointer' }}
                           title="Modifier la config de ce groupe"
@@ -1421,13 +1423,13 @@ export default function TrainingArenaSetup() {
                     });
                     const data = await resp.json();
                     if (data.success) {
-                      alert(data.message);
+                      toast.success(data.message);
                       loadTournamentData();
                     } else {
-                      alert('Erreur: ' + (data.error || 'Erreur inconnue'));
+                      toast.error('Erreur: ' + (data.error || 'Erreur inconnue'));
                     }
                   } catch (err) {
-                    alert('Erreur de connexion: ' + err.message);
+                    toast.error('Erreur de connexion: ' + err.message);
                   } finally {
                     setCreatingNextTour(false);
                   }
