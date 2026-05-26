@@ -2198,6 +2198,7 @@ function createGrandeSalle(id, config = {}) {
       roundsPerElimination: config.roundsPerElimination || 1, // rounds before an elimination
       eliminationPercent: config.eliminationPercent || 25, // % eliminated each wave
       minPlayersToStart: config.minPlayersToStart || 3,
+      manualStart: config.manualStart || false, // true = admin lance manuellement
       themes: config.themes || [],
       classes: config.classes || [],
       extras: config.extras || [],
@@ -2229,6 +2230,8 @@ const GS_AUTO_START_DELAY = 60; // seconds before auto-start when >= minPlayers
 function gsCheckAutoStart(salleId) {
   const salle = grandeSalles.get(salleId);
   if (!salle || salle.sessionActive || salle.status !== 'lobby') return;
+  // Si lancement manuel activé, ne pas auto-start
+  if (salle.config.manualStart) return;
   
   const playerCount = salle.players.size;
   const minPlayers = salle.config.minPlayersToStart || 3;
@@ -2519,17 +2522,28 @@ async function gsFinish(salleId) {
   salle.sessionActive = false;
   if (salle.roundTimer) { try { clearTimeout(salle.roundTimer); } catch {} salle.roundTimer = null; }
   
-  // Final podium
+  // Final podium (avec égalités: même score = même rang)
   const allPlayers = Array.from(salle.players.entries())
     .map(([id, p]) => ({ id, name: p.name, score: p.score || 0, eliminated: !!p.eliminated, eliminatedWave: p.eliminatedWave || 999 }))
     .sort((a, b) => {
       if (a.eliminated !== b.eliminated) return a.eliminated ? 1 : -1;
       if (!a.eliminated && !b.eliminated) return b.score - a.score;
       return b.eliminatedWave - a.eliminatedWave || b.score - a.score;
-    })
-    .map((p, i) => ({ ...p, finalRank: i + 1 }));
+    });
+  // Assign ranks with ties (same score = same rank)
+  let currentRank = 1;
+  for (let i = 0; i < allPlayers.length; i++) {
+    if (i > 0 && allPlayers[i].score === allPlayers[i - 1].score && !allPlayers[i].eliminated && !allPlayers[i - 1].eliminated) {
+      allPlayers[i].finalRank = allPlayers[i - 1].finalRank;
+    } else {
+      allPlayers[i].finalRank = currentRank;
+    }
+    currentRank++;
+  }
   
-  const winner = allPlayers[0] || null;
+  // Winners = all players with rank 1
+  const winners = allPlayers.filter(p => p.finalRank === 1);
+  const winner = winners[0] || null;
   
   console.log(`[GS] Grande Salle "${salleId}" finished. Winner: ${winner?.name || 'none'} with ${winner?.score || 0} points. ${allPlayers.length} total players.`);
   sTrace.push('gs:finish', { salle: salleId, winner: winner?.name || 'none', winnerScore: winner?.score || 0, totalPlayers: allPlayers.length, rounds: salle.roundsPlayed, waves: salle.eliminationWave });
@@ -2713,6 +2727,8 @@ async function gsFinish(salleId) {
     fullRanking: allPlayers,
     totalPlayers: allPlayers.length,
     winner,
+    winners, // Tous les gagnants ex-aequo (rang 1)
+    hasTie: winners.length > 1,
     roundsPlayed: salle.roundsPlayed,
     eliminationWaves: salle.eliminationWave,
   });
@@ -4623,6 +4639,7 @@ io.on('connection', (socket) => {
               eliminationPercent: t.elimination_percent || 25,
               roundsPerElimination: t.rounds_per_elimination || 1,
               minPlayersToStart: t.min_players || 3,
+              manualStart: t.manual_start === true,
               themes: t.themes || [],
               classes: t.classes || [],
             });
@@ -4727,7 +4744,7 @@ io.on('connection', (socket) => {
     }
     
     gsEmitState(id);
-    if (typeof cb === 'function') cb({ ok: true, salleId: id, status: salle.status, playerCount: salle.players.size, tournamentTitle: salle.tournamentTitle || null, autoStartCountdown: salle.autoStartCountdown });
+    if (typeof cb === 'function') cb({ ok: true, salleId: id, status: salle.status, playerCount: salle.players.size, tournamentTitle: salle.tournamentTitle || null, autoStartCountdown: salle.autoStartCountdown, manualStart: salle.config.manualStart || false });
   });
 
   socket.on('gs:leave', () => {

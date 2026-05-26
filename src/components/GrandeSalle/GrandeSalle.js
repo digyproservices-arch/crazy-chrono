@@ -32,7 +32,11 @@ export default function GrandeSalle() {
   const [lobbyCountdown, setLobbyCountdown] = useState(null);
   const [eliminatedData, setEliminatedData] = useState(null);
   const [newRecord, setNewRecord] = useState(null);
+  const [manualStart, setManualStart] = useState(false);
   const roundTimerRef = useRef(null);
+
+  // Check if user is admin (can start manually)
+  const isAdmin = (() => { try { const a = JSON.parse(localStorage.getItem('cc_auth') || '{}'); return a.role === 'admin' || a.role === 'cpd'; } catch { return false; } })();
 
   const checkGSRecord = useCallback((finishData, socketId) => {
     try {
@@ -117,6 +121,7 @@ export default function GrandeSalle() {
       socket.emit('gs:join', joinPayload, (res) => {
         if (res?.tournamentTitle) setTournamentTitle(res.tournamentTitle);
         if (res?.autoStartCountdown != null) setLobbyCountdown(res.autoStartCountdown);
+        if (res?.manualStart) setManualStart(true);
       });
     });
     socket.on('disconnect', () => setConnected(false));
@@ -188,6 +193,18 @@ export default function GrandeSalle() {
         <h1 style={{ fontSize: 32, fontWeight: 900, margin: 0, background: 'linear-gradient(135deg, #F5A623, #ff6b35)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{tournamentTitle || 'Grande Salle'}</h1>
         <p style={{ color: '#94a3b8', fontSize: 16, marginTop: 8 }}>{tournamentId ? 'Tournoi programmé' : 'Course Éliminatoire — Tous les abonnés sont les bienvenus !'}</p>
       </div>
+      {/* QR CODE pour les tournois (visible quand projeté) */}
+      {tournamentId && (
+        <div style={{ ...CARD, textAlign: 'center', marginBottom: 24, background: 'rgba(255,255,255,0.95)', border: '2px solid #F5A623' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>Flashez pour rejoindre</div>
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(`https://app.crazy-chrono.com/grande-salle/tournament/${tournamentId}`)}&color=0D6A7A`}
+            alt="QR Code"
+            style={{ width: 280, height: 280, borderRadius: 12 }}
+          />
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>app.crazy-chrono.com</div>
+        </div>
+      )}
       <div style={{ ...CARD, textAlign: 'center', marginBottom: 24 }}>
         <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 8 }}>Joueurs dans la salle</div>
         <div style={{ fontSize: 72, fontWeight: 900, color: '#F5A623', lineHeight: 1 }}>{totalPlayers}</div>
@@ -201,7 +218,12 @@ export default function GrandeSalle() {
             </div>
           </div>
         )}
-        {totalPlayers < 3 && totalPlayers > 0 && (
+        {manualStart && !lobbyCountdown && (
+          <div style={{ marginTop: 12, fontSize: 13, color: '#10b981', fontWeight: 600 }}>
+            ⏳ En attente du lancement par l'organisateur...
+          </div>
+        )}
+        {!manualStart && totalPlayers < 3 && totalPlayers > 0 && (
           <div style={{ marginTop: 12, fontSize: 13, color: '#94a3b8' }}>En attente de {3 - totalPlayers} joueur(s) de plus pour lancer...</div>
         )}
       </div>
@@ -222,9 +244,9 @@ export default function GrandeSalle() {
           <div><strong>5.</strong> Le dernier survivant remporte la victoire !</div>
         </div>
       </div>
-      {totalPlayers >= 3 && <div style={{ textAlign: 'center', marginTop: 24 }}>
-        <button onClick={handleStart} style={{ padding: '16px 40px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg, #F5A623, #ff6b35)', color: '#fff', fontWeight: 800, fontSize: 18, cursor: 'pointer', boxShadow: '0 6px 20px rgba(245,166,35,0.4)' }}>Lancer maintenant !</button>
-        <div style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>{lobbyCountdown > 0 ? `Démarrage auto dans ${lobbyCountdown}s — ou lancez maintenant` : 'Minimum 3 joueurs requis'}</div>
+      {totalPlayers >= 3 && isAdmin && <div style={{ textAlign: 'center', marginTop: 24 }}>
+        <button onClick={handleStart} style={{ padding: '16px 40px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg, #F5A623, #ff6b35)', color: '#fff', fontWeight: 800, fontSize: 18, cursor: 'pointer', boxShadow: '0 6px 20px rgba(245,166,35,0.4)' }}>🚀 Lancer la course !</button>
+        <div style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>{manualStart ? `${totalPlayers} joueur(s) prêt(s) — Lancez quand vous voulez` : lobbyCountdown > 0 ? `Démarrage auto dans ${lobbyCountdown}s — ou lancez maintenant` : 'Minimum 3 joueurs requis'}</div>
       </div>}
 
       {/* Upcoming tournaments */}

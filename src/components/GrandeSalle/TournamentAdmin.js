@@ -43,6 +43,7 @@ export default function TournamentAdmin() {
   const [durationRound, setDurationRound] = useState(90);
   const [eliminationPercent, setEliminationPercent] = useState(25);
   const [minPlayers, setMinPlayers] = useState(3);
+  const [manualStart, setManualStart] = useState(true);
 
   const backendUrl = getBackendUrl();
 
@@ -64,7 +65,7 @@ export default function TournamentAdmin() {
   const resetForm = () => {
     setTitle(''); setDescription(''); setThemes([]); setClasses(['CP', 'CE1', 'CE2', 'CM1', 'CM2']);
     setScheduledAt(''); setDurationRound(90); setEliminationPercent(25); setMinPlayers(3);
-    setEditId(null); setShowForm(false); setError(null);
+    setManualStart(true); setEditId(null); setShowForm(false); setError(null);
   };
 
   const openEdit = (t) => {
@@ -73,7 +74,7 @@ export default function TournamentAdmin() {
     const d = new Date(t.scheduled_at);
     setScheduledAt(d.toISOString().slice(0, 16));
     setDurationRound(t.duration_round || 90); setEliminationPercent(t.elimination_percent || 25);
-    setMinPlayers(t.min_players || 3); setShowForm(true); setError(null);
+    setMinPlayers(t.min_players || 3); setManualStart(t.manual_start !== false); setShowForm(true); setError(null);
   };
 
   const handleSave = async () => {
@@ -85,6 +86,7 @@ export default function TournamentAdmin() {
       title: title.trim(), description: description.trim(), themes, classes,
       scheduled_at: new Date(scheduledAt).toISOString(),
       duration_round: durationRound, elimination_percent: eliminationPercent, min_players: minPlayers,
+      manual_start: manualStart,
     };
 
     try {
@@ -172,6 +174,18 @@ export default function TournamentAdmin() {
                 {AVAILABLE_CLASSES.map(c => (
                   <button key={c} onClick={() => toggleClass(c)} style={{ padding: '5px 14px', borderRadius: 8, border: classes.includes(c) ? '2px solid #1AACBE' : '1px solid rgba(255,255,255,0.15)', background: classes.includes(c) ? 'rgba(26,172,190,0.2)' : 'rgba(255,255,255,0.04)', color: classes.includes(c) ? '#1AACBE' : '#94a3b8', fontSize: 12, cursor: 'pointer', fontWeight: classes.includes(c) ? 700 : 400 }}>{c}</button>
                 ))}
+              </div>
+            </div>
+
+            {/* Lancement manuel */}
+            <div
+              onClick={() => setManualStart(!manualStart)}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderRadius: 10, background: manualStart ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.04)', border: manualStart ? '2px solid #10b981' : '1px solid rgba(255,255,255,0.15)', cursor: 'pointer' }}
+            >
+              <span style={{ fontSize: 22 }}>{manualStart ? '✅' : '⬜'}</span>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: manualStart ? '#10b981' : '#94a3b8' }}>Lancement manuel</div>
+                <div style={{ fontSize: 12, color: '#64748b' }}>{manualStart ? 'Vous décidez quand le jeu démarre' : 'Le jeu démarre automatiquement après 60s'}</div>
               </div>
             </div>
 

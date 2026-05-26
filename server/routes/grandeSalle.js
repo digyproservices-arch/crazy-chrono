@@ -111,7 +111,7 @@ router.post('/tournaments', requireAdmin, async (req, res) => {
   const supabaseAdmin = req.app.locals.supabaseAdmin;
 
   try {
-    const { title, description, themes, classes, scheduled_at, duration_round, elimination_percent, rounds_per_elimination, min_players } = req.body;
+    const { title, description, themes, classes, scheduled_at, duration_round, elimination_percent, rounds_per_elimination, min_players, manual_start } = req.body;
 
     if (!title || !scheduled_at) {
       return res.status(400).json({ ok: false, error: 'title et scheduled_at sont requis' });
@@ -135,6 +135,7 @@ router.post('/tournaments', requireAdmin, async (req, res) => {
       elimination_percent: Math.min(50, Math.max(10, Number(elimination_percent) || 25)),
       rounds_per_elimination: Number(rounds_per_elimination) || 1,
       min_players: Math.max(2, Number(min_players) || 3),
+      manual_start: manual_start !== false,
       status: 'scheduled',
       created_by: req.userId,
     };
@@ -160,7 +161,7 @@ router.put('/tournaments/:id', requireAdmin, async (req, res) => {
 
   try {
     const updates = {};
-    const allowed = ['title', 'description', 'themes', 'classes', 'scheduled_at', 'duration_round', 'elimination_percent', 'rounds_per_elimination', 'min_players', 'status'];
+    const allowed = ['title', 'description', 'themes', 'classes', 'scheduled_at', 'duration_round', 'elimination_percent', 'rounds_per_elimination', 'min_players', 'manual_start', 'status'];
 
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
@@ -171,6 +172,8 @@ router.put('/tournaments/:id', requireAdmin, async (req, res) => {
           if (!isNaN(d.getTime())) updates[key] = d.toISOString();
         } else if (['duration_round', 'elimination_percent', 'rounds_per_elimination', 'min_players'].includes(key)) {
           updates[key] = Number(req.body[key]) || undefined;
+        } else if (key === 'manual_start') {
+          updates[key] = req.body[key] !== false;
         } else {
           updates[key] = req.body[key];
         }
