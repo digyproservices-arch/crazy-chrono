@@ -230,7 +230,8 @@ export default function TournamentAdmin() {
               {(t.themes || []).length > 0 && <span> — {t.themes.join(', ')}</span>}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button onClick={() => navigate(`/grande-salle/live/${t.id}`)} style={BTN('rgba(16,185,129,0.3)')}>📺 Live</button>
             <button onClick={() => openEdit(t)} style={BTN('rgba(59,130,246,0.3)')}>Modifier</button>
             <button onClick={() => handleDelete(t.id)} style={BTN('rgba(239,68,68,0.3)')}>Supprimer</button>
           </div>
