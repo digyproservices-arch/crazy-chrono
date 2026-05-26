@@ -1094,17 +1094,21 @@ const clearIncidents = async () => {
                   sections.push('Aucune trace jeu enregistrée.');
                 } else {
                   soloTraces.slice(-50).forEach((t, i) => {
-                    const ts = t.ts ? new Date(t.ts).toLocaleString('fr-FR') : 'N/A';
+                    const rawTs = t.ts || t.t || null;
+                    const ts = rawTs ? new Date(rawTs).toLocaleString('fr-FR') : 'N/A';
+                    const evName = t.event || t.ev || 'inconnu';
                     const device = t.deviceId ? ` device=${t.deviceId}` : '';
                     const socket = t.socketId ? ` sock=${t.socketId.slice(0,8)}` : '';
                     const conn = typeof t.socketConnected === 'boolean' ? ` conn=${t.socketConnected}` : '';
                     let extra = '';
-                    if (t.event === 'timer:zero') extra = ` mode=${t.mode} rounds=${t.cfgRounds} dur=${t.gameDuration}`;
-                    if (t.event === 'round:new') extra = ` idx=${t.roundIndex}/${t.roundsTotal} zones=${t.zonesCount} delay=${t.timeSinceTimerZero}ms`;
-                    if (t.event === 'session:end') extra = ` scores=${JSON.stringify(t.scores)} delay=${t.timeSinceTimerZero}ms`;
-                    if (t.event === 'gameActive:false') extra = ` state=${JSON.stringify(t.roomState || {})}`;
-                    if (t.event === 'debounce:expired') extra = ` score=${t.score}`;
-                    sections.push(`  [${i+1}] ${ts} | ${t.event}${socket}${conn}${device}${extra}`);
+                    if (evName === 'timer:zero') extra = ` mode=${t.mode} rounds=${t.cfgRounds} dur=${t.gameDuration}`;
+                    if (evName === 'round:new') extra = ` idx=${t.roundIndex}/${t.roundsTotal} zones=${t.zonesCount} delay=${t.timeSinceTimerZero}ms`;
+                    if (evName === 'session:end') extra = ` scores=${JSON.stringify(t.scores)} delay=${t.timeSinceTimerZero}ms`;
+                    if (evName === 'gameActive:false') extra = ` state=${JSON.stringify(t.roomState || {})}`;
+                    if (evName === 'debounce:expired') extra = ` score=${t.score}`;
+                    if (evName === 'score:update') extra = ` phase=${t.phase||''} PAIR#${t.pairEvent||'?'} claimants=${t.claimantsCount||1}(${(t.claimantNames||[]).join(',')}) scores=[${(t.scores||[]).map(s=>`${s.n}=${s.s}`).join(',')}]`;
+                    if (evName === 'training:scores-update') extra = ` phase=${t.phase||'TRAINING'} scores=[${(t.scores||[]).map(s=>`${s.n}=${s.s}`).join(',')}]`;
+                    sections.push(`  [${i+1}] ${ts} | ${evName}${socket}${conn}${device}${extra}`);
                   });
                 }
                 sections.push('');
