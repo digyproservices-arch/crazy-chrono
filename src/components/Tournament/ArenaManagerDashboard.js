@@ -382,7 +382,7 @@ export default function ArenaManagerDashboard() {
       {/* Barre d'actions */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
         <button
-          onClick={() => navigate('/teacher/tournament')}
+          onClick={() => navigate(-1)}
           style={{ padding: '10px 20px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
         >
           ← Retour à la création de groupes

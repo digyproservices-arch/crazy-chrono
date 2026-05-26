@@ -1241,7 +1241,7 @@ export default function CrazyArenaSetup() {
 
       <div style={{ marginTop: 24 }}>
         <button 
-          onClick={() => navigate('/teacher')}
+          onClick={() => navigate(-1)}
           style={{ 
             padding: '10px 20px', 
             borderRadius: 8, 
