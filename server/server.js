@@ -3214,8 +3214,7 @@ function endSession(roomCode) {
   // ✅ Détection d'égalité — départage en salle privée (modèle Training)
   if (entries.length >= 2 && !room._isTiebreaker) {
     const topScore = best;
-    const topErrors = entries.filter(([, pl]) => (pl.score || 0) === topScore).reduce((min, [, pl]) => Math.min(min, pl.errors || 0), Infinity);
-    const tiedPlayers = entries.filter(([, pl]) => (pl.score || 0) === topScore && (pl.errors || 0) === topErrors);
+    const tiedPlayers = entries.filter(([, pl]) => (pl.score || 0) === topScore);
     if (tiedPlayers.length > 1 && topScore >= 0) {
       console.log(`[MP] ⚖️ ÉGALITÉ détectée room=${roomCode}: ${tiedPlayers.length} joueurs à ${topScore} pts — attente départage`);
       const allScoresAtTie = entries.map(([id, pl]) => ({ id: id.slice(-6), name: pl.name, score: pl.score || 0 }));

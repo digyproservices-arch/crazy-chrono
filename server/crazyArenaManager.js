@@ -1014,15 +1014,15 @@ class CrazyArenaManager {
       p.position = idx + 1;
     });
 
-    // ✅ CRITIQUE: Vérifier égalité au premier rang (COMME ARENA)
+    // ✅ CRITIQUE: Vérifier égalité au premier rang — même score = départage (erreurs non prises en compte)
     const topPlayer = ranking[0];
     const tiedPlayers = ranking.filter(p => 
-      p.pairsValidated === topPlayer.pairsValidated && p.errors === topPlayer.errors
+      p.score === topPlayer.score
     );
     
     if (tiedPlayers.length > 1 && !match.isTiebreaker) {
       // ÉGALITÉ DÉTECTÉE - Attendre décision du professeur
-      logger.info(`[CrazyArena][Training] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topPlayer.pairsValidated} paires, ${topPlayer.errors} erreurs`);
+      logger.info(`[CrazyArena][Training] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topPlayer.score} pts`);
       logger.info(`[CrazyArena][Training] ⏸️ En attente décision professeur pour départage...`);
       _logMatchEvent('TIE_DETECTED', matchId, { mode: 'training', tiedCount: tiedPlayers.length, topPairs: topPlayer.pairsValidated, topErrors: topPlayer.errors, tiedPlayers: tiedPlayers.map(p => ({ studentId: p.studentId, name: p.name, score: p.score })) });
       
@@ -3051,15 +3051,15 @@ class CrazyArenaManager {
       p.position = idx + 1;
     });
 
-    // Vérifier s'il y a égalité au premier rang
+    // Vérifier s'il y a égalité au premier rang — même score = départage (erreurs non prises en compte)
     const topPlayer = ranking[0];
     const tiedPlayers = ranking.filter(p => 
-      p.pairsValidated === topPlayer.pairsValidated && p.errors === topPlayer.errors
+      p.score === topPlayer.score
     );
     
     if (tiedPlayers.length > 1 && !match.isTiebreaker) {
       // ÉGALITÉ DÉTECTÉE - Attendre décision du professeur
-      logger.info(`[CrazyArena] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topPlayer.pairsValidated} paires, ${topPlayer.errors} erreurs`);
+      logger.info(`[CrazyArena] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topPlayer.score} pts`);
       logger.info(`[CrazyArena] ⏸️ En attente décision professeur pour départage...`);
       _logMatchEvent('TIE_DETECTED', matchId, { mode: 'arena', tiedCount: tiedPlayers.length, topPairs: topPlayer.pairsValidated, topErrors: topPlayer.errors, tiedPlayers: tiedPlayers.map(p => ({ studentId: p.studentId, name: p.name, score: p.score })) });
       
