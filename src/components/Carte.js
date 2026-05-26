@@ -1785,7 +1785,7 @@ const Carte = () => {
 
       // Écouter fin de partie Arena
       s.on('arena:game-end', (data) => {
-        const { ranking, winner, duration, matchId: evtMatchId } = data || {};
+        const { ranking, winner, duration, matchId: evtMatchId, isTiebreaker: wasTiebreaker } = data || {};
         console.log('[ARENA] 🏆 arena:game-end reçu!', { winner: winner?.name, rankingLen: ranking?.length, hasRanking: !!ranking, evtMatchId, dataKeys: Object.keys(data || {}) });
 
         // Ignorer le broadcast global (qui n'a que matchId, pas de ranking)
@@ -1829,7 +1829,7 @@ const Carte = () => {
           overlay.innerHTML = `
             <div style="text-align:center;color:white;max-width:800px;width:100%;">
               <h1 style="font-size:48px;margin-bottom:16px;text-shadow:0 2px 10px rgba(0,0,0,0.3);">
-                🏆 PARTIE TERMINÉE 🏆
+                🏆 ${wasTiebreaker ? 'DÉPARTAGE TERMINÉ !' : 'PARTIE TERMINÉE'} 🏆
               </h1>
               <div style="background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:24px;padding:24px;margin-bottom:24px;box-shadow:0 12px 48px rgba(251,191,36,0.4);display:inline-block;min-width:280px;">
                 <div style="font-size:64px;margin-bottom:8px;">🥇</div>
@@ -1846,6 +1846,7 @@ const Carte = () => {
                     <div style="font-size:${isTop3 ? '28px' : '18px'};font-weight:900;min-width:40px;text-align:center;">${isTop3 ? medals[idx] : (idx + 1)}</div>
                     <div style="flex:1;font-size:18px;font-weight:${isTop3 ? '700' : '600'};color:#1f2937;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</div>
                     <div style="font-size:20px;font-weight:900;color:${isTop3 ? '#4f46e5' : '#6b7280'};min-width:60px;text-align:right;">${p.score} pts</div>
+                    <div style="font-size:13px;color:#9ca3af;min-width:120px;text-align:right;">Paires: ${p.pairsValidated ?? '?'} | Erreurs: ${p.errors ?? 0}</div>
                   </div>`;
                 }).join('')}
               </div>
