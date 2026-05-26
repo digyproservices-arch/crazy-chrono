@@ -2626,11 +2626,13 @@ class CrazyArenaManager {
         // 📊 MONITORING: Tracer tiebreaker pair dans sTrace
         const _tbPairIdx = (match._pairEventCount = (match._pairEventCount || 0) + 1);
         const _tbClaimants = match._pairClaimLock ? Array.from(match._pairClaimLock.claimants).map(sid => { const pl = match.players.find(p => p.studentId === sid); return pl?.name || sid.slice(-6); }) : [player.name];
+        const _tbElapsed = match._pairClaimLock ? (now - match._pairClaimLock.timestamp) : 0;
         const _tbScores = match.players.map(p => ({ name: p.name, score: (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0) }));
         sTrace.push('arena:pair-validated', {
           matchId: matchId.slice(-8), pairEvent: _tbPairIdx, round: match.tiebreakerPairsFound,
           isTiebreaker: true, claimantsCount: _tbClaimants.length,
-          claimantNames: _tbClaimants, scoresAfter: _tbScores
+          claimantNames: _tbClaimants, elapsedMs: _tbElapsed, windowMs: ARENA_TIE_WINDOW_MS,
+          scoresAfter: _tbScores
         });
 
         // 💾 PERSISTENCE: Sauvegarder le score tiebreaker Arena en DB
@@ -2829,14 +2831,16 @@ class CrazyArenaManager {
         const _arenaScoresAfter = match.players.map(p => ({ name: p.name, score: p.score }));
         const _arenaPairIdx = (match._pairEventCount = (match._pairEventCount || 0) + 1);
         const _claimantNames = match._pairClaimLock ? Array.from(match._pairClaimLock.claimants).map(sid => { const pl = match.players.find(p => p.studentId === sid); return pl?.name || sid.slice(-6); }) : [player.name];
+        const _arenaElapsed = match._pairClaimLock ? (Date.now() - match._pairClaimLock.timestamp) : 0;
         sTrace.push('arena:pair-validated', {
           matchId: matchId.slice(-8), pairEvent: _arenaPairIdx, round: match.roundsPlayed,
           isTiebreaker: false, claimantsCount: _claimantNames.length,
-          claimantNames: _claimantNames, scoresBeforeUpdate: _arenaScoresBefore
+          claimantNames: _claimantNames, elapsedMs: _arenaElapsed, windowMs: ARENA_TIE_WINDOW_MS,
+          scoresBeforeUpdate: _arenaScoresBefore
         });
         sTrace.push('arena:score-update', {
           matchId: matchId.slice(-8), pairEvent: _arenaPairIdx, claimantsCount: _claimantNames.length,
-          claimantNames: _claimantNames, isTiebreaker: false,
+          claimantNames: _claimantNames, isTiebreaker: false, elapsedMs: _arenaElapsed,
           scoresAfter: _arenaScoresAfter
         });
       }

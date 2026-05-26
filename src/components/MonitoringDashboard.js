@@ -1029,15 +1029,24 @@ const clearIncidents = async () => {
                     // Arena pair/equality events
                     if (t.event === 'arena:pair-validated') {
                       const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
-                      detail = ` match=${t.matchId} PAIR#${t.pairEvent} R${t.round} ${t.isTiebreaker ? 'DÉPARTAGE' : 'NORMAL'} claimants=${t.claimantsCount}(${(t.claimantNames||[]).join(',')})${warn} ${t.scoresBeforeUpdate ? 'avant=['+t.scoresBeforeUpdate.map(s=>`${s.name}=${s.score}`).join(',')+']' : ''} ${t.scoresAfter ? 'après=['+t.scoresAfter.map(s=>`${s.name}=${s.score}`).join(',')+']' : ''}`;
+                      detail = ` match=${t.matchId} PAIR#${t.pairEvent} R${t.round} ${t.isTiebreaker ? 'DÉPARTAGE' : 'NORMAL'} claimants=${t.claimantsCount}(${(t.claimantNames||[]).join(',')})${warn} elapsed=${t.elapsedMs||0}ms window=${t.windowMs||200}ms ${t.scoresBeforeUpdate ? 'avant=['+t.scoresBeforeUpdate.map(s=>`${s.name}=${s.score}`).join(',')+']' : ''} ${t.scoresAfter ? 'après=['+t.scoresAfter.map(s=>`${s.name}=${s.score}`).join(',')+']' : ''}`;
                     }
                     if (t.event === 'arena:score-update') {
                       const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
-                      detail = ` match=${t.matchId} PAIR#${t.pairEvent} ${t.isTiebreaker ? 'DÉPARTAGE' : 'NORMAL'}${warn} après=[${(t.scoresAfter||[]).map(s=>`${s.name}=${s.score}`).join(',')}]`;
+                      detail = ` match=${t.matchId} PAIR#${t.pairEvent} ${t.isTiebreaker ? 'DÉPARTAGE' : 'NORMAL'}${warn} elapsed=${t.elapsedMs||0}ms après=[${(t.scoresAfter||[]).map(s=>`${s.name}=${s.score}`).join(',')}]`;
                     }
                     if (t.event === 'arena:equality-window') detail = ` match=${t.matchId} student=${t.studentId} elapsed=${t.elapsed}ms window=${t.windowMs}ms claimants=${t.claimants}`;
                     if (t.event === 'arena:resync') detail = ` match=${t.matchId} 🔄 RESYNC → ${t.player} (${t.zones} zones, timer=${t.timer}s, manche ${t.round})`;
                     if (t.event === 'training:resync') detail = ` match=${t.matchId} 🔄 RESYNC → ${t.player} (${t.zones} zones, timer=${t.timer}s, manche ${t.round})`;
+                    // Training pair/equality events (comme Arena)
+                    if (t.event === 'training:pair-validated') {
+                      const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
+                      detail = ` match=${t.matchId} PAIR#${t.pairEvent} R${t.round} ${t.isTiebreaker ? 'DÉPARTAGE' : 'NORMAL'} claimants=${t.claimantsCount}(${(t.claimantNames||[]).join(',')})${warn} elapsed=${t.elapsedMs||0}ms window=${t.windowMs||200}ms ${t.scoresBeforeUpdate ? 'avant=['+t.scoresBeforeUpdate.map(s=>`${s.name}=${s.score}`).join(',')+']' : ''} ${t.scoresAfter ? 'après=['+t.scoresAfter.map(s=>`${s.name}=${s.score}`).join(',')+']' : ''}`;
+                    }
+                    if (t.event === 'training:score-update') {
+                      const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
+                      detail = ` match=${t.matchId} PAIR#${t.pairEvent} ${t.isTiebreaker ? 'DÉPARTAGE' : 'NORMAL'}${warn} elapsed=${t.elapsedMs||0}ms après=[${(t.scoresAfter||[]).map(s=>`${s.name}=${s.score}`).join(',')}]`;
+                    }
                     if (t.event === 'mp:match-paused') detail = ` room=${t.room} ⏸️ PAUSE — ${t.player} déconnecté (grace ${(t.gracePeriodMs||15000)/1000}s, timer restant ${Math.round((t.remainingMs||0)/1000)}s)`;
                     if (t.event === 'mp:match-resumed') detail = ` room=${t.room} ▶️ REPRISE — ${t.player} reconnecté (pause ${Math.round((t.pauseDurationMs||0)/1000)}s, timer restant ${Math.round((t.remainingMs||0)/1000)}s)`;
                     if (t.event === 'mp:player-forfeit') detail = ` room=${t.room} 🏳️ FORFAIT — ${t.player}`;
