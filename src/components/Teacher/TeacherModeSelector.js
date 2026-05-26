@@ -41,7 +41,7 @@ const TeacherModeSelector = () => {
         <p>Sélectionnez le type de session que vous souhaitez créer</p>
       </div>
 
-      <div className="mode-cards">
+      <div className="mode-cards stagger-in">
         <div className="mode-card" style={{ borderColor: '#0D6A7A', background: 'linear-gradient(135deg, #f0fdfa 0%, #ecfeff 100%)' }}>
           <div className="mode-icon">📋</div>
           <h2>MA CLASSE</h2>

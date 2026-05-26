@@ -118,7 +118,7 @@ export default function ModeSelect({ auth: authProp }) {
         </p>
       </div>
 
-      <div style={{ 
+      <div className="stagger-in" style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
         gap: 24, 

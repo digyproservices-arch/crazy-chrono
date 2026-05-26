@@ -9,6 +9,7 @@ import Login from './components/Auth/Login';
 import { fetchAndSyncStatus, getBackendUrl } from './utils/subscription';
 import supabase from './utils/supabaseClient';
 import NotificationBadge from './components/NotificationBadge';
+import PageTransition from './components/PageTransition';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import PWAUpdateButton from './components/PWAUpdateButton';
 import LandingPage from './components/LandingPage';
@@ -711,6 +712,7 @@ function App() {
           <main>
             <AppErrorBoundary>
             <Suspense fallback={<LazyFallback />}>
+            <PageTransition>
             <Routes>
               <Route path="/" element={auth ? <Navigate to="/modes" replace /> : <LandingPage />} />
               <Route path="/login" element={<Login onLogin={(a) => { setAuth(a); }} />} />
@@ -764,6 +766,7 @@ function App() {
               <Route path="/legal" element={<LegalPages />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            </PageTransition>
             </Suspense>
             </AppErrorBoundary>
           </main>
