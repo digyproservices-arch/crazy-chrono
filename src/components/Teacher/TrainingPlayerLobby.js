@@ -86,6 +86,7 @@ export default function TrainingPlayerLobby() {
       }
     };
     
+    let socketLocal = null;
     fetchUserData().then(async (userData) => {
       if (!userData) return;
       
@@ -95,6 +96,7 @@ export default function TrainingPlayerLobby() {
         transports: ['websocket', 'polling'],
         reconnection: true
       });
+      socketLocal = socket;
       socketRef.current = socket;
       
       socket.on('connect', () => {
@@ -171,8 +173,8 @@ export default function TrainingPlayerLobby() {
         navigate('/training-arena/game');
       });
       
-      return () => socket.disconnect();
     });
+    return () => { if (socketLocal) socketLocal.disconnect(); };
   }, [matchId, navigate]);
   
   const handleReady = () => {

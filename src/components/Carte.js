@@ -19,6 +19,9 @@ import MasteryBubble from './MasteryBubble';
 import { generateHint, generateAnswer, findGoodPair, HINT_PENALTY, ANSWER_PENALTY } from '../utils/hintGenerator';
 import { PLAYER_PRIMARY_COLORS, PLAYER_BORDER_COLORS, getPlayerColorComboByIndex } from '../utils/playerColors';
 import { getInitials } from '../utils/pairDisplay';
+import { playCorrectSound, playWrongSound } from '../utils/gameAudio';
+import { loadAssociationsData, norm, normType, getPairId, mulberry32, makeRngFromSeed, shuffleArray, fetchWithTimeout } from '../utils/gameHelpers';
+import ArenaPauseOverlay from './ArenaPauseOverlay';
 
 // Instruments a socket with telemetry listeners (connect, disconnect, connect_error)
 function _instrSocket(s, mode, matchId) {
@@ -29,27 +32,7 @@ function _instrSocket(s, mode, matchId) {
   } catch {}
 }
 
-// Single shared AudioContext for smoother audio on low devices
-let __audioCtx = null;
-function getAudioCtx() {
-  try {
-    if (!__audioCtx) __audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  } catch {}
-  return __audioCtx;
-}
-function playCorrectSound() {
-  try {
-    const ctx = getAudioCtx(); if (!ctx) return;
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(880, ctx.currentTime);
-    g.gain.setValueAtTime(0.0001, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
-    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.26);
-  } catch {}
-}
+// playCorrectSound, playWrongSound → src/utils/gameAudio.js
 
 // Durée pendant laquelle on laisse les réponses visibles avant reshuffle
 const PAIR_REVEAL_MS = 2000; // enchaînement encore plus rapide
@@ -59,49 +42,8 @@ const BUBBLE_DURATION_MS = 5200; // ms (durée jugée bonne)
 const TRAIL_COUNT = 0; // uniquement 2 bulles (pas de traînée)
 const TRAIL_DELAY_MS = 0; // sans effet car TRAIL_COUNT=0
 
-function playWrongSound() {
-  try {
-    const ctx = getAudioCtx(); if (!ctx) return;
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = 'square';
-    o.frequency.setValueAtTime(220, ctx.currentTime);
-    g.gain.setValueAtTime(0.0001, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
-    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.36);
-  } catch {}
-}
+// loadAssociationsData, norm, normType, getPairId, mulberry32, makeRngFromSeed, shuffleArray, fetchWithTimeout → src/utils/gameHelpers.js
 
-// Helper: charge les associations depuis localStorage (éditions Admin) ou fichier statique
-async function loadAssociationsData() {
-  try {
-    const cached = localStorage.getItem('cc_data_cache');
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (parsed && Array.isArray(parsed.associations) && parsed.associations.length > 0) {
-        return parsed;
-      }
-    }
-  } catch {}
-  const resp = await fetch((process.env.PUBLIC_URL || '') + '/data/associations.json');
-  return await resp.json();
-}
-
-const norm = (v) => (v == null ? '' : String(v).trim().toLowerCase());
-const normType = (t) => {
-  const x = norm(t);
-  if (['texte', 'text', 'txt', 'label'].includes(x)) return 'texte';
-  if (['image', 'img', 'photo', 'picture', 'pic'].includes(x)) return 'image';
-  if (['chiffre', 'number', 'num', 'digit'].includes(x)) return 'chiffre';
-  if (['calcul', 'math', 'operation', 'op', 'calc'].includes(x)) return 'calcul';
-  return x || t;
-};
-const getPairId = (z) => {
-  if (!z) return '';
-  const cand = z.pairId ?? z.pairID ?? z.pairid ?? z.pair ?? z.groupId ?? z.groupID ?? z.group;
-  return norm(cand);
-};
 
 // Liste des textes à afficher aléatoirement, sans doublon
 const TEXTES_RANDOM = [
@@ -132,30 +74,6 @@ const TEXTES_RANDOM = [
   "Malnommée"
 ];
 
-// RNG déterministe à partir d'une seed (mulberry32)
-function mulberry32(seed) {
-  let t = (seed >>> 0) || 0;
-  return function() {
-    t += 0x6D2B79F5;
-    let r = Math.imul(t ^ (t >>> 15), 1 | t);
-    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-// Small helper: fetch with timeout (ms)
-async function fetchWithTimeout(url, options = {}, timeoutMs = 1500) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort('timeout'), timeoutMs);
-  try {
-    const res = await fetch(url, { ...options, signal: ctrl.signal });
-    clearTimeout(t);
-    return res;
-  } catch (e) {
-    clearTimeout(t);
-    throw e;
-  }
-}
 
 // Préchargement d'un lot d'images à partir des classes/thèmes sélectionnés
 function preloadAssets(cfg, data, onProgress, abortRef) {
@@ -251,20 +169,6 @@ function preloadAssets(cfg, data, onProgress, abortRef) {
   });
 }
 
-function makeRngFromSeed(seed) {
-  const s = Number(seed);
-  return Number.isFinite(s) ? mulberry32(s) : Math.random;
-}
-
-// Mélange un tableau (algorithme de Fisher-Yates) avec RNG injectable
-function shuffleArray(array, rng = Math.random) {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
 
 // ====== Helpers d'animation au niveau module (pas de dépendance à des refs React) ======
 // Cache simple des centres d'écran des zones pour limiter les querySelector/getBoundingClientRect
@@ -401,39 +305,6 @@ function stablePlayerIndex(playerName, allPlayerNames) {
   const target = String(playerName || '').trim().toLowerCase();
   const idx = sorted.indexOf(target);
   return idx >= 0 ? idx : 0;
-}
-
-function ArenaPauseOverlay({ disconnectedPlayer, gracePeriodMs }) {
-  const [secondsLeft, setSecondsLeft] = React.useState(Math.ceil((gracePeriodMs || 15000) / 1000));
-  React.useEffect(() => {
-    const iv = setInterval(() => {
-      setSecondsLeft(s => (s > 0 ? s - 1 : 0));
-    }, 1000);
-    return () => clearInterval(iv);
-  }, []);
-  return (
-    <div style={{
-      position: 'absolute', inset: 0, zIndex: 50,
-      background: 'rgba(0,0,0,0.75)',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      color: '#fff', textAlign: 'center', pointerEvents: 'all'
-    }}>
-      <div style={{ fontSize: 64, marginBottom: 16 }}>&#9208;</div>
-      <div style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>Match en pause</div>
-      <div style={{ fontSize: 18, marginBottom: 20, opacity: 0.9 }}>
-        <strong>{disconnectedPlayer || 'Un joueur'}</strong> s'est d&#233;connect&#233;
-      </div>
-      <div style={{
-        fontSize: 48, fontWeight: 900, color: secondsLeft <= 5 ? '#ef4444' : '#f59e0b',
-        marginBottom: 12, transition: 'color 0.3s'
-      }}>
-        {secondsLeft}s
-      </div>
-      <div style={{ fontSize: 14, opacity: 0.7 }}>
-        Reprise automatique &#224; la reconnexion ou forfait dans {secondsLeft}s
-      </div>
-    </div>
-  );
 }
 
 // ✨⭐💫 Particules emoji lors de la validation d'une paire (tous modes)
@@ -713,6 +584,7 @@ const Carte = () => {
   const [arcSelectionMode, setArcSelectionMode] = useState(false); // mode sélection d'arc
   // --- GAME STATE ---
   const [gameActive, setGameActive] = useState(false);
+  const [timerResetKey, setTimerResetKey] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60);
   const [score, setScore] = useState(0);
   // --- MODE OBJECTIF & AIDE ---
@@ -757,6 +629,8 @@ const Carte = () => {
   const soloAutoStartedRef = useRef(false);
   // Track active solo room name for reconnection after transport close
   const soloRoomRef = useRef(null);
+  // Track active MP room name for reconnection after transport close (salle privée)
+  const mpRoomRef = useRef(null);
   // Sync objectiveModeRef with state (avoid stale closures in setTimeout/async)
   useEffect(() => { objectiveModeRef.current = objectiveMode; }, [objectiveMode]);
   // Sync socketConnectedRef with state (avoid stale closures in useEffect([], []) socket handlers)
@@ -1488,7 +1362,7 @@ const Carte = () => {
             console.log('[TRAINING] 🎮 Chargement zones:', trainingData.zones.length);
             trainingData.zones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
             let _trInc = []; try { _trInc = incidentValidateZones(trainingData.zones, { source: 'training:initial' }) || []; } catch {}
-            try { const _rl = logRound(trainingData.zones, { mode: 'training', source: 'training:initial' }); if (_rl && (_rl.doublePairIssues > 0 || _trInc.length > 0)) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues.length > 0 ? _rl.issues : _trInc, mode: 'training' }; } catch {}
+            // NB: PAS de logRound ici — TrainingArenaGame.js log déjà avec mode 'training-arena' (éviter doublons monitoring)
             try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: trainingData.zones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: trainingData.zones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
             setZones(trainingData.zones);
             // ✅ FIX: Synchroniser calcAngles depuis les angles serveur dès le chargement initial
@@ -1527,6 +1401,8 @@ const Carte = () => {
       
       s.on('training:match-lost', ({ reason }) => {
         console.error('[TRAINING] ❌ Match perdu:', reason);
+        // ✅ COUCHE 5: Nettoyage sur match perdu
+        try { localStorage.removeItem('cc_training_game'); } catch {}
         setGameActive(false);
         alert('Le match a été interrompu : ' + reason + '\nVous allez être redirigé.');
         navigate('/');
@@ -1626,7 +1502,7 @@ const Carte = () => {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
           cleanZones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
           let _trInc2 = []; try { _trInc2 = incidentValidateZones(cleanZones, { source: 'training:round-new' }) || []; } catch {}
-          try { const _rl = logRound(cleanZones, { mode: 'training', source: 'training:round-new' }); if (_rl && (_rl.doublePairIssues > 0 || _trInc2.length > 0)) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues.length > 0 ? _rl.issues : _trInc2, mode: 'training' }; } catch {}
+          // NB: PAS de logRound ici — TrainingArenaGame.js log déjà avec mode 'training-arena' (éviter doublons monitoring)
           try { window.__CC_LAST_FILTER_COUNTS__ = { calcNum: cleanZones.filter(z => z.type === 'calcul' || z.type === 'chiffre').length, textImage: cleanZones.filter(z => z.type === 'image' || z.type === 'texte').length }; } catch {}
           setZones(cleanZones);
           // ✅ FIX: Synchroniser calcAngles depuis les angles serveur pour éviter que le localStorage ne les écrase
@@ -1658,6 +1534,8 @@ const Carte = () => {
       s.on('training:game-end', ({ scores, duration }) => {
         console.log('[TRAINING] 🏁 Partie terminée!', { scores });
         trainingEndedRef.current = true;
+        // ✅ COUCHE 1: Nettoyage immédiat
+        try { localStorage.removeItem('cc_training_game'); } catch {}
         setGameActive(false);
         // TODO: Afficher écran de fin avec scores
       });
@@ -1712,6 +1590,10 @@ const Carte = () => {
             console.log('[ARENA] Callback arena:join reçu:', response);
             if (response && !response.ok) {
               console.error('[ARENA] ❌ Échec rejoin - match introuvable (serveur redémarré ?)');
+              // ✅ COUCHE 5: Nettoyage immédiat sur rejet + stop reconnexion parasite
+              try { localStorage.removeItem('cc_crazy_arena_game'); } catch {}
+              console.log('[ARENA] 🧹 cc_crazy_arena_game supprimé (join rejeté)');
+              arenaGameFinishedRef.current = true;
               alert('Le match a été interrompu (le serveur a redémarré). Vous allez être redirigé.');
               navigate('/');
             }
@@ -1723,6 +1605,9 @@ const Carte = () => {
       
       s.on('arena:match-lost', ({ reason }) => {
         console.error('[ARENA] ❌ Match perdu:', reason);
+        // ✅ COUCHE 5: Nettoyage sur match perdu
+        try { localStorage.removeItem('cc_crazy_arena_game'); } catch {}
+        arenaGameFinishedRef.current = true;
         setGameActive(false);
         alert('Le match a été interrompu : ' + reason + '\nVous allez être redirigé.');
         navigate('/');
@@ -1866,6 +1751,7 @@ const Carte = () => {
           zones,
           duration,
           startTime,
+          savedAt: Date.now(),
           isTiebreaker: true
         };
         localStorage.setItem('cc_crazy_arena_game', JSON.stringify(tiebreakerData));
@@ -1899,7 +1785,7 @@ const Carte = () => {
 
       // Écouter fin de partie Arena
       s.on('arena:game-end', (data) => {
-        const { ranking, winner, duration, matchId: evtMatchId } = data || {};
+        const { ranking, winner, duration, matchId: evtMatchId, isTiebreaker: wasTiebreaker } = data || {};
         console.log('[ARENA] 🏆 arena:game-end reçu!', { winner: winner?.name, rankingLen: ranking?.length, hasRanking: !!ranking, evtMatchId, dataKeys: Object.keys(data || {}) });
 
         // Ignorer le broadcast global (qui n'a que matchId, pas de ranking)
@@ -1910,6 +1796,10 @@ const Carte = () => {
 
         // ✅ FIX RACE CONDITION: Marquer le match comme terminé pour bloquer arena:round-new tardif
         arenaGameFinishedRef.current = true;
+
+        // ✅ COUCHE 1: Nettoyage immédiat (ne pas attendre le clic podium)
+        try { localStorage.removeItem('cc_crazy_arena_game'); } catch {}
+        console.log('[ARENA] 🧹 cc_crazy_arena_game supprimé (game-end immédiat)');
 
         // Retirer overlays précédents si présents
         const tieOverlay = document.getElementById('arena-tie-overlay');
@@ -1939,7 +1829,7 @@ const Carte = () => {
           overlay.innerHTML = `
             <div style="text-align:center;color:white;max-width:800px;width:100%;">
               <h1 style="font-size:48px;margin-bottom:16px;text-shadow:0 2px 10px rgba(0,0,0,0.3);">
-                🏆 PARTIE TERMINÉE 🏆
+                🏆 ${wasTiebreaker ? 'DÉPARTAGE TERMINÉ !' : 'PARTIE TERMINÉE'} 🏆
               </h1>
               <div style="background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:24px;padding:24px;margin-bottom:24px;box-shadow:0 12px 48px rgba(251,191,36,0.4);display:inline-block;min-width:280px;">
                 <div style="font-size:64px;margin-bottom:8px;">🥇</div>
@@ -1956,6 +1846,7 @@ const Carte = () => {
                     <div style="font-size:${isTop3 ? '28px' : '18px'};font-weight:900;min-width:40px;text-align:center;">${isTop3 ? medals[idx] : (idx + 1)}</div>
                     <div style="flex:1;font-size:18px;font-weight:${isTop3 ? '700' : '600'};color:#1f2937;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</div>
                     <div style="font-size:20px;font-weight:900;color:${isTop3 ? '#4f46e5' : '#6b7280'};min-width:60px;text-align:right;">${p.score} pts</div>
+                    <div style="font-size:13px;color:#9ca3af;min-width:120px;text-align:right;">Paires: ${p.pairsValidated ?? '?'} | Erreurs: ${p.errors ?? 0}</div>
                   </div>`;
                 }).join('')}
               </div>
@@ -2056,6 +1947,14 @@ const Carte = () => {
         console.log('[ARENA] 📊 Scores mis à jour:', scores);
         if (Array.isArray(scores)) {
           setArenaPlayers(scores);
+          // 📊 MONITORING: Stocker dans cc_game_trace + telemetry serveur
+          try {
+            const trace = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
+            const scoresData = scores.map(p => ({ n: p.name, s: p.score }));
+            trace.push({ t: Date.now(), ev: 'arena:scores-update', phase: 'ARENA', scores: scoresData });
+            localStorage.setItem('cc_game_trace', JSON.stringify(trace.slice(-100)));
+            telemetry('arena:scores-update', { phase: 'ARENA', scores: scoresData, matchId: arenaMatchId });
+          } catch {}
         }
       });
 
@@ -2069,6 +1968,14 @@ const Carte = () => {
         })();
 
         console.log('[ARENA] 🎯 Paire validée par', isLocal ? 'MOI' : playerName, ':', pairId);
+
+        // 📊 MONITORING: Stocker dans cc_game_trace + telemetry serveur
+        try {
+          const trace = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
+          trace.push({ t: Date.now(), ev: 'arena:pair-validated', phase: 'ARENA', playerName, pairId, isLocal });
+          localStorage.setItem('cc_game_trace', JSON.stringify(trace.slice(-100)));
+          telemetry('arena:pair-validated', { phase: 'ARENA', playerName, pairId, isLocal, matchId: arenaMatchId });
+        } catch {}
 
         const currentZones = zonesRef.current || [];
         const ZA = currentZones.find(z => z.id === zoneAId);
@@ -2164,6 +2071,24 @@ const Carte = () => {
         setTimeout(() => setGameMsg(''), 1200);
       });
       
+      // ⏸️ PAUSE: Un joueur s'est déconnecté pendant la partie
+      s.on('arena:match-paused', ({ disconnectedPlayer, gracePeriodMs }) => {
+        console.log('[ARENA] ⏸️ Match en PAUSE —', disconnectedPlayer, 'déconnecté');
+        setArenaPauseInfo({ paused: true, disconnectedPlayer, gracePeriodMs: gracePeriodMs || 15000 });
+      });
+
+      // ▶️ REPRISE: Le joueur déconnecté s'est reconnecté
+      s.on('arena:match-resumed', ({ reconnectedPlayer }) => {
+        console.log('[ARENA] ▶️ Match REPRIS —', reconnectedPlayer, 'reconnecté');
+        setArenaPauseInfo(null);
+      });
+
+      // 🏳️ FORFAIT: Un joueur n'a pas pu se reconnecter à temps
+      s.on('arena:player-forfeit', ({ forfeitStudentId, remainingPlayers }) => {
+        console.log('[ARENA] 🏳️ Forfait de', forfeitStudentId, '— joueurs restants:', remainingPlayers);
+        setArenaPauseInfo(null);
+      });
+
       s.on('disconnect', () => {
         console.log('[ARENA] Socket déconnecté');
         setSocketConnected(false);
@@ -2207,16 +2132,43 @@ const Carte = () => {
         if (sid) s.emit('mp:identify', { studentId: sid });
       } catch {}
 
-      // ✅ FIX DÉCONNEXIONS SOLO: Si un jeu est déjà actif (reconnexion après transport close),
-      // rejoindre la même salle solo (le serveur la garde 15s via délai de grâce).
-      if (prevGameActiveRef.current || soloRoomRef.current) {
-        const lastRoom = soloRoomRef.current;
-        if (lastRoom) {
-          console.log('[CC][reconnect] Rejoining solo room after transport close:', lastRoom);
-          addDiag('reconnect:rejoin-solo', { room: lastRoom, socketId: s.id });
-          try { s.emit('joinRoom', { roomId: lastRoom, name: playerName, studentId: getMyStudentId() }); } catch {}
+      // ✅ COUCHE 2+3: Nettoyage données Arena/Training stales au démarrage MP
+      try {
+        const arenaRaw = localStorage.getItem('cc_crazy_arena_game');
+        if (arenaRaw) {
+          const arenaStale = JSON.parse(arenaRaw);
+          const savedAt = arenaStale.savedAt || arenaStale.startTime || 0;
+          const ageMin = savedAt ? (Date.now() - savedAt) / 60000 : Infinity;
+          // COUCHE 3: TTL 30 minutes (un match Arena dure max ~10 min)
+          if (ageMin > 30) {
+            localStorage.removeItem('cc_crazy_arena_game');
+            console.log('[CC] 🧹 cc_crazy_arena_game expiré (TTL 30min, age=' + Math.round(ageMin) + 'min)');
+          } else {
+            // COUCHE 2: En mode MP/solo, supprimer les données Arena (on n'est plus en Arena)
+            localStorage.removeItem('cc_crazy_arena_game');
+            console.log('[CC] 🧹 cc_crazy_arena_game nettoyé (changement mode → MP)');
+          }
+        }
+      } catch {}
+      // COUCHE 2: Nettoyage données Training stales aussi
+      try { localStorage.removeItem('cc_training_game'); } catch {}
+
+      // ✅ FIX DÉCONNEXIONS: Si un jeu est déjà actif (reconnexion après transport close),
+      // rejoindre la même salle (solo OU salle privée MP).
+      if (prevGameActiveRef.current || soloRoomRef.current || mpRoomRef.current) {
+        const lastSoloRoom = soloRoomRef.current;
+        const lastMpRoom = mpRoomRef.current;
+        if (lastMpRoom) {
+          // ✅ COUCHE 4: Reconnexion MP salle privée après transport close
+          console.log('[CC][reconnect] Rejoining MP room after transport close:', lastMpRoom);
+          addDiag('reconnect:rejoin-mp', { room: lastMpRoom, socketId: s.id });
+          try { s.emit('joinRoom', { roomId: lastMpRoom, name: playerName, studentId: getMyStudentId() }); } catch {}
+        } else if (lastSoloRoom) {
+          console.log('[CC][reconnect] Rejoining solo room after transport close:', lastSoloRoom);
+          addDiag('reconnect:rejoin-solo', { room: lastSoloRoom, socketId: s.id });
+          try { s.emit('joinRoom', { roomId: lastSoloRoom, name: playerName, studentId: getMyStudentId() }); } catch {}
         } else {
-          console.log('[CC][reconnect] Game active but no soloRoom — skipping room setup');
+          console.log('[CC][reconnect] Game active but no room ref — skipping room setup');
           addDiag('reconnect:skip-setup', { gameActive: true, socketId: s.id });
         }
         return;
@@ -2276,10 +2228,12 @@ const Carte = () => {
         console.log('[CC][GS] Grande Salle mode — joining', { salleId: gsSalleId, name: gsName, tournamentId: gsTournamentId });
 
         const joinPayload = { name: gsName };
+        try { const uid = localStorage.getItem('cc_user_id'); if (uid) joinPayload.studentId = uid; } catch {}
         if (gsTournamentId) joinPayload.tournamentId = gsTournamentId;
         else joinPayload.salleId = gsSalleId;
         s.emit('gs:join', joinPayload, (res) => {
           console.log('[CC][GS] gs:join response', res);
+          try { localStorage.setItem('cc_gs_my_socket_id', s.id); } catch {}
           // Fallback: load zones from localStorage if server reconnection is slow
           if (res?.ok) {
             setTimeout(() => {
@@ -2461,6 +2415,20 @@ const Carte = () => {
           }
         });
 
+        // ⏸️ PAUSE: Un joueur s'est déconnecté pendant la partie (grande salle)
+        s.on('gs:match-paused', ({ disconnectedPlayer, gracePeriodMs }) => {
+          console.log('[GS] ⏸️ Match en PAUSE —', disconnectedPlayer, 'déconnecté');
+          setArenaPauseInfo({ paused: true, disconnectedPlayer, gracePeriodMs: gracePeriodMs || 15000 });
+        });
+        s.on('gs:match-resumed', ({ reconnectedPlayer }) => {
+          console.log('[GS] ▶️ Match REPRIS —', reconnectedPlayer, 'reconnecté');
+          setArenaPauseInfo(null);
+        });
+        s.on('gs:player-forfeit', ({ forfeitPlayer, remainingPlayers }) => {
+          console.log('[GS] 🏳️ Forfait de', forfeitPlayer, '— joueurs restants:', remainingPlayers);
+          setArenaPauseInfo(null);
+        });
+
         // Don't fall through to regular online/solo logic
         return;
       }
@@ -2484,6 +2452,7 @@ const Carte = () => {
           if (code) {
             // Utiliser le code fourni puis rejoindre
             try { setRoomId(code); } catch {}
+            mpRoomRef.current = code;
             try { s.emit('joinRoom', { roomId: code, name: cfg.playerName || playerName, studentId: getMyStudentId() }); } catch {}
             // Appliquer la config mais ne pas auto-start en multijoueur
             setTimeout(() => {
@@ -2513,6 +2482,7 @@ const Carte = () => {
               s.emit('room:create', (res) => {
                 if (res && res.ok && res.roomCode) {
                   setRoomId(res.roomCode);
+                  mpRoomRef.current = res.roomCode;
                   s.emit('joinRoom', { roomId: res.roomCode, name: cfg.playerName || playerName, studentId: getMyStudentId() });
                   // Appliquer la config mais ne pas auto-start
                   setTimeout(() => {
@@ -2549,8 +2519,10 @@ const Carte = () => {
           // join
           if (code) {
             try { setRoomId(code); } catch {}
+            mpRoomRef.current = code;
             try { s.emit('joinRoom', { roomId: code, name: cfg.playerName || playerName, studentId: getMyStudentId() }); } catch {}
           } else {
+            mpRoomRef.current = roomId;
             try { s.emit('joinRoom', { roomId, name: cfg.playerName || playerName, studentId: getMyStudentId() }); } catch {}
           }
         }
@@ -2666,8 +2638,25 @@ const Carte = () => {
     });
 
     // Mise à jour de scores en flux
-    s.on('score:update', ({ scores }) => {
+    s.on('score:update', (payload) => {
+      const { scores, pairEvent, claimantsCount, claimantNames, isTiebreaker } = payload || {};
       const list = Array.isArray(scores) ? scores : [];
+      // 📊 MONITORING: tracer CHAQUE mise à jour de score avec détails complets
+      if (pairEvent) {
+        const phase = isTiebreaker ? 'DÉPARTAGE' : 'SESSION';
+        const warn = claimantsCount > 1 ? ' ⚠️ DOUBLE CRÉDIT!' : '';
+        console.log(`[CC] 📊 score:update PAIR #${pairEvent} [${phase}] Claimants: ${claimantsCount} (${(claimantNames||[]).join(', ')})${warn} → ${list.map(p => `${p.name}=${p.score}`).join(', ')}`);
+        addDiag(`score:update:pair#${pairEvent}`, { phase, claimantsCount, claimantNames, scores: list.map(p => ({ name: p.name, score: p.score })) });
+        // Stocker dans le trace persistant
+        try {
+          const trace = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
+          trace.push({ t: Date.now(), ev: 'score:update', pairEvent, phase, claimantsCount, claimantNames, scores: list.map(p => ({ n: p.name, s: p.score })) });
+          localStorage.setItem('cc_game_trace', JSON.stringify(trace.slice(-100)));
+        } catch {}
+      } else if (isTiebreakerRef.current) {
+        console.log('[CC] score:update (départage)', list.map(p => `${p.name}: ${p.score}`).join(' | '));
+        addDiag('score:update:tiebreaker', { scores: list.map(p => ({ name: p.name, score: p.score })) });
+      }
       setScoresMP(list);
       scoresRef.current = list;
       setRoomPlayers(prev => {
@@ -2824,6 +2813,7 @@ const Carte = () => {
       // FIX: Ne relancer le jeu/timer que pour un VRAI nouveau round (pas une régénération de carte)
       if (!payload?.isRegen) {
         setGameActive(true);
+        setTimerResetKey(k => k + 1);
         // Prendre la duree cote serveur (sauf en mode objectif: pas de countdown)
         try {
           const cfgDur = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
@@ -2976,7 +2966,24 @@ const Carte = () => {
     });
 
     s.on('tiebreaker:round-result', (data) => {
-      console.log('[CC] tiebreaker:round-result', data);
+      console.log('[CC] tiebreaker:round-result', JSON.stringify(data));
+      addDiag('tiebreaker:round-result', {
+        round: data.roundIndex,
+        totalRounds: data.totalRounds,
+        winnerName: data.winnerName,
+        tie: data.tie,
+        claimantsCount: data.claimantsCount,
+        claimantNames: data.claimantNames,
+        tiebreakerScores: data.tiebreakerScores,
+        baseScores: data.baseScores
+      });
+      // Trace persistante pour monitoring
+      try {
+        const diags = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
+        diags.push({ event: 'tiebreaker:round-result', ts: Date.now(), ...data });
+        if (diags.length > 50) diags.splice(0, diags.length - 50);
+        localStorage.setItem('cc_game_trace', JSON.stringify(diags));
+      } catch {}
       const msg = data.tie
         ? `Round ${data.roundIndex}/${data.totalRounds} — Égalité !`
         : `Round ${data.roundIndex}/${data.totalRounds} — ${data.winnerName || 'Un joueur'} gagne !`;
@@ -3005,6 +3012,20 @@ const Carte = () => {
     s.on('room:replayWaiting', ({ readyCount, totalCount }) => {
       console.log('[CC] room:replayWaiting', readyCount, '/', totalCount);
       setReplayWaiting({ readyCount, totalCount });
+    });
+
+    // ⏸️ PAUSE: Un joueur s'est déconnecté pendant la partie (salle privée)
+    s.on('mp:match-paused', ({ disconnectedPlayer, gracePeriodMs }) => {
+      console.log('[MP] ⏸️ Match en PAUSE —', disconnectedPlayer, 'déconnecté');
+      setArenaPauseInfo({ paused: true, disconnectedPlayer, gracePeriodMs: gracePeriodMs || 15000 });
+    });
+    s.on('mp:match-resumed', ({ reconnectedPlayer }) => {
+      console.log('[MP] ▶️ Match REPRIS —', reconnectedPlayer, 'reconnecté');
+      setArenaPauseInfo(null);
+    });
+    s.on('mp:player-forfeit', ({ forfeitPlayer, remainingPlayers }) => {
+      console.log('[MP] 🏳️ Forfait de', forfeitPlayer, '— joueurs restants:', remainingPlayers);
+      setArenaPauseInfo(null);
     });
 
     // Fin de session
@@ -3547,7 +3568,7 @@ useEffect(() => {
     }
   }, 250);
   return () => clearInterval(id);
-}, [gameActive, gameDuration, arenaMatchId, objectiveMode]);
+}, [gameActive, gameDuration, arenaMatchId, objectiveMode, timerResetKey]);
 
 // 💾 PERSISTANCE: Sauvegarder les performances Solo/Multijoueur en DB quand la SESSION se termine
 // Utilise un debounce de 3s pour distinguer "fin de manche" (round:new relance gameActive) de "fin de session"
@@ -5088,6 +5109,7 @@ const handleEditGreenZone = (zone) => {
     try {
       setMyReady(false);
       setRoomStatus('lobby');
+      mpRoomRef.current = null;
       socket.emit('joinRoom', { roomId: 'default', name: playerName, studentId: getMyStudentId() });
       setRoomId('default');
     } catch {}
@@ -5107,6 +5129,7 @@ const handleEditGreenZone = (zone) => {
         setIsCreatingRoom(false);
         if (res?.ok && res.roomCode) {
           setRoomId(res.roomCode);
+          mpRoomRef.current = res.roomCode;
           setMpMsg(`Salle créée: ${res.roomCode}`);
           try { socket.emit('joinRoom', { roomId: res.roomCode, name: playerName, studentId: getMyStudentId() }); } catch {}
           // Envoyer la config pédagogique au serveur (niveau, thèmes, classes, extras)
@@ -5139,6 +5162,7 @@ const handleEditGreenZone = (zone) => {
   // Rejoindre une salle existante avec le code saisi
   const handleJoinRoom = () => {
     if (!socket || !roomId) return;
+    mpRoomRef.current = roomId;
     try { socket.emit('joinRoom', { roomId, name: playerName, studentId: getMyStudentId() }); } catch {}
   };
 

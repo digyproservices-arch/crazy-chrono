@@ -90,6 +90,9 @@ function MonitoringDashboard() {
   // ── Client Telemetry (erreurs JS, réseau, navigation, sockets) ──
   const [clientTelemetryEvents, setClientTelemetryEvents] = useState([]);
 
+  // ── Feature Parity (parité des fonctionnalités entre modes) ──
+  const [featureParity, setFeatureParity] = useState(null);
+
   const copyToClipboard = async (text, source) => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -215,11 +218,25 @@ function MonitoringDashboard() {
         }
       } catch (e) { console.warn('[Monitoring] Supabase rounds fetch failed:', e.message); }
       
-      // 4) Fusionner, dédupliquer par id, trier (plus récent en premier)
+      // 4) Fusionner, dédupliquer par id ET par contenu (fenêtre 5s + mode normalisé + pairIds)
       const byId = new Map();
+      const byContent = new Map();
       for (const log of [...localLogs, ...serverLogs, ...clientServerLogs, ...supabaseRounds]) {
-        const key = log.id || `${log.timestamp}_${log.mode}`;
-        if (!byId.has(key)) byId.set(key, log);
+        // Dédup par ID
+        const idKey = log.id || `${log.timestamp}_${log.mode}`;
+        if (byId.has(idKey)) continue;
+        // Dédup par contenu (même manche depuis différentes sources)
+        const modeNorm = (log.mode || '').replace('training-arena', 'training');
+        const ts = log.timestamp ? new Date(log.timestamp).getTime() : 0;
+        const tsWindow = Math.floor(ts / 5000);
+        let pairIds = '';
+        if (log.summary?.paired?.length > 0) pairIds = log.summary.paired.map(p => p.pairId).sort().join(',');
+        else if (log.pairDetails?.length > 0) pairIds = [...new Set(log.pairDetails.map(p => p.pairId))].sort().join(',');
+        else if (log.zonesSnapshot?.length > 0) pairIds = [...new Set(log.zonesSnapshot.filter(z => z.pairId).map(z => z.pairId))].sort().join(',');
+        const contentKey = `${tsWindow}|${modeNorm}|${pairIds}`;
+        if (byContent.has(contentKey)) continue;
+        byId.set(idKey, log);
+        if (pairIds) byContent.set(contentKey, log);
       }
       const allLogs = [...byId.values()];
       allLogs.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
@@ -560,12 +577,27 @@ const clearIncidents = async () => {
     }
   }, []);
 
+  const fetchFeatureParity = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${backendUrl}/api/monitoring/feature-parity`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) setFeatureParity(data);
+      }
+    } catch (err) {
+      console.warn('[Monitoring] Feature parity fetch error:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas();
-    fetchArenaStats(); fetchServerClicks(); fetchSupabaseDiag(); fetchGameTraces(); fetchServerTraces(); fetchClientTelemetry();
+    fetchArenaStats(); fetchServerClicks(); fetchSupabaseDiag(); fetchGameTraces(); fetchServerTraces(); fetchClientTelemetry(); fetchFeatureParity();
     setLoading(false);
     setLastRefresh(new Date());
-  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats, fetchServerClicks, fetchSupabaseDiag, fetchGameTraces, fetchServerTraces, fetchClientTelemetry]);
+  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats, fetchServerClicks, fetchSupabaseDiag, fetchGameTraces, fetchServerTraces, fetchClientTelemetry, fetchFeatureParity]);
 
   useEffect(() => {
     if (activeTab === 'incidents' || activeTab === 'report') {
@@ -573,6 +605,7 @@ const clearIncidents = async () => {
     }
     if (activeTab === 'report') {
       fetchArenaStats();
+      fetchFeatureParity();
     }
     if (activeTab === 'players') {
       fetchOnlinePlayers();
@@ -775,7 +808,18 @@ const clearIncidents = async () => {
 
                 // KPIs
                 sections.push(`--- KPIs ---`);
-                sections.push(`Incidents: ${incidents.length} | Manches: ${roundLogs.length} | Auth: ${authLogs.length}`);
+                // Pré-calcul dédup rounds
+                const _dedupSet = new Set();
+                let _dedupCount = 0;
+                for (const r of roundLogs) {
+                  const tsR = r.timestamp ? new Date(r.timestamp).toISOString().slice(0, 19) : '';
+                  const k = `${tsR}|${r.mode || ''}|${(r.summary?.paired || []).map(p => p.pairId).sort().join(',')}`;
+                  if (!_dedupSet.has(k)) { _dedupSet.add(k); _dedupCount++; }
+                }
+                // Pré-calcul cc_game_trace
+                let _gameTraceCount = 0, _doublesCount = 0;
+                try { const gt = JSON.parse(localStorage.getItem('cc_game_trace') || '[]'); _gameTraceCount = gt.length; _doublesCount = gt.filter(e => e.claimantsCount > 1).length; } catch {}
+                sections.push(`Incidents: ${incidents.length} | Manches: ${_dedupCount}${_dedupCount < roundLogs.length ? ` (${roundLogs.length - _dedupCount} doublons)` : ''} | Auth: ${authLogs.length} | Paires MP: ${_gameTraceCount}${_doublesCount > 0 ? ` (⚠️ ${_doublesCount} doubles)` : ''}`);
                 sections.push('');
 
                 // Incidents (max 20)
@@ -817,16 +861,38 @@ const clearIncidents = async () => {
                 }
                 sections.push('');
 
-                // Round logs (manches jouées)
-                const recentRounds = roundLogs.slice(0, 20);
-                sections.push(`--- MANCHES JOUÉES (${recentRounds.length}/${roundLogs.length}) ---`);
+                // Round logs (manches jouées) — dédupliqués par fenêtre 5s + pairIds normalisés
+                const deduped = [];
+                const seenKeys = new Set();
+                for (const r of roundLogs) {
+                  // Normaliser mode: 'training' et 'training-arena' = même chose
+                  const modeNorm = (r.mode || '').replace('training-arena', 'training').replace(/^arena$/, 'arena');
+                  // Fenêtre de 5 secondes (au lieu de 1s) pour regrouper serveur + clients
+                  const ts = r.timestamp ? new Date(r.timestamp).getTime() : 0;
+                  const tsWindow = Math.floor(ts / 5000);
+                  // Extraire pairIds depuis n'importe quel format (client: summary.paired, serveur: pairDetails)
+                  let pairIds = '';
+                  if (r.summary?.paired?.length > 0) {
+                    pairIds = r.summary.paired.map(p => p.pairId).sort().join(',');
+                  } else if (r.pairDetails?.length > 0) {
+                    pairIds = [...new Set(r.pairDetails.map(p => p.pairId))].sort().join(',');
+                  } else if (r.zonesSnapshot?.length > 0) {
+                    pairIds = [...new Set(r.zonesSnapshot.filter(z => z.pairId).map(z => z.pairId))].sort().join(',');
+                  }
+                  const key = `${tsWindow}|${modeNorm}|${pairIds}`;
+                  if (!seenKeys.has(key)) { seenKeys.add(key); deduped.push(r); }
+                }
+                const recentRounds = deduped.slice(0, 20);
+                sections.push(`--- MANCHES JOUÉES (${recentRounds.length}/${deduped.length}${deduped.length < roundLogs.length ? `, ${roundLogs.length - deduped.length} doublons supprimés` : ''}) ---`);
                 if (recentRounds.length === 0) {
                   sections.push('Aucune manche enregistrée.');
                 } else {
                   recentRounds.forEach((r, i) => {
                     const ts = r.timestamp ? new Date(r.timestamp).toLocaleString('fr-FR') : 'N/A';
                     const issues = r.doublePairIssues > 0 ? ` 🚨 ${r.doublePairIssues} DOUBLE PAIRE(S)` : '';
-                    sections.push(`[${i+1}] ${ts} | mode: ${r.mode} | paires: ${r.validPairs} | zones: ${r.summary?.totalZones || '?'}${issues}`);
+                    const pairesCount = r.validPairs ?? r.uniquePairs ?? '?';
+                    const zonesCount = r.summary?.totalZones || r.totalZones || '?';
+                    sections.push(`[${i+1}] ${ts} | mode: ${r.mode} | paires: ${pairesCount} | zones: ${zonesCount}${issues}`);
                     if (r.issues && r.issues.length > 0) {
                       r.issues.forEach(iss => {
                         sections.push(`    ⚠️ ${iss.message || JSON.stringify(iss)}`);
@@ -941,6 +1007,66 @@ const clearIncidents = async () => {
                     if (t.event === 'gs:roundTimer:fired') detail = ` salle=${t.salle} round=${t.round} expected=${t.expectedMs}ms drift=${t.driftMs}ms`;
                     if (t.event === 'gs:elimination') detail = ` salle=${t.salle} wave=${t.wave} eliminated=${t.eliminated} remaining=${t.remaining} pct=${t.elimPct}% names=[${(t.eliminatedNames||[]).join(',')}]`;
                     if (t.event === 'gs:finish') detail = ` salle=${t.salle} winner=${t.winner} score=${t.winnerScore} players=${t.totalPlayers} rounds=${t.rounds} waves=${t.waves}`;
+                    // Training invitation events
+                    if (t.event === 'training:invites-sent') detail = ` match=${t.matchId} ${t.studentsCount} élèves=[${(t.studentIds||[]).join(',')}] sockets=${t.socketsConnected} déjàEnTraining=[${(t.alreadyInTraining||[]).join(',')}]`;
+                    if (t.event === 'training:join-ok') detail = ` match=${t.matchId} ✅ ${t.name} (${t.studentId}) socket=${t.socketId}`;
+                    if (t.event === 'training:join-fail') detail = ` match=${t.matchId} ❌ ${t.name} (${t.studentId}) socket=${t.socketId}`;
+                    if (t.event === 'training:join-reject') detail = ` match=${t.matchId} ⛔ ${t.studentName} (${t.studentId}) reason=${t.reason} socket=${t.socketId}`;
+                    if (t.event === 'training:player-joined') detail = ` match=${t.matchId} 👤 ${t.playerName} (${t.studentId}) joueurs=${t.playersCount}/${t.expectedCount} status=${t.matchStatus} all=[${(t.allPlayers||[]).map(p=>`${p.name}(${p.ready?'✅':'⏳'})`).join(',')}] rooms=[${(t.socketRooms||[]).join(',')}]`;
+                    if (t.event === 'training:reconnect') detail = ` match=${t.matchId} 🔄 ${t.playerName} (${t.studentId}) socket=${t.socketId} status=${t.matchStatus} wasDisconnected=${t.wasDisconnected}`;
+                    if (t.event === 'training:ready') detail = ` match=${t.matchId} ${t.studentId} socket=${t.socketId} result=${t.result}`;
+                    if (t.event === 'training:ready-ok') detail = ` match=${t.matchId} ✅ ${t.playerName} (${t.studentId}) ready=${t.readyCount}/${t.totalCount} all=[${(t.allPlayersState||[]).map(p=>`${p.name}(${p.ready?'✅':'⏳'})`).join(',')}] rooms=[${(t.socketRooms||[]).join(',')}]`;
+                    if (t.event === 'training:ready-fail') detail = ` match=${t.matchId} ❌ ${t.studentId} reason=${t.reason} socket=${t.socketId}${t.playersInMatch ? ' inMatch=['+t.playersInMatch.map(p=>`${p.name}(${p.sid})`).join(',')+']' : ''}`;
+                    // Arena lobby events
+                    if (t.event === 'arena:join-ok') detail = ` match=${t.matchId} ✅ ${t.name} (${t.studentId}) socket=${t.socketId} rooms=[${(t.rooms||[]).join(',')}]`;
+                    if (t.event === 'arena:join-fail') detail = ` match=${t.matchId} ❌ ${t.name} (${t.studentId}) socket=${t.socketId}`;
+                    if (t.event === 'arena:join-reject') detail = ` match=${t.matchId} ⛔ ${t.studentName} (${t.studentId}) reason=${t.reason} status=${t.matchStatus||'?'} socket=${t.socketId}`;
+                    if (t.event === 'arena:player-joined') detail = ` match=${t.matchId} 👤 ${t.playerName} (${t.studentId}) joueurs=${t.playersCount} status=${t.matchStatus} all=[${(t.allPlayers||[]).map(p=>`${p.name}(${p.ready?'✅':'⏳'})`).join(',')}] rooms=[${(t.socketRooms||[]).join(',')}]`;
+                    if (t.event === 'arena:reconnect') detail = ` match=${t.matchId} 🔄 ${t.playerName} (${t.studentId}) socket=${t.socketId} status=${t.matchStatus} wasDisconnected=${t.wasDisconnected}`;
+                    if (t.event === 'arena:ready') detail = ` ${t.studentId} socket=${t.socketId} result=${t.result}`;
+                    if (t.event === 'arena:ready-ok') detail = ` match=${t.matchId} ✅ ${t.playerName} (${t.studentId}) ready=${t.readyCount}/${t.totalCount} all=[${(t.allPlayersState||[]).map(p=>`${p.name}(${p.ready?'✅':'⏳'})`).join(',')}] rooms=[${(t.socketRooms||[]).join(',')}]`;
+                    if (t.event === 'arena:ready-fail') detail = ` match=${t.matchId||'?'} ❌ ${t.studentId} reason=${t.reason} socket=${t.socketId}${t.playersInMatch ? ' inMatch=['+t.playersInMatch.map(p=>`${p.name}(${p.sid})`).join(',')+']' : ''}${t.playerMatchesSize !== undefined ? ' playerMatchesSize='+t.playerMatchesSize : ''}`;
+                    // Arena pair/equality events
+                    if (t.event === 'arena:pair-validated') {
+                      const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
+                      detail = ` match=${t.matchId} PAIR#${t.pairEvent} R${t.round} ${t.isTiebreaker ? 'DÉPARTAGE' : 'NORMAL'} claimants=${t.claimantsCount}(${(t.claimantNames||[]).join(',')})${warn} elapsed=${t.elapsedMs||0}ms window=${t.windowMs||200}ms ${t.scoresBeforeUpdate ? 'avant=['+t.scoresBeforeUpdate.map(s=>`${s.name}=${s.score}`).join(',')+']' : ''} ${t.scoresAfter ? 'après=['+t.scoresAfter.map(s=>`${s.name}=${s.score}`).join(',')+']' : ''}`;
+                    }
+                    if (t.event === 'arena:score-update') {
+                      const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
+                      detail = ` match=${t.matchId} PAIR#${t.pairEvent} ${t.isTiebreaker ? 'DÉPARTAGE' : 'NORMAL'}${warn} elapsed=${t.elapsedMs||0}ms après=[${(t.scoresAfter||[]).map(s=>`${s.name}=${s.score}`).join(',')}]`;
+                    }
+                    if (t.event === 'arena:equality-window') detail = ` match=${t.matchId} student=${t.studentId} elapsed=${t.elapsed}ms window=${t.windowMs}ms claimants=${t.claimants}`;
+                    if (t.event === 'arena:resync') detail = ` match=${t.matchId} 🔄 RESYNC → ${t.player} (${t.zones} zones, timer=${t.timer}s, manche ${t.round})`;
+                    if (t.event === 'training:resync') detail = ` match=${t.matchId} 🔄 RESYNC → ${t.player} (${t.zones} zones, timer=${t.timer}s, manche ${t.round})`;
+                    // Training pair/equality events (comme Arena)
+                    if (t.event === 'training:pair-validated') {
+                      const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
+                      detail = ` match=${t.matchId} PAIR#${t.pairEvent} R${t.round} ${t.isTiebreaker ? 'DÉPARTAGE' : 'NORMAL'} claimants=${t.claimantsCount}(${(t.claimantNames||[]).join(',')})${warn} elapsed=${t.elapsedMs||0}ms window=${t.windowMs||200}ms ${t.scoresBeforeUpdate ? 'avant=['+t.scoresBeforeUpdate.map(s=>`${s.name}=${s.score}`).join(',')+']' : ''} ${t.scoresAfter ? 'après=['+t.scoresAfter.map(s=>`${s.name}=${s.score}`).join(',')+']' : ''}`;
+                    }
+                    if (t.event === 'training:score-update') {
+                      const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
+                      detail = ` match=${t.matchId} PAIR#${t.pairEvent} ${t.isTiebreaker ? 'DÉPARTAGE' : 'NORMAL'}${warn} elapsed=${t.elapsedMs||0}ms après=[${(t.scoresAfter||[]).map(s=>`${s.name}=${s.score}`).join(',')}]`;
+                    }
+                    if (t.event === 'mp:match-paused') detail = ` room=${t.room} ⏸️ PAUSE — ${t.player} déconnecté (grace ${(t.gracePeriodMs||15000)/1000}s, timer restant ${Math.round((t.remainingMs||0)/1000)}s)`;
+                    if (t.event === 'mp:match-resumed') detail = ` room=${t.room} ▶️ REPRISE — ${t.player} reconnecté (pause ${Math.round((t.pauseDurationMs||0)/1000)}s, timer restant ${Math.round((t.remainingMs||0)/1000)}s)`;
+                    if (t.event === 'mp:player-forfeit') detail = ` room=${t.room} 🏳️ FORFAIT — ${t.player}`;
+                    if (t.event === 'gs:match-paused') detail = ` salle=${t.salle} ⏸️ PAUSE — ${t.player} déconnecté (${t.activePlayers} joueurs actifs, timer restant ${Math.round((t.remainingMs||0)/1000)}s)`;
+                    if (t.event === 'gs:match-resumed') detail = ` salle=${t.salle} ▶️ REPRISE — ${t.player} reconnecté (pause ${Math.round((t.pauseDurationMs||0)/1000)}s)`;
+                    if (t.event === 'gs:player-forfeit') detail = ` salle=${t.salle} 🏳️ FORFAIT — ${t.player}`;
+                    // Multiplayer pair/equality/session events
+                    if (t.event === 'mp:pair-validated') {
+                      const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
+                      detail = ` room=${t.room} PAIR#${t.pairEvent} R${t.round} ${t.isTiebreaker ? 'DÉPARTAGE' : 'SESSION'} claimants=${t.claimantsCount}(${(t.claimantNames||[]).join(',')})${warn} avant=[${(t.scoresBeforeUpdate||[]).map(s=>`${s.name}=${s.score}`).join(',')}]`;
+                    }
+                    if (t.event === 'mp:score-update') {
+                      const warn = t.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
+                      detail = ` room=${t.room} PAIR#${t.pairEvent} ${t.isTiebreaker ? 'DÉPARTAGE' : 'SESSION'}${warn} après=[${(t.scoresAfter||[]).map(s=>`${s.name}=${s.score}`).join(',')}]`;
+                    }
+                    if (t.event === 'mp:equality-detected') detail = ` room=${t.room} ${t.tiedCount} joueurs à ${t.topScore}pts pairesTotal=${t.pairEventsTotal} rounds=${t.roundsPlayed} scores=[${(t.allScores||[]).map(s=>`${s.name}=${s.score}`).join(',')}]`;
+                    if (t.event === 'mp:session-end') {
+                      const tb = t.wasTiebreaker ? ' DÉPARTAGE' : '';
+                      detail = ` room=${t.room} pairesTotal=${t.pairEventsTotal}${tb} scores=[${(t.finalScores||[]).map(s=>`${s.name}=${s.score}`).join(',')}] roundHistory=${t.roundHistoryCount}`;
+                    }
                     // Arena/Training match events (from crazyArenaManager)
                     if (t.event && t.event.startsWith('match:')) {
                       const type = t.event.replace('match:', '');
@@ -1000,6 +1126,57 @@ const clearIncidents = async () => {
                 }
                 sections.push('');
 
+                // cc_game_trace — Trace client persistante des paires (tous modes MP/Arena/Training)
+                try {
+                  const gameTrace = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
+                  sections.push(`--- TRACE PAIRES CLIENT (${gameTrace.length} événements, localStorage) ---`);
+                  if (gameTrace.length === 0) {
+                    sections.push('Aucune trace de paire enregistrée.');
+                  } else {
+                    // Résumé par phase
+                    const byPhase = {};
+                    gameTrace.forEach(e => { byPhase[e.phase || e.ev || '?'] = (byPhase[e.phase || e.ev || '?'] || 0) + 1; });
+                    const doubles = gameTrace.filter(e => e.claimantsCount > 1);
+                    sections.push(`Total: ${gameTrace.length} | Phases: ${Object.entries(byPhase).map(([k,v]) => `${k}:${v}`).join(', ')} | Doubles crédits: ${doubles.length}`);
+                    if (doubles.length > 0) {
+                      sections.push(`⚠️ DOUBLES CRÉDITS DÉTECTÉS:`);
+                      doubles.forEach((d, i) => {
+                        const ts = d.t ? new Date(d.t).toLocaleString('fr-FR') : 'N/A';
+                        sections.push(`  [${i+1}] ${ts} PAIR#${d.pairEvent} [${d.phase}] ${d.claimantsCount} claimants (${(d.claimantNames||[]).join(', ')}) → ${(d.scores||[]).map(s => `${s.n}=${s.s}`).join(', ')}`);
+                      });
+                    }
+                    // Détail chronologique
+                    sections.push(`Chronologie:`);
+                    gameTrace.slice(-30).forEach((e, i) => {
+                      const ts = e.t ? new Date(e.t).toLocaleString('fr-FR') : 'N/A';
+                      const phase = e.phase || e.ev || '?';
+                      if (e.pairEvent) {
+                        const warn = e.claimantsCount > 1 ? ' ⚠️ DOUBLE' : '';
+                        sections.push(`  [${i+1}] ${ts} PAIR#${e.pairEvent} [${phase}] ${e.claimantsCount} claim.${warn} → ${(e.scores||[]).map(s => `${s.n}=${s.s}`).join(', ')}`);
+                      } else if (e.ev === 'arena:pair-validated') {
+                        sections.push(`  [${i+1}] ${ts} [${phase}] ${e.isLocal ? 'MOI' : e.playerName} paire=${(e.pairId||'').slice(-12)}`);
+                      } else if (e.scores) {
+                        sections.push(`  [${i+1}] ${ts} [${phase}] scores: ${(e.scores||[]).map(s => `${s.n}=${s.s}`).join(', ')}`);
+                      } else {
+                        sections.push(`  [${i+1}] ${ts} [${phase}] ${e.ev || ''}`);
+                      }
+                    });
+                  }
+                } catch (e) {
+                  sections.push(`--- TRACE PAIRES CLIENT ---`);
+                  sections.push(`Erreur lecture cc_game_trace: ${e.message || e}`);
+                }
+                sections.push('');
+
+                // Parité des fonctionnalités entre modes
+                if (featureParity && featureParity.textReport) {
+                  sections.push(featureParity.textReport);
+                } else {
+                  sections.push(`═══ RAPPORT PARITÉ DES FONCTIONNALITÉS ═══`);
+                  sections.push(`Données non chargées (endpoint /api/monitoring/feature-parity).`);
+                }
+                sections.push('');
+
 sections.push(`===== FIN DU RAPPORT =====`);
                 return sections.join('\n');
               };
@@ -1052,6 +1229,8 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     <KPICard title="Manches" value={roundLogs.length} icon="🎮" color="#10b981" highlight={roundLogs.some(r => r.doublePairIssues > 0)} />
                     <KPICard title="Double paires" value={roundLogs.filter(r => r.doublePairIssues > 0).length} icon="🚨" color={COLORS.error} highlight={roundLogs.some(r => r.doublePairIssues > 0)} />
                     {(() => { try { const cs = getClickStats(); const ca = getClickAttempts(); const rejected = ca.filter(a => a.stage.startsWith('REJECTED')).length; const missed = ca.filter(a => a.stage === 'BOARD_CLICK').length; return (<><KPICard title="Clics acceptés" value={cs.ok || 0} icon="✅" color="#10b981" /><KPICard title="Clics rejetés" value={rejected} icon="🚫" color={COLORS.warn} highlight={rejected > 0} /><KPICard title="Clics perdus" value={missed} icon="❓" color={COLORS.error} highlight={missed > 0} /></>); } catch { return null; } })()}
+                    {(() => { try { const gt = JSON.parse(localStorage.getItem('cc_game_trace') || '[]'); const doubles = gt.filter(e => e.claimantsCount > 1).length; return (<><KPICard title="Paires MP" value={gt.length} icon="🎯" color="#8b5cf6" /><KPICard title="Doubles crédits" value={doubles} icon="⚠️" color={COLORS.error} highlight={doubles > 0} /></>); } catch { return null; } })()}
+                    <KPICard title="Traces Serveur" value={serverTraces.length} icon="🖥️" color="#f59e0b" />
                     <KPICard title="Traces Jeu" value={soloTraces.length} icon="🔍" color="#f59e0b" />
                     <KPICard title="Télémétrie" value={clientTelemetryEvents.length} icon="📡" color="#06b6d4" />
                   </div>

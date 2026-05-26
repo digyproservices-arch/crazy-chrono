@@ -365,6 +365,16 @@ class CrazyArenaManager {
     
     logger.info(`[CrazyArena][Training][INVITE] ✅ ${emittedCount} notifications émises via Socket.IO`);
     logger.info(`[CrazyArena][Training] Match ${matchId} créé, en attente de ${studentIds.length} joueurs`);
+
+    // 📊 MONITORING: Tracer l'émission des invitations dans sTrace
+    sTrace.push('training:invites-sent', {
+      matchId: matchId.slice(-8),
+      studentsCount: studentIds.length,
+      studentIds: studentIds.map(s => s.slice(-8)),
+      socketsConnected: connectedSockets,
+      alreadyInTraining: alreadyConnected.map(s => s.slice(-8))
+    });
+
     return this.matches.get(matchId);
   }
 
@@ -382,6 +392,7 @@ class CrazyArenaManager {
     
     if (!match) {
       logger.error(`[CrazyArena][Training] Match ${matchId} introuvable (mémoire + DB)`);
+      sTrace.push('training:join-reject', { reason: 'match_not_found', matchId: (matchId || '').slice(-8), studentName: studentData.name, studentId: (studentData.studentId || '').slice(-8), socketId: socket.id.slice(0, 8) });
       socket.emit('training:error', { message: 'Match introuvable' });
       socket.emit('training:match-lost', { reason: 'Match introuvable. Le serveur a peut-être redémarré.' });
       return false;
@@ -398,6 +409,7 @@ class CrazyArenaManager {
       }
       logger.info(`[CrazyArena][Training] ${studentData.name} reconnecté au match ${matchId} (old=${oldSocketId?.slice(-6)}, new=${socket.id.slice(-6)})`);
       _logMatchEvent('PLAYER_RECONNECT', matchId, { mode: 'training', studentId: studentData.studentId, name: studentData.name, matchStatus: match.status });
+      sTrace.push('training:reconnect', { matchId: matchId.slice(-8), playerName: studentData.name, studentId: (studentData.studentId || '').slice(-8), socketId: socket.id.slice(0, 8), matchStatus: match.status, wasDisconnected: !!existingPlayer.disconnected });
       existingPlayer.socketId = socket.id;
       existingPlayer.disconnected = false;
       delete existingPlayer.disconnectedAt;
@@ -416,11 +428,63 @@ class CrazyArenaManager {
         count: match.players.length  // ✅ Comme Arena (reconnexion)
       });
       
+      // ✅ SYNC: Renvoyer l'état complet du jeu au joueur reconnecté (zones + scores + timer)
+      if (match.status === 'playing' || match.status === 'tiebreaker' || match.status === 'paused') {
+        const roundsPerMatch = match.config.rounds || match.config.roundsPerMatch || 3;
+        const durationPerRound = match.config.duration || match.config.durationPerRound || 60;
+        const totalDuration = roundsPerMatch * durationPerRound;
+        const elapsed = Math.floor((Date.now() - match.startTime) / 1000);
+        const elapsedInRound = elapsed % durationPerRound;
+        const timeLeftInRound = Math.max(0, durationPerRound - elapsedInRound);
+
+        // Envoyer les zones actuelles au joueur reconnecté
+        if (match.zones && match.zones.length > 0) {
+          socket.emit('training:round-new', {
+            zones: match.zones,
+            roundIndex: match.roundsPlayed,
+            totalRounds: roundsPerMatch,
+            timestamp: Date.now(),
+            _resync: true
+          });
+          logger.info(`[CrazyArena][Training] 📤 Resync zones envoyé à ${studentData.name}: ${match.zones.length} zones, manche ${match.roundsPlayed + 1}`);
+        }
+
+        // Envoyer les scores actuels (tiebreaker-aware)
+        const isTB = match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown';
+        socket.emit('training:scores-update', {
+          scores: match.players.map((p, idx) => ({
+            studentId: p.studentId,
+            name: p.name,
+            avatar: p.avatar,
+            playerIdx: idx,
+            score: isTB ? (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0) : (p.score || 0),
+            pairsValidated: isTB ? (p.pairsBeforeTiebreaker || 0) + (p.tiebreakerPairs || 0) : (p.pairsValidated || 0)
+          })).sort((a, b) => b.score - a.score)
+        });
+
+        // Envoyer le timer actuel
+        socket.emit('training:timer-tick', {
+          timeLeft: timeLeftInRound,
+          elapsed,
+          duration: totalDuration,
+          currentRound: match.roundsPlayed + 1,
+          totalRounds: roundsPerMatch
+        });
+
+        logger.info(`[CrazyArena][Training] ✅ État complet renvoyé à ${studentData.name} (zones=${match.zones?.length || 0}, timer=${timeLeftInRound}s)`);
+        sTrace.push('training:resync', { matchId: matchId.slice(-8), player: studentData.name, zones: match.zones?.length || 0, timer: timeLeftInRound, round: match.roundsPlayed + 1 });
+      }
+
       // ✅ Si le match était en pause (joueur déconnecté), reprendre automatiquement
-      if (match.status === 'paused' && match._pauseState && 
-          match._pauseState.disconnectedStudentId === studentData.studentId) {
-        logger.info(`[CrazyArena][Training] ▶️ Joueur déconnecté ${studentData.name} reconnecté → reprise du match`);
-        this.resumeMatch(matchId);
+      // FIX: Reprendre SEULEMENT si TOUS les joueurs déconnectés sont revenus
+      if (match.status === 'paused' && match._pauseState) {
+        const stillDisconnected = match.players.filter(p => p.disconnected);
+        if (stillDisconnected.length === 0) {
+          logger.info(`[CrazyArena][Training] ▶️ Tous les joueurs déconnectés sont revenus → reprise du match`);
+          this.resumeMatch(matchId);
+        } else {
+          logger.info(`[CrazyArena][Training] ⏸️ ${studentData.name} reconnecté mais ${stillDisconnected.length} joueur(s) encore déconnecté(s): ${stillDisconnected.map(p => p.name).join(', ')}`);
+        }
       }
 
       // ✅ AUTO-RESTART sur reconnexion aussi (si dernier joueur attendu)
@@ -487,6 +551,18 @@ class CrazyArenaManager {
       }))
     });
 
+    sTrace.push('training:player-joined', {
+      matchId: matchId.slice(-8),
+      playerName: studentData.name,
+      studentId: (studentData.studentId || '').slice(-8),
+      socketId: socket.id.slice(0, 8),
+      playersCount: match.players.length,
+      expectedCount: match.expectedPlayers.length,
+      matchStatus: match.status,
+      allPlayers: match.players.map(p => ({ name: p.name, sid: p.socketId?.slice(0, 8), ready: p.ready })),
+      socketRooms: Array.from(socket.rooms)
+    });
+
     // ✅ AUTO-RESTART: Si le match était en cours avant le redémarrage serveur,
     // relancer automatiquement le jeu quand tous les joueurs attendus ont rejoint
     if (match._needsGameRestart && match.players.length >= match.expectedPlayers.length) {
@@ -532,13 +608,15 @@ class CrazyArenaManager {
     const match = this.matches.get(matchId);
     if (!match) {
       logger.error('[CrazyArena][Training] trainingPlayerReady: Match introuvable', { matchId, studentId });
-      return;
+      sTrace.push('training:ready-fail', { reason: 'match_not_found', matchId: (matchId || '').slice(-8), studentId: (studentId || '').slice(-8), socketId: socket.id.slice(0, 8) });
+      return 'match_not_found';
     }
 
     const player = match.players.find(p => p.studentId === studentId);
     if (!player) {
-      logger.warn('[CrazyArena][Training] trainingPlayerReady: Joueur introuvable', { matchId, studentId });
-      return;
+      logger.warn('[CrazyArena][Training] trainingPlayerReady: Joueur introuvable', { matchId, studentId, playersInMatch: match.players.map(p => ({ name: p.name, studentId: p.studentId?.slice(-8), socketId: p.socketId?.slice(0, 8) })) });
+      sTrace.push('training:ready-fail', { reason: 'player_not_found', matchId: (matchId || '').slice(-8), studentId: (studentId || '').slice(-8), socketId: socket.id.slice(0, 8), playersInMatch: match.players.map(p => ({ name: p.name, sid: p.studentId?.slice(-8) })) });
+      return 'player_not_found';
     }
     
     player.ready = true;
@@ -574,12 +652,23 @@ class CrazyArenaManager {
       }))
     });
     
+    sTrace.push('training:ready-ok', { 
+      matchId: (matchId || '').slice(-8), 
+      playerName: player.name,
+      studentId: (studentId || '').slice(-8),
+      readyCount, 
+      totalCount,
+      allPlayersState: match.players.map(p => ({ name: p.name, ready: p.ready, sid: p.socketId?.slice(0, 8) })),
+      socketRooms: Array.from(socket.rooms)
+    });
+    
     logger.info('[CrazyArena][Training] Événements Socket.IO émis', { 
       matchId, 
       events: ['training:player-ready', 'training:players-update'],
       readyCount,
       totalCount
     });
+    return 'ok';
   }
 
   /**
@@ -768,6 +857,9 @@ class CrazyArenaManager {
         logger.info(`[CrazyArena][Training] 🔔 Nouvelle manche #${match.roundsPlayed + 1} démarrée (${elapsed}s écoulées)`);
         _logMatchEvent('ROUND_NEW', matchId, { mode: 'training', roundIndex: match.roundsPlayed, elapsed });
         
+        // Réinitialiser le verrou de paire (nouvelle manche = nouvelle carte)
+        match._pairClaimLock = null;
+        
         // Générer nouvelle carte pour la nouvelle manche
         this.generateZones(match.config, matchId).then(newZones => {
           match.zones = newZones;
@@ -879,10 +971,7 @@ class CrazyArenaManager {
       clearInterval(match.timerInterval);
     }
 
-    logger.info(`[CrazyArena][Training] 🏁 Match ${matchId} terminé`);
-    _logMatchEvent('MATCH_END', matchId, { mode: 'training', duration: match.endTime - match.startTime, playersCount: match.players.length, players: match.players.map(p => ({ studentId: p.studentId, name: p.name, score: p.score, pairsValidated: p.pairsValidated, errors: p.errors })) });
-
-    // ✅ FIX: Si on sort d'un tiebreaker, ADDITIONNER scores match normal + tiebreaker
+    // ✅ FIX: Si on sort d'un tiebreaker, ADDITIONNER scores match normal + tiebreaker AVANT le log
     if (match.isTiebreaker) {
       match.players.forEach(p => {
         const scoreNormal = p.scoreBeforeTiebreaker || 0;
@@ -896,6 +985,9 @@ class CrazyArenaManager {
         logger.info(`[CrazyArena][Training] 🏆 ${p.name}: Score final = ${scoreNormal} (normal) + ${scoreTiebreaker} (tiebreaker) = ${p.score} pts`);
       });
     }
+
+    logger.info(`[CrazyArena][Training] 🏁 Match ${matchId} terminé`);
+    _logMatchEvent('MATCH_END', matchId, { mode: 'training', duration: match.endTime - match.startTime, playersCount: match.players.length, players: match.players.map(p => ({ studentId: p.studentId, name: p.name, score: p.score, pairsValidated: p.pairsValidated, errors: p.errors })) });
 
     // Calculer les temps finaux
     match.players.forEach(p => {
@@ -922,16 +1014,15 @@ class CrazyArenaManager {
       p.position = idx + 1;
     });
 
-    // ✅ CRITIQUE: Vérifier égalité au premier rang (COMME ARENA)
-    // ✅ FIX: Comparer pairsValidated + errors (le score inclut des bonus rapidité invisibles)
+    // ✅ CRITIQUE: Vérifier égalité au premier rang — même score = départage (erreurs non prises en compte)
     const topPlayer = ranking[0];
     const tiedPlayers = ranking.filter(p => 
-      p.pairsValidated === topPlayer.pairsValidated && p.errors === topPlayer.errors
+      p.score === topPlayer.score
     );
     
     if (tiedPlayers.length > 1 && !match.isTiebreaker) {
       // ÉGALITÉ DÉTECTÉE - Attendre décision du professeur
-      logger.info(`[CrazyArena][Training] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topPlayer.pairsValidated} paires, ${topPlayer.errors} erreurs`);
+      logger.info(`[CrazyArena][Training] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topPlayer.score} pts`);
       logger.info(`[CrazyArena][Training] ⏸️ En attente décision professeur pour départage...`);
       _logMatchEvent('TIE_DETECTED', matchId, { mode: 'training', tiedCount: tiedPlayers.length, topPairs: topPlayer.pairsValidated, topErrors: topPlayer.errors, tiedPlayers: tiedPlayers.map(p => ({ studentId: p.studentId, name: p.name, score: p.score })) });
       
@@ -1231,24 +1322,42 @@ class CrazyArenaManager {
       pairId, 
       zoneA: zoneAId, 
       zoneB: zoneBId,
-      status: match.status,
-      fastBonus: timeMs < 3000
+      status: match.status
     });
 
     // Mettre à jour le score
     if (isCorrect) {
+      // ═══ VERROU CLAIM (fenêtre d'égalité 200ms + anti-doublon) ═══
+      const now = Date.now();
+      if (match._pairClaimLock) {
+        if (match._pairClaimLock.claimants.has(studentId)) {
+          logger.info('[CrazyArena][Training] Claim ignoré (doublon même joueur)', { matchId, studentId });
+          return;
+        }
+        const elapsed = now - match._pairClaimLock.timestamp;
+        if (elapsed > ARENA_TIE_WINDOW_MS) {
+          logger.info('[CrazyArena][Training] ⏰ Claim rejeté (hors fenêtre)', { matchId, studentId, elapsed, window: ARENA_TIE_WINDOW_MS });
+          socket.emit('training:claim-rejected', { reason: 'too_late', elapsed });
+          return;
+        }
+        match._pairClaimLock.claimants.add(studentId);
+        logger.info('[CrazyArena][Training] ⚡ Égalité détectée dans la fenêtre', { matchId, studentId, elapsed, window: ARENA_TIE_WINDOW_MS });
+      } else {
+        match._pairClaimLock = { pairId, timestamp: now, claimants: new Set([studentId]), cardGenScheduled: false };
+        logger.info('[CrazyArena][Training] 🔒 Premier claim, verrou posé', { matchId, studentId, pairId });
+      }
+
       // Mode tiebreaker
       if (match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown') {
         const oldScore = player.tiebreakerScore || 0;
         player.tiebreakerScore = oldScore + 1;
         player.tiebreakerPairs = (player.tiebreakerPairs || 0) + 1;
         
-        if (timeMs < 3000) {
-          player.tiebreakerScore += 1;
-          logger.info('[CrazyArena][Training] Bonus rapidité tiebreaker', { matchId, studentId, timeMs, bonusPoints: 1 });
+        // Incrémenter pairsFound uniquement pour le premier réclamant
+        const isFirstClaimTB = match._pairClaimLock && !match._pairClaimLock.cardGenScheduled;
+        if (isFirstClaimTB) {
+          match.tiebreakerPairsFound = (match.tiebreakerPairsFound || 0) + 1;
         }
-        
-        match.tiebreakerPairsFound = (match.tiebreakerPairsFound || 0) + 1;
         
         logger.info('[CrazyArena][Training] Score tiebreaker mis à jour', { 
           matchId, 
@@ -1259,9 +1368,26 @@ class CrazyArenaManager {
           pairsToFind: match.tiebreakerPairsToFind
         });
 
+        // 📊 MONITORING: Tracer paire validée dans sTrace (comme Arena)
+        const _tbPairIdxT = (match._pairEventCount = (match._pairEventCount || 0) + 1);
+        const _tbClaimantsT = match._pairClaimLock ? Array.from(match._pairClaimLock.claimants).map(sid => { const pl = match.players.find(p => p.studentId === sid); return pl?.name || sid.slice(-6); }) : [player.name];
+        const _tbElapsedT = match._pairClaimLock ? (now - match._pairClaimLock.timestamp) : 0;
+        const _tbScoresT = match.players.map(p => ({ name: p.name, score: (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0) }));
+        sTrace.push('training:pair-validated', {
+          matchId: matchId.slice(-8), pairEvent: _tbPairIdxT, round: match.tiebreakerPairsFound,
+          isTiebreaker: true, claimantsCount: _tbClaimantsT.length,
+          claimantNames: _tbClaimantsT, elapsedMs: _tbElapsedT, windowMs: ARENA_TIE_WINDOW_MS,
+          scoresAfter: _tbScoresT
+        });
+        sTrace.push('training:score-update', {
+          matchId: matchId.slice(-8), pairEvent: _tbPairIdxT, claimantsCount: _tbClaimantsT.length,
+          claimantNames: _tbClaimantsT, isTiebreaker: true, elapsedMs: _tbElapsedT,
+          scoresAfter: _tbScoresT
+        });
+
         // 💾 PERSISTENCE: Sauvegarder le score tiebreaker en DB
         this.persistScoreUpdate(matchId, studentId);
-        // 📊 MAÎTRISE: Enregistrer la tentative pour le suivi par thème
+        // 📊 MAÎTRISE: Enregistrer la tentante pour le suivi par thème
         this.persistAttempt(match, player, { isCorrect: true, pairId, zoneAId, zoneBId });
         
         // ✅ CRITIQUE: Émettre scores tiebreaker aux clients (score combiné = base + tiebreaker)
@@ -1305,56 +1431,136 @@ class CrazyArenaManager {
         }
         
         if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
-          logger.info('[CrazyArena][Training] Tiebreaker terminé - toutes paires trouvées', { 
-            matchId, 
-            pairsFound: match.tiebreakerPairsFound,
-            pairsToFind: match.tiebreakerPairsToFind
-          });
-          this.endTrainingGame(matchId);
+          // ✅ FIX: Émettre scores-update AVANT de return (sinon UI figée)
+          const tbScoresLast = {
+            scores: match.players.map((p, idx) => ({
+              studentId: p.studentId,
+              name: p.name,
+              playerIdx: idx,
+              score: (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0),
+              pairsValidated: (p.pairsBeforeTiebreaker || 0) + (p.tiebreakerPairs || 0)
+            })).sort((a, b) => b.score - a.score)
+          };
+          this.io.to(matchId).emit('training:scores-update', tbScoresLast);
+
+          // ✅ FIX ÉGALITÉ TIEBREAKER: Attendre la fenêtre d'égalité avant de terminer.
+          // Ensuite vérifier si c'est encore à égalité → prolonger avec une carte supplémentaire.
+          if (!match._tiebreakerEndScheduled) {
+            match._tiebreakerEndScheduled = true;
+            if (match._pairClaimLock) match._pairClaimLock.cardGenScheduled = true;
+            logger.info('[CrazyArena][Training] Tiebreaker dernière paire trouvée — attente fenêtre égalité', { 
+              matchId, 
+              pairsFound: match.tiebreakerPairsFound,
+              pairsToFind: match.tiebreakerPairsToFind,
+              delayMs: ARENA_TIE_WINDOW_MS
+            });
+            setTimeout(async () => {
+              // Vérifier si les scores tiebreaker sont encore à égalité
+              const tbScores = match.players
+                .filter(p => p.tiebreakerScore !== undefined)
+                .map(p => p.tiebreakerScore || 0);
+              const maxTbScore = Math.max(...tbScores);
+              const playersAtMax = tbScores.filter(s => s === maxTbScore).length;
+
+              if (playersAtMax > 1 && maxTbScore > 0) {
+                // ⚡ Encore égalité ! Prolonger avec une carte supplémentaire
+                logger.info('[CrazyArena][Training] ⚡ Tiebreaker encore à égalité — prolongation !', {
+                  matchId,
+                  tbScores: match.players.map(p => ({ name: p.name, tbScore: p.tiebreakerScore })),
+                  newPairsToFind: match.tiebreakerPairsToFind + 1
+                });
+                match.tiebreakerPairsToFind += 1;
+                match._tiebreakerEndScheduled = false;
+                match._pairClaimLock = null;
+
+                // Notifier les joueurs de la prolongation
+                this.io.to(matchId).emit('training:tiebreaker-extended', {
+                  reason: 'equality',
+                  newPairsToFind: match.tiebreakerPairsToFind,
+                  pairsFound: match.tiebreakerPairsFound,
+                  scores: match.players.map(p => ({ studentId: p.studentId, name: p.name, tbScore: p.tiebreakerScore }))
+                });
+
+                // Générer et envoyer une nouvelle carte
+                try {
+                  const newZones = await this.generateZones(match.config, matchId);
+                  match.zones = newZones;
+                  
+                  const payload = {
+                    zones: newZones,
+                    roundIndex: match.tiebreakerPairsFound,
+                    totalRounds: match.tiebreakerPairsToFind,
+                    timestamp: Date.now()
+                  };
+                  
+                  try { validateZonesServer(newZones, { source: 'training:tiebreaker-extension', matchId: matchId.slice(-8) }); } catch (e) { logger.warn('[CrazyArena][Training] Zone validation error (tiebreaker ext):', e.message); }
+                  this.io.to(matchId).emit('training:round-new', payload);
+                  
+                  logger.info('[CrazyArena][Training] Carte prolongation tiebreaker envoyée', {
+                    matchId,
+                    zonesCount: newZones?.length || 0,
+                    newPairsToFind: match.tiebreakerPairsToFind
+                  });
+                } catch (err) {
+                  logger.error('[CrazyArena][Training] Erreur génération carte prolongation', { matchId, error: err.message });
+                  this.endTrainingGame(matchId);
+                }
+              } else {
+                // Un joueur est en avance → terminer normalement
+                this.endTrainingGame(matchId);
+              }
+            }, ARENA_TIE_WINDOW_MS);
+          }
           return;
         }
         
-        // Générer nouvelle carte tiebreaker
-        setTimeout(async () => {
-          try {
-            // ✅ FIX RACE CONDITION: Vérifier que le match est toujours en tiebreaker
-            if (match.status === 'finished') {
-              logger.info('[CrazyArena][Training] ⚠️ Carte tiebreaker annulée — match déjà terminé', { matchId });
-              return;
+        // Générer nouvelle carte tiebreaker UNIQUEMENT pour le premier réclamant
+        if (isFirstClaimTB && match._pairClaimLock) {
+          match._pairClaimLock.cardGenScheduled = true;
+          setTimeout(async () => {
+            try {
+              // Libérer le verrou — nouvelle carte = nouveaux claims possibles
+              match._pairClaimLock = null;
+
+              // ✅ FIX RACE CONDITION: Vérifier que le match est toujours en tiebreaker
+              if (match.status === 'finished') {
+                logger.info('[CrazyArena][Training] ⚠️ Carte tiebreaker annulée — match déjà terminé', { matchId });
+                return;
+              }
+              logger.info('[CrazyArena][Training] Génération nouvelle carte tiebreaker', { 
+                matchId, 
+                pairsFound: match.tiebreakerPairsFound,
+                pairsRemaining: match.tiebreakerPairsToFind - match.tiebreakerPairsFound
+              });
+              
+              const newZones = await this.generateZones(match.config, matchId);
+              match.zones = newZones;
+              
+              const payload = {
+                zones: newZones,
+                roundIndex: match.tiebreakerPairsFound,
+                totalRounds: match.tiebreakerPairsToFind,
+                timestamp: Date.now()
+              };
+              
+              try { validateZonesServer(newZones, { source: 'training:tiebreaker-round', matchId: matchId.slice(-8) }); } catch (e) { logger.warn('[CrazyArena][Training] Zone validation error (tiebreaker):', e.message); }
+              this.io.to(matchId).emit('training:round-new', payload);
+              
+              logger.info('[CrazyArena][Training] Événement training:round-new émis (tiebreaker)', { 
+                matchId, 
+                zonesCount: newZones?.length || 0,
+                roundIndex: match.tiebreakerPairsFound,
+                event: 'training:round-new'
+              });
+            } catch (err) {
+              logger.error('[CrazyArena][Training] Erreur génération carte tiebreaker', { 
+                matchId, 
+                error: err.message,
+                stack: err.stack?.slice(0, 200)
+              });
             }
-            logger.info('[CrazyArena][Training] Génération nouvelle carte tiebreaker', { 
-              matchId, 
-              pairsFound: match.tiebreakerPairsFound,
-              pairsRemaining: match.tiebreakerPairsToFind - match.tiebreakerPairsFound
-            });
-            
-            const newZones = await this.generateZones(match.config, matchId);
-            match.zones = newZones;
-            
-            const payload = {
-              zones: newZones,
-              roundIndex: match.tiebreakerPairsFound,
-              totalRounds: match.tiebreakerPairsToFind,
-              timestamp: Date.now()
-            };
-            
-            try { validateZonesServer(newZones, { source: 'training:tiebreaker-round', matchId: matchId.slice(-8) }); } catch (e) { logger.warn('[CrazyArena][Training] Zone validation error (tiebreaker):', e.message); }
-            this.io.to(matchId).emit('training:round-new', payload);
-            
-            logger.info('[CrazyArena][Training] Événement training:round-new émis (tiebreaker)', { 
-              matchId, 
-              zonesCount: newZones?.length || 0,
-              roundIndex: match.tiebreakerPairsFound,
-              event: 'training:round-new'
-            });
-          } catch (err) {
-            logger.error('[CrazyArena][Training] Erreur génération carte tiebreaker', { 
-              matchId, 
-              error: err.message,
-              stack: err.stack?.slice(0, 200)
-            });
-          }
-        }, 1500);
+          }, 1500);
+        }
         
         return;
       } else {
@@ -1362,11 +1568,6 @@ class CrazyArenaManager {
         const oldScore = player.score || 0;
         player.score = oldScore + 1;
         player.pairsValidated = (player.pairsValidated || 0) + 1;
-        
-        if (timeMs < 3000) {
-          player.score += 1;
-          logger.info('[CrazyArena][Training] Bonus rapidité (mode normal)', { matchId, studentId, timeMs, bonusPoints: 1 });
-        }
         
         logger.info('[CrazyArena][Training] Score mis à jour (mode normal)', { 
           matchId, 
@@ -1376,6 +1577,24 @@ class CrazyArenaManager {
           pairsValidated: player.pairsValidated
         });
       }
+
+      // 📊 MONITORING: Tracer paire validée dans sTrace (comme Arena)
+      const _tScoresBefore = match.players.map(p => ({ name: p.name, score: (p.studentId === studentId ? (player.score - 1) : p.score) }));
+      const _tScoresAfter = match.players.map(p => ({ name: p.name, score: p.score }));
+      const _tPairIdx = (match._pairEventCount = (match._pairEventCount || 0) + 1);
+      const _tClaimantNames = match._pairClaimLock ? Array.from(match._pairClaimLock.claimants).map(sid => { const pl = match.players.find(p => p.studentId === sid); return pl?.name || sid.slice(-6); }) : [player.name];
+      const _tElapsed = match._pairClaimLock ? (Date.now() - match._pairClaimLock.timestamp) : 0;
+      sTrace.push('training:pair-validated', {
+        matchId: matchId.slice(-8), pairEvent: _tPairIdx, round: match.roundsPlayed,
+        isTiebreaker: false, claimantsCount: _tClaimantNames.length,
+        claimantNames: _tClaimantNames, elapsedMs: _tElapsed, windowMs: ARENA_TIE_WINDOW_MS,
+        scoresBeforeUpdate: _tScoresBefore
+      });
+      sTrace.push('training:score-update', {
+        matchId: matchId.slice(-8), pairEvent: _tPairIdx, claimantsCount: _tClaimantNames.length,
+        claimantNames: _tClaimantNames, isTiebreaker: false, elapsedMs: _tElapsed,
+        scoresAfter: _tScoresAfter
+      });
 
       // 💾 PERSISTENCE: Sauvegarder le score en DB (fire-and-forget)
       this.persistScoreUpdate(matchId, studentId);
@@ -1436,27 +1655,31 @@ class CrazyArenaManager {
         event: 'training:pair-validated'
       });
       
-      // ✅ FIFO: Tracker les 15 dernières paires validées
-      if (!match.validatedPairIds) match.validatedPairIds = new Set();
-      
-      const MAX_EXCLUDED_PAIRS = 15;
-      const oldSize = match.validatedPairIds.size;
-      
-      if (match.validatedPairIds.size >= MAX_EXCLUDED_PAIRS) {
-        const pairIdsArray = Array.from(match.validatedPairIds);
-        const oldestPairId = pairIdsArray[0];
-        match.validatedPairIds.delete(oldestPairId);
-        logger.info('[CrazyArena][Training] FIFO: Paire la plus ancienne supprimée', { matchId, oldestPairId, maxSize: MAX_EXCLUDED_PAIRS });
+      // ✅ FIFO + Génération nouvelle carte: UNIQUEMENT pour le premier réclamant
+      const isFirstClaimNormal = match._pairClaimLock && !match._pairClaimLock.cardGenScheduled;
+      if (isFirstClaimNormal) {
+        match._pairClaimLock.cardGenScheduled = true;
+
+        if (!match.validatedPairIds) match.validatedPairIds = new Set();
+        
+        const MAX_EXCLUDED_PAIRS = 15;
+        
+        if (match.validatedPairIds.size >= MAX_EXCLUDED_PAIRS) {
+          const pairIdsArray = Array.from(match.validatedPairIds);
+          const oldestPairId = pairIdsArray[0];
+          match.validatedPairIds.delete(oldestPairId);
+          logger.info('[CrazyArena][Training] FIFO: Paire la plus ancienne supprimée', { matchId, oldestPairId, maxSize: MAX_EXCLUDED_PAIRS });
+        }
+        
+        match.validatedPairIds.add(pairId);
+        
+        logger.info('[CrazyArena][Training] FIFO: Paire ajoutée aux exclusions', { 
+          matchId, 
+          pairId,
+          excludedCount: match.validatedPairIds.size,
+          maxExcluded: MAX_EXCLUDED_PAIRS
+        });
       }
-      
-      match.validatedPairIds.add(pairId);
-      
-      logger.info('[CrazyArena][Training] FIFO: Paire ajoutée aux exclusions', { 
-        matchId, 
-        pairId,
-        excludedCount: match.validatedPairIds.size,
-        maxExcluded: MAX_EXCLUDED_PAIRS
-      });
       
       // 📊 DIAGNOSTIC: Enregistrer le gagnant dans le roundHistory courant
       if (match._roundHistory && match._roundHistory.length > 0) {
@@ -1468,70 +1691,75 @@ class CrazyArenaManager {
         }
       }
 
-      // ✅ NOUVELLE CARTE IMMÉDIATEMENT
-      logger.info('[CrazyArena][Training] Démarrage génération nouvelle carte', { 
-        matchId, 
-        excludedPairs: match.validatedPairIds.size
-      });
-      
-      setTimeout(async () => {
-        try {
-          logger.info('[CrazyArena][Training] Génération nouvelle carte (mode normal)', { 
-            matchId, 
-            roundsPlayed: match.roundsPlayed || 0,
-            totalRounds: match.config.rounds || null
-          });
-          
-          const newZones = await this.generateZones(match.config, matchId);
-          match.zones = newZones;
-          
-          logger.info('[CrazyArena][Training] Nouvelle carte générée', { 
-            matchId, 
-            zonesCount: newZones?.length || 0
-          });
-          
-          // 📊 DIAGNOSTIC: Pousser nouveau round dans l'historique
-          if (match._roundHistory) {
-            const gpNew = match._lastGoodPairIds || {};
-            match._roundHistory.push({
-              round_number: match._roundHistory.length + 1,
-              zones: newZones.map(z => ({ id: z.id, type: z.type, content: z.content, pairId: z.pairId || null, isDistractor: !!z.isDistractor })),
-              good_pair_type: gpNew.pairType || null,
-              good_pair_theme: gpNew.theme || null,
-              good_pair_level: gpNew.level || null,
-              good_pair_content: gpNew.contentA ? { a: gpNew.contentA, b: gpNew.contentB } : null,
-              winner_player_id: null,
-              winner_display_name: null,
-              winner_time_ms: null,
-              errors: [],
-              _startedAt: Date.now()
+      // ✅ NOUVELLE CARTE: UNIQUEMENT pour le premier réclamant
+      if (isFirstClaimNormal) {
+        logger.info('[CrazyArena][Training] Démarrage génération nouvelle carte', { 
+          matchId, 
+          excludedPairs: match.validatedPairIds?.size || 0
+        });
+        
+        setTimeout(async () => {
+          try {
+            // Libérer le verrou — nouvelle carte = nouveaux claims possibles
+            match._pairClaimLock = null;
+
+            logger.info('[CrazyArena][Training] Génération nouvelle carte (mode normal)', { 
+              matchId, 
+              roundsPlayed: match.roundsPlayed || 0,
+              totalRounds: match.config.rounds || null
+            });
+            
+            const newZones = await this.generateZones(match.config, matchId);
+            match.zones = newZones;
+            
+            logger.info('[CrazyArena][Training] Nouvelle carte générée', { 
+              matchId, 
+              zonesCount: newZones?.length || 0
+            });
+            
+            // 📊 DIAGNOSTIC: Pousser nouveau round dans l'historique
+            if (match._roundHistory) {
+              const gpNew = match._lastGoodPairIds || {};
+              match._roundHistory.push({
+                round_number: match._roundHistory.length + 1,
+                zones: newZones.map(z => ({ id: z.id, type: z.type, content: z.content, pairId: z.pairId || null, isDistractor: !!z.isDistractor })),
+                good_pair_type: gpNew.pairType || null,
+                good_pair_theme: gpNew.theme || null,
+                good_pair_level: gpNew.level || null,
+                good_pair_content: gpNew.contentA ? { a: gpNew.contentA, b: gpNew.contentB } : null,
+                winner_player_id: null,
+                winner_display_name: null,
+                winner_time_ms: null,
+                errors: [],
+                _startedAt: Date.now()
+              });
+            }
+
+            const roundPayload = {
+              zones: newZones,
+              roundIndex: match.roundsPlayed || 0,
+              totalRounds: match.config.rounds || null,
+              timestamp: Date.now()
+            };
+            
+            try { validateZonesServer(newZones, { source: 'training:round-new-normal', matchId: matchId.slice(-8), roundIndex: match.roundsPlayed }); } catch (e) { logger.warn('[CrazyArena][Training] Zone validation error (normal):', e.message); }
+            this.io.to(matchId).emit('training:round-new', roundPayload);
+            
+            logger.info('[CrazyArena][Training] Événement training:round-new émis (mode normal)', { 
+              matchId, 
+              zonesCount: newZones?.length || 0,
+              roundIndex: match.roundsPlayed || 0,
+              event: 'training:round-new'
+            });
+          } catch (err) {
+            logger.error('[CrazyArena][Training] Erreur génération carte (mode normal)', { 
+              matchId, 
+              error: err.message,
+              stack: err.stack?.slice(0, 200)
             });
           }
-
-          const roundPayload = {
-            zones: newZones,
-            roundIndex: match.roundsPlayed || 0,
-            totalRounds: match.config.rounds || null,
-            timestamp: Date.now()
-          };
-          
-          try { validateZonesServer(newZones, { source: 'training:round-new-normal', matchId: matchId.slice(-8), roundIndex: match.roundsPlayed }); } catch (e) { logger.warn('[CrazyArena][Training] Zone validation error (normal):', e.message); }
-          this.io.to(matchId).emit('training:round-new', roundPayload);
-          
-          logger.info('[CrazyArena][Training] Événement training:round-new émis (mode normal)', { 
-            matchId, 
-            zonesCount: newZones?.length || 0,
-            roundIndex: match.roundsPlayed || 0,
-            event: 'training:round-new'
-          });
-        } catch (err) {
-          logger.error('[CrazyArena][Training] Erreur génération carte (mode normal)', { 
-            matchId, 
-            error: err.message,
-            stack: err.stack?.slice(0, 200)
-          });
-        }
-      }, 1500);
+        }, 1500);
+      }
     }
 
     // Diffuser les scores (combiné base + tiebreaker si départage en cours)
@@ -1651,6 +1879,7 @@ class CrazyArenaManager {
       
       if (!match) {
         logger.error(`[CrazyArena] Match ${matchId} introuvable dans Supabase`);
+        sTrace.push('arena:join-reject', { reason: 'match_not_found', matchId: (matchId || '').slice(-8), studentName: studentData.name, studentId: (studentData.studentId || '').slice(-8), socketId: socket.id.slice(0, 8) });
         socket.emit('arena:error', { message: 'Match introuvable' });
         return false;
       }
@@ -1665,6 +1894,7 @@ class CrazyArenaManager {
       // RECONNEXION : Mettre à jour le socketId et rejoindre la room
       logger.info(`[CrazyArena] 🔄 Reconnexion de ${studentData.name} (status=${match.status}, wasDisconnected=${!!existingPlayer.disconnected})`);
       _logMatchEvent('PLAYER_RECONNECT', matchId, { mode: 'arena', studentId: studentData.studentId, name: studentData.name, matchStatus: match.status });
+      sTrace.push('arena:reconnect', { matchId: matchId.slice(-8), playerName: studentData.name, studentId: (studentData.studentId || '').slice(-8), socketId: socket.id.slice(0, 8), matchStatus: match.status, wasDisconnected: !!existingPlayer.disconnected });
       
       // Nettoyer l'ancien mapping socket si différent
       if (existingPlayer._oldSocketId && existingPlayer._oldSocketId !== socket.id) {
@@ -1691,11 +1921,64 @@ class CrazyArenaManager {
         count: match.players.length
       });
       
+      // ✅ SYNC: Renvoyer l'état complet du jeu au joueur reconnecté (zones + scores + timer)
+      if (match.status === 'playing' || match.status === 'tiebreaker' || match.status === 'paused') {
+        const roundsPerMatch = match.config.rounds || match.config.roundsPerMatch || 3;
+        const durationPerRound = match.config.duration || match.config.durationPerRound || 60;
+        const totalDuration = roundsPerMatch * durationPerRound;
+        const elapsed = Math.floor((Date.now() - match.startTime) / 1000);
+        const elapsedInRound = elapsed % durationPerRound;
+        const timeLeftInRound = Math.max(0, durationPerRound - elapsedInRound);
+
+        // Envoyer les zones actuelles au joueur reconnecté
+        if (match.zones && match.zones.length > 0) {
+          socket.emit('arena:round-new', {
+            zones: match.zones,
+            roundIndex: match.roundsPlayed,
+            totalRounds: roundsPerMatch,
+            timestamp: Date.now(),
+            _resync: true
+          });
+          logger.info(`[CrazyArena] 📤 Resync zones envoyé à ${studentData.name}: ${match.zones.length} zones, manche ${match.roundsPlayed + 1}`);
+        }
+
+        // Envoyer les scores actuels (tiebreaker-aware)
+        const isTB = match.status === 'tiebreaker' || match.status === 'tiebreaker-countdown';
+        const scoresPayload = {
+          scores: match.players.map((p, idx) => ({
+            studentId: p.studentId,
+            name: p.name,
+            avatar: p.avatar,
+            playerIdx: idx,
+            score: isTB ? (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0) : (p.score || 0),
+            pairsValidated: isTB ? (p.pairsBeforeTiebreaker || 0) + (p.tiebreakerPairs || 0) : (p.pairsValidated || 0)
+          })).sort((a, b) => b.score - a.score)
+        };
+        socket.emit('arena:scores-update', scoresPayload);
+
+        // Envoyer le timer actuel
+        socket.emit('arena:timer-tick', {
+          timeLeft: timeLeftInRound,
+          elapsed,
+          duration: totalDuration,
+          currentRound: match.roundsPlayed + 1,
+          totalRounds: roundsPerMatch
+        });
+
+        logger.info(`[CrazyArena] ✅ État complet renvoyé à ${studentData.name} (zones=${match.zones?.length || 0}, timer=${timeLeftInRound}s, scores=${match.players.length} joueurs)`);
+        sTrace.push('arena:resync', { matchId: matchId.slice(-8), player: studentData.name, zones: match.zones?.length || 0, timer: timeLeftInRound, round: match.roundsPlayed + 1 });
+      }
+
       // ✅ Si le match était en pause (joueur déconnecté), reprendre automatiquement
-      if (match.status === 'paused' && match._pauseState && 
-          match._pauseState.disconnectedStudentId === studentData.studentId) {
-        logger.info(`[CrazyArena] ▶️ Joueur déconnecté ${studentData.name} reconnecté → reprise du match`);
-        this.resumeMatch(matchId);
+      // FIX: Reprendre SEULEMENT si TOUS les joueurs déconnectés sont revenus
+      if (match.status === 'paused' && match._pauseState) {
+        const stillDisconnected = match.players.filter(p => p.disconnected);
+        if (stillDisconnected.length === 0) {
+          logger.info(`[CrazyArena] ▶️ Tous les joueurs déconnectés sont revenus → reprise du match`);
+          this.resumeMatch(matchId);
+        } else {
+          logger.info(`[CrazyArena] ⏸️ ${studentData.name} reconnecté mais ${stillDisconnected.length} joueur(s) encore déconnecté(s): ${stillDisconnected.map(p => p.name).join(', ')}`);
+        }
       }
       
       return true;
@@ -1703,6 +1986,7 @@ class CrazyArenaManager {
 
     // NOUVEAU JOUEUR : Vérifier les conditions d'entrée
     if (match.status !== 'waiting') {
+      sTrace.push('arena:join-reject', { reason: 'match_already_started', matchId: matchId.slice(-8), studentName: studentData.name, studentId: (studentData.studentId || '').slice(-8), matchStatus: match.status, socketId: socket.id.slice(0, 8) });
       socket.emit('arena:error', { message: 'Match déjà commencé - impossible de rejoindre' });
       return false;
     }
@@ -1760,6 +2044,17 @@ class CrazyArenaManager {
     });
     logger.info(`[CrazyArena] arena:player-joined et arena:players-update émis avec succès`);
 
+    sTrace.push('arena:player-joined', {
+      matchId: matchId.slice(-8),
+      playerName: studentData.name,
+      studentId: (studentData.studentId || '').slice(-8),
+      socketId: socket.id.slice(0, 8),
+      playersCount: match.players.length,
+      matchStatus: match.status,
+      allPlayers: match.players.map(p => ({ name: p.name, sid: p.socketId?.slice(0, 8), ready: p.ready })),
+      socketRooms: Array.from(socket.rooms)
+    });
+
     // ✅ AUTO-REPRISE: Si le match était in_progress avant un redémarrage serveur,
     // relancer automatiquement dès que 2+ joueurs se sont reconnectés
     if (match.wasInProgress && match.players.length >= 2 && match.status === 'waiting') {
@@ -1784,20 +2079,23 @@ class CrazyArenaManager {
   playerReady(socket, studentId) {
     const matchId = this.playerMatches.get(socket.id);
     if (!matchId) {
-      logger.warn('[CrazyArena][Arena] playerReady: Aucun match pour socket', { socketId: socket.id });
-      return;
+      logger.warn('[CrazyArena][Arena] playerReady: Aucun match pour socket', { socketId: socket.id, studentId });
+      sTrace.push('arena:ready-fail', { reason: 'no_match_for_socket', studentId: (studentId || '').slice(-8), socketId: socket.id.slice(0, 8), playerMatchesSize: this.playerMatches.size });
+      return 'no_match_for_socket';
     }
 
     const match = this.matches.get(matchId);
     if (!match) {
       logger.error('[CrazyArena][Arena] playerReady: Match introuvable', { matchId, socketId: socket.id });
-      return;
+      sTrace.push('arena:ready-fail', { reason: 'match_not_found', matchId: matchId.slice(-8), studentId: (studentId || '').slice(-8), socketId: socket.id.slice(0, 8) });
+      return 'match_not_found';
     }
 
     const player = match.players.find(p => p.socketId === socket.id);
     if (!player) {
-      logger.warn('[CrazyArena][Arena] playerReady: Joueur introuvable', { matchId, socketId: socket.id });
-      return;
+      logger.warn('[CrazyArena][Arena] playerReady: Joueur introuvable', { matchId, socketId: socket.id, playersInMatch: match.players.map(p => ({ name: p.name, socketId: p.socketId?.slice(0, 8) })) });
+      sTrace.push('arena:ready-fail', { reason: 'player_not_found_by_socket', matchId: matchId.slice(-8), studentId: (studentId || '').slice(-8), socketId: socket.id.slice(0, 8), playersInMatch: match.players.map(p => ({ name: p.name, sid: p.socketId?.slice(0, 8) })) });
+      return 'player_not_found';
     }
     
     player.ready = true;
@@ -1836,6 +2134,16 @@ class CrazyArenaManager {
       players: playersData
     });
     
+    sTrace.push('arena:ready-ok', { 
+      matchId: matchId.slice(-8), 
+      playerName: player.name,
+      studentId: (studentId || '').slice(-8),
+      readyCount, 
+      totalCount,
+      allPlayersState: match.players.map(p => ({ name: p.name, ready: p.ready, sid: p.socketId?.slice(0, 8) })),
+      socketRooms: Array.from(socket.rooms)
+    });
+    
     logger.info('[CrazyArena][Arena] Événements Socket.IO émis (lobby)', { 
       matchId, 
       events: ['arena:player-ready', 'arena:players-update'],
@@ -1844,6 +2152,7 @@ class CrazyArenaManager {
     });
 
     // NE PLUS démarrer automatiquement - attendre arena:force-start du professeur
+    return 'ok';
   }
 
   /**
@@ -2246,8 +2555,7 @@ class CrazyArenaManager {
       pairId, 
       zoneA: zoneAId, 
       zoneB: zoneBId,
-      status: match.status,
-      fastBonus: timeMs < 3000
+      status: match.status
     });
 
     // ✅ ANTI-DOUBLON: Fenêtre d'égalité 200ms pour empêcher le double score Arena
@@ -2278,6 +2586,11 @@ class CrazyArenaManager {
         // Égalité dans la fenêtre → ajouter aux réclamants
         match._pairClaimLock.claimants.add(studentId);
         logger.info('[CrazyArena][Arena] ⚡ Égalité détectée dans la fenêtre', { matchId, studentId, elapsed, window: ARENA_TIE_WINDOW_MS });
+        sTrace.push('arena:equality-window', {
+          matchId: matchId.slice(-8), studentId: studentId.slice(-8),
+          elapsed, windowMs: ARENA_TIE_WINDOW_MS,
+          claimants: Array.from(match._pairClaimLock.claimants).length
+        });
       } else {
         // Premier claim → créer le verrou
         match._pairClaimLock = { pairId, timestamp: now, claimants: new Set([studentId]), cardGenScheduled: false };
@@ -2292,11 +2605,6 @@ class CrazyArenaManager {
         const oldScore = player.tiebreakerScore || 0;
         player.tiebreakerScore = oldScore + 1;
         player.tiebreakerPairs = (player.tiebreakerPairs || 0) + 1;
-        
-        if (timeMs < 3000) {
-          player.tiebreakerScore += 1;
-          logger.info('[CrazyArena][Arena] Bonus rapidité tiebreaker', { matchId, studentId, timeMs, bonusPoints: 1 });
-        }
         
         // Incrémenter pairsFound uniquement pour le premier réclamant (pas les égalités)
         const isFirstClaimTB = match._pairClaimLock && !match._pairClaimLock.cardGenScheduled;
@@ -2313,6 +2621,18 @@ class CrazyArenaManager {
           pairsFound: match.tiebreakerPairsFound,
           pairsToFind: match.tiebreakerPairsToFind,
           isFirstClaim: isFirstClaimTB
+        });
+
+        // 📊 MONITORING: Tracer tiebreaker pair dans sTrace
+        const _tbPairIdx = (match._pairEventCount = (match._pairEventCount || 0) + 1);
+        const _tbClaimants = match._pairClaimLock ? Array.from(match._pairClaimLock.claimants).map(sid => { const pl = match.players.find(p => p.studentId === sid); return pl?.name || sid.slice(-6); }) : [player.name];
+        const _tbElapsed = match._pairClaimLock ? (now - match._pairClaimLock.timestamp) : 0;
+        const _tbScores = match.players.map(p => ({ name: p.name, score: (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0) }));
+        sTrace.push('arena:pair-validated', {
+          matchId: matchId.slice(-8), pairEvent: _tbPairIdx, round: match.tiebreakerPairsFound,
+          isTiebreaker: true, claimantsCount: _tbClaimants.length,
+          claimantNames: _tbClaimants, elapsedMs: _tbElapsed, windowMs: ARENA_TIE_WINDOW_MS,
+          scoresAfter: _tbScores
         });
 
         // 💾 PERSISTENCE: Sauvegarder le score tiebreaker Arena en DB
@@ -2339,13 +2659,88 @@ class CrazyArenaManager {
         }
         
         if (match.tiebreakerPairsFound >= match.tiebreakerPairsToFind) {
-          logger.info('[CrazyArena][Arena] Tiebreaker terminé - toutes paires trouvées', { 
-            matchId, 
-            pairsFound: match.tiebreakerPairsFound,
-            pairsToFind: match.tiebreakerPairsToFind
-          });
-          
-          this.endGame(matchId);
+          // ✅ FIX: Émettre scores-update AVANT de return (sinon UI figée)
+          const tbScoresLast = {
+            scores: match.players.map((p, idx) => ({
+              studentId: p.studentId,
+              name: p.name,
+              playerIdx: idx,
+              score: (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0),
+              pairsValidated: (p.pairsBeforeTiebreaker || 0) + (p.tiebreakerPairs || 0)
+            })).sort((a, b) => b.score - a.score)
+          };
+          this.io.to(matchId).emit('arena:scores-update', tbScoresLast);
+
+          // ✅ FIX ÉGALITÉ TIEBREAKER: Ne pas terminer immédiatement !
+          // Attendre la fenêtre d'égalité pour que le 2e joueur qui clique
+          // simultanément puisse aussi marquer le point avant la fin.
+          // Ensuite vérifier si c'est encore à égalité → prolonger si oui.
+          if (!match._tiebreakerEndScheduled) {
+            match._tiebreakerEndScheduled = true;
+            if (match._pairClaimLock) match._pairClaimLock.cardGenScheduled = true;
+            logger.info('[CrazyArena][Arena] Tiebreaker dernière paire trouvée — attente fenêtre égalité', { 
+              matchId, 
+              pairsFound: match.tiebreakerPairsFound,
+              pairsToFind: match.tiebreakerPairsToFind,
+              delayMs: ARENA_TIE_WINDOW_MS
+            });
+            setTimeout(async () => {
+              // Vérifier si les scores tiebreaker sont encore à égalité
+              const tbScores = match.players
+                .filter(p => p.tiebreakerScore !== undefined)
+                .map(p => p.tiebreakerScore || 0);
+              const maxTbScore = Math.max(...tbScores);
+              const playersAtMax = tbScores.filter(s => s === maxTbScore).length;
+
+              if (playersAtMax > 1 && maxTbScore > 0) {
+                // ⚡ Encore égalité ! Prolonger avec une carte supplémentaire
+                logger.info('[CrazyArena][Arena] ⚡ Tiebreaker encore à égalité — prolongation !', {
+                  matchId,
+                  tbScores: match.players.map(p => ({ name: p.name, tbScore: p.tiebreakerScore })),
+                  newPairsToFind: match.tiebreakerPairsToFind + 1
+                });
+                match.tiebreakerPairsToFind += 1;
+                match._tiebreakerEndScheduled = false;
+                match._pairClaimLock = null;
+
+                // Notifier les joueurs de la prolongation
+                this.io.to(matchId).emit('arena:tiebreaker-extended', {
+                  reason: 'equality',
+                  newPairsToFind: match.tiebreakerPairsToFind,
+                  pairsFound: match.tiebreakerPairsFound,
+                  scores: match.players.map(p => ({ studentId: p.studentId, name: p.name, tbScore: p.tiebreakerScore }))
+                });
+
+                // Générer et envoyer une nouvelle carte
+                try {
+                  const newZones = await this.generateZones(match.config, matchId);
+                  match.zones = newZones;
+                  
+                  const payload = {
+                    zones: newZones,
+                    roundIndex: match.tiebreakerPairsFound,
+                    totalRounds: match.tiebreakerPairsToFind,
+                    timestamp: Date.now()
+                  };
+                  
+                  try { validateZonesServer(newZones, { source: 'arena:tiebreaker-extension', matchId: matchId.slice(-8) }); } catch (e) { logger.warn('[CrazyArena] Zone validation error (tiebreaker ext):', e.message); }
+                  this.io.to(matchId).emit('arena:round-new', payload);
+                  
+                  logger.info('[CrazyArena][Arena] Carte prolongation tiebreaker envoyée', {
+                    matchId,
+                    zonesCount: newZones?.length || 0,
+                    newPairsToFind: match.tiebreakerPairsToFind
+                  });
+                } catch (err) {
+                  logger.error('[CrazyArena][Arena] Erreur génération carte prolongation', { matchId, error: err.message });
+                  this.endGame(matchId);
+                }
+              } else {
+                // Un joueur est en avance → terminer normalement
+                this.endGame(matchId);
+              }
+            }, ARENA_TIE_WINDOW_MS);
+          }
           return;
         }
         
@@ -2423,17 +2818,30 @@ class CrazyArenaManager {
         player.score = oldScore + 1;
         player.pairsValidated = (player.pairsValidated || 0) + 1;
         
-        if (timeMs < 3000) {
-          player.score += 1;
-          logger.info('[CrazyArena][Arena] Bonus rapidité (mode normal)', { matchId, studentId, timeMs, bonusPoints: 1 });
-        }
-        
         logger.info('[CrazyArena][Arena] Score mis à jour (mode normal)', { 
           matchId, 
           studentId,
           oldScore,
           newScore: player.score,
           pairsValidated: player.pairsValidated
+        });
+
+        // 📊 MONITORING: Tracer dans sTrace pour le rapport
+        const _arenaScoresBefore = match.players.map(p => ({ name: p.name, score: (p.studentId === studentId ? oldScore : p.score) }));
+        const _arenaScoresAfter = match.players.map(p => ({ name: p.name, score: p.score }));
+        const _arenaPairIdx = (match._pairEventCount = (match._pairEventCount || 0) + 1);
+        const _claimantNames = match._pairClaimLock ? Array.from(match._pairClaimLock.claimants).map(sid => { const pl = match.players.find(p => p.studentId === sid); return pl?.name || sid.slice(-6); }) : [player.name];
+        const _arenaElapsed = match._pairClaimLock ? (Date.now() - match._pairClaimLock.timestamp) : 0;
+        sTrace.push('arena:pair-validated', {
+          matchId: matchId.slice(-8), pairEvent: _arenaPairIdx, round: match.roundsPlayed,
+          isTiebreaker: false, claimantsCount: _claimantNames.length,
+          claimantNames: _claimantNames, elapsedMs: _arenaElapsed, windowMs: ARENA_TIE_WINDOW_MS,
+          scoresBeforeUpdate: _arenaScoresBefore
+        });
+        sTrace.push('arena:score-update', {
+          matchId: matchId.slice(-8), pairEvent: _arenaPairIdx, claimantsCount: _claimantNames.length,
+          claimantNames: _claimantNames, isTiebreaker: false, elapsedMs: _arenaElapsed,
+          scoresAfter: _arenaScoresAfter
         });
       }
 
@@ -2639,10 +3047,7 @@ class CrazyArenaManager {
       clearTimeout(match.tiebreakerTimeout);
     }
 
-    logger.info(`[CrazyArena] Partie terminée pour match ${matchId}`);
-    _logMatchEvent('MATCH_END', matchId, { mode: 'arena', duration: match.endTime - match.startTime, playersCount: match.players.length, players: match.players.map(p => ({ studentId: p.studentId, name: p.name, score: p.score, pairsValidated: p.pairsValidated, errors: p.errors })) });
-
-    // ✅ FIX: Si on sort d'un tiebreaker, ADDITIONNER scores match normal + tiebreaker
+    // ✅ FIX: Si on sort d'un tiebreaker, ADDITIONNER scores match normal + tiebreaker AVANT le log
     if (match.isTiebreaker) {
       match.players.forEach(p => {
         const scoreNormal = p.scoreBeforeTiebreaker || 0;
@@ -2656,6 +3061,9 @@ class CrazyArenaManager {
         logger.info(`[CrazyArena] 🏆 ${p.name}: Score final = ${scoreNormal} (normal) + ${scoreTiebreaker} (tiebreaker) = ${p.score} pts`);
       });
     }
+
+    logger.info(`[CrazyArena] Partie terminée pour match ${matchId}`);
+    _logMatchEvent('MATCH_END', matchId, { mode: 'arena', duration: match.endTime - match.startTime, playersCount: match.players.length, players: match.players.map(p => ({ studentId: p.studentId, name: p.name, score: p.score, pairsValidated: p.pairsValidated, errors: p.errors })) });
 
     // Calculer les temps finaux
     match.players.forEach(p => {
@@ -2682,16 +3090,15 @@ class CrazyArenaManager {
       p.position = idx + 1;
     });
 
-    // Vérifier s'il y a égalité au premier rang
-    // ✅ FIX: Comparer pairsValidated + errors (le score inclut des bonus rapidité invisibles)
+    // Vérifier s'il y a égalité au premier rang — même score = départage (erreurs non prises en compte)
     const topPlayer = ranking[0];
     const tiedPlayers = ranking.filter(p => 
-      p.pairsValidated === topPlayer.pairsValidated && p.errors === topPlayer.errors
+      p.score === topPlayer.score
     );
     
     if (tiedPlayers.length > 1 && !match.isTiebreaker) {
       // ÉGALITÉ DÉTECTÉE - Attendre décision du professeur
-      logger.info(`[CrazyArena] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topPlayer.pairsValidated} paires, ${topPlayer.errors} erreurs`);
+      logger.info(`[CrazyArena] ⚖️ ÉGALITÉ détectée ! ${tiedPlayers.length} joueurs à ${topPlayer.score} pts`);
       logger.info(`[CrazyArena] ⏸️ En attente décision professeur pour départage...`);
       _logMatchEvent('TIE_DETECTED', matchId, { mode: 'arena', tiedCount: tiedPlayers.length, topPairs: topPlayer.pairsValidated, topErrors: topPlayer.errors, tiedPlayers: tiedPlayers.map(p => ({ studentId: p.studentId, name: p.name, score: p.score })) });
       
@@ -3949,14 +4356,21 @@ class CrazyArenaManager {
     _logMatchEvent('PLAYER_DISCONNECT', matchId, { mode, studentId: player.studentId, name: player.name, matchStatus: match.status });
 
     // Si le match est en cours (playing/tiebreaker), mettre en PAUSE au lieu de retirer le joueur
-    if (match.status === 'playing' || match.status === 'tiebreaker') {
+    // ✅ FIX: Inclure 'paused' — quand 2 joueurs déconnectent simultanément (ex: navigation page jeu),
+    // le 1er déclenche pauseMatch, le 2nd arrive avec status='paused' et serait RETIRÉ du match sinon
+    if (match.status === 'playing' || match.status === 'tiebreaker' || match.status === 'paused') {
       player.disconnected = true;
       player.disconnectedAt = Date.now();
       // NE PAS supprimer le mapping playerMatches ici — on le garde pour la reconnexion éventuelle
       // Mais marquer l'ancien socketId comme invalide
       player._oldSocketId = socket.id;
 
-      this.pauseMatch(matchId, player);
+      // Ne déclencher pauseMatch que si le match n'est pas déjà en pause
+      if (match.status !== 'paused') {
+        this.pauseMatch(matchId, player);
+      } else {
+        logger.info(`[CrazyArena] ⏸️ Match ${matchId} déjà en pause — ${player.name} aussi marqué déconnecté`);
+      }
       return;
     }
 
@@ -4010,7 +4424,7 @@ class CrazyArenaManager {
       logger.info(`[CrazyArena] ⏸️ Timer gelé pour match ${matchId}`);
     }
 
-    const GRACE_PERIOD_MS = 15000; // 15 secondes
+    const GRACE_PERIOD_MS = 30000; // 30 secondes (20s ping timeout + marge reconnexion)
 
     // Notifier tous les joueurs connectés (préfixe selon le mode)
     const pausePrefix = (match.mode === 'training') ? 'training' : 'arena';

@@ -95,7 +95,7 @@ export function logClickAttempt(stage, data = {}) {
       syncClickToBackend({
         _syncId: `click_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         stage,
-        ts: new Date().toISOString(),
+        ts: Date.now(),
         zoneId: data.zoneId || null,
         zoneType: data.zoneType || null,
         content: data.content ? String(data.content).substring(0, 80) : null,

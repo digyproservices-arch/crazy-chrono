@@ -829,12 +829,72 @@ router.get('/groups/:id/match-history', requireSupabase, requireAuth, async (req
       };
     });
     
+    // ── 8. AUSSI chercher les matchs Arena (tournament_matches + match_results) ──
+    let arenaMatchHistory = [];
+    try {
+      const { data: arenaMatches } = await supabase
+        .from('tournament_matches')
+        .select('id, status, room_code, created_at, started_at, finished_at, config, rounds_data')
+        .eq('group_id', id)
+        .eq('status', 'finished')
+        .order('finished_at', { ascending: false });
+      
+      if (arenaMatches && arenaMatches.length > 0) {
+        const arenaMatchIds = arenaMatches.map(m => m.id);
+        const { data: arenaResults } = await supabase
+          .from('match_results')
+          .select('match_id, student_id, position, score, time_ms, pairs_validated, errors')
+          .in('match_id', arenaMatchIds)
+          .order('position', { ascending: true });
+        
+        // Regrouper résultats par match_id
+        const arenaResultsByMatch = {};
+        for (const r of (arenaResults || [])) {
+          if (!arenaResultsByMatch[r.match_id]) arenaResultsByMatch[r.match_id] = [];
+          arenaResultsByMatch[r.match_id].push(r);
+        }
+        
+        for (const match of arenaMatches) {
+          const results = (arenaResultsByMatch[match.id] || []).map(r => {
+            const info = studentsMap[r.student_id] || getStudentInfo(r.student_id) || {};
+            return {
+              studentId: r.student_id,
+              studentName: info.full_name || info.first_name || r.student_id,
+              avatar: info.avatar_url || null,
+              position: r.position,
+              score: r.score,
+              timeMs: r.time_ms,
+              pairs_validated: r.pairs_validated || 0,
+              errors: r.errors || 0
+            };
+          });
+          
+          if (results.length > 0) {
+            arenaMatchHistory.push({
+              sessionId: match.id,
+              matchId: match.id,
+              sessionName: `Arena ${match.room_code || ''}`.trim(),
+              date: match.finished_at || match.created_at,
+              mode: 'arena',
+              results
+            });
+          }
+        }
+      }
+    } catch (arenaErr) {
+      console.warn('[Tournament API] match-history: arena lookup error:', arenaErr.message);
+    }
+
+    // ── 9. Fusionner Training + Arena, trier par date décroissante ──
+    const allMatches = [...matchHistory, ...arenaMatchHistory]
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+
     res.json({
       success: true,
       groupName: group.name,
       groupId: group.id,
       currentMatchId: group.match_id,
-      matches: matchHistory,
+      matches: allMatches,
       students: studentIds.map(sid => {
         const info = studentsMap[sid] || getStudentInfo(idToAuthMap[sid]) || {};
         return {
@@ -2866,6 +2926,7 @@ router.get('/students/:studentId/performance', requireSupabase, requireAuth, ...
           // Déterminer le mode: config.mode est la source primaire
           let mode = 'training';
           if (configMode === 'solo') mode = 'solo';
+          else if (configMode === 'grande-salle' || session.class_id === 'grande-salle') mode = 'grande-salle';
           else if (configMode === 'multiplayer' || session.class_id === 'multiplayer') mode = 'multiplayer';
           else if (session.class_id === 'solo' && configMode !== 'multiplayer') mode = 'solo';
           else if (r.position === null) mode = 'solo';
@@ -3746,7 +3807,44 @@ router.get('/classes/:classId/setup-data', requireSupabase, requireAuth, ...vali
           }
         }
       } catch (e) {
-        console.warn('[Tournament API] ⚠️ Erreur chargement lastResults:', e.message);
+        console.warn('[Tournament API] ⚠️ Erreur chargement lastResults (training):', e.message);
+      }
+    }
+
+    // ── 6b. AUSSI chercher dans match_results (Arena) pour les groupes non trouvés ──
+    const groupsWithoutResults = finishedGroupsWithMatch.filter(g => !groupLastResults[g.id]);
+    if (groupsWithoutResults.length > 0) {
+      try {
+        const arenaMatchIds = groupsWithoutResults.map(g => g.match_id).filter(Boolean);
+        if (arenaMatchIds.length > 0) {
+          const { data: arResults } = await supabase
+            .from('match_results')
+            .select('match_id, student_id, position, score, pairs_validated, errors')
+            .in('match_id', arenaMatchIds)
+            .gt('score', 0)
+            .order('position', { ascending: true });
+          
+          if (arResults && arResults.length > 0) {
+            const arByMatch = {};
+            for (const r of arResults) {
+              if (!arByMatch[r.match_id]) arByMatch[r.match_id] = [];
+              arByMatch[r.match_id].push({
+                studentId: r.student_id,
+                position: r.position,
+                score: r.score,
+                pairsValidated: r.pairs_validated,
+                errors: r.errors
+              });
+            }
+            for (const g of groupsWithoutResults) {
+              if (arByMatch[g.match_id]) {
+                groupLastResults[g.id] = arByMatch[g.match_id];
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Tournament API] ⚠️ Erreur chargement lastResults (arena):', e.message);
       }
     }
 

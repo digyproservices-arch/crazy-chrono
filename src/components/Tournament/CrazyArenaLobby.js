@@ -139,6 +139,7 @@ export default function CrazyArenaLobby() {
     };
     
     // Récupérer student_id puis connecter socket
+    let socketLocal = null;
     fetchUserData().then(async (userData) => {
       if (!userData) return; // Erreur, pas de student lié
       
@@ -157,6 +158,7 @@ export default function CrazyArenaLobby() {
         transports: ['websocket'],
         reconnection: true
       });
+      socketLocal = socket;
       socketRef.current = socket;
       
       socket.on('connect', () => {
@@ -214,6 +216,7 @@ export default function CrazyArenaLobby() {
           zones,
           duration,
           startTime,
+          savedAt: Date.now(),
           config,  // ✅ Stocker config avec themes et classes
           players: gamePlayers,
           myStudentId: studentId
@@ -230,8 +233,8 @@ export default function CrazyArenaLobby() {
         navigate(`/carte?arena=${matchId}`);
       });
       
-      return () => socket.disconnect();
     });
+    return () => { if (socketLocal) socketLocal.disconnect(); };
   }, [roomCode, navigate]);
   
   const handleReady = () => {

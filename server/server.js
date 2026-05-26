@@ -2258,7 +2258,8 @@ function gsCheckAutoStart(salleId) {
           s.startedAt = Date.now();
           s.status = 'countdown';
           for (const [, p] of s.players.entries()) { p.score = 0; p.errors = 0; p.rank = 0; p.eliminated = false; }
-          s.roundsPlayed = 0; s.eliminationWave = 0; s.validatedPairIds = new Set();
+          s.roundsPlayed = 0; s.eliminationWave = 0; s.validatedPairIds = new Set(); s.roundHistory = [];
+          persistSessionStart(s, 'grande-salle', salleId);
           gsEmitState(salleId);
           let t = 5;
           io.to(`gs:${salleId}`).emit('gs:countdown', { t });
@@ -2353,6 +2354,26 @@ function gsStartRound(salleId) {
     eliminationWave: salle.eliminationWave,
   };
   
+  salle.currentRoundStartedAt = Date.now();
+  salle.selectedThemes = salle.config.themes || [];
+  salle.selectedClasses = salle.config.classes || [];
+  salle.roundsPlayed = salle.roundsPlayed || 0;
+
+  // 📊 DIAGNOSTIC: Pousser entrée roundHistory
+  if (!salle.roundHistory) salle.roundHistory = [];
+  const goodPair = zones.find(z => z.pairId && !z.isDistractor);
+  salle.roundHistory.push({
+    round_number: salle.roundsPlayed,
+    zones: zones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 200), pairId: z.pairId || null, isDistractor: !!z.isDistractor })),
+    good_pair_type: goodPair?.type || null,
+    good_pair_theme: goodPair?.theme || null,
+    good_pair_level: goodPair?.levelClass || null,
+    good_pair_content: goodPair ? String(goodPair.content || '').substring(0, 200) : null,
+    started_at: Date.now(),
+    pairs_found: [],
+    errors: []
+  });
+
   console.log(`[GS] Round ${salle.roundsPlayed} started in "${salleId}" with ${zones.length} zones, ${salle.players.size} players`);
   sTrace.push('gs:startRound', { salle: salleId, round: salle.roundsPlayed, zonesCount: zones.length, players: salle.players.size, duration: salle.config.duration });
   // Valider les zones avant émission (monitoring double PA / fausse paire)
@@ -2362,6 +2383,7 @@ function gsStartRound(salleId) {
   
   // Round timer
   const _gsTimerSetAt = Date.now();
+  salle._roundTimerSetAt = _gsTimerSetAt; // ✅ Pour calcul temps restant en cas de pause
   salle.roundTimer = setTimeout(() => {
     const drift = Date.now() - _gsTimerSetAt - salle.config.duration * 1000;
     sTrace.push('gs:roundTimer:fired', { salle: salleId, round: salle.roundsPlayed, expectedMs: salle.config.duration * 1000, driftMs: drift });
@@ -2525,6 +2547,165 @@ async function gsFinish(salleId) {
       }).eq('id', salle.tournamentId);
       console.log(`[GS] Tournament ${salle.tournamentId} results saved to Supabase`);
     } catch (e) { console.error('[GS] Tournament save error:', e.message); }
+  }
+
+  // ✅ Persistance Grande Salle: sauvegarder les résultats des joueurs identifiés dans training_sessions + training_results
+  if (supabaseAdmin) {
+    (async () => { try {
+      const isUUID = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+      // Récupérer les joueurs avec un studentId valide
+      const identifiedPlayers = Array.from(salle.players.entries())
+        .map(([id, p]) => ({ socketId: id, studentId: p.studentId, name: p.name, score: p.score || 0, errors: p.errors || 0 }))
+        .filter(p => p.studentId && isUUID(p.studentId))
+        .sort((a, b) => b.score - a.score)
+        .map((p, idx) => ({ ...p, position: idx + 1 }));
+
+      if (identifiedPlayers.length > 0) {
+        const { v4: uuidv4 } = require('uuid');
+        const timeMs = salle.startedAt ? (Date.now() - salle.startedAt) : ((salle.config.duration || 90) * salle.roundsPlayed * 1000);
+        let sessionId = salle._sessionId || null;
+
+        // Si la session a été créée au démarrage (persistSessionStart), la finaliser
+        if (sessionId) {
+          const { error: updErr } = await supabaseAdmin
+            .from('training_sessions')
+            .update({
+              completed_at: new Date().toISOString(),
+              config: {
+                mode: 'grande-salle',
+                duration: salle.config.duration || 90,
+                rounds: salle.roundsPlayed,
+                eliminationWaves: salle.eliminationWave,
+                totalPlayers: allPlayers.length,
+                themes: salle.config.themes || [],
+                classes: salle.config.classes || [],
+                selectedLevel: salle.config.selectedLevel || null,
+                salleId
+              }
+            })
+            .eq('id', sessionId);
+          if (updErr) console.error(`[GS] persistSessionEnd update error:`, updErr.message);
+        } else {
+          // Fallback: créer la session maintenant
+          const sessionPayload = {
+            match_id: uuidv4(),
+            class_id: 'grande-salle',
+            teacher_id: null,
+            session_name: salle.tournamentTitle ? `Grande Salle - ${salle.tournamentTitle}` : `Grande Salle - ${salleId}`,
+            config: {
+              mode: 'grande-salle',
+              duration: salle.config.duration || 90,
+              rounds: salle.roundsPlayed,
+              eliminationWaves: salle.eliminationWave,
+              totalPlayers: allPlayers.length,
+              themes: salle.config.themes || [],
+              classes: salle.config.classes || [],
+              selectedLevel: salle.config.selectedLevel || null,
+              salleId
+            },
+            completed_at: new Date().toISOString(),
+            created_at: new Date().toISOString()
+          };
+          const { data: session, error: sessErr } = await supabaseAdmin
+            .from('training_sessions').insert(sessionPayload).select('id').single();
+          if (sessErr) {
+            console.error(`[GS] Persistance erreur (session_insert):`, sessErr.message);
+          } else {
+            sessionId = session.id;
+          }
+        }
+
+        if (sessionId) {
+          for (const p of identifiedPlayers) {
+            const { error: resErr } = await supabaseAdmin.from('training_results').insert({
+              session_id: sessionId,
+              student_id: p.studentId,
+              position: p.position,
+              score: p.score,
+              time_ms: timeMs,
+              pairs_validated: p.score,
+              errors: p.errors || 0
+            });
+            if (resErr) {
+              console.error(`[GS] Persistance erreur (result_insert) student=${p.studentId}:`, resErr.message);
+            }
+          }
+          console.log(`[GS] ✅ Résultats sauvegardés: ${identifiedPlayers.length} joueurs identifiés, session=${sessionId}`);
+
+          // 📊 DIAGNOSTIC: Persister match_rounds + match_player_summary
+          try {
+            const roundHistory = salle.roundHistory || [];
+            if (roundHistory.length > 0) {
+              const roundRows = roundHistory.map(rh => ({
+                session_id: sessionId,
+                round_number: rh.round_number,
+                zones: rh.zones,
+                good_pair_type: rh.good_pair_type,
+                good_pair_theme: rh.good_pair_theme,
+                good_pair_level: rh.good_pair_level,
+                good_pair_content: rh.good_pair_content,
+                winner_player_id: rh.pairs_found && rh.pairs_found[0] ? rh.pairs_found[0].player_id : null,
+                winner_display_name: rh.pairs_found && rh.pairs_found[0] ? rh.pairs_found[0].display_name : null,
+                winner_time_ms: rh.pairs_found && rh.pairs_found[0] ? rh.pairs_found[0].time_ms : null,
+                errors: rh.errors || []
+              }));
+              const { error: mrErr } = await supabaseAdmin.from('match_rounds').insert(roundRows);
+              if (mrErr) console.error(`[GS] match_rounds insert error:`, mrErr.message);
+              else console.log(`[GS] 📊 ${roundRows.length} match_rounds sauvegardés`);
+
+              // match_player_summary
+              const playerMap = {};
+              for (const rh of roundHistory) {
+                const theme = rh.good_pair_theme || 'unknown';
+                const pairType = rh.good_pair_type || 'unknown';
+                for (const pf of (rh.pairs_found || [])) {
+                  const pid = pf.player_id;
+                  if (!playerMap[pid]) playerMap[pid] = { player_id: pid, display_name: pf.display_name, total_score: 0, total_errors: 0, byTheme: {}, byType: {}, responseTimes: [], roundsPlayed: 0 };
+                  const ps = playerMap[pid];
+                  if (!ps.byTheme[theme]) ps.byTheme[theme] = { found: 0, missed: 0, errors: 0 };
+                  ps.byTheme[theme].found++;
+                  if (!ps.byType[pairType]) ps.byType[pairType] = { found: 0 };
+                  ps.byType[pairType].found++;
+                  if (pf.time_ms) ps.responseTimes.push(pf.time_ms);
+                  ps.roundsPlayed++;
+                  ps.total_score++;
+                }
+                for (const err of (rh.errors || [])) {
+                  const pid = err.player_id;
+                  if (!playerMap[pid]) playerMap[pid] = { player_id: pid, display_name: err.display_name, total_score: 0, total_errors: 0, byTheme: {}, byType: {}, responseTimes: [], roundsPlayed: 0 };
+                  playerMap[pid].total_errors++;
+                  if (!playerMap[pid].byTheme[theme]) playerMap[pid].byTheme[theme] = { found: 0, missed: 0, errors: 0 };
+                  playerMap[pid].byTheme[theme].errors++;
+                }
+              }
+              const summaryRows = Object.values(playerMap).map(ps => {
+                const recommendations = [];
+                for (const [t, stats] of Object.entries(ps.byTheme)) {
+                  const total = stats.found + (stats.missed || 0);
+                  if (total > 0 && stats.found / total >= 0.8 && stats.errors === 0) recommendations.push({ type: 'strength', theme: t, message: `Point fort : ${t}` });
+                  else if (total > 0 && stats.found / total < 0.5) recommendations.push({ type: 'improve', theme: t, message: `A travailler : ${t}` });
+                  if (stats.errors >= 3) recommendations.push({ type: 'errors', theme: t, message: `Confusion fréquente sur ${t} (${stats.errors} erreurs)` });
+                }
+                return {
+                  session_id: sessionId, player_id: ps.player_id, display_name: ps.display_name,
+                  total_score: ps.total_score, total_pairs: ps.roundsPlayed, total_errors: ps.total_errors,
+                  stats_by_theme: ps.byTheme, stats_by_type: ps.byType,
+                  avg_response_time_ms: ps.responseTimes.length > 0 ? Math.round(ps.responseTimes.reduce((a, b) => a + b, 0) / ps.responseTimes.length) : null,
+                  recommendations
+                };
+              });
+              if (summaryRows.length > 0) {
+                const { error: sumErr } = await supabaseAdmin.from('match_player_summary').insert(summaryRows);
+                if (sumErr) console.error(`[GS] match_player_summary insert error:`, sumErr.message);
+                else console.log(`[GS] 📊 ${summaryRows.length} match_player_summary sauvegardés`);
+              }
+            }
+          } catch (diagErr) { console.error('[GS] Diagnostic pédagogique save error:', diagErr.message); }
+        }
+      } else {
+        console.log(`[GS] Aucun joueur identifié (studentId) — résultats non sauvegardés`);
+      }
+    } catch (e) { console.error('[GS] Persistance erreur générale:', e.message); } })();
   }
   
   io.to(`gs:${salleId}`).emit('gs:finish', {
@@ -2696,6 +2877,48 @@ function persistMPAttempt(room, socketId, { isCorrect, zoneAId, zoneBId }) {
     });
   } catch (err) {
     // best-effort, ne pas bloquer le jeu
+  }
+}
+
+// 💾 Persister la session au DÉMARRAGE (SP/GS) pour pouvoir détecter les sessions abandonnées après crash
+async function persistSessionStart(roomOrSalle, mode, roomCode) {
+  if (!supabaseAdmin) return;
+  try {
+    const { v4: uuidv4 } = require('uuid');
+    const matchId = uuidv4();
+    const players = roomOrSalle.players instanceof Map ? Array.from(roomOrSalle.players.values()) : [];
+    const playerNames = players.map(p => p.name).filter(Boolean);
+    const config = {
+      mode,
+      duration: roomOrSalle.duration || roomOrSalle.config?.duration || 60,
+      rounds: roomOrSalle.roundsPerSession || roomOrSalle.config?.rounds || 3,
+      themes: roomOrSalle.selectedThemes || roomOrSalle.config?.themes || [],
+      classes: roomOrSalle.selectedClasses || roomOrSalle.config?.classes || [],
+      playerCount: players.length,
+      playerNames,
+      roomCode
+    };
+    const sessionPayload = {
+      match_id: matchId,
+      class_id: mode === 'grande-salle' ? 'grande-salle' : (roomOrSalle.classId || 'salle-privee'),
+      teacher_id: roomOrSalle.teacherId || null,
+      session_name: mode === 'grande-salle'
+        ? `Grande Salle - ${roomOrSalle.tournamentTitle || roomCode}`
+        : `Salle Privée - ${roomCode}`,
+      config,
+      created_at: new Date().toISOString()
+    };
+    const { data: session, error } = await supabaseAdmin
+      .from('training_sessions').insert(sessionPayload).select('id').single();
+    if (error) {
+      console.error(`[${mode}] persistSessionStart error:`, error.message);
+      return;
+    }
+    roomOrSalle._sessionId = session.id;
+    roomOrSalle._matchId = matchId;
+    console.log(`[${mode}] 💾 Session créée au démarrage: ${session.id} (${playerNames.length} joueurs)`);
+  } catch (e) {
+    console.error(`[${mode}] persistSessionStart exception:`, e.message);
   }
 }
 
@@ -2917,6 +3140,7 @@ function startRound(roomCode) {
   io.to(roomCode).emit('round:new', payload);
   // Timer d'expiration pour annoncer le résultat si personne n'a gagné
   const _roundTimerSetAt = Date.now();
+  room._roundTimerSetAt = _roundTimerSetAt; // ✅ Pour calcul temps restant en cas de pause
   room.roundTimer = setTimeout(() => {
     const _roundTimerFiredAt = Date.now();
     // ── TRAÇAGE: timing précis du roundTimer ──
@@ -2993,6 +3217,19 @@ function endSession(roomCode) {
     const tiedPlayers = entries.filter(([, pl]) => (pl.score || 0) === topScore);
     if (tiedPlayers.length > 1 && topScore >= 0) {
       console.log(`[MP] ⚖️ ÉGALITÉ détectée room=${roomCode}: ${tiedPlayers.length} joueurs à ${topScore} pts — attente départage`);
+      const allScoresAtTie = entries.map(([id, pl]) => ({ id: id.slice(-6), name: pl.name, score: pl.score || 0 }));
+      console.log(`[MP] 📊 SCORES AU MOMENT DE L'ÉGALITÉ: ${allScoresAtTie.map(s => `${s.name}=${s.score}`).join(', ')} | Paires totales validées: ${room._pairEventCount || 0}`);
+      sTrace.push('mp:equality-detected', {
+        room: roomCode, tiedCount: tiedPlayers.length, topScore,
+        allScores: allScoresAtTie, pairEventsTotal: room._pairEventCount || 0,
+        roundsPlayed: room.roundsPlayed
+      });
+      emitServerLog(roomCode, 'info', '[MP] 📊 ÉGALITÉ DÉTECTÉE — scores figés', {
+        allScores: allScoresAtTie,
+        pairEventsTotal: room._pairEventCount || 0,
+        roundsPlayed: room.roundsPlayed,
+        tiebreakerWillStart: true
+      });
       // Passer en mode attente de départage (comme Training)
       room.status = 'tie-waiting';
       room.sessionActive = false;
@@ -3059,6 +3296,40 @@ function endSession(roomCode) {
   room.sessionActive = false;
   room.status = 'lobby';
   if (room.roundTimer) { try { clearTimeout(room.roundTimer); } catch {} room.roundTimer = null; }
+
+  // 📊 MONITORING FINAL: Résumé complet de la session avant envoi
+  const finalScores = entries.map(([id, pl]) => ({ name: pl.name, score: pl.score || 0, errors: pl.errors || 0 }));
+  console.log(`[MP] 📊 SESSION TERMINÉE room=${roomCode} | Paires totales: ${room._pairEventCount || 0} | Scores: ${finalScores.map(s => `${s.name}=${s.score}`).join(', ')} | Départage: ${wasTiebreaker ? 'OUI' : 'NON'}`);
+  if (room.roundHistory && room.roundHistory.length > 0) {
+    const rhSummary = room.roundHistory.map((rh, i) => `  R${rh.roundNumber}${rh.isExtraPair ? '+' : ''}: ${rh.winnerDisplayName || '(vide)'} (${rh.claimantsCount || '?'} claim.)`);
+    console.log(`[MP] 📊 ROUND HISTORY (${room.roundHistory.length} entrées):\n${rhSummary.join('\n')}`);
+  }
+  sTrace.push('mp:session-end', {
+    room: roomCode, pairEventsTotal: room._pairEventCount || 0,
+    finalScores, wasTiebreaker,
+    tiebreakerScores: room._tiebreakerScores ? Object.fromEntries(room._tiebreakerScores) : null,
+    roundHistoryCount: room.roundHistory?.length || 0,
+    roundHistoryDetail: (room.roundHistory || []).map(rh => ({
+      round: rh.roundNumber, winner: rh.winnerDisplayName,
+      claimants: rh.claimantsCount, allClaimants: rh.allClaimants,
+      isExtra: rh.isExtraPair || false
+    }))
+  });
+  emitServerLog(roomCode, 'info', '[MP] 📊 SESSION TERMINÉE — résumé final', {
+    pairEventsTotal: room._pairEventCount || 0,
+    finalScores,
+    wasTiebreaker,
+    tiebreakerScores: room._tiebreakerScores ? Object.fromEntries(room._tiebreakerScores) : null,
+    roundHistoryCount: room.roundHistory?.length || 0,
+    roundHistoryDetail: (room.roundHistory || []).map(rh => ({
+      round: rh.roundNumber,
+      winner: rh.winnerDisplayName,
+      claimants: rh.claimantsCount,
+      allClaimants: rh.allClaimants,
+      isExtra: rh.isExtraPair || false
+    }))
+  });
+
   io.to(roomCode).emit('session:end', summary);
   emitRoomState(roomCode);
   
@@ -3094,33 +3365,47 @@ function endSession(roomCode) {
     const identifiedPlayers = ranking.filter(p => p.studentId);
     emitPerfEvent('endSession:identified', { room: roomCode, identified: identifiedPlayers.length, total: ranking.length });
     if (identifiedPlayers.length > 0 && supabaseAdmin) {
-      // FIX: Insert directement via supabaseAdmin (l'ancien fetch HTTP échouait en 401 car pas de token auth)
       const { v4: uuidv4 } = require('uuid');
       const isSoloRoom = roomCode.startsWith('solo-');
-      const sessionPayload = {
-        match_id: uuidv4(),
-        class_id: isSoloRoom ? 'solo' : 'multiplayer',
-        teacher_id: null,
-        session_name: isSoloRoom ? 'Session Solo' : `Multijoueur - ${roomCode}`,
-        config: {
-          mode: isSoloRoom ? 'solo' : 'multiplayer',
-          duration: room.duration || 60,
-          rounds: Number.isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
-          selectedLevel: room.selectedLevel || null,
-          classes: Array.isArray(room.selectedClasses) && room.selectedClasses.length > 0 ? room.selectedClasses : null,
-          themes: Array.isArray(room.selectedThemes) && room.selectedThemes.length > 0 ? room.selectedThemes : null,
-          extras: Array.isArray(room.selectedExtras) && room.selectedExtras.length > 0 ? room.selectedExtras : null,
-          roomCode
-        },
-        completed_at: new Date().toISOString(),
-        created_at: new Date().toISOString()
-      };
-      const { data: session, error: sessErr } = await supabaseAdmin
-        .from('training_sessions').insert(sessionPayload).select('id').single();
-      if (sessErr) {
-        emitPerfEvent('save:error', { room: roomCode, step: 'session_insert', error: sessErr.message });
+      let sessionId = room._sessionId || null;
+
+      // Si la session a été créée au démarrage (persistSessionStart), on la finalise
+      if (sessionId) {
+        const { error: updErr } = await supabaseAdmin
+          .from('training_sessions')
+          .update({ completed_at: new Date().toISOString() })
+          .eq('id', sessionId);
+        if (updErr) emitPerfEvent('save:error', { room: roomCode, step: 'session_update', error: updErr.message });
       } else {
-        const sessionId = session.id;
+        // Fallback: créer la session maintenant (sessions non couvertes par persistSessionStart, ex: solo)
+        const sessionPayload = {
+          match_id: uuidv4(),
+          class_id: isSoloRoom ? 'solo' : 'multiplayer',
+          teacher_id: null,
+          session_name: isSoloRoom ? 'Session Solo' : `Multijoueur - ${roomCode}`,
+          config: {
+            mode: isSoloRoom ? 'solo' : 'multiplayer',
+            duration: room.duration || 60,
+            rounds: Number.isFinite(room.roundsPerSession) ? room.roundsPerSession : null,
+            selectedLevel: room.selectedLevel || null,
+            classes: Array.isArray(room.selectedClasses) && room.selectedClasses.length > 0 ? room.selectedClasses : null,
+            themes: Array.isArray(room.selectedThemes) && room.selectedThemes.length > 0 ? room.selectedThemes : null,
+            extras: Array.isArray(room.selectedExtras) && room.selectedExtras.length > 0 ? room.selectedExtras : null,
+            roomCode
+          },
+          completed_at: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        };
+        const { data: session, error: sessErr } = await supabaseAdmin
+          .from('training_sessions').insert(sessionPayload).select('id').single();
+        if (sessErr) {
+          emitPerfEvent('save:error', { room: roomCode, step: 'session_insert', error: sessErr.message });
+        } else {
+          sessionId = session.id;
+        }
+      }
+
+      if (sessionId) {
         const timeMs = room.sessionStartedAt ? (Date.now() - room.sessionStartedAt) : ((room.duration || 60) * 1000);
         for (const p of identifiedPlayers) {
           const { error: resErr } = await supabaseAdmin.from('training_results').insert({
@@ -3379,10 +3664,58 @@ io.on('connection', (socket) => {
       room.status = 'lobby';
     }
     emitRoomState(currentRoom);
+
+    // ✅ RESUME: Si le match était en pause (joueur déconnecté), reprendre automatiquement
+    if (room.status === 'paused' && room._pauseState && room._pauseState.disconnectedPlayerName === playerName) {
+      // Annuler le timeout forfait
+      if (room._forfeitTimeout) { clearTimeout(room._forfeitTimeout); room._forfeitTimeout = null; }
+
+      const pauseState = room._pauseState;
+      const pauseDuration = Date.now() - pauseState.pausedAt;
+      room.status = pauseState.previousStatus || 'playing';
+
+      // Relancer le round timer avec le temps restant
+      const remMs = pauseState.remainingMs || 0;
+
+      // ✅ FIX: Si remainingMs=0, le round avait DÉJÀ expiré → round:result déjà émis → prochain round directement
+      if (remMs <= 0) {
+        console.log(`[MP] ▶️ RESUME: Round déjà expiré avant déco — skip round:result, lancement prochain round`);
+        const more = !isFinite(room.roundsPerSession) || (room.roundsPlayed < room.roundsPerSession);
+        if (more && room.sessionActive) {
+          room.roundTimer = setTimeout(() => { const r = getRoom(currentRoom); if (!r || !r.sessionActive) return; startRound(currentRoom); }, 400);
+        } else { endSession(currentRoom); }
+      } else {
+        room._roundTimerSetAt = Date.now() - ((room.duration || 60) * 1000 - remMs);
+        room.roundTimer = setTimeout(() => {
+          try { if (room.pendingClaims && room.pendingClaims.size) { for (const [, e] of room.pendingClaims.entries()) { try { if (e && e.timer) clearTimeout(e.timer); } catch {} } room.pendingClaims.clear(); } } catch {}
+          const base = room.roundBaseScores instanceof Map ? room.roundBaseScores : new Map();
+          const deltas = Array.from(room.players.entries()).map(([id, pl]) => ({ id, name: pl.name, delta: (pl.score || 0) - (base.has(id) ? base.get(id) : 0), now: pl.score || 0 }));
+          let best = -Infinity; let winners = [];
+          for (const d of deltas) { if (d.delta > best) { best = d.delta; winners = [d]; } else if (d.delta === best) { winners.push(d); } }
+          let winnerId = null, winnerName = null;
+          if (best > 0 && winners.length === 1) { winnerId = winners[0].id; winnerName = winners[0].name; }
+          io.to(currentRoom).emit('round:result', { winnerId, winnerName, roundIndex: room.roundsPlayed, roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null });
+          const more = !isFinite(room.roundsPerSession) || (room.roundsPlayed < room.roundsPerSession);
+          if (more && room.sessionActive) { room.roundTimer = setTimeout(() => { const r = getRoom(currentRoom); if (!r || !r.sessionActive) return; startRound(currentRoom); }, 400); }
+          else { endSession(currentRoom); }
+        }, remMs);
+      }
+
+      delete room._pauseState;
+
+      // Notifier tous les joueurs
+      io.to(currentRoom).emit('mp:match-resumed', {
+        reconnectedPlayer: playerName,
+        pauseDurationMs: pauseDuration
+      });
+
+      console.log(`[MP] ▶️ Room ${currentRoom} REPRISE — pause de ${Math.round(pauseDuration / 1000)}s — ${playerName} reconnecté — timer restant ${Math.round(remMs / 1000)}s`);
+      sTrace.push('mp:match-resumed', { room: currentRoom, player: playerName, pauseDurationMs: pauseDuration, remainingMs: Math.round(remMs) });
+    }
     
     // Si une manche est en cours, envoyer immédiatement les données au joueur qui rejoint
     // ⚠️ CRITIQUE: inclure room.currentZones pour éviter le fallback local → désync
-    if (room.sessionActive && room.status === 'playing' && room.roundSeed) {
+    if (room.sessionActive && (room.status === 'playing' || room.status === 'paused') && room.roundSeed) {
       const latePayload = {
         seed: room.roundSeed,
         duration: room.duration || 60,
@@ -3532,6 +3865,7 @@ io.on('connection', (socket) => {
     room.status = 'countdown';
     room.roundsPlayed = 0;
     room.roundHistory = []; // Reset pour nouvelle session (diagnostic pédagogique)
+    persistSessionStart(room, 'salle-privee', currentRoom);
     emitRoomState(currentRoom);
     // Compte à rebours
     let t = 3;
@@ -3588,6 +3922,7 @@ io.on('connection', (socket) => {
       room.status = 'countdown';
       room.roundsPlayed = 0;
       room.roundHistory = []; // Reset pour nouvelle session (diagnostic pédagogique)
+      persistSessionStart(room, 'salle-privee', currentRoom);
       emitRoomState(currentRoom);
       // Countdown 3-2-1 synchronisé
       let t = 3;
@@ -3629,6 +3964,7 @@ io.on('connection', (socket) => {
     room.resolved = false;
     room.roundsPlayed = 0;
     room.roundHistory = []; // Reset pour nouvelle session (diagnostic pédagogique)
+    if (!currentRoom.startsWith('solo-')) persistSessionStart(room, 'salle-privee', currentRoom);
     // Réinitialiser les erreurs de chaque joueur pour cette nouvelle session
     for (const [id, pl] of room.players.entries()) {
       pl.score = 0;
@@ -3685,7 +4021,27 @@ io.on('connection', (socket) => {
         // Marquer la paire comme prise pour bloquer les futurs clics
         room.foundPairs.add(claimKey);
         const claimants = Array.from(pend?.claimants || []);
-        
+
+        // 📊 MONITORING: Log CHAQUE validation de paire (claimants, scores, phase)
+        const claimantNames = claimants.map(id => { const p = room.players.get(id); return p?.name || id.slice(-6); });
+        const scoresBeforeUpdate = Array.from(room.players.entries()).map(([id, pl]) => ({ id: id.slice(-6), name: pl.name, score: pl.score || 0 }));
+        const pairEventIndex = (room._pairEventCount = (room._pairEventCount || 0) + 1);
+        console.log(`[MP] 📊 PAIR #${pairEventIndex} | Round ${room.roundsPlayed} | ${room._isTiebreaker ? 'DÉPARTAGE' : 'SESSION'} | Claimants: ${claimants.length} (${claimantNames.join(', ')}) | Scores avant: ${scoresBeforeUpdate.map(s => `${s.name}=${s.score}`).join(', ')}`);
+        sTrace.push('mp:pair-validated', {
+          room: currentRoom, pairEvent: pairEventIndex, round: room.roundsPlayed,
+          isTiebreaker: !!room._isTiebreaker, claimantsCount: claimants.length,
+          claimantNames, scoresBeforeUpdate
+        });
+        emitServerLog(currentRoom, 'info', `[MP] 📊 Paire validée #${pairEventIndex}`, {
+          pairEvent: pairEventIndex,
+          round: room.roundsPlayed,
+          isTiebreaker: !!room._isTiebreaker,
+          claimantsCount: claimants.length,
+          claimantNames,
+          scoresBeforeUpdate,
+          timestamp: Date.now()
+        });
+
         // Extraire le pairId des zones et l'ajouter au Set des paires validées
         try {
           if (room.currentZones && Array.isArray(room.currentZones)) {
@@ -3727,7 +4083,13 @@ io.on('connection', (socket) => {
           }
         }
         const scores = Array.from(room.players.entries()).map(([id, pl]) => ({ id, name: pl.name, score: pl.score || 0 }));
-        io.to(currentRoom).emit('score:update', { scores });
+        io.to(currentRoom).emit('score:update', { scores, pairEvent: pairEventIndex, claimantsCount: claimants.length, claimantNames, isTiebreaker: !!room._isTiebreaker });
+        console.log(`[MP] 📊 PAIR #${pairEventIndex} APRÈS: ${scores.map(s => `${s.name}=${s.score}`).join(', ')} | +1 distribué à ${claimants.length} joueur(s)`);
+        sTrace.push('mp:score-update', {
+          room: currentRoom, pairEvent: pairEventIndex, claimantsCount: claimants.length,
+          claimantNames, isTiebreaker: !!room._isTiebreaker,
+          scoresAfter: scores.map(s => ({ name: s.name, score: s.score }))
+        });
 
         // 📊 MAÎTRISE: Enregistrer la tentative correcte pour chaque joueur
         for (const id of claimants) {
@@ -3737,12 +4099,32 @@ io.on('connection', (socket) => {
         // Enregistrer le gagnant dans roundHistory (diagnostic pédagogique)
         try {
           const lastRound = room.roundHistory && room.roundHistory[room.roundHistory.length - 1];
+          const winnerId = claimants[0] || null;
+          const winnerPl = winnerId ? room.players.get(winnerId) : null;
+          const winnerTimeMs = room.currentRoundStartedAt ? (Date.now() - room.currentRoundStartedAt) : null;
           if (lastRound && !lastRound.winnerPlayerId) {
-            const winnerId = claimants[0] || null;
-            const winnerPl = winnerId ? room.players.get(winnerId) : null;
+            // Première paire du round → mettre à jour l'entrée existante
             lastRound.winnerPlayerId = winnerPl?.studentId || winnerId || null;
             lastRound.winnerDisplayName = winnerPl?.name || null;
-            lastRound.winnerTimeMs = room.currentRoundStartedAt ? (Date.now() - room.currentRoundStartedAt) : null;
+            lastRound.winnerTimeMs = winnerTimeMs;
+            lastRound.claimantsCount = claimants.length;
+            lastRound.allClaimants = claimantNames;
+          } else {
+            // Paire supplémentaire dans le même round (après régénération) → NOUVELLE entrée
+            if (!room.roundHistory) room.roundHistory = [];
+            room.roundHistory.push({
+              roundNumber: room.roundsPlayed,
+              winnerPlayerId: winnerPl?.studentId || winnerId || null,
+              winnerDisplayName: winnerPl?.name || null,
+              winnerTimeMs,
+              claimantsCount: claimants.length,
+              allClaimants: claimantNames,
+              isExtraPair: true,
+              goodPairType: null,
+              goodPairTheme: null,
+              goodPairLevel: null,
+              goodPairContent: null
+            });
           }
         } catch {}
 
@@ -3755,7 +4137,18 @@ io.on('connection', (socket) => {
           for (const id of claimants) {
             room._tiebreakerScores.set(id, (room._tiebreakerScores.get(id) || 0) + 1);
           }
-          console.log(`[MP] ⚖️ Départage round ${room._tiebreakerPlayed}/${room._tiebreakerTotal} — gagnant: ${winnerPl?.name || 'inconnu'} (${claimants.length} claimant(s))`);
+          const claimantNames = claimants.map(id => { const p = room.players.get(id); return p?.name || id.slice(-6); });
+          console.log(`[MP] ⚖️ Départage round ${room._tiebreakerPlayed}/${room._tiebreakerTotal} — gagnant: ${winnerPl?.name || 'inconnu'} (${claimants.length} claimant(s): ${claimantNames.join(', ')})`);
+          emitServerLog(currentRoom, 'info', '[MP] ⚖️ Départage round résolu', {
+            round: room._tiebreakerPlayed,
+            totalRounds: room._tiebreakerTotal,
+            winnerId: winnerId?.slice(-6),
+            winnerName: winnerPl?.name || null,
+            claimantsCount: claimants.length,
+            claimantNames,
+            tiebreakerScores: Object.fromEntries(room._tiebreakerScores),
+            baseScores: Array.from(room.players.entries()).map(([id, pl]) => ({ name: pl.name, score: pl.score || 0 }))
+          });
           // Informer les clients du résultat du round
           io.to(currentRoom).emit('tiebreaker:round-result', {
             roundIndex: room._tiebreakerPlayed,
@@ -3763,15 +4156,54 @@ io.on('connection', (socket) => {
             winnerId,
             winnerName: winnerPl?.name || null,
             tiebreakerScores: Object.fromEntries(room._tiebreakerScores),
-            tie: claimants.length >= 2
+            tie: claimants.length >= 2,
+            claimantsCount: claimants.length,
+            claimantNames,
+            baseScores: Array.from(room.players.entries()).map(([id, pl]) => ({ id: id.slice(-6), name: pl.name, score: pl.score || 0 }))
           });
           io.to(currentRoom).emit('pair:valid', { by: winnerId, a, b, ts: Date.now(), count: room.pairsValidated, tie: claimants.length >= 2, winners: claimants });
           // Fin du départage ou round suivant ?
           if (room._tiebreakerPlayed >= room._tiebreakerTotal) {
-            // Restaurer la durée originale avant endSession
-            room.duration = room._origDuration || room.duration;
-            console.log(`[MP] ⚖️ Départage terminé — scores: ${JSON.stringify(Object.fromEntries(room._tiebreakerScores))}`);
-            setTimeout(() => endSession(currentRoom), 1500);
+            // Vérifier s'il y a un vainqueur net AVANT de terminer
+            const tbScores = Array.from(room._tiebreakerScores.values());
+            const maxTB = Math.max(...tbScores);
+            const countAtMax = tbScores.filter(s => s === maxTB).length;
+            if (countAtMax > 1) {
+              // Encore à égalité → prolonger le départage d'un round
+              room._tiebreakerTotal += 1;
+              console.log(`[MP] ⚖️ Départage prolongé — toujours à égalité après ${room._tiebreakerPlayed} rounds, nouveau total: ${room._tiebreakerTotal}`);
+              emitServerLog(currentRoom, 'info', '[MP] ⚖️ Départage prolongé — égalité persistante', {
+                tiebreakerScores: Object.fromEntries(room._tiebreakerScores),
+                roundsPlayed: room._tiebreakerPlayed,
+                newTotal: room._tiebreakerTotal
+              });
+              io.to(currentRoom).emit('tiebreaker:extended', {
+                reason: 'still_tied',
+                roundsPlayed: room._tiebreakerPlayed,
+                newTotal: room._tiebreakerTotal,
+                tiebreakerScores: Object.fromEntries(room._tiebreakerScores)
+              });
+              // Lancer un round supplémentaire
+              setTimeout(() => {
+                const r = getRoom(currentRoom);
+                if (!r || !r.sessionActive) return;
+                r.resolved = false;
+                r.foundPairs = new Set();
+                r.roundsPerSession = r._tiebreakerTotal;
+                startRound(currentRoom);
+                if (r.roundTimer) { clearTimeout(r.roundTimer); r.roundTimer = null; }
+              }, 2000);
+            } else {
+              // Vainqueur net → fin du départage
+              room.duration = room._origDuration || room.duration;
+              console.log(`[MP] ⚖️ Départage terminé — scores: ${JSON.stringify(Object.fromEntries(room._tiebreakerScores))}`);
+              emitServerLog(currentRoom, 'info', '[MP] ⚖️ Départage terminé', {
+                tiebreakerScores: Object.fromEntries(room._tiebreakerScores),
+                baseScores: Array.from(room.players.entries()).map(([id, pl]) => ({ name: pl.name, score: pl.score || 0 })),
+                roundsPlayed: room._tiebreakerPlayed
+              });
+              setTimeout(() => endSession(currentRoom), 1500);
+            }
           } else {
             // Round suivant après un délai
             setTimeout(() => {
@@ -3793,7 +4225,7 @@ io.on('connection', (socket) => {
         
         logger.info('[Server][Multijoueur] Démarrage régénération carte', { 
           roomCode: currentRoom, 
-          excludedPairs: 0,
+          excludedPairs: (room.validatedPairIds || new Set()).size,
           newSeed 
         });
         
@@ -3804,7 +4236,7 @@ io.on('connection', (socket) => {
             classes: room.selectedClasses || [],
             extras: room.selectedExtras || [],
             selectedLevel: room.selectedLevel || null,
-            excludedPairIds: new Set(),
+            excludedPairIds: room.validatedPairIds || new Set(),
             deckState: room.deckState,
             logFn: (level, message, data) => emitServerLog(currentRoom, level, message, data)
           };
@@ -3994,8 +4426,10 @@ io.on('connection', (socket) => {
     const success = await crazyArena.joinTrainingMatch(socket, matchId, studentData);
     if (success) {
       logger.info('[Server][Training] Joueur rejoint avec succès', { matchId, studentId: studentData.studentId, socketId: socket.id });
+      sTrace.push('training:join-ok', { matchId: matchId.slice(-8), studentId: studentData.studentId.slice(-8), name: studentData.name, socketId: socket.id.slice(0, 8) });
     } else {
       logger.warn('[Server][Training] Échec join - match introuvable ou erreur', { matchId, studentId: studentData.studentId, socketId: socket.id });
+      sTrace.push('training:join-fail', { matchId: matchId.slice(-8), studentId: studentData.studentId.slice(-8), name: studentData.name, socketId: socket.id.slice(0, 8) });
     }
     if (typeof cb === 'function') {
       cb({ ok: success, matchInfo: { sessionName: 'Training' } });
@@ -4004,7 +4438,8 @@ io.on('connection', (socket) => {
 
   socket.on('training:ready', ({ matchId, studentId }) => {
     logger.info('[Server][Training] Joueur marque prêt', { matchId, studentId, socketId: socket.id });
-    crazyArena.trainingPlayerReady(socket, matchId, studentId);
+    const readyResult = crazyArena.trainingPlayerReady(socket, matchId, studentId);
+    sTrace.push('training:ready', { matchId: (matchId || '').slice(-8), studentId: (studentId || '').slice(-8), socketId: socket.id.slice(0, 8), result: readyResult || 'void' });
   });
 
   socket.on('training:teacher-join', ({ matchIds }) => {
@@ -4093,6 +4528,11 @@ io.on('connection', (socket) => {
   socket.on('arena:join', async ({ matchId, studentData }, cb) => {
     logger.info('[Server][Arena] Joueur rejoint', { matchId, studentId: studentData.studentId, name: studentData.name, socketId: socket.id });
     const success = await crazyArena.joinMatch(socket, matchId, studentData);
+    if (success) {
+      sTrace.push('arena:join-ok', { matchId: (matchId || '').slice(-8), studentId: (studentData.studentId || '').slice(-8), name: studentData.name, socketId: socket.id.slice(0, 8), rooms: Array.from(socket.rooms) });
+    } else {
+      sTrace.push('arena:join-fail', { matchId: (matchId || '').slice(-8), studentId: (studentData.studentId || '').slice(-8), name: studentData.name, socketId: socket.id.slice(0, 8) });
+    }
     if (typeof cb === 'function') {
       cb({ ok: success });
     }
@@ -4100,7 +4540,8 @@ io.on('connection', (socket) => {
 
   socket.on('arena:ready', ({ studentId }) => {
     logger.info('[Server][Arena] Joueur marque prêt (lobby)', { studentId, socketId: socket.id });
-    crazyArena.playerReady(socket, studentId);
+    const readyResult = crazyArena.playerReady(socket, studentId);
+    sTrace.push('arena:ready', { studentId: (studentId || '').slice(-8), socketId: socket.id.slice(0, 8), result: readyResult || 'void' });
   });
 
   socket.on('arena:pair-validated', (data) => {
@@ -4167,7 +4608,7 @@ io.on('connection', (socket) => {
   // ===== GRANDE SALLE EVENTS =====
   let currentGS = null; // salleId the player is in
 
-  socket.on('gs:join', async ({ name, salleId, tournamentId }, cb) => {
+  socket.on('gs:join', async ({ name, salleId, tournamentId, studentId: gsStudentId }, cb) => {
     let id = salleId || 'grande-salle-publique';
     
     // If joining a tournament, use tournament ID as salle ID and load config
@@ -4222,7 +4663,9 @@ io.on('connection', (socket) => {
       for (const [oldId, p] of salle.players.entries()) {
         if (p.name === playerName && oldId !== socket.id) {
           // Transfer player data to new socket
-          const playerData = { ...p };
+          const playerData = { ...p, disconnected: false };
+          delete playerData.disconnectedAt;
+          delete playerData._oldSocketId;
           salle.players.delete(oldId);
           salle.players.set(socket.id, playerData);
           salle.spectators.delete(oldId);
@@ -4237,6 +4680,28 @@ io.on('connection', (socket) => {
               roundIndex: salle.roundsPlayed,
             });
           }
+          // ✅ RESUME: Si le match était en pause à cause de ce joueur, reprendre
+          if (salle.status === 'paused' && salle._pauseState && salle._pauseState.disconnectedPlayerName === playerName) {
+            if (salle._forfeitTimeout) { clearTimeout(salle._forfeitTimeout); salle._forfeitTimeout = null; }
+
+            const pauseState = salle._pauseState;
+            const pauseDuration = Date.now() - pauseState.pausedAt;
+            salle.status = pauseState.previousStatus || 'playing';
+
+            const remMs = pauseState.remainingMs || 1000;
+            salle._roundTimerSetAt = Date.now() - ((salle.config.duration || 90) * 1000 - remMs);
+            salle.roundTimer = setTimeout(() => { gsEndRound(id); }, remMs);
+
+            delete salle._pauseState;
+
+            io.to(`gs:${id}`).emit('gs:match-resumed', {
+              reconnectedPlayer: playerName,
+              pauseDurationMs: pauseDuration
+            });
+
+            console.log(`[GS] ▶️ Salle "${id}" REPRISE — pause de ${Math.round(pauseDuration / 1000)}s — ${playerName} reconnecté — timer restant ${Math.round(remMs / 1000)}s`);
+            sTrace.push('gs:match-resumed', { salle: id, player: playerName, pauseDurationMs: pauseDuration, remainingMs: Math.round(remMs) });
+          }
           break;
         }
       }
@@ -4248,6 +4713,7 @@ io.on('connection', (socket) => {
     } else {
       salle.players.set(socket.id, {
         name: playerName,
+        studentId: gsStudentId || null,
         score: 0,
         errors: 0,
         rank: 0,
@@ -4319,6 +4785,8 @@ io.on('connection', (socket) => {
     salle.roundsPlayed = 0;
     salle.eliminationWave = 0;
     salle.validatedPairIds = new Set();
+    salle.roundHistory = [];
+    persistSessionStart(salle, 'grande-salle', id);
     
     gsEmitState(id);
     
@@ -4364,6 +4832,10 @@ io.on('connection', (socket) => {
         // Invalid pair - increment errors
         player.errors = (player.errors || 0) + 1;
         socket.emit('gs:pair:invalid', { a, b });
+        // 📊 Suivi tentative incorrecte pour la progression
+        try { persistMPAttempt(salle, socket.id, { isCorrect: false, zoneAId: a, zoneBId: b }); } catch {}
+        // 📊 DIAGNOSTIC: Enregistrer l'erreur dans roundHistory
+        try { const lr = salle.roundHistory && salle.roundHistory[salle.roundHistory.length - 1]; if (lr) lr.errors.push({ player_id: player.studentId || socket.id, display_name: player.name, timestamp: Date.now() }); } catch {}
         return;
       }
     }
@@ -4371,6 +4843,10 @@ io.on('connection', (socket) => {
     // Valid pair!
     salle.foundPairs.add(keyZones);
     player.score = (player.score || 0) + 1;
+    // 📊 Suivi tentative correcte pour la progression
+    try { persistMPAttempt(salle, socket.id, { isCorrect: true, zoneAId: a, zoneBId: b }); } catch {}
+    // 📊 DIAGNOSTIC: Enregistrer la paire trouvée dans roundHistory
+    try { const lr = salle.roundHistory && salle.roundHistory[salle.roundHistory.length - 1]; if (lr) lr.pairs_found.push({ player_id: player.studentId || socket.id, display_name: player.name, timestamp: Date.now(), time_ms: salle.currentRoundStartedAt ? (Date.now() - salle.currentRoundStartedAt) : null }); } catch {}
     
     // Track validated pairId for exclusion
     try {
@@ -4409,7 +4885,7 @@ io.on('connection', (socket) => {
         classes: salle.config.classes || [],
         extras: salle.config.extras || [],
         selectedLevel: salle.config.selectedLevel || null,
-        excludedPairIds: new Set(),
+        excludedPairIds: salle.validatedPairIds || new Set(),
         deckState: salle.deckState,
         logFn: (level, message, data) => emitServerLog(salleId, level, message, data)
       });
@@ -4452,13 +4928,74 @@ io.on('connection', (socket) => {
       const salle = grandeSalles.get(currentGS);
       if (salle) {
         if (salle.sessionActive) {
-          // Session in progress: keep player data for reconnection from Carte.js
-          // Just mark as disconnected, don't delete
           const player = salle.players.get(socket.id);
           if (player) {
+            player.disconnected = true;
             player.disconnectedAt = Date.now();
+            player._oldSocketId = socket.id;
             console.log(`[GS] Player "${player.name}" disconnected from "${currentGS}" (kept for reconnection, ${salle.players.size} players)`);
             sTrace.push('gs:disconnect', { salle: currentGS, name: player.name, socketId: socket.id, reason, sessionActive: true, keptForReconnect: true, players: salle.players.size });
+
+            // ✅ PAUSE: Geler le match si peu de joueurs actifs (≤ 4 connectés restants)
+            const activePlayers = Array.from(salle.players.values()).filter(p => !p.disconnected && !p.eliminated);
+            if (salle.status === 'playing' && activePlayers.length <= 3 && !salle._pauseState) {
+              // Geler le round timer
+              let remainingMs = (salle.config.duration || 90) * 1000;
+              if (salle._roundTimerSetAt) {
+                const elapsed = Date.now() - salle._roundTimerSetAt;
+                remainingMs = Math.max(0, (salle.config.duration || 90) * 1000 - elapsed);
+              }
+              if (salle.roundTimer) { try { clearTimeout(salle.roundTimer); } catch {} salle.roundTimer = null; }
+
+              salle._pauseState = {
+                previousStatus: salle.status,
+                pausedAt: Date.now(),
+                remainingMs,
+                disconnectedSocketId: socket.id,
+                disconnectedPlayerName: player.name
+              };
+              salle.status = 'paused';
+
+              const GS_GRACE_PERIOD_MS = 15000;
+
+              io.to(`gs:${currentGS}`).emit('gs:match-paused', {
+                disconnectedPlayer: player.name,
+                gracePeriodMs: GS_GRACE_PERIOD_MS
+              });
+
+              console.log(`[GS] ⏸️ Salle "${currentGS}" en PAUSE — ${player.name} déconnecté — grace ${GS_GRACE_PERIOD_MS / 1000}s — timer restant ${Math.round(remainingMs / 1000)}s`);
+              sTrace.push('gs:match-paused', { salle: currentGS, player: player.name, gracePeriodMs: GS_GRACE_PERIOD_MS, remainingMs: Math.round(remainingMs), activePlayers: activePlayers.length });
+
+              salle._forfeitTimeout = setTimeout(() => {
+                if (!salle || salle.status !== 'paused') return;
+
+                const forfeitName = salle._pauseState?.disconnectedPlayerName || '?';
+                const forfeitSocketId = salle._pauseState?.disconnectedSocketId;
+
+                console.log(`[GS] ⏰ Grace period expirée — forfait de ${forfeitName} dans "${currentGS}"`);
+                sTrace.push('gs:player-forfeit', { salle: currentGS, player: forfeitName });
+
+                if (forfeitSocketId) salle.players.delete(forfeitSocketId);
+
+                io.to(`gs:${currentGS}`).emit('gs:player-forfeit', {
+                  forfeitPlayer: forfeitName,
+                  remainingPlayers: salle.players.size
+                });
+
+                // Reprendre
+                const ps = salle._pauseState;
+                salle.status = ps?.previousStatus || 'playing';
+                delete salle._pauseState;
+                salle._forfeitTimeout = null;
+
+                const remMs = ps?.remainingMs || 1000;
+                salle._roundTimerSetAt = Date.now() - ((salle.config.duration || 90) * 1000 - remMs);
+                salle.roundTimer = setTimeout(() => { gsEndRound(currentGS); }, remMs);
+
+                console.log(`[GS] ▶️ Salle "${currentGS}" reprise après forfait — ${salle.players.size} joueur(s) — timer restant ${Math.round(remMs / 1000)}s`);
+                gsEmitState(currentGS);
+              }, GS_GRACE_PERIOD_MS);
+            }
           }
           salle.spectators.delete(socket.id);
         } else {
@@ -4477,9 +5014,126 @@ io.on('connection', (socket) => {
     // Gérer déconnexion multijoueur classique
     if (!currentRoom) return;
     const room = getRoom(currentRoom);
+    const disconnectedPlayer = room.players.get(socket.id);
     // ── TRAÇAGE: log déconnexion avec contexte complet ──
-    console.log(`[GAME-TRACE] disconnect | room=${currentRoom} socket=${socket.id} reason=${reason} sessionActive=${room.sessionActive} playersBeforeDelete=${room.players.size} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession} roundTimer=${!!room.roundTimer}`);
-    sTrace.push('disconnect', { room: currentRoom, socketId: socket.id, reason, sessionActive: room.sessionActive, playersBeforeDelete: room.players.size, roundsPlayed: room.roundsPlayed, roundsPerSession: room.roundsPerSession, roundTimer: !!room.roundTimer });
+    console.log(`[GAME-TRACE] disconnect | room=${currentRoom} socket=${socket.id} name=${disconnectedPlayer?.name || '?'} reason=${reason} sessionActive=${room.sessionActive} playersBeforeDelete=${room.players.size} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession} roundTimer=${!!room.roundTimer}`);
+    sTrace.push('disconnect', { room: currentRoom, socketId: socket.id, name: disconnectedPlayer?.name, reason, sessionActive: room.sessionActive, playersBeforeDelete: room.players.size, roundsPlayed: room.roundsPlayed, roundsPerSession: room.roundsPerSession, roundTimer: !!room.roundTimer });
+
+    // ✅ PAUSE: Si session active avec 2+ joueurs (pas solo), geler le match au lieu de supprimer
+    if (room.sessionActive && room.status === 'playing' && disconnectedPlayer && room.players.size >= 2 && !currentRoom.startsWith('solo-')) {
+      // Marquer le joueur comme déconnecté (NE PAS supprimer)
+      disconnectedPlayer.disconnected = true;
+      disconnectedPlayer.disconnectedAt = Date.now();
+      disconnectedPlayer._oldSocketId = socket.id;
+
+      // Geler le round timer
+      let remainingMs = (room.duration || 60) * 1000;
+      if (room._roundTimerSetAt) {
+        const elapsed = Date.now() - room._roundTimerSetAt;
+        remainingMs = Math.max(0, (room.duration || 60) * 1000 - elapsed);
+      }
+      if (room.roundTimer) { try { clearTimeout(room.roundTimer); } catch {} room.roundTimer = null; }
+
+      // Sauvegarder l'état de pause
+      room._pauseState = {
+        previousStatus: room.status,
+        pausedAt: Date.now(),
+        remainingMs,
+        disconnectedSocketId: socket.id,
+        disconnectedPlayerName: disconnectedPlayer.name
+      };
+      room.status = 'paused';
+
+      const MP_GRACE_PERIOD_MS = 30000;
+
+      // Notifier les autres joueurs
+      io.to(currentRoom).emit('mp:match-paused', {
+        disconnectedPlayer: disconnectedPlayer.name,
+        gracePeriodMs: MP_GRACE_PERIOD_MS
+      });
+
+      console.log(`[MP] ⏸️ Room ${currentRoom} en PAUSE — ${disconnectedPlayer.name} déconnecté — grace period ${MP_GRACE_PERIOD_MS / 1000}s — timer restant ${Math.round(remainingMs / 1000)}s`);
+      sTrace.push('mp:match-paused', { room: currentRoom, player: disconnectedPlayer.name, gracePeriodMs: MP_GRACE_PERIOD_MS, remainingMs: Math.round(remainingMs) });
+
+      // Lancer le timeout forfait
+      room._forfeitTimeout = setTimeout(() => {
+        if (!room || room.status !== 'paused') return;
+
+        const forfeitName = room._pauseState?.disconnectedPlayerName || '?';
+        const forfeitSocketId = room._pauseState?.disconnectedSocketId;
+
+        console.log(`[MP] ⏰ Grace period expirée pour room ${currentRoom} — forfait de ${forfeitName}`);
+        sTrace.push('mp:player-forfeit', { room: currentRoom, player: forfeitName });
+
+        // Supprimer le joueur forfait
+        if (forfeitSocketId) room.players.delete(forfeitSocketId);
+
+        // Notifier
+        io.to(currentRoom).emit('mp:player-forfeit', {
+          forfeitPlayer: forfeitName,
+          remainingPlayers: room.players.size
+        });
+
+        // Reprendre le match si des joueurs restent
+        if (room.players.size >= 1) {
+          const pauseState = room._pauseState;
+          room.status = pauseState?.previousStatus || 'playing';
+          delete room._pauseState;
+          room._forfeitTimeout = null;
+
+          // Relancer le round timer avec le temps restant
+          const remMs = pauseState?.remainingMs || 0;
+
+          // ✅ FIX: Si remainingMs=0, le round avait DÉJÀ expiré avant la déconnexion
+          // → round:result déjà émis par le timer normal → passer directement au round suivant
+          if (remMs <= 0) {
+            console.log(`[MP] ▶️ Round déjà expiré avant déco — skip round:result, lancement prochain round`);
+            const more = !isFinite(room.roundsPerSession) || (room.roundsPlayed < room.roundsPerSession);
+            if (more && room.sessionActive) {
+              room.roundTimer = setTimeout(() => { const r = getRoom(currentRoom); if (!r || !r.sessionActive) return; startRound(currentRoom); }, 400);
+            } else { endSession(currentRoom); }
+          } else {
+            room._roundTimerSetAt = Date.now() - ((room.duration || 60) * 1000 - remMs);
+            room.roundTimer = setTimeout(() => {
+              // Même logique que l'expiration normale du roundTimer
+              try { if (room.pendingClaims && room.pendingClaims.size) { for (const [, e] of room.pendingClaims.entries()) { try { if (e && e.timer) clearTimeout(e.timer); } catch {} } room.pendingClaims.clear(); } } catch {}
+              const base = room.roundBaseScores instanceof Map ? room.roundBaseScores : new Map();
+              const deltas = Array.from(room.players.entries()).map(([id, pl]) => ({ id, name: pl.name, delta: (pl.score || 0) - (base.has(id) ? base.get(id) : 0), now: pl.score || 0 }));
+              let best = -Infinity; let winners = [];
+              for (const d of deltas) { if (d.delta > best) { best = d.delta; winners = [d]; } else if (d.delta === best) { winners.push(d); } }
+              let winnerId = null, winnerName = null;
+              if (best > 0 && winners.length === 1) { winnerId = winners[0].id; winnerName = winners[0].name; }
+              io.to(currentRoom).emit('round:result', { winnerId, winnerName, roundIndex: room.roundsPlayed, roundsTotal: isFinite(room.roundsPerSession) ? room.roundsPerSession : null });
+              const more = !isFinite(room.roundsPerSession) || (room.roundsPlayed < room.roundsPerSession);
+              if (more && room.sessionActive) { room.roundTimer = setTimeout(() => { const r = getRoom(currentRoom); if (!r || !r.sessionActive) return; startRound(currentRoom); }, 400); }
+              else { endSession(currentRoom); }
+            }, remMs);
+          }
+
+          console.log(`[MP] ▶️ Room ${currentRoom} reprise après forfait — ${room.players.size} joueur(s) — timer restant ${Math.round(remMs / 1000)}s`);
+          emitRoomState(currentRoom);
+        } else {
+          // Plus personne
+          room.status = 'lobby';
+          room.sessionActive = false;
+          delete room._pauseState;
+          room._forfeitTimeout = null;
+          if (room.roundTimer) { try { clearTimeout(room.roundTimer); } catch {} room.roundTimer = null; }
+          rooms.delete(currentRoom);
+          console.log(`[MP] Room ${currentRoom} supprimée (forfait + 0 joueur restant)`);
+        }
+      }, MP_GRACE_PERIOD_MS);
+
+      // Réassigner l'hôte si nécessaire
+      if (room.hostId === socket.id) {
+        for (const [sid, p] of room.players.entries()) {
+          if (!p.disconnected) { room.hostId = sid; break; }
+        }
+      }
+      return; // ✅ Ne PAS supprimer le joueur ni la room
+    }
+
+    // Comportement normal (hors pause): supprimer le joueur
     room.players.delete(socket.id);
     if (room.hostId === socket.id) {
       // réassigner l'hôte si possible
@@ -4576,6 +5230,27 @@ server.listen(PORT, '0.0.0.0', () => {
 
   // Charger les données admin depuis Supabase (survit aux redéploiements)
   loadContentFromSupabase().catch(e => console.warn('[ContentStore] Init error:', e.message));
+
+  // 💾 Nettoyage des sessions orphelines (crash recovery): marquer les sessions SP/GS non terminées comme abandonnées
+  if (supabaseAdmin) {
+    (async () => {
+      try {
+        const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(); // sessions > 2h sans completed_at
+        const { data, error } = await supabaseAdmin
+          .from('training_sessions')
+          .update({ completed_at: new Date().toISOString() })
+          .is('completed_at', null)
+          .lt('created_at', cutoff)
+          .in('class_id', ['salle-privee', 'multiplayer', 'grande-salle'])
+          .select('id');
+        if (error) {
+          console.warn('[Boot] Orphan session cleanup error:', error.message);
+        } else if (data && data.length > 0) {
+          console.log(`[Boot] 🧹 ${data.length} sessions orphelines marquées comme terminées`);
+        }
+      } catch (e) { console.warn('[Boot] Orphan cleanup exception:', e.message); }
+    })();
+  }
   
   // Démarrer les tâches cron de monitoring
   try {

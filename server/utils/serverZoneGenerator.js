@@ -822,6 +822,20 @@ function generateRoundZones(seed, config = {}) {
         if (czId && nzId) {
           used.calcul.add(chosen.cId);
           used.chiffre.add(chosen.nId);
+          // ✅ POST-PLACEMENT VERIFY: force-correct chiffre if it doesn't match the calcul result
+          try {
+            const _cZ = zonesData.find(r => r.id === czId);
+            const _nZ = zonesData.find(r => r.id === nzId);
+            if (_cZ && _nZ) {
+              const _cR = evaluateCalcul(_cZ.content);
+              if (_cR !== null && !isValidMathPair(_cZ.content, _nZ.content)) {
+                const correctStr = Number.isInteger(_cR) ? String(_cR) : String(Math.round(_cR * 1e8) / 1e8);
+                console.error(`[ServerZoneGen] ⚠️ CC pair mismatch! calcul="${_cZ.content}"=${_cR} but chiffre="${_nZ.content}" → forced to "${correctStr}"`);
+                _nZ.content = correctStr;
+                _nZ.label = correctStr;
+              }
+            }
+          } catch (_vErr) { console.warn('[ServerZoneGen] CC verify error:', _vErr); }
           // Extraire theme/level depuis l'association ou les éléments
           const _ccAssoc = associations.find(a => a.calculId === chosen.cId && a.chiffreId === chosen.nId);
           const _ccThemes = _ccAssoc?.themes || calculsById[chosen.cId]?.themes || chiffresById[chosen.nId]?.themes || [];
