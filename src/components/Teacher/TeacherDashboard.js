@@ -173,7 +173,7 @@ export default function TeacherDashboard() {
             {isAuthError ? (
               <button onClick={() => navigate('/login')} style={btn('#0D6A7A', '#fff')}>Se reconnecter</button>
             ) : (
-              <button onClick={() => navigate('/modes')} style={btn('#f1f5f9', '#334155')}>← Retour</button>
+              <button onClick={() => navigate('/teacher')} style={btn('#f1f5f9', '#334155')}>← Retour</button>
             )}
           </div>
         </div>
@@ -191,7 +191,7 @@ export default function TeacherDashboard() {
             Votre adresse e-mail n'est associée à aucune classe.
             Contactez l'administrateur de votre école pour qu'il importe votre classe via le CSV.
           </p>
-          <button onClick={() => navigate('/modes')} style={btn('#0D6A7A', '#fff')}>Retour</button>
+          <button onClick={() => navigate('/teacher')} style={btn('#0D6A7A', '#fff')}>Retour</button>
         </div>
       </div>
     );
@@ -213,7 +213,7 @@ export default function TeacherDashboard() {
           <button onClick={() => navigate('/training-arena/setup')} style={btn('linear-gradient(135deg, #1AACBE, #148A9C)', '#fff')}>
             🎮 Lancer un entraînement
           </button>
-          <button onClick={() => navigate('/modes')} style={btn('#f1f5f9', '#334155')}>
+          <button onClick={() => navigate('/teacher')} style={btn('#f1f5f9', '#334155')}>
             ← Retour
           </button>
         </div>

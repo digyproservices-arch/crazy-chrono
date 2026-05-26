@@ -1453,7 +1453,7 @@ export default function TrainingArenaSetup() {
 
       <div style={{ marginTop: 24 }}>
         <button 
-          onClick={() => navigate('/modes')}
+          onClick={() => navigate('/teacher')}
           style={{ 
             padding: '10px 20px', 
             borderRadius: 8, 
