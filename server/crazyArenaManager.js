@@ -1368,9 +1368,26 @@ class CrazyArenaManager {
           pairsToFind: match.tiebreakerPairsToFind
         });
 
+        // 📊 MONITORING: Tracer paire validée dans sTrace (comme Arena)
+        const _tbPairIdxT = (match._pairEventCount = (match._pairEventCount || 0) + 1);
+        const _tbClaimantsT = match._pairClaimLock ? Array.from(match._pairClaimLock.claimants).map(sid => { const pl = match.players.find(p => p.studentId === sid); return pl?.name || sid.slice(-6); }) : [player.name];
+        const _tbElapsedT = match._pairClaimLock ? (now - match._pairClaimLock.timestamp) : 0;
+        const _tbScoresT = match.players.map(p => ({ name: p.name, score: (p.scoreBeforeTiebreaker || 0) + (p.tiebreakerScore || 0) }));
+        sTrace.push('training:pair-validated', {
+          matchId: matchId.slice(-8), pairEvent: _tbPairIdxT, round: match.tiebreakerPairsFound,
+          isTiebreaker: true, claimantsCount: _tbClaimantsT.length,
+          claimantNames: _tbClaimantsT, elapsedMs: _tbElapsedT, windowMs: ARENA_TIE_WINDOW_MS,
+          scoresAfter: _tbScoresT
+        });
+        sTrace.push('training:score-update', {
+          matchId: matchId.slice(-8), pairEvent: _tbPairIdxT, claimantsCount: _tbClaimantsT.length,
+          claimantNames: _tbClaimantsT, isTiebreaker: true, elapsedMs: _tbElapsedT,
+          scoresAfter: _tbScoresT
+        });
+
         // 💾 PERSISTENCE: Sauvegarder le score tiebreaker en DB
         this.persistScoreUpdate(matchId, studentId);
-        // 📊 MAÎTRISE: Enregistrer la tentative pour le suivi par thème
+        // 📊 MAÎTRISE: Enregistrer la tentante pour le suivi par thème
         this.persistAttempt(match, player, { isCorrect: true, pairId, zoneAId, zoneBId });
         
         // ✅ CRITIQUE: Émettre scores tiebreaker aux clients (score combiné = base + tiebreaker)
@@ -1560,6 +1577,24 @@ class CrazyArenaManager {
           pairsValidated: player.pairsValidated
         });
       }
+
+      // 📊 MONITORING: Tracer paire validée dans sTrace (comme Arena)
+      const _tScoresBefore = match.players.map(p => ({ name: p.name, score: (p.studentId === studentId ? (player.score - 1) : p.score) }));
+      const _tScoresAfter = match.players.map(p => ({ name: p.name, score: p.score }));
+      const _tPairIdx = (match._pairEventCount = (match._pairEventCount || 0) + 1);
+      const _tClaimantNames = match._pairClaimLock ? Array.from(match._pairClaimLock.claimants).map(sid => { const pl = match.players.find(p => p.studentId === sid); return pl?.name || sid.slice(-6); }) : [player.name];
+      const _tElapsed = match._pairClaimLock ? (Date.now() - match._pairClaimLock.timestamp) : 0;
+      sTrace.push('training:pair-validated', {
+        matchId: matchId.slice(-8), pairEvent: _tPairIdx, round: match.roundsPlayed,
+        isTiebreaker: false, claimantsCount: _tClaimantNames.length,
+        claimantNames: _tClaimantNames, elapsedMs: _tElapsed, windowMs: ARENA_TIE_WINDOW_MS,
+        scoresBeforeUpdate: _tScoresBefore
+      });
+      sTrace.push('training:score-update', {
+        matchId: matchId.slice(-8), pairEvent: _tPairIdx, claimantsCount: _tClaimantNames.length,
+        claimantNames: _tClaimantNames, isTiebreaker: false, elapsedMs: _tElapsed,
+        scoresAfter: _tScoresAfter
+      });
 
       // 💾 PERSISTENCE: Sauvegarder le score en DB (fire-and-forget)
       this.persistScoreUpdate(matchId, studentId);
