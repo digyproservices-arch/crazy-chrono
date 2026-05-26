@@ -668,13 +668,13 @@ export default function TrainingArenaSetup() {
   console.log('[TrainingArena] ✅ Affichage de l\'UI complète');
   
   return (
-    <div style={{ maxWidth: 1400, margin: '0 auto', padding: 40 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+    <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>
+          <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 700, marginBottom: 8 }}>
             🏆 Mode Entraînement - Training Arena
           </h1>
-          <p style={{ fontSize: 16, color: '#666', marginBottom: 0 }}>
+          <p style={{ fontSize: 14, color: '#666', marginBottom: 0 }}>
             Créez des groupes d'au moins 2 élèves et lancez des matchs compétitifs
           </p>
         </div>
