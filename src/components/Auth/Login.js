@@ -6,8 +6,10 @@ import { logAuth } from '../../utils/authLogger';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com';
 
-// Redirection post-login selon le rôle
-const getPostLoginPath = (profile) => {
+// Redirection post-login selon le rôle (ou redirect query param)
+const getPostLoginPath = (profile, searchParams) => {
+  const redirect = searchParams?.get?.('redirect');
+  if (redirect && redirect.startsWith('/')) return redirect;
   if (profile?.role === 'rectorat') return '/rectorat';
   return '/modes';
 };
@@ -158,7 +160,7 @@ export default function Login({ onLogin }) {
               try { localStorage.removeItem('cc_student_id'); } catch {}
             }
             onLogin && onLogin(profile);
-            navigate(getPostLoginPath(profile), { replace: true });
+            navigate(getPostLoginPath(profile, searchParams), { replace: true });
             return;
           }
         }
@@ -167,8 +169,8 @@ export default function Login({ onLogin }) {
         console.log('[Login:fallback] cc_auth=' + (saved ? 'EXISTS' : 'NULL'));
         if (saved) {
           const payload = JSON.parse(saved);
-          console.log('[Login:fallback] cc_auth has id=' + !!(payload?.id) + ' pseudo=' + !!(payload?.pseudo) + ' → navigating to ' + getPostLoginPath(payload));
-          if (payload?.id || payload?.pseudo) navigate(getPostLoginPath(payload), { replace: true });
+          console.log('[Login:fallback] cc_auth has id=' + !!(payload?.id) + ' pseudo=' + !!(payload?.pseudo) + ' → navigating to ' + getPostLoginPath(payload, searchParams));
+          if (payload?.id || payload?.pseudo) navigate(getPostLoginPath(payload, searchParams), { replace: true });
         }
       } catch {}
     })();
@@ -421,7 +423,7 @@ export default function Login({ onLogin }) {
         }
         
         onLogin && onLogin(profile);
-        navigate(getPostLoginPath(profile), { replace: true });
+        navigate(getPostLoginPath(profile, searchParams), { replace: true });
       }
     } catch (e1) {
       setError(e1.message || 'Erreur de connexion');
@@ -510,7 +512,7 @@ export default function Login({ onLogin }) {
         };
         saveAuth(profile);
         onLogin && onLogin(profile);
-        navigate(getPostLoginPath(profile), { replace: true });
+        navigate(getPostLoginPath(profile, searchParams), { replace: true });
         return;
       }
       // Cas standard: confirmation e‑mail requise
@@ -569,7 +571,7 @@ export default function Login({ onLogin }) {
           // ✅ FIX: Un élève qui se connecte avec succès est forcément licencié (le backend rejette les non-licenciés)
           try { localStorage.setItem('cc_subscription_status', 'pro'); } catch {}
           onLogin && onLogin(profile);
-          navigate(getPostLoginPath(profile), { replace: true });
+          navigate(getPostLoginPath(profile, searchParams), { replace: true });
         }
       }
     } catch (e1) {

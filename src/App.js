@@ -70,6 +70,7 @@ const TrainingSessionCreate = lazyWithRetry(() => import('./components/Teacher/T
 const TrainingManagerDashboard = lazyWithRetry(() => import('./components/Teacher/TrainingManagerDashboard'));
 const TrainingPlayerLobby = lazyWithRetry(() => import('./components/Teacher/TrainingPlayerLobby'));
 const GrandeSalle = lazyWithRetry(() => import('./components/GrandeSalle/GrandeSalle'));
+const GrandeSalleJoin = lazyWithRetry(() => import('./components/GrandeSalle/GrandeSalleJoin'));
 const TournamentAdmin = lazyWithRetry(() => import('./components/GrandeSalle/TournamentAdmin'));
 const LiveBoard = lazyWithRetry(() => import('./components/GrandeSalle/LiveBoard'));
 const LearnMode = lazyWithRetry(() => import('./components/Modes/LearnMode'));
@@ -757,7 +758,8 @@ function App() {
               <Route path="/training-arena/game" element={<RequireAuth auth={auth}><TrainingArenaGame /></RequireAuth>} />
               {/* Grande Salle publique */}
               <Route path="/grande-salle" element={<RequireAuth auth={auth}><GrandeSalle /></RequireAuth>} />
-              <Route path="/grande-salle/tournament/:tournamentId" element={<RequireAuth auth={auth}><GrandeSalle /></RequireAuth>} />
+              <Route path="/grande-salle/join/:tournamentId" element={<GrandeSalleJoin />} />
+              <Route path="/grande-salle/tournament/:tournamentId" element={<GrandeSalle />} />
               <Route path="/grande-salle/live/:tournamentId" element={<RequireAuth auth={auth}><LiveBoard /></RequireAuth>} />
               <Route path="/admin/tournaments" element={<RequireAdmin><TournamentAdmin /></RequireAdmin>} />
               {/* Dashboard Rectorat (cadres académiques) */}

@@ -269,7 +269,7 @@ export default function LiveBoard() {
   }, [leaderboard, players]);
 
   const svgPath = `${process.env.PUBLIC_URL}/images/carte-svg.svg`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`https://app.crazy-chrono.com/grande-salle/tournament/${tournamentId}`)}&color=0D6A7A`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`https://app.crazy-chrono.com/grande-salle/join/${tournamentId}`)}&color=0D6A7A`;
 
   const BADGE = (c) => ({ display: 'inline-block', padding: '4px 12px', borderRadius: 20, background: c, fontSize: 12, fontWeight: 700 });
 

@@ -58,7 +58,13 @@ export default function GrandeSalle() {
     } catch {}
   }, []);
 
-  useEffect(() => { if (isFree()) navigate('/pricing', { replace: true }); }, [navigate]);
+  // Rediriger les free SAUF si c'est un guest qui rejoint un tournoi via QR code
+  useEffect(() => {
+    if (tournamentId) {
+      try { const g = localStorage.getItem('cc_gs_guest'); if (g) return; } catch {}
+    }
+    if (isFree()) navigate('/pricing', { replace: true });
+  }, [navigate, tournamentId]);
 
   // Check if returning from /carte with finish data
   useEffect(() => {
@@ -98,6 +104,12 @@ export default function GrandeSalle() {
   }, [tournamentId]);
 
   const getPlayerName = useCallback(() => {
+    // Priorité 1: données guest (QR code join)
+    try {
+      const g = JSON.parse(localStorage.getItem('cc_gs_guest') || 'null');
+      if (g?.displayName) return g.displayName;
+    } catch {}
+    // Priorité 2: compte connecté
     try {
       const a = JSON.parse(localStorage.getItem('cc_auth') || '{}');
       if (a.name && a.name !== 'Utilisateur') return a.name;
@@ -108,7 +120,9 @@ export default function GrandeSalle() {
   }, []);
 
   useEffect(() => {
-    if (isFree()) return;
+    // Permettre la connexion pour les guests de tournoi même en free
+    const hasGuestData = (() => { try { return !!localStorage.getItem('cc_gs_guest'); } catch { return false; } })();
+    if (isFree() && !(tournamentId && hasGuestData)) return;
     const socket = io(getBackendUrl(), { transports: ['websocket', 'polling'] });
     socketRef.current = socket;
 
@@ -198,7 +212,7 @@ export default function GrandeSalle() {
         <div style={{ ...CARD, textAlign: 'center', marginBottom: 24, background: 'rgba(255,255,255,0.95)', border: '2px solid #F5A623' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>Flashez pour rejoindre</div>
           <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(`https://app.crazy-chrono.com/grande-salle/tournament/${tournamentId}`)}&color=0D6A7A`}
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(`https://app.crazy-chrono.com/grande-salle/join/${tournamentId}`)}&color=0D6A7A`}
             alt="QR Code"
             style={{ width: 280, height: 280, borderRadius: 12 }}
           />
@@ -382,7 +396,23 @@ export default function GrandeSalle() {
           <span style={{ fontWeight: 700, color: '#94a3b8' }}>{p.score} pts</span>
         </div>
       ))}
-      <button onClick={() => navigate('/modes')} style={{ marginTop: 30, padding: '14px 32px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #0D6A7A, #1AACBE)', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>Retour au menu</button>
+      {/* Upsell création de compte pour les guests */}
+      {(() => { try { const g = JSON.parse(localStorage.getItem('cc_gs_guest') || 'null'); return g?.isGuest; } catch { return false; } })() && (
+        <div style={{ ...CARD, background: 'rgba(13,106,122,0.15)', border: '1px solid rgba(26,172,190,0.3)', marginTop: 24, textAlign: 'center' }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>🎮</div>
+          <h3 style={{ margin: '0 0 8px', fontSize: 17, fontWeight: 800, color: '#1AACBE' }}>Envie de rejouer ?</h3>
+          <p style={{ fontSize: 13, color: '#94a3b8', margin: '0 0 16px', lineHeight: 1.5 }}>
+            Créez votre compte Crazy Chrono pour sauvegarder vos scores,<br/>participer aux prochains tournois et défier vos amis !
+          </p>
+          <button
+            onClick={() => navigate('/login')}
+            style={{ padding: '12px 28px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #0D6A7A, #1AACBE)', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: '0 4px 15px rgba(13,106,122,0.4)' }}
+          >
+            Créer mon compte gratuitement
+          </button>
+        </div>
+      )}
+      <button onClick={() => navigate('/modes')} style={{ marginTop: 20, padding: '14px 32px', borderRadius: 12, border: 'none', background: 'rgba(255,255,255,0.1)', color: '#94a3b8', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>Retour au menu</button>
     </div></div>
   );
 
