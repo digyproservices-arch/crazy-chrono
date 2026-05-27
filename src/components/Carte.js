@@ -621,6 +621,7 @@ const Carte = () => {
   const socketConnectedRef = useRef(false);
   const roundNewTimerRef = useRef(null);
   const roundEndTsRef = useRef(null);
+  const gsLastRoundIndexRef = useRef(null);
   // Expose a stable alias so existing handlers using `socket` keep working
   const socket = socketRef.current;
   // Apply session config (rounds/duration) once when we are host
@@ -2250,7 +2251,7 @@ const Carte = () => {
                   if (Number.isFinite(d) && d > 0) {
                     const elapsed = Math.floor((Date.now() - (roundData.startedAt || Date.now())) / 1000);
                     const remaining = Math.max(1, d - elapsed);
-                    setGameDuration(d);
+                    setGameDuration(remaining);
                     setTimeLeft(remaining);
                   }
                   try { enterGameFullscreen(); } catch {}
@@ -2282,11 +2283,16 @@ const Carte = () => {
           setGameActive(true);
           try {
             const d = parseInt(payload?.duration, 10);
-            if (Number.isFinite(d) && d > 0) { setGameDuration(d); setTimeLeft(d); }
-          } catch {}
-          try {
             const idx = parseInt(payload?.roundIndex, 10);
-            if (Number.isFinite(idx) && idx >= 0) setRoundsPlayed(idx);
+            const isNewRound = Number.isFinite(idx) && idx !== gsLastRoundIndexRef.current;
+            if (Number.isFinite(idx)) { gsLastRoundIndexRef.current = idx; setRoundsPlayed(idx); }
+            if (Number.isFinite(d) && d > 0 && isNewRound) {
+              const serverStartedAt = payload?.startedAt;
+              const elapsed = serverStartedAt ? Math.max(0, Math.floor((Date.now() - serverStartedAt) / 1000)) : 0;
+              const remaining = Math.max(1, d - elapsed);
+              setGameDuration(remaining);
+              setTimeLeft(remaining);
+            }
           } catch {}
           setGameSelectedIds([]);
           setGameMsg('');
@@ -4121,6 +4127,17 @@ function handleMouseUp() {
 }
 
 function handleGameClick(zone) {
+  // 📝 GS PERSISTENT LOG: survit aux navigations (localStorage direct)
+  const _isGS = socketRef.current?._isGrandeSalle;
+  const gsLog = (event, data) => {
+    if (!_isGS) return;
+    try {
+      const buf = JSON.parse(localStorage.getItem('cc_gs_click_log') || '[]');
+      buf.push({ ts: Date.now(), event, ...data });
+      if (buf.length > 40) buf.splice(0, buf.length - 40);
+      localStorage.setItem('cc_gs_click_log', JSON.stringify(buf));
+    } catch {}
+  };
   // 🔍 DIAGNOSTIC: Log every call with all guard states
   const _guardStates = { gameActive, assignBusy, assignInFlight: assignInFlightRef.current, processingPair: processingPairRef.current, validated: zone?.validated };
   try { addDiag('click:handleGameClick', {
@@ -4133,12 +4150,14 @@ function handleGameClick(zone) {
     selectedIds: [...gameSelectedIds]
   }); } catch {}
   logClickAttempt('GAME_CLICK', { zoneId: zone?.id, zoneType: zone?.type, content: String(zone?.content || zone?.label || '').substring(0, 40), guardStates: _guardStates, selectedIds: [...gameSelectedIds] });
+  gsLog('click', { zoneId: zone?.id, type: zone?.type, content: String(zone?.content || '').substring(0, 30), guards: _guardStates, sel: [...gameSelectedIds] });
   // Ignore clicks during assignment transition to avoid race conditions
   if (assignInFlightRef.current || assignBusy) {
     try { addDiag('click:REJECTED:assignBusy', { assignInFlight: assignInFlightRef.current, assignBusy, zoneId: zone?.id }); } catch {}
     console.warn('[CLICK-DIAG] REJECTED:assignBusy', zone?.id, { assignInFlight: assignInFlightRef.current, assignBusy });
     try { logClick('REJECTED:assignBusy', { zoneId: zone?.id, type: zone?.type, content: zone?.content, assignInFlight: assignInFlightRef.current, assignBusy }); } catch {}
     logClickAttempt('REJECTED:assignBusy', { zoneId: zone?.id, zoneType: zone?.type, content: String(zone?.content || '').substring(0, 40), reason: 'assignBusy', guardStates: _guardStates });
+    gsLog('REJECTED:assignBusy', { zoneId: zone?.id });
     return;
   }
   if (!gameActive || !zone) {
@@ -4146,6 +4165,7 @@ function handleGameClick(zone) {
     console.warn('[CLICK-DIAG] REJECTED:inactive', { gameActive, hasZone: !!zone });
     try { logClick('REJECTED:inactive', { gameActive, hasZone: !!zone }); } catch {}
     logClickAttempt('REJECTED:inactive', { reason: !gameActive ? 'game_not_active' : 'zone_null', guardStates: _guardStates });
+    gsLog('REJECTED:inactive', { gameActive, hasZone: !!zone });
     return;
   }
   // ✅ FIX DISPARITÉ: Ignorer zones déjà validées (masquées)
@@ -4161,6 +4181,7 @@ function handleGameClick(zone) {
     console.warn('[CLICK-DIAG] REJECTED:processingPair', zone?.id);
     try { logClick('REJECTED:processingPair', { zoneId: zone?.id, type: zone?.type, content: zone?.content }); } catch {}
     logClickAttempt('REJECTED:processingPair', { zoneId: zone.id, zoneType: zone.type, content: String(zone.content || '').substring(0, 40), reason: 'processing_pair', guardStates: _guardStates });
+    gsLog('REJECTED:processingPair', { zoneId: zone?.id });
     return;
   }
   // Déselection: clic sur une zone déjà sélectionnée = la retirer
@@ -4333,6 +4354,7 @@ function handleGameClick(zone) {
       }
       if (okPair) {
         console.log('[GAME] OK pair', { a, b, ZA: { id: ZA.id, type: ZA.type, pairId: ZA.pairId }, ZB: { id: ZB.id, type: ZB.type, pairId: ZB.pairId } });
+        gsLog('PAIR_OK', { a, b, tA: t1, tB: t2, pairKey, cA: String(ZA?.content||'').substring(0,30), cB: String(ZB?.content||'').substring(0,30) });
         try { logClick('ok', { zoneId: a, type: t1, content: ZA?.content }); } catch {}
         try { logClick('ok', { zoneId: b, type: t2, content: ZB?.content }); } catch {}
         try {
@@ -4431,6 +4453,7 @@ function handleGameClick(zone) {
           } else if (socket._isGrandeSalle) {
             // Mode Grande Salle
             try { socket.emit('gs:attemptPair', { a, b }); } catch {}
+            gsLog('EMIT:gs:attemptPair', { a, b, connected: socket.connected });
           } else {
             // Mode multijoueur classique
             try { socket.emit('attemptPair', { a, b }); } catch {}
@@ -4539,7 +4562,7 @@ function handleGameClick(zone) {
           }, 450);
       } else {
         console.log('[GAME] BAD pair', { a, b, ZA: ZA && { id: ZA.id, type: ZA.type, pairId: ZA.pairId }, ZB: ZB && { id: ZB.id, type: ZB.type, pairId: ZB.pairId } });
-
+        gsLog('PAIR_REJECTED', { a, b, tA: t1, tB: t2, pA: p1, pB: p2, cA: String(ZA?.content||'').substring(0,30), cB: String(ZB?.content||'').substring(0,30) });
         // MONITORING: Tracer factuellement chaque paire rejetée avec contexte complet
         try {
           const _rejReason = !ZA || !ZB ? 'zone_missing' : !allowed(t1, t2) ? 'type_mismatch' : !p1 || !p2 ? 'no_pairId' : p1 !== p2 ? 'pairId_mismatch' : 'unknown';

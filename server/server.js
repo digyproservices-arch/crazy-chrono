@@ -2379,6 +2379,7 @@ function gsStartRound(salleId) {
     duration: salle.config.duration,
     roundIndex: salle.roundsPlayed,
     eliminationWave: salle.eliminationWave,
+    startedAt: Date.now(),
   };
   
   salle.currentRoundStartedAt = Date.now();
@@ -4803,6 +4804,7 @@ io.on('connection', (socket) => {
               zones: salle.currentZones,
               duration: salle.config.duration || 90,
               roundIndex: salle.roundsPlayed,
+              startedAt: salle.currentRoundStartedAt || Date.now(),
             });
           }
           // ✅ RESUME: Si le match était en pause à cause de ce joueur, reprendre
@@ -5032,6 +5034,7 @@ io.on('connection', (socket) => {
         duration: salle.config.duration,
         roundIndex: salle.roundsPlayed,
         eliminationWave: salle.eliminationWave,
+        startedAt: salle.currentRoundStartedAt || Date.now(),
       });
     } catch (err) {
       console.error('[GS] Zone regen error:', err.message);
