@@ -115,6 +115,14 @@ export default function GrandeSalleJoin() {
     };
     localStorage.setItem('cc_gs_guest', JSON.stringify(guestData));
 
+    // Enregistrer l'entrée pour la collecte marketing (fire and forget)
+    const backendUrl = getBackendUrl();
+    fetch(`${backendUrl}/api/gs/tournaments/${tournamentId}/entry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ first_name: fn, last_name: ln, email: em }),
+    }).catch(() => {});
+
     // Navigate to the tournament lobby
     navigate(`/grande-salle/tournament/${tournamentId}`);
   };
@@ -126,16 +134,29 @@ export default function GrandeSalleJoin() {
       ? existingAuth.name
       : [existingAuth.firstName, existingAuth.lastName].filter(Boolean).join(' ').trim() || existingAuth.email?.split('@')[0] || 'Joueur';
 
+    const guestEmail = existingAuth.email || '';
+    const guestFN = existingAuth.firstName || name.split(' ')[0] || '';
+    const guestLN = existingAuth.lastName || name.split(' ').slice(1).join(' ') || '';
     localStorage.setItem('cc_gs_guest', JSON.stringify({
-      firstName: existingAuth.firstName || name.split(' ')[0] || '',
-      lastName: existingAuth.lastName || name.split(' ').slice(1).join(' ') || '',
-      email: existingAuth.email || '',
+      firstName: guestFN,
+      lastName: guestLN,
+      email: guestEmail,
       displayName: name,
       tournamentId,
       joinedAt: Date.now(),
       isGuest: false,
       userId: existingAuth.id || localStorage.getItem('cc_user_id') || null,
     }));
+
+    // Enregistrer l'entrée (fire and forget)
+    if (guestEmail) {
+      const backendUrl = getBackendUrl();
+      fetch(`${backendUrl}/api/gs/tournaments/${tournamentId}/entry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ first_name: guestFN, last_name: guestLN, email: guestEmail, user_id: existingAuth.id || null, is_subscriber: true }),
+      }).catch(() => {});
+    }
     navigate(`/grande-salle/tournament/${tournamentId}`);
   };
 
@@ -191,6 +212,20 @@ export default function GrandeSalleJoin() {
           {scheduled && (
             <div style={{ marginTop: 10, fontSize: 13, color: '#64748b' }}>
               📅 {scheduled.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
+          {/* Badge type d'accès */}
+          {tournament?.access_type && tournament.access_type !== 'free' && (
+            <div style={{ marginTop: 8 }}>
+              {tournament.access_type === 'subscribers' && (
+                <span style={{ display: 'inline-block', padding: '4px 14px', borderRadius: 20, background: 'rgba(245,166,35,0.2)', color: '#F5A623', fontSize: 12, fontWeight: 700 }}>⭐ Réservé aux abonnés</span>
+              )}
+              {tournament.access_type === 'paid' && (
+                <span style={{ display: 'inline-block', padding: '4px 14px', borderRadius: 20, background: 'rgba(139,92,246,0.2)', color: '#8b5cf6', fontSize: 12, fontWeight: 700 }}>
+                  💳 Participation : {tournament.entry_price ? `${(tournament.entry_price / 100).toFixed(2)}€` : 'Payant'}
+                  <span style={{ color: '#94a3b8', fontWeight: 400 }}> (gratuit pour les abonnés)</span>
+                </span>
+              )}
             </div>
           )}
         </div>

@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getBackendUrl } from '../../utils/subscription';
+import { DataContext } from '../../context/DataContext';
+import PedagogicConfig from '../Shared/PedagogicConfig';
 
 const PAGE = { minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', color: '#fff', padding: '20px 16px' };
 const CARD = { background: 'rgba(255,255,255,0.08)', borderRadius: 16, padding: 20, border: '1px solid rgba(255,255,255,0.1)' };
@@ -11,12 +13,11 @@ const BADGE = (c) => ({ display: 'inline-block', padding: '3px 10px', borderRadi
 const STATUS_COLORS = { scheduled: '#3b82f6', open: '#10b981', playing: '#F5A623', finished: '#6b7280', cancelled: '#ef4444' };
 const STATUS_LABELS = { scheduled: 'Programmé', open: 'Ouvert', playing: 'En cours', finished: 'Terminé', cancelled: 'Annulé' };
 
-const AVAILABLE_THEMES = [
-  'Plantes médicinales', 'Géographie', 'Animaux', 'Fruits & Légumes',
-  'Table de 2', 'Table de 3', 'Table de 4', 'Table de 5',
-  'Table de 6', 'Table de 7', 'Table de 8', 'Table de 9',
+const ACCESS_TYPES = [
+  { key: 'free', label: 'Gratuit', icon: '🎉', color: '#10b981', desc: 'Ouvert à tous, sans paiement' },
+  { key: 'subscribers', label: 'Abonnés', icon: '⭐', color: '#F5A623', desc: 'Réservé aux abonnés Crazy Chrono' },
+  { key: 'paid', label: 'Payant', icon: '💳', color: '#8b5cf6', desc: 'Participation payante (gratuit pour les abonnés)' },
 ];
-const AVAILABLE_CLASSES = ['CP', 'CE1', 'CE2', 'CM1', 'CM2'];
 
 function getToken() {
   try {
@@ -34,16 +35,20 @@ export default function TournamentAdmin() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
+  const { data } = useContext(DataContext);
+
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [themes, setThemes] = useState([]);
-  const [classes, setClasses] = useState(['CP', 'CE1', 'CE2', 'CM1', 'CM2']);
   const [scheduledAt, setScheduledAt] = useState('');
   const [durationRound, setDurationRound] = useState(90);
   const [eliminationPercent, setEliminationPercent] = useState(25);
   const [minPlayers, setMinPlayers] = useState(3);
   const [manualStart, setManualStart] = useState(true);
+  const [accessType, setAccessType] = useState('free');
+  const [entryPrice, setEntryPrice] = useState(0);
+  const pedagogicRef = useRef({});
+  const [pedInitial, setPedInitial] = useState(null);
 
   const backendUrl = getBackendUrl();
 
@@ -63,18 +68,30 @@ export default function TournamentAdmin() {
   useEffect(() => { fetchTournaments(); }, [fetchTournaments]);
 
   const resetForm = () => {
-    setTitle(''); setDescription(''); setThemes([]); setClasses(['CP', 'CE1', 'CE2', 'CM1', 'CM2']);
+    setTitle(''); setDescription('');
     setScheduledAt(''); setDurationRound(90); setEliminationPercent(25); setMinPlayers(3);
-    setManualStart(true); setEditId(null); setShowForm(false); setError(null);
+    setManualStart(true); setAccessType('free'); setEntryPrice(0);
+    setPedInitial(null); pedagogicRef.current = {};
+    setEditId(null); setShowForm(false); setError(null);
   };
 
   const openEdit = (t) => {
     setEditId(t.id); setTitle(t.title); setDescription(t.description || '');
-    setThemes(t.themes || []); setClasses(t.classes || []);
     const d = new Date(t.scheduled_at);
     setScheduledAt(d.toISOString().slice(0, 16));
     setDurationRound(t.duration_round || 90); setEliminationPercent(t.elimination_percent || 25);
-    setMinPlayers(t.min_players || 3); setManualStart(t.manual_start !== false); setShowForm(true); setError(null);
+    setMinPlayers(t.min_players || 3); setManualStart(t.manual_start !== false);
+    setAccessType(t.access_type || 'free'); setEntryPrice(t.entry_price || 0);
+    // Restaurer la config pédagogique
+    const pc = t.pedagogic_config || {};
+    setPedInitial({
+      selectedLevel: pc.selectedLevel || t.selected_level || 'CP',
+      extras: pc.extras || [],
+      enabledDomains: pc.enabledDomains || undefined,
+      themes: t.themes || [],
+      classes: t.classes || [],
+    });
+    setShowForm(true); setError(null);
   };
 
   const handleSave = async () => {
@@ -82,11 +99,17 @@ export default function TournamentAdmin() {
     if (!scheduledAt) { setError('La date est requise'); return; }
     setSaving(true); setError(null);
 
+    const pc = pedagogicRef.current || {};
     const payload = {
-      title: title.trim(), description: description.trim(), themes, classes,
+      title: title.trim(), description: description.trim(),
+      themes: pc.themes || [], classes: pc.classes || [],
       scheduled_at: new Date(scheduledAt).toISOString(),
       duration_round: durationRound, elimination_percent: eliminationPercent, min_players: minPlayers,
       manual_start: manualStart,
+      access_type: accessType,
+      entry_price: accessType === 'paid' ? Math.max(0, entryPrice) : 0,
+      selected_level: pc.selectedLevel || 'CP',
+      pedagogic_config: pc,
     };
 
     try {
@@ -115,8 +138,6 @@ export default function TournamentAdmin() {
     } catch (e) { console.error(e); }
   };
 
-  const toggleTheme = (t) => setThemes(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
-  const toggleClass = (c) => setClasses(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
 
   const upcoming = tournaments.filter(t => ['scheduled', 'open'].includes(t.status));
   const past = tournaments.filter(t => ['finished', 'cancelled', 'playing'].includes(t.status));
@@ -157,24 +178,40 @@ export default function TournamentAdmin() {
               <input type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} style={INPUT} />
             </div>
 
-            {/* Themes */}
+            {/* Type d'accès */}
             <div>
-              <label style={{ fontSize: 13, color: '#94a3b8', marginBottom: 6, display: 'block' }}>Thématiques {themes.length === 0 && <span style={{ color: '#64748b' }}>(toutes si vide)</span>}</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {AVAILABLE_THEMES.map(t => (
-                  <button key={t} onClick={() => toggleTheme(t)} style={{ padding: '5px 12px', borderRadius: 8, border: themes.includes(t) ? '2px solid #F5A623' : '1px solid rgba(255,255,255,0.15)', background: themes.includes(t) ? 'rgba(245,166,35,0.2)' : 'rgba(255,255,255,0.04)', color: themes.includes(t) ? '#F5A623' : '#94a3b8', fontSize: 12, cursor: 'pointer', fontWeight: themes.includes(t) ? 700 : 400 }}>{t}</button>
+              <label style={{ fontSize: 13, color: '#94a3b8', marginBottom: 6, display: 'block' }}>Type d’accès</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                {ACCESS_TYPES.map(at => (
+                  <button key={at.key} onClick={() => setAccessType(at.key)} style={{
+                    padding: '12px 10px', borderRadius: 12, textAlign: 'center', cursor: 'pointer',
+                    border: accessType === at.key ? `2px solid ${at.color}` : '1px solid rgba(255,255,255,0.15)',
+                    background: accessType === at.key ? `${at.color}22` : 'rgba(255,255,255,0.04)',
+                  }}>
+                    <div style={{ fontSize: 22, marginBottom: 4 }}>{at.icon}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: accessType === at.key ? at.color : '#94a3b8' }}>{at.label}</div>
+                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{at.desc}</div>
+                  </button>
                 ))}
               </div>
+              {accessType === 'paid' && (
+                <div style={{ marginTop: 10 }}>
+                  <label style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4, display: 'block' }}>Prix d’entrée (€)</label>
+                  <input type="number" value={entryPrice / 100} onChange={e => setEntryPrice(Math.round(Number(e.target.value) * 100))} min={0} step={0.5} style={INPUT} />
+                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Les abonnés participent gratuitement</div>
+                </div>
+              )}
             </div>
 
-            {/* Classes */}
+            {/* Configuration pédagogique (niveaux, thèmes, domaines) */}
             <div>
-              <label style={{ fontSize: 13, color: '#94a3b8', marginBottom: 6, display: 'block' }}>Niveaux</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {AVAILABLE_CLASSES.map(c => (
-                  <button key={c} onClick={() => toggleClass(c)} style={{ padding: '5px 14px', borderRadius: 8, border: classes.includes(c) ? '2px solid #1AACBE' : '1px solid rgba(255,255,255,0.15)', background: classes.includes(c) ? 'rgba(26,172,190,0.2)' : 'rgba(255,255,255,0.04)', color: classes.includes(c) ? '#1AACBE' : '#94a3b8', fontSize: 12, cursor: 'pointer', fontWeight: classes.includes(c) ? 700 : 400 }}>{c}</button>
-                ))}
-              </div>
+              <label style={{ fontSize: 13, color: '#94a3b8', marginBottom: 6, display: 'block' }}>Configuration pédagogique</label>
+              <PedagogicConfig
+                data={data}
+                onChange={(cfg) => { pedagogicRef.current = cfg; }}
+                initialConfig={pedInitial}
+                options={{ showPlayerZone: false, showFreeLimits: false, showAllowEmptyMath: false, showObjectiveTarget: false, showObjectiveMode: false, hideHelp: true }}
+              />
             </div>
 
             {/* Lancement manuel */}
@@ -223,11 +260,12 @@ export default function TournamentAdmin() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
               <span style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>{t.title}</span>
               <span style={BADGE(STATUS_COLORS[t.status] || '#64748b')}>{STATUS_LABELS[t.status] || t.status}</span>
+              {(() => { const at = ACCESS_TYPES.find(a => a.key === (t.access_type || 'free')); return at ? <span style={{ ...BADGE(at.color + '33'), color: at.color }}>{at.icon} {at.label}{t.access_type === 'paid' && t.entry_price ? ` (${(t.entry_price / 100).toFixed(2)}€)` : ''}</span> : null; })()}
             </div>
             {t.description && <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 4 }}>{t.description}</div>}
             <div style={{ fontSize: 12, color: '#64748b' }}>
               {new Date(t.scheduled_at).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-              {(t.themes || []).length > 0 && <span> — {t.themes.join(', ')}</span>}
+              {t.selected_level && <span> — Niveau {t.selected_level}</span>}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

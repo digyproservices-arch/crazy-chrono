@@ -111,7 +111,7 @@ router.post('/tournaments', requireAdmin, async (req, res) => {
   const supabaseAdmin = req.app.locals.supabaseAdmin;
 
   try {
-    const { title, description, themes, classes, scheduled_at, duration_round, elimination_percent, rounds_per_elimination, min_players, manual_start } = req.body;
+    const { title, description, themes, classes, scheduled_at, duration_round, elimination_percent, rounds_per_elimination, min_players, manual_start, access_type, entry_price, selected_level, pedagogic_config } = req.body;
 
     if (!title || !scheduled_at) {
       return res.status(400).json({ ok: false, error: 'title et scheduled_at sont requis' });
@@ -136,6 +136,10 @@ router.post('/tournaments', requireAdmin, async (req, res) => {
       rounds_per_elimination: Number(rounds_per_elimination) || 1,
       min_players: Math.max(2, Number(min_players) || 3),
       manual_start: manual_start !== false,
+      access_type: ['free', 'subscribers', 'paid'].includes(access_type) ? access_type : 'free',
+      entry_price: Math.max(0, Number(entry_price) || 0),
+      selected_level: selected_level || 'CP',
+      pedagogic_config: pedagogic_config && typeof pedagogic_config === 'object' ? pedagogic_config : {},
       status: 'scheduled',
       created_by: req.userId,
     };
@@ -161,7 +165,7 @@ router.put('/tournaments/:id', requireAdmin, async (req, res) => {
 
   try {
     const updates = {};
-    const allowed = ['title', 'description', 'themes', 'classes', 'scheduled_at', 'duration_round', 'elimination_percent', 'rounds_per_elimination', 'min_players', 'manual_start', 'status'];
+    const allowed = ['title', 'description', 'themes', 'classes', 'scheduled_at', 'duration_round', 'elimination_percent', 'rounds_per_elimination', 'min_players', 'manual_start', 'status', 'access_type', 'entry_price', 'selected_level', 'pedagogic_config'];
 
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
@@ -174,6 +178,12 @@ router.put('/tournaments/:id', requireAdmin, async (req, res) => {
           updates[key] = Number(req.body[key]) || undefined;
         } else if (key === 'manual_start') {
           updates[key] = req.body[key] !== false;
+        } else if (key === 'access_type') {
+          if (['free', 'subscribers', 'paid'].includes(req.body[key])) updates[key] = req.body[key];
+        } else if (key === 'entry_price') {
+          updates[key] = Math.max(0, Number(req.body[key]) || 0);
+        } else if (key === 'pedagogic_config') {
+          updates[key] = req.body[key] && typeof req.body[key] === 'object' ? req.body[key] : {};
         } else {
           updates[key] = req.body[key];
         }
@@ -214,6 +224,57 @@ router.delete('/tournaments/:id', requireAdmin, async (req, res) => {
 
     console.log(`[GS] Tournament ${req.params.id} deleted`);
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ===== POST /api/gs/tournaments/:id/entry — Enregistrer un participant (public) =====
+router.post('/tournaments/:id/entry', async (req, res) => {
+  const supabaseAdmin = req.app.locals.supabaseAdmin;
+  if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
+
+  try {
+    const { first_name, last_name, email, user_id, is_subscriber } = req.body;
+    if (!first_name || !last_name || !email) {
+      return res.status(400).json({ ok: false, error: 'first_name, last_name et email sont requis' });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('gs_tournament_entries')
+      .upsert({
+        tournament_id: req.params.id,
+        first_name: String(first_name).trim(),
+        last_name: String(last_name).trim(),
+        email: String(email).trim().toLowerCase(),
+        user_id: user_id || null,
+        is_subscriber: !!is_subscriber,
+        joined_at: new Date().toISOString(),
+      }, { onConflict: 'tournament_id,email' })
+      .select()
+      .single();
+
+    if (error) return res.status(400).json({ ok: false, error: error.message });
+    res.json({ ok: true, entry: data });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ===== GET /api/gs/tournaments/:id/entries — Liste des inscrits (admin) =====
+router.get('/tournaments/:id/entries', requireAdmin, async (req, res) => {
+  const supabaseAdmin = req.app.locals.supabaseAdmin;
+  if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('gs_tournament_entries')
+      .select('*')
+      .eq('tournament_id', req.params.id)
+      .order('joined_at', { ascending: true });
+
+    if (error) return res.status(400).json({ ok: false, error: error.message });
+    res.json({ ok: true, entries: data || [] });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
