@@ -16,6 +16,8 @@
  *   import { logClick, logClickAttempt, getClickLogs, getClickAttempts, getClickStats, clearClickLogs, formatClickReport } from '../utils/clickLogger';
  */
 
+import { getBackendUrl } from './apiHelpers';
+
 const LS_KEY = 'cc_click_logs';
 const LS_STATS_KEY = 'cc_click_stats';
 const LS_ATTEMPTS_KEY = 'cc_click_attempts';
@@ -24,6 +26,49 @@ const MAX_ATTEMPTS = 200; // Derniers 200 clics complets
 
 // Stages critiques à synchroniser au serveur (diagnostic paires)
 const SYNC_STAGES = new Set(['PAIR_FAIL', 'PAIR_OK']);
+
+/**
+ * Flush le buffer cc_gs_click_log vers le backend via sendBeacon.
+ * Survit aux navigations SPA et fermetures de page.
+ * Appelé automatiquement avant toute navigation GS (élimination, fin, nouveau round).
+ */
+export function flushGsClickLog() {
+  try {
+    const raw = localStorage.getItem('cc_gs_click_log');
+    if (!raw) return;
+    const clicks = JSON.parse(raw);
+    if (!Array.isArray(clicks) || clicks.length === 0) return;
+    const url = `${getBackendUrl()}/api/monitoring/client-clicks`;
+    const payload = JSON.stringify({
+      clicks: clicks.map(c => ({
+        _syncId: `gs_${c.ts}_${c.event}_${c.zoneId || 'x'}`,
+        stage: `GS:${c.event || 'unknown'}`,
+        ts: c.ts,
+        zoneId: c.zoneId || null,
+        zoneType: c.type || null,
+        content: c.content || c.cA || null,
+        reason: c.event?.startsWith('REJECTED') ? c.event : null,
+        guardStates: c.guards || null,
+        deviceId: getDeviceId(),
+        _source: 'gs_flush',
+        _raw: c,
+      })),
+      _flushTs: Date.now(),
+    });
+    // sendBeacon est garanti d'envoyer même si la page se ferme
+    if (navigator.sendBeacon) {
+      const blob = new Blob([payload], { type: 'application/json' });
+      navigator.sendBeacon(url, blob);
+    } else {
+      // Fallback: fetch keepalive
+      fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(() => {});
+    }
+    // Vider le buffer local après envoi
+    localStorage.removeItem('cc_gs_click_log');
+  } catch (e) {
+    console.warn('[ClickLogger] flushGsClickLog failed:', e.message);
+  }
+}
 
 /**
  * Log a click event (ancien système, conservé pour compatibilité).
@@ -250,9 +295,7 @@ function getDeviceId() {
 async function syncClickToBackend(clickEvent, attempt = 1) {
   const MAX_RETRIES = 2;
   try {
-    const { getBackendUrl } = await import('./apiHelpers');
-    const backendUrl = getBackendUrl();
-    const url = `${backendUrl}/api/monitoring/client-clicks`;
+    const url = `${getBackendUrl()}/api/monitoring/client-clicks`;
     console.log(`[ClickLogger] Syncing ${clickEvent.stage} to ${url} (attempt ${attempt})`);
     const headers = { 'Content-Type': 'application/json' };
     // Ajouter le token si disponible (optionnel)

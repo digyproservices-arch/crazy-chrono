@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { getBackendUrl, isFree } from '../../utils/subscription';
+import { flushGsClickLog } from '../../utils/clickLogger';
 const PAGE = { minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', color: '#fff', padding: '20px 16px' };
 const CARD = { background: 'rgba(255,255,255,0.08)', borderRadius: 16, padding: 20, border: '1px solid rgba(255,255,255,0.1)' };
 const BADGE = (c) => ({ display: 'inline-block', padding: '4px 12px', borderRadius: 20, background: c, fontSize: 12, fontWeight: 700 });
@@ -179,11 +180,13 @@ export default function GrandeSalle() {
             zones: payload.zones,
             duration: payload.duration || 90,
             roundIndex: payload.roundIndex || 1,
-            startedAt: Date.now(),
+            startedAt: payload.startedAt || Date.now(),
           }));
         }
       } catch {}
       console.log('[GS] Navigating to /carte with GS mode', { salleId, zonesCount: payload?.zones?.length });
+      // Flush monitoring data before navigation
+      try { flushGsClickLog(); } catch {}
       // Disconnect this socket — Carte.js will create its own and reconnect
       socket.disconnect();
       navigate('/carte?gs=' + encodeURIComponent(salleId));

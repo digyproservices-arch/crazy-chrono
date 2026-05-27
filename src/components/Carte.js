@@ -9,7 +9,7 @@ import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck }
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
 import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError, reportIncident as incidentReportIncident, INCIDENT_TYPES as INCIDENT_TYPES_TRACKER } from '../utils/gameIncidentTracker';
 import { logRound } from '../utils/roundLogger';
-import { logClick, logClickAttempt, clearClickLogs } from '../utils/clickLogger';
+import { logClick, logClickAttempt, clearClickLogs, flushGsClickLog } from '../utils/clickLogger';
 import { captureCardScreenshot } from '../utils/cardScreenshot';
 import { telemetry } from '../utils/clientTelemetry';
 import { isFree, canStartSessionToday, incrementSessionCount, setSubscriptionStatus, getDailyCounts } from '../utils/subscription';
@@ -2393,6 +2393,7 @@ const Carte = () => {
           if (amEliminated) {
             // Navigate back to GrandeSalle for elimination screen with score/rank + spectator choice
             setGameActive(false);
+            try { flushGsClickLog(); } catch {}
             try { localStorage.setItem('cc_gs_elimination', JSON.stringify(data)); } catch {}
             try { localStorage.removeItem('cc_gs_round'); } catch {}
             try { s.disconnect(); } catch {}
@@ -2408,6 +2409,7 @@ const Carte = () => {
 
         s.on('gs:finish', (data) => {
           console.log('[CC][GS] gs:finish', data);
+          try { flushGsClickLog(); } catch {}
           try { localStorage.setItem('cc_gs_finish', JSON.stringify(data)); } catch {}
           try { localStorage.removeItem('cc_gs_session'); } catch {}
           try { localStorage.removeItem('cc_gs_round'); } catch {}
