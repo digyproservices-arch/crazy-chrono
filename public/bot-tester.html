@@ -297,7 +297,10 @@ function renderGroup(group) {
 
 function updateGroupConfig(gid, key, value) {
   const g = groups.find(g => g.id === gid);
-  if (g) g[key] = value;
+  if (g) {
+    g[key] = value;
+    if (key === 'mode') renderGroup(g);
+  }
 }
 
 function groupLog(gid, msg, level = 'info') {
