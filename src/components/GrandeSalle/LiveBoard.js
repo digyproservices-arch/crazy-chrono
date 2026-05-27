@@ -340,7 +340,7 @@ export default function LiveBoard() {
                     onClick={() => {
                       setStarting(true);
                       setStartError(null);
-                      socketRef.current?.emit('gs:start', { salleId: tournamentId || 'grande-salle-publique' }, (resp) => {
+                      socketRef.current?.emit('gs:start', { salleId: tournamentId ? `tournament:${tournamentId}` : 'grande-salle-publique' }, (resp) => {
                         setStarting(false);
                         if (resp && !resp.ok) setStartError(resp.error);
                       });
