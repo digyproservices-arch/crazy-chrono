@@ -18,7 +18,7 @@ const CC = {
   teal: '#1AACBE', tealDark: '#148A9C', tealDeep: '#0D6A7A',
   yellow: '#F5A623', yellowLt: '#FFC940', brown: '#4A3728',
   bgGradient: 'linear-gradient(135deg, #0D6A7A 0%, #148A9C 30%, #1AACBE 60%, #148A9C 100%)',
-  cardBg: 'rgba(255,255,255,0.08)', cardBorder: 'rgba(255,255,255,0.15)',
+  cardBg: 'rgba(0,0,0,0.25)', cardBorder: 'rgba(255,255,255,0.15)',
 };
 
 function interpolateArc(points, idxStart, idxEnd, marginPx) {
@@ -93,6 +93,9 @@ export default function LiveBoard() {
   const [countdown, setCountdown] = useState(null);
   const [tournamentInfo, setTournamentInfo] = useState(null);
   const [entryCount, setEntryCount] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [startError, setStartError] = useState(null);
+  const [starting, setStarting] = useState(false);
 
   const chiffreRefBase = useMemo(() => {
     if (!Array.isArray(zones) || zones.length === 0) return null;
@@ -122,6 +125,14 @@ export default function LiveBoard() {
       document.documentElement.style.overflow = '';
       document.body.classList.remove('cc-game');
     };
+  }, []);
+
+  // Détecter si l'utilisateur est admin
+  useEffect(() => {
+    try {
+      const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
+      if (auth.role === 'teacher' || auth.role === 'admin') setIsAdmin(true);
+    } catch {}
   }, []);
 
   // Charger les infos du tournoi (access_type, inscrits)
@@ -321,6 +332,34 @@ export default function LiveBoard() {
               <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)' }}>Joueurs connectés</div>
               <div style={{ fontSize: 96, fontWeight: 900, color: CC.yellow, lineHeight: 1 }}>{totalPlayers}</div>
               {lobbyCountdown > 0 && <div style={{ marginTop: 12, fontSize: 28, fontWeight: 800, color: '#ff6b35' }}>Départ dans {lobbyCountdown}s</div>}
+              {/* Bouton Lancer pour l'admin */}
+              {isAdmin && !lobbyCountdown && (
+                <div style={{ marginTop: 16 }}>
+                  <button
+                    disabled={starting || totalPlayers < 2}
+                    onClick={() => {
+                      setStarting(true);
+                      setStartError(null);
+                      socketRef.current?.emit('gs:start', { salleId: tournamentId || 'grande-salle-publique' }, (resp) => {
+                        setStarting(false);
+                        if (resp && !resp.ok) setStartError(resp.error);
+                      });
+                    }}
+                    style={{
+                      padding: '14px 36px', borderRadius: 14, border: 'none', cursor: starting || totalPlayers < 2 ? 'not-allowed' : 'pointer',
+                      background: totalPlayers < 2 ? '#475569' : 'linear-gradient(135deg, #ff6b35, #F5A623)',
+                      color: '#fff', fontWeight: 900, fontSize: 22,
+                      boxShadow: totalPlayers >= 2 ? '0 6px 25px rgba(245,166,35,0.5)' : 'none',
+                      opacity: starting ? 0.6 : 1,
+                      transition: 'all 0.3s',
+                    }}
+                  >
+                    {starting ? '⏳ Lancement...' : `🚀 Lancer le tournoi`}
+                  </button>
+                  {totalPlayers < 2 && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>Minimum 2 joueurs requis</div>}
+                  {startError && <div style={{ fontSize: 13, color: '#ef4444', marginTop: 6 }}>{startError}</div>}
+                </div>
+              )}
             </div>
             {players.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
