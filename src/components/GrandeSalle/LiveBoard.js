@@ -115,15 +115,27 @@ export default function LiveBoard() {
   const getMedal = (idx) => idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
   const isFlashedZone = (zoneId) => flashPair && (flashPair.zoneAId === zoneId || flashPair.zoneBId === zoneId);
 
-  // Plein écran
+  // Plein écran — masquer la navbar et activer le mode immersif
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
     document.body.classList.add('cc-game');
+    try { window.dispatchEvent(new CustomEvent('cc:gameFullscreen', { detail: { on: true } })); } catch {}
+    // Tenter le vrai plein écran navigateur
+    try {
+      const root = document.documentElement;
+      const rfs = root.requestFullscreen || root.webkitRequestFullscreen || root.mozRequestFullScreen || root.msRequestFullscreen;
+      if (rfs && !document.fullscreenElement && !document.webkitFullscreenElement) rfs.call(root);
+    } catch {}
     return () => {
       document.body.style.overflow = '';
       document.documentElement.style.overflow = '';
       document.body.classList.remove('cc-game');
+      try { window.dispatchEvent(new CustomEvent('cc:gameFullscreen', { detail: { on: false } })); } catch {}
+      try {
+        const efd = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
+        if (efd && (document.fullscreenElement || document.webkitFullscreenElement)) efd.call(document);
+      } catch {}
     };
   }, []);
 
