@@ -104,7 +104,7 @@ export default function TournamentAdmin() {
       title: title.trim(), description: description.trim(),
       themes: pc.themes || [], classes: pc.classes || [],
       scheduled_at: new Date(scheduledAt).toISOString(),
-      duration_round: durationRound, elimination_percent: eliminationPercent, min_players: minPlayers,
+      duration_round: pc.duration || durationRound || 60, elimination_percent: eliminationPercent, min_players: minPlayers,
       manual_start: manualStart,
       access_type: accessType,
       entry_price: accessType === 'paid' ? Math.max(0, entryPrice) : 0,
@@ -227,11 +227,7 @@ export default function TournamentAdmin() {
             </div>
 
             {/* Settings row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-              <div>
-                <label style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4, display: 'block' }}>Durée manche (s)</label>
-                <input type="number" value={durationRound} onChange={e => setDurationRound(Number(e.target.value))} min={30} max={300} style={INPUT} />
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
                 <label style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4, display: 'block' }}>% élimination</label>
                 <input type="number" value={eliminationPercent} onChange={e => setEliminationPercent(Number(e.target.value))} min={10} max={50} style={INPUT} />
