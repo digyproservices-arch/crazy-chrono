@@ -231,13 +231,13 @@ function renderGroup(group) {
     </div>
     <div class="group-config">
       <div>
-        <label>Code du match / Room Code</label>
-        <input type="text" value="${group.matchCode}" placeholder="Ex: 6ADEUP" maxlength="10" style="text-transform:uppercase"
-               onchange="updateGroupConfig(${group.id}, 'matchCode', this.value.toUpperCase())" ${group.running ? 'disabled' : ''} />
+        <label>${group.mode === 'gs' ? 'Tournament ID (UUID)' : 'Code du match / Room Code'}</label>
+        <input type="text" value="${group.matchCode}" placeholder="${group.mode === 'gs' ? 'Ex: a1b2c3d4-... (UUID du tournoi)' : 'Ex: 6ADEUP'}" ${group.mode === 'gs' ? '' : 'maxlength="10" style="text-transform:uppercase"'}
+               onchange="updateGroupConfig(${group.id}, 'matchCode', ${group.mode === 'gs' ? 'this.value.trim()' : 'this.value.toUpperCase()'})" ${group.running ? 'disabled' : ''} />
       </div>
       <div>
         <label>Robots</label>
-        <input type="number" value="${group.botCount}" min="1" max="50"
+        <input type="number" value="${group.botCount}" min="1" max="200"
                onchange="updateGroupConfig(${group.id}, 'botCount', parseInt(this.value))" ${group.running ? 'disabled' : ''} />
       </div>
       <div>
@@ -398,13 +398,19 @@ function createGroupBot(group, index) {
           renderGroup(group);
         }, 800 + Math.random() * 1200);
       } else if (mode === 'gs') {
-        socket.emit('gs:join', { name: bot.name, salleId: matchCode || 'grande-salle-publique' }, (resp) => {
-          if (resp && resp.ok) {
-            bot.statusText = `GS rejoint (${resp.playerCount || '?'} joueurs)`;
-            groupLog(group.id, `${bot.name} GS rejoint`, 'success');
+        // Si matchCode ressemble à un UUID, c'est un tournamentId
+        const isUUID = matchCode && matchCode.length > 10 && matchCode.includes('-');
+        const gsPayload = { name: bot.name };
+        if (isUUID) gsPayload.tournamentId = matchCode;
+        else gsPayload.salleId = matchCode || 'grande-salle-publique';
+        socket.emit('gs:join', gsPayload, (resp) => {
+          if (resp && !resp.ok && resp.error) {
+            bot.statusText = `Erreur GS: ${resp.error}`;
+            bot.error = true;
+            groupLog(group.id, `${bot.name} acces refuse: ${resp.error}`, 'err');
           } else {
-            bot.statusText = `Erreur GS: ${resp?.error || '?'}`;
-            groupLog(group.id, `${bot.name} erreur GS: ${resp?.error}`, 'err');
+            bot.statusText = `GS rejoint (${resp?.tournamentTitle || 'salle'}) ${resp?.playerCount || ''}`;
+            groupLog(group.id, `${bot.name} GS rejoint`, 'success');
           }
           renderGroup(group);
         });
