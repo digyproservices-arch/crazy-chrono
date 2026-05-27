@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { getBackendUrl } from '../../utils/subscription';
 
 const PAGE = {
@@ -36,6 +36,8 @@ const INPUT = {
 export default function GrandeSalleJoin() {
   const navigate = useNavigate();
   const { tournamentId } = useParams();
+  const [searchParams] = useSearchParams();
+  const paymentStatus = searchParams.get('payment');
 
   const [tournament, setTournament] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -229,6 +231,20 @@ export default function GrandeSalleJoin() {
             </div>
           )}
         </div>
+
+        {/* ===== Payment success banner ===== */}
+        {paymentStatus === 'success' && (
+          <div style={{ ...CARD, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', textAlign: 'center' }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: '#10b981', marginBottom: 6 }}>Paiement confirmé !</div>
+            <div style={{ fontSize: 13, color: '#94a3b8' }}>Vous pouvez maintenant rejoindre le tournoi.</div>
+          </div>
+        )}
+        {paymentStatus === 'cancel' && (
+          <div style={{ ...CARD, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', textAlign: 'center' }}>
+            <div style={{ fontSize: 13, color: '#ef4444', fontWeight: 700 }}>Paiement annulé. Vous pouvez réessayer ci-dessous.</div>
+          </div>
+        )}
 
         {/* ===== Quick join for logged-in users ===== */}
         {existingAuth && (

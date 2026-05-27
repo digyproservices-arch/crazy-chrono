@@ -224,7 +224,21 @@ export default function GrandeSalle() {
         <div style={{ ...CARD, background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', marginBottom: 16 }}>
           <div style={{ fontSize: 14, color: '#8b5cf6', fontWeight: 700, marginBottom: 8 }}>💳 Paiement requis</div>
           <div style={{ fontSize: 22, fontWeight: 900, color: '#e2e8f0' }}>{accessDenied.price ? `${(accessDenied.price / 100).toFixed(2)}€` : 'Payant'}</div>
-          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Les abonnés participent gratuitement</div>
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4, marginBottom: 14 }}>Les abonnés participent gratuitement</div>
+          <button onClick={async () => {
+            try {
+              const guest = JSON.parse(localStorage.getItem('cc_gs_guest') || '{}');
+              const r = await fetch(`${getBackendUrl()}/api/gs/tournaments/${tournamentId}/checkout`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: guest.email, first_name: guest.firstName, last_name: guest.lastName }),
+              });
+              const j = await r.json();
+              if (j.ok && j.url) window.location.href = j.url;
+              else alert(j.error || 'Erreur lors de la création du paiement');
+            } catch (e) { alert('Erreur réseau'); }
+          }} style={{ padding: '14px 32px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', color: '#fff', fontWeight: 800, fontSize: 16, cursor: 'pointer', boxShadow: '0 4px 15px rgba(139,92,246,0.4)', width: '100%' }}>
+            Payer {accessDenied.price ? `${(accessDenied.price / 100).toFixed(2)}€` : ''} pour participer
+          </button>
         </div>
       )}
       <button onClick={() => navigate(-1)} style={{ padding: '12px 28px', borderRadius: 12, border: 'none', background: 'rgba(255,255,255,0.1)', color: '#94a3b8', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>← Retour</button>

@@ -1955,6 +1955,26 @@ app.post('/webhooks/stripe', rawParser, async (req, res) => {
       if (supabaseAdmin && event && event.type) {
         if (event.type === 'checkout.session.completed') {
           const s = event.data.object;
+
+          // === Paiement tournoi ===
+          if (s?.metadata?.type === 'tournament_entry') {
+            const tId = s.metadata.tournament_id;
+            const tEmail = s.metadata.email;
+            if (tId && tEmail) {
+              await supabaseAdmin.from('gs_tournament_entries').upsert({
+                tournament_id: tId,
+                email: tEmail,
+                first_name: s.metadata.first_name || '',
+                last_name: s.metadata.last_name || '',
+                paid: true,
+                payment_id: s.payment_intent || s.id,
+                joined_at: new Date().toISOString(),
+              }, { onConflict: 'tournament_id,email' });
+              console.log(`[Stripe] Tournament entry paid: ${tEmail} for ${tId}`);
+            }
+          }
+
+          // === Abonnement classique ===
           const userId = s?.metadata?.user_id || null;
           const subscriptionId = s?.subscription || null;
           if (userId && subscriptionId) {

@@ -280,4 +280,63 @@ router.get('/tournaments/:id/entries', requireAdmin, async (req, res) => {
   }
 });
 
+// ===== POST /api/gs/tournaments/:id/checkout — Créer session Stripe Checkout pour paiement tournoi =====
+router.post('/tournaments/:id/checkout', async (req, res) => {
+  const supabaseAdmin = req.app.locals.supabaseAdmin;
+  let stripe = null;
+  try { if (process.env.STRIPE_SECRET_KEY) stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); } catch {}
+
+  if (!stripe) return res.status(503).json({ ok: false, error: 'stripe_not_configured' });
+  if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
+
+  try {
+    const { email, first_name, last_name } = req.body;
+    if (!email) return res.status(400).json({ ok: false, error: 'email requis' });
+
+    // Charger le tournoi pour récupérer le prix
+    const { data: tournament, error: tErr } = await supabaseAdmin
+      .from('gs_tournaments')
+      .select('id, title, entry_price, access_type')
+      .eq('id', req.params.id)
+      .single();
+
+    if (tErr || !tournament) return res.status(404).json({ ok: false, error: 'Tournoi introuvable' });
+    if (tournament.access_type !== 'paid') return res.status(400).json({ ok: false, error: 'Ce tournoi ne nécessite pas de paiement' });
+
+    const priceInCents = tournament.entry_price || 500; // fallback 5€
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: `Tournoi : ${tournament.title}`,
+            description: 'Participation au tournoi Grande Salle',
+          },
+          unit_amount: priceInCents,
+        },
+        quantity: 1,
+      }],
+      customer_email: email,
+      success_url: `${frontendUrl}/grande-salle/join/${tournament.id}?payment=success`,
+      cancel_url: `${frontendUrl}/grande-salle/join/${tournament.id}?payment=cancel`,
+      metadata: {
+        type: 'tournament_entry',
+        tournament_id: tournament.id,
+        email: String(email).trim().toLowerCase(),
+        first_name: first_name || '',
+        last_name: last_name || '',
+      },
+    });
+
+    res.json({ ok: true, url: session.url });
+  } catch (e) {
+    console.error('[GS] Checkout error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 module.exports = router;
