@@ -91,6 +91,8 @@ export default function LiveBoard() {
   const [events, setEvents] = useState([]);
   const [flashPair, setFlashPair] = useState(null);
   const [countdown, setCountdown] = useState(null);
+  const [tournamentInfo, setTournamentInfo] = useState(null);
+  const [entryCount, setEntryCount] = useState(null);
 
   const chiffreRefBase = useMemo(() => {
     if (!Array.isArray(zones) || zones.length === 0) return null;
@@ -121,6 +123,24 @@ export default function LiveBoard() {
       document.body.classList.remove('cc-game');
     };
   }, []);
+
+  // Charger les infos du tournoi (access_type, inscrits)
+  useEffect(() => {
+    if (!tournamentId) return;
+    const backendUrl = getBackendUrl();
+    fetch(`${backendUrl}/api/gs/tournaments/${tournamentId}`)
+      .then(r => r.json())
+      .then(j => { if (j.ok && j.tournament) setTournamentInfo(j.tournament); })
+      .catch(() => {});
+    // Charger le nombre d'inscrits
+    const token = (() => { try { return JSON.parse(localStorage.getItem('cc_auth') || '{}').token; } catch { return null; } })();
+    if (token) {
+      fetch(`${backendUrl}/api/gs/tournaments/${tournamentId}/entries`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(j => { if (j.ok) setEntryCount(j.entries?.length || 0); })
+        .catch(() => {});
+    }
+  }, [tournamentId]);
 
   useEffect(() => {
     const socket = io(getBackendUrl(), { transports: ['websocket', 'polling'], reconnection: true, reconnectionAttempts: 10 });
@@ -281,6 +301,14 @@ export default function LiveBoard() {
           <div style={{ fontSize: 56, marginBottom: 12 }}>🏟️</div>
           <h1 style={{ fontSize: 42, fontWeight: 900, margin: 0, color: CC.yellow }}>{tournamentTitle || 'Grande Salle'}</h1>
           <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 16 }}>Course Éliminatoire — Flashez le QR code pour rejoindre !</p>
+          {/* Badges type d'accès + inscrits */}
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 10 }}>
+            {tournamentInfo?.access_type === 'free' && <span style={{ ...BADGE('rgba(16,185,129,0.25)'), color: '#34d399' }}>🎉 Gratuit</span>}
+            {tournamentInfo?.access_type === 'subscribers' && <span style={{ ...BADGE('rgba(245,166,35,0.25)'), color: CC.yellow }}>⭐ Abonnés</span>}
+            {tournamentInfo?.access_type === 'paid' && <span style={{ ...BADGE('rgba(139,92,246,0.25)'), color: '#a78bfa' }}>💳 {tournamentInfo.entry_price ? `${(tournamentInfo.entry_price / 100).toFixed(2)}€` : 'Payant'}</span>}
+            {entryCount != null && <span style={{ ...BADGE('rgba(255,255,255,0.1)'), color: 'rgba(255,255,255,0.7)' }}>📝 {entryCount} inscrit{entryCount > 1 ? 's' : ''}</span>}
+            {tournamentInfo?.selected_level && <span style={{ ...BADGE('rgba(255,255,255,0.1)'), color: 'rgba(255,255,255,0.7)' }}>📚 {tournamentInfo.selected_level}</span>}
+          </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
           <div style={{ textAlign: 'center', background: '#fff', borderRadius: 20, padding: 28 }}>

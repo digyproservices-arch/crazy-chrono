@@ -270,8 +270,17 @@ export default function TournamentAdmin() {
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             <button onClick={() => navigate(`/grande-salle/live/${t.id}`)} style={BTN('rgba(16,185,129,0.3)')}>📺 Live</button>
+            <button onClick={() => {
+              const url = `${window.location.origin}/grande-salle/join/${t.id}`;
+              navigator.clipboard?.writeText(url).then(() => alert('Lien copié !')).catch(() => prompt('Copiez ce lien :', url));
+            }} style={BTN('rgba(139,92,246,0.3)')}>🔗 Copier lien</button>
             <button onClick={() => openEdit(t)} style={BTN('rgba(59,130,246,0.3)')}>Modifier</button>
             <button onClick={() => handleDelete(t.id)} style={BTN('rgba(239,68,68,0.3)')}>Supprimer</button>
+          </div>
+          {/* QR preview mini */}
+          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(`${window.location.origin}/grande-salle/join/${t.id}`)}&color=0D6A7A`} alt="QR" style={{ width: 48, height: 48, borderRadius: 6, background: '#fff', padding: 2 }} />
+            <span style={{ fontSize: 11, color: '#64748b', wordBreak: 'break-all' }}>{window.location.origin}/grande-salle/join/{t.id}</span>
           </div>
         </div>
       ))}
