@@ -4624,7 +4624,7 @@ io.on('connection', (socket) => {
   // ===== GRANDE SALLE EVENTS =====
   let currentGS = null; // salleId the player is in
 
-  socket.on('gs:join', async ({ name, salleId, tournamentId, studentId: gsStudentId }, cb) => {
+  socket.on('gs:join', async ({ name, salleId, tournamentId, studentId: gsStudentId, email: gsEmail, userId: gsUserId }, cb) => {
     let id = salleId || 'grande-salle-publique';
     
     // If joining a tournament, use tournament ID as salle ID and load config
@@ -4634,6 +4634,53 @@ io.on('connection', (socket) => {
         try {
           const { data: t } = await supabaseAdmin.from('gs_tournaments').select('*').eq('id', tournamentId).single();
           if (t && ['scheduled', 'open'].includes(t.status)) {
+            // ===== CONTRÔLE D'ACCÈS =====
+            const accessType = t.access_type || 'free';
+            if (accessType !== 'free') {
+              const uid = gsUserId || gsStudentId || null;
+              let isSubscriber = false;
+
+              // Vérifier l'abonnement si on a un user_id
+              if (uid) {
+                try {
+                  const { data: subs } = await supabaseAdmin
+                    .from('subscriptions')
+                    .select('status')
+                    .eq('user_id', uid)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                  isSubscriber = subs && subs.length > 0 && subs[0].status === 'active';
+                } catch (e) { console.error('[GS] Subscription check error:', e.message); }
+              }
+
+              if (accessType === 'subscribers' && !isSubscriber) {
+                console.log(`[GS] Access denied (subscribers only) for ${name || 'unknown'} uid=${uid}`);
+                if (typeof cb === 'function') cb({ ok: false, error: 'Ce tournoi est réservé aux abonnés Crazy Chrono.', accessType: 'subscribers' });
+                return;
+              }
+
+              if (accessType === 'paid' && !isSubscriber) {
+                // Vérifier si le paiement a été effectué
+                let hasPaid = false;
+                if (gsEmail) {
+                  try {
+                    const { data: entry } = await supabaseAdmin
+                      .from('gs_tournament_entries')
+                      .select('paid')
+                      .eq('tournament_id', tournamentId)
+                      .eq('email', String(gsEmail).trim().toLowerCase())
+                      .single();
+                    hasPaid = entry?.paid === true;
+                  } catch {}
+                }
+                if (!hasPaid) {
+                  console.log(`[GS] Access denied (paid, not paid) for ${name || 'unknown'} email=${gsEmail}`);
+                  if (typeof cb === 'function') cb({ ok: false, error: `Ce tournoi nécessite un paiement de ${((t.entry_price || 0) / 100).toFixed(2)}€ pour participer.`, accessType: 'paid', price: t.entry_price || 0 });
+                  return;
+                }
+              }
+            }
+
             createGrandeSalle(id, {
               duration: t.duration_round || 90,
               eliminationPercent: t.elimination_percent || 25,
@@ -4644,7 +4691,12 @@ io.on('connection', (socket) => {
               classes: t.classes || [],
             });
             const s = grandeSalles.get(id);
-            if (s) { s.tournamentId = tournamentId; s.tournamentTitle = t.title; }
+            if (s) {
+              s.tournamentId = tournamentId;
+              s.tournamentTitle = t.title;
+              s.accessType = accessType;
+              s.entryPrice = t.entry_price || 0;
+            }
             // Mark tournament as open
             await supabaseAdmin.from('gs_tournaments').update({ status: 'open', updated_at: new Date().toISOString() }).eq('id', tournamentId);
           } else if (!t) {
@@ -4656,6 +4708,35 @@ io.on('connection', (socket) => {
     }
     
     const salle = grandeSalles.has(id) ? grandeSalles.get(id) : createGrandeSalle(id);
+
+    // Contrôle d'accès pour les joueurs rejoignant une salle existante
+    if (salle.accessType && salle.accessType !== 'free' && supabaseAdmin) {
+      const uid = gsUserId || gsStudentId || null;
+      let isSubscriber = false;
+      if (uid) {
+        try {
+          const { data: subs } = await supabaseAdmin.from('subscriptions').select('status').eq('user_id', uid).order('created_at', { ascending: false }).limit(1);
+          isSubscriber = subs && subs.length > 0 && subs[0].status === 'active';
+        } catch {}
+      }
+      if (salle.accessType === 'subscribers' && !isSubscriber) {
+        if (typeof cb === 'function') cb({ ok: false, error: 'Ce tournoi est réservé aux abonnés Crazy Chrono.', accessType: 'subscribers' });
+        return;
+      }
+      if (salle.accessType === 'paid' && !isSubscriber) {
+        let hasPaid = false;
+        if (gsEmail) {
+          try {
+            const { data: entry } = await supabaseAdmin.from('gs_tournament_entries').select('paid').eq('tournament_id', salle.tournamentId || tournamentId).eq('email', String(gsEmail).trim().toLowerCase()).single();
+            hasPaid = entry?.paid === true;
+          } catch {}
+        }
+        if (!hasPaid) {
+          if (typeof cb === 'function') cb({ ok: false, error: `Ce tournoi nécessite un paiement de ${((salle.entryPrice || 0) / 100).toFixed(2)}€ pour participer.`, accessType: 'paid', price: salle.entryPrice || 0 });
+          return;
+        }
+      }
+    }
     
     // Leave previous GS if any
     if (currentGS && currentGS !== id) {

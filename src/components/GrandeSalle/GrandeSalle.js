@@ -33,6 +33,7 @@ export default function GrandeSalle() {
   const [eliminatedData, setEliminatedData] = useState(null);
   const [newRecord, setNewRecord] = useState(null);
   const [manualStart, setManualStart] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(null);
   const roundTimerRef = useRef(null);
 
   // Check if user is admin (can start manually)
@@ -130,9 +131,19 @@ export default function GrandeSalle() {
       setConnected(true); setMyId(socket.id);
       const joinPayload = { name: getPlayerName() };
       try { const uid = localStorage.getItem('cc_user_id'); if (uid) joinPayload.studentId = uid; } catch {}
+      // Ajouter email/userId depuis cc_gs_guest pour le contrôle d'accès
+      try {
+        const g = JSON.parse(localStorage.getItem('cc_gs_guest') || 'null');
+        if (g?.email) joinPayload.email = g.email;
+        if (g?.userId) joinPayload.userId = g.userId;
+      } catch {}
       if (tournamentId) joinPayload.tournamentId = tournamentId;
       else joinPayload.salleId = 'grande-salle-publique';
       socket.emit('gs:join', joinPayload, (res) => {
+        if (res && !res.ok && res.error) {
+          setAccessDenied(res);
+          return;
+        }
         if (res?.tournamentTitle) setTournamentTitle(res.tournamentTitle);
         if (res?.autoStartCountdown != null) setLobbyCountdown(res.autoStartCountdown);
         if (res?.manualStart) setManualStart(true);
@@ -197,6 +208,28 @@ export default function GrandeSalle() {
     const startId = tournamentId ? `tournament:${tournamentId}` : 'grande-salle-publique';
     socketRef.current?.emit('gs:start', { salleId: startId }, (res) => { if (!res?.ok) alert(res?.error || 'Erreur'); });
   };
+
+  // ========== ACCESS DENIED ==========
+  if (accessDenied) return (
+    <div style={PAGE}><div style={{ maxWidth: 500, margin: '0 auto', textAlign: 'center' }}>
+      <div style={{ fontSize: 64, marginBottom: 16 }}>{accessDenied.accessType === 'subscribers' ? '⭐' : '💳'}</div>
+      <h1 style={{ fontSize: 24, fontWeight: 900, color: '#e2e8f0', margin: '0 0 12px' }}>Accès restreint</h1>
+      <p style={{ color: '#94a3b8', fontSize: 15, lineHeight: 1.6, margin: '0 0 24px' }}>{accessDenied.error}</p>
+      {accessDenied.accessType === 'subscribers' && (
+        <button onClick={() => navigate('/pricing')} style={{ padding: '14px 32px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #F5A623, #ff6b35)', color: '#fff', fontWeight: 800, fontSize: 16, cursor: 'pointer', boxShadow: '0 4px 15px rgba(245,166,35,0.4)', marginBottom: 12 }}>
+          Découvrir les abonnements
+        </button>
+      )}
+      {accessDenied.accessType === 'paid' && !accessDenied.alreadyPaid && (
+        <div style={{ ...CARD, background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', marginBottom: 16 }}>
+          <div style={{ fontSize: 14, color: '#8b5cf6', fontWeight: 700, marginBottom: 8 }}>💳 Paiement requis</div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: '#e2e8f0' }}>{accessDenied.price ? `${(accessDenied.price / 100).toFixed(2)}€` : 'Payant'}</div>
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Les abonnés participent gratuitement</div>
+        </div>
+      )}
+      <button onClick={() => navigate(-1)} style={{ padding: '12px 28px', borderRadius: 12, border: 'none', background: 'rgba(255,255,255,0.1)', color: '#94a3b8', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>← Retour</button>
+    </div></div>
+  );
 
   // ========== LOBBY ==========
   if (status === 'lobby') return (
