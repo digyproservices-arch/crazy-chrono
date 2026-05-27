@@ -2206,6 +2206,10 @@ const rooms = new Map();
 const grandeSalles = new Map(); // Map<salleId, GrandeSalleState>
 app.locals.grandeSalles = grandeSalles; // Expose for /api/gs/status route
 
+// Initialize server metrics collector (RAM, CPU, WebSocket, GS)
+const serverMetrics = require('./utils/serverMetrics');
+serverMetrics.init(io, grandeSalles, rooms);
+
 function createGrandeSalle(id, config = {}) {
   const salle = {
     id,
@@ -2399,6 +2403,7 @@ function gsStartRound(salleId) {
 
   console.log(`[GS] Round ${salle.roundsPlayed} started in "${salleId}" with ${zones.length} zones, ${salle.players.size} players`);
   sTrace.push('gs:startRound', { salle: salleId, round: salle.roundsPlayed, zonesCount: zones.length, players: salle.players.size, duration: salle.config.duration });
+  serverMetrics.logGsEvent('gs:round-start', { salle: salleId, round: salle.roundsPlayed, zones: zones.length, activePlayers: Array.from(salle.players.values()).filter(p => !p.eliminated).length, wsTotal: io.engine?.clientsCount || 0, memMB: Math.round(process.memoryUsage().heapUsed / 1048576) });
   // Valider les zones avant émission (monitoring double PA / fausse paire)
   try { validateZonesServer(zones, { source: 'gs:round-start', salleId, roundIndex: salle.roundsPlayed }); } catch (e) { logger.warn('[GS] Zone validation error:', e.message); }
   io.to(`gs:${salleId}`).emit('gs:round:new', payload);
@@ -2508,6 +2513,7 @@ function gsEliminationWave(salleId) {
   
   console.log(`[GS] Elimination wave ${salle.eliminationWave} in "${salleId}": ${eliminateCount} eliminated, ${remaining} remaining`);
   sTrace.push('gs:elimination', { salle: salleId, wave: salle.eliminationWave, eliminated: eliminateCount, remaining, elimPct, eliminatedNames: eliminatedNames.map(e => e.name) });
+  serverMetrics.logGsEvent('gs:elimination', { salle: salleId, wave: salle.eliminationWave, eliminated: eliminateCount, remaining, elimPct, wsTotal: io.engine?.clientsCount || 0, memMB: Math.round(process.memoryUsage().heapUsed / 1048576) });
   
   io.to(`gs:${salleId}`).emit('gs:elimination', {
     wave: salle.eliminationWave,
@@ -2567,6 +2573,7 @@ async function gsFinish(salleId) {
   
   console.log(`[GS] Grande Salle "${salleId}" finished. Winner: ${winner?.name || 'none'} with ${winner?.score || 0} points. ${allPlayers.length} total players.`);
   sTrace.push('gs:finish', { salle: salleId, winner: winner?.name || 'none', winnerScore: winner?.score || 0, totalPlayers: allPlayers.length, rounds: salle.roundsPlayed, waves: salle.eliminationWave });
+  serverMetrics.logGsEvent('gs:finish', { salle: salleId, winner: winner?.name || 'none', winnerScore: winner?.score || 0, totalPlayers: allPlayers.length, rounds: salle.roundsPlayed, waves: salle.eliminationWave, wsTotal: io.engine?.clientsCount || 0 });
   
   // Save tournament results to Supabase
   if (salle.tournamentId && supabaseAdmin) {
@@ -4840,6 +4847,7 @@ io.on('connection', (socket) => {
       });
       console.log(`[GS] ${playerName} joined "${id}" (${salle.players.size} players)`);
       sTrace.push('gs:join', { salle: id, socketId: socket.id, name: playerName, players: salle.players.size, sessionActive: salle.sessionActive });
+      serverMetrics.logGsEvent('gs:join', { salle: id, socket: socket.id, name: playerName, players: salle.players.size, wsTotal: io.engine?.clientsCount || 0 });
       // Check auto-start when a new player joins the lobby
       gsCheckAutoStart(id);
     }
@@ -4858,12 +4866,14 @@ io.on('connection', (socket) => {
         if (player) {
           player.disconnectedAt = Date.now();
           console.log(`[GS] Player "${player.name}" left "${currentGS}" during active session (kept for reconnection)`);
+          serverMetrics.logGsEvent('gs:leave-session', { salle: currentGS, name: player.name, socket: socket.id, players: salle.players.size, wsTotal: io.engine?.clientsCount || 0 });
         }
         salle.spectators.delete(socket.id);
       } else {
         salle.players.delete(socket.id);
         salle.spectators.delete(socket.id);
         console.log(`[GS] Player left "${currentGS}" (${salle.players.size} remaining)`);
+        serverMetrics.logGsEvent('gs:leave', { salle: currentGS, socket: socket.id, players: salle.players.size, wsTotal: io.engine?.clientsCount || 0 });
         // Re-check auto-start (might cancel if below minimum)
         gsCheckAutoStart(currentGS);
       }
@@ -4889,6 +4899,7 @@ io.on('connection', (socket) => {
     if (salle.autoStartTimer) { clearInterval(salle.autoStartTimer); salle.autoStartTimer = null; salle.autoStartCountdown = null; }
     
     console.log(`[GS] Starting Grande Salle "${id}" with ${playerCount} players`);
+    serverMetrics.logGsEvent('gs:manual-start', { salle: id, players: playerCount, wsTotal: io.engine?.clientsCount || 0, memMB: Math.round(process.memoryUsage().heapUsed / 1048576) });
     salle.sessionActive = true;
     salle.startedAt = Date.now();
     salle.status = 'countdown';

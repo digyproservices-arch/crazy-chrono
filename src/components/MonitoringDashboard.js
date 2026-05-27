@@ -93,6 +93,9 @@ function MonitoringDashboard() {
   // ── Feature Parity (parité des fonctionnalités entre modes) ──
   const [featureParity, setFeatureParity] = useState(null);
 
+  // ── Server Metrics (RAM, CPU, WebSocket, GS) ──
+  const [serverMetricsData, setServerMetricsData] = useState(null);
+
   const copyToClipboard = async (text, source) => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -277,6 +280,7 @@ const clearIncidents = async () => {
         fetch(`${backendUrl}/api/monitoring/server-trace`, { method: 'DELETE', headers }),
         fetch(`${backendUrl}/api/monitoring/game-trace`, { method: 'DELETE', headers }),
         fetch(`${backendUrl}/api/monitoring/client-telemetry`, { method: 'DELETE', headers }),
+        fetch(`${backendUrl}/api/monitoring/server-metrics`, { method: 'DELETE', headers }),
       ]);
       // Purge local data
       try { localStorage.removeItem('cc_game_incidents'); } catch {}
@@ -384,6 +388,20 @@ const clearIncidents = async () => {
         if (data.ok && Array.isArray(data.traces)) setServerTraces(data.traces);
       }
     } catch (e) { console.warn('[Monitoring] Server traces fetch failed:', e.message); }
+  }, []);
+
+  const fetchServerMetrics = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/monitoring/server-metrics`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) setServerMetricsData(data);
+      }
+    } catch (e) { console.warn('[Monitoring] Server metrics fetch failed:', e.message); }
   }, []);
 
   const fetchClientTelemetry = useCallback(async () => {
@@ -594,10 +612,10 @@ const clearIncidents = async () => {
 
   useEffect(() => {
     fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas();
-    fetchArenaStats(); fetchServerClicks(); fetchSupabaseDiag(); fetchGameTraces(); fetchServerTraces(); fetchClientTelemetry(); fetchFeatureParity();
+    fetchArenaStats(); fetchServerClicks(); fetchSupabaseDiag(); fetchGameTraces(); fetchServerTraces(); fetchClientTelemetry(); fetchFeatureParity(); fetchServerMetrics();
     setLoading(false);
     setLastRefresh(new Date());
-  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats, fetchServerClicks, fetchSupabaseDiag, fetchGameTraces, fetchServerTraces, fetchClientTelemetry, fetchFeatureParity]);
+  }, [fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchScreenshotMetas, fetchArenaStats, fetchServerClicks, fetchSupabaseDiag, fetchGameTraces, fetchServerTraces, fetchClientTelemetry, fetchFeatureParity, fetchServerMetrics]);
 
   useEffect(() => {
     if (activeTab === 'incidents' || activeTab === 'report') {
@@ -620,11 +638,11 @@ const clearIncidents = async () => {
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(() => {
-      fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas(); fetchServerClicks(); fetchGameTraces(); fetchServerTraces(); fetchClientTelemetry();
+      fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchScreenshotMetas(); fetchServerClicks(); fetchGameTraces(); fetchServerTraces(); fetchClientTelemetry(); fetchServerMetrics();
       if (activeTab === 'players') { fetchOnlinePlayers(); fetchPaymentEvents(); }
     }, 30000);
     return () => clearInterval(interval);
-  }, [autoRefresh, fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchOnlinePlayers, fetchPaymentEvents, fetchServerClicks, fetchGameTraces, fetchServerTraces, fetchClientTelemetry, activeTab]);
+  }, [autoRefresh, fetchIncidents, fetchRoundLogs, fetchAuthLogs, fetchOnlinePlayers, fetchPaymentEvents, fetchServerClicks, fetchGameTraces, fetchServerTraces, fetchClientTelemetry, fetchServerMetrics, activeTab]);
 
   // Timer: mettre à jour le temps écoulé chaque seconde quand les tests tournent
   useEffect(() => {
@@ -737,7 +755,7 @@ const clearIncidents = async () => {
               Auto-refresh 30s
             </label>
             <button
-              onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchServerClicks(); fetchGameTraces(); fetchServerTraces(); fetchClientTelemetry(); }}
+              onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchAuthLogs(); fetchServerClicks(); fetchGameTraces(); fetchServerTraces(); fetchClientTelemetry(); fetchServerMetrics(); }}
               style={btnStyle(COLORS.info)}
             >
               🔄 Rafraîchir
@@ -980,6 +998,58 @@ const clearIncidents = async () => {
                 }
                 sections.push('');
 
+                // Server Metrics (RAM, CPU, WebSocket, Grande Salle)
+                sections.push(`--- MÉTRIQUES SERVEUR (performance) ---`);
+                if (serverMetricsData?.latest) {
+                  const m = serverMetricsData.latest;
+                  const s = serverMetricsData.summary;
+                  sections.push(`Timestamp: ${m.ts}`);
+                  sections.push(`Uptime: ${Math.floor((m.uptime || 0) / 3600)}h ${Math.floor(((m.uptime || 0) % 3600) / 60)}m`);
+                  sections.push(`RAM Heap: ${m.memory.heapUsedMB}/${m.memory.heapTotalMB} MB | RSS: ${m.memory.rssMB} MB | External: ${m.memory.externalMB} MB`);
+                  sections.push(`OS: ${m.os.freeMB}/${m.os.totalMB} MB libres`);
+                  sections.push(`CPU: ${m.cpu.percent}% (user: ${m.cpu.userMs}ms, sys: ${m.cpu.systemMs}ms sur ${Math.round(10)}s)`);
+                  sections.push(`WebSocket: ${m.ws.connections} connexions | ${m.ws.rooms} rooms`);
+                  if (m.gs && m.gs.length > 0) {
+                    sections.push(`Grande Salle: ${m.gsSummary.salles} salle(s), ${m.gsSummary.totalPlayers} joueurs, ${m.gsSummary.totalSpectators} spectateurs`);
+                    m.gs.forEach(g => {
+                      sections.push(`  [${g.id.slice(0, 30)}] status=${g.status} joueurs=${g.players} spectateurs=${g.spectators} rounds=${g.roundsPlayed} elimWave=${g.eliminationWave}${g.tournamentTitle ? ` "${g.tournamentTitle}"` : ''}`);
+                    });
+                  } else {
+                    sections.push(`Grande Salle: Aucune salle active`);
+                  }
+                  if (s) {
+                    sections.push(`Historique (${s.period.samples} échantillons, ${s.period.from} → ${s.period.to}):`);
+                    sections.push(`  Heap MB — min: ${s.heapMB.min} | max: ${s.heapMB.max} | moy: ${s.heapMB.avg} | actuel: ${s.heapMB.current}`);
+                    sections.push(`  RSS MB  — min: ${s.rssMB.min} | max: ${s.rssMB.max} | moy: ${s.rssMB.avg} | actuel: ${s.rssMB.current}`);
+                    sections.push(`  CPU %   — min: ${s.cpuPercent.min} | max: ${s.cpuPercent.max} | moy: ${s.cpuPercent.avg} | actuel: ${s.cpuPercent.current}`);
+                    sections.push(`  WS conn — min: ${s.wsConnections.min} | max: ${s.wsConnections.max} | moy: ${s.wsConnections.avg} | actuel: ${s.wsConnections.current}`);
+                    sections.push(`  GS play — min: ${s.gsPlayers.min} | max: ${s.gsPlayers.max} | moy: ${s.gsPlayers.avg} | actuel: ${s.gsPlayers.current}`);
+                  }
+                } else {
+                  sections.push('Métriques serveur non disponibles (endpoint /api/monitoring/server-metrics absent ou erreur).');
+                }
+                sections.push('');
+
+                // GS Events (événements Grande Salle détaillés)
+                const gsEvts = serverMetricsData?.gsEvents || [];
+                sections.push(`--- ÉVÉNEMENTS GRANDE SALLE (${gsEvts.length}) ---`);
+                if (gsEvts.length === 0) {
+                  sections.push('Aucun événement GS enregistré.');
+                } else {
+                  gsEvts.slice(-100).forEach((e, i) => {
+                    const ts = e.ts ? new Date(e.ts).toLocaleString('fr-FR') : 'N/A';
+                    let detail = '';
+                    if (e.event === 'gs:join') detail = ` salle=${e.salle} name=${e.name} joueurs=${e.players} ws=${e.wsTotal}`;
+                    if (e.event === 'gs:leave' || e.event === 'gs:leave-session') detail = ` salle=${e.salle}${e.name ? ` name=${e.name}` : ''} joueurs=${e.players} ws=${e.wsTotal}`;
+                    if (e.event === 'gs:manual-start') detail = ` salle=${e.salle} joueurs=${e.players} ws=${e.wsTotal} RAM=${e.memMB}MB`;
+                    if (e.event === 'gs:round-start') detail = ` salle=${e.salle} round=${e.round} zones=${e.zones} actifs=${e.activePlayers} ws=${e.wsTotal} RAM=${e.memMB}MB`;
+                    if (e.event === 'gs:elimination') detail = ` salle=${e.salle} vague=${e.wave} eliminés=${e.eliminated} restants=${e.remaining} pct=${e.elimPct}% ws=${e.wsTotal} RAM=${e.memMB}MB`;
+                    if (e.event === 'gs:finish') detail = ` salle=${e.salle} gagnant=${e.winner} score=${e.winnerScore} joueurs=${e.totalPlayers} rounds=${e.rounds} vagues=${e.waves} ws=${e.wsTotal}`;
+                    sections.push(`  [${i + 1}] ${ts} | ${e.event}${detail}`);
+                  });
+                }
+                sections.push('');
+
                 // Server Trace (GAME-TRACE serveur)
                 sections.push(`--- TRACE SERVEUR (${serverTraces.length} événements) ---`);
                 if (serverTraces.length === 0) {
@@ -1196,7 +1266,7 @@ sections.push(`===== FIN DU RAPPORT =====`);
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button
-                        onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchScreenshotMetas(); fetchServerClicks(); fetchGameTraces(); fetchServerTraces(); fetchClientTelemetry(); }}
+                        onClick={() => { fetchIncidents(); fetchRoundLogs(); fetchScreenshotMetas(); fetchServerClicks(); fetchGameTraces(); fetchServerTraces(); fetchClientTelemetry(); fetchServerMetrics(); }}
                         style={btnStyle(COLORS.info)}
                       >
                         🔄 Rafraîchir tout

@@ -1751,6 +1751,38 @@ router.get('/feature-parity', requireAdminAuth, (req, res) => {
   }
 });
 
+// ── Server Metrics (RAM, CPU, WebSocket, GS) ─────────────
+const serverMetrics = require('../utils/serverMetrics');
+
+/**
+ * GET /api/monitoring/server-metrics
+ * Returns current server health + history snapshots + GS event log (admin only)
+ */
+router.get('/server-metrics', requireAdminAuth, (req, res) => {
+  try {
+    const latest = serverMetrics.getLatest();
+    const summary = serverMetrics.getSummary();
+    const history = req.query.history === 'true' ? serverMetrics.getAll() : null;
+    const gsEvents = serverMetrics.getGsEvents();
+    res.json({ ok: true, latest, summary, history, gsEvents, gsEventsCount: gsEvents.length });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/monitoring/server-metrics
+ * Purge all server metrics and GS events (admin only)
+ */
+router.delete('/server-metrics', requireAdminAuth, (req, res) => {
+  try {
+    serverMetrics.purge();
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 // Exposer la Map onlinePlayers pour le monitoringService
 router._onlinePlayers = onlinePlayers;
 
