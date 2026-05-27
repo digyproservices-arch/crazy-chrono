@@ -2268,6 +2268,7 @@ const Carte = () => {
         // GS: round:new — zone processing
         s.on('gs:round:new', (payload) => {
           console.log('[CC][GS] gs:round:new', { zonesCount: payload?.zones?.length, duration: payload?.duration });
+          try { const buf = JSON.parse(localStorage.getItem('cc_gs_click_log') || '[]'); buf.push({ ts: Date.now(), event: 'RECV:gs:round:new', zoneIds: (payload?.zones || []).slice(0,4).map(z=>z.id), count: payload?.zones?.length, roundIndex: payload?.roundIndex }); if (buf.length > 50) buf.splice(0, buf.length - 50); localStorage.setItem('cc_gs_click_log', JSON.stringify(buf)); } catch {}
           try { localStorage.removeItem('cc_gs_round'); } catch {}
           try { if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } } catch {}
           if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
@@ -2300,6 +2301,15 @@ const Carte = () => {
           setValidatedPairIds(new Set());
           try { enterGameFullscreen(); } catch {}
           try { setPanelCollapsed(true); } catch {}
+        });
+
+        s.on('gs:pair:invalid', (payload) => {
+          console.warn('[CC][GS] gs:pair:invalid', payload);
+          try { const buf = JSON.parse(localStorage.getItem('cc_gs_click_log') || '[]'); buf.push({ ts: Date.now(), event: 'RECV:gs:pair:invalid', a: payload?.a, b: payload?.b, reason: payload?.reason }); if (buf.length > 50) buf.splice(0, buf.length - 50); localStorage.setItem('cc_gs_click_log', JSON.stringify(buf)); } catch {}
+          setGameSelectedIds([]);
+          try { playWrongSound(); } catch {}
+          setGameMsg('Paire rejetée par le serveur');
+          setTimeout(() => setGameMsg(''), 1500);
         });
 
         s.on('gs:pair:valid', (payload) => {
@@ -4455,7 +4465,7 @@ function handleGameClick(zone) {
           } else if (socket._isGrandeSalle) {
             // Mode Grande Salle
             try { socket.emit('gs:attemptPair', { a, b }); } catch {}
-            gsLog('EMIT:gs:attemptPair', { a, b, connected: socket.connected });
+            gsLog('EMIT:gs:attemptPair', { a, b, connected: socket.connected, socketId: socket.id, salleId: socket._gsSalleId });
           } else {
             // Mode multijoueur classique
             try { socket.emit('attemptPair', { a, b }); } catch {}

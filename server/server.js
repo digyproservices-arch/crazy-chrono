@@ -4939,21 +4939,23 @@ io.on('connection', (socket) => {
 
   // Pair attempt in Grande Salle
   socket.on('gs:attemptPair', ({ a, b }) => {
-    if (!currentGS) return;
+    const _apName = (() => { try { if (currentGS) { const s = grandeSalles.get(currentGS); return s?.players?.get(socket.id)?.name || '?'; } return '?'; } catch { return '?'; } })();
+    logger.info(`[GS][attemptPair] REÇU de ${_apName} (${socket.id}) a=${a} b=${b} currentGS=${currentGS || 'NULL'}`);
+    if (!currentGS) { logger.warn(`[GS][attemptPair] REJETÉ: currentGS=null socket=${socket.id}`); return; }
     const salle = grandeSalles.get(currentGS);
-    if (!salle || salle.status !== 'playing') return;
+    if (!salle || salle.status !== 'playing') { logger.warn(`[GS][attemptPair] REJETÉ: salle=${!!salle} status=${salle?.status} socket=${socket.id}`); return; }
     
     const player = salle.players.get(socket.id);
-    if (!player || player.eliminated) return;
+    if (!player || player.eliminated) { logger.warn(`[GS][attemptPair] REJETÉ: player=${!!player} eliminated=${player?.eliminated} socket=${socket.id}`); return; }
     
     // Debounce
     if (!salle._attemptDebounce) salle._attemptDebounce = new Map();
     const now = Date.now();
-    if ((now - (salle._attemptDebounce.get(socket.id) || 0)) < 300) return;
+    if ((now - (salle._attemptDebounce.get(socket.id) || 0)) < 300) { logger.warn(`[GS][attemptPair] REJETÉ: debounce socket=${socket.id}`); return; }
     salle._attemptDebounce.set(socket.id, now);
     
     const keyZones = [String(a), String(b)].sort().join('|');
-    if (salle.foundPairs.has(keyZones)) return;
+    if (salle.foundPairs.has(keyZones)) { logger.warn(`[GS][attemptPair] REJETÉ: foundPairs déjà key=${keyZones} socket=${socket.id}`); return; }
     
     // Validate pair using zones
     if (salle.currentZones && Array.isArray(salle.currentZones)) {
@@ -4961,8 +4963,9 @@ io.on('connection', (socket) => {
       const zB = salle.currentZones.find(z => String(z.id) === String(b));
       if (!zA || !zB || !zA.pairId || zA.pairId !== zB.pairId) {
         // Invalid pair - increment errors
+        logger.warn(`[GS][attemptPair] REJETÉ: zones invalides a=${a} b=${b} foundA=${!!zA} foundB=${!!zB} pairA=${zA?.pairId||'null'} pairB=${zB?.pairId||'null'} zoneCount=${salle.currentZones.length} socket=${socket.id} name=${player.name}`);
         player.errors = (player.errors || 0) + 1;
-        socket.emit('gs:pair:invalid', { a, b });
+        socket.emit('gs:pair:invalid', { a, b, reason: !zA || !zB ? 'zone_not_found' : 'pairId_mismatch' });
         // 📊 Suivi tentative incorrecte pour la progression
         try { persistMPAttempt(salle, socket.id, { isCorrect: false, zoneAId: a, zoneBId: b }); } catch {}
         // 📊 DIAGNOSTIC: Enregistrer l'erreur dans roundHistory
@@ -4972,6 +4975,7 @@ io.on('connection', (socket) => {
     }
     
     // Valid pair!
+    logger.info(`[GS][attemptPair] ✅ VALIDÉ par ${player.name} (${socket.id}) a=${a} b=${b} score=${(player.score||0)+1} salle=${currentGS}`);
     salle.foundPairs.add(keyZones);
     player.score = (player.score || 0) + 1;
     // 📊 Suivi tentative correcte pour la progression
@@ -5027,7 +5031,10 @@ io.on('connection', (socket) => {
       
       // Valider les zones régénérées (monitoring double PA / fausse paire)
       try { validateZonesServer(newZones, { source: 'gs:round-regen', salleId: currentGS, roundIndex: salle.roundsPlayed }); } catch (e) { logger.warn('[GS] Zone validation error (regen):', e.message); }
-      io.to(`gs:${currentGS}`).emit('gs:round:new', {
+      const roomName = `gs:${currentGS}`;
+      const roomSockets = io.sockets.adapter.rooms.get(roomName);
+      logger.info(`[GS][regen] Broadcasting gs:round:new to room=${roomName} sockets=[${roomSockets ? [...roomSockets].join(',') : 'EMPTY'}] newZoneIds=[${newZones.slice(0,4).map(z=>z.id).join(',')}...] sender=${socket.id}`);
+      io.to(roomName).emit('gs:round:new', {
         seed: newSeed,
         zones: newZones,
         hasZones: true,
@@ -5037,7 +5044,7 @@ io.on('connection', (socket) => {
         startedAt: salle.currentRoundStartedAt || Date.now(),
       });
     } catch (err) {
-      console.error('[GS] Zone regen error:', err.message);
+      logger.error(`[GS] Zone regen error: ${err.message}`);
     }
   });
 
