@@ -249,12 +249,16 @@ export default function GrandeSalle() {
       // ✅ FIX: Spectateurs éliminés reçoivent les zones pour la vue en direct
       if (eliminatedRef.current) {
         console.log('[GS] gs:round:new en mode spectateur — mise à jour zones');
+        // Activer la vue spectateur SVG (pas la grille de boutons)
+        setIsSpectator(true);
+        setStatus('playing');
         if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
           setZones(payload.zones);
           zonesRef.current = payload.zones;
           invalidateZoneCenterCache();
         }
         if (payload?.roundIndex) setRoundsPlayed(payload.roundIndex);
+        if (payload?.eliminationWave) setEliminationWave(payload.eliminationWave);
         // Timer spectateur local
         if (payload?.duration) {
           setRoundTimeLeft(payload.duration);
@@ -637,28 +641,35 @@ export default function GrandeSalle() {
   const getPlayerColor = (idx) => PLAYER_PRIMARY_COLORS[idx % PLAYER_PRIMARY_COLORS.length];
 
   // ========== SPECTATOR VIEW — Carte SVG en direct ==========
+  const elimScore = eliminatedData?.myScore ?? eliminatedData?.score ?? lastElimination?.eliminated?.find(e => e.id === myId)?.score ?? 0;
+  const elimRank = eliminatedData?.myRank ?? eliminatedData?.finalRank ?? lastElimination?.eliminated?.find(e => e.id === myId)?.rank ?? '?';
+  const elimTotal = lastElimination?.totalPlayers || totalPlayers || '?';
+
   if (isSpectator) return (
-    <div style={{ position: 'fixed', inset: 0, background: 'linear-gradient(135deg, #0D6A7A 0%, #148A9C 30%, #1AACBE 60%, #148A9C 100%)', color: '#fff', padding: '16px 20px', overflow: 'hidden', touchAction: 'none' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, padding: '10px 20px', background: 'rgba(0,0,0,0.25)', borderRadius: 14, border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>👁️ {tournamentTitle || 'Grande Salle'} <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>— Spectateur</span></h1>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{activePlayers} joueurs actifs • Manche {roundsPlayed}</span>
+    <div style={{ position: 'fixed', inset: 0, background: 'linear-gradient(135deg, #0a1628 0%, #0f2744 30%, #0D3B66 60%, #0f2744 100%)', color: '#fff', padding: '12px 16px', overflow: 'hidden', touchAction: 'none', display: 'flex', flexDirection: 'column' }}>
+      {/* Bandeau éliminé + info */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, padding: '10px 16px', background: 'rgba(239,68,68,0.12)', borderRadius: 14, border: '1px solid rgba(239,68,68,0.25)' }}>
+        <div style={{ fontSize: 32 }}>�</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: '#fca5a5' }}>Vous avez été éliminé(e) — Vague {eliminationWave || lastElimination?.wave || '?'}</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>Position : <strong style={{ color: '#F5A623' }}>#{elimRank}</strong>/{elimTotal} • Score : <strong style={{ color: '#10b981' }}>{elimScore} pts</strong></div>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {roundTimeLeft != null && (
-            <div style={{ padding: '6px 16px', borderRadius: 20, fontWeight: 900, fontSize: 20, color: roundTimeLeft <= 10 ? '#ef4444' : roundTimeLeft <= 30 ? '#F5A623' : '#10b981', background: 'rgba(0,0,0,0.3)', fontVariantNumeric: 'tabular-nums', minWidth: 60, textAlign: 'center' }}>
-              ⏱️ {roundTimeLeft}s
+            <div style={{ padding: '5px 14px', borderRadius: 16, fontWeight: 900, fontSize: 18, color: roundTimeLeft <= 10 ? '#ef4444' : roundTimeLeft <= 30 ? '#F5A623' : '#10b981', background: 'rgba(0,0,0,0.4)', fontVariantNumeric: 'tabular-nums', minWidth: 50, textAlign: 'center' }}>
+              {roundTimeLeft}s
             </div>
           )}
-          <div style={{ padding: '6px 16px', borderRadius: 20, fontWeight: 700, fontSize: 13, color: '#6366f1', background: 'rgba(99,102,241,0.15)' }}>👁️ SPECTATEUR</div>
-          {eliminationWave > 0 && <span style={{ ...BADGE('rgba(239,68,68,0.2)'), color: '#fca5a5' }}>Vague {eliminationWave}</span>}
-          <button onClick={() => navigate('/modes')} style={{ padding: '6px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#94a3b8', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>← Quitter</button>
+          <div style={{ padding: '5px 12px', borderRadius: 16, fontWeight: 700, fontSize: 11, color: '#a5b4fc', background: 'rgba(99,102,241,0.2)', whiteSpace: 'nowrap' }}>👁️ SPECTATEUR</div>
+          <button onClick={() => navigate('/modes')} style={{ padding: '5px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#94a3b8', fontWeight: 600, fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>← Quitter</button>
         </div>
+      </div>
+      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, textAlign: 'center' }}>
+        🏟️ {tournamentTitle || 'Grande Salle'} • {activePlayers} joueurs actifs • Manche {roundsPlayed} • Assistez au match en direct
       </div>
 
       {/* Main: Carte SVG + Sidebar */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, height: 'calc(100vh - 90px)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 12, flex: 1, minHeight: 0 }}>
 
         {/* LEFT: GAME CARD SVG */}
         <div style={{ position: 'relative', background: 'rgba(0,0,0,0.25)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.15)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
