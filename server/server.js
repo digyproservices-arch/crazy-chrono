@@ -4837,9 +4837,18 @@ io.on('connection', (socket) => {
           salle.players.set(socket.id, playerData);
           salle.spectators.delete(oldId);
           reconnected = true;
-          console.log(`[GS] ${playerName} reconnected in "${id}" (${oldId} -> ${socket.id}), score=${playerData.score}`);
-          sTrace.push('gs:reconnect', { salle: id, name: playerName, oldSocketId: oldId, newSocketId: socket.id, score: playerData.score });
-          // Send current round zones to the reconnected player
+          console.log(`[GS] ${playerName} reconnected in "${id}" (${oldId} -> ${socket.id}), score=${playerData.score}, eliminated=${!!playerData.eliminated}`);
+          sTrace.push('gs:reconnect', { salle: id, name: playerName, oldSocketId: oldId, newSocketId: socket.id, score: playerData.score, eliminated: !!playerData.eliminated });
+
+          // ✅ FIX: Eliminated players rejoin as spectators — do NOT send gs:round:new
+          if (playerData.eliminated) {
+            salle.spectators.add(socket.id);
+            socket.emit('gs:joined-as-spectator', { salleId: id, reason: 'eliminated', tournamentTitle: salle.tournamentTitle || null });
+            console.log(`[GS] ${playerName} reconnected as SPECTATOR (eliminated wave ${playerData.eliminatedWave})`);
+            break;
+          }
+
+          // Send current round zones to the reconnected player (active only)
           if (salle.currentZones && Array.isArray(salle.currentZones)) {
             socket.emit('gs:round:new', {
               zones: salle.currentZones,
