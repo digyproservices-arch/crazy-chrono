@@ -128,10 +128,11 @@ export function CarteRenderer({
 
   return (
     <div className="carte-renderer" style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <object
-        type="image/svg+xml"
-        data={svgPath}
+      <img
+        src={svgPath}
+        alt=""
         className="carte-bg"
+        draggable={false}
         style={{
           position: 'absolute',
           top: 0,
@@ -140,9 +141,7 @@ export function CarteRenderer({
           height: '100%',
           pointerEvents: 'none'
         }}
-      >
-        Votre navigateur ne supporte pas les SVG
-      </object>
+      />
       
       <svg
         className="carte-svg-overlay"

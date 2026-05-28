@@ -8893,13 +8893,12 @@ setZones(dataWithRandomTexts);
             gracePeriodMs={arenaPauseInfo.gracePeriodMs}
           />
         )}
-        <object
-          type="image/svg+xml"
-          data={svgPath}
+        <img
+          src={svgPath}
+          alt=""
           className="carte-bg"
-        >
-          Votre navigateur ne supporte pas les SVG
-        </object>
+          draggable={false}
+        />
         <svg
           ref={svgOverlayRef}
           className="carte-svg-overlay"
@@ -8967,7 +8966,7 @@ setZones(dataWithRandomTexts);
           ))}
           {/* Paths pour texte courbé (zones non-image) — autoFlip en mode jeu pour éviter texte à l'envers */}
           {zones.filter(z => z.type !== 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
-            <path id={`text-curve-${zone.id}`} key={`textcurve-${zone.id}`} d={getArcPathFromZonePoints(zone.points, zone.id, selectedArcPoints, zone.arcPoints, 0, !!(arenaMatchId || trainingMatchId))} fill="none" />
+            <path id={`text-curve-${zone.id}`} key={`textcurve-${zone.id}`} d={getArcPathFromZonePoints(zone.points, zone.id, selectedArcPoints, zone.arcPoints, 0, !!(arenaMatchId || trainingMatchId || gsMode))} fill="none" />
           ))}
         </defs>
           {/* Chemin en cours de dessin façon Illustrator */}
