@@ -654,7 +654,7 @@ export default function GrandeSalle() {
         <div style={{ position: 'relative', background: 'rgba(0,0,0,0.25)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.15)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {zones.length > 0 ? (
             <div className="carte" style={{ position: 'relative', width: '100%', height: '100%' }}>
-              <img src={svgPath} alt="" className="carte-bg" draggable={false} />
+              <object type="image/svg+xml" data={svgPath} className="carte-bg" />
               <svg className="carte-svg-overlay" width={1000} height={1000} viewBox="0 0 1000 1000" style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', width: '100%', height: '100%', zIndex: 2 }}>
                 <defs>
                   {zones.filter(z => z.type === 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
