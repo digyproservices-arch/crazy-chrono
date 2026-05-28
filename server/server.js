@@ -4941,21 +4941,22 @@ io.on('connection', (socket) => {
   socket.on('gs:attemptPair', ({ a, b }) => {
     const _apName = (() => { try { if (currentGS) { const s = grandeSalles.get(currentGS); return s?.players?.get(socket.id)?.name || '?'; } return '?'; } catch { return '?'; } })();
     logger.info(`[GS][attemptPair] REÇU de ${_apName} (${socket.id}) a=${a} b=${b} currentGS=${currentGS || 'NULL'}`);
-    if (!currentGS) { logger.warn(`[GS][attemptPair] REJETÉ: currentGS=null socket=${socket.id}`); return; }
+    sTrace.push('gs:attemptPair', { name: _apName, socket: socket.id, a, b, currentGS: currentGS || 'NULL' });
+    if (!currentGS) { logger.warn(`[GS][attemptPair] REJETÉ: currentGS=null socket=${socket.id}`); sTrace.push('gs:attemptPair:rejected', { reason: 'currentGS=null', socket: socket.id }); return; }
     const salle = grandeSalles.get(currentGS);
-    if (!salle || salle.status !== 'playing') { logger.warn(`[GS][attemptPair] REJETÉ: salle=${!!salle} status=${salle?.status} socket=${socket.id}`); return; }
+    if (!salle || salle.status !== 'playing') { logger.warn(`[GS][attemptPair] REJETÉ: salle=${!!salle} status=${salle?.status} socket=${socket.id}`); sTrace.push('gs:attemptPair:rejected', { reason: `status=${salle?.status||'no_salle'}`, socket: socket.id, name: _apName }); return; }
     
     const player = salle.players.get(socket.id);
-    if (!player || player.eliminated) { logger.warn(`[GS][attemptPair] REJETÉ: player=${!!player} eliminated=${player?.eliminated} socket=${socket.id}`); return; }
+    if (!player || player.eliminated) { logger.warn(`[GS][attemptPair] REJETÉ: player=${!!player} eliminated=${player?.eliminated} socket=${socket.id}`); sTrace.push('gs:attemptPair:rejected', { reason: `player=${!!player} eliminated=${player?.eliminated}`, socket: socket.id, name: _apName }); return; }
     
     // Debounce
     if (!salle._attemptDebounce) salle._attemptDebounce = new Map();
     const now = Date.now();
-    if ((now - (salle._attemptDebounce.get(socket.id) || 0)) < 300) { logger.warn(`[GS][attemptPair] REJETÉ: debounce socket=${socket.id}`); return; }
+    if ((now - (salle._attemptDebounce.get(socket.id) || 0)) < 300) { logger.warn(`[GS][attemptPair] REJETÉ: debounce socket=${socket.id}`); sTrace.push('gs:attemptPair:rejected', { reason: 'debounce', socket: socket.id, name: _apName }); return; }
     salle._attemptDebounce.set(socket.id, now);
     
     const keyZones = [String(a), String(b)].sort().join('|');
-    if (salle.foundPairs.has(keyZones)) { logger.warn(`[GS][attemptPair] REJETÉ: foundPairs déjà key=${keyZones} socket=${socket.id}`); return; }
+    if (salle.foundPairs.has(keyZones)) { logger.warn(`[GS][attemptPair] REJETÉ: foundPairs déjà key=${keyZones} socket=${socket.id}`); sTrace.push('gs:attemptPair:rejected', { reason: 'foundPairs', key: keyZones, socket: socket.id, name: _apName }); return; }
     
     // Validate pair using zones
     if (salle.currentZones && Array.isArray(salle.currentZones)) {
@@ -4964,6 +4965,7 @@ io.on('connection', (socket) => {
       if (!zA || !zB || !zA.pairId || zA.pairId !== zB.pairId) {
         // Invalid pair - increment errors
         logger.warn(`[GS][attemptPair] REJETÉ: zones invalides a=${a} b=${b} foundA=${!!zA} foundB=${!!zB} pairA=${zA?.pairId||'null'} pairB=${zB?.pairId||'null'} zoneCount=${salle.currentZones.length} socket=${socket.id} name=${player.name}`);
+        sTrace.push('gs:attemptPair:rejected', { reason: !zA || !zB ? 'zone_not_found' : 'pairId_mismatch', a, b, foundA: !!zA, foundB: !!zB, zoneCount: salle.currentZones.length, socket: socket.id, name: player.name });
         player.errors = (player.errors || 0) + 1;
         socket.emit('gs:pair:invalid', { a, b, reason: !zA || !zB ? 'zone_not_found' : 'pairId_mismatch' });
         // 📊 Suivi tentative incorrecte pour la progression
@@ -4976,6 +4978,7 @@ io.on('connection', (socket) => {
     
     // Valid pair!
     logger.info(`[GS][attemptPair] ✅ VALIDÉ par ${player.name} (${socket.id}) a=${a} b=${b} score=${(player.score||0)+1} salle=${currentGS}`);
+    sTrace.push('gs:attemptPair:valid', { name: player.name, socket: socket.id, a, b, score: (player.score||0)+1, salle: currentGS });
     salle.foundPairs.add(keyZones);
     player.score = (player.score || 0) + 1;
     // 📊 Suivi tentative correcte pour la progression
@@ -5033,7 +5036,9 @@ io.on('connection', (socket) => {
       try { validateZonesServer(newZones, { source: 'gs:round-regen', salleId: currentGS, roundIndex: salle.roundsPlayed }); } catch (e) { logger.warn('[GS] Zone validation error (regen):', e.message); }
       const roomName = `gs:${currentGS}`;
       const roomSockets = io.sockets.adapter.rooms.get(roomName);
-      logger.info(`[GS][regen] Broadcasting gs:round:new to room=${roomName} sockets=[${roomSockets ? [...roomSockets].join(',') : 'EMPTY'}] newZoneIds=[${newZones.slice(0,4).map(z=>z.id).join(',')}...] sender=${socket.id}`);
+      const roomSocketList = roomSockets ? [...roomSockets] : [];
+      logger.info(`[GS][regen] Broadcasting gs:round:new to room=${roomName} sockets=[${roomSocketList.join(',')}] newZoneIds=[${newZones.slice(0,4).map(z=>z.id).join(',')}...] sender=${socket.id}`);
+      sTrace.push('gs:regen:broadcast', { room: roomName, sockets: roomSocketList, newZoneCount: newZones.length, sender: socket.id, senderName: player.name });
       io.to(roomName).emit('gs:round:new', {
         seed: newSeed,
         zones: newZones,
