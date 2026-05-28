@@ -216,6 +216,11 @@ export default function GrandeSalle() {
           setAccessDenied(res);
           return;
         }
+        // ✅ FIX: Reset eliminated state pour nouvelle partie (sinon le joueur reste bloqué en mode spectateur)
+        if (!res?.isSpectator) {
+          eliminatedRef.current = false;
+          setIsSpectator(false);
+        }
         if (res?.tournamentTitle) setTournamentTitle(res.tournamentTitle);
         if (res?.autoStartCountdown != null) setLobbyCountdown(res.autoStartCountdown);
         if (res?.manualStart) setManualStart(true);
@@ -228,7 +233,12 @@ export default function GrandeSalle() {
     });
     socket.on('gs:joined-as-spectator', (d) => { setIsSpectator(true); if (d?.reason === 'eliminated') eliminatedRef.current = true; if (d?.tournamentTitle) setTournamentTitle(d.tournamentTitle); });
     socket.on('gs:lobby-countdown', ({ t }) => setLobbyCountdown(t));
-    socket.on('gs:countdown', ({ t }) => { setLobbyCountdown(null); setCountdown(t); setStatus('countdown'); });
+    socket.on('gs:countdown', ({ t }) => {
+      // ✅ FIX: Si countdown reçu, le joueur est actif dans cette partie
+      eliminatedRef.current = false;
+      setIsSpectator(false);
+      setLobbyCountdown(null); setCountdown(t); setStatus('countdown');
+    });
     socket.on('gs:elimination', (d) => {
       setLastElimination(d);
       setEliminatedData(d);
