@@ -5018,38 +5018,62 @@ io.on('connection', (socket) => {
     const newSeed = Math.floor(Date.now() % 2147483647);
     try {
       if (!salle.deckState) salle.deckState = createDeckState();
-      const regenResult = generateRoundZones(newSeed, {
+      let regenResult = generateRoundZones(newSeed, {
         themes: salle.config.themes || [],
         classes: salle.config.classes || [],
         extras: salle.config.extras || [],
         selectedLevel: salle.config.selectedLevel || null,
         excludedPairIds: salle.validatedPairIds || new Set(),
         deckState: salle.deckState,
-        logFn: (level, message, data) => emitServerLog(salleId, level, message, data)
+        logFn: (level, message, data) => { try { emitServerLog(currentGS, level, message, data); } catch {} }
       });
-      const newZones = Array.isArray(regenResult) ? regenResult : (regenResult?.zones || []);
-      salle.currentZones = newZones;
-      salle.roundSeed = newSeed;
-      salle.foundPairs.clear();
+      let newZones = Array.isArray(regenResult) ? regenResult : (regenResult?.zones || []);
       
-      // Valider les zones régénérées (monitoring double PA / fausse paire)
-      try { validateZonesServer(newZones, { source: 'gs:round-regen', salleId: currentGS, roundIndex: salle.roundsPlayed }); } catch (e) { logger.warn('[GS] Zone validation error (regen):', e.message); }
-      const roomName = `gs:${currentGS}`;
-      const roomSockets = io.sockets.adapter.rooms.get(roomName);
-      const roomSocketList = roomSockets ? [...roomSockets] : [];
-      logger.info(`[GS][regen] Broadcasting gs:round:new to room=${roomName} sockets=[${roomSocketList.join(',')}] newZoneIds=[${newZones.slice(0,4).map(z=>z.id).join(',')}...] sender=${socket.id}`);
-      sTrace.push('gs:regen:broadcast', { room: roomName, sockets: roomSocketList, newZoneCount: newZones.length, sender: socket.id, senderName: player.name });
-      io.to(roomName).emit('gs:round:new', {
-        seed: newSeed,
-        zones: newZones,
-        hasZones: true,
-        duration: salle.config.duration,
-        roundIndex: salle.roundsPlayed,
-        eliminationWave: salle.eliminationWave,
-        startedAt: salle.currentRoundStartedAt || Date.now(),
-      });
+      // FAILSAFE: if zones empty, retry without exclusions
+      if (newZones.length === 0) {
+        logger.warn(`[GS][regen] ⚠️ EMPTY ZONES on first attempt — retrying without excludedPairIds (had ${salle.validatedPairIds?.size || 0} exclusions)`);
+        sTrace.push('gs:regen:empty-retry', { excludedCount: salle.validatedPairIds?.size || 0, sender: socket.id, senderName: player.name });
+        regenResult = generateRoundZones(newSeed + 1, {
+          themes: salle.config.themes || [],
+          classes: salle.config.classes || [],
+          extras: salle.config.extras || [],
+          selectedLevel: salle.config.selectedLevel || null,
+          excludedPairIds: new Set(),
+          deckState: salle.deckState,
+          logFn: (level, message, data) => { try { emitServerLog(currentGS, level, message, data); } catch {} }
+        });
+        newZones = Array.isArray(regenResult) ? regenResult : (regenResult?.zones || []);
+      }
+      
+      // If still empty, don't broadcast (keep current zones playable)
+      if (newZones.length === 0) {
+        logger.error(`[GS][regen] ❌ ZONES STILL EMPTY after retry — keeping current zones`);
+        sTrace.push('gs:regen:failed', { sender: socket.id, senderName: player.name, themes: salle.config.themes?.length || 0, classes: salle.config.classes?.length || 0 });
+      } else {
+        salle.currentZones = newZones;
+        salle.roundSeed = newSeed;
+        salle.foundPairs.clear();
+        
+        // Valider les zones régénérées (monitoring double PA / fausse paire)
+        try { validateZonesServer(newZones, { source: 'gs:round-regen', salleId: currentGS, roundIndex: salle.roundsPlayed }); } catch (e) { logger.warn('[GS] Zone validation error (regen):', e.message); }
+        const roomName = `gs:${currentGS}`;
+        const roomSockets = io.sockets.adapter.rooms.get(roomName);
+        const roomSocketList = roomSockets ? [...roomSockets] : [];
+        logger.info(`[GS][regen] Broadcasting gs:round:new to room=${roomName} sockets=[${roomSocketList.join(',')}] newZoneIds=[${newZones.slice(0,4).map(z=>z.id).join(',')}...] sender=${socket.id}`);
+        sTrace.push('gs:regen:broadcast', { room: roomName, sockets: roomSocketList, newZoneCount: newZones.length, sender: socket.id, senderName: player.name });
+        io.to(roomName).emit('gs:round:new', {
+          seed: newSeed,
+          zones: newZones,
+          hasZones: true,
+          duration: salle.config.duration,
+          roundIndex: salle.roundsPlayed,
+          eliminationWave: salle.eliminationWave,
+          startedAt: salle.currentRoundStartedAt || Date.now(),
+        });
+      }
     } catch (err) {
       logger.error(`[GS] Zone regen error: ${err.message}`);
+      sTrace.push('gs:regen:error', { error: err.message, sender: socket.id });
     }
   });
 

@@ -1077,6 +1077,13 @@ const clearIncidents = async () => {
                     if (t.event === 'gs:roundTimer:fired') detail = ` salle=${t.salle} round=${t.round} expected=${t.expectedMs}ms drift=${t.driftMs}ms`;
                     if (t.event === 'gs:elimination') detail = ` salle=${t.salle} wave=${t.wave} eliminated=${t.eliminated} remaining=${t.remaining} pct=${t.elimPct}% names=[${(t.eliminatedNames||[]).join(',')}]`;
                     if (t.event === 'gs:finish') detail = ` salle=${t.salle} winner=${t.winner} score=${t.winnerScore} players=${t.totalPlayers} rounds=${t.rounds} waves=${t.waves}`;
+                    if (t.event === 'gs:attemptPair') detail = ` name=${t.name} socket=${(t.socket||'').slice(0,8)} a=${t.a} b=${t.b} gs=${t.currentGS}`;
+                    if (t.event === 'gs:attemptPair:rejected') detail = ` ❌ reason=${t.reason} name=${t.name||'?'} socket=${(t.socket||'').slice(0,8)}${t.key?' key='+t.key:''}${t.zoneCount?' zones='+t.zoneCount:''}`;
+                    if (t.event === 'gs:attemptPair:valid') detail = ` ✅ name=${t.name} socket=${(t.socket||'').slice(0,8)} a=${t.a} b=${t.b} score=${t.score} salle=${t.salle}`;
+                    if (t.event === 'gs:regen:broadcast') detail = ` room=${t.room} sockets=[${(t.sockets||[]).map(s=>s.slice(0,8)).join(',')}] newZones=${t.newZoneCount} sender=${t.senderName}(${(t.sender||'').slice(0,8)})`;
+                    if (t.event === 'gs:regen:empty-retry') detail = ` ⚠️ RETRY excludedCount=${t.excludedCount} sender=${t.senderName}(${(t.sender||'').slice(0,8)})`;
+                    if (t.event === 'gs:regen:failed') detail = ` ❌ EMPTY ZONES sender=${t.senderName} themes=${t.themes} classes=${t.classes}`;
+                    if (t.event === 'gs:regen:error') detail = ` ❌ ERROR: ${t.error} sender=${(t.sender||'').slice(0,8)}`;
                     // Training invitation events
                     if (t.event === 'training:invites-sent') detail = ` match=${t.matchId} ${t.studentsCount} élèves=[${(t.studentIds||[]).join(',')}] sockets=${t.socketsConnected} déjàEnTraining=[${(t.alreadyInTraining||[]).join(',')}]`;
                     if (t.event === 'training:join-ok') detail = ` match=${t.matchId} ✅ ${t.name} (${t.studentId}) socket=${t.socketId}`;
