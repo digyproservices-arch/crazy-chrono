@@ -1,8 +1,58 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { getBackendUrl, isFree } from '../../utils/subscription';
 import { flushGsClickLog } from '../../utils/clickLogger';
+import { pointsToBezierPath } from '../CarteUtils';
+import { animateBubblesFromZones, invalidateZoneCenterCache } from '../Carte';
+import { PLAYER_PRIMARY_COLORS, getPlayerColorComboByIndex } from '../../utils/playerColors';
+import { getInitials } from '../../utils/pairDisplay';
+import '../../styles/Carte.css';
+// --- SVG helpers (identiques à LiveBoard.js) ---
+function interpolateArc(points, idxStart, idxEnd, marginPx) {
+  if (!points || points.length < 2) return { newStart: {x:0,y:0}, newEnd: {x:1,y:1}, r: 1, centerX: 0.5, centerY: 0.5, largeArcFlag: 0, sweepFlag: 1, arcLen: 1, delta: 0.01 };
+  if (idxStart >= points.length || !points[idxStart]) idxStart = 0;
+  if (idxEnd >= points.length || !points[idxEnd]) idxEnd = Math.min(1, points.length - 1);
+  const start = points[idxStart]; const end = points[idxEnd];
+  const xs = points.map(p => p.x); const ys = points.map(p => p.y);
+  const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const r = (Math.hypot(start.x - centerX, start.y - centerY) + Math.hypot(end.x - centerX, end.y - centerY)) / 2;
+  const angleStart = Math.atan2(start.y - centerY, start.x - centerX);
+  const angleEnd = Math.atan2(end.y - centerY, end.x - centerX);
+  let delta = angleEnd - angleStart; if (delta < 0) delta += 2 * Math.PI;
+  const marginAngle = marginPx / r;
+  const newStart = { x: centerX + r * Math.cos(angleStart + marginAngle), y: centerY + r * Math.sin(angleStart + marginAngle) };
+  const newEnd = { x: centerX + r * Math.cos(angleEnd - marginAngle), y: centerY + r * Math.sin(angleEnd - marginAngle) };
+  return { newStart, newEnd, r, centerX, centerY, largeArcFlag: 0, sweepFlag: 1, arcLen: r * delta, delta };
+}
+function getArcPathFromZonePoints(points, zoneId, arcPointsFromZone, marginPx = 0) {
+  if (!points || points.length < 2) return '';
+  let idxStart, idxEnd;
+  if (Array.isArray(arcPointsFromZone) && arcPointsFromZone.length === 2) { idxStart = arcPointsFromZone[0]; idxEnd = arcPointsFromZone[1]; }
+  else { idxStart = 0; idxEnd = 1; }
+  const { newStart, newEnd, r, centerX, centerY, largeArcFlag, sweepFlag } = interpolateArc(points, idxStart, idxEnd, marginPx);
+  const startAngle = Math.atan2(newStart.y - centerY, newStart.x - centerX);
+  const endAngle = Math.atan2(newEnd.y - centerY, newEnd.x - centerX);
+  let arcDelta = endAngle - startAngle; if (arcDelta < 0) arcDelta += 2 * Math.PI;
+  const midAngle = startAngle + arcDelta / 2;
+  const normMid = ((midAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  if (normMid > 0.05 && normMid < Math.PI - 0.05) {
+    return `M ${newEnd.x},${newEnd.y} A ${r},${r} 0 ${largeArcFlag},${sweepFlag === 1 ? 0 : 1} ${newStart.x},${newStart.y}`;
+  }
+  return `M ${newStart.x},${newStart.y} A ${r},${r} 0 ${largeArcFlag},${sweepFlag} ${newEnd.x},${newEnd.y}`;
+}
+function getZoneBoundingBox(points) {
+  const xs = points.map(p => p.x); const ys = points.map(p => p.y);
+  return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+}
+function resolveImageSrc(raw) {
+  if (!raw) return null;
+  const normalized = raw.startsWith('http') ? raw
+    : process.env.PUBLIC_URL + '/' + (raw.startsWith('/') ? raw.slice(1) : (raw.startsWith('images/') ? raw : 'images/' + raw));
+  return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
+}
+
 const PAGE = { minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', color: '#fff', padding: '20px 16px' };
 const CARD = { background: 'rgba(255,255,255,0.08)', borderRadius: 16, padding: 20, border: '1px solid rgba(255,255,255,0.1)' };
 const BADGE = (c) => ({ display: 'inline-block', padding: '4px 12px', borderRadius: 20, background: c, fontSize: 12, fontWeight: 700 });
@@ -36,6 +86,25 @@ export default function GrandeSalle() {
   const [manualStart, setManualStart] = useState(false);
   const [accessDenied, setAccessDenied] = useState(null);
   const roundTimerRef = useRef(null);
+  const zonesRef = useRef([]);
+  const [flashPair, setFlashPair] = useState(null);
+  const [spectatorEvents, setSpectatorEvents] = useState([]);
+  const addSpectatorEvent = useCallback((text, type = 'info', extra = null) => {
+    setSpectatorEvents(prev => [{ text, type, time: Date.now(), ...(extra || {}) }, ...prev].slice(0, 50));
+  }, []);
+  const chiffreRefBase = useMemo(() => {
+    if (!Array.isArray(zones) || zones.length === 0) return null;
+    const bases = zones.filter(z => z?.type === 'chiffre' && Array.isArray(z.points) && z.points.length)
+      .map(z => { const b = getZoneBoundingBox(z.points); return Math.max(12, Math.min(b.width, b.height)); });
+    if (!bases.length) return null;
+    const sorted = [...bases].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  }, [zones]);
+  const sortedLeaderboard = useMemo(() => {
+    const list = leaderboard.length > 0 ? leaderboard : players;
+    return [...list].sort((a, b) => (b.score || b.total || 0) - (a.score || a.total || 0));
+  }, [leaderboard, players]);
   // ✅ FIX: Ref to track eliminated status across closures (prevents gs:round:new from navigating back to /carte)
   const eliminatedRef = useRef((() => { try { return !!localStorage.getItem('cc_gs_elimination'); } catch { return false; } })());
 
@@ -167,9 +236,28 @@ export default function GrandeSalle() {
       setStatus('elimination');
     });
     socket.on('gs:round:new', (payload) => {
-      // ✅ FIX: Don't navigate eliminated/spectator players back to /carte
+      // ✅ FIX: Spectateurs éliminés reçoivent les zones pour la vue en direct
       if (eliminatedRef.current) {
-        console.log('[GS] gs:round:new IGNORED — player is eliminated');
+        console.log('[GS] gs:round:new en mode spectateur — mise à jour zones');
+        if (Array.isArray(payload?.zones) && payload.zones.length > 0) {
+          setZones(payload.zones);
+          zonesRef.current = payload.zones;
+          invalidateZoneCenterCache();
+        }
+        if (payload?.roundIndex) setRoundsPlayed(payload.roundIndex);
+        // Timer spectateur local
+        if (payload?.duration) {
+          setRoundTimeLeft(payload.duration);
+          if (roundTimerRef.current) clearInterval(roundTimerRef.current);
+          const startTime = Date.now();
+          const dur = payload.duration;
+          roundTimerRef.current = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const remaining = dur - elapsed;
+            if (remaining <= 0) { clearInterval(roundTimerRef.current); setRoundTimeLeft(0); }
+            else setRoundTimeLeft(remaining);
+          }, 1000);
+        }
         return;
       }
       // Store GS session config and navigate to /carte for the real card rendering
@@ -199,6 +287,62 @@ export default function GrandeSalle() {
       socket.disconnect();
       navigate('/carte?gs=' + encodeURIComponent(salleId));
     });
+
+    // ✅ FIX: Spectateurs voient les paires validées + animation bulles
+    socket.on('gs:pair:valid', (data) => {
+      try {
+        const name = data?.playerName || '?';
+        const playerIdx = name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % PLAYER_PRIMARY_COLORS.length;
+        const { primary: color, border: borderColor } = getPlayerColorComboByIndex(playerIdx);
+        const zoneAId = data?.a;
+        const zoneBId = data?.b;
+        const currentZones = zonesRef.current || [];
+        const ZA = currentZones.find(z => z.id === zoneAId);
+        const ZB = currentZones.find(z => z.id === zoneBId);
+        let pairExtra = { playerName: name, playerIdx, color, borderColor, initials: getInitials(name) };
+
+        if (ZA && ZB) {
+          const typeA = ZA?.type || ''; const typeB = ZB?.type || '';
+          const textFor = (Z) => (Z?.label || Z?.content || Z?.text || Z?.value || '').toString().trim() || '…';
+          const textForCalc = (Z) => (Z?.content || Z?.label || Z?.text || Z?.value || '').toString().trim() || '…';
+          let kind = null, calcExpr = null, calcResult = null, imageSrc = null, imageLabel = null;
+          let displayText = `${textFor(ZA)} ↔ ${textFor(ZB)}`;
+
+          if ((typeA === 'calcul' && typeB === 'chiffre') || (typeA === 'chiffre' && typeB === 'calcul')) {
+            kind = 'calcnum';
+            const calcZone = typeA === 'calcul' ? ZA : ZB;
+            const numZone = typeA === 'chiffre' ? ZA : ZB;
+            calcExpr = textForCalc(calcZone); calcResult = textForCalc(numZone);
+            displayText = `${calcExpr} = ${calcResult}`;
+          } else if ((typeA === 'image' && typeB === 'texte') || (typeA === 'texte' && typeB === 'image')) {
+            kind = 'imgtxt';
+            const imgZone = typeA === 'image' ? ZA : ZB;
+            const txtZone = typeA === 'texte' ? ZA : ZB;
+            const raw = imgZone?.content || imgZone?.url || imgZone?.path || imgZone?.src || '';
+            if (raw) imageSrc = resolveImageSrc(String(raw));
+            imageLabel = textFor(txtZone);
+            displayText = imageLabel || displayText;
+          } else { kind = 'txttxt'; }
+          pairExtra = { ...pairExtra, kind, calcExpr, calcResult, imageSrc, imageLabel, displayText };
+        }
+
+        addSpectatorEvent(`${name} a trouvé une paire !`, 'pair', pairExtra);
+
+        if (zoneAId && zoneBId) {
+          setFlashPair({ zoneAId, zoneBId, color, playerName: name });
+          setTimeout(() => setFlashPair(null), 1200);
+          if (ZA && ZB) {
+            const label = getInitials(name);
+            requestAnimationFrame(() => {
+              try { animateBubblesFromZones(zoneAId, zoneBId, color, ZA, ZB, borderColor, label); } catch {}
+            });
+          }
+        }
+
+        if (data?.leaderboard) setLeaderboard(data.leaderboard);
+      } catch (err) { console.error('[GS][Spectator] pair:valid error:', err); }
+    });
+
     // If finish arrives while still on this page (e.g. returned from /carte)
     socket.on('gs:finish', (d) => { eliminatedRef.current = false; setFinish(d); setStatus('finished'); checkGSRecord(d, socket.id); });
 
@@ -477,12 +621,197 @@ export default function GrandeSalle() {
   // ========== PLAYING ==========
   const myRank = leaderboard.find(l => l.id === myId)?.rank || '?';
   const myScore = leaderboard.find(l => l.id === myId)?.total || 0;
+  const svgPath = `${process.env.PUBLIC_URL}/images/carte-svg.svg`;
+  const isFlashedZone = (zoneId) => flashPair && (flashPair.zoneAId === zoneId || flashPair.zoneBId === zoneId);
+  const getMedal = (idx) => idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
+  const getPlayerColor = (idx) => PLAYER_PRIMARY_COLORS[idx % PLAYER_PRIMARY_COLORS.length];
+
+  // ========== SPECTATOR VIEW — Carte SVG en direct ==========
+  if (isSpectator) return (
+    <div style={{ position: 'fixed', inset: 0, background: 'linear-gradient(135deg, #0D6A7A 0%, #148A9C 30%, #1AACBE 60%, #148A9C 100%)', color: '#fff', padding: '16px 20px', overflow: 'hidden', touchAction: 'none' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, padding: '10px 20px', background: 'rgba(0,0,0,0.25)', borderRadius: 14, border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)' }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>👁️ {tournamentTitle || 'Grande Salle'} <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>— Spectateur</span></h1>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{activePlayers} joueurs actifs • Manche {roundsPlayed}</span>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {roundTimeLeft != null && (
+            <div style={{ padding: '6px 16px', borderRadius: 20, fontWeight: 900, fontSize: 20, color: roundTimeLeft <= 10 ? '#ef4444' : roundTimeLeft <= 30 ? '#F5A623' : '#10b981', background: 'rgba(0,0,0,0.3)', fontVariantNumeric: 'tabular-nums', minWidth: 60, textAlign: 'center' }}>
+              ⏱️ {roundTimeLeft}s
+            </div>
+          )}
+          <div style={{ padding: '6px 16px', borderRadius: 20, fontWeight: 700, fontSize: 13, color: '#6366f1', background: 'rgba(99,102,241,0.15)' }}>👁️ SPECTATEUR</div>
+          {eliminationWave > 0 && <span style={{ ...BADGE('rgba(239,68,68,0.2)'), color: '#fca5a5' }}>Vague {eliminationWave}</span>}
+          <button onClick={() => navigate('/modes')} style={{ padding: '6px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#94a3b8', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>← Quitter</button>
+        </div>
+      </div>
+
+      {/* Main: Carte SVG + Sidebar */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16, height: 'calc(100vh - 90px)' }}>
+
+        {/* LEFT: GAME CARD SVG */}
+        <div style={{ position: 'relative', background: 'rgba(0,0,0,0.25)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.15)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {zones.length > 0 ? (
+            <div className="carte" style={{ position: 'relative', width: '100%', height: '100%' }}>
+              <img src={svgPath} alt="" className="carte-bg" draggable={false} />
+              <svg className="carte-svg-overlay" width={1000} height={1000} viewBox="0 0 1000 1000" style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', width: '100%', height: '100%', zIndex: 2 }}>
+                <defs>
+                  {zones.filter(z => z.type === 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
+                    <clipPath id={`gs-spec-clip-${zone.id}`} key={`gs-spec-clip-${zone.id}`} clipPathUnits="userSpaceOnUse">
+                      <path d={pointsToBezierPath(zone.points)} />
+                    </clipPath>
+                  ))}
+                  {zones.filter(z => z.type !== 'image' && Array.isArray(z.points) && z.points.length >= 2).map(zone => (
+                    <path id={`gs-spec-tc-${zone.id}`} key={`gs-spec-tc-${zone.id}`} d={getArcPathFromZonePoints(zone.points, zone.id, zone.arcPoints, 0)} fill="none" />
+                  ))}
+                </defs>
+                {zones.filter(z => z && typeof z === 'object' && Array.isArray(z.points) && z.points.length >= 2).map((zone) => {
+                  const flashed = isFlashedZone(zone.id);
+                  return (
+                    <g key={zone.id} data-zone-id={zone.id}>
+                      {zone.type === 'image' && zone.content && (() => {
+                        const src = resolveImageSrc(zone.content);
+                        const bbox = getZoneBoundingBox(zone.points);
+                        return <image href={src} xlinkHref={src} x={bbox.x} y={bbox.y} width={bbox.width} height={bbox.height} style={{ pointerEvents: 'none', objectFit: 'cover' }} preserveAspectRatio="xMidYMid slice" clipPath={`url(#gs-spec-clip-${zone.id})`} />;
+                      })()}
+                      <path d={pointsToBezierPath(zone.points)} fill={flashed ? `${flashPair.color}55` : (zone.type === 'image' ? 'rgba(255,214,0,0.01)' : 'rgba(40,167,69,0.01)')} stroke={flashed ? flashPair.color : 'none'} strokeWidth={flashed ? 3 : 0} style={{ transition: 'fill 0.3s, stroke 0.3s' }} />
+                      {flashed && <path d={pointsToBezierPath(zone.points)} fill="none" stroke={flashPair.color} strokeWidth={6} opacity={0.5} style={{ filter: `drop-shadow(0 0 8px ${flashPair.color})` }} />}
+                      {zone.type === 'texte' && (() => {
+                        let idxStart = 0, idxEnd = 1;
+                        if (Array.isArray(zone.arcPoints) && zone.arcPoints.length === 2) { idxStart = zone.arcPoints[0]; idxEnd = zone.arcPoints[1]; }
+                        const pts = Array.isArray(zone.points) && zone.points.length >= 2 ? zone.points : [{x:0,y:0},{x:1,y:1}];
+                        if (idxStart >= pts.length) idxStart = 0;
+                        if (idxEnd >= pts.length) idxEnd = Math.min(1, pts.length - 1);
+                        const { r, delta } = interpolateArc(pts, idxStart, idxEnd, 0);
+                        const arcLen = r * delta;
+                        const textValue = zone.content || zone.label || '';
+                        const safeText = typeof textValue === 'string' ? textValue : '';
+                        const baseFontSize = 32;
+                        const textLen = safeText.length * baseFontSize * 0.6;
+                        const fontSize = textLen > arcLen - 48 ? Math.max(12, (arcLen - 48) / (safeText.length * 0.6)) : baseFontSize;
+                        return <text fontSize={fontSize} fontFamily="Arial" fill="#fff" fontWeight="bold"><textPath xlinkHref={`#gs-spec-tc-${zone.id}`} startOffset="50%" textAnchor="middle" dominantBaseline="middle">{textValue}</textPath></text>;
+                      })()}
+                      {(zone.type === 'calcul' || zone.type === 'chiffre') && zone.content && (() => {
+                        const bbox = getZoneBoundingBox(zone.points);
+                        const cx = bbox.x + bbox.width / 2; const cy = bbox.y + bbox.height / 2;
+                        const base = Math.max(12, Math.min(bbox.width, bbox.height));
+                        const chiffreBaseMin = chiffreRefBase || base;
+                        const effectiveBase = (zone.type === 'chiffre') ? Math.max(base, chiffreBaseMin) : base;
+                        const rawFontSize = (zone.type === 'chiffre' ? 0.42 : 0.28) * effectiveBase;
+                        const contentStr = String(zone.content ?? '').trim();
+                        const fitW = contentStr.length > 0 ? (bbox.width * 0.92) / (contentStr.length * 0.52) : rawFontSize;
+                        const fontSize = Math.max(10, zone.type === 'chiffre' ? Math.min(rawFontSize, fitW) : Math.min(rawFontSize, fitW, bbox.height * 0.75));
+                        const angle = Number(zone.angle ?? 0);
+                        const mo = zone.mathOffset || { x: 0, y: 0 };
+                        return (
+                          <g transform={`translate(${mo.x || 0} ${mo.y || 0}) rotate(${angle} ${cx} ${cy})`}>
+                            <text x={cx} y={cy} textAnchor="middle" alignmentBaseline="middle" fontSize={fontSize} fill="#456451" fontWeight="bold">{zone.content}</text>
+                          </g>
+                        );
+                      })()}
+                    </g>
+                  );
+                })}
+              </svg>
+              {flashPair && (
+                <div style={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', background: flashPair.color, color: '#fff', padding: '6px 18px', borderRadius: 20, fontWeight: 700, fontSize: 14, zIndex: 10, boxShadow: `0 0 20px ${flashPair.color}66`, animation: 'fadeIn 0.2s ease' }}>
+                  ✅ {flashPair.playerName}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.5)' }}>
+              <div style={{ fontSize: 64, marginBottom: 16 }}>🗺️</div>
+              <div style={{ fontSize: 18, fontWeight: 600 }}>En attente de la carte...</div>
+              <div style={{ fontSize: 13, marginTop: 8, opacity: 0.6 }}>La carte apparaîtra à la prochaine manche</div>
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT: SCOREBOARD + LIVE FEED */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden' }}>
+          {/* Scoreboard */}
+          <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 14, border: '1px solid rgba(255,255,255,0.18)', padding: '14px 16px', flex: '0 0 auto', maxHeight: '50%', overflowY: 'auto', backdropFilter: 'blur(8px)' }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: 15, fontWeight: 700, color: '#fff' }}>🏆 Classement ({sortedLeaderboard.length})</h3>
+            {sortedLeaderboard.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 16, color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>⏳ En attente...</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {sortedLeaderboard.slice(0, 20).map((player, idx) => (
+                  <div key={player.id || idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, background: idx === 0 ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.06)', border: `1px solid ${idx === 0 ? 'rgba(245,166,35,0.3)' : 'transparent'}`, transition: 'all 0.3s' }}>
+                    <div style={{ fontSize: idx < 3 ? 18 : 13, fontWeight: 900, minWidth: 28, textAlign: 'center' }}>{getMedal(idx)}</div>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: `linear-gradient(135deg, ${getPlayerColor(idx)}, ${getPlayerColor(idx)}88)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+                      {(player.name || '?')[0].toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, fontWeight: 600, color: '#fff' }}>{player.name}</div>
+                    <div style={{ background: '#fff', borderRadius: 10, padding: '2px 10px', minWidth: 36, textAlign: 'center' }}>
+                      <span style={{ fontSize: 16, fontWeight: 900, color: getPlayerColor(idx) }}>{player.score || player.total || 0}</span>
+                    </div>
+                  </div>
+                ))}
+                {sortedLeaderboard.length > 20 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: 4 }}>+{sortedLeaderboard.length - 20} autres</div>}
+              </div>
+            )}
+          </div>
+
+          {/* Live feed */}
+          <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 14, border: '1px solid rgba(255,255,255,0.18)', padding: '14px 16px', flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0, backdropFilter: 'blur(8px)' }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700, color: '#fff' }}>📡 Fil en direct</h3>
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {spectatorEvents.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 16, color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>En attente d'événements...</div>
+              ) : spectatorEvents.map((ev, i) => {
+                const isPair = ev.type === 'pair' && ev.color;
+                if (isPair) {
+                  const pairLabel = (() => {
+                    if (ev.kind === 'calcnum' && ev.calcExpr && ev.calcResult) return `${ev.calcExpr} = ${ev.calcResult}`;
+                    if (ev.kind === 'imgtxt' && ev.imageLabel) return ev.imageLabel;
+                    return ev.displayText || ev.text || '';
+                  })();
+                  return (
+                    <div key={i} style={{ padding: '6px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', border: `1px solid ${ev.color}44`, animation: i === 0 ? 'fadeIn 0.3s ease' : 'none', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 999, flexShrink: 0, background: ev.color, boxShadow: `0 0 6px ${ev.color}66` }} />
+                        <span style={{ fontWeight: 700, fontSize: 11, color: '#fff', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.playerName}</span>
+                        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>{new Date(ev.time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                      </div>
+                      <div style={{ marginLeft: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {ev.kind === 'imgtxt' && ev.imageSrc && <img src={ev.imageSrc} alt="" style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }} />}
+                        {ev.kind === 'calcnum' ? (
+                          <span style={{ fontSize: 11, color: '#fff' }}><span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{ev.calcExpr}</span><span style={{ fontWeight: 800, margin: '0 3px', color: '#fbbf24' }}>=</span><span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#fbbf24' }}>{ev.calcResult}</span></span>
+                        ) : (
+                          <span style={{ fontSize: 11, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pairLabel}</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={i} style={{ padding: '5px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', borderLeft: '3px solid #64748b', fontSize: 11, color: 'rgba(255,255,255,0.8)', animation: i === 0 ? 'fadeIn 0.3s ease' : 'none' }}>
+                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, marginRight: 6 }}>{new Date(ev.time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                    {ev.text}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+      `}</style>
+    </div>
+  );
+
+  // ========== PLAYING (joueur actif) ==========
   return (
     <div style={PAGE}><div style={{ maxWidth: 1100, margin: '0 auto' }}>
       {/* Top bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          {isSpectator && <span style={BADGE('#6366f1')}>Mode Spectateur</span>}
           <span style={BADGE('rgba(255,255,255,0.1)')}>Manche {roundsPlayed}</span>
           <span style={BADGE('rgba(245,166,35,0.2)')}>{activePlayers} joueurs actifs</span>
           {eliminationWave > 0 && <span style={BADGE('rgba(239,68,68,0.2)')}>Vague {eliminationWave}</span>}
@@ -506,7 +835,7 @@ export default function GrandeSalle() {
                 <button key={z.id} onClick={() => handleZoneClick(z.id)} style={{
                   padding: 12, borderRadius: 10, border: selectedZones.includes(z.id) ? '3px solid #F5A623' : '2px solid rgba(255,255,255,0.1)',
                   background: selectedZones.includes(z.id) ? 'rgba(245,166,35,0.15)' : 'rgba(255,255,255,0.05)',
-                  color: '#e2e8f0', cursor: isSpectator ? 'default' : 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 600, minHeight: 60, transition: 'all 0.15s',
+                  color: '#e2e8f0', cursor: 'pointer', textAlign: 'center', fontSize: 13, fontWeight: 600, minHeight: 60, transition: 'all 0.15s',
                 }}>
                   {z.content || z.text || z.label || z.id}
                 </button>
