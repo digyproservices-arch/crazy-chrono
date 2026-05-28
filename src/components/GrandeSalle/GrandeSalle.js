@@ -36,6 +36,8 @@ export default function GrandeSalle() {
   const [manualStart, setManualStart] = useState(false);
   const [accessDenied, setAccessDenied] = useState(null);
   const roundTimerRef = useRef(null);
+  // ✅ FIX: Ref to track eliminated status across closures (prevents gs:round:new from navigating back to /carte)
+  const eliminatedRef = useRef((() => { try { return !!localStorage.getItem('cc_gs_elimination'); } catch { return false; } })());
 
   // Check if user is admin (can start manually)
   const isAdmin = (() => { try { const a = JSON.parse(localStorage.getItem('cc_auth') || '{}'); return a.role === 'admin' || a.role === 'cpd'; } catch { return false; } })();
@@ -155,15 +157,21 @@ export default function GrandeSalle() {
       setStatus(d.status); setPlayers(d.players||[]); setTotalPlayers(d.totalPlayers||0);
       setActivePlayers(d.activePlayers||0); setEliminationWave(d.eliminationWave||0); setRoundsPlayed(d.roundsPlayed||0);
     });
-    socket.on('gs:joined-as-spectator', (d) => { setIsSpectator(true); if (d?.tournamentTitle) setTournamentTitle(d.tournamentTitle); });
+    socket.on('gs:joined-as-spectator', (d) => { setIsSpectator(true); if (d?.reason === 'eliminated') eliminatedRef.current = true; if (d?.tournamentTitle) setTournamentTitle(d.tournamentTitle); });
     socket.on('gs:lobby-countdown', ({ t }) => setLobbyCountdown(t));
     socket.on('gs:countdown', ({ t }) => { setLobbyCountdown(null); setCountdown(t); setStatus('countdown'); });
     socket.on('gs:elimination', (d) => {
       setLastElimination(d);
       setEliminatedData(d);
+      eliminatedRef.current = true;
       setStatus('elimination');
     });
     socket.on('gs:round:new', (payload) => {
+      // ✅ FIX: Don't navigate eliminated/spectator players back to /carte
+      if (eliminatedRef.current) {
+        console.log('[GS] gs:round:new IGNORED — player is eliminated');
+        return;
+      }
       // Store GS session config and navigate to /carte for the real card rendering
       const salleId = tournamentId ? `tournament:${tournamentId}` : 'grande-salle-publique';
       try {
@@ -192,7 +200,7 @@ export default function GrandeSalle() {
       navigate('/carte?gs=' + encodeURIComponent(salleId));
     });
     // If finish arrives while still on this page (e.g. returned from /carte)
-    socket.on('gs:finish', (d) => { setFinish(d); setStatus('finished'); checkGSRecord(d, socket.id); });
+    socket.on('gs:finish', (d) => { eliminatedRef.current = false; setFinish(d); setStatus('finished'); checkGSRecord(d, socket.id); });
 
     return () => { socket.emit('gs:leave'); socket.disconnect(); if(roundTimerRef.current)clearInterval(roundTimerRef.current); };
   }, [getPlayerName, navigate, tournamentId, checkGSRecord]);
