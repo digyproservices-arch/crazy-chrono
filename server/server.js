@@ -2497,8 +2497,38 @@ function gsEliminationWave(salleId) {
   else if (n >= 15)  elimPct = 33;  // 15-29: eliminate 33%
   else if (n >= 8)   elimPct = 30;  // 8-14: eliminate 30%
   else               elimPct = salle.config.eliminationPercent || 25; // <8: default 25%
-  const eliminateCount = Math.max(1, Math.floor(n * elimPct / 100));
-  const toEliminate = activePlayers.slice(-eliminateCount); // lowest scorers
+  let eliminateCount = Math.max(1, Math.floor(n * elimPct / 100));
+  
+  // ✅ ÉGALITÉS: si des joueurs à la frontière d'élimination ont le même score,
+  // tous ceux avec ce score doivent être traités pareillement.
+  // On étend l'élimination pour inclure TOUS les joueurs à égalité au seuil.
+  const boundaryScore = (activePlayers[n - eliminateCount]?.[1]?.score || 0);
+  // Compter combien de joueurs ont le score de la frontière
+  let tiedAtBoundary = 0;
+  for (let i = n - eliminateCount; i >= 0; i--) {
+    if ((activePlayers[i]?.[1]?.score || 0) === boundaryScore) tiedAtBoundary++;
+    else break;
+  }
+  // Étendre l'élimination pour inclure tous les ex-aequo au seuil
+  const extendedCount = eliminateCount + (tiedAtBoundary - 1); // -1 car le premier à la frontière est déjà compté
+  if (extendedCount < n) {
+    // On peut éliminer tous les ex-aequo en gardant au moins 1 joueur
+    eliminateCount = extendedCount;
+    logger.info(`[GS] Elimination tie-extend: boundary score=${boundaryScore}, tied=${tiedAtBoundary}, new eliminateCount=${eliminateCount}`);
+  } else {
+    // L'extension éliminerait TOUT LE MONDE → tous sont à égalité → personne n'est éliminé
+    logger.info(`[GS] Elimination tie-skip: all ${n} players tied at score=${boundaryScore} — skipping elimination wave`);
+    sTrace.push('gs:elimination:skipped', { salle: salleId, wave: salle.eliminationWave, reason: 'all_tied', score: boundaryScore, players: n });
+    // Passer directement au prochain round
+    salle.status = 'playing';
+    setTimeout(() => {
+      const s = grandeSalles.get(salleId);
+      if (s && s.sessionActive) gsStartRound(salleId);
+    }, 3000);
+    return;
+  }
+  
+  const toEliminate = activePlayers.slice(-eliminateCount); // lowest scorers (avec ex-aequo inclus)
   
   const eliminatedNames = [];
   for (const [id, p] of toEliminate) {
@@ -2550,6 +2580,7 @@ async function gsFinish(salleId) {
   if (salle.roundTimer) { try { clearTimeout(salle.roundTimer); } catch {} salle.roundTimer = null; }
   
   // Final podium (avec égalités: même score = même rang)
+  // Tri: non-éliminés d'abord (par score desc), puis éliminés (par vague desc, score desc)
   const allPlayers = Array.from(salle.players.entries())
     .map(([id, p]) => ({ id, name: p.name, score: p.score || 0, eliminated: !!p.eliminated, eliminatedWave: p.eliminatedWave || 999 }))
     .sort((a, b) => {
@@ -2557,11 +2588,21 @@ async function gsFinish(salleId) {
       if (!a.eliminated && !b.eliminated) return b.score - a.score;
       return b.eliminatedWave - a.eliminatedWave || b.score - a.score;
     });
-  // Assign ranks with ties (same score = same rank)
+  // Assign ranks with ties — même score ET même statut = même rang (standard competition ranking)
   let currentRank = 1;
   for (let i = 0; i < allPlayers.length; i++) {
-    if (i > 0 && allPlayers[i].score === allPlayers[i - 1].score && !allPlayers[i].eliminated && !allPlayers[i - 1].eliminated) {
-      allPlayers[i].finalRank = allPlayers[i - 1].finalRank;
+    if (i > 0) {
+      const prev = allPlayers[i - 1];
+      const curr = allPlayers[i];
+      // Même rang si: même score ET même statut d'élimination (et même vague si éliminés)
+      const sameTier = (curr.eliminated === prev.eliminated) &&
+        (curr.score === prev.score) &&
+        (!curr.eliminated || curr.eliminatedWave === prev.eliminatedWave);
+      if (sameTier) {
+        curr.finalRank = prev.finalRank;
+      } else {
+        curr.finalRank = currentRank;
+      }
     } else {
       allPlayers[i].finalRank = currentRank;
     }
@@ -5101,9 +5142,14 @@ io.on('connection', (socket) => {
             player.disconnected = true;
             player.disconnectedAt = Date.now();
             player._oldSocketId = socket.id;
-            console.log(`[GS] Player "${player.name}" disconnected from "${currentGS}" (kept for reconnection, ${salle.players.size} players)`);
-            sTrace.push('gs:disconnect', { salle: currentGS, name: player.name, socketId: socket.id, reason, sessionActive: true, keptForReconnect: true, players: salle.players.size });
+            console.log(`[GS] Player "${player.name}" disconnected from "${currentGS}" (kept for reconnection, eliminated=${!!player.eliminated}, ${salle.players.size} players)`);
+            sTrace.push('gs:disconnect', { salle: currentGS, name: player.name, socketId: socket.id, reason, sessionActive: true, keptForReconnect: true, players: salle.players.size, eliminated: !!player.eliminated });
 
+            // ✅ Ne PAS mettre en pause si le joueur est éliminé (spectateur)
+            if (player.eliminated) {
+              // Joueur éliminé: pas de pause, pas d'attente
+              console.log(`[GS] Eliminated player "${player.name}" disconnected — no pause needed`);
+            } else {
             // ✅ PAUSE: Geler le match si peu de joueurs actifs (≤ 4 connectés restants)
             const activePlayers = Array.from(salle.players.values()).filter(p => !p.disconnected && !p.eliminated);
             if (salle.status === 'playing' && activePlayers.length <= 3 && !salle._pauseState) {
@@ -5156,14 +5202,21 @@ io.on('connection', (socket) => {
                 delete salle._pauseState;
                 salle._forfeitTimeout = null;
 
-                const remMs = ps?.remainingMs || 1000;
-                salle._roundTimerSetAt = Date.now() - ((salle.config.duration || 90) * 1000 - remMs);
-                salle.roundTimer = setTimeout(() => { gsEndRound(currentGS); }, remMs);
-
-                console.log(`[GS] ▶️ Salle "${currentGS}" reprise après forfait — ${salle.players.size} joueur(s) — timer restant ${Math.round(remMs / 1000)}s`);
+                // Vérifier immédiatement si la partie doit finir (≤1 joueur actif)
+                const activeAfterForfeit = Array.from(salle.players.values()).filter(p => !p.eliminated && !p.disconnected);
+                if (activeAfterForfeit.length <= 1) {
+                  console.log(`[GS] ▶️ Salle "${currentGS}" — forfait de ${forfeitName} → ${activeAfterForfeit.length} actif(s) restant(s) → FIN`);
+                  gsFinish(currentGS);
+                } else {
+                  const remMs = ps?.remainingMs || 1000;
+                  salle._roundTimerSetAt = Date.now() - ((salle.config.duration || 90) * 1000 - remMs);
+                  salle.roundTimer = setTimeout(() => { gsEndRound(currentGS); }, remMs);
+                  console.log(`[GS] ▶️ Salle "${currentGS}" reprise après forfait — ${activeAfterForfeit.length} joueur(s) actifs — timer restant ${Math.round(remMs / 1000)}s`);
+                }
                 gsEmitState(currentGS);
               }, GS_GRACE_PERIOD_MS);
             }
+            } // end else (not eliminated)
           }
           salle.spectators.delete(socket.id);
         } else {

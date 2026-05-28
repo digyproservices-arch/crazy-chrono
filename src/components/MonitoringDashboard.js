@@ -1084,6 +1084,7 @@ const clearIncidents = async () => {
                     if (t.event === 'gs:regen:empty-retry') detail = ` ⚠️ RETRY excludedCount=${t.excludedCount} sender=${t.senderName}(${(t.sender||'').slice(0,8)})`;
                     if (t.event === 'gs:regen:failed') detail = ` ❌ EMPTY ZONES sender=${t.senderName} themes=${t.themes} classes=${t.classes}`;
                     if (t.event === 'gs:regen:error') detail = ` ❌ ERROR: ${t.error} sender=${(t.sender||'').slice(0,8)}`;
+                    if (t.event === 'gs:elimination:skipped') detail = ` ⏭️ SKIP — tous à égalité score=${t.score} (${t.players} joueurs) vague=${t.wave}`;
                     // Training invitation events
                     if (t.event === 'training:invites-sent') detail = ` match=${t.matchId} ${t.studentsCount} élèves=[${(t.studentIds||[]).join(',')}] sockets=${t.socketsConnected} déjàEnTraining=[${(t.alreadyInTraining||[]).join(',')}]`;
                     if (t.event === 'training:join-ok') detail = ` match=${t.matchId} ✅ ${t.name} (${t.studentId}) socket=${t.socketId}`;
