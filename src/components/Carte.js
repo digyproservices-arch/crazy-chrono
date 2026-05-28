@@ -2268,6 +2268,8 @@ const Carte = () => {
         // GS: round:new — zone processing
         s.on('gs:round:new', (payload) => {
           console.log('[CC][GS] gs:round:new', { zonesCount: payload?.zones?.length, duration: payload?.duration });
+          // ✅ FIX: Fermer tout overlay de fin de partie parasite (debounce solo/MP)
+          try { setSoloGameEndOverlay(null); } catch {}
           try { const buf = JSON.parse(localStorage.getItem('cc_gs_click_log') || '[]'); buf.push({ ts: Date.now(), event: 'RECV:gs:round:new', zoneIds: (payload?.zones || []).slice(0,4).map(z=>z.id), count: payload?.zones?.length, roundIndex: payload?.roundIndex }); if (buf.length > 50) buf.splice(0, buf.length - 50); localStorage.setItem('cc_gs_click_log', JSON.stringify(buf)); } catch {}
           try { localStorage.removeItem('cc_gs_round'); } catch {}
           try { if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } } catch {}
@@ -3607,7 +3609,9 @@ useEffect(() => {
   }
   
   // Détecter transition gameActive: true → false (fin de manche OU fin de session)
-  if (wasActive && !gameActive && !arenaMatchId && !trainingMatchId) {
+  // ✅ FIX: Exclure Grande Salle — GS gère son cycle via gs:round:result / gs:elimination / gs:finish
+  const _isGrandeSalleMode = gsMode || socketRef.current?._isGrandeSalle;
+  if (wasActive && !gameActive && !arenaMatchId && !trainingMatchId && !_isGrandeSalleMode) {
     // ✅ FIX RACE CONDITION: Si départage actif, ne pas lancer le debounce
     // Le serveur a envoyé session:tiebreaker (pas de session:end), le debounce créerait un faux overlay de fin
     if (isTiebreakerRef.current) {
