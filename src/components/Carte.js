@@ -2409,7 +2409,10 @@ const Carte = () => {
             try { localStorage.setItem('cc_gs_elimination', JSON.stringify(data)); } catch {}
             try { localStorage.removeItem('cc_gs_round'); } catch {}
             try { s.disconnect(); } catch {}
-            try { navigate('/grande-salle'); } catch {}
+            // ✅ FIX: Préserver le contexte tournoi pour la navigation retour
+            let gsNav = '/grande-salle';
+            try { const sess = JSON.parse(localStorage.getItem('cc_gs_session') || 'null'); if (sess?.tournamentId) gsNav = `/grande-salle/tournament/${sess.tournamentId}`; } catch {}
+            try { navigate(gsNav); } catch {}
             return;
           } else {
             setMpMsg(`Vague ${data?.wave || '?'} — ${data?.eliminated?.length || 0} joueurs éliminés. ${data?.remainingCount || '?'} restants.`);
@@ -2423,10 +2426,13 @@ const Carte = () => {
           console.log('[CC][GS] gs:finish', data);
           try { flushGsClickLog(); } catch {}
           try { localStorage.setItem('cc_gs_finish', JSON.stringify(data)); } catch {}
+          // ✅ FIX: Lire tournamentId AVANT de supprimer cc_gs_session
+          let gsNav = '/grande-salle';
+          try { const sess = JSON.parse(localStorage.getItem('cc_gs_session') || 'null'); if (sess?.tournamentId) gsNav = `/grande-salle/tournament/${sess.tournamentId}`; } catch {}
           try { localStorage.removeItem('cc_gs_session'); } catch {}
           try { localStorage.removeItem('cc_gs_round'); } catch {}
           setGameActive(false);
-          try { navigate('/grande-salle'); } catch {}
+          try { navigate(gsNav); } catch {}
         });
 
         s.on('gs:round:result', (data) => {
