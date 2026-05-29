@@ -783,7 +783,7 @@ export default function GrandeSalle() {
 
           {/* Live feed */}
           <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 14, border: '1px solid rgba(255,255,255,0.18)', padding: '14px 16px', flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0, backdropFilter: 'blur(8px)' }}>
-            <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700, color: '#fff' }}>📡 Fil en direct</h3>
+            <h3 data-cc-vignette="last-pair" style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700, color: '#fff' }}>📡 Fil en direct</h3>
             <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
               {spectatorEvents.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: 16, color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>En attente d'événements...</div>
