@@ -26,6 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_user_devices_user_id ON user_devices(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_devices_active ON user_devices(user_id) WHERE is_approved = true AND is_revoked = false;
 
 -- 3. Fonction: compter les devices actifs d'un utilisateur
+-- Ne compte que les devices vus dans les 7 derniers jours (slots auto-libérés après 7j d'inactivité)
 CREATE OR REPLACE FUNCTION count_user_devices(p_user_id UUID)
 RETURNS INTEGER AS $$
 BEGIN
@@ -35,6 +36,7 @@ BEGIN
     WHERE user_id = p_user_id
       AND is_approved = true
       AND is_revoked = false
+      AND last_seen > now() - INTERVAL '7 days'
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
