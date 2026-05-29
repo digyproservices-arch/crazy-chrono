@@ -18,6 +18,7 @@ import MaintenancePage, { hasMaintenanceBypass } from './components/MaintenanceP
 import { startHeartbeat, stopHeartbeat } from './utils/presenceHeartbeat';
 import useIdleTimeout from './utils/useIdleTimeout';
 import { initClientTelemetry } from './utils/clientTelemetry';
+import { startSessionGuard, stopSessionGuard, logoutSession, getSessionToken } from './utils/sessionService';
 // ── Code splitting: chargement à la demande (React.lazy) avec auto-reload sur ChunkLoadError ──
 function lazyWithRetry(importFn) {
   return lazy(() => new Promise((resolve, reject) => {
@@ -161,6 +162,10 @@ function App() {
   const [logsSent, setLogsSent] = useState(false);
   const [isAdminUI, setIsAdminUI] = useState(false);
   const [showSessionModal, setShowSessionModal] = useState(false);
+  const [showKickedModal, setShowKickedModal] = useState(false);
+  const [showSubRequiredModal, setShowSubRequiredModal] = useState(false);
+  const [showDeviceLimitModal, setShowDeviceLimitModal] = useState(false);
+  const [deviceLimitMsg, setDeviceLimitMsg] = useState('');
   const sessionModalTimerRef = useRef(null);
   const consoleOrigRef = useRef({ log: null, warn: null, error: null });
   const fetchOrigRef = useRef(null);
@@ -274,6 +279,8 @@ function App() {
   const handleSessionModalLogout = () => {
     if (sessionModalTimerRef.current) clearInterval(sessionModalTimerRef.current);
     setShowSessionModal(false);
+    // Invalider la session active côté serveur
+    try { logoutSession(); } catch {}
     const keysToRemove = [
       'cc_auth', 'cc_student_name', 'cc_student_id', 'cc_user_id',
       'cc_session_cfg', 'cc_subscription_status', 'cc_class_id',
@@ -635,6 +642,51 @@ function App() {
     return () => stopHeartbeat();
   }, [auth]);
 
+  // ── Session unique: guard périodique + éjection si session invalidée ──
+  useEffect(() => {
+    if (auth && getSessionToken()) {
+      startSessionGuard(() => {
+        console.warn('[App] ⚡ Session invalidée — autre appareil connecté');
+        setShowKickedModal(true);
+      });
+    } else {
+      stopSessionGuard();
+    }
+    return () => stopSessionGuard();
+  }, [auth]);
+
+  // ── Session unique: écouter rejet Socket.IO (SESSION_INVALIDATED) ──
+  useEffect(() => {
+    const onKicked = () => setShowKickedModal(true);
+    window.addEventListener('cc:sessionKicked', onKicked);
+    return () => window.removeEventListener('cc:sessionKicked', onKicked);
+  }, []);
+
+  // ── Phase 3: écouter rejet abonnement serveur ──
+  useEffect(() => {
+    const onSubRequired = () => setShowSubRequiredModal(true);
+    window.addEventListener('cc:subscriptionRequired', onSubRequired);
+    return () => window.removeEventListener('cc:subscriptionRequired', onSubRequired);
+  }, []);
+
+  // ── Phase 3: écouter limite de devices ──
+  useEffect(() => {
+    const onDeviceLimit = (e) => {
+      setDeviceLimitMsg(e?.detail?.message || 'Limite de 2 appareils atteinte.');
+      setShowDeviceLimitModal(true);
+    };
+    const onDeviceRevoked = (e) => {
+      setDeviceLimitMsg(e?.detail?.message || 'Cet appareil a été révoqué.');
+      setShowDeviceLimitModal(true);
+    };
+    window.addEventListener('cc:deviceLimitReached', onDeviceLimit);
+    window.addEventListener('cc:deviceRevoked', onDeviceRevoked);
+    return () => {
+      window.removeEventListener('cc:deviceLimitReached', onDeviceLimit);
+      window.removeEventListener('cc:deviceRevoked', onDeviceRevoked);
+    };
+  }, []);
+
   // ── Client Telemetry: capture erreurs JS, réseau, navigation, etc. ──
   useEffect(() => {
     const cleanup = initClientTelemetry();
@@ -828,6 +880,81 @@ function App() {
                   Se déconnecter
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+        {/* Modal "Session éjectée" — un autre appareil s'est connecté avec ce compte */}
+        {showKickedModal && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 100000, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: '#fff', borderRadius: 16, padding: '36px 28px', maxWidth: 420, width: '90%', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🔒</div>
+              <h3 style={{ margin: '0 0 10px', fontSize: 20, color: '#b91c1c' }}>Session déconnectée</h3>
+              <p style={{ margin: '0 0 20px', fontSize: 14, color: '#6b7280', lineHeight: 1.6 }}>
+                Ton compte vient d'être utilisé sur un autre appareil.<br />
+                <strong>Une seule session active est autorisée par licence.</strong>
+              </p>
+              <p style={{ margin: '0 0 24px', fontSize: 13, color: '#9ca3af' }}>
+                Si ce n'était pas toi, change ton mot de passe immédiatement.
+              </p>
+              <button
+                onClick={() => {
+                  setShowKickedModal(false);
+                  handleSessionModalLogout();
+                  window.location.href = '/login';
+                }}
+                style={{ padding: '12px 32px', borderRadius: 10, border: 'none', background: '#0D6A7A', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: '0 3px 12px rgba(13,106,122,0.3)' }}
+              >
+                Me reconnecter
+              </button>
+            </div>
+          </div>
+        )}
+        {/* Modal "Abonnement requis" — le serveur a rejeté une action gameplay */}
+        {showSubRequiredModal && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 100000, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: '#fff', borderRadius: 16, padding: '36px 28px', maxWidth: 420, width: '90%', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>⭐</div>
+              <h3 style={{ margin: '0 0 10px', fontSize: 20, color: '#0D6A7A' }}>Abonnement requis</h3>
+              <p style={{ margin: '0 0 16px', lineHeight: 1.5, color: '#333' }}>
+                Le mode multijoueur est réservé aux abonnés Crazy Chrono.<br />
+                <strong>Abonne-toi pour jouer avec tes amis !</strong>
+              </p>
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => { setShowSubRequiredModal(false); window.location.href = '/subscribe'; }}
+                  style={{ padding: '12px 28px', borderRadius: 10, border: 'none', background: '#F5A623', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: '0 3px 12px rgba(245,166,35,0.3)' }}
+                >
+                  S'abonner
+                </button>
+                <button
+                  onClick={() => setShowSubRequiredModal(false)}
+                  style={{ padding: '12px 28px', borderRadius: 10, border: '2px solid #ddd', background: '#fff', color: '#666', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Modal "Limite d'appareils" — max 2 devices par licence */}
+        {showDeviceLimitModal && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 100000, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: '#fff', borderRadius: 16, padding: '36px 28px', maxWidth: 420, width: '90%', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📱</div>
+              <h3 style={{ margin: '0 0 10px', fontSize: 20, color: '#D32F2F' }}>Limite d'appareils atteinte</h3>
+              <p style={{ margin: '0 0 16px', lineHeight: 1.5, color: '#333' }}>
+                {deviceLimitMsg}<br />
+                <strong>Tu peux utiliser Crazy Chrono sur 2 appareils maximum.</strong>
+              </p>
+              <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
+                Contacte ton enseignant pour libérer un appareil.
+              </p>
+              <button
+                onClick={() => { setShowDeviceLimitModal(false); window.location.href = '/login'; }}
+                style={{ padding: '12px 32px', borderRadius: 10, border: 'none', background: '#0D6A7A', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
+              >
+                OK
+              </button>
             </div>
           </div>
         )}

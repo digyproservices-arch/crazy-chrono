@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 import '../styles/Carte.css';
 import { pointToSvgCoords, polygonToPointsStr, segmentsToSvgPath, pointsToBezierPath } from './CarteUtils';
 import { getBackendUrl } from '../utils/subscription';
+import { getAuthSocketOptions } from '../utils/socketAuth';
 import { getAuthHeaders } from '../utils/apiHelpers';
 import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck } from '../utils/elementsLoader';
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
@@ -1311,7 +1312,7 @@ const Carte = () => {
       
       const base = getBackendUrl();
       console.log('[TRAINING] Tentative connexion Socket.IO vers:', base);
-      const s = io(base, { transports: ['websocket', 'polling'], withCredentials: false, reconnectionDelay: 1000, reconnectionDelayMax: 5000 });
+      const s = io(base, getAuthSocketOptions());
       socketRef.current = s;
       _instrSocket(s, 'training', trainingMatchId);
       
@@ -1555,7 +1556,7 @@ const Carte = () => {
       
       const base = getBackendUrl();
       console.log('[ARENA] Tentative connexion Socket.IO vers:', base);
-      const s = io(base, { transports: ['websocket', 'polling'], withCredentials: false, reconnectionDelay: 1000, reconnectionDelayMax: 5000 });
+      const s = io(base, getAuthSocketOptions());
       socketRef.current = s;
       _instrSocket(s, 'arena', arenaMatchId);
       
@@ -2117,9 +2118,15 @@ const Carte = () => {
     if (socketRef.current && socketRef.current.connected) return;
     const base = getBackendUrl();
     addDiag('socket:init', { url: base });
-    const s = io(base, { transports: ['websocket', 'polling'], withCredentials: false, reconnectionDelay: 1000, reconnectionDelayMax: 5000 });
+    const s = io(base, getAuthSocketOptions());
     socketRef.current = s;
     _instrSocket(s, 'multiplayer', roomId);
+
+    // ── Phase 3: écouter rejet abonnement serveur ──
+    s.on('subscription:required', ({ event, message }) => {
+      console.warn(`[MP] 🔒 Abonnement requis: ${message}`);
+      try { window.dispatchEvent(new CustomEvent('cc:subscriptionRequired', { detail: { event, message } })); } catch {}
+    });
 
     const onConnect = () => {
       setSocketConnected(true);

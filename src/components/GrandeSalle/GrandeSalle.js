@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { getBackendUrl, isFree } from '../../utils/subscription';
+import { getAuthSocketOptions } from '../../utils/socketAuth';
 import { flushGsClickLog } from '../../utils/clickLogger';
 import { pointsToBezierPath } from '../CarteUtils';
 import { animateBubblesFromZones, invalidateZoneCenterCache } from '../Carte';
@@ -196,7 +197,7 @@ export default function GrandeSalle() {
     // Permettre la connexion pour les guests de tournoi même en free
     const hasGuestData = (() => { try { return !!localStorage.getItem('cc_gs_guest'); } catch { return false; } })();
     if (isFree() && !(tournamentId && hasGuestData)) return;
-    const socket = io(getBackendUrl(), { transports: ['websocket', 'polling'] });
+    const socket = io(getBackendUrl(), getAuthSocketOptions({ transports: ['websocket', 'polling'] }));
     socketRef.current = socket;
 
     socket.on('connect', () => {

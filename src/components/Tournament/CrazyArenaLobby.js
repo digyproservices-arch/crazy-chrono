@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
+import { getAuthSocketOptions } from '../../utils/socketAuth';
 
 
 export default function CrazyArenaLobby() {
@@ -154,10 +155,10 @@ export default function CrazyArenaLobby() {
       setCurrentMatchId(matchId); // Stocker pour bouton professeur
     
       // Connexion Socket.IO
-      const socket = io(getBackendUrl(), {
+      const socket = io(getBackendUrl(), getAuthSocketOptions({
         transports: ['websocket'],
         reconnection: true
-      });
+      }));
       socketLocal = socket;
       socketRef.current = socket;
       

@@ -180,6 +180,17 @@ function startRgpdPurge() {
       } catch (diagPurgeErr) {
         logger.warn(`[Cron][RGPD] Erreur purge diagnostic: ${diagPurgeErr.message}`);
       }
+
+      // Phase 4: Purge des logs d'audit > 90 jours + devices stale > 90 jours
+      try {
+        const { data: auditResult } = await supabase.rpc('cleanup_old_audit_logs');
+        const { data: deviceResult } = await supabase.rpc('cleanup_stale_devices');
+        if (auditResult > 0 || deviceResult > 0) {
+          logger.info(`[Cron][RGPD] Purge anti-fraude: ${auditResult || 0} audit_logs + ${deviceResult || 0} stale_devices supprimés ✅`);
+        }
+      } catch (antifraudPurgeErr) {
+        logger.warn(`[Cron][RGPD] Erreur purge anti-fraude: ${antifraudPurgeErr.message}`);
+      }
     } catch (error) {
       logger.error('[Cron][RGPD] Erreur lors de la purge:', error);
     }

@@ -3,8 +3,60 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import supabase from '../../utils/supabaseClient';
 import { logAuth } from '../../utils/authLogger';
+import { createSession } from '../../utils/sessionService';
+import { getDeviceInfo } from '../../utils/deviceFingerprint';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com';
+
+// Phase 4: Rate-limiting + audit log
+async function checkRateLimit(identifier) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/antifraud/check-rate-limit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier }),
+    });
+    const data = await res.json();
+    return data?.rateLimited || false;
+  } catch { return false; } // fail-open
+}
+
+async function recordLoginAttempt(identifier, success, userId) {
+  try {
+    const { getDeviceFingerprint } = await import('../../utils/deviceFingerprint');
+    const fingerprint = getDeviceFingerprint();
+    await fetch(`${BACKEND_URL}/api/antifraud/record-attempt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, success, userId, fingerprint }),
+    });
+  } catch {} // fire-and-forget
+}
+
+// Phase 3: Enregistrer le device au login (max 2 appareils)
+async function registerDeviceAtLogin(jwt) {
+  try {
+    const device = getDeviceInfo();
+    const res = await fetch(`${BACKEND_URL}/api/session/device/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
+      body: JSON.stringify(device),
+    });
+    const data = await res.json();
+    if (!data.ok && data.error === 'device_limit_reached') {
+      window.dispatchEvent(new CustomEvent('cc:deviceLimitReached', { detail: data }));
+      return false;
+    }
+    if (!data.ok && data.error === 'device_revoked') {
+      window.dispatchEvent(new CustomEvent('cc:deviceRevoked', { detail: data }));
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('[Device] register error (fail-open):', e.message);
+    return true; // fail-open
+  }
+}
 
 // Redirection post-login selon le rôle (ou redirect query param)
 const getPostLoginPath = (profile, searchParams) => {
@@ -159,6 +211,11 @@ export default function Login({ onLogin }) {
               try { localStorage.removeItem('cc_student_name'); } catch {}
               try { localStorage.removeItem('cc_student_id'); } catch {}
             }
+            // Session unique: créer/renouveler la session active (invalide les autres appareils)
+            try { await createSession(data.session.access_token); } catch (e) { console.warn('[Login:auto] session create error:', e.message); }
+            // Phase 3: Vérifier limite de devices
+            const deviceOk = await registerDeviceAtLogin(data.session.access_token);
+            if (!deviceOk) { await supabase.auth.signOut(); return; }
             onLogin && onLogin(profile);
             navigate(getPostLoginPath(profile, searchParams), { replace: true });
             return;
@@ -265,10 +322,14 @@ export default function Login({ onLogin }) {
     if (studentMode) { handleStudentLogin(e); return; }
     setError('');
     if (!supabase) { setError('Supabase non configuré'); return; }
+    // Phase 4: Rate-limiting
+    const identifier = email.trim().toLowerCase();
+    const limited = await checkRateLimit(identifier);
+    if (limited) { setError('Trop de tentatives. Réessaye dans 15 minutes.'); return; }
     try {
       setLoading(true);
       const { data, error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-      if (err) throw err;
+      if (err) { recordLoginAttempt(identifier, false); throw err; }
       
       // DEBUG: Vérifier la structure de data
       console.log('[Login DEBUG] data structure:', {
@@ -422,6 +483,13 @@ export default function Login({ onLogin }) {
           // Ne pas bloquer le login si la récupération échoue
         }
         
+        // Session unique: créer session active (invalide les autres appareils)
+        try { await createSession(data?.session?.access_token); } catch (e) { console.warn('[Login] session create error:', e.message); }
+        // Phase 4: Enregistrer login réussi (audit + IP tracking)
+        recordLoginAttempt(identifier, true, data?.user?.id);
+        // Phase 3: Vérifier limite de devices
+        const deviceOk2 = await registerDeviceAtLogin(data?.session?.access_token);
+        if (!deviceOk2) { await supabase.auth.signOut(); return; }
         onLogin && onLogin(profile);
         navigate(getPostLoginPath(profile, searchParams), { replace: true });
       }
@@ -533,6 +601,10 @@ export default function Login({ onLogin }) {
     setError(''); setInfo('');
     const code = studentCode.trim();
     if (!code || code.length < 5) { setError('Entre ton code d\'accès (ex: ALICE-CE1A-4823)'); return; }
+    // Phase 4: Rate-limiting sur code élève
+    const studentIdentifier = code.toUpperCase();
+    const sLimited = await checkRateLimit(studentIdentifier);
+    if (sLimited) { setError('Trop de tentatives. Réessaye dans 15 minutes.'); return; }
     try {
       setLoading(true);
       const backendUrl = process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com';
@@ -542,7 +614,7 @@ export default function Login({ onLogin }) {
         body: JSON.stringify({ code }),
       });
       const data = await res.json();
-      if (!data.ok) { setError(data.error || 'Code invalide'); return; }
+      if (!data.ok) { recordLoginAttempt(studentIdentifier, false); setError(data.error || 'Code invalide'); return; }
 
       if (supabase && data.credentials) {
         const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
@@ -570,6 +642,13 @@ export default function Login({ onLogin }) {
           try { localStorage.setItem('cc_student_name', data.student.fullName || data.student.firstName || ''); } catch {}
           // ✅ FIX: Un élève qui se connecte avec succès est forcément licencié (le backend rejette les non-licenciés)
           try { localStorage.setItem('cc_subscription_status', 'pro'); } catch {}
+          // Session unique: créer session active (invalide les autres appareils)
+          try { await createSession(authData?.session?.access_token); } catch (e) { console.warn('[Login:student] session create error:', e.message); }
+          // Phase 4: Enregistrer login réussi
+          recordLoginAttempt(studentIdentifier, true, user.id);
+          // Phase 3: Vérifier limite de devices
+          const deviceOk3 = await registerDeviceAtLogin(authData?.session?.access_token);
+          if (!deviceOk3) { await supabase.auth.signOut(); return; }
           onLogin && onLogin(profile);
           navigate(getPostLoginPath(profile, searchParams), { replace: true });
         }

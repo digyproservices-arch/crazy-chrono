@@ -8,6 +8,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { getBackendUrl } from '../../utils/subscription';
+import { getAuthSocketOptions } from '../../utils/socketAuth';
 import '../../styles/Carte.css';
 import { pointsToBezierPath } from '../CarteUtils';
 import { animateBubblesFromZones } from '../Carte';
@@ -346,10 +347,10 @@ export default function TrainingArenaGame() {
     }, 100);
     
     // Connexion Socket.IO
-    const socket = io(getBackendUrl(), {
+    const socket = io(getBackendUrl(), getAuthSocketOptions({
       transports: ['websocket'],
       reconnection: true
-    });
+    }));
     socketRef.current = socket;
     
     socket.on('connect', () => {

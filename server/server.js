@@ -286,11 +286,20 @@ app.use('/api/gs', grandeSalleRoutes);
 // ===== Auth Routes (Licences professionnelles) =====
 const authRoutes = require('./routes/auth');
 
-// Exposer supabaseAdmin et grandeSalles pour les routes
+// Exposer supabaseAdmin, io et grandeSalles pour les routes
 app.locals.supabaseAdmin = supabaseAdmin;
+app.locals.io = io;
 
 // Monter les routes auth (après création de supabaseAdmin)
 app.use('/api/auth', authRoutes);
+
+// ===== Session Routes (enforcement session unique) =====
+const sessionRoutes = require('./routes/session');
+app.use('/api/session', sessionRoutes);
+
+// ===== Anti-fraud Routes (Phase 4: rate-limit, audit, alertes) =====
+const antifraudRoutes = require('./routes/antifraud');
+app.use('/api/antifraud', antifraudRoutes);
 
 // ===== Progress Routes (sessions + attempts pour Maîtrise) =====
 const progressRoutes = require('./routes/progress');
@@ -2001,6 +2010,14 @@ app.post('/webhooks/stripe', rawParser, async (req, res) => {
               updated_at: new Date().toISOString(),
             };
             await supabaseAdmin.from('subscriptions').update(payload).eq('stripe_subscription_id', sub.id);
+            // ── Phase 3: Invalider le cache abonnement pour mise à jour immédiate ──
+            try {
+              const { data: subRow } = await supabaseAdmin.from('subscriptions').select('user_id').eq('stripe_subscription_id', sub.id).single();
+              if (subRow?.user_id && app.locals.invalidateSubCache) {
+                app.locals.invalidateSubCache(subRow.user_id);
+                logger.info(`[Stripe][Sub] Cache invalidé pour user ${subRow.user_id} (status: ${sub.status})`);
+              }
+            } catch {}
           }
         }
       }
@@ -3642,6 +3659,133 @@ function endSession(roomCode) {
   } })();
 }
 
+// ==========================================
+// SOCKET.IO AUTH MIDDLEWARE — Phase 2
+// Vérifie JWT + sessionToken au handshake
+// Attache userId au socket, rejette si session invalidée
+// ==========================================
+const _socketSessionCache = new Map();
+const SOCKET_SESSION_CACHE_TTL = 60_000; // 1 min
+
+io.use(async (socket, next) => {
+  const auth = socket.handshake.auth || {};
+  const { token, sessionToken } = auth;
+
+  // Pas d'auth → autoriser (guests Grande Salle, spectateurs, monitoring)
+  if (!token && !sessionToken) {
+    socket.authUser = null;
+    socket.sessionValid = null;
+    return next();
+  }
+
+  // 1) Vérifier JWT si présent
+  if (token && supabaseAdmin) {
+    try {
+      const { data: who, error: whoErr } = await supabaseAdmin.auth.getUser(token);
+      if (!whoErr && who?.user) {
+        socket.authUser = { id: who.user.id, email: who.user.email };
+      }
+    } catch (e) {
+      logger.warn(`[Socket][AUTH] JWT verification failed: ${e.message}`);
+    }
+  }
+
+  // 2) Vérifier sessionToken si présent → rejeter si session invalidée
+  if (sessionToken && supabaseAdmin) {
+    try {
+      // Cache check
+      const cached = _socketSessionCache.get(sessionToken);
+      if (cached && Date.now() - cached.ts < SOCKET_SESSION_CACHE_TTL) {
+        if (!cached.isActive) {
+          logger.warn(`[Socket][AUTH] ❌ Session invalidée (cached) — rejet connexion`, { socketId: socket.id });
+          return next(new Error('SESSION_INVALIDATED'));
+        }
+        socket.sessionValid = true;
+      } else {
+        // Query Supabase
+        const { data, error } = await supabaseAdmin.rpc('check_session_active', { p_token: sessionToken });
+        const result = data && data.length > 0 ? data[0] : null;
+        const isActive = result?.is_valid ?? true; // fail-open si erreur
+
+        _socketSessionCache.set(sessionToken, { isActive, ts: Date.now() });
+        if (_socketSessionCache.size > 5000) {
+          const keys = [..._socketSessionCache.keys()].slice(0, 1000);
+          keys.forEach(k => _socketSessionCache.delete(k));
+        }
+
+        if (!isActive) {
+          logger.warn(`[Socket][AUTH] ❌ Session invalidée — rejet connexion`, { socketId: socket.id, userId: socket.authUser?.id });
+          return next(new Error('SESSION_INVALIDATED'));
+        }
+        socket.sessionValid = true;
+      }
+    } catch (e) {
+      // Fail-open: ne pas bloquer si Supabase est down
+      logger.warn(`[Socket][AUTH] Session check error (fail-open): ${e.message}`);
+      socket.sessionValid = null;
+    }
+  }
+
+  next();
+});
+
+// Exposer une fonction pour invalider le cache socket-session (utilisé par routes/session.js)
+app.locals.invalidateSocketSessionCache = (userId) => {
+  for (const [k, v] of _socketSessionCache.entries()) {
+    if (v.userId === userId) _socketSessionCache.delete(k);
+  }
+};
+
+// ==========================================
+// PHASE 3 — Vérification abonnement serveur
+// Cache en mémoire: évite de frapper Supabase à chaque event
+// ==========================================
+const _subCache = new Map();
+const SUB_CACHE_TTL = 5 * 60_000; // 5 min
+
+async function checkSubscription(userId) {
+  if (!userId || !supabaseAdmin) return { isPro: true }; // fail-open
+
+  const cached = _subCache.get(userId);
+  if (cached && Date.now() - cached.ts < SUB_CACHE_TTL) return cached;
+
+  try {
+    const { data: rows } = await supabaseAdmin
+      .from('subscriptions')
+      .select('status')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+    const status = rows?.[0]?.status || null;
+    const isPro = (status === 'active' || status === 'trialing');
+
+    // Aussi vérifier le rôle (teacher/admin/cpd/cpc/rectorat = toujours pro)
+    let role = null;
+    try {
+      const { data: prof } = await supabaseAdmin.from('user_profiles').select('role').eq('id', userId).single();
+      role = prof?.role || null;
+    } catch {}
+    const isPrivileged = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat'].includes(role);
+
+    const result = { isPro: isPro || isPrivileged, status, role, ts: Date.now() };
+    _subCache.set(userId, result);
+
+    // Cleanup cache si trop grand
+    if (_subCache.size > 5000) {
+      const keys = [..._subCache.keys()].slice(0, 1000);
+      keys.forEach(k => _subCache.delete(k));
+    }
+
+    return result;
+  } catch (e) {
+    logger.warn(`[Sub] Check error (fail-open): ${e.message}`);
+    return { isPro: true }; // fail-open
+  }
+}
+
+// Invalider le cache abo quand un webhook Stripe modifie le statut
+app.locals.invalidateSubCache = (userId) => { _subCache.delete(userId); };
+
 io.on('connection', (socket) => {
   let currentRoom = null;
   let playerName = `Joueur-${socket.id.slice(0,4)}`;
@@ -3649,8 +3793,9 @@ io.on('connection', (socket) => {
   // Identifier le joueur (studentId) pour le tracking des stats
   let playerStudentId = null;
   
-  // ✅ LOG: Nouvelle connexion Socket.IO
-  logger.info(`[Socket][CONNECT] 🔌 Nouveau socket connecté: ${socket.id} | Total: ${io.engine?.clientsCount || '?'}`);
+  // ✅ LOG: Nouvelle connexion Socket.IO (avec info auth)
+  const authInfo = socket.authUser ? `user=${socket.authUser.email}` : 'guest';
+  logger.info(`[Socket][CONNECT] 🔌 ${socket.id} | ${authInfo} | session=${socket.sessionValid ? 'valid' : 'none'} | Total: ${io.engine?.clientsCount || '?'}`);
   
   // Monitoring: permettre au dashboard de rejoindre la room monitoring
   socket.on('monitoring:join', () => {
@@ -3682,7 +3827,16 @@ io.on('connection', (socket) => {
   });
 
   // Créer une salle et renvoyer le code au client (ack)
-  socket.on('room:create', (cb) => {
+  socket.on('room:create', async (cb) => {
+    // ── Phase 3: Vérification abonnement pour créer une salle MP ──
+    const uid = socket.authUser?.id || playerStudentId || null;
+    const sub = await checkSubscription(uid);
+    if (!sub.isPro) {
+      logger.warn(`[Socket][SUB] ❌ Joueur free tente room:create`, { socketId: socket.id, userId: uid });
+      socket.emit('subscription:required', { event: 'room:create', message: 'Le mode multijoueur est réservé aux abonnés.' });
+      if (typeof cb === 'function') cb({ ok: false, error: 'subscription_required' });
+      return;
+    }
     const code = genRoomCode();
     const room = getRoom(code); // initialise
     room.hostId = socket.id;
@@ -3691,11 +3845,20 @@ io.on('connection', (socket) => {
   });
 
   // Rejoindre une salle existante (ou défaut)
-  socket.on('joinRoom', ({ roomId, name, studentId: sid }) => {
+  socket.on('joinRoom', async ({ roomId, name, studentId: sid }) => {
     const newRoom = String(roomId || 'default');
     playerName = String(name || playerName);
     if (sid) playerStudentId = sid;
     emitPerfEvent('joinRoom', { socketId: socket.id, room: newRoom, studentId: playerStudentId, sidFromClient: sid || null });
+
+    // ── Phase 3: Vérification abonnement pour multijoueur ──
+    const uid = socket.authUser?.id || playerStudentId || sid || null;
+    const sub = await checkSubscription(uid);
+    if (!sub.isPro) {
+      logger.warn(`[Socket][SUB] ❌ Joueur free tente joinRoom`, { socketId: socket.id, userId: uid, room: newRoom });
+      socket.emit('subscription:required', { event: 'joinRoom', message: 'Le mode multijoueur est réservé aux abonnés.' });
+      return;
+    }
     // si le joueur était déjà dans une autre salle, on le retire proprement
     if (currentRoom && currentRoom !== newRoom) {
       const old = getRoom(currentRoom);
@@ -4508,6 +4671,17 @@ io.on('connection', (socket) => {
 
   socket.on('training:join', async ({ matchId, studentData }, cb) => {
     logger.info('[Server][Training] Joueur tente de rejoindre', { matchId, studentId: studentData.studentId, name: studentData.name, socketId: socket.id });
+
+    // ── Phase 3: Vérification abonnement pour Training ──
+    const uid = socket.authUser?.id || studentData?.studentId || null;
+    const sub = await checkSubscription(uid);
+    if (!sub.isPro) {
+      logger.warn(`[Socket][SUB] ❌ Joueur free tente training:join`, { socketId: socket.id, userId: uid, matchId });
+      socket.emit('subscription:required', { event: 'training:join', message: 'Le mode Training est réservé aux abonnés.' });
+      if (typeof cb === 'function') cb({ ok: false, error: 'subscription_required' });
+      return;
+    }
+
     const success = await crazyArena.joinTrainingMatch(socket, matchId, studentData);
     if (success) {
       logger.info('[Server][Training] Joueur rejoint avec succès', { matchId, studentId: studentData.studentId, socketId: socket.id });
@@ -4612,6 +4786,17 @@ io.on('connection', (socket) => {
   
   socket.on('arena:join', async ({ matchId, studentData }, cb) => {
     logger.info('[Server][Arena] Joueur rejoint', { matchId, studentId: studentData.studentId, name: studentData.name, socketId: socket.id });
+
+    // ── Phase 3: Vérification abonnement pour Arena ──
+    const uid = socket.authUser?.id || studentData?.studentId || null;
+    const sub = await checkSubscription(uid);
+    if (!sub.isPro) {
+      logger.warn(`[Socket][SUB] ❌ Joueur free tente arena:join`, { socketId: socket.id, userId: uid, matchId });
+      socket.emit('subscription:required', { event: 'arena:join', message: 'Le mode Arena est réservé aux abonnés.' });
+      if (typeof cb === 'function') cb({ ok: false, error: 'subscription_required' });
+      return;
+    }
+
     const success = await crazyArena.joinMatch(socket, matchId, studentData);
     if (success) {
       sTrace.push('arena:join-ok', { matchId: (matchId || '').slice(-8), studentId: (studentData.studentId || '').slice(-8), name: studentData.name, socketId: socket.id.slice(0, 8), rooms: Array.from(socket.rooms) });

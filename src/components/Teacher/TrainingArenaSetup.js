@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef, useMemo, useContext, useCallback } 
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
+import { getAuthSocketOptions } from '../../utils/socketAuth';
 import { DataContext } from '../../context/DataContext';
 import PedagogicConfig, { CARD, SECTION_TITLE, CLASS_LEVELS, CONTENT_DOMAINS } from '../Shared/PedagogicConfig';
 import { useToast } from '../Toast';
@@ -467,7 +468,7 @@ export default function TrainingArenaSetup() {
       return;
     }
 
-    const socket = io(getBackendUrl(), { transports: ['websocket'], reconnection: true });
+    const socket = io(getBackendUrl(), getAuthSocketOptions({ transports: ['websocket'], reconnection: true }));
     socketRef.current = socket;
 
     socket.on('connect', () => {

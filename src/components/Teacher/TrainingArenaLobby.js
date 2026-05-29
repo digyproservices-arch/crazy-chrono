@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import { getBackendUrl } from '../../utils/apiHelpers';
+import { getAuthSocketOptions } from '../../utils/socketAuth';
 
 export default function TrainingArenaLobby() {
   const { roomCode } = useParams();
@@ -137,10 +138,10 @@ export default function TrainingArenaLobby() {
       console.log('[TrainingArena] 🎯 Utilisation matchId:', matchId);
     
       // Connexion Socket.IO
-      const socket = io(getBackendUrl(), {
+      const socket = io(getBackendUrl(), getAuthSocketOptions({
         transports: ['websocket'],
         reconnection: true
-      });
+      }));
       socketLocal = socket;
       socketRef.current = socket;
       

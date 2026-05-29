@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import { getAuthHeaders, getBackendUrl } from '../utils/apiHelpers';
+import { getAuthSocketOptions } from '../utils/socketAuth';
 import { telemetry } from '../utils/clientTelemetry';
 
 
@@ -145,10 +146,10 @@ export default function NotificationBadge() {
   useEffect(() => {
     if (!studentId) return;
 
-    const socket = io(getBackendUrl(), {
+    const socket = io(getBackendUrl(), getAuthSocketOptions({
       transports: ['websocket', 'polling'],
       reconnection: true
-    });
+    }));
 
     // Écouter fin de match Arena pour retirer l'invitation
     socket.on('arena:match-finished', ({ matchId }) => {

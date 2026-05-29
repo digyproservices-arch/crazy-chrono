@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
+import { getAuthSocketOptions } from '../../utils/socketAuth';
 
 
 export default function TrainingArenaManagerDashboard() {
@@ -118,10 +119,10 @@ export default function TrainingArenaManagerDashboard() {
 
   // Connexion Socket.IO - UNE SEULE FOIS au montage du composant
   useEffect(() => {
-    const socket = io(getBackendUrl(), {
+    const socket = io(getBackendUrl(), getAuthSocketOptions({
       transports: ['websocket'],
       reconnection: true
-    });
+    }));
     socketRef.current = socket;
 
     socket.on('connect', () => {

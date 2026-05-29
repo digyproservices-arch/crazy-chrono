@@ -11,6 +11,7 @@ import { pointsToBezierPath } from '../CarteUtils';
 import { animateBubblesFromZones, invalidateZoneCenterCache } from '../Carte';
 import '../../styles/Carte.css';
 import { getBackendUrl } from '../../utils/apiHelpers';
+import { getAuthSocketOptions } from '../../utils/socketAuth';
 import { PLAYER_PRIMARY_COLORS, PLAYER_BORDER_COLORS, getPlayerColorComboByIndex } from '../../utils/playerColors';
 import { getInitials } from '../../utils/pairDisplay';
 
@@ -218,12 +219,12 @@ function ArenaSpectatorInner() {
 
     console.log('[Spectator] Connexion au backend:', getBackendUrl(), 'matchId:', matchId);
 
-    const socket = io(getBackendUrl(), {
+    const socket = io(getBackendUrl(), getAuthSocketOptions({
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: 10,
       timeout: 10000
-    });
+    }));
     socketRef.current = socket;
 
     const connectionTimeout = setTimeout(() => {

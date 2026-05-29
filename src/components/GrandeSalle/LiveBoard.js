@@ -11,6 +11,7 @@ import { pointsToBezierPath } from '../CarteUtils';
 import { animateBubblesFromZones, invalidateZoneCenterCache } from '../Carte';
 import '../../styles/Carte.css';
 import { getBackendUrl } from '../../utils/apiHelpers';
+import { getAuthSocketOptions } from '../../utils/socketAuth';
 import { PLAYER_PRIMARY_COLORS, getPlayerColorComboByIndex } from '../../utils/playerColors';
 import { getInitials } from '../../utils/pairDisplay';
 
@@ -166,7 +167,7 @@ export default function LiveBoard() {
   }, [tournamentId]);
 
   useEffect(() => {
-    const socket = io(getBackendUrl(), { transports: ['websocket', 'polling'], reconnection: true, reconnectionAttempts: 10 });
+    const socket = io(getBackendUrl(), getAuthSocketOptions({ transports: ['websocket', 'polling'], reconnection: true, reconnectionAttempts: 10 }));
     socketRef.current = socket;
 
     socket.on('connect', () => {

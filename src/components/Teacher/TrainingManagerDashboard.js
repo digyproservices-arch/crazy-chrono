@@ -8,6 +8,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import { getBackendUrl } from '../../utils/subscription';
+import { getAuthSocketOptions } from '../../utils/socketAuth';
 
 export default function TrainingManagerDashboard() {
   const location = useLocation();
@@ -43,10 +44,10 @@ export default function TrainingManagerDashboard() {
 
   // Connexion Socket.IO unique
   useEffect(() => {
-    const socket = io(getBackendUrl(), {
+    const socket = io(getBackendUrl(), getAuthSocketOptions({
       transports: ['websocket', 'polling'],
       reconnection: true
-    });
+    }));
     socketRef.current = socket;
 
     socket.on('connect', () => {

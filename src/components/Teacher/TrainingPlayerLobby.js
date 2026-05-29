@@ -8,6 +8,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import { getBackendUrl } from '../../utils/subscription';
+import { getAuthSocketOptions } from '../../utils/socketAuth';
 
 export default function TrainingPlayerLobby() {
   const { matchId } = useParams();
@@ -92,10 +93,10 @@ export default function TrainingPlayerLobby() {
       
       const { studentId, studentName } = userData;
     
-      const socket = io(getBackendUrl(), {
+      const socket = io(getBackendUrl(), getAuthSocketOptions({
         transports: ['websocket', 'polling'],
         reconnection: true
-      });
+      }));
       socketLocal = socket;
       socketRef.current = socket;
       
