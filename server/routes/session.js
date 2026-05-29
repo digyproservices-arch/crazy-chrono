@@ -247,10 +247,12 @@ router.post('/device/register', async (req, res) => {
 
     if (!fingerprint) return res.status(400).json({ ok: false, error: 'missing_fingerprint' });
 
-    // Bypass: les admins, teachers, rectorat n'ont pas de limite de devices
+    // Limite de devices selon le rôle:
+    // - student: max 2 (anti-partage de code entre copains)
+    // - tous les autres (parent, admin, teacher, etc.): illimité (la session unique suffit)
     const { data: prof } = await supabaseAdmin.from('user_profiles').select('role').eq('id', userId).single();
-    const bypassRoles = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat'];
-    const maxDevices = bypassRoles.includes(prof?.role) ? 100 : 2;
+    const role = prof?.role || 'parent';
+    const maxDevices = role === 'student' ? 2 : 100;
 
     // Appeler la fonction SQL register_device
     const { data, error } = await supabaseAdmin.rpc('register_device', {

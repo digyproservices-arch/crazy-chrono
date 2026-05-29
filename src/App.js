@@ -936,7 +936,7 @@ function App() {
             </div>
           </div>
         )}
-        {/* Modal "Limite d'appareils" — max 2 devices par licence */}
+        {/* Modal "Limite d'appareils" — élèves uniquement (max 2 devices) */}
         {showDeviceLimitModal && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 100000, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ background: '#fff', borderRadius: 16, padding: '36px 28px', maxWidth: 420, width: '90%', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
@@ -944,10 +944,11 @@ function App() {
               <h3 style={{ margin: '0 0 10px', fontSize: 20, color: '#D32F2F' }}>Limite d'appareils atteinte</h3>
               <p style={{ margin: '0 0 16px', lineHeight: 1.5, color: '#333' }}>
                 {deviceLimitMsg}<br />
-                <strong>Tu peux utiliser Crazy Chrono sur 2 appareils maximum.</strong>
+                <strong>Ton code ne peut être utilisé que sur 2 appareils.</strong>
               </p>
               <p style={{ margin: '0 0 20px', fontSize: 13, color: '#666' }}>
-                Contacte ton enseignant pour libérer un appareil.
+                Si tu n'utilises plus un ancien appareil, il sera automatiquement libéré après 7 jours.<br />
+                Sinon, demande à ton enseignant de libérer un appareil.
               </p>
               <button
                 onClick={() => { setShowDeviceLimitModal(false); window.location.href = '/login'; }}
