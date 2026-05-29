@@ -4827,27 +4827,37 @@ io.on('connection', (socket) => {
     if (salle.sessionActive) {
       // Try to find existing player by name (reconnection after navigating to /carte)
       let reconnected = false;
+      // ✅ FIX: Collecter TOUS les doublons pour ce joueur, garder le meilleur score
+      const duplicates = [];
       for (const [oldId, p] of salle.players.entries()) {
-        if (p.name === playerName && oldId !== socket.id) {
+        if (p.name === playerName && oldId !== socket.id) duplicates.push([oldId, p]);
+      }
+      // Trier par score desc pour garder le meilleur
+      duplicates.sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
+      if (duplicates.length > 0) {
+          const [bestOldId, bestP] = duplicates[0];
           // Transfer player data to new socket
-          const playerData = { ...p, disconnected: false };
+          const playerData = { ...bestP, disconnected: false };
           delete playerData.disconnectedAt;
           delete playerData._oldSocketId;
-          salle.players.delete(oldId);
+          // Supprimer TOUS les doublons (pas juste le premier)
+          for (const [dupId] of duplicates) {
+            salle.players.delete(dupId);
+            salle.spectators.delete(dupId);
+            try { const dupSock = io.sockets.sockets.get(dupId); if (dupSock) dupSock.leave(`gs:${id}`); } catch {}
+            if (dupId !== bestOldId) console.log(`[GS] Dedup: removed extra socket ${dupId} for "${playerName}" during reconnect`);
+          }
           salle.players.set(socket.id, playerData);
-          salle.spectators.delete(oldId);
           reconnected = true;
-          console.log(`[GS] ${playerName} reconnected in "${id}" (${oldId} -> ${socket.id}), score=${playerData.score}, eliminated=${!!playerData.eliminated}`);
-          sTrace.push('gs:reconnect', { salle: id, name: playerName, oldSocketId: oldId, newSocketId: socket.id, score: playerData.score, eliminated: !!playerData.eliminated });
+          console.log(`[GS] ${playerName} reconnected in "${id}" (${bestOldId} -> ${socket.id}), score=${playerData.score}, eliminated=${!!playerData.eliminated}${duplicates.length > 1 ? ` [cleaned ${duplicates.length - 1} duplicate(s)]` : ''}`);
+          sTrace.push('gs:reconnect', { salle: id, name: playerName, oldSocketId: bestOldId, newSocketId: socket.id, score: playerData.score, eliminated: !!playerData.eliminated, duplicatesCleaned: duplicates.length - 1 });
 
           // ✅ FIX: Eliminated players rejoin as spectators — do NOT send gs:round:new
           if (playerData.eliminated) {
             salle.spectators.add(socket.id);
             socket.emit('gs:joined-as-spectator', { salleId: id, reason: 'eliminated', tournamentTitle: salle.tournamentTitle || null });
             console.log(`[GS] ${playerName} reconnected as SPECTATOR (eliminated wave ${playerData.eliminatedWave})`);
-            break;
-          }
-
+          } else {
           // Send current round zones to the reconnected player (active only)
           if (salle.currentZones && Array.isArray(salle.currentZones)) {
             socket.emit('gs:round:new', {
@@ -4879,8 +4889,7 @@ io.on('connection', (socket) => {
             console.log(`[GS] ▶️ Salle "${id}" REPRISE — pause de ${Math.round(pauseDuration / 1000)}s — ${playerName} reconnecté — timer restant ${Math.round(remMs / 1000)}s`);
             sTrace.push('gs:match-resumed', { salle: id, player: playerName, pauseDurationMs: pauseDuration, remainingMs: Math.round(remMs) });
           }
-          break;
-        }
+          } // end else (non-eliminated)
       }
       if (!reconnected) {
         salle.spectators.add(socket.id);
@@ -4888,6 +4897,17 @@ io.on('connection', (socket) => {
         console.log(`[GS] ${playerName} joined "${id}" as spectator (game in progress)`);
       }
     } else {
+      // ✅ FIX: Dédupliquer — si un joueur avec le même nom existe déjà en lobby, supprimer TOUS les anciens sockets
+      const lobbyDups = [];
+      for (const [oldId, p] of salle.players.entries()) {
+        if (p.name === playerName && oldId !== socket.id) lobbyDups.push(oldId);
+      }
+      for (const oldId of lobbyDups) {
+        salle.players.delete(oldId);
+        salle.spectators.delete(oldId);
+        try { const oldSock = io.sockets.sockets.get(oldId); if (oldSock) oldSock.leave(`gs:${id}`); } catch {}
+        console.log(`[GS] Dedup: removed stale socket ${oldId} for "${playerName}" in lobby`);
+      }
       salle.players.set(socket.id, {
         name: playerName,
         studentId: gsStudentId || null,
