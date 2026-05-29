@@ -216,10 +216,12 @@ export default function GrandeSalle() {
           setAccessDenied(res);
           return;
         }
-        // ✅ FIX: Reset eliminated state pour nouvelle partie (sinon le joueur reste bloqué en mode spectateur)
-        if (!res?.isSpectator) {
+        // ✅ FIX: Reset eliminated state SEULEMENT si lobby (nouvelle partie)
+        // Si status=playing/paused, le joueur reconnecte et le serveur enverra gs:joined-as-spectator
+        if (res?.status === 'lobby') {
           eliminatedRef.current = false;
           setIsSpectator(false);
+          try { localStorage.removeItem('cc_gs_elimination'); } catch {}
         }
         if (res?.tournamentTitle) setTournamentTitle(res.tournamentTitle);
         if (res?.autoStartCountdown != null) setLobbyCountdown(res.autoStartCountdown);
