@@ -247,6 +247,11 @@ router.post('/device/register', async (req, res) => {
 
     if (!fingerprint) return res.status(400).json({ ok: false, error: 'missing_fingerprint' });
 
+    // Bypass: les admins, teachers, rectorat n'ont pas de limite de devices
+    const { data: prof } = await supabaseAdmin.from('user_profiles').select('role').eq('id', userId).single();
+    const bypassRoles = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat'];
+    const maxDevices = bypassRoles.includes(prof?.role) ? 100 : 2;
+
     // Appeler la fonction SQL register_device
     const { data, error } = await supabaseAdmin.rpc('register_device', {
       p_user_id: userId,
@@ -254,7 +259,7 @@ router.post('/device/register', async (req, res) => {
       p_device_name: name || null,
       p_browser: browser || null,
       p_os: os || null,
-      p_max_devices: 2,
+      p_max_devices: maxDevices,
     });
 
     if (error) {
@@ -267,13 +272,13 @@ router.post('/device/register', async (req, res) => {
     const deviceCount = result.device_count || 0;
 
     if (status === 'limit_reached') {
-      console.warn(`[Device] ⚠️ Limite atteinte pour ${who.user.email} (${deviceCount} devices)`);
+      console.warn(`[Device] ⚠️ Limite atteinte pour ${who.user.email} (${deviceCount} devices, max=${maxDevices})`);
       return res.status(403).json({
         ok: false,
         error: 'device_limit_reached',
         deviceCount,
-        maxDevices: 2,
-        message: 'Limite de 2 appareils atteinte. Révoque un appareil existant pour en ajouter un nouveau.',
+        maxDevices,
+        message: `Limite de ${maxDevices} appareils atteinte. Révoque un appareil existant pour en ajouter un nouveau.`,
       });
     }
 
