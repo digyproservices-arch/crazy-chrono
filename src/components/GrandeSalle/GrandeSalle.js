@@ -596,13 +596,16 @@ export default function GrandeSalle() {
       <div style={{ fontSize: 16, color: '#94a3b8', marginTop: 8, marginBottom: newRecord ? 12 : 30 }}>{finish.totalPlayers} joueurs — {finish.roundsPlayed} manches — {finish.eliminationWaves} vagues</div>
       {newRecord && <div style={{ background: 'linear-gradient(135deg, rgba(245,166,35,0.2), rgba(255,107,53,0.2))', border: '1px solid rgba(245,166,35,0.4)', borderRadius: 12, padding: '12px 20px', marginBottom: 20, animation: 'pulse 1.5s infinite' }}><span style={{ fontSize: 22 }}>🎉</span> <strong style={{ color: '#F5A623' }}>Nouveau record personnel !</strong> <span style={{ color: '#e2e8f0' }}>{newRecord.score} pts</span>{newRecord.prevBestScore > 0 && <span style={{ color: '#94a3b8', fontSize: 13 }}> (ancien : {newRecord.prevBestScore})</span>}</div>}
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 16, marginBottom: 30 }}>
-        {(finish.podium||[]).slice(0, 3).map((p, i) => {
+        {(finish.podium||[]).slice(0, 3).map((p, i, arr) => {
+          // Rang réel basé sur le score (ex-aequo = même rang)
+          const rank = p.finalRank || (1 + arr.filter(x => x.score > p.score).length);
+          const ri = Math.min(rank - 1, 2); // 0=1er, 1=2e, 2=3e
           const h = [160, 120, 100], em = ['🥇', '🥈', '🥉'], co = ['#F5A623', '#94a3b8', '#cd7f32'];
           return <div key={i} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 36, marginBottom: 8 }}>{em[i]}</div>
+            <div style={{ fontSize: 36, marginBottom: 8 }}>{em[ri]}</div>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>{p.name}</div>
-            <div style={{ width: 80, height: h[i], background: `linear-gradient(to top, ${co[i]}33, ${co[i]}88)`, borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${co[i]}` }}>
-              <span style={{ fontWeight: 900, fontSize: 24, color: co[i] }}>{p.score}</span>
+            <div style={{ width: 80, height: h[ri], background: `linear-gradient(to top, ${co[ri]}33, ${co[ri]}88)`, borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `2px solid ${co[ri]}` }}>
+              <span style={{ fontWeight: 900, fontSize: 24, color: co[ri] }}>{p.score}</span>
             </div>
           </div>;
         })}
