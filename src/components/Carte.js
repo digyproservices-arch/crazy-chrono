@@ -5159,11 +5159,14 @@ const handleEditGreenZone = (zone) => {
   const handleLeaveRoom = () => {
     if (!socket) return;
     try {
+      socket.emit('room:leave');
       setMyReady(false);
+      setIsHost(false);
       setRoomStatus('lobby');
+      setRoomPlayers([]);
       mpRoomRef.current = null;
-      socket.emit('joinRoom', { roomId: 'default', name: playerName, studentId: getMyStudentId() });
-      setRoomId('default');
+      setRoomId('');
+      setMpMsg('');
     } catch {}
   };
 

@@ -3990,6 +3990,25 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Quitter proprement la salle (retour au menu)
+  socket.on('room:leave', () => {
+    if (!currentRoom) return;
+    const room = getRoom(currentRoom);
+    room.players.delete(socket.id);
+    if (room.hostId === socket.id) {
+      const first = room.players.keys().next();
+      room.hostId = first.done ? null : first.value;
+    }
+    socket.leave(currentRoom);
+    if (room.players.size === 0) {
+      rooms.delete(currentRoom);
+    } else {
+      emitRoomState(currentRoom);
+    }
+    console.log(`[MP] 🚪 ${playerName} a quitté la salle ${currentRoom}`);
+    currentRoom = null;
+  });
+
   // Hôte: définir la durée par manche (secondes)
   socket.on('room:duration:set', ({ duration }) => {
     if (!currentRoom) return;
