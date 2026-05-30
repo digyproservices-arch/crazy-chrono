@@ -3759,13 +3759,13 @@ async function checkSubscription(userId) {
     const status = rows?.[0]?.status || null;
     const isPro = (status === 'active' || status === 'trialing');
 
-    // Aussi vérifier le rôle (teacher/admin/cpd/cpc/rectorat = toujours pro)
+    // Aussi vérifier le rôle (teacher/admin/cpd/cpc/rectorat/student = toujours pro)
     let role = null;
     try {
       const { data: prof } = await supabaseAdmin.from('user_profiles').select('role').eq('id', userId).single();
       role = prof?.role || null;
     } catch {}
-    const isPrivileged = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat'].includes(role);
+    const isPrivileged = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat', 'student'].includes(role);
 
     const result = { isPro: isPro || isPrivileged, status, role, ts: Date.now() };
     _subCache.set(userId, result);
