@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import supabase from '../../utils/supabaseClient';
 import { logAuth } from '../../utils/authLogger';
-import { createSession } from '../../utils/sessionService';
+import { createSession, getSessionToken } from '../../utils/sessionService';
 import { getDeviceInfo } from '../../utils/deviceFingerprint';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://crazy-chrono-backend.onrender.com';
@@ -211,8 +211,12 @@ export default function Login({ onLogin }) {
               try { localStorage.removeItem('cc_student_name'); } catch {}
               try { localStorage.removeItem('cc_student_id'); } catch {}
             }
-            // Session unique: créer/renouveler la session active (invalide les autres appareils)
-            try { await createSession(data.session.access_token); } catch (e) { console.warn('[Login:auto] session create error:', e.message); }
+            // Session unique: réutiliser la session existante si présente (évite qu'un 2e onglet invalide le 1er)
+            if (!getSessionToken()) {
+              try { await createSession(data.session.access_token); } catch (e) { console.warn('[Login:auto] session create error:', e.message); }
+            } else {
+              console.log('[Login:auto] Session existante réutilisée (pas de re-création)');
+            }
             // Phase 3: Vérifier limite de devices
             const deviceOk = await registerDeviceAtLogin(data.session.access_token);
             if (!deviceOk) { await supabase.auth.signOut(); return; }
