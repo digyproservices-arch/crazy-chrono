@@ -84,18 +84,20 @@ function collectSignals() {
 /**
  * Génère ou récupère le fingerprint de l'appareil.
  * Persisté en localStorage pour stabilité entre sessions.
- * @returns {string} Fingerprint unique (ex: "fp_a1b2c3d4e5f6")
+ * IMPORTANT: Le fingerprint est 100% déterministe (basé sur le hardware uniquement).
+ * Même si localStorage est vidé, le même appareil régénère le même fingerprint.
+ * @returns {string} Fingerprint unique (ex: "fp_a1b2c3d4")
  */
 export function getDeviceFingerprint() {
   try {
     const stored = localStorage.getItem(FP_KEY);
-    if (stored) return stored;
+    if (stored && stored.startsWith('fp2_')) return stored;
   } catch {}
 
-  // Générer un nouveau fingerprint
+  // Générer un fingerprint déterministe (PAS de timestamp ni d'aléatoire)
   const raw = collectSignals();
   const hash = simpleHash(raw);
-  const fp = `fp_${hash}_${Date.now().toString(36).slice(-4)}`;
+  const fp = `fp2_${hash}`;
 
   try { localStorage.setItem(FP_KEY, fp); } catch {}
   return fp;
