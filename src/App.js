@@ -591,7 +591,7 @@ function App() {
               const json = await res.json().catch(() => ({}));
               if (json && json.ok && json.user) {
                 const role = json.role || 'user';
-                const isPro = (json.subscription === 'active' || json.subscription === 'trialing' || role === 'admin' || role === 'teacher' || role === 'cpd' || role === 'cpc' || role === 'rectorat');
+                const isPro = (json.subscription === 'active' || json.subscription === 'trialing' || role === 'admin' || role === 'teacher' || role === 'cpd' || role === 'cpc' || role === 'rectorat' || role === 'student');
                 try { localStorage.setItem('cc_subscription_status', isPro ? 'pro' : 'free'); } catch {}
                 try { localStorage.setItem('cc_user_id', json.user.id); } catch {}
                 try { 
