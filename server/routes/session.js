@@ -249,10 +249,27 @@ router.post('/device/register', async (req, res) => {
 
     // Limite de devices selon le rôle:
     // - student: max 2 (anti-partage de code entre copains)
-    // - tous les autres (parent, admin, teacher, etc.): illimité (la session unique suffit)
+    // - tous les autres: PAS DE LIMITE — la session unique (Phase 1) empêche l'usage simultané
     const { data: prof } = await supabaseAdmin.from('user_profiles').select('role').eq('id', userId).single();
     const role = prof?.role || 'parent';
-    const maxDevices = role === 'student' ? 2 : 100;
+
+    // Non-student: enregistrer le device pour info/monitoring, mais ne jamais bloquer
+    if (role !== 'student') {
+      // Enregistrer silencieusement pour le monitoring, sans limite
+      await supabaseAdmin.rpc('register_device', {
+        p_user_id: userId,
+        p_fingerprint: fingerprint,
+        p_device_name: name || null,
+        p_browser: browser || null,
+        p_os: os || null,
+        p_max_devices: 9999,
+      }).catch(() => {});
+      console.log(`[Device] ✅ ${role} ${who.user.email} — device enregistré (pas de limite)`);
+      return res.json({ ok: true, status: 'ok', deviceCount: 0 });
+    }
+
+    // Student: limite de 2 devices
+    const maxDevices = 2;
 
     // Appeler la fonction SQL register_device
     const { data, error } = await supabaseAdmin.rpc('register_device', {
