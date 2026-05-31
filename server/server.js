@@ -3759,12 +3759,12 @@ async function checkSubscription(userId) {
     // Si le userId est un studentId (non-UUID, ex: std_demo_0267), c'est un élève licencié → pro
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
     if (!isUUID) {
-      // Vérifier dans la table students si l'ID existe et est licencié
+      // Tout élève existant dans la table students est pro (le professeur paye la licence)
       try {
         const { data: stu, error: stuErr } = await supabaseAdmin.from('students').select('id, licensed').eq('id', userId).single();
         if (stu) {
-          const result = { isPro: !!stu.licensed, status: stu.licensed ? 'student_licensed' : null, role: 'student', ts: Date.now() };
-          sTrace.push('sub:check', { userId, isUUID: false, decision: 'students_table', found: true, licensed: stu.licensed, isPro: result.isPro });
+          const result = { isPro: true, status: 'student_enrolled', role: 'student', ts: Date.now() };
+          sTrace.push('sub:check', { userId, isUUID: false, decision: 'student_enrolled', found: true, licensed: stu.licensed, isPro: true });
           _subCache.set(userId, result);
           return result;
         }
