@@ -52,6 +52,8 @@ export function isPro() {
     const a = JSON.parse(localStorage.getItem('cc_auth') || 'null');
     if (a && (a.role === 'admin' || a.role === 'teacher' || a.role === 'cpd' || a.role === 'cpc' || a.role === 'rectorat' || a.role === 'student')) return true;
   } catch {}
+  // Fallback: un élève connecté (cc_student_id présent) est toujours pro
+  try { if (localStorage.getItem('cc_student_id')) return true; } catch {}
   return false;
 }
 

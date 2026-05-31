@@ -333,7 +333,7 @@ app.post('/usage/can-start', requireAuth, async (req, res) => {
         .select('role')
         .eq('id', userId)
         .single();
-      if (profile && ['admin', 'teacher', 'rectorat', 'cpd', 'cpc'].includes(profile.role)) {
+      if (profile && ['admin', 'teacher', 'rectorat', 'cpd', 'cpc', 'student'].includes(profile.role)) {
         return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason: 'role_unlimited' });
       }
     } catch {}

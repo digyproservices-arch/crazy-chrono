@@ -1120,7 +1120,7 @@ const Carte = () => {
       if (!resp.ok) return { ok: false, allow: true }; // ne pas bloquer si erreur serveur
       // Sync subscription status from server to localStorage (server = source of truth)
       try {
-        const proReasons = ['pro_active', 'role_unlimited', 'student_licensed'];
+        const proReasons = ['pro_active', 'role_unlimited', 'student_licensed', 'student_enrolled'];
         if (json.reason && proReasons.includes(json.reason)) {
           setSubscriptionStatus('pro');
         } else if (json.ok && json.reason && !proReasons.includes(json.reason)) {
