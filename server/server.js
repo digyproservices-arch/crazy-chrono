@@ -3750,6 +3750,22 @@ async function checkSubscription(userId) {
   if (cached && Date.now() - cached.ts < SUB_CACHE_TTL) return cached;
 
   try {
+    // Si le userId est un studentId (non-UUID, ex: std_demo_0267), c'est un élève licencié → pro
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+    if (!isUUID) {
+      // Vérifier dans la table students si l'ID existe et est licencié
+      try {
+        const { data: stu } = await supabaseAdmin.from('students').select('id, licensed').eq('id', userId).single();
+        if (stu) {
+          const result = { isPro: !!stu.licensed, status: stu.licensed ? 'student_licensed' : null, role: 'student', ts: Date.now() };
+          _subCache.set(userId, result);
+          return result;
+        }
+      } catch {}
+      // ID non-UUID inconnu → fail-open
+      return { isPro: true };
+    }
+
     const { data: rows } = await supabaseAdmin
       .from('subscriptions')
       .select('status')
