@@ -3744,28 +3744,34 @@ const _subCache = new Map();
 const SUB_CACHE_TTL = 5 * 60_000; // 5 min
 
 async function checkSubscription(userId) {
-  if (!userId || !supabaseAdmin) { logger.info(`[Sub][DIAG] fail-open: userId=${userId} supabase=${!!supabaseAdmin}`); return { isPro: true }; }
+  if (!userId || !supabaseAdmin) {
+    sTrace.push('sub:check', { userId, decision: 'fail-open', reason: !userId ? 'no_userId' : 'no_supabase' });
+    return { isPro: true };
+  }
 
   const cached = _subCache.get(userId);
-  if (cached && Date.now() - cached.ts < SUB_CACHE_TTL) { logger.info(`[Sub][DIAG] CACHED: userId=${userId} isPro=${cached.isPro} role=${cached.role} status=${cached.status}`); return cached; }
+  if (cached && Date.now() - cached.ts < SUB_CACHE_TTL) {
+    sTrace.push('sub:check', { userId, decision: 'cached', isPro: cached.isPro, role: cached.role, status: cached.status });
+    return cached;
+  }
 
   try {
     // Si le userId est un studentId (non-UUID, ex: std_demo_0267), c'est un élève licencié → pro
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
-    logger.info(`[Sub][DIAG] CHECK: userId=${userId} isUUID=${isUUID}`);
     if (!isUUID) {
       // Vérifier dans la table students si l'ID existe et est licencié
       try {
         const { data: stu, error: stuErr } = await supabaseAdmin.from('students').select('id, licensed').eq('id', userId).single();
-        logger.info(`[Sub][DIAG] students lookup: userId=${userId} found=${!!stu} licensed=${stu?.licensed} err=${stuErr?.message || 'none'}`);
         if (stu) {
           const result = { isPro: !!stu.licensed, status: stu.licensed ? 'student_licensed' : null, role: 'student', ts: Date.now() };
+          sTrace.push('sub:check', { userId, isUUID: false, decision: 'students_table', found: true, licensed: stu.licensed, isPro: result.isPro });
           _subCache.set(userId, result);
           return result;
         }
-      } catch (e2) { logger.warn(`[Sub][DIAG] students lookup exception: ${e2.message}`); }
-      // ID non-UUID inconnu → fail-open
-      logger.info(`[Sub][DIAG] non-UUID unknown → fail-open`);
+        sTrace.push('sub:check', { userId, isUUID: false, decision: 'fail-open', reason: 'student_not_found', err: stuErr?.message || 'none' });
+      } catch (e2) {
+        sTrace.push('sub:check', { userId, isUUID: false, decision: 'fail-open', reason: 'students_exception', err: e2.message });
+      }
       return { isPro: true };
     }
 
@@ -3780,15 +3786,16 @@ async function checkSubscription(userId) {
 
     // Aussi vérifier le rôle (teacher/admin/cpd/cpc/rectorat/student = toujours pro)
     let role = null;
+    let profErr = null;
     try {
-      const { data: prof, error: profErr } = await supabaseAdmin.from('user_profiles').select('role').eq('id', userId).single();
+      const { data: prof, error: pErr } = await supabaseAdmin.from('user_profiles').select('role').eq('id', userId).single();
       role = prof?.role || null;
-      logger.info(`[Sub][DIAG] user_profiles: userId=${userId} role=${role} err=${profErr?.message || 'none'}`);
-    } catch (e3) { logger.warn(`[Sub][DIAG] user_profiles exception: ${e3.message}`); }
+      profErr = pErr?.message || null;
+    } catch (e3) { profErr = e3.message; }
     const isPrivileged = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat', 'student'].includes(role);
 
     const result = { isPro: isPro || isPrivileged, status, role, ts: Date.now() };
-    logger.info(`[Sub][DIAG] RESULT: userId=${userId} isPro=${result.isPro} subStatus=${status} role=${role} isPrivileged=${isPrivileged}`);
+    sTrace.push('sub:check', { userId, isUUID: true, subStatus: status, role, profErr, isPrivileged, isPro: result.isPro });
     _subCache.set(userId, result);
 
     // Cleanup cache si trop grand
@@ -3799,7 +3806,7 @@ async function checkSubscription(userId) {
 
     return result;
   } catch (e) {
-    logger.warn(`[Sub] Check error (fail-open): ${e.message}`);
+    sTrace.push('sub:check', { userId, decision: 'fail-open', reason: 'exception', err: e.message });
     return { isPro: true }; // fail-open
   }
 }
@@ -3851,10 +3858,10 @@ io.on('connection', (socket) => {
   socket.on('room:create', async (cb) => {
     // ── Phase 3: Vérification abonnement pour créer une salle MP ──
     const uid = socket.authUser?.id || playerStudentId || null;
-    logger.info(`[Socket][SUB][DIAG] room:create check: authUser.id=${socket.authUser?.id || 'NULL'} playerStudentId=${playerStudentId || 'NULL'} → uid=${uid}`);
+    sTrace.push('sub:room:create', { socketId: socket.id, authUserId: socket.authUser?.id || null, playerStudentId: playerStudentId || null, resolvedUid: uid });
     const sub = await checkSubscription(uid);
     if (!sub.isPro) {
-      logger.warn(`[Socket][SUB] ❌ Joueur free tente room:create`, { socketId: socket.id, userId: uid, subResult: sub });
+      sTrace.push('sub:REJECTED', { event: 'room:create', socketId: socket.id, uid, sub });
       socket.emit('subscription:required', { event: 'room:create', message: 'Le mode multijoueur est réservé aux abonnés.' });
       if (typeof cb === 'function') cb({ ok: false, error: 'subscription_required' });
       return;
@@ -3875,10 +3882,10 @@ io.on('connection', (socket) => {
 
     // ── Phase 3: Vérification abonnement pour multijoueur ──
     const uid = socket.authUser?.id || playerStudentId || sid || null;
-    logger.info(`[Socket][SUB][DIAG] joinRoom check: authUser.id=${socket.authUser?.id || 'NULL'} playerStudentId=${playerStudentId || 'NULL'} sid=${sid || 'NULL'} → uid=${uid}`);
+    sTrace.push('sub:joinRoom', { socketId: socket.id, authUserId: socket.authUser?.id || null, playerStudentId: playerStudentId || null, sid: sid || null, resolvedUid: uid, room: newRoom });
     const sub = await checkSubscription(uid);
     if (!sub.isPro) {
-      logger.warn(`[Socket][SUB] ❌ Joueur free tente joinRoom`, { socketId: socket.id, userId: uid, room: newRoom, subResult: sub });
+      sTrace.push('sub:REJECTED', { event: 'joinRoom', socketId: socket.id, uid, room: newRoom, sub });
       socket.emit('subscription:required', { event: 'joinRoom', message: 'Le mode multijoueur est réservé aux abonnés.' });
       return;
     }
