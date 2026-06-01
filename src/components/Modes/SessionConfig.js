@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { DataContext } from '../../context/DataContext';
-import { isFree } from '../../utils/subscription';
+// import { isFree } from '../../utils/subscription'; // ✅ Gate supprimé — serveur = autorité
 import PedagogicConfig, { CARD, SECTION_TITLE } from '../Shared/PedagogicConfig';
 import { getBackendUrl } from '../../utils/apiHelpers';
 
@@ -18,12 +18,8 @@ export default function SessionConfig() {
   const navigate = useNavigate();
   const { data } = useContext(DataContext);
 
-  // Gate abonnement: multijoueur réservé aux abonnés
-  useEffect(() => {
-    if (mode === 'online' && isFree()) {
-      navigate('/pricing', { replace: true });
-    }
-  }, [mode, navigate]);
+  // ✅ FIX: Gate abonnement supprimé — le serveur est l'autorité
+  // (le rejet côté client est géré par socket.on('subscription:required') dans Carte.js)
 
   // Config pédagogique gérée par le composant partagé PedagogicConfig
   const [pedConfig, setPedConfig] = useState(null);

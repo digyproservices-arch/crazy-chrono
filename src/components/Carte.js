@@ -2465,14 +2465,8 @@ const Carte = () => {
         // Don't fall through to regular online/solo logic
         return;
       }
-      // Freemium guard: Free plan is solo only (EXCEPTION: mode arena bypass)
-      if (isOnline && isFree() && !arenaMatchId) {
-        try { alert('Le mode en ligne est réservé aux abonnés Pro.'); } catch {}
-        try { navigate('/pricing'); } catch {}
-        // ... (rest of the code remains the same)
-        try { s.emit('joinRoom', { roomId, name: cfg.playerName || playerName, studentId: getMyStudentId() }); } catch {}
-        return;
-      }
+      // ✅ FIX: Freemium guard supprimé — le serveur est l'autorité pour les abonnements
+      // (socket.on('subscription:required') gère le rejet côté client)
       if (isOnline) {
         // Appliquer le pseudo si fourni
         try {
