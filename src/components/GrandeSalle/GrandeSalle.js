@@ -54,7 +54,7 @@ function resolveImageSrc(raw) {
   return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
 }
 
-const PAGE = { minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', color: '#fff', padding: '20px 16px' };
+const PAGE = { minHeight: '100dvh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', color: '#fff', padding: '20px 16px' };
 const CARD = { background: 'rgba(255,255,255,0.08)', borderRadius: 16, padding: 20, border: '1px solid rgba(255,255,255,0.1)' };
 const BADGE = (c) => ({ display: 'inline-block', padding: '4px 12px', borderRadius: 20, background: c, fontSize: 12, fontWeight: 700 });
 
@@ -111,6 +111,14 @@ export default function GrandeSalle() {
 
   // Check if user is admin (can start manually)
   const isAdmin = (() => { try { const a = JSON.parse(localStorage.getItem('cc_auth') || '{}'); return a.role === 'admin' || a.role === 'cpd'; } catch { return false; } })();
+
+  // Hide NavBar/footer for immersive Grande Salle experience
+  useEffect(() => {
+    try { window.dispatchEvent(new CustomEvent('cc:gameMode', { detail: { on: true } })); } catch {}
+    return () => {
+      try { window.dispatchEvent(new CustomEvent('cc:gameMode', { detail: { on: false } })); } catch {}
+    };
+  }, []);
 
   const checkGSRecord = useCallback((finishData, socketId) => {
     try {
