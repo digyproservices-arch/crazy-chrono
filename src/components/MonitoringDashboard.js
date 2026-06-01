@@ -598,6 +598,7 @@ const clearIncidents = async () => {
   const fetchFeatureParity = useCallback(async () => {
     try {
       const token = getAuthToken();
+      const backendUrl = getBackendUrl();
       const res = await fetch(`${backendUrl}/api/monitoring/feature-parity`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });

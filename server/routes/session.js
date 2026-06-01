@@ -65,22 +65,37 @@ router.post('/create', async (req, res) => {
     const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || null;
     const userAgent = req.headers['user-agent'] || null;
 
+    // ✅ FIX: Rôles privilégiés exemptés de l'enforcement session unique
+    // (admin, teacher, cpd, cpc, rectorat = sessions multiples autorisées)
+    const EXEMPT_ROLES = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat'];
+    let userRole = null;
+    try {
+      const { data: prof } = await supabase.from('user_profiles').select('role').eq('id', userId).single();
+      userRole = prof?.role || null;
+    } catch {}
+    const isExempt = EXEMPT_ROLES.includes(userRole);
+
     // 2) Générer un session token unique
     const sessionToken = crypto.randomBytes(32).toString('hex');
 
-    // 3) Invalider toutes les sessions précédentes
-    const { data: invalidated, error: invErr } = await supabase.rpc('invalidate_user_sessions', {
-      p_user_id: userId,
-      p_except_token: null // invalider TOUTES (la nouvelle n'existe pas encore)
-    });
+    // 3) Invalider toutes les sessions précédentes (sauf rôles exemptés)
+    let invalidatedCount = 0;
+    if (!isExempt) {
+      const { data: invalidated, error: invErr } = await supabase.rpc('invalidate_user_sessions', {
+        p_user_id: userId,
+        p_except_token: null // invalider TOUTES (la nouvelle n'existe pas encore)
+      });
 
-    // Purger le cache mémoire pour les anciennes sessions de cet utilisateur
-    for (const [k, v] of sessionCache.entries()) {
-      if (v.data?.userId === userId) sessionCache.delete(k);
+      // Purger le cache mémoire pour les anciennes sessions de cet utilisateur
+      for (const [k, v] of sessionCache.entries()) {
+        if (v.data?.userId === userId) sessionCache.delete(k);
+      }
+
+      if (invErr) console.warn('[Session] invalidate_user_sessions error:', invErr.message);
+      invalidatedCount = invalidated || 0;
+    } else {
+      console.log(`[Session] ⏭️ Rôle exempt (${userRole}) — pas d'invalidation des sessions précédentes`);
     }
-
-    if (invErr) console.warn('[Session] invalidate_user_sessions error:', invErr.message);
-    const invalidatedCount = invalidated || 0;
 
     // 4) Créer la nouvelle session
     const { error: insErr } = await supabase
@@ -101,23 +116,26 @@ router.post('/create', async (req, res) => {
     // 5) Mettre en cache
     setCachedSession(sessionToken, { userId, isActive: true });
 
-    console.log(`[Session] ✅ Nouvelle session pour ${who.user.email} | invalidated=${invalidatedCount} | device=${deviceId || 'none'}`);
+    console.log(`[Session] ✅ Nouvelle session pour ${who.user.email} | role=${userRole} | exempt=${isExempt} | invalidated=${invalidatedCount} | device=${deviceId || 'none'}`);
 
-    // 6) Notifier les sockets connectés de cet utilisateur qu'ils sont éjectés
-    try {
-      const io = req.app.locals.io;
-      if (io) {
-        io.emit('session:kicked', { userId, reason: 'new_login' });
-      }
-      // Invalider le cache Socket.IO middleware pour forcer rejet à la prochaine connexion
-      const invalidateCache = req.app.locals.invalidateSocketSessionCache;
-      if (invalidateCache) invalidateCache(userId);
-    } catch {}
+    // 6) Notifier les sockets connectés de cet utilisateur qu'ils sont éjectés (sauf rôles exemptés)
+    if (!isExempt) {
+      try {
+        const io = req.app.locals.io;
+        if (io) {
+          io.emit('session:kicked', { userId, reason: 'new_login' });
+        }
+        // Invalider le cache Socket.IO middleware pour forcer rejet à la prochaine connexion
+        const invalidateCache = req.app.locals.invalidateSocketSessionCache;
+        if (invalidateCache) invalidateCache(userId);
+      } catch {}
+    }
 
     return res.json({
       ok: true,
       sessionToken,
-      invalidatedCount
+      invalidatedCount,
+      isExempt
     });
 
   } catch (error) {

@@ -643,8 +643,11 @@ function App() {
   }, [auth]);
 
   // ── Session unique: guard périodique + éjection si session invalidée ──
+  // ✅ FIX: Rôles exemptés (admin, teacher, cpd, cpc, rectorat) ne sont pas soumis au guard
   useEffect(() => {
-    if (auth && getSessionToken()) {
+    const EXEMPT_ROLES = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat'];
+    const role = auth?.role || '';
+    if (auth && getSessionToken() && !EXEMPT_ROLES.includes(role)) {
       startSessionGuard(() => {
         console.warn('[App] ⚡ Session invalidée — autre appareil connecté');
         setShowKickedModal(true);
@@ -657,10 +660,15 @@ function App() {
 
   // ── Session unique: écouter rejet Socket.IO (SESSION_INVALIDATED) ──
   useEffect(() => {
-    const onKicked = () => setShowKickedModal(true);
+    const EXEMPT_ROLES = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat'];
+    const onKicked = () => {
+      const role = auth?.role || '';
+      if (EXEMPT_ROLES.includes(role)) return; // ✅ FIX: ignorer pour rôles exemptés
+      setShowKickedModal(true);
+    };
     window.addEventListener('cc:sessionKicked', onKicked);
     return () => window.removeEventListener('cc:sessionKicked', onKicked);
-  }, []);
+  }, [auth]);
 
   // ── Phase 3: écouter rejet abonnement serveur ──
   useEffect(() => {
