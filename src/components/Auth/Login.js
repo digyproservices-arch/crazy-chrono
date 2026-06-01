@@ -166,14 +166,24 @@ export default function Login({ onLogin }) {
               } catch (e) { console.warn('[Login:auto] API /profile fallback failed:', e.message); }
             }
             if (dbRole) existingAuth.role = existingAuth.role || dbRole;
+            // ✅ FIX: Détecter élève via user_metadata.role ou email @eleve.crazychrono.app
+            // (quand cc_auth est vidé par session-only cleanup ET user_profiles RLS bloque)
+            const emailIsStudent = user.email?.endsWith('@eleve.crazychrono.app');
+            const metaRole = user.user_metadata?.role;
+            const resolvedRole = existingAuth.role || dbRole || metaRole || (emailIsStudent ? 'student' : 'user');
             const profile = { 
               ...existingAuth, // Préserver préférences existantes (langue, avatar, etc.)
               id: user.id, 
               email: user.email, 
               name: (!isGenericName(existingAuth.name) && existingAuth.name) || (!isGenericName(dbPseudo) && dbPseudo) || user.user_metadata?.name || user.email?.split('@')[0], 
-              role: existingAuth.role || 'user',
+              role: resolvedRole,
               token: data.session.access_token // Ajouter le token pour les API calls
             };
+            // ✅ FIX: Restaurer cc_student_id et cc_subscription_status si élève détecté
+            if (resolvedRole === 'student') {
+              try { if (!localStorage.getItem('cc_student_id') && user.user_metadata?.student_id) localStorage.setItem('cc_student_id', user.user_metadata.student_id); } catch {}
+              try { localStorage.setItem('cc_subscription_status', 'pro'); } catch {}
+            }
             console.log('[Login:auto] 🔍 DIAGNOSTIC NOM:', { existingName: existingAuth.name || '(vide)', dbPseudo: dbPseudo || '(vide)', metadataName: user.user_metadata?.name || '(vide)', emailPrefix: user.email?.split('@')[0], NOM_FINAL: profile.name });
             logAuth('login_auto', {
               email: user.email,
