@@ -3683,7 +3683,7 @@ io.use(async (socket, next) => {
     try {
       const { data: who, error: whoErr } = await supabaseAdmin.auth.getUser(token);
       if (!whoErr && who?.user) {
-        socket.authUser = { id: who.user.id, email: who.user.email };
+        socket.authUser = { id: who.user.id, email: who.user.email, isStudent: who.user.email?.endsWith('@eleve.crazychrono.app') || false };
       }
     } catch (e) {
       logger.warn(`[Socket][AUTH] JWT verification failed: ${e.message}`);
@@ -3788,9 +3788,26 @@ async function checkSubscription(userId) {
     let role = null;
     let profErr = null;
     try {
-      const { data: prof, error: pErr } = await supabaseAdmin.from('user_profiles').select('role').eq('id', userId).single();
+      const { data: prof, error: pErr } = await supabaseAdmin.from('user_profiles').select('role, email').eq('id', userId).single();
       role = prof?.role || null;
       profErr = pErr?.message || null;
+      // ✅ FIX: Fallback élève — si user_profiles.role n'est pas 'student', vérifier email + mapping
+      if (!['admin', 'teacher', 'cpd', 'cpc', 'rectorat', 'student'].includes(role)) {
+        // Détection par email @eleve.crazychrono.app
+        if (prof?.email?.endsWith('@eleve.crazychrono.app')) {
+          role = 'student';
+          profErr = (profErr || '') + ' [fixed:email_pattern]';
+        } else {
+          // Détection par user_student_mapping
+          try {
+            const { data: mapping } = await supabaseAdmin.from('user_student_mapping').select('student_id').eq('user_id', userId).eq('active', true).maybeSingle();
+            if (mapping?.student_id) {
+              role = 'student';
+              profErr = (profErr || '') + ' [fixed:student_mapping]';
+            }
+          } catch {}
+        }
+      }
     } catch (e3) { profErr = e3.message; }
     const isPrivileged = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat', 'student'].includes(role);
 
@@ -3861,10 +3878,15 @@ io.on('connection', (socket) => {
     sTrace.push('sub:room:create', { socketId: socket.id, authUserId: socket.authUser?.id || null, playerStudentId: playerStudentId || null, resolvedUid: uid });
     const sub = await checkSubscription(uid);
     if (!sub.isPro) {
-      sTrace.push('sub:REJECTED', { event: 'room:create', socketId: socket.id, uid, sub });
-      socket.emit('subscription:required', { event: 'room:create', message: 'Le mode multijoueur est réservé aux abonnés.' });
-      if (typeof cb === 'function') cb({ ok: false, error: 'subscription_required' });
-      return;
+      // ✅ FIX: bypass si l'élève est détecté par son email @eleve.crazychrono.app
+      if (socket.authUser?.isStudent) {
+        sTrace.push('sub:BYPASS', { event: 'room:create', socketId: socket.id, uid, reason: 'authUser.isStudent' });
+      } else {
+        sTrace.push('sub:REJECTED', { event: 'room:create', socketId: socket.id, uid, sub });
+        socket.emit('subscription:required', { event: 'room:create', message: 'Le mode multijoueur est réservé aux abonnés.' });
+        if (typeof cb === 'function') cb({ ok: false, error: 'subscription_required' });
+        return;
+      }
     }
     const code = genRoomCode();
     const room = getRoom(code); // initialise
@@ -3885,9 +3907,14 @@ io.on('connection', (socket) => {
     sTrace.push('sub:joinRoom', { socketId: socket.id, authUserId: socket.authUser?.id || null, playerStudentId: playerStudentId || null, sid: sid || null, resolvedUid: uid, room: newRoom });
     const sub = await checkSubscription(uid);
     if (!sub.isPro) {
-      sTrace.push('sub:REJECTED', { event: 'joinRoom', socketId: socket.id, uid, room: newRoom, sub });
-      socket.emit('subscription:required', { event: 'joinRoom', message: 'Le mode multijoueur est réservé aux abonnés.' });
-      return;
+      // ✅ FIX: bypass si l'élève est détecté par son email @eleve.crazychrono.app
+      if (socket.authUser?.isStudent) {
+        sTrace.push('sub:BYPASS', { event: 'joinRoom', socketId: socket.id, uid, room: newRoom, reason: 'authUser.isStudent' });
+      } else {
+        sTrace.push('sub:REJECTED', { event: 'joinRoom', socketId: socket.id, uid, room: newRoom, sub });
+        socket.emit('subscription:required', { event: 'joinRoom', message: 'Le mode multijoueur est réservé aux abonnés.' });
+        return;
+      }
     }
     // si le joueur était déjà dans une autre salle, on le retire proprement
     if (currentRoom && currentRoom !== newRoom) {
