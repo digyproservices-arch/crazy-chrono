@@ -3823,6 +3823,23 @@ useEffect(() => {
   }
 }, [gameActive, arenaMatchId, trainingMatchId, gameDuration, emitMonitoringEvent]);
 
+// 🔍 BLANK SCREEN WATCHDOG (Arena/Training): Si gameActive=false persiste 8s → écran blanc
+useEffect(() => {
+  if (!arenaMatchId && !trainingMatchId) return; // solo/multi non concernés
+  if (trainingEndedRef.current) return;
+  if (gameActive) return;
+  const _mode = arenaMatchId ? 'arena' : 'training';
+  const t = setTimeout(() => {
+    telemetry('game:blank-watchdog', {
+      mode: _mode,
+      zonesCount: (zonesRef.current || []).length,
+      platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop',
+      ua: navigator.userAgent?.slice(0, 120),
+    });
+  }, 8000);
+  return () => clearTimeout(t);
+}, [gameActive, arenaMatchId, trainingMatchId]);
+
 // === RUM: Real User Monitoring — viewport + key elements ===
 useEffect(() => {
   if (!gameActive) return;

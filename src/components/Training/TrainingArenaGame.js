@@ -207,6 +207,23 @@ export default function TrainingArenaGame() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // 🔍 BLANK SCREEN WATCHDOG: Si gameActive=false persiste 8s hors fin de partie → écran blanc
+  useEffect(() => {
+    if (gameEnded) return;
+    if (gameActive) return;
+    const t = setTimeout(() => {
+      telemetry('game:blank-watchdog', {
+        mode: 'training-arena',
+        roundsPlayed,
+        timeLeft,
+        zonesCount: zones.length,
+        platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop',
+        ua: navigator.userAgent?.slice(0, 120),
+      });
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [gameActive, gameEnded]);
   
   // Helper: demander le plein écran natif (avec fallback webkit) + logs diagnostiques
   const requestNativeFullscreen = (source) => {

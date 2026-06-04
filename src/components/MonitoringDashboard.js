@@ -1203,7 +1203,23 @@ const clearIncidents = async () => {
                   clientTelemetryEvents.slice(0, 50).forEach((ev, i) => {
                     const ts = ev.ts ? new Date(ev.ts).toLocaleString('fr-FR') : 'N/A';
                     const device = ev.deviceId ? ` device=${ev.deviceId.slice(0, 8)}` : '';
-                    const msg = ev.data?.message || ev.data?.reason || ev.data?.url || ev.data?.socketId || '';
+                    const d = ev.data || {};
+                    let msg = '';
+                    if (ev.event === 'game:blank-watchdog' || ev.event === 'game:blank-screen') {
+                      msg = `⚠️ ÉCRAN BLANC mode=${d.mode||'?'} rounds=${d.roundsPlayed??'?'} zones=${d.zonesCount??'?'} timeLeft=${d.timeLeft??'?'}s platform=${d.platform||'?'} ua=${(d.ua||'').slice(0,60)}`;
+                    } else if (ev.event === 'error:js') {
+                      msg = `❌ ${d.message||''} @ ${(d.source||'').split('/').pop()}:${d.line||0}`;
+                    } else if (ev.event === 'error:promise') {
+                      msg = `❌ ${d.message||''}`;
+                    } else if (ev.event === 'error:network') {
+                      msg = `🌐 ${(d.fetchUrl||'').slice(0,80)} — ${d.message||''}`;
+                    } else if (ev.event === 'error:fetch') {
+                      msg = `🔴 HTTP ${d.status||'?'} ${(d.fetchUrl||'').slice(0,80)}`;
+                    } else if (ev.event === 'perf:slow-fetch') {
+                      msg = `🐢 ${d.elapsed||'?'}ms ${(d.fetchUrl||'').slice(0,60)}`;
+                    } else {
+                      msg = d.message || d.reason || d.fetchUrl || d.socketId || d.path || '';
+                    }
                     sections.push(`  [${i + 1}] ${ts} | ${ev.event}${device} ${msg}`);
                   });
                 }
