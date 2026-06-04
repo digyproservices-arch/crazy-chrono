@@ -3902,20 +3902,10 @@ io.on('connection', (socket) => {
     if (sid) playerStudentId = sid;
     emitPerfEvent('joinRoom', { socketId: socket.id, room: newRoom, studentId: playerStudentId, sidFromClient: sid || null });
 
-    // ── Phase 3: Vérification abonnement pour multijoueur ──
-    const uid = socket.authUser?.id || playerStudentId || sid || null;
-    sTrace.push('sub:joinRoom', { socketId: socket.id, authUserId: socket.authUser?.id || null, playerStudentId: playerStudentId || null, sid: sid || null, resolvedUid: uid, room: newRoom });
-    const sub = await checkSubscription(uid);
-    if (!sub.isPro) {
-      // ✅ FIX: bypass si l'élève est détecté par son email @eleve.crazychrono.app
-      if (socket.authUser?.isStudent) {
-        sTrace.push('sub:BYPASS', { event: 'joinRoom', socketId: socket.id, uid, room: newRoom, reason: 'authUser.isStudent' });
-      } else {
-        sTrace.push('sub:REJECTED', { event: 'joinRoom', socketId: socket.id, uid, room: newRoom, sub });
-        socket.emit('subscription:required', { event: 'joinRoom', message: 'Le mode multijoueur est réservé aux abonnés.' });
-        return;
-      }
-    }
+    // ── FIX RACE CONDITION: Setup room SYNCHRONOUSLY before any await ──
+    // Without this, room:setConfig and startGame events arriving during the
+    // async checkSubscription() would be silently dropped because currentRoom
+    // and room.hostId weren't set yet, causing level filtering to not apply.
     // si le joueur était déjà dans une autre salle, on le retire proprement
     if (currentRoom && currentRoom !== newRoom) {
       const old = getRoom(currentRoom);
@@ -3955,9 +3945,6 @@ io.on('connection', (socket) => {
       }
     }
     room.players.set(socket.id, { name: playerName, score: existing.score || 0, errors: existing.errors || 0, ready: false, studentId: playerStudentId || existing.studentId || null });
-    // ── TRAÇAGE: log quand un joueur rejoint une room ──
-    console.log(`[GAME-TRACE] joinRoom | room=${currentRoom} socket=${socket.id} name=${playerName} playersNow=${room.players.size} sessionActive=${room.sessionActive} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession} existingScore=${existing.score||0}`);
-    sTrace.push('joinRoom', { room: currentRoom, socketId: socket.id, name: playerName, playersNow: room.players.size, sessionActive: room.sessionActive, roundsPlayed: room.roundsPlayed, roundsPerSession: room.roundsPerSession, existingScore: existing.score || 0 });
     // Le créateur de la salle récupère toujours le statut d'hôte quand il rejoint
     if (room._creatorId && room.players.has(room._creatorId)) {
       room.hostId = room._creatorId;
@@ -3969,6 +3956,39 @@ io.on('connection', (socket) => {
       room.status = 'lobby';
     }
     emitRoomState(currentRoom);
+
+    // ── Phase 3: Vérification abonnement pour multijoueur (ASYNC) ──
+    // NOTE: Room setup is already done above so room:setConfig and startGame
+    // events can be processed during this await without being silently dropped.
+    const uid = socket.authUser?.id || playerStudentId || sid || null;
+    sTrace.push('sub:joinRoom', { socketId: socket.id, authUserId: socket.authUser?.id || null, playerStudentId: playerStudentId || null, sid: sid || null, resolvedUid: uid, room: newRoom });
+    const sub = await checkSubscription(uid);
+    if (!sub.isPro) {
+      // ✅ FIX: bypass si l'élève est détecté par son email @eleve.crazychrono.app
+      if (socket.authUser?.isStudent) {
+        sTrace.push('sub:BYPASS', { event: 'joinRoom', socketId: socket.id, uid, room: newRoom, reason: 'authUser.isStudent' });
+      } else {
+        // Rollback: remove player from room since subscription check failed
+        sTrace.push('sub:REJECTED', { event: 'joinRoom', socketId: socket.id, uid, room: newRoom, sub });
+        room.players.delete(socket.id);
+        if (room.hostId === socket.id) {
+          const first = room.players.keys().next();
+          room.hostId = first.done ? null : first.value;
+        }
+        socket.leave(currentRoom);
+        if (room.players.size === 0) {
+          rooms.delete(currentRoom);
+        } else {
+          emitRoomState(currentRoom);
+        }
+        currentRoom = null;
+        socket.emit('subscription:required', { event: 'joinRoom', message: 'Le mode multijoueur est réservé aux abonnés.' });
+        return;
+      }
+    }
+    // ── TRAÇAGE: log quand un joueur rejoint une room ──
+    console.log(`[GAME-TRACE] joinRoom | room=${currentRoom} socket=${socket.id} name=${playerName} playersNow=${room.players.size} sessionActive=${room.sessionActive} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession} existingScore=${existing.score||0}`);
+    sTrace.push('joinRoom', { room: currentRoom, socketId: socket.id, name: playerName, playersNow: room.players.size, sessionActive: room.sessionActive, roundsPlayed: room.roundsPlayed, roundsPerSession: room.roundsPerSession, existingScore: existing.score || 0 });
 
     // ✅ RESUME: Si le match était en pause (joueur déconnecté), reprendre automatiquement
     if (room.status === 'paused' && room._pauseState && room._pauseState.disconnectedPlayerName === playerName) {
@@ -5019,6 +5039,7 @@ io.on('connection', (socket) => {
               manualStart: t.manual_start === true,
               themes: t.themes || [],
               classes: t.classes || [],
+              selectedLevel: t.selected_level || null,
             });
             const s = grandeSalles.get(id);
             if (s) {
