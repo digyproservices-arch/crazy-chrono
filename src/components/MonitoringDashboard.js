@@ -1213,6 +1213,14 @@ const clearIncidents = async () => {
                       msg = `🔴 ÉCRAN BLANC ARENA — localStorage purgé, aucun fallback platform=${d.platform||'?'} match=${(d.matchId||'?').slice(-8)}`;
                     } else if (ev.event === 'arena:join-fallback') {
                       msg = `⚠️ ARENA rejoin via fallback studentId platform=${d.platform||'?'} match=${(d.matchId||'?').slice(-8)}`;
+                    } else if (ev.event === 'arena:connect-state') {
+                      msg = `📋 localStorage hasData=${d.hasArenaData} hasPlayers=${d.hasPlayers} playerFound=${d.playerFound} platform=${d.platform||'?'} match=${(d.matchId||'?').slice(-8)}`;
+                    } else if (ev.event === 'arena:join-emitted') {
+                      msg = `✅ arena:join émis studentId=${(d.studentId||'?').slice(-8)} platform=${d.platform||'?'}`;
+                    } else if (ev.event === 'arena:round-new-received') {
+                      msg = `✅ round-new reçu zones=${d.zonesCount} round=${d.roundIndex} resync=${d.isResync} platform=${d.platform||'?'}`;
+                    } else if (ev.event === 'arena:game-activated') {
+                      msg = `✅ gameActive=true zones=${d.zonesCount} platform=${d.platform||'?'}`;
                     } else if (ev.event === 'error:js') {
                       msg = `❌ ${d.message||''} @ ${(d.source||'').split('/').pop()}:${d.line||0}`;
                     } else if (ev.event === 'error:promise') {

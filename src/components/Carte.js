@@ -1572,6 +1572,8 @@ const Carte = () => {
         try {
           const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
           const myPlayer = (arenaData.players || []).find(p => p.studentId === arenaData.myStudentId);
+          // 📊 TRACE FACTUELLE: état du localStorage au moment du connect
+          try { telemetry('arena:connect-state', { matchId: arenaMatchId, hasArenaData: !!arenaData.myStudentId, hasPlayers: !!(arenaData.players?.length), playerFound: !!myPlayer, platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop' }); } catch {}
           
           if (!myPlayer) {
             // ✅ FIX iOS: cc_crazy_arena_game peut être purgé par iOS Safari (mémoire)
@@ -1601,6 +1603,7 @@ const Carte = () => {
           };
           
           console.log('[ARENA] Émission arena:join', { matchId: arenaMatchId, studentData });
+          try { telemetry('arena:join-emitted', { matchId: arenaMatchId, studentId: studentData.studentId, platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop' }); } catch {}
           s.emit('arena:join', {
             matchId: arenaMatchId,
             studentData
@@ -1888,12 +1891,14 @@ const Carte = () => {
       });
 
       // Écouter nouvelle carte (après que toutes les paires sont trouvées)
-      s.on('arena:round-new', ({ zones, roundIndex, totalRounds }) => {
+      s.on('arena:round-new', ({ zones, roundIndex, totalRounds, _resync }) => {
         console.log('[ARENA] Nouvelle carte reçue!', { 
           zonesCount: zones?.length, 
           roundIndex, 
           totalRounds 
         });
+        // 📊 TRACE FACTUELLE: réception arena:round-new
+        try { telemetry('arena:round-new-received', { matchId: arenaMatchId, zonesCount: zones?.length ?? 0, roundIndex: roundIndex ?? -1, isResync: !!_resync, platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop' }); } catch {}
         
         // ✅ FIX RACE CONDITION: Ignorer si le match est déjà terminé
         // (la carte a été générée par un setTimeout AVANT que endGame ne soit appelé)
@@ -1935,6 +1940,8 @@ const Carte = () => {
           setGameActive(true);
           gameActiveTimeoutRef.current = null;
           console.log('[ARENA] ✅ gameActive=true (après setTimeout)');
+          // 📊 TRACE FACTUELLE: gameActive est bien passé à true
+          try { telemetry('arena:game-activated', { matchId: arenaMatchId, zonesCount: (zonesRef.current || []).length, platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop' }); } catch {}
         }, 50);
         
         // Réinitialiser l'état du jeu pour la nouvelle carte
