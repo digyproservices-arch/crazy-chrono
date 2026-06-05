@@ -1180,16 +1180,32 @@ export default function TrainingArenaGame() {
             <div style={{ position: 'absolute', top: '50%', left: '50%', width: '120%', height: 16, background: 'rgba(220,0,0,0.85)', transform: 'translate(-50%, -50%) rotate(-45deg)', borderRadius: 8 }} />
           </div>
         )}
+        {!gameActive && zones.length === 0 && !gameEnded && !trainingPauseInfo && (
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 49,
+            background: 'rgba(13,26,41,0.88)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', textAlign: 'center', pointerEvents: 'none'
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>⚡</div>
+            <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Connexion en cours…</div>
+            <div style={{ fontSize: 14, opacity: 0.7 }}>Chargement du terrain de jeu</div>
+          </div>
+        )}
         {trainingPauseInfo && trainingPauseInfo.paused && (
           <TrainingPauseOverlay
             disconnectedPlayer={trainingPauseInfo.disconnectedPlayer}
             gracePeriodMs={trainingPauseInfo.gracePeriodMs}
           />
         )}
-        <object
-          type="image/svg+xml"
-          data={svgPath}
+        <img
+          src={svgPath}
+          alt=""
           className="carte-bg"
+          draggable={false}
+          onError={(e) => {
+            try { telemetry('bg:load-fail', { src: svgPath, platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop' }); } catch {}
+          }}
         />
         <svg
           ref={svgOverlayRef}

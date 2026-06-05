@@ -8914,6 +8914,18 @@ setZones(dataWithRandomTexts);
               style={{ marginLeft: 8, background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontSize: 12 }}>✕</button>
           </div>
         )}
+        {arenaMatchId && !gameActive && zones.length === 0 && !arenaGameFinishedRef.current && !arenaPauseInfo && (
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 49,
+            background: 'rgba(13,26,41,0.92)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', textAlign: 'center', pointerEvents: 'none'
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>⚡</div>
+            <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Connexion en cours…</div>
+            <div style={{ fontSize: 14, opacity: 0.7 }}>Chargement du terrain de jeu</div>
+          </div>
+        )}
         {arenaPauseInfo && arenaPauseInfo.paused && (
           <ArenaPauseOverlay
             disconnectedPlayer={arenaPauseInfo.disconnectedPlayer}
@@ -8925,6 +8937,9 @@ setZones(dataWithRandomTexts);
           alt=""
           className="carte-bg"
           draggable={false}
+          onError={() => {
+            try { telemetry('bg:load-fail', { src: svgPath, platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop', mode: arenaMatchId ? 'arena' : trainingMatchId ? 'training' : 'solo' }); } catch {}
+          }}
         />
         <svg
           ref={svgOverlayRef}
