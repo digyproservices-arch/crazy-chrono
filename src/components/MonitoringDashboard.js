@@ -1209,6 +1209,10 @@ const clearIncidents = async () => {
                       msg = `⚠️ ÉCRAN BLANC mode=${d.mode||'?'} rounds=${d.roundsPlayed??'?'} zones=${d.zonesCount??'?'} timeLeft=${d.timeLeft??'?'}s platform=${d.platform||'?'} ua=${(d.ua||'').slice(0,60)}`;
                     } else if (ev.event === 'bg:load-fail') {
                       msg = `🖼️ FOND SVG NON CHARGÉ platform=${d.platform||'?'} mode=${d.mode||'?'} src=${(d.src||'').split('/').pop()}`;
+                    } else if (ev.event === 'arena:join-missing-player') {
+                      msg = `🔴 ÉCRAN BLANC ARENA — localStorage purgé, aucun fallback platform=${d.platform||'?'} match=${(d.matchId||'?').slice(-8)}`;
+                    } else if (ev.event === 'arena:join-fallback') {
+                      msg = `⚠️ ARENA rejoin via fallback studentId platform=${d.platform||'?'} match=${(d.matchId||'?').slice(-8)}`;
                     } else if (ev.event === 'error:js') {
                       msg = `❌ ${d.message||''} @ ${(d.source||'').split('/').pop()}:${d.line||0}`;
                     } else if (ev.event === 'error:promise') {

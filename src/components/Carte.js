@@ -1574,7 +1574,23 @@ const Carte = () => {
           const myPlayer = (arenaData.players || []).find(p => p.studentId === arenaData.myStudentId);
           
           if (!myPlayer) {
-            console.error('[ARENA] Joueur introuvable dans arenaData.players');
+            // ✅ FIX iOS: cc_crazy_arena_game peut être purgé par iOS Safari (mémoire)
+            // Tenter de récupérer le studentId depuis cc_auth / cc_student_id
+            const fallbackStudentId = getMyStudentId();
+            if (!fallbackStudentId) {
+              console.error('[ARENA] ❌ Joueur introuvable ET aucun fallback studentId disponible');
+              try { telemetry('arena:join-missing-player', { matchId: arenaMatchId, hasArenaData: !!arenaData.myStudentId, platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop' }); } catch {}
+              return;
+            }
+            console.warn('[ARENA] ⚠️ Joueur introuvable dans localStorage — tentative rejoin avec fallback studentId:', fallbackStudentId);
+            try { telemetry('arena:join-fallback', { matchId: arenaMatchId, fallbackStudentId, platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop' }); } catch {}
+            s.emit('arena:join', { matchId: arenaMatchId, studentData: { studentId: fallbackStudentId, name: arenaData.myStudentId ? '?' : 'Joueur', avatar: '/avatars/default.png' } }, (response) => {
+              if (response && !response.ok) {
+                arenaGameFinishedRef.current = true;
+                alert('Le match a été interrompu ou introuvable. Vous allez être redirigé.');
+                navigate('/');
+              }
+            });
             return;
           }
           
@@ -4934,7 +4950,7 @@ const handleEditGreenZone = (zone) => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Affichage colonne latérale de jeu (même sans plein écran)
-  const hasSidebar = fullScreen || roomStatus === 'playing' || gameActive;
+  const hasSidebar = fullScreen || roomStatus === 'playing' || gameActive || !!arenaMatchId || !!trainingMatchId;
   const [sbc, setSbc] = useState(() => window.innerWidth <= 932 && window.innerWidth > window.innerHeight); // sidebar-compact flag for mobile landscape
   useEffect(() => {
     if (hasSidebar) {
