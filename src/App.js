@@ -112,7 +112,7 @@ class AppErrorBoundary extends React.Component {
           }],
           deviceId, userId,
         });
-        navigator.sendBeacon(`${backendUrl}/api/monitoring/client-telemetry`, new Blob([payload], { type: 'application/json' }));
+        navigator.sendBeacon(`${backendUrl}/api/monitoring/client-telemetry`, new Blob([payload], { type: 'text/plain' }));
       }
     } catch {}
     // Nettoyer les styles body bloquants si le jeu a crashé

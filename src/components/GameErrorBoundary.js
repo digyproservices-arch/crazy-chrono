@@ -61,7 +61,7 @@ class GameErrorBoundary extends React.Component {
         });
         navigator.sendBeacon(
           `${backendUrl}/api/monitoring/client-telemetry`,
-          new Blob([payload], { type: 'application/json' })
+          new Blob([payload], { type: 'text/plain' })
         );
       }
     } catch {}
