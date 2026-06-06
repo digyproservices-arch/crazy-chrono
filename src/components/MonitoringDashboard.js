@@ -1221,6 +1221,8 @@ const clearIncidents = async () => {
                       msg = `✅ round-new reçu zones=${d.zonesCount} round=${d.roundIndex} resync=${d.isResync} platform=${d.platform||'?'}`;
                     } else if (ev.event === 'arena:game-activated') {
                       msg = `✅ gameActive=true zones=${d.zonesCount} platform=${d.platform||'?'}`;
+                    } else if (ev.event === 'error:react-boundary') {
+                      msg = `🔴 CRASH REACT errorName=${d.errorName||'?'} "${(d.errorMsg||'').slice(0,80)}" platform=${d.platform||'?'} stack=${(d.componentStack||'').slice(0,80)}`;
                     } else if (ev.event === 'error:js') {
                       msg = `❌ ${d.message||''} @ ${(d.source||'').split('/').pop()}:${d.line||0}`;
                     } else if (ev.event === 'error:promise') {

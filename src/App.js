@@ -16,6 +16,7 @@ import PWAUpdateButton from './components/PWAUpdateButton';
 import LandingPage from './components/LandingPage';
 import MaintenancePage, { hasMaintenanceBypass } from './components/MaintenancePage';
 import { startHeartbeat, stopHeartbeat } from './utils/presenceHeartbeat';
+import GameErrorBoundary from './components/GameErrorBoundary';
 import useIdleTimeout from './utils/useIdleTimeout';
 import { initClientTelemetry } from './utils/clientTelemetry';
 import { startSessionGuard, stopSessionGuard, logoutSession, getSessionToken } from './utils/sessionService';
@@ -93,6 +94,30 @@ class AppErrorBoundary extends React.Component {
   static getDerivedStateFromError() { return { hasError: true }; }
   componentDidCatch(error) {
     console.error('[AppErrorBoundary]', error);
+    // Envoyer telemetry via sendBeacon (résiste au crash)
+    try {
+      const backendUrl = getBackendUrl();
+      if (backendUrl && navigator.sendBeacon) {
+        const deviceId = (() => { try { return localStorage.getItem('cc_device_id') || 'unknown'; } catch { return 'unknown'; } })();
+        const userId = (() => { try { return JSON.parse(localStorage.getItem('cc_auth') || '{}').id || null; } catch { return null; } })();
+        const payload = JSON.stringify({
+          events: [{
+            event: 'error:react-boundary',
+            ts: new Date().toISOString(),
+            deviceId, userId,
+            url: window.location.pathname + window.location.search,
+            errorMsg: error?.message?.slice(0, 300) || 'unknown',
+            errorName: error?.name || 'Error',
+            platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop',
+          }],
+          deviceId, userId,
+        });
+        navigator.sendBeacon(`${backendUrl}/api/monitoring/client-telemetry`, new Blob([payload], { type: 'application/json' }));
+      }
+    } catch {}
+    // Nettoyer les styles body bloquants si le jeu a crashé
+    try { document.body.classList.remove('cc-game'); } catch {}
+    try { document.body.style.overflow = ''; } catch {}
     const isChunk = error?.name === 'ChunkLoadError' || error?.message?.includes('Loading chunk');
     if (isChunk) {
       const last = parseInt(sessionStorage.getItem('cc_boundary_reload_ts') || '0', 10);
@@ -815,7 +840,7 @@ function App() {
               <Route path="/training-arena/setup" element={<RequireAuth auth={auth}><TrainingArenaSetup /></RequireAuth>} />
               <Route path="/training-arena/manager" element={<RequireAuth auth={auth}><TrainingArenaManagerDashboard /></RequireAuth>} />
               <Route path="/training-arena/lobby/:roomCode" element={<RequireAuth auth={auth}><TrainingArenaLobby /></RequireAuth>} />
-              <Route path="/training-arena/game" element={<RequireAuth auth={auth}><TrainingArenaGame /></RequireAuth>} />
+              <Route path="/training-arena/game" element={<RequireAuth auth={auth}><GameErrorBoundary><TrainingArenaGame /></GameErrorBoundary></RequireAuth>} />
               {/* Grande Salle publique */}
               <Route path="/grande-salle" element={<RequireAuth auth={auth}><GrandeSalle /></RequireAuth>} />
               <Route path="/grande-salle/join/:tournamentId" element={<GrandeSalleJoin />} />
@@ -827,7 +852,7 @@ function App() {
               {/* Mode Apprendre (Premium) */}
               <Route path="/apprendre" element={<RequireAuth auth={auth}><LearnMode /></RequireAuth>} />
               {/* Carte (éditeur/jeu) accessible en direct si nécessaire, sinon on y accède après config */}
-              <Route path="/carte" element={<div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div>} />
+              <Route path="/carte" element={<GameErrorBoundary><div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div></GameErrorBoundary>} />
               <Route path="/presentation" element={<PresentationPage />} />
               <Route path="/legal" element={<LegalPages />} />
               <Route path="*" element={<Navigate to="/" replace />} />
