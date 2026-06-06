@@ -12,7 +12,7 @@ import { validateZones as incidentValidateZones, reportImageLoadError as inciden
 import { logRound } from '../utils/roundLogger';
 import { logClick, logClickAttempt, clearClickLogs, flushGsClickLog } from '../utils/clickLogger';
 import { captureCardScreenshot } from '../utils/cardScreenshot';
-import { telemetry } from '../utils/clientTelemetry';
+import { telemetry, telemetryNow } from '../utils/clientTelemetry';
 import { isFree, canStartSessionToday, incrementSessionCount, setSubscriptionStatus, getDailyCounts } from '../utils/subscription';
 
 import { initMasteryTracker, resetMasterySession, recordPair as masteryRecordPair, getActiveSessionProgress, getMasteryProgress, isMasteryReady, syncToServer as masterySyncToServer, loadFromServer as masteryLoadFromServer } from '../utils/masteryTracker';
@@ -1572,8 +1572,8 @@ const Carte = () => {
         try {
           const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
           const myPlayer = (arenaData.players || []).find(p => p.studentId === arenaData.myStudentId);
-          // 📊 TRACE FACTUELLE: état du localStorage au moment du connect
-          try { telemetry('arena:connect-state', { matchId: arenaMatchId, hasArenaData: !!arenaData.myStudentId, hasPlayers: !!(arenaData.players?.length), playerFound: !!myPlayer, platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop' }); } catch {}
+          // 📊 TRACE FACTUELLE: état du localStorage au moment du connect (flush immédiat)
+          try { telemetryNow('arena:connect-state', { matchId: arenaMatchId, hasArenaData: !!arenaData.myStudentId, hasPlayers: !!(arenaData.players?.length), playerFound: !!myPlayer, platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop' }); } catch {}
           
           if (!myPlayer) {
             // ✅ FIX iOS: cc_crazy_arena_game peut être purgé par iOS Safari (mémoire)
@@ -1603,7 +1603,7 @@ const Carte = () => {
           };
           
           console.log('[ARENA] Émission arena:join', { matchId: arenaMatchId, studentData });
-          try { telemetry('arena:join-emitted', { matchId: arenaMatchId, studentId: studentData.studentId, platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop' }); } catch {}
+          try { telemetryNow('arena:join-emitted', { matchId: arenaMatchId, studentId: studentData.studentId, platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop' }); } catch {}
           s.emit('arena:join', {
             matchId: arenaMatchId,
             studentData

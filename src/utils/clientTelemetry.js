@@ -75,6 +75,49 @@ export function telemetry(event, data = {}) {
 }
 
 /**
+ * Enregistre un événement critique ET l'envoie immédiatement au serveur.
+ * Contourne l'intervalle de 15s et le backoff exponentiel.
+ * Utilise fetch keepalive=true pour survivre à la fermeture de page (iOS).
+ * @param {string} event
+ * @param {object} data
+ */
+export function telemetryNow(event, data = {}) {
+  telemetry(event, data); // Buffer d'abord (redondance si flush échoue)
+  _flushImmediate();       // Puis flush sans attendre
+}
+
+async function _flushImmediate() {
+  try {
+    const buf = loadBuffer();
+    if (!buf.length) return;
+    const backendUrl = getBackendUrl();
+    if (!backendUrl) return;
+    const token = (() => {
+      try { return JSON.parse(localStorage.getItem('cc_auth') || '{}').token || null; } catch { return null; }
+    })();
+    const batch = buf.slice(0, SYNC_BATCH_SIZE);
+    const fetchFn = window._cc_origFetch || window.fetch;
+    const res = await fetchFn(`${backendUrl}/api/monitoring/client-telemetry`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        events: batch,
+        deviceId: getDeviceId(),
+        userId: getUserId(),
+      }),
+      keepalive: true, // Survive à la navigation/fermeture de page (iOS Safari 13+)
+    });
+    if (res.ok) {
+      saveBuffer(buf.slice(batch.length));
+      _syncFailCount = 0;
+    }
+  } catch {}
+}
+
+/**
  * Retourne tous les événements stockés (pour le rapport monitoring local).
  */
 export function getTelemetryEvents() {
