@@ -3846,12 +3846,14 @@ useEffect(() => {
   }
 }, [gameActive, arenaMatchId, trainingMatchId, gameDuration, emitMonitoringEvent]);
 
-// 🔍 BLANK SCREEN WATCHDOG (Arena/Training): Si gameActive=false persiste 8s → écran blanc
+// 🔍 BLANK SCREEN WATCHDOG (Arena/Training/Salle Privée): Si gameActive=false persiste 8s → écran blanc
 useEffect(() => {
-  if (!arenaMatchId && !trainingMatchId) return; // solo/multi non concernés
+  // Salle privée: socketConnected + !isSoloMode + pas arena/training
+  const isPrivateRoom = !arenaMatchId && !trainingMatchId && !isSoloMode && socketConnected;
+  if (!arenaMatchId && !trainingMatchId && !isPrivateRoom) return;
   if (trainingEndedRef.current) return;
   if (gameActive) return;
-  const _mode = arenaMatchId ? 'arena' : 'training';
+  const _mode = arenaMatchId ? 'arena' : trainingMatchId ? 'training' : 'multiplayer';
   const t = setTimeout(() => {
     telemetry('game:blank-watchdog', {
       mode: _mode,
@@ -3861,7 +3863,7 @@ useEffect(() => {
     });
   }, 8000);
   return () => clearTimeout(t);
-}, [gameActive, arenaMatchId, trainingMatchId]);
+}, [gameActive, arenaMatchId, trainingMatchId, isSoloMode, socketConnected]);
 
 // === RUM: Real User Monitoring — viewport + key elements ===
 useEffect(() => {
@@ -4957,7 +4959,9 @@ const handleEditGreenZone = (zone) => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Affichage colonne latérale de jeu (même sans plein écran)
-  const hasSidebar = fullScreen || roomStatus === 'playing' || gameActive || !!arenaMatchId || !!trainingMatchId;
+  // ✅ FIX BLANC SALLE PRIVÉE: roomStatus reste 'lobby' (setRoomStatus('playing') jamais appelé)
+  // → ajouter (!isSoloMode && socketConnected) pour couvrir la salle privée dès la connexion socket
+  const hasSidebar = fullScreen || roomStatus === 'playing' || gameActive || !!arenaMatchId || !!trainingMatchId || (!isSoloMode && socketConnected);
   const [sbc, setSbc] = useState(() => window.innerWidth <= 932 && window.innerWidth > window.innerHeight); // sidebar-compact flag for mobile landscape
   useEffect(() => {
     if (hasSidebar) {
