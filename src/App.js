@@ -16,7 +16,6 @@ import PWAUpdateButton from './components/PWAUpdateButton';
 import LandingPage from './components/LandingPage';
 import MaintenancePage, { hasMaintenanceBypass } from './components/MaintenancePage';
 import { startHeartbeat, stopHeartbeat } from './utils/presenceHeartbeat';
-import GameErrorBoundary from './components/GameErrorBoundary';
 import useIdleTimeout from './utils/useIdleTimeout';
 import { initClientTelemetry } from './utils/clientTelemetry';
 import { startSessionGuard, stopSessionGuard, logoutSession, getSessionToken } from './utils/sessionService';
@@ -135,6 +134,43 @@ class AppErrorBoundary extends React.Component {
           <h2 style={{ margin: '0 0 8px', fontSize: 22 }}>Mise à jour détectée</h2>
           <p style={{ opacity: 0.8, marginBottom: 24, maxWidth: 400, lineHeight: 1.5 }}>L'application a été mise à jour. Cliquez ci-dessous pour recharger et profiter de la dernière version.</p>
           <button onClick={() => { sessionStorage.removeItem('cc_chunk_refreshed'); window.location.reload(); }} style={{ padding: '12px 32px', borderRadius: 10, border: 'none', background: '#F5A623', color: '#4A3728', cursor: 'pointer', fontWeight: 700, fontSize: 16 }}>🔄 Recharger l'application</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// Error Boundary dédié aux composants de jeu (/carte, TrainingArenaGame)
+class GameErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, errorMsg: '' }; }
+  static getDerivedStateFromError(error) { return { hasError: true, errorMsg: error?.message?.slice(0, 200) || 'Erreur inconnue' }; }
+  componentDidCatch(error, info) {
+    try { document.body.classList.remove('cc-game'); } catch {}
+    try { document.body.style.overflow = ''; } catch {}
+    try {
+      const backendUrl = getBackendUrl();
+      if (backendUrl && navigator.sendBeacon) {
+        const deviceId = (() => { try { return localStorage.getItem('cc_device_id') || 'unknown'; } catch { return 'unknown'; } })();
+        const userId = (() => { try { return JSON.parse(localStorage.getItem('cc_auth') || '{}').id || null; } catch { return null; } })();
+        const token = (() => { try { return JSON.parse(localStorage.getItem('cc_auth') || '{}').token || null; } catch { return null; } })();
+        const payload = JSON.stringify({ events: [{ event: 'error:react-boundary', ts: new Date().toISOString(), deviceId, userId, url: window.location.pathname + window.location.search, errorMsg: error?.message?.slice(0, 300) || 'unknown', errorName: error?.name || 'Error', componentStack: info?.componentStack?.slice(0, 600) || '', platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop', ua: navigator.userAgent?.slice(0, 120) }], deviceId, userId, ...(token ? { token } : {}) });
+        navigator.sendBeacon(`${backendUrl}/api/monitoring/client-telemetry`, new Blob([payload], { type: 'text/plain' }));
+      }
+    } catch {}
+    console.error('[GameErrorBoundary] Erreur React capturée:', error?.message, info?.componentStack?.split('\n')[1]);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#0D6A7A', color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+          <h2 style={{ margin: '0 0 12px', fontSize: 20 }}>Le jeu a rencontré une erreur</h2>
+          <p style={{ opacity: 0.8, marginBottom: 28, maxWidth: 380, lineHeight: 1.5, fontSize: 15 }}>Une erreur inattendue a interrompu la partie.<br />Elle a été enregistrée automatiquement.</p>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button onClick={() => { window.location.href = '/modes'; }} style={{ padding: '12px 28px', borderRadius: 10, border: 'none', background: '#F5A623', color: '#fff', fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>Retour à l'accueil</button>
+            <button onClick={() => { window.location.reload(); }} style={{ padding: '12px 28px', borderRadius: 10, border: '2px solid rgba(255,255,255,0.4)', background: 'transparent', color: '#fff', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>Réessayer</button>
+          </div>
         </div>
       );
     }
