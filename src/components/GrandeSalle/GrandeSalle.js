@@ -5,7 +5,7 @@ import { getBackendUrl, isFree } from '../../utils/subscription';
 import { getAuthSocketOptions } from '../../utils/socketAuth';
 import { flushGsClickLog } from '../../utils/clickLogger';
 import { pointsToBezierPath } from '../CarteUtils';
-import { animateBubblesFromZones, invalidateZoneCenterCache } from '../Carte';
+import { animateBubblesFromZones, invalidateZoneCenterCache } from '../../utils/gameAnimation';
 import { PLAYER_PRIMARY_COLORS, getPlayerColorComboByIndex } from '../../utils/playerColors';
 import { getInitials } from '../../utils/pairDisplay';
 import '../../styles/Carte.css';

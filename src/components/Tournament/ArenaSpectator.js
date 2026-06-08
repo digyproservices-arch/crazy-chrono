@@ -8,7 +8,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 import { pointsToBezierPath } from '../CarteUtils';
-import { animateBubblesFromZones, invalidateZoneCenterCache } from '../Carte';
+import { animateBubblesFromZones, invalidateZoneCenterCache } from '../../utils/gameAnimation';
 import '../../styles/Carte.css';
 import { getBackendUrl } from '../../utils/apiHelpers';
 import { getAuthSocketOptions } from '../../utils/socketAuth';

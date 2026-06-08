@@ -11,7 +11,7 @@ import { getBackendUrl } from '../../utils/subscription';
 import { getAuthSocketOptions } from '../../utils/socketAuth';
 import '../../styles/Carte.css';
 import { pointsToBezierPath } from '../CarteUtils';
-import { animateBubblesFromZones } from '../Carte';
+import { animateBubblesFromZones } from '../../utils/gameAnimation';
 import { logRound } from '../../utils/roundLogger';
 import { getPlayerColorComboByIndex } from '../../utils/playerColors';
 import { getInitials } from '../../utils/pairDisplay';
