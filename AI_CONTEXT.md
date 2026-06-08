@@ -248,11 +248,30 @@ git push origin main:staging
 
 ## 14. Tâches en attente (backlog prioritaire)
 
+- [ ] **Vérifier fix TDZ en staging** : commit `e26eaa7` (gameAnimation.js) doit éliminer le `ReferenceError: Cannot access 'di' before initialization`. Confirmer sur https://staging.crazy-chrono.com avant de pousser sur `main`.
 - [ ] **Écran blanc iOS** : le problème persiste sur certains iPhones en mode Arena/Training. Les corrections partielles (img vs object, overlay connexion) n'ont pas suffi. Besoin d'analyse des logs télémétrie `bg:load-fail` et `game:blank-watchdog`.
 - [ ] **MAINTENANCE_MODE** : passer à `false` quand le jeu est prêt pour les vrais utilisateurs (`src/App.js` ligne 182).
 - [ ] **Render Free → payant** : cold start ~30s bloque les joueurs. Plan Starter Render ($7/mois) recommandé avant lancement.
 - [ ] **Tests E2E Playwright** : `npm run test:e2e` — vérifier que les tests passent après chaque série de commits.
 - [ ] **Phase B refactoring** : Carte.js > 10 000 lignes, extraire overlays + hooks (ROADMAP_LANCEMENT.md Phase B).
+
+---
+
+## 15. ROOT CAUSE résolu — ReferenceError TDZ (juin 2026)
+
+**Erreur** : `ReferenceError: Cannot access 'di' before initialization` dans `chunk 862` (Carte.js).
+
+**Cause racine** : 4 composants lazy-loadés importaient **statiquement** depuis `Carte.js` (lui-même lazy-loadé) :
+- `TrainingArenaGame.js` → `import { animateBubblesFromZones } from '../Carte'`
+- `GrandeSalle.js` → `import { animateBubblesFromZones, invalidateZoneCenterCache } from '../Carte'`
+- `LiveBoard.js` → `import { animateBubblesFromZones, invalidateZoneCenterCache } from '../Carte'`
+- `ArenaSpectator.js` → `import { animateBubblesFromZones, invalidateZoneCenterCache } from '../Carte'`
+
+Ces imports croisés entre chunks lazy forçaient webpack à un ordre d'initialisation des modules qui créait un TDZ sur `di` (variable `const`/`let` interne du chunk 862 accédée avant son initialisation).
+
+**Fix** (commit `e26eaa7`) : Créer `src/utils/gameAnimation.js` contenant `animateBubblesFromZones`, `animateBubbleToVignette`, `invalidateZoneCenterCache` et tous leurs helpers. Les 4 composants + `Carte.js` importent depuis cette utilité partagée. Webpack crée maintenant un chunk partagé propre, éliminant la dépendance croisée.
+
+**Leçon** : Ne jamais importer statiquement depuis un composant lazy-loadé dans un autre composant lazy-loadé. Extraire les fonctions partagées dans `src/utils/`.
 
 ---
 
