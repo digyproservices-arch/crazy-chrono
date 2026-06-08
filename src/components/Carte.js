@@ -258,7 +258,10 @@ const Carte = () => {
   const arenaMatchId = searchParams.get('arena');
   const trainingMatchId = searchParams.get('training');
   const gsMode = searchParams.get('gs');
-  
+
+  // Solo mode detection (computed early to avoid TDZ in useEffect deps)
+  const isSoloMode = (() => { try { const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); return !!(cfg && cfg.mode === 'solo'); } catch { return false; } })();
+
   // Mode plein écran de jeu
   const [fullScreen, setFullScreen] = useState(false);
   // Thèmes actifs de la session (pour badge UI)
@@ -4549,8 +4552,8 @@ const handleEditGreenZone = (zone) => {
     return `Joueur-${rnd}`;
   });
   const [scoresMP, setScoresMP] = useState([]); // [{id,name,score}]
-  // Solo mode detection (hide lobby UI)
-  const [isSoloMode] = useState(() => {
+  // Solo mode detection — hook slot kept for order stability (value computed at top of component)
+  useState(() => {
     try { const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); return cfg && cfg.mode === 'solo'; } catch { return false; }
   });
   // Solo records: personal best + global best (student-keyed localStorage)
