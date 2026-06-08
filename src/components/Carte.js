@@ -1186,6 +1186,8 @@ const Carte = () => {
           roundIndex, 
           totalRounds 
         });
+        // ✅ FIX iOS: Nettoyer les éléments d'animation orphelins entre les manches
+        try { document.querySelectorAll('body > div[style*="z-index"][style*="position: fixed"][style*="pointer-events: none"]').forEach(el => { try { el.remove(); } catch {} }); } catch {}
 
         if (Array.isArray(zones)) {
           const cleanZones = zones.map(z => ({ ...z, validated: false }));
@@ -1584,6 +1586,8 @@ const Carte = () => {
           roundIndex, 
           totalRounds 
         });
+        // ✅ FIX iOS: Nettoyer les éléments d'animation orphelins entre les manches
+        try { document.querySelectorAll('body > div[style*="z-index"][style*="position: fixed"][style*="pointer-events: none"]').forEach(el => { try { el.remove(); } catch {} }); } catch {}
         // 📊 TRACE FACTUELLE: réception arena:round-new
         try { telemetry('arena:round-new-received', { matchId: arenaMatchId, zonesCount: zones?.length ?? 0, roundIndex: roundIndex ?? -1, isResync: !!_resync, platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop' }); } catch {}
         
@@ -3570,18 +3574,38 @@ useEffect(() => {
       ua: navigator.userAgent?.slice(0, 120),
       socketConnected: !!socketRef.current?.connected,
     });
-    // ✅ FIX iOS SOLO: Auto-recovery — tenter de reconnecter le socket et relancer
-    if (isSoloMode && socketRef.current) {
+    // ✅ FIX iOS ALL MODES: Auto-recovery — tenter de reconnecter le socket
+    if (socketRef.current) {
       const s = socketRef.current;
-      const lastSoloRoom = soloRoomRef.current;
       if (!s.connected) {
-        console.warn('[CC][watchdog] Solo mode blank screen detected — socket disconnected, attempting reconnect');
+        console.warn(`[CC][watchdog] ${_mode} blank screen detected — socket disconnected, attempting reconnect`);
         try { s.connect(); } catch {}
-      } else if (lastSoloRoom) {
-        console.warn('[CC][watchdog] Solo mode blank screen detected — socket connected but game stuck, rejoining room');
+      } else if (isSoloMode && soloRoomRef.current) {
+        // Solo: socket connecté mais jeu bloqué → tenter de rejoindre la room
+        console.warn('[CC][watchdog] Solo blank screen — socket connected but game stuck, rejoining room:', soloRoomRef.current);
         try {
           const storedName = (() => { try { return JSON.parse(localStorage.getItem('cc_auth') || '{}').name || 'Joueur'; } catch { return 'Joueur'; } })();
-          s.emit('joinRoom', { roomId: lastSoloRoom, name: storedName });
+          s.emit('joinRoom', { roomId: soloRoomRef.current, name: storedName });
+        } catch {}
+      } else if (arenaMatchId) {
+        // Arena: socket connecté mais jeu bloqué → tenter de re-joindre le match
+        console.warn('[CC][watchdog] Arena blank screen — socket connected but game stuck, re-joining match:', arenaMatchId);
+        try {
+          const arenaData = JSON.parse(localStorage.getItem('cc_crazy_arena_game') || '{}');
+          const myPlayer = (arenaData.players || []).find(p => p.studentId === arenaData.myStudentId);
+          if (myPlayer) {
+            s.emit('arena:join', { matchId: arenaMatchId, studentData: { studentId: myPlayer.studentId, name: myPlayer.name, avatar: myPlayer.avatar } });
+          }
+        } catch {}
+      } else if (trainingMatchId) {
+        // Training: socket connecté mais jeu bloqué → tenter de re-joindre le match
+        console.warn('[CC][watchdog] Training blank screen — socket connected but game stuck, re-joining match:', trainingMatchId);
+        try {
+          const trainingData = JSON.parse(localStorage.getItem('cc_training_game') || '{}');
+          const myPlayer = (trainingData.players || []).find(p => p.studentId === trainingData.myStudentId);
+          if (myPlayer) {
+            s.emit('training:join', { matchId: trainingMatchId, studentData: { studentId: myPlayer.studentId, name: myPlayer.name, avatar: myPlayer.avatar } });
+          }
         } catch {}
       }
     }
