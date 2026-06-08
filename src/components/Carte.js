@@ -2434,6 +2434,15 @@ const Carte = () => {
 
     s.on('round:new', (payload) => {
       console.debug('[CC][client] round:new', payload);
+      // ✅ FIX iOS: Nettoyer les éléments d'animation orphelins entre les manches
+      // (bulles, particules emoji, pulse rings créés par gameAnimation.js hors React)
+      try {
+        const orphans = document.querySelectorAll('body > div[style*="z-index"][style*="position: fixed"][style*="pointer-events: none"]');
+        if (orphans.length > 0) {
+          console.log('[CC][cleanup] Removing', orphans.length, 'orphaned animation elements');
+          orphans.forEach(el => { try { el.remove(); } catch {} });
+        }
+      } catch {}
       // ── TRAÇAGE BUG SOLO: log persistant quand round:new arrive ──
       // Skip les régénérations (isRegen=true) pour éviter le bruit dans les traces
       if (!payload?.isRegen) {
@@ -3063,6 +3072,11 @@ const Carte = () => {
         try { window.ccAddDiag && window.ccAddDiag('cleanup:unmount', diag); } catch {}
       } catch {}
       try { cleanupResize(); } catch {}
+      // ✅ FIX iOS: Nettoyer les éléments d'animation orphelins au démontage
+      try {
+        const orphans = document.querySelectorAll('body > div[style*="z-index"][style*="position: fixed"][style*="pointer-events: none"]');
+        orphans.forEach(el => { try { el.remove(); } catch {} });
+      } catch {}
       try {
         s.off('connect', onConnect);
         s.off('disconnect', onDisconnect);
@@ -3533,22 +3547,45 @@ useEffect(() => {
   }
 }, [gameActive, arenaMatchId, trainingMatchId, gameDuration, emitMonitoringEvent]);
 
-// 🔍 BLANK SCREEN WATCHDOG (Arena/Training/Salle Privée): Si gameActive=false persiste 8s → écran blanc
+// 🔍 BLANK SCREEN WATCHDOG (ALL MODES including Solo): Si gameActive=false persiste → écran blanc
 useEffect(() => {
   // Salle privée: socketConnected + !isSoloMode + pas arena/training
   const isPrivateRoom = !arenaMatchId && !trainingMatchId && !isSoloMode && socketConnected;
-  if (!arenaMatchId && !trainingMatchId && !isPrivateRoom) return;
+  // ✅ FIX iOS: Inclure le mode solo dans le watchdog (était exclu avant)
+  const isSoloWithSocket = isSoloMode && socketConnected;
+  if (!arenaMatchId && !trainingMatchId && !isPrivateRoom && !isSoloWithSocket) return;
   if (trainingEndedRef.current) return;
+  if (sessionEndHandledRef.current) return;
   if (gameActive) return;
-  const _mode = arenaMatchId ? 'arena' : trainingMatchId ? 'training' : 'multiplayer';
+  const _mode = arenaMatchId ? 'arena' : trainingMatchId ? 'training' : isSoloMode ? 'solo' : 'multiplayer';
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  // Solo mode: délai plus court (10s) car pas de transition multi-joueurs à attendre
+  const watchdogDelay = isSoloMode ? 10000 : 8000;
   const t = setTimeout(() => {
+    const platform = isIOS ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop';
     telemetry('game:blank-watchdog', {
       mode: _mode,
       zonesCount: (zonesRef.current || []).length,
-      platform: /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'ios' : /Android/.test(navigator.userAgent) ? 'android' : 'desktop',
+      platform,
       ua: navigator.userAgent?.slice(0, 120),
+      socketConnected: !!socketRef.current?.connected,
     });
-  }, 8000);
+    // ✅ FIX iOS SOLO: Auto-recovery — tenter de reconnecter le socket et relancer
+    if (isSoloMode && socketRef.current) {
+      const s = socketRef.current;
+      const lastSoloRoom = soloRoomRef.current;
+      if (!s.connected) {
+        console.warn('[CC][watchdog] Solo mode blank screen detected — socket disconnected, attempting reconnect');
+        try { s.connect(); } catch {}
+      } else if (lastSoloRoom) {
+        console.warn('[CC][watchdog] Solo mode blank screen detected — socket connected but game stuck, rejoining room');
+        try {
+          const storedName = (() => { try { return JSON.parse(localStorage.getItem('cc_auth') || '{}').name || 'Joueur'; } catch { return 'Joueur'; } })();
+          s.emit('joinRoom', { roomId: lastSoloRoom, name: storedName });
+        } catch {}
+      }
+    }
+  }, watchdogDelay);
   return () => clearTimeout(t);
 }, [gameActive, arenaMatchId, trainingMatchId, isSoloMode, socketConnected]);
 

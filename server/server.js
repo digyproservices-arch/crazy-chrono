@@ -5675,8 +5675,11 @@ io.on('connection', (socket) => {
     // si plus personne, nettoyer les timers et supprimer la salle
     if (room.players.size === 0) {
       // ── FIX DÉCONNEXIONS SOLO: délai de grâce 15s pour reconnexion ──
-      if (currentRoom.startsWith('solo-') && room.sessionActive && reason === 'transport close') {
-        console.log(`[MP] Solo room ${currentRoom} — grace period 15s for reconnection (transport close)`);
+      // ✅ FIX iOS: Accepter TOUS les types de déconnexion (pas seulement transport close)
+      // Sur iOS Safari, le composant peut se démonter (client namespace disconnect) à cause de
+      // la pression mémoire ou d'un re-render entre les manches — le joueur revient immédiatement.
+      if (currentRoom.startsWith('solo-') && room.sessionActive) {
+        console.log(`[MP] Solo room ${currentRoom} — grace period 15s for reconnection (reason=${reason})`);
         sTrace.push('room:grace-start', { room: currentRoom, sessionActive: room.sessionActive, roundsPlayed: room.roundsPlayed, roundsPerSession: room.roundsPerSession, reason });
         room._graceTimer = setTimeout(() => {
           room._graceTimer = null;
