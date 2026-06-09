@@ -43,5 +43,15 @@
   <body>
     <noscript>Vous devez activer JavaScript pour utiliser Crazy Chrono.</noscript>
     <div id="root"></div>
+    <!-- Eruda: console mobile pour debug iPhone — activé par ?eruda=1 dans l'URL -->
+    <script>
+      if (/[?&]eruda=1/.test(location.search) || localStorage.getItem('cc_eruda') === '1') {
+        localStorage.setItem('cc_eruda', '1');
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/eruda@3/eruda.min.js';
+        s.onload = function() { eruda.init(); };
+        document.body.appendChild(s);
+      }
+    </script>
   </body>
 </html>
