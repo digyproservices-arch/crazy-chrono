@@ -3202,6 +3202,54 @@ const Carte = () => {
   const firstClickTsRef = useRef(0);
   // Timer pour détecter l'absence de 'round:new' après un démarrage multi (déclaré plus haut)
 
+  // ✅ FIX iOS ÉCRAN BLANC: Safari/WebKit peut "évincer" la couche GPU du SVG du plateau
+  // (pression mémoire, fullscreen, rotation) → le plateau s'affiche BLANC mais reste
+  // interactif (clics détectés, sons joués). Forcer une re-rasterisation du conteneur
+  // règle le problème: toggle display + reflow synchrone, invisible (même frame).
+  const forceBoardRepaint = useCallback((why = '') => {
+    try {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (!isIOS) return;
+      const el = gameContainerRef.current;
+      if (!el) return;
+      const prev = el.style.display;
+      el.style.display = 'none';
+      void el.offsetHeight; // reflow synchrone → WebKit jette la couche et re-rasterise
+      el.style.display = prev || '';
+      // Re-rasteriser aussi le SVG du plateau (couche distincte)
+      const svg = el.querySelector('svg');
+      if (svg) {
+        const prevT = svg.style.transform;
+        svg.style.transform = 'translateZ(0)';
+        void svg.getBoundingClientRect();
+        svg.style.transform = prevT || '';
+      }
+      console.log('[CC][repaint] Board re-rasterized', why ? `(${why})` : '');
+    } catch {}
+  }, []);
+
+  // Re-rasteriser à chaque nouvelle manche (zones changent) et au retour de visibilité
+  useEffect(() => {
+    if (!Array.isArray(zones) || zones.length === 0) return;
+    // Double rafale: immédiat + après peinture (le blanc peut apparaître après le 1er paint)
+    const t1 = requestAnimationFrame(() => forceBoardRepaint('round-start'));
+    const t2 = setTimeout(() => forceBoardRepaint('round-start+600ms'), 600);
+    return () => { cancelAnimationFrame(t1); clearTimeout(t2); };
+  }, [zones, forceBoardRepaint]);
+
+  useEffect(() => {
+    const onVis = () => { if (document.visibilityState === 'visible') setTimeout(() => forceBoardRepaint('visibility'), 100); };
+    const onOrient = () => setTimeout(() => forceBoardRepaint('orientation'), 300);
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('orientationchange', onOrient);
+    window.addEventListener('pageshow', onVis);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('orientationchange', onOrient);
+      window.removeEventListener('pageshow', onVis);
+    };
+  }, [forceBoardRepaint]);
+
   // Détermination locale (fallback) de la paire cible si pas de serveur ou clé non reçue
   useEffect(() => {
     try {
