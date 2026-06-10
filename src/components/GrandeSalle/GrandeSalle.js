@@ -86,6 +86,8 @@ export default function GrandeSalle() {
   const [newRecord, setNewRecord] = useState(null);
   const [manualStart, setManualStart] = useState(false);
   const [accessDenied, setAccessDenied] = useState(null);
+  // ✅ FIX QR iPhone: état visible quand la connexion socket est bloquée (au lieu d'une salle vide silencieuse)
+  const [joinBlocked, setJoinBlocked] = useState(null); // { reason, detail }
   const roundTimerRef = useRef(null);
   const zonesRef = useRef([]);
   const [flashPair, setFlashPair] = useState(null);
@@ -204,9 +206,24 @@ export default function GrandeSalle() {
   useEffect(() => {
     // Permettre la connexion pour les guests de tournoi même en free
     const hasGuestData = (() => { try { return !!localStorage.getItem('cc_gs_guest'); } catch { return false; } })();
-    if (isFree() && !(tournamentId && hasGuestData)) return;
+    if (isFree() && !(tournamentId && hasGuestData)) {
+      // ✅ FIX QR iPhone: ne JAMAIS bloquer silencieusement — afficher la cause à l'écran
+      const detail = tournamentId
+        ? 'Vos informations de participation sont introuvables sur cet appareil. Repassez par le formulaire d\u2019inscription.'
+        : 'La Grande Salle publique n\u00e9cessite un compte abonn\u00e9 connect\u00e9 sur cet appareil.';
+      console.warn('[GS] ⛔ Connexion socket bloquée:', { isFree: isFree(), tournamentId, hasGuestData });
+      setJoinBlocked({ reason: tournamentId ? 'guest_data_missing' : 'free_account', detail });
+      return;
+    }
+    setJoinBlocked(null);
     const socket = io(getBackendUrl(), getAuthSocketOptions({ transports: ['websocket', 'polling'] }));
     socketRef.current = socket;
+    // ✅ FIX QR iPhone: rendre visible un échec de connexion au serveur (au lieu d'une salle vide)
+    socket.on('connect_error', (err) => {
+      console.warn('[GS] ⚠️ connect_error:', err?.message);
+      setJoinBlocked(prev => prev || { reason: 'connect_error', detail: `Connexion au serveur impossible (${err?.message || 'erreur réseau'}). Vérifiez votre connexion internet.` });
+    });
+    socket.on('connect', () => setJoinBlocked(null));
 
     socket.on('connect', () => {
       setConnected(true); setMyId(socket.id);
@@ -388,6 +405,33 @@ export default function GrandeSalle() {
     const startId = tournamentId ? `tournament:${tournamentId}` : 'grande-salle-publique';
     socketRef.current?.emit('gs:start', { salleId: startId }, (res) => { if (!res?.ok) alert(res?.error || 'Erreur'); });
   };
+
+  // ========== JOIN BLOCKED (QR/connexion) ==========
+  if (joinBlocked) return (
+    <div style={PAGE}><div style={{ maxWidth: 500, margin: '0 auto', textAlign: 'center' }}>
+      <div style={{ fontSize: 64, marginBottom: 16 }}>⚠️</div>
+      <h1 style={{ fontSize: 24, fontWeight: 900, color: '#e2e8f0', margin: '0 0 12px' }}>Connexion à la salle impossible</h1>
+      <p style={{ color: '#94a3b8', fontSize: 15, lineHeight: 1.6, margin: '0 0 24px' }}>{joinBlocked.detail}</p>
+      {joinBlocked.reason === 'guest_data_missing' && tournamentId && (
+        <button onClick={() => navigate(`/grande-salle/join/${tournamentId}`)} style={{ padding: '14px 32px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #F5A623, #ff6b35)', color: '#fff', fontWeight: 800, fontSize: 16, cursor: 'pointer', marginBottom: 12 }}>
+          Remplir le formulaire d’inscription
+        </button>
+      )}
+      {joinBlocked.reason === 'free_account' && (
+        <button onClick={() => navigate('/login')} style={{ padding: '14px 32px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #F5A623, #ff6b35)', color: '#fff', fontWeight: 800, fontSize: 16, cursor: 'pointer', marginBottom: 12 }}>
+          Se connecter
+        </button>
+      )}
+      {joinBlocked.reason === 'connect_error' && (
+        <button onClick={() => window.location.reload()} style={{ padding: '14px 32px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #F5A623, #ff6b35)', color: '#fff', fontWeight: 800, fontSize: 16, cursor: 'pointer', marginBottom: 12 }}>
+          Réessayer
+        </button>
+      )}
+      <div>
+        <button onClick={() => navigate('/modes')} style={{ padding: '12px 28px', borderRadius: 12, border: 'none', background: 'rgba(255,255,255,0.1)', color: '#94a3b8', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>← Retour</button>
+      </div>
+    </div></div>
+  );
 
   // ========== ACCESS DENIED ==========
   if (accessDenied) return (
