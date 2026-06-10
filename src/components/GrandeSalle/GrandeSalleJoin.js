@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { getBackendUrl } from '../../utils/subscription';
-import PWAInstallGuide from './PWAInstallGuide';
 
 const PAGE = {
   minHeight: '100dvh',
@@ -43,13 +42,6 @@ export default function GrandeSalleJoin() {
   const [tournament, setTournament] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // PWA install guide: show first unless already in standalone mode or dismissed
-  const isStandalone = typeof window !== 'undefined' && (
-    window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
-  );
-  const [showPWAGuide, setShowPWAGuide] = useState(!isStandalone);
-  const handlePWAContinue = useCallback(() => setShowPWAGuide(false), []);
 
   // Hide NavBar/footer for immersive experience
   useEffect(() => {
@@ -177,9 +169,6 @@ export default function GrandeSalleJoin() {
     }
     navigate(`/grande-salle/tournament/${tournamentId}`);
   };
-
-  // ===== PWA INSTALL GUIDE (shown first for mobile browsers) =====
-  if (showPWAGuide) return <PWAInstallGuide onContinue={handlePWAContinue} />;
 
   // ===== LOADING =====
   if (loading) return (
