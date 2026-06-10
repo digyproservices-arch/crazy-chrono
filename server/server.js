@@ -2331,7 +2331,16 @@ function getOrCreateDefaultGrandeSalle() {
   return grandeSalles.get(defaultId);
 }
 
-function gsEmitState(salleId) {
+// ✅ SCALE FIX (événement 1200 joueurs): gs:state était diffusé à TOUS les sockets
+// à CHAQUE join avec la liste COMPLÈTE des joueurs → tempête O(N²) qui saturait
+// le serveur dès ~600 connexions. Deux mesures:
+//   1. Throttle: 1 diffusion max par seconde par salle (avec envoi différé garanti)
+//   2. Plafond: liste des joueurs limitée aux 200 premiers (les compteurs restent exacts)
+const GS_STATE_THROTTLE_MS = 1000;
+const GS_STATE_MAX_PLAYERS_IN_PAYLOAD = 200;
+const _gsStateThrottle = new Map(); // salleId -> { last, timer }
+
+function gsEmitStateNow(salleId) {
   const salle = grandeSalles.get(salleId);
   if (!salle) return;
   const activePlayers = Array.from(salle.players.entries())
@@ -2347,13 +2356,33 @@ function gsEmitState(salleId) {
     activePlayers: activePlayers.length,
     eliminatedCount: eliminatedPlayers.length,
     spectatorCount: salle.spectators.size,
-    players: activePlayers.sort((a, b) => b.score - a.score).map((p, i) => ({ ...p, rank: i + 1 })),
-    eliminated: eliminatedPlayers,
+    players: activePlayers.sort((a, b) => b.score - a.score).map((p, i) => ({ ...p, rank: i + 1 })).slice(0, GS_STATE_MAX_PLAYERS_IN_PAYLOAD),
+    eliminated: eliminatedPlayers.slice(0, GS_STATE_MAX_PLAYERS_IN_PAYLOAD),
     config: salle.config,
     roundsPlayed: salle.roundsPlayed,
     eliminationWave: salle.eliminationWave,
   };
   io.to(`gs:${salleId}`).emit('gs:state', payload);
+}
+
+function gsEmitState(salleId) {
+  const now = Date.now();
+  const t = _gsStateThrottle.get(salleId) || { last: 0, timer: null };
+  if (now - t.last < GS_STATE_THROTTLE_MS) {
+    // Trop tôt → programmer UN SEUL envoi différé (coalesce les appels en rafale)
+    if (!t.timer) {
+      t.timer = setTimeout(() => {
+        const tt = _gsStateThrottle.get(salleId);
+        if (tt) { tt.timer = null; tt.last = Date.now(); }
+        gsEmitStateNow(salleId);
+      }, GS_STATE_THROTTLE_MS - (now - t.last));
+      _gsStateThrottle.set(salleId, t);
+    }
+    return;
+  }
+  t.last = now;
+  _gsStateThrottle.set(salleId, t);
+  gsEmitStateNow(salleId);
 }
 
 function gsStartRound(salleId) {
