@@ -216,7 +216,12 @@ export default function GrandeSalle() {
       return;
     }
     setJoinBlocked(null);
-    const socket = io(getBackendUrl(), getAuthSocketOptions({ transports: ['websocket', 'polling'] }));
+    // ✅ FIX QR invité: un guest sans compte connecté ne doit PAS envoyer un sessionToken
+    // périmé (sinon le serveur rejette le handshake avec SESSION_INVALIDATED → salle vide)
+    const sockOpts = getAuthSocketOptions({ transports: ['websocket', 'polling'] });
+    const isPureGuest = (() => { try { const a = JSON.parse(localStorage.getItem('cc_auth') || '{}'); return !(a.token || a.access_token); } catch { return true; } })();
+    if (isPureGuest) sockOpts.auth = {};
+    const socket = io(getBackendUrl(), sockOpts);
     socketRef.current = socket;
     // ✅ FIX QR iPhone: rendre visible un échec de connexion au serveur (au lieu d'une salle vide)
     socket.on('connect_error', (err) => {
