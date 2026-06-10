@@ -8,6 +8,7 @@ import { pointsToBezierPath } from '../CarteUtils';
 import { animateBubblesFromZones, invalidateZoneCenterCache } from '../../utils/gameAnimation';
 import { PLAYER_PRIMARY_COLORS, getPlayerColorComboByIndex } from '../../utils/playerColors';
 import { getInitials } from '../../utils/pairDisplay';
+import FullscreenButton from '../FullscreenButton';
 import '../../styles/Carte.css';
 // --- SVG helpers (identiques à LiveBoard.js) ---
 function interpolateArc(points, idxStart, idxEnd, marginPx) {
@@ -477,7 +478,10 @@ export default function GrandeSalle() {
   // ========== LOBBY ==========
   if (status === 'lobby') return (
     <div style={PAGE}><div style={{ maxWidth: 700, margin: '0 auto' }}>
-      <button onClick={() => navigate('/modes')} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#94a3b8', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', marginBottom: 20 }}>← Retour</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <button onClick={() => navigate('/modes')} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#94a3b8', borderRadius: 8, padding: '8px 16px', cursor: 'pointer' }}>← Retour</button>
+        <FullscreenButton />
+      </div>
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
         <div style={{ fontSize: 64, marginBottom: 16 }}>🏟️</div>
         <h1 style={{ fontSize: 32, fontWeight: 900, margin: 0, background: 'linear-gradient(135deg, #F5A623, #ff6b35)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{tournamentTitle || 'Grande Salle'}</h1>
