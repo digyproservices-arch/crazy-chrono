@@ -2336,8 +2336,10 @@ function getOrCreateDefaultGrandeSalle() {
 // le serveur dès ~600 connexions. Deux mesures:
 //   1. Throttle: 1 diffusion max par seconde par salle (avec envoi différé garanti)
 //   2. Plafond: liste des joueurs limitée aux 200 premiers (les compteurs restent exacts)
-const GS_STATE_THROTTLE_MS = 1000;
-const GS_STATE_MAX_PLAYERS_IN_PAYLOAD = 200;
+// Throttle 2.5s + top 50: à 1200 joueurs, top 200 à 1/s = ~130 Mbit/s sortants
+// en continu — au-delà de la capacité réseau de l'instance Render (ping timeouts en masse)
+const GS_STATE_THROTTLE_MS = 2500;
+const GS_STATE_MAX_PLAYERS_IN_PAYLOAD = 50;
 const _gsStateThrottle = new Map(); // salleId -> { last, timer }
 
 function gsEmitStateNow(salleId) {
@@ -2490,7 +2492,8 @@ function gsEndRound(salleId) {
   
   io.to(`gs:${salleId}`).emit('gs:round:result', {
     roundIndex: salle.roundsPlayed,
-    leaderboard: deltas.map((d, i) => ({ ...d, rank: i + 1 })),
+    // ✅ SCALE FIX: top 100 — le classement complet × tous les sockets saturait le réseau
+    leaderboard: deltas.map((d, i) => ({ ...d, rank: i + 1 })).slice(0, 100),
   });
   
   // Check if maxRounds reached (panneau mode: default 3 manches)
@@ -5401,7 +5404,9 @@ io.on('connection', (socket) => {
     // ✅ SCALE FIX: cooldown de régénération — à grande échelle, plusieurs paires valides
     // par seconde déclenchaient chacune une diffusion complète des zones à tous les sockets
     // (tempête → pings manqués → déconnexions en masse). Max 1 regen / 1.5s par salle.
-    const GS_REGEN_COOLDOWN_MS = 1500;
+    // Cooldown adaptatif: les zones (tracés bézier) sont lourdes × N destinataires.
+    // À 50 joueurs: ~1.7s. À 1200 joueurs: ~6.3s entre deux cartes.
+    const GS_REGEN_COOLDOWN_MS = Math.min(8000, 1500 + salle.players.size * 4);
     if (salle._lastRegenAt && Date.now() - salle._lastRegenAt < GS_REGEN_COOLDOWN_MS) {
       return; // paire comptée (score + foundPairs), la carte sera renouvelée au prochain regen autorisé
     }
