@@ -14,14 +14,21 @@ export function getSocketAuth() {
   const auth = {};
 
   // JWT depuis cc_auth
+  let hasJwt = false;
   try {
     const ccAuth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
-    if (ccAuth?.token) auth.token = ccAuth.token;
+    if (ccAuth?.token) { auth.token = ccAuth.token; hasJwt = true; }
   } catch {}
 
   // Session token (Phase 1)
-  const sessionToken = getSessionToken();
-  if (sessionToken) auth.sessionToken = sessionToken;
+  // ✅ FIX invité (iPhone → "Salle Privée"): ne JAMAIS envoyer un sessionToken sans JWT.
+  // Un sessionToken périmé d'une ancienne connexion faisait rejeter le handshake
+  // (SESSION_INVALIDATED) → le socket de Carte.js ne se connectait jamais → l'invité
+  // restait bloqué sur le panneau "Salle Privée" au lieu d'entrer dans la partie.
+  if (hasJwt) {
+    const sessionToken = getSessionToken();
+    if (sessionToken) auth.sessionToken = sessionToken;
+  }
 
   return auth;
 }

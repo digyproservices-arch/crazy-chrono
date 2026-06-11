@@ -1970,8 +1970,15 @@ const Carte = () => {
                   setGameActive(true);
                   const d = parseInt(roundData.duration, 10);
                   if (Number.isFinite(d) && d > 0) {
-                    const elapsed = Math.floor((Date.now() - (roundData.startedAt || Date.now())) / 1000);
-                    const remaining = Math.max(1, d - elapsed);
+                    // ✅ SYNC TIMER: remainingMs/receivedAt sont tous deux basés sur l'horloge
+                    // LOCALE (stockés par GrandeSalle.js) — aucun décalage serveur/client
+                    let remaining;
+                    if (Number.isFinite(roundData.remainingMs) && Number.isFinite(roundData.receivedAt)) {
+                      remaining = Math.max(1, Math.round((roundData.remainingMs - (Date.now() - roundData.receivedAt)) / 1000));
+                    } else {
+                      const elapsed = Math.floor((Date.now() - (roundData.startedAt || Date.now())) / 1000);
+                      remaining = Math.max(1, d - elapsed);
+                    }
                     setGameDuration(remaining);
                     setTimeLeft(remaining);
                   }
@@ -2011,9 +2018,17 @@ const Carte = () => {
             const isNewRound = Number.isFinite(idx) && idx !== gsLastRoundIndexRef.current;
             if (Number.isFinite(idx)) { gsLastRoundIndexRef.current = idx; setRoundsPlayed(idx); }
             if (Number.isFinite(d) && d > 0 && isNewRound) {
-              const serverStartedAt = payload?.startedAt;
-              const elapsed = serverStartedAt ? Math.max(0, Math.floor((Date.now() - serverStartedAt) / 1000)) : 0;
-              const remaining = Math.max(1, d - elapsed);
+              // ✅ SYNC TIMER: préférer remainingMs calculé PAR LE SERVEUR — le calcul
+              // Date.now() - startedAt comparait l'horloge du téléphone à celle du serveur
+              // (décalage de plusieurs secondes possible → timers désynchronisés entre joueurs)
+              let remaining;
+              if (Number.isFinite(payload?.remainingMs)) {
+                remaining = Math.max(1, Math.round(payload.remainingMs / 1000));
+              } else {
+                const serverStartedAt = payload?.startedAt;
+                const elapsed = serverStartedAt ? Math.max(0, Math.floor((Date.now() - serverStartedAt) / 1000)) : 0;
+                remaining = Math.max(1, d - elapsed);
+              }
               setGameDuration(remaining);
               setTimeLeft(remaining);
             }
@@ -9328,8 +9343,9 @@ setZones(dataWithRandomTexts);
           />
         </div>
       )}
-      {/* Lobby / Multijoueur UI (masqué en mode solo) */}
-      {socket && !hasSidebar && !isSoloMode && (
+      {/* Lobby / Multijoueur UI (masqué en mode solo ET en Grande Salle — un joueur GS
+          dont la connexion tarde ne doit JAMAIS voir le panneau "Salle Privée") */}
+      {socket && !hasSidebar && !isSoloMode && !gsMode && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', overflow: 'hidden' }}>
           <style>{`
             @keyframes lobbyFloat { 0%,100% { transform: translateY(0) scale(1); opacity: 0.15; } 50% { transform: translateY(-20px) scale(1.05); opacity: 0.3; } }

@@ -166,13 +166,19 @@ export default function LiveBoard() {
     }
   }, [tournamentId]);
 
+  // ✅ SYNC TIMER: tracker l'index de manche pour ne PAS redémarrer le timer
+  // sur les régénérations de carte (même manche → même timer)
+  const lastRoundIndexRef = useRef(null);
+
   useEffect(() => {
     const socket = io(getBackendUrl(), getAuthSocketOptions({ transports: ['websocket', 'polling'], reconnection: true, reconnectionAttempts: 10 }));
     socketRef.current = socket;
 
     socket.on('connect', () => {
       setConnected(true);
-      const joinPayload = { name: '📺 Écran Live' };
+      // ✅ FIX ÉCRAN LIVE: spectator=true → le serveur ne l'ajoute JAMAIS comme joueur
+      // (avant: compté comme joueur actif puis éliminé dans les vagues)
+      const joinPayload = { name: '📺 Écran Live', spectator: true };
       if (tournamentId) joinPayload.tournamentId = tournamentId;
       else joinPayload.salleId = 'grande-salle-publique';
       socket.emit('gs:join', joinPayload, (res) => {
@@ -207,17 +213,22 @@ export default function LiveBoard() {
         zonesRef.current = data.zones;
         invalidateZoneCenterCache();
       }
-      if (data?.duration) {
-        setTimeLeft(data.duration);
-        // Timer local côté client (pas de gs:timer-tick serveur)
+      // ✅ SYNC TIMER: redémarrer le timer UNIQUEMENT sur une nouvelle manche
+      // (les régénérations de carte gardent le même roundIndex — avant, chaque regen
+      // remettait le timer à fond → écran live désynchronisé des joueurs)
+      const idx = parseInt(data?.roundIndex, 10);
+      const isNewRound = !Number.isFinite(idx) || idx !== lastRoundIndexRef.current;
+      if (Number.isFinite(idx)) lastRoundIndexRef.current = idx;
+      if (data?.duration && isNewRound) {
+        // ✅ SYNC TIMER: utiliser remainingMs calculé par le SERVEUR (pas d'horloge client)
+        const totalMs = Number.isFinite(data?.remainingMs) ? data.remainingMs : data.duration * 1000;
+        setTimeLeft(Math.max(0, Math.round(totalMs / 1000)));
         const startTime = Date.now();
-        const dur = data.duration;
         const iv = setInterval(() => {
-          const elapsed = Math.floor((Date.now() - startTime) / 1000);
-          const remaining = dur - elapsed;
+          const remaining = Math.ceil((totalMs - (Date.now() - startTime)) / 1000);
           if (remaining <= 0) { clearInterval(iv); setTimeLeft(0); }
           else setTimeLeft(remaining);
-        }, 1000);
+        }, 500);
         // Stocker l'intervalle pour nettoyage
         if (socket._gsTimerIv) clearInterval(socket._gsTimerIv);
         socket._gsTimerIv = iv;

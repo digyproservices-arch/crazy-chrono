@@ -294,17 +294,18 @@ export default function GrandeSalle() {
         if (payload?.roundIndex) setRoundsPlayed(payload.roundIndex);
         if (payload?.eliminationWave) setEliminationWave(payload.eliminationWave);
         // Timer spectateur local
+        // ✅ SYNC TIMER: basé sur remainingMs serveur (les regens de carte gardent le
+        // temps restant réel au lieu de remettre le timer à fond)
         if (payload?.duration) {
-          setRoundTimeLeft(payload.duration);
+          const totalMs = Number.isFinite(payload?.remainingMs) ? payload.remainingMs : payload.duration * 1000;
+          setRoundTimeLeft(Math.max(0, Math.round(totalMs / 1000)));
           if (roundTimerRef.current) clearInterval(roundTimerRef.current);
           const startTime = Date.now();
-          const dur = payload.duration;
           roundTimerRef.current = setInterval(() => {
-            const elapsed = Math.floor((Date.now() - startTime) / 1000);
-            const remaining = dur - elapsed;
+            const remaining = Math.ceil((totalMs - (Date.now() - startTime)) / 1000);
             if (remaining <= 0) { clearInterval(roundTimerRef.current); setRoundTimeLeft(0); }
             else setRoundTimeLeft(remaining);
-          }, 1000);
+          }, 500);
         }
         return;
       }
@@ -325,6 +326,10 @@ export default function GrandeSalle() {
             duration: payload.duration || 90,
             roundIndex: payload.roundIndex || 1,
             startedAt: payload.startedAt || Date.now(),
+            // ✅ SYNC TIMER: remainingMs serveur + horodatage LOCAL de réception
+            // → Carte.js recalcule le restant sans comparer les horloges serveur/client
+            remainingMs: Number.isFinite(payload.remainingMs) ? payload.remainingMs : ((payload.duration || 90) * 1000),
+            receivedAt: Date.now(),
           }));
         }
       } catch {}

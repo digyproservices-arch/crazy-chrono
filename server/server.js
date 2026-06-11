@@ -2387,6 +2387,16 @@ function gsEmitState(salleId) {
   gsEmitStateNow(salleId);
 }
 
+// ✅ SYNC TIMER: temps restant de la manche calculé CÔTÉ SERVEUR (en ms).
+// Les clients l'utilisent tel quel — immunisé contre le décalage d'horloge des téléphones
+// (Date.now() client vs serveur pouvait différer de plusieurs secondes → timers désynchronisés)
+function gsRemainingMs(salle) {
+  const durMs = (salle.config.duration || 90) * 1000;
+  const basis = salle._roundTimerSetAt || salle.currentRoundStartedAt;
+  if (!basis) return durMs;
+  return Math.max(0, durMs - (Date.now() - basis));
+}
+
 function gsStartRound(salleId) {
   const salle = grandeSalles.get(salleId);
   if (!salle || !salle.sessionActive) return;
@@ -2428,6 +2438,7 @@ function gsStartRound(salleId) {
     roundIndex: salle.roundsPlayed,
     eliminationWave: salle.eliminationWave,
     startedAt: Date.now(),
+    remainingMs: (salle.config.duration || 90) * 1000, // ✅ SYNC TIMER
   };
   
   salle.currentRoundStartedAt = Date.now();
@@ -5006,7 +5017,7 @@ io.on('connection', (socket) => {
   // ===== GRANDE SALLE EVENTS =====
   let currentGS = null; // salleId the player is in
 
-  socket.on('gs:join', async ({ name, salleId, tournamentId, studentId: gsStudentId, email: gsEmail, userId: gsUserId }, cb) => {
+  socket.on('gs:join', async ({ name, salleId, tournamentId, studentId: gsStudentId, email: gsEmail, userId: gsUserId, spectator: gsSpectatorFlag }, cb) => {
     let id = salleId || 'grande-salle-publique';
     
     // If joining a tournament, use tournament ID as salle ID and load config
@@ -5137,6 +5148,28 @@ io.on('connection', (socket) => {
     
     const playerName = String(name || `Joueur-${socket.id.slice(0, 4)}`);
     
+    // ✅ FIX ÉCRAN LIVE: un join avec spectator=true (écran de diffusion, admin) n'est
+    // JAMAIS ajouté comme joueur — il était compté dans les actifs puis éliminé comme un joueur
+    if (gsSpectatorFlag === true) {
+      salle.spectators.add(socket.id);
+      console.log(`[GS] "${playerName}" joined "${id}" as SPECTATOR (flag)`);
+      sTrace.push('gs:join:spectator', { salle: id, name: playerName, socket: socket.id });
+      socket.emit('gs:joined-as-spectator', { salleId: id, reason: 'spectator', tournamentTitle: salle.tournamentTitle || null });
+      // Envoyer la manche en cours pour la vue live
+      if (salle.sessionActive && Array.isArray(salle.currentZones) && salle.currentZones.length > 0) {
+        socket.emit('gs:round:new', {
+          zones: salle.currentZones,
+          duration: salle.config.duration || 90,
+          roundIndex: salle.roundsPlayed,
+          startedAt: salle.currentRoundStartedAt || Date.now(),
+          remainingMs: gsRemainingMs(salle), // ✅ SYNC TIMER
+        });
+      }
+      gsEmitState(id);
+      if (typeof cb === 'function') cb({ ok: true, salleId: id, status: salle.status, spectator: true, tournamentTitle: salle.tournamentTitle || null });
+      return;
+    }
+    
     // If game is in progress, check if this player was already in the room (reconnection from Carte.js)
     if (salle.sessionActive) {
       // Try to find existing player by name (reconnection after navigating to /carte)
@@ -5179,6 +5212,7 @@ io.on('connection', (socket) => {
               duration: salle.config.duration || 90,
               roundIndex: salle.roundsPlayed,
               startedAt: salle.currentRoundStartedAt || Date.now(),
+              remainingMs: gsRemainingMs(salle), // ✅ SYNC TIMER: pas de calcul d'horloge côté client
             });
           }
           // ✅ RESUME: Si le match était en pause à cause de ce joueur, reprendre
@@ -5468,6 +5502,7 @@ io.on('connection', (socket) => {
           roundIndex: salle.roundsPlayed,
           eliminationWave: salle.eliminationWave,
           startedAt: salle.currentRoundStartedAt || Date.now(),
+          remainingMs: gsRemainingMs(salle), // ✅ SYNC TIMER
         });
       }
     } catch (err) {
