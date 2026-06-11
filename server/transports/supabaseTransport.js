@@ -22,6 +22,36 @@ class SupabaseTransport extends Transport {
     this._timer = setInterval(() => this._flush(), this._flushIntervalMs);
     // Ensure flush on process exit
     process.on('beforeExit', () => this._flush());
+
+    // ── Purge automatique quotidienne ──
+    // La table backend_logs avait atteint 1,4M lignes (0,89 GB) et fait dépasser
+    // le quota Supabase free (0,5 GB) → requêtes API restreintes, monitoring KO.
+    // Rétention par défaut: 14 jours (le rapport monitoring ne lit que 48h).
+    this._retentionDays = parseInt(process.env.BACKEND_LOGS_RETENTION_DAYS || '14', 10);
+    if (this._retentionDays > 0) {
+      // 1er passage 2 min après le démarrage, puis toutes les 24h
+      this._purgeStartTimer = setTimeout(() => {
+        this._purgeOldLogs();
+        this._purgeTimer = setInterval(() => this._purgeOldLogs(), 24 * 60 * 60 * 1000);
+      }, 2 * 60 * 1000);
+    }
+  }
+
+  async _purgeOldLogs() {
+    try {
+      const cutoff = new Date(Date.now() - this._retentionDays * 24 * 60 * 60 * 1000).toISOString();
+      const { error, count } = await this.supabase
+        .from('backend_logs')
+        .delete({ count: 'exact' })
+        .lt('timestamp', cutoff);
+      if (error) {
+        console.error('[SupabaseTransport] Purge error:', error.message);
+      } else {
+        console.log(`[SupabaseTransport] 🧹 Purge logs > ${this._retentionDays}j: ${count || 0} ligne(s) supprimée(s)`);
+      }
+    } catch (err) {
+      console.error('[SupabaseTransport] Purge exception:', err.message);
+    }
   }
 
   async log(info, callback) {
@@ -71,6 +101,8 @@ class SupabaseTransport extends Transport {
 
   close() {
     clearInterval(this._timer);
+    if (this._purgeStartTimer) clearTimeout(this._purgeStartTimer);
+    if (this._purgeTimer) clearInterval(this._purgeTimer);
     this._flush();
   }
 }
