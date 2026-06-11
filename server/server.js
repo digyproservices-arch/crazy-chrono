@@ -5382,11 +5382,14 @@ io.on('connection', (socket) => {
     } catch {}
     
     // Emit to all players
+    // ✅ SCALE FIX: leaderboard plafonné au top 50 — à 1200 joueurs, la liste complète
+    // à chaque paire validée saturait la bande passante (1200 entrées × 1200 destinataires)
     const leaderboard = Array.from(salle.players.entries())
       .filter(([, p]) => !p.eliminated)
       .map(([id, p]) => ({ id, name: p.name, score: p.score || 0 }))
       .sort((a, b) => b.score - a.score)
-      .map((p, i) => ({ ...p, rank: i + 1 }));
+      .map((p, i) => ({ ...p, rank: i + 1 }))
+      .slice(0, 50);
     
     io.to(`gs:${currentGS}`).emit('gs:pair:valid', {
       by: socket.id,
@@ -5394,6 +5397,15 @@ io.on('connection', (socket) => {
       a, b,
       leaderboard,
     });
+    
+    // ✅ SCALE FIX: cooldown de régénération — à grande échelle, plusieurs paires valides
+    // par seconde déclenchaient chacune une diffusion complète des zones à tous les sockets
+    // (tempête → pings manqués → déconnexions en masse). Max 1 regen / 1.5s par salle.
+    const GS_REGEN_COOLDOWN_MS = 1500;
+    if (salle._lastRegenAt && Date.now() - salle._lastRegenAt < GS_REGEN_COOLDOWN_MS) {
+      return; // paire comptée (score + foundPairs), la carte sera renouvelée au prochain regen autorisé
+    }
+    salle._lastRegenAt = Date.now();
     
     // Regenerate zones for this player (new card)
     const newSeed = Math.floor(Date.now() % 2147483647);
@@ -5439,9 +5451,10 @@ io.on('connection', (socket) => {
         try { validateZonesServer(newZones, { source: 'gs:round-regen', salleId: currentGS, roundIndex: salle.roundsPlayed }); } catch (e) { logger.warn('[GS] Zone validation error (regen):', e.message); }
         const roomName = `gs:${currentGS}`;
         const roomSockets = io.sockets.adapter.rooms.get(roomName);
-        const roomSocketList = roomSockets ? [...roomSockets] : [];
-        logger.info(`[GS][regen] Broadcasting gs:round:new to room=${roomName} sockets=[${roomSocketList.join(',')}] newZoneIds=[${newZones.slice(0,4).map(z=>z.id).join(',')}...] sender=${socket.id}`);
-        sTrace.push('gs:regen:broadcast', { room: roomName, sockets: roomSocketList, newZoneCount: newZones.length, sender: socket.id, senderName: player.name });
+        // ✅ SCALE FIX: ne plus sérialiser la liste complète des sockets (1200 IDs par regen)
+        const roomSocketCount = roomSockets ? roomSockets.size : 0;
+        logger.info(`[GS][regen] Broadcasting gs:round:new to room=${roomName} socketCount=${roomSocketCount} newZoneIds=[${newZones.slice(0,4).map(z=>z.id).join(',')}...] sender=${socket.id}`);
+        sTrace.push('gs:regen:broadcast', { room: roomName, socketCount: roomSocketCount, newZoneCount: newZones.length, sender: socket.id, senderName: player.name });
         io.to(roomName).emit('gs:round:new', {
           seed: newSeed,
           zones: newZones,
