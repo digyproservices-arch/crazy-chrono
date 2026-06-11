@@ -45,7 +45,7 @@ const SEVERITY = {
   [INCIDENT_TYPES.SLOW_CARD_GENERATION]: 'warning',
   [INCIDENT_TYPES.QUOTA_BYPASS]: 'error',
   [INCIDENT_TYPES.WRONG_CALC_RESULT]: 'critical',
-  [INCIDENT_TYPES.PAIR_REJECTED]: 'error',
+  [INCIDENT_TYPES.PAIR_REJECTED]: 'info', // clic erroné = gameplay normal, pas une erreur système
   [INCIDENT_TYPES.TRANSITION_DELAY_HIGH]: 'warning',
 };
 

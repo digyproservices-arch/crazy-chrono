@@ -4,6 +4,7 @@
 // ==========================================
 
 import { getSessionToken } from './sessionService';
+import { getAuthToken } from './apiHelpers';
 
 /**
  * Retourne l'objet auth à passer dans les options Socket.IO.
@@ -13,11 +14,13 @@ import { getSessionToken } from './sessionService';
 export function getSocketAuth() {
   const auth = {};
 
-  // JWT depuis cc_auth
+  // ✅ FIX TOKEN FIGÉ: getAuthToken() lit d'abord la session Supabase (sb-*) renouvelée
+  // automatiquement (~50 min), avec fallback sur cc_auth.token. La copie figée dans
+  // cc_auth expirait après 1h → handshake rejeté → déconnexions intempestives.
   let hasJwt = false;
   try {
-    const ccAuth = JSON.parse(localStorage.getItem('cc_auth') || '{}');
-    if (ccAuth?.token) { auth.token = ccAuth.token; hasJwt = true; }
+    const freshToken = getAuthToken();
+    if (freshToken) { auth.token = freshToken; hasJwt = true; }
   } catch {}
 
   // Session token (Phase 1)

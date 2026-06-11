@@ -762,6 +762,29 @@ function App() {
     return cleanup;
   }, []);
 
+  // ── ✅ FIX TOKEN FIGÉ: resynchroniser cc_auth.token à chaque renouvellement Supabase ──
+  // Le token d'accès expire après 1h. Supabase le renouvelle automatiquement (~50 min),
+  // mais la copie figée dans cc_auth.token n'était JAMAIS mise à jour → les composants
+  // qui la lisent envoyaient un token périmé → 401 → déconnexion auto intempestive
+  // (ex: prof qui revient après avoir laissé son écran).
+  useEffect(() => {
+    if (!supabase) return;
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      try {
+        if ((event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') && session?.access_token) {
+          const cur = JSON.parse(localStorage.getItem('cc_auth') || 'null');
+          if (cur && cur.token !== session.access_token) {
+            cur.token = session.access_token;
+            localStorage.setItem('cc_auth', JSON.stringify(cur));
+            console.log(`[Auth] 🔄 cc_auth.token resynchronisé (${event})`);
+            try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
+          }
+        }
+      } catch {}
+    });
+    return () => { try { sub?.subscription?.unsubscribe?.(); } catch {} };
+  }, []);
+
   // ── Auto-logout sur 401: déconnexion propre si le token est rejeté par le backend ──
   const [tokenExpiredBanner, setTokenExpiredBanner] = useState(false);
   useEffect(() => {
