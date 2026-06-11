@@ -408,39 +408,128 @@ export default function LiveBoard() {
     </div>
   );
 
-  // ========== FINISHED ==========
+  // ========== FINISHED — PODIUM ANIMÉ ==========
   if (status === 'finished' && finish) {
     const winners = finish.winners || [finish.winner].filter(Boolean);
     const hasTie = finish.hasTie || winners.length > 1;
+    const ranking = finish.fullRanking || [];
+    const top3 = ranking.slice(0, 3);
+    const rest = ranking.slice(3, 10);
+    // Podium: [2e, 1er, 3e] pour l'effet d'escalier classique
+    const PODIUM = [
+      { p: top3[1], rank: 2, h: 150, medal: '🥈', delay: 0.5, grad: 'linear-gradient(180deg, #E8EDF2, #9BA8B5)', glow: 'rgba(200,215,230,0.45)', ring: '#D7DFE8' },
+      { p: top3[0], rank: 1, h: 215, medal: '👑', delay: 0.9, grad: 'linear-gradient(180deg, #FFE34D, #F5A623)', glow: 'rgba(255,200,40,0.55)', ring: '#FFD34D' },
+      { p: top3[2], rank: 3, h: 110, medal: '🥉', delay: 0.2, grad: 'linear-gradient(180deg, #E2A26C, #B06A3B)', glow: 'rgba(205,127,60,0.45)', ring: '#D89265' },
+    ];
+    const CONFETTI_COLORS = ['#FFD34D', '#F5A623', '#FF6B35', '#34d399', '#60a5fa', '#f472b6', '#a78bfa', '#fff'];
+    const confetti = Array.from({ length: 60 }, (_, i) => {
+      const seed = (i * 2654435761) % 1000;
+      return {
+        left: (seed % 100),
+        size: 6 + (seed % 9),
+        delay: (seed % 50) / 10,
+        dur: 4 + (seed % 40) / 10,
+        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+        rot: seed % 360,
+        round: i % 3 === 0,
+      };
+    });
     return (
-      <div style={{ position: 'fixed', inset: 0, background: CC.bgGradient, color: '#fff', padding: 32, overflow: 'auto' }}>
-        <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
-          <div style={{ fontSize: 80, marginBottom: 16 }}>🏆</div>
-          <h1 style={{ fontSize: 42, fontWeight: 900, margin: '0 0 8px', color: CC.yellow }}>
-            {hasTie ? 'Égalité au sommet !' : 'Victoire !'}
+      <div style={{ position: 'fixed', inset: 0, background: 'radial-gradient(ellipse at 50% 120%, #1AACBE 0%, #0D6A7A 55%, #073B45 100%)', color: '#fff', overflow: 'auto' }}>
+        <style>{`
+          @keyframes ccPodiumRise { 0% { transform: translateY(110%); opacity: 0; } 60% { transform: translateY(-4%); } 100% { transform: translateY(0); opacity: 1; } }
+          @keyframes ccChampDrop { 0% { transform: translateY(-40px) scale(0.6); opacity: 0; } 70% { transform: translateY(6px) scale(1.05); } 100% { transform: translateY(0) scale(1); opacity: 1; } }
+          @keyframes ccTrophyBounce { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-14px) rotate(3deg); } }
+          @keyframes ccTitleIn { 0% { transform: scale(0.4); opacity: 0; } 70% { transform: scale(1.12); } 100% { transform: scale(1); opacity: 1; } }
+          @keyframes ccGlowPulse { 0%, 100% { opacity: 0.55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.12); } }
+          @keyframes ccConfettiFall { 0% { transform: translateY(-8vh) rotate(0deg); opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(108vh) rotate(720deg); opacity: 0; } }
+          @keyframes ccRowIn { 0% { transform: translateX(-30px); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
+          @keyframes ccShine { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+          @keyframes ccCrownFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        `}</style>
+
+        {/* Confettis */}
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+          {confetti.map((c, i) => (
+            <div key={i} style={{
+              position: 'absolute', top: '-5vh', left: `${c.left}%`, width: c.size, height: c.size * (c.round ? 1 : 1.8),
+              background: c.color, borderRadius: c.round ? '50%' : 2, transform: `rotate(${c.rot}deg)`,
+              animation: `ccConfettiFall ${c.dur}s linear ${c.delay}s infinite`,
+            }} />
+          ))}
+        </div>
+
+        <div style={{ maxWidth: 860, margin: '0 auto', textAlign: 'center', padding: '28px 24px 48px', position: 'relative' }}>
+          {/* Trophée + halo */}
+          <div style={{ position: 'relative', display: 'inline-block', marginBottom: 4 }}>
+            <div style={{ position: 'absolute', inset: '-30px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,211,77,0.4) 0%, transparent 70%)', animation: 'ccGlowPulse 2.5s ease-in-out infinite' }} />
+            <div style={{ fontSize: 84, position: 'relative', animation: 'ccTrophyBounce 2.2s ease-in-out infinite', filter: 'drop-shadow(0 8px 24px rgba(255,180,0,0.5))' }}>🏆</div>
+          </div>
+          <h1 style={{
+            fontSize: 54, fontWeight: 900, margin: '0 0 6px', letterSpacing: 1, animation: 'ccTitleIn 0.7s cubic-bezier(0.34,1.56,0.64,1) both',
+            background: 'linear-gradient(90deg, #F5A623 20%, #FFF3C4 50%, #F5A623 80%)', backgroundSize: '200% auto',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', animationName: 'ccTitleIn', textShadow: 'none',
+          }}>
+            {hasTie ? 'ÉGALITÉ AU SOMMET !' : 'VICTOIRE !'}
           </h1>
-          <div style={{ fontSize: 18, color: 'rgba(255,255,255,0.6)', marginBottom: 24 }}>{finish.totalPlayers} joueurs — {finish.roundsPlayed} manches</div>
-          <div style={{ background: `${CC.yellow}1A`, border: `2px solid ${CC.yellow}66`, borderRadius: 20, padding: 24, marginBottom: 24 }}>
-            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 12 }}>{hasTie ? `${winners.length} gagnants ex-aequo — Tirage au sort !` : 'Champion'}</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
-              {winners.map((w, i) => (
-                <div key={i} style={{ background: `${CC.yellow}33`, borderRadius: 12, padding: '12px 20px', border: `1px solid ${CC.yellow}` }}>
-                  <div style={{ fontSize: 28, fontWeight: 900, color: CC.yellow }}>{w.name}</div>
-                  <div style={{ fontSize: 16, color: '#fff' }}>{w.score} pts</div>
+          <div style={{ fontSize: 17, color: 'rgba(255,255,255,0.65)', fontWeight: 600, marginBottom: hasTie ? 12 : 24 }}>
+            {finish.totalPlayers} joueurs · {finish.roundsPlayed} manches
+          </div>
+          {hasTie && (
+            <div style={{ display: 'inline-block', background: 'rgba(245,166,35,0.18)', border: '1px solid rgba(245,166,35,0.5)', borderRadius: 14, padding: '10px 22px', marginBottom: 20, fontSize: 16, fontWeight: 800, color: '#FFD34D' }}>
+              🎲 {winners.length} ex-aequo — le gagnant final sera tiré au sort !
+            </div>
+          )}
+
+          {/* PODIUM */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 14, marginTop: 18, marginBottom: 36, minHeight: 330 }}>
+            {PODIUM.map(({ p, rank, h, medal, delay, grad, glow, ring }) => p ? (
+              <div key={rank} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: rank === 1 ? 230 : 190 }}>
+                {/* Joueur au-dessus de la marche */}
+                <div style={{ animation: `ccChampDrop 0.6s cubic-bezier(0.34,1.56,0.64,1) ${delay + 0.55}s both`, marginBottom: 10 }}>
+                  <div style={{ fontSize: rank === 1 ? 44 : 32, marginBottom: 4, animation: rank === 1 ? 'ccCrownFloat 2s ease-in-out infinite' : 'none', filter: rank === 1 ? 'drop-shadow(0 4px 12px rgba(255,200,0,0.6))' : 'none' }}>{medal}</div>
+                  <div style={{
+                    width: rank === 1 ? 86 : 66, height: rank === 1 ? 86 : 66, borderRadius: '50%', margin: '0 auto 8px',
+                    background: grad, border: `3px solid ${ring}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: rank === 1 ? 30 : 22, fontWeight: 900, color: '#3a2a10',
+                    boxShadow: `0 0 ${rank === 1 ? 45 : 25}px ${glow}, 0 8px 20px rgba(0,0,0,0.35)`,
+                  }}>
+                    {getInitials(p.name || '?')}
+                  </div>
+                  <div style={{ fontSize: rank === 1 ? 26 : 19, fontWeight: 900, color: '#fff', textShadow: '0 2px 10px rgba(0,0,0,0.4)', maxWidth: rank === 1 ? 220 : 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '0 auto' }}>{p.name}</div>
+                  <div style={{ fontSize: rank === 1 ? 20 : 16, fontWeight: 800, color: ring }}>{p.score} pts</div>
+                </div>
+                {/* Marche du podium */}
+                <div style={{ width: '100%', overflow: 'hidden', borderRadius: '14px 14px 0 0' }}>
+                  <div style={{
+                    height: h, background: grad, borderRadius: '14px 14px 0 0', position: 'relative',
+                    animation: `ccPodiumRise 0.7s cubic-bezier(0.34,1.3,0.64,1) ${delay}s both`,
+                    boxShadow: `0 -4px 35px ${glow}`, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 14,
+                  }}>
+                    <span style={{ fontSize: rank === 1 ? 52 : 38, fontWeight: 900, color: 'rgba(0,0,0,0.35)', lineHeight: 1 }}>{rank}</span>
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.45) 50%, transparent 60%)', backgroundSize: '200% auto', animation: `ccShine 3s linear ${delay + 1}s infinite` }} />
+                  </div>
+                </div>
+              </div>
+            ) : <div key={rank} style={{ width: rank === 1 ? 230 : 190 }} />)}
+          </div>
+
+          {/* Classement 4e et suivants */}
+          {rest.length > 0 && (
+            <div style={{ textAlign: 'left', maxWidth: 560, margin: '0 auto' }}>
+              {rest.map((p, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', gap: 14, padding: '11px 18px', marginBottom: 6,
+                  background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12,
+                  animation: `ccRowIn 0.4s ease-out ${1.6 + i * 0.1}s both`, backdropFilter: 'blur(6px)',
+                }}>
+                  <span style={{ fontWeight: 900, color: 'rgba(255,255,255,0.45)', width: 38, fontSize: 17 }}>#{p.finalRank}</span>
+                  <span style={{ flex: 1, fontWeight: 700, color: '#fff', fontSize: 17 }}>{p.name}</span>
+                  <span style={{ fontWeight: 800, color: 'rgba(255,255,255,0.75)', fontSize: 17 }}>{p.score} pts</span>
                 </div>
               ))}
             </div>
-            {hasTie && <div style={{ marginTop: 16, fontSize: 16, color: CC.yellow, fontWeight: 700 }}>🎲 Le gagnant final sera désigné par tirage au sort !</div>}
-          </div>
-          <div style={{ textAlign: 'left' }}>
-            {(finish.fullRanking || []).slice(0, 10).map((p, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', background: i < 3 ? `${CC.yellow}15` : CC.cardBg, borderRadius: 10, marginBottom: 4 }}>
-                <span style={{ fontWeight: 900, color: i < 3 ? CC.yellow : 'rgba(255,255,255,0.4)', width: 36, fontSize: 16 }}>#{p.finalRank}</span>
-                <span style={{ flex: 1, fontWeight: 700, color: '#fff', fontSize: 16 }}>{p.name}</span>
-                <span style={{ fontWeight: 800, color: 'rgba(255,255,255,0.7)', fontSize: 16 }}>{p.score} pts</span>
-              </div>
-            ))}
-          </div>
+          )}
         </div>
       </div>
     );
