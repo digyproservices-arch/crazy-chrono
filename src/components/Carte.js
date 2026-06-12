@@ -8785,6 +8785,7 @@ setZones(dataWithRandomTexts);
           width={1000}
           height={1000}
           viewBox="0 0 1000 1000"
+          preserveAspectRatio="xMidYMid slice"
           style={{
             position: 'absolute',
             top: 0,

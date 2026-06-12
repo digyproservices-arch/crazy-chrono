@@ -194,9 +194,12 @@ body.cc-game #root {
 
 .carte {
   position: relative;
-  height: 100vh;           /* fill vertical space */
-  width: auto;             /* derive width from height + aspect ratio */
-  max-width: 100vw;        /* avoid horizontal overflow */
+  /* ✅ FIX DÉCALAGE: carré GARANTI. Avant: height:100vh + max-width:100vw →
+     quand la fenêtre était plus étroite que haute, le navigateur ignorait
+     aspect-ratio (largeur ET hauteur contraintes) → conteneur rectangulaire →
+     fond (object-fit:cover) et overlay SVG (meet) divergeaient → zones décalées. */
+  height: min(100vh, 100vw);
+  width: min(100vh, 100vw);
   aspect-ratio: 1 / 1;     /* always square */
   border-radius: 0;
   overflow: hidden;
