@@ -9206,13 +9206,31 @@ setZones(dataWithRandomTexts);
                   // Adapter la taille du texte pour qu'il reste dans la zone
                   const contentStr = String(zone.content ?? '').trim();
                   const charW = 0.52;
-                  const fitW = contentStr.length > 0 ? (bbox.width * 0.92) / (contentStr.length * charW) : rawFontSize;
-                  const fitH = bbox.height * 0.75;
-                  // Pour chiffres: bbox ne reflète pas la taille visuelle (handles Bézier hors bbox), skip fitH
-                  const fontSize = Math.max(10, zone.type === 'chiffre' ? Math.min(rawFontSize, fitW) : Math.min(rawFontSize, fitW, fitH));
                   // In Training/Arena mode, use server zone data directly (bypass localStorage-derived state)
                   const isServerMode = trainingMatchId || arenaMatchId;
                   const angle = isServerMode ? Number(zone.angle || 0) : Number(calcAngles[zone.id] || 0);
+                  // ✅ FIX DÉBORDEMENT CALCULS: mesurer la zone dans le REPÈRE DU TEXTE PIVOTÉ.
+                  // Avant: ajustement sur la bbox alignée aux axes — pour une zone en quart
+                  // d'anneau, la bbox couvre tout le quadrant alors que la bande jaune est
+                  // étroite → police trop grande → le calcul débordait sur l'anneau des textes.
+                  let availW = bbox.width, availH = bbox.height;
+                  if (zone.type === 'calcul' && Array.isArray(zone.points) && zone.points.length >= 2) {
+                    const aRad = (-angle * Math.PI) / 180;
+                    const cosA = Math.cos(aRad), sinA = Math.sin(aRad);
+                    let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
+                    for (const p of zone.points) {
+                      const dx = p.x - cx, dy = p.y - cy;
+                      const u = dx * cosA - dy * sinA;   // direction du texte (tangente)
+                      const v = dx * sinA + dy * cosA;   // perpendiculaire (épaisseur de bande)
+                      if (u < minU) minU = u; if (u > maxU) maxU = u;
+                      if (v < minV) minV = v; if (v > maxV) maxV = v;
+                    }
+                    if (Number.isFinite(minU)) { availW = maxU - minU; availH = maxV - minV; }
+                  }
+                  const fitW = contentStr.length > 0 ? (availW * 0.92) / (contentStr.length * charW) : rawFontSize;
+                  const fitH = availH * 0.7;
+                  // Pour chiffres: bbox ne reflète pas la taille visuelle (handles Bézier hors bbox), skip fitH
+                  const fontSize = Math.max(10, zone.type === 'chiffre' ? Math.min(rawFontSize, fitW) : Math.min(rawFontSize, fitW, fitH));
                   const mo = isServerMode ? (zone.mathOffset || { x: 0, y: 0 }) : (mathOffsets[zone.id] || { x: 0, y: 0 });
                   const handleRotate = (e) => {
                     if (gameActive || !editMode) return;
