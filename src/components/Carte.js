@@ -7940,10 +7940,19 @@ setZones(dataWithRandomTexts);
     return inside;
   }
 
+  // ⚠️ Rayons VISIBLES de la bande jaune, mesurés dans carte-svg.svg (coords
+  // plateau 1000×1000): cercle blanc r=185.2, bord extérieur bande r=263.5.
+  // Les tracés des zones débordent de quelques px SOUS ces éléments (dessinés
+  // par-dessus la bande) → sans garde-fou, un texte peut légalement chevaucher
+  // le cercle blanc ou l'anneau vert de quelques pixels.
+  const BAND_R_INNER = 187; // cercle blanc + marge 2px
+  const BAND_R_OUTER = 262; // bord extérieur bande − marge 1.5px
+
   // Plus grande taille "d" telle que le rectangle occupé par le texte
   // (unitW×d de large, unitH×d de haut, centré en (px,py), incliné de angleDeg)
   // tienne entièrement dans le polygone de la zone. Recherche binaire.
-  function maxSizeInsideZone(points, px, py, angleDeg, unitW, unitH, dMax) {
+  // rInner/rOuter (optionnels): bornes radiales supplémentaires (bande visible).
+  function maxSizeInsideZone(points, px, py, angleDeg, unitW, unitH, dMax, rInner, rOuter) {
     const poly = flattenZonePoints(points || []);
     if (poly.length < 3 || !(dMax > 0)) return dMax;
     const th = (angleDeg * Math.PI) / 180;
@@ -7957,6 +7966,11 @@ setZones(dataWithRandomTexts);
         const x = px + ux * (a * hw) + vx * (b * hh);
         const y = py + uy * (a * hw) + vy * (b * hh);
         if (!pointInPolygon(poly, x, y)) return false;
+        if (rInner || rOuter) {
+          const rr = Math.hypot(x - 500, y - 500);
+          if (rInner && rr < rInner) return false;
+          if (rOuter && rr > rOuter) return false;
+        }
       }
       return true;
     };
@@ -9377,7 +9391,7 @@ setZones(dataWithRandomTexts);
                             for (let i = 0; i <= 2 * steps; i++) {
                               const k = (i % 2 === 1) ? -((i + 1) / 2) : i / 2;
                               const off = steps ? (k * 0.08 * bandTh - moDot) : -moDot;
-                              const d = maxSizeInsideZone(zone.points, px0 + bandDX * off, py0 + bandDY * off, angle, unitW, 1.92, rawFontSize * 0.85);
+                              const d = maxSizeInsideZone(zone.points, px0 + bandDX * off, py0 + bandDY * off, angle, unitW, 1.92, rawFontSize * 0.85, BAND_R_INNER, BAND_R_OUTER);
                               if (d > bestD + 0.5) { bestD = d; bestOff = off; }
                             }
                             fracROff = bestOff;
