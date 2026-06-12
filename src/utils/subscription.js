@@ -31,7 +31,10 @@ export function getDailyCounts() {
   } catch { return { dayISO: todayISO(), sessions: 0 }; }
 }
 
-export function canStartSessionToday(limit = 3) {
+// Nombre de parties gratuites par jour (doit rester aligné avec FREE_SESSIONS_PER_DAY côté serveur)
+export const FREE_SESSIONS_PER_DAY = 2;
+
+export function canStartSessionToday(limit = FREE_SESSIONS_PER_DAY) {
   const q = getDailyCounts();
   return (q.sessions || 0) < limit;
 }

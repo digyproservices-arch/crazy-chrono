@@ -102,7 +102,7 @@ const FEATURES_INSTITUTIONS = [
 const FAQ_ITEMS = [
   {
     q: 'Puis-je tester gratuitement avant de m\'abonner ?',
-    a: 'Oui ! Sans compte, vous bénéficiez de 3 sessions gratuites par jour en mode Solo. Pour les institutions, nous offrons un mois de pilote gratuit pour 2-3 classes sur demande.',
+    a: 'Oui ! Sans compte, vous bénéficiez de 2 parties gratuites par jour en mode Solo. Pour les institutions, nous offrons un mois de pilote gratuit pour 2-3 classes sur demande.',
   },
   {
     q: 'Quelle est la durée d\'engagement ?',
@@ -247,7 +247,7 @@ export default function Pricing() {
         <div style={{
           textAlign: 'center', marginTop: 16, fontSize: 13, color: '#94a3b8',
         }}>
-          🆓 Sans compte : 3 sessions gratuites/jour en mode Solo
+          🆓 Sans compte : 2 parties gratuites/jour en mode Solo
         </div>
       </section>
 
@@ -414,7 +414,7 @@ export default function Pricing() {
           Prêt à apprendre en s'amusant ?
         </h2>
         <p style={{ marginTop: 8, opacity: 0.9, fontSize: 16 }}>
-          3 sessions gratuites/jour — Aucun engagement pour commencer
+          2 parties gratuites/jour — Aucun engagement pour commencer
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 20, flexWrap: 'wrap' }}>
           <button

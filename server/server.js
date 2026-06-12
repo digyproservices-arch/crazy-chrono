@@ -318,7 +318,7 @@ app.use('/api/rgpd', rgpdRoutes);
 app.post('/usage/can-start', requireAuth, async (req, res) => {
   try {
     const userId = String(req.body?.user_id || '').trim();
-    const FREE_LIMIT = Number(process.env.FREE_SESSIONS_PER_DAY || 3);
+    const FREE_LIMIT = Number(process.env.FREE_SESSIONS_PER_DAY || 2);
     if (!userId) return res.status(400).json({ ok: false, error: 'missing_user_id' });
 
     // If Supabase admin is not set, allow to avoid blocking; frontend still enforces local limit

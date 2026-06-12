@@ -179,7 +179,7 @@ class GameErrorBoundary extends React.Component {
 }
 
 // ⚠️ MAINTENANCE MODE: mettre à true pour bloquer l'accès public
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 
 // ✅ AUTH WRAPPERS (outside App to prevent remount loops!)
 const RequireAuth = ({ children, auth }) => auth ? children : <Navigate to="/login" replace />;

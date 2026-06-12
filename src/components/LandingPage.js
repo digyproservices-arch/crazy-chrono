@@ -91,7 +91,7 @@ export default function LandingPage() {
           marginTop: 40, display: 'flex', gap: 32, flexWrap: 'wrap', justifyContent: 'center',
           fontSize: 14, opacity: 0.85,
         }}>
-          <span>✅ 3 sessions gratuites/jour</span>
+          <span>✅ 2 parties gratuites/jour</span>
           <span>✅ Aucune carte bancaire requise</span>
           <span>✅ CP → Collège</span>
         </div>

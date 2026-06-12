@@ -2313,8 +2313,8 @@ const Carte = () => {
                 return;
               }
               if (isFree()) {
-                if (!canStartSessionToday(3)) {
-                  alert('Limite quotidienne atteinte (3 sessions/jour en version gratuite). Passe à la version Pro pour continuer.');
+                if (!canStartSessionToday()) {
+                  alert('Limite quotidienne atteinte (2 parties/jour en version gratuite). Passe à la version Pro pour continuer.');
                   try { navigate('/pricing'); } catch {}
                   return;
                 }
@@ -2325,13 +2325,13 @@ const Carte = () => {
               s.emit('startGame');
             } catch (e) {
               console.warn('[CC][quota:auto] error:', e?.message || e);
-              if (isFree() && !canStartSessionToday(3)) { alert('Limite quotidienne atteinte.'); try { navigate('/pricing'); } catch {} return; }
+              if (isFree() && !canStartSessionToday()) { alert('Limite quotidienne atteinte.'); try { navigate('/pricing'); } catch {} return; }
               incrementSessionCount();
               try { s.emit('startGame'); } catch {}
             }
           }).catch(() => {
             console.warn('[CC][quota:auto] server unreachable, using local limit');
-            if (isFree() && !canStartSessionToday(3)) { alert('Limite quotidienne atteinte.'); try { navigate('/pricing'); } catch {} return; }
+            if (isFree() && !canStartSessionToday()) { alert('Limite quotidienne atteinte.'); try { navigate('/pricing'); } catch {} return; }
             incrementSessionCount();
             try { applyFreeLimits(s); } catch {}
             try { pgStartSession({ mode: 'solo', classes: Array.isArray(cfgSolo?.classes) ? cfgSolo.classes : [], themes: Array.isArray(cfgSolo?.themes) ? cfgSolo.themes : [] }); } catch {}
@@ -3759,8 +3759,8 @@ function startGame() {
     const free = isFree();
     console.log('[CC][quota]', source, '| isFree=' + free + ', localSessions=', getDailyCounts().sessions);
     if (free) {
-      if (!canStartSessionToday(3)) {
-        alert('Limite quotidienne atteinte (3 sessions/jour en version gratuite). Passe à la version Pro pour continuer.');
+      if (!canStartSessionToday()) {
+        alert('Limite quotidienne atteinte (2 parties/jour en version gratuite). Passe à la version Pro pour continuer.');
         try { navigate('/pricing'); } catch {}
         return true;
       }
@@ -10241,6 +10241,27 @@ setZones(dataWithRandomTexts);
                     );
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* CTA abonnement — tournois mensuels avec lots partenaires (non-abonnés uniquement) */}
+            {isFree() && (
+              <div style={{
+                background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', borderRadius: 16,
+                padding: isMobile ? '14px 16px' : '18px 24px', maxWidth: isMobile ? '90vw' : '500px', width: '100%',
+                marginBottom: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', border: '2px solid #f59e0b',
+                textAlign: 'center', animation: 'slideUp 0.6s ease-out 0.55s both'
+              }}>
+                <div style={{ fontSize: isMobile ? 15 : 17, fontWeight: 800, color: '#92400e', marginBottom: 6 }}>
+                  🏆 Chaque mois, un tournoi avec des lots à gagner !
+                </div>
+                <div style={{ fontSize: isMobile ? 12 : 13, color: '#78350f', lineHeight: 1.5, marginBottom: 10 }}>
+                  Abonne-toi pour participer aux tournois Grande Salle et tenter de remporter les lots offerts par nos partenaires qui récompensent le savoir.
+                </div>
+                <button onClick={() => { try { navigate('/pricing'); } catch {} }}
+                  style={{ padding: '10px 24px', borderRadius: 10, border: 'none', background: '#0D6A7A', color: '#fff', fontWeight: 800, fontSize: isMobile ? 13 : 14, cursor: 'pointer', boxShadow: '0 4px 12px rgba(13,106,122,0.35)' }}>
+                  ✨ Je m'abonne
+                </button>
               </div>
             )}
 
