@@ -8704,36 +8704,47 @@ setZones(dataWithRandomTexts);
           const isBravo = gameMsg === 'Bravo !';
           const isTropTard = gameMsg === 'Trop tard !';
           const isMauvaise = gameMsg === 'Mauvaise association';
+          // ✅ Feedback dans le ROND BLANC CENTRAL (espace mort du plateau)
+          // — avant: rectangle large qui masquait des calculs/chiffres jouables
           return (
             <div style={{
               position: 'absolute', top: '50%', left: '50%',
               transform: 'translate(-50%, -50%)',
+              width: '28%',
+              aspectRatio: '1 / 1',
+              borderRadius: '50%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
               background: isBravo
-                ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%)'
+                ? 'radial-gradient(circle at 35% 30%, #34d399 0%, #16a34a 55%, #15803d 100%)'
                 : (isTropTard || isMauvaise)
-                  ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%)'
+                  ? 'radial-gradient(circle at 35% 30%, #f87171 0%, #dc2626 55%, #b91c1c 100%)'
                   : 'rgba(30,30,30,0.92)',
               color: '#fff',
-              padding: isMobile ? '16px 32px' : '22px 48px',
-              borderRadius: 24,
+              padding: '6%',
+              boxSizing: 'border-box',
               fontWeight: 900,
-              fontSize: isMobile ? 32 : 44,
+              fontSize: 'clamp(14px, 3.4vmin, 32px)',
+              lineHeight: 1.1,
               zIndex: 50,
               pointerEvents: 'none',
               textAlign: 'center',
-              border: isBravo ? '3px solid rgba(250,204,21,0.6)' : (isTropTard || isMauvaise) ? '3px solid rgba(255,100,100,0.5)' : 'none',
+              border: isBravo ? '3px solid rgba(250,204,21,0.7)' : (isTropTard || isMauvaise) ? '3px solid rgba(255,150,150,0.6)' : 'none',
+              boxShadow: isBravo ? '0 0 40px rgba(34,197,94,0.55)' : (isTropTard || isMauvaise) ? '0 0 40px rgba(220,38,38,0.5)' : '0 0 25px rgba(0,0,0,0.35)',
               textShadow: '0 3px 12px rgba(0,0,0,0.4)',
-              letterSpacing: 1.5,
+              letterSpacing: 1,
               animation: isBravo
                 ? 'gameMsgBravo 0.5s cubic-bezier(0.34,1.56,0.64,1) forwards, gameMsgBravoGlow 1s ease-in-out 0.5s infinite'
                 : (isTropTard || isMauvaise)
                   ? 'gameMsgShake 0.6s ease-out forwards'
                   : 'fadeIn 0.2s ease-out',
             }}>
-              {isBravo && <span style={{ fontSize: isMobile ? 36 : 48, marginRight: 8 }}>✨</span>}
-              {isTropTard && <span style={{ fontSize: isMobile ? 30 : 40, marginRight: 8 }}>⏰</span>}
-              {gameMsg}
-              {isBravo && <span style={{ fontSize: isMobile ? 36 : 48, marginLeft: 8 }}>✨</span>}
+              {isBravo && <span style={{ fontSize: 'clamp(18px, 4.2vmin, 40px)', lineHeight: 1 }}>✨</span>}
+              {isTropTard && <span style={{ fontSize: 'clamp(16px, 3.8vmin, 36px)', lineHeight: 1 }}>⏰</span>}
+              {isMauvaise && <span style={{ fontSize: 'clamp(16px, 3.8vmin, 36px)', lineHeight: 1 }}>❌</span>}
+              <span>{gameMsg}</span>
             </div>
           );
         })()}
