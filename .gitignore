@@ -51,3 +51,4 @@ server/uploads/
 e2e-report/
 test-results/
 playwright-report/
+server/data/server_trace.json 
