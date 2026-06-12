@@ -9227,8 +9227,11 @@ setZones(dataWithRandomTexts);
                     }
                     if (Number.isFinite(minU)) { availW = maxU - minU; availH = maxV - minV; }
                   }
-                  const fitW = contentStr.length > 0 ? (availW * 0.92) / (contentStr.length * charW) : rawFontSize;
-                  const fitH = availH * 0.7;
+                  // Coefficients calibrés: charW réel ~0.48 pour chiffres+espaces ("3 + 7"),
+                  // bande exploitable à 90% (le léger arrondi de la bande absorbe le reste)
+                  const effCharW = zone.type === 'calcul' ? 0.48 : charW;
+                  const fitW = contentStr.length > 0 ? (availW * 1.0) / (contentStr.length * effCharW) : rawFontSize;
+                  const fitH = availH * 0.9;
                   // Pour chiffres: bbox ne reflète pas la taille visuelle (handles Bézier hors bbox), skip fitH
                   const fontSize = Math.max(10, zone.type === 'chiffre' ? Math.min(rawFontSize, fitW) : Math.min(rawFontSize, fitW, fitH));
                   const mo = isServerMode ? (zone.mathOffset || { x: 0, y: 0 }) : (mathOffsets[zone.id] || { x: 0, y: 0 });
