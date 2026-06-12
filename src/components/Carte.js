@@ -9226,6 +9226,15 @@ setZones(dataWithRandomTexts);
                       if (v < minV) minV = v; if (v > maxV) maxV = v;
                     }
                     if (Number.isFinite(minU)) { availW = maxU - minU; availH = maxV - minV; }
+                    // ✅ COMPENSATION DE COURBURE (longs calculs): un texte DROIT posé sur
+                    // une bande COURBE déborde à ses extrémités (flèche de l'arc = L²/8ρ).
+                    // On limite la corde utilisable pour que la flèche reste ≤ 1/4 de
+                    // l'épaisseur de bande → les bouts du texte restent dans la bande.
+                    const rho = Math.hypot(cx - 500, cy - 500); // rayon vs centre du plateau
+                    if (rho > 1 && availH > 0) {
+                      const maxChord = Math.sqrt(2 * rho * availH);
+                      if (maxChord < availW) availW = maxChord;
+                    }
                   }
                   // Coefficients calibrés: charW réel ~0.45 pour chiffres+espaces ("3 + 7").
                   // fitH à 105% de la bande: la hauteur dessinée des chiffres ne fait que
