@@ -69,6 +69,18 @@ function resolveImageSrc(raw) {
   return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
 }
 
+// Convertit une URL YouTube (watch / youtu.be / shorts / embed) en URL embed autoplay muet en boucle
+function getYouTubeEmbedUrl(url) {
+  try {
+    const u = String(url || '').trim();
+    if (!u) return null;
+    const m = u.match(/[?&]v=([\w-]{6,})/) || u.match(/youtu\.be\/([\w-]{6,})/) || u.match(/youtube\.com\/(?:shorts|embed)\/([\w-]{6,})/);
+    const id = m && m[1];
+    if (!id) return null;
+    return `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&rel=0`;
+  } catch { return null; }
+}
+
 export default function LiveBoard() {
   const { tournamentId } = useParams();
   const navigate = useNavigate();
@@ -324,7 +336,9 @@ export default function LiveBoard() {
   }, [leaderboard, players]);
 
   const svgPath = `${process.env.PUBLIC_URL}/images/carte-svg.svg`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`https://app.crazy-chrono.com/grande-salle/join/${tournamentId}`)}&color=0D6A7A`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`${window.location.origin}/grande-salle/join/${tournamentId}`)}&color=0D6A7A`;
+  const partnerVideoEmbed = getYouTubeEmbedUrl(tournamentInfo?.partner_video_url);
+  const hasPartner = !!(tournamentInfo?.partner_name || tournamentInfo?.partner_lot);
 
   const BADGE = (c) => ({ display: 'inline-block', padding: '4px 12px', borderRadius: 20, background: c, fontSize: 12, fontWeight: 700 });
 
@@ -349,7 +363,7 @@ export default function LiveBoard() {
           <div style={{ textAlign: 'center', background: '#fff', borderRadius: 20, padding: 28 }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>📱 Flashez pour jouer</div>
             <img src={qrUrl} alt="QR Code" style={{ width: 220, height: 220, borderRadius: 8 }} />
-            <div style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>app.crazy-chrono.com</div>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>{window.location.hostname}</div>
           </div>
           <div>
             <div style={{ textAlign: 'center', background: CC.cardBg, borderRadius: 16, padding: 24, border: `1px solid ${CC.cardBorder}`, marginBottom: 16 }}>
@@ -393,6 +407,40 @@ export default function LiveBoard() {
             )}
           </div>
         </div>
+
+        {/* ENCART PARTENAIRE — lot à gagner + vidéo de présentation */}
+        {hasPartner && (
+          <div style={{ marginTop: 24, background: 'linear-gradient(135deg, rgba(245,166,35,0.18), rgba(255,107,53,0.10))', border: '2px solid rgba(245,166,35,0.5)', borderRadius: 20, padding: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: partnerVideoEmbed ? '1fr 1fr' : '1fr', gap: 24, alignItems: 'center' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: CC.yellow, marginBottom: 10, letterSpacing: 1 }}>🎁 LOT À GAGNER</div>
+                {tournamentInfo.partner_lot && (
+                  <div style={{ fontSize: 26, fontWeight: 900, color: '#fff', marginBottom: 14, textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>{tournamentInfo.partner_lot}</div>
+                )}
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, background: 'rgba(255,255,255,0.95)', borderRadius: 14, padding: '10px 20px' }}>
+                  {tournamentInfo.partner_logo_url && (
+                    <img src={tournamentInfo.partner_logo_url} alt={tournamentInfo.partner_name || 'Partenaire'} style={{ height: 48, borderRadius: 8 }} onError={(e) => { e.target.style.display = 'none'; }} />
+                  )}
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Offert par notre partenaire</div>
+                    <div style={{ fontSize: 17, fontWeight: 900, color: '#0D6A7A' }}>{tournamentInfo.partner_name || 'Partenaire'}</div>
+                  </div>
+                </div>
+              </div>
+              {partnerVideoEmbed && (
+                <div style={{ position: 'relative', width: '100%', paddingBottom: '56.25%', borderRadius: 14, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.4)' }}>
+                  <iframe
+                    src={partnerVideoEmbed}
+                    title="Présentation du lot partenaire"
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -478,6 +526,18 @@ export default function LiveBoard() {
           {hasTie && (
             <div style={{ display: 'inline-block', background: 'rgba(245,166,35,0.18)', border: '1px solid rgba(245,166,35,0.5)', borderRadius: 14, padding: '10px 22px', marginBottom: 20, fontSize: 16, fontWeight: 800, color: '#FFD34D' }}>
               🎲 {winners.length} ex-aequo — le gagnant final sera tiré au sort !
+            </div>
+          )}
+          {hasPartner && (
+            <div style={{ display: 'block', marginBottom: 20 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,211,77,0.5)', borderRadius: 14, padding: '10px 22px' }}>
+                {tournamentInfo.partner_logo_url && (
+                  <img src={tournamentInfo.partner_logo_url} alt={tournamentInfo.partner_name || 'Partenaire'} style={{ height: 38, borderRadius: 6, background: '#fff', padding: 3 }} onError={(e) => { e.target.style.display = 'none'; }} />
+                )}
+                <span style={{ fontSize: 16, fontWeight: 800, color: '#FFD34D' }}>
+                  🎁 {tournamentInfo.partner_lot || 'Lot'} — offert par {tournamentInfo.partner_name || 'notre partenaire'}
+                </span>
+              </div>
             </div>
           )}
 

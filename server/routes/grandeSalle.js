@@ -111,7 +111,7 @@ router.post('/tournaments', requireAdmin, async (req, res) => {
   const supabaseAdmin = req.app.locals.supabaseAdmin;
 
   try {
-    const { title, description, themes, classes, scheduled_at, duration_round, elimination_percent, rounds_per_elimination, min_players, manual_start, access_type, entry_price, selected_level, pedagogic_config } = req.body;
+    const { title, description, themes, classes, scheduled_at, duration_round, elimination_percent, rounds_per_elimination, min_players, manual_start, access_type, entry_price, selected_level, pedagogic_config, partner_name, partner_logo_url, partner_lot, partner_video_url } = req.body;
 
     if (!title || !scheduled_at) {
       return res.status(400).json({ ok: false, error: 'title et scheduled_at sont requis' });
@@ -140,6 +140,10 @@ router.post('/tournaments', requireAdmin, async (req, res) => {
       entry_price: Math.max(0, Number(entry_price) || 0),
       selected_level: selected_level || 'CP',
       pedagogic_config: pedagogic_config && typeof pedagogic_config === 'object' ? pedagogic_config : {},
+      partner_name: String(partner_name || '').trim(),
+      partner_logo_url: String(partner_logo_url || '').trim(),
+      partner_lot: String(partner_lot || '').trim(),
+      partner_video_url: String(partner_video_url || '').trim(),
       status: 'scheduled',
       created_by: req.userId,
     };
@@ -165,7 +169,7 @@ router.put('/tournaments/:id', requireAdmin, async (req, res) => {
 
   try {
     const updates = {};
-    const allowed = ['title', 'description', 'themes', 'classes', 'scheduled_at', 'duration_round', 'elimination_percent', 'rounds_per_elimination', 'min_players', 'manual_start', 'status', 'access_type', 'entry_price', 'selected_level', 'pedagogic_config'];
+    const allowed = ['title', 'description', 'themes', 'classes', 'scheduled_at', 'duration_round', 'elimination_percent', 'rounds_per_elimination', 'min_players', 'manual_start', 'status', 'access_type', 'entry_price', 'selected_level', 'pedagogic_config', 'partner_name', 'partner_logo_url', 'partner_lot', 'partner_video_url'];
 
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
@@ -184,6 +188,8 @@ router.put('/tournaments/:id', requireAdmin, async (req, res) => {
           updates[key] = Math.max(0, Number(req.body[key]) || 0);
         } else if (key === 'pedagogic_config') {
           updates[key] = req.body[key] && typeof req.body[key] === 'object' ? req.body[key] : {};
+        } else if (['partner_name', 'partner_logo_url', 'partner_lot', 'partner_video_url'].includes(key)) {
+          updates[key] = String(req.body[key] || '').trim();
         } else {
           updates[key] = req.body[key];
         }

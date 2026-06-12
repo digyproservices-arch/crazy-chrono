@@ -47,6 +47,10 @@ export default function TournamentAdmin() {
   const [manualStart, setManualStart] = useState(true);
   const [accessType, setAccessType] = useState('free');
   const [entryPrice, setEntryPrice] = useState(0);
+  const [partnerName, setPartnerName] = useState('');
+  const [partnerLogoUrl, setPartnerLogoUrl] = useState('');
+  const [partnerLot, setPartnerLot] = useState('');
+  const [partnerVideoUrl, setPartnerVideoUrl] = useState('');
   const pedagogicRef = useRef({});
   const [pedInitial, setPedInitial] = useState(null);
 
@@ -71,6 +75,7 @@ export default function TournamentAdmin() {
     setTitle(''); setDescription('');
     setScheduledAt(''); setDurationRound(90); setEliminationPercent(25); setMinPlayers(3);
     setManualStart(true); setAccessType('free'); setEntryPrice(0);
+    setPartnerName(''); setPartnerLogoUrl(''); setPartnerLot(''); setPartnerVideoUrl('');
     setPedInitial(null); pedagogicRef.current = {};
     setEditId(null); setShowForm(false); setError(null);
   };
@@ -82,6 +87,8 @@ export default function TournamentAdmin() {
     setDurationRound(t.duration_round || 90); setEliminationPercent(t.elimination_percent || 25);
     setMinPlayers(t.min_players || 3); setManualStart(t.manual_start !== false);
     setAccessType(t.access_type || 'free'); setEntryPrice(t.entry_price || 0);
+    setPartnerName(t.partner_name || ''); setPartnerLogoUrl(t.partner_logo_url || '');
+    setPartnerLot(t.partner_lot || ''); setPartnerVideoUrl(t.partner_video_url || '');
     // Restaurer la config pédagogique
     const pc = t.pedagogic_config || {};
     setPedInitial({
@@ -110,6 +117,10 @@ export default function TournamentAdmin() {
       entry_price: accessType === 'paid' ? Math.max(0, entryPrice) : 0,
       selected_level: pc.selectedLevel || 'CP',
       pedagogic_config: pc,
+      partner_name: partnerName.trim(),
+      partner_logo_url: partnerLogoUrl.trim(),
+      partner_lot: partnerLot.trim(),
+      partner_video_url: partnerVideoUrl.trim(),
     };
 
     try {
@@ -214,6 +225,38 @@ export default function TournamentAdmin() {
               />
             </div>
 
+            {/* Partenaire (lot sponsorisé) */}
+            <div style={{ padding: '14px 16px', borderRadius: 12, background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.25)' }}>
+              <label style={{ fontSize: 13, color: '#F5A623', fontWeight: 700, marginBottom: 8, display: 'block' }}>🏆 Partenaire — lot à gagner (optionnel)</label>
+              <div style={{ display: 'grid', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4, display: 'block' }}>Nom du partenaire</label>
+                    <input value={partnerName} onChange={e => setPartnerName(e.target.value)} placeholder="Ex: Librairie Antilles" style={INPUT} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4, display: 'block' }}>URL du logo</label>
+                    <input value={partnerLogoUrl} onChange={e => setPartnerLogoUrl(e.target.value)} placeholder="https://.../logo.png" style={INPUT} />
+                  </div>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4, display: 'block' }}>Description du lot</label>
+                  <input value={partnerLot} onChange={e => setPartnerLot(e.target.value)} placeholder="Ex: Une tablette + un bon d'achat de 50€" style={INPUT} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4, display: 'block' }}>Vidéo YouTube de présentation du lot</label>
+                  <input value={partnerVideoUrl} onChange={e => setPartnerVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." style={INPUT} />
+                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Diffusée dans la salle d'attente du tournoi (chaîne YouTube Crazy Chrono)</div>
+                </div>
+                {partnerLogoUrl.trim() && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <img src={partnerLogoUrl.trim()} alt="Logo partenaire" style={{ height: 40, borderRadius: 6, background: '#fff', padding: 4 }} onError={(e) => { e.target.style.display = 'none'; }} />
+                    <span style={{ fontSize: 11, color: '#64748b' }}>Aperçu du logo</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Lancement manuel */}
             <div
               onClick={() => setManualStart(!manualStart)}
@@ -257,6 +300,7 @@ export default function TournamentAdmin() {
               <span style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>{t.title}</span>
               <span style={BADGE(STATUS_COLORS[t.status] || '#64748b')}>{STATUS_LABELS[t.status] || t.status}</span>
               {(() => { const at = ACCESS_TYPES.find(a => a.key === (t.access_type || 'free')); return at ? <span style={{ ...BADGE(at.color + '33'), color: at.color }}>{at.icon} {at.label}{t.access_type === 'paid' && t.entry_price ? ` (${(t.entry_price / 100).toFixed(2)}€)` : ''}</span> : null; })()}
+              {t.partner_name && <span style={{ ...BADGE('rgba(245,166,35,0.25)'), color: '#F5A623' }}>🏆 {t.partner_name}</span>}
             </div>
             {t.description && <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 4 }}>{t.description}</div>}
             <div style={{ fontSize: 12, color: '#64748b' }}>

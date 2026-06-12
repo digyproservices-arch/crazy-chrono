@@ -497,11 +497,11 @@ export default function GrandeSalle() {
         <div style={{ ...CARD, textAlign: 'center', marginBottom: 24, background: 'rgba(255,255,255,0.95)', border: '2px solid #F5A623' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>Flashez pour rejoindre</div>
           <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(`https://app.crazy-chrono.com/grande-salle/join/${tournamentId}`)}&color=0D6A7A`}
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(`${window.location.origin}/grande-salle/join/${tournamentId}`)}&color=0D6A7A`}
             alt="QR Code"
             style={{ width: 280, height: 280, borderRadius: 12 }}
           />
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>app.crazy-chrono.com</div>
+          <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>{window.location.hostname}</div>
         </div>
       )}
       <div style={{ ...CARD, textAlign: 'center', marginBottom: 24 }}>
