@@ -9236,14 +9236,33 @@ setZones(dataWithRandomTexts);
                       if (maxChord < availW) availW = maxChord;
                     }
                   }
+                  // ✅ FRACTIONS VERTICALES (demande rectorat): détecter les tokens "a/b"
+                  // pour les rendre empilés (numérateur / barre / dénominateur).
+                  const fracRe = /^(\d+(?:[.,]\d+)?)\/(\d+(?:[.,]\d+)?)$/;
+                  const fracTokens = contentStr.split(/\s+/).filter(Boolean).map(t => {
+                    const m = t.match(fracRe);
+                    return m ? { frac: true, num: m[1], den: m[2] } : { frac: false, text: t };
+                  });
+                  const hasFraction = fracTokens.some(t => t.frac);
+                  const FRAC_SCALE = 0.62;  // taille des chiffres de fraction vs police nominale
+                  const TOKEN_GAP = 0.28;   // espace entre tokens (en unités de police)
+                  const tokenUnitW = (t) => t.frac
+                    ? Math.max(t.num.length, t.den.length) * 0.5 * FRAC_SCALE + 0.2
+                    : t.text.length * 0.5;
+                  const unitW = hasFraction
+                    ? fracTokens.reduce((acc, t, i) => acc + (i > 0 ? TOKEN_GAP : 0) + tokenUnitW(t), 0)
+                    : 0;
                   // Coefficients calibrés: charW réel ~0.45 pour chiffres+espaces ("3 + 7").
                   // fitH à 105% de la bande: la hauteur dessinée des chiffres ne fait que
                   // ~70% de la taille nominale → marge visuelle réelle conservée.
                   const effCharW = zone.type === 'calcul' ? 0.45 : charW;
-                  const fitW = contentStr.length > 0 ? (availW * 1.0) / (contentStr.length * effCharW) : rawFontSize;
-                  const fitH = availH * 1.05;
+                  const fitW = hasFraction
+                    ? (unitW > 0 ? availW / unitW : rawFontSize)
+                    : (contentStr.length > 0 ? (availW * 1.0) / (contentStr.length * effCharW) : rawFontSize);
+                  // Fraction empilée ≈ 1.6× plus haute qu'un texte simple → bride dédiée
+                  const fitH = hasFraction ? availH * 0.62 : availH * 1.05;
                   // Pour chiffres: bbox ne reflète pas la taille visuelle (handles Bézier hors bbox), skip fitH
-                  const fontSize = Math.max(10, zone.type === 'chiffre' ? Math.min(rawFontSize, fitW) : Math.min(rawFontSize, fitW, fitH));
+                  const fontSize = Math.max(10, (zone.type === 'chiffre' && !hasFraction) ? Math.min(rawFontSize, fitW) : Math.min(rawFontSize, fitW, fitH));
                   const mo = isServerMode ? (zone.mathOffset || { x: 0, y: 0 }) : (mathOffsets[zone.id] || { x: 0, y: 0 });
                   const handleRotate = (e) => {
                     if (gameActive || !editMode) return;
@@ -9261,6 +9280,51 @@ setZones(dataWithRandomTexts);
                   const isChiffre = zone.type === 'chiffre';
                   return (
                     <g transform={`translate(${mo.x || 0} ${mo.y || 0}) rotate(${angle} ${cx} ${cy})`}>
+                      {hasFraction ? (() => {
+                        // Rendu fraction verticale: tokens disposés côte à côte,
+                        // chaque "a/b" devient num / barre / den empilés
+                        const fs = fontSize;
+                        const fracColor = '#456451';
+                        const widths = fracTokens.map(t => tokenUnitW(t) * fs);
+                        const totalW = widths.reduce((a, w) => a + w, 0) + TOKEN_GAP * fs * (fracTokens.length - 1);
+                        let xCur = cx - totalW / 2;
+                        return (
+                          <g
+                            pointerEvents={gameActive ? 'none' : 'auto'}
+                            style={{ cursor: gameActive ? 'default' : (dragState.id === zone.id ? 'grabbing' : 'grab') }}
+                            onMouseDown={(e) => {
+                              if (gameActive || !editMode) return;
+                              e.stopPropagation();
+                              const svg = svgOverlayRef.current;
+                              const pt = pointToSvgCoords(e, svg);
+                              setDragState({ id: zone.id, start: pt, orig: { x: mo.x || 0, y: mo.y || 0 }, moved: false });
+                            }}
+                            onClick={(e) => {
+                              if (dragState.moved) { e.preventDefault(); e.stopPropagation(); return; }
+                              handleRotate(e);
+                            }}
+                          >
+                            {fracTokens.map((t, i) => {
+                              const w = widths[i];
+                              const tcx = xCur + w / 2;
+                              xCur += w + TOKEN_GAP * fs;
+                              if (!t.frac) {
+                                return (
+                                  <text key={i} x={tcx} y={cy} textAnchor="middle" alignmentBaseline="middle" fontSize={fs} fill={fracColor} fontWeight="bold">{t.text}</text>
+                                );
+                              }
+                              const fracFs = fs * FRAC_SCALE;
+                              return (
+                                <g key={i}>
+                                  <text x={tcx} y={cy - 0.44 * fs} textAnchor="middle" alignmentBaseline="middle" fontSize={fracFs} fill={fracColor} fontWeight="bold">{t.num}</text>
+                                  <line x1={tcx - w / 2 + 0.06 * fs} y1={cy} x2={tcx + w / 2 - 0.06 * fs} y2={cy} stroke={fracColor} strokeWidth={Math.max(1.2, 0.07 * fs)} strokeLinecap="round" />
+                                  <text x={tcx} y={cy + 0.48 * fs} textAnchor="middle" alignmentBaseline="middle" fontSize={fracFs} fill={fracColor} fontWeight="bold">{t.den}</text>
+                                </g>
+                              );
+                            })}
+                          </g>
+                        );
+                      })() : (
                       <text
                         x={cx}
                         y={cy}
@@ -9295,7 +9359,8 @@ setZones(dataWithRandomTexts);
                       >
                         {zone.content}
                       </text>
-                      {isChiffre && (
+                      )}
+                      {isChiffre && !hasFraction && (
                         (() => {
                           // Soulignement simple, même couleur que le chiffre, sans contour
                           // Plus fin et centré en tenant compte de l'offset appliqué au "6".
