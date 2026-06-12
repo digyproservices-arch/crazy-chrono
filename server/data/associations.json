@@ -6286,15 +6286,6 @@
       ]
     },
     {
-      "id": "cmult_1772259541773_82",
-      "content": "3 × 1/2",
-      "levelClass": "CM2",
-      "themes": [
-        "domain:math",
-        "category:fraction"
-      ]
-    },
-    {
       "id": "cmult_1772259541773_83",
       "content": "3/2",
       "levelClass": "CM2",
@@ -6360,15 +6351,6 @@
     {
       "id": "cmult_1772259541773_90",
       "content": "3/4",
-      "levelClass": "CM2",
-      "themes": [
-        "domain:math",
-        "category:fraction"
-      ]
-    },
-    {
-      "id": "cmult_1772259541773_91",
-      "content": "2 × (1/4)",
       "levelClass": "CM2",
       "themes": [
         "domain:math",
@@ -11171,15 +11153,6 @@
       "levelClass": "CM2"
     },
     {
-      "id": "ncmult_1772259541773_82",
-      "content": "1,5",
-      "themes": [
-        "domain:math",
-        "category:fraction"
-      ],
-      "levelClass": "CM2"
-    },
-    {
       "id": "ncmult_1772259541773_83",
       "content": "1 + 1/2",
       "themes": [
@@ -11245,15 +11218,6 @@
     {
       "id": "ncmult_1772259541773_90",
       "content": "6/8",
-      "themes": [
-        "domain:math",
-        "category:fraction"
-      ],
-      "levelClass": "CM2"
-    },
-    {
-      "id": "ncmult_1772259541773_91",
-      "content": "0,5",
       "themes": [
         "domain:math",
         "category:fraction"
@@ -17231,15 +17195,6 @@
       ]
     },
     {
-      "calculId": "cmult_1772259541773_82",
-      "chiffreId": "ncmult_1772259541773_82",
-      "levelClass": "CM2",
-      "themes": [
-        "domain:math",
-        "category:fraction"
-      ]
-    },
-    {
       "calculId": "cmult_1772259541773_83",
       "chiffreId": "ncmult_1772259541773_83",
       "levelClass": "CM2",
@@ -17305,15 +17260,6 @@
     {
       "calculId": "cmult_1772259541773_90",
       "chiffreId": "ncmult_1772259541773_90",
-      "levelClass": "CM2",
-      "themes": [
-        "domain:math",
-        "category:fraction"
-      ]
-    },
-    {
-      "calculId": "cmult_1772259541773_91",
-      "chiffreId": "ncmult_1772259541773_91",
       "levelClass": "CM2",
       "themes": [
         "domain:math",
@@ -17793,5 +17739,5 @@
       "levelClass": "CP"
     }
   ],
-  "_dataVersion": 9
+  "_dataVersion": 11
 }
