@@ -7906,6 +7906,69 @@ setZones(dataWithRandomTexts);
     };
   }
 
+  // ✅ CONTRAINTE PAR LA ZONE CLIQUABLE: échantillonne le contour exact de la
+  // zone (segments Bézier inclus) en polygone, pour tester qu'un texte tient
+  // ENTIÈREMENT à l'intérieur de la délimitation tracée en mode édition.
+  function flattenZonePoints(points) {
+    const out = [];
+    const n = points.length;
+    for (let i = 0; i < n; i++) {
+      const p1 = points[i], p2 = points[(i + 1) % n];
+      const c1 = p1.handleOut, c2 = p2.handleIn;
+      if (c1 || c2) {
+        const a = c1 || p1, b = c2 || p2;
+        for (let s = 0; s < 8; s++) {
+          const t = s / 8, mt = 1 - t;
+          out.push({
+            x: mt * mt * mt * p1.x + 3 * mt * mt * t * a.x + 3 * mt * t * t * b.x + t * t * t * p2.x,
+            y: mt * mt * mt * p1.y + 3 * mt * mt * t * a.y + 3 * mt * t * t * b.y + t * t * t * p2.y,
+          });
+        }
+      } else {
+        out.push({ x: p1.x, y: p1.y });
+      }
+    }
+    return out;
+  }
+
+  function pointInPolygon(poly, x, y) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y;
+      if (((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)) inside = !inside;
+    }
+    return inside;
+  }
+
+  // Plus grande taille "d" telle que le rectangle occupé par le texte
+  // (unitW×d de large, unitH×d de haut, centré en (px,py), incliné de angleDeg)
+  // tienne entièrement dans le polygone de la zone. Recherche binaire.
+  function maxSizeInsideZone(points, px, py, angleDeg, unitW, unitH, dMax) {
+    const poly = flattenZonePoints(points || []);
+    if (poly.length < 3 || !(dMax > 0)) return dMax;
+    const th = (angleDeg * Math.PI) / 180;
+    const ux = Math.cos(th), uy = Math.sin(th);
+    const vx = -Math.sin(th), vy = Math.cos(th);
+    // Coins + milieux + quarts des bords longs: couvre aussi la courbure de bande
+    const offs = [[-1, -1], [1, -1], [1, 1], [-1, 1], [0, -1], [0, 1], [-1, 0], [1, 0], [-0.5, -1], [0.5, -1], [-0.5, 1], [0.5, 1]];
+    const fits = (d) => {
+      const hw = (unitW * d) / 2, hh = (unitH * d) / 2;
+      for (const [a, b] of offs) {
+        const x = px + ux * (a * hw) + vx * (b * hh);
+        const y = py + uy * (a * hw) + vy * (b * hh);
+        if (!pointInPolygon(poly, x, y)) return false;
+      }
+      return true;
+    };
+    if (fits(dMax)) return dMax;
+    let lo = 0, hi = dMax;
+    for (let i = 0; i < 18; i++) {
+      const mid = (lo + hi) / 2;
+      if (fits(mid)) lo = mid; else hi = mid;
+    }
+    return lo;
+  }
+
  return (
     <div className={`carte-container ${hasSidebar ? 'game-with-sidebar' : ''}`} style={{ position: 'relative' }}>
       {/* Overlay: tournez votre téléphone en mode paysage */}
@@ -9216,7 +9279,7 @@ setZones(dataWithRandomTexts);
                   let availW = bbox.width, availH = bbox.height;
                   // Centre réel de la bande dans le repère du texte pivoté (le centre de
                   // la bbox d'un quart d'anneau est décalé vers le cercle blanc intérieur)
-                  let bandCU = 0, bandCV = 0, bandTh = 0;
+                  let bandCU = 0, bandCV = 0, bandPX = cx, bandPY = cy;
                   if (zone.type === 'calcul' && Array.isArray(zone.points) && zone.points.length >= 2) {
                     const aRad = (-angle * Math.PI) / 180;
                     const cosA = Math.cos(aRad), sinA = Math.sin(aRad);
@@ -9240,10 +9303,10 @@ setZones(dataWithRandomTexts);
                     }
                     const rhoC = Math.hypot(cx - 500, cy - 500);
                     if (rhoC > 1 && Number.isFinite(rMin) && rMax > rMin) {
-                      bandTh = rMax - rMin; // épaisseur radiale réelle de la bande
                       const rhoMid = (rMin + rMax) / 2;
                       const pdx = (cx - 500) * (rhoMid / rhoC - 1);
                       const pdy = (cy - 500) * (rhoMid / rhoC - 1);
+                      bandPX = cx + pdx; bandPY = cy + pdy; // milieu de bande (coords plateau)
                       // Convertir ce décalage (coords plateau) vers le repère local du
                       // groupe pivoté: L = R(-θ)(P - C)
                       bandCU = pdx * cosA - pdy * sinA;
@@ -9281,15 +9344,18 @@ setZones(dataWithRandomTexts);
                   const unitW = hasFraction
                     ? fracTokens.reduce((acc, t, i) => acc + (i > 0 ? TOKEN_GAP : 0) + tokenUnitW(t), 0)
                     : 0;
-                  // Pile fraction (num + barre + den) ≈ 1.9 × d de haut.
-                  // Zones chiffre (lobes): bbox non fiable (poignées Bézier hors bbox) —
-                  // comme pour les chiffres simples, PAS de bride hauteur → taille homogène
-                  // entre cartes, dérivée de la référence médiane (chiffreRefBase).
+                  const mo = isServerMode ? (zone.mathOffset || { x: 0, y: 0 }) : (mathOffsets[zone.id] || { x: 0, y: 0 });
+                  // Pile fraction (num + barre + den) ≈ 1.92 × d de haut.
+                  // Zones chiffre (lobes): bbox non fiable (poignées Bézier hors bbox) →
+                  // taille homogène dérivée de la référence médiane (chiffreRefBase).
+                  // Zones calcul: ✅ CONTRAINTE EXACTE par le polygone de la zone cliquable
+                  // délimitée en édition — plus grande taille dont le rectangle occupé par
+                  // la pile tient entièrement dans la délimitation (courbure incluse).
                   const fracDW = (hasFraction && unitW > 0) ? availW / unitW : Infinity;
                   const fracD = hasFraction
                     ? Math.max(8, zone.type === 'chiffre'
                         ? Math.min(rawFontSize * 0.72, fracDW)
-                        : Math.min(rawFontSize * 0.85, fracDW, (bandTh > 0 ? bandTh : availH) / 1.9))
+                        : maxSizeInsideZone(zone.points, bandPX + (mo.x || 0), bandPY + (mo.y || 0), angle, unitW, 1.92, rawFontSize * 0.85))
                     : 0;
                   // Coefficients calibrés: charW réel ~0.43 pour chiffres+espaces ("3 + 7").
                   // fitH à 112% de la bande: la hauteur dessinée des chiffres ne fait que
@@ -9301,7 +9367,6 @@ setZones(dataWithRandomTexts);
                   const fontSize = hasFraction
                     ? fracD
                     : Math.max(10, zone.type === 'chiffre' ? Math.min(rawFontSize, fitW) : Math.min(rawFontSize, fitW, fitH));
-                  const mo = isServerMode ? (zone.mathOffset || { x: 0, y: 0 }) : (mathOffsets[zone.id] || { x: 0, y: 0 });
                   const handleRotate = (e) => {
                     if (gameActive || !editMode) return;
                     e.stopPropagation();
