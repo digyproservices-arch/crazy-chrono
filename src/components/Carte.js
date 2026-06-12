@@ -9280,6 +9280,7 @@ setZones(dataWithRandomTexts);
                   // Centre réel de la bande dans le repère du texte pivoté (le centre de
                   // la bbox d'un quart d'anneau est décalé vers le cercle blanc intérieur)
                   let bandCU = 0, bandCV = 0, bandPX = cx, bandPY = cy;
+                  let bandTh = 0, bandDX = 0, bandDY = 0;
                   if (zone.type === 'calcul' && Array.isArray(zone.points) && zone.points.length >= 2) {
                     const aRad = (-angle * Math.PI) / 180;
                     const cosA = Math.cos(aRad), sinA = Math.sin(aRad);
@@ -9303,6 +9304,8 @@ setZones(dataWithRandomTexts);
                     }
                     const rhoC = Math.hypot(cx - 500, cy - 500);
                     if (rhoC > 1 && Number.isFinite(rMin) && rMax > rMin) {
+                      bandTh = rMax - rMin;
+                      bandDX = (cx - 500) / rhoC; bandDY = (cy - 500) / rhoC; // direction radiale
                       const rhoMid = (rMin + rMax) / 2;
                       const pdx = (cx - 500) * (rhoMid / rhoC - 1);
                       const pdy = (cy - 500) * (rhoMid / rhoC - 1);
@@ -9352,10 +9355,26 @@ setZones(dataWithRandomTexts);
                   // délimitée en édition — plus grande taille dont le rectangle occupé par
                   // la pile tient entièrement dans la délimitation (courbure incluse).
                   const fracDW = (hasFraction && unitW > 0) ? availW / unitW : Infinity;
+                  // ✅ AUTO-CENTRAGE RADIAL PAR LE POLYGONE: on teste plusieurs positions le
+                  // long du rayon et on garde celle qui autorise la PLUS GRANDE taille —
+                  // corrige tout biais (offset manuel calibré pour l'ancien rendu, bras de
+                  // liaison vers le lobe inclus dans le tracé, asymétrie de la zone…)
+                  let fracROff = 0;
                   const fracD = hasFraction
                     ? Math.max(8, zone.type === 'chiffre'
                         ? Math.min(rawFontSize * 0.72, fracDW)
-                        : maxSizeInsideZone(zone.points, bandPX + (mo.x || 0), bandPY + (mo.y || 0), angle, unitW, 1.92, rawFontSize * 0.85))
+                        : (() => {
+                            const px0 = bandPX + (mo.x || 0), py0 = bandPY + (mo.y || 0);
+                            let bestD = 0, bestOff = 0;
+                            const steps = bandTh > 0 ? 5 : 0;
+                            for (let k = -steps; k <= steps; k++) {
+                              const off = steps ? k * 0.08 * bandTh : 0;
+                              const d = maxSizeInsideZone(zone.points, px0 + bandDX * off, py0 + bandDY * off, angle, unitW, 1.92, rawFontSize * 0.85);
+                              if (d > bestD) { bestD = d; bestOff = off; }
+                            }
+                            fracROff = bestOff;
+                            return bestD;
+                          })())
                     : 0;
                   // Coefficients calibrés: charW réel ~0.43 pour chiffres+espaces ("3 + 7").
                   // fitH à 112% de la bande: la hauteur dessinée des chiffres ne fait que
@@ -9389,10 +9408,13 @@ setZones(dataWithRandomTexts);
                         // d = taille des chiffres de la fraction (unité directe).
                         const d = fontSize;
                         const fracColor = '#456451';
-                        // ✅ Recentrage dans la bande: la pile fraction (≈2× plus haute qu'un
-                        // texte en ligne) doit être posée au CENTRE de la bande jaune, pas au
-                        // centre de la bbox (décalé vers le cercle blanc pour un quart d'anneau)
-                        const fcx = cx + bandCU, fcy = cy + bandCV;
+                        // ✅ Recentrage dans la bande: milieu radial + auto-centrage par le
+                        // polygone (fracROff le long du rayon, converti en repère local)
+                        const aR2 = (-angle * Math.PI) / 180;
+                        const odx = bandDX * fracROff, ody = bandDY * fracROff;
+                        const offU = odx * Math.cos(aR2) - ody * Math.sin(aR2);
+                        const offV = odx * Math.sin(aR2) + ody * Math.cos(aR2);
+                        const fcx = cx + bandCU + offU, fcy = cy + bandCV + offV;
                         const widths = fracTokens.map(t => tokenUnitW(t) * d);
                         const totalW = widths.reduce((a, w) => a + w, 0) + TOKEN_GAP * d * (fracTokens.length - 1);
                         let xCur = fcx - totalW / 2;
