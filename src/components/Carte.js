@@ -9228,11 +9228,13 @@ setZones(dataWithRandomTexts);
                     if (Number.isFinite(minU)) { availW = maxU - minU; availH = maxV - minV; }
                     // ✅ COMPENSATION DE COURBURE (longs calculs): un texte DROIT posé sur
                     // une bande COURBE déborde à ses extrémités (flèche de l'arc = L²/8ρ).
-                    // On limite la corde utilisable pour que la flèche reste ≤ 1/4 de
-                    // l'épaisseur de bande → les bouts du texte restent dans la bande.
+                    // On limite la corde utilisable pour que la flèche reste ≤ 1/3 de
+                    // l'épaisseur de bande → les bouts du texte restent dans la bande
+                    // (1/3 et non 1/4: les glyphes ne remplissent que ~70% de leur em,
+                    // la marge visuelle réelle absorbe la flèche → +15% de corde utile).
                     const rho = Math.hypot(cx - 500, cy - 500); // rayon vs centre du plateau
                     if (rho > 1 && availH > 0) {
-                      const maxChord = Math.sqrt(2 * rho * availH);
+                      const maxChord = Math.sqrt((8 / 3) * rho * availH);
                       if (maxChord < availW) availW = maxChord;
                     }
                   }
@@ -9244,25 +9246,38 @@ setZones(dataWithRandomTexts);
                     return m ? { frac: true, num: m[1], den: m[2] } : { frac: false, text: t };
                   });
                   const hasFraction = fracTokens.some(t => t.frac);
-                  const FRAC_SCALE = 0.62;  // taille des chiffres de fraction vs police nominale
-                  const TOKEN_GAP = 0.28;   // espace entre tokens (en unités de police)
+                  // ✅ REFONTE TAILLE FRACTIONS: "d" = taille des CHIFFRES de la fraction,
+                  // utilisée comme unité de référence directe. Avant, double rabotage
+                  // (police bridée à 0.62×hauteur PUIS chiffres à 0.62×police) → chiffres
+                  // à ~38% de la bande seulement, et tailles incohérentes entre cartes.
+                  const PLAIN_SCALE = 1.25; // tokens non-fraction (ex: "+") vs chiffres de fraction
+                  const TOKEN_GAP = 0.35;   // espace entre tokens (en unités de d)
                   const tokenUnitW = (t) => t.frac
-                    ? Math.max(t.num.length, t.den.length) * 0.5 * FRAC_SCALE + 0.2
-                    : t.text.length * 0.5;
+                    ? Math.max(t.num.length, t.den.length) * 0.5 + 0.15
+                    : t.text.length * 0.5 * PLAIN_SCALE;
                   const unitW = hasFraction
                     ? fracTokens.reduce((acc, t, i) => acc + (i > 0 ? TOKEN_GAP : 0) + tokenUnitW(t), 0)
                     : 0;
-                  // Coefficients calibrés: charW réel ~0.45 pour chiffres+espaces ("3 + 7").
-                  // fitH à 105% de la bande: la hauteur dessinée des chiffres ne fait que
+                  // Pile fraction (num + barre + den) ≈ 1.9 × d de haut.
+                  // Zones chiffre (lobes): bbox non fiable (poignées Bézier hors bbox) —
+                  // comme pour les chiffres simples, PAS de bride hauteur → taille homogène
+                  // entre cartes, dérivée de la référence médiane (chiffreRefBase).
+                  const fracDW = (hasFraction && unitW > 0) ? availW / unitW : Infinity;
+                  const fracD = hasFraction
+                    ? Math.max(8, zone.type === 'chiffre'
+                        ? Math.min(rawFontSize * 0.72, fracDW)
+                        : Math.min(rawFontSize * 0.85, fracDW, availH / 1.9))
+                    : 0;
+                  // Coefficients calibrés: charW réel ~0.43 pour chiffres+espaces ("3 + 7").
+                  // fitH à 112% de la bande: la hauteur dessinée des chiffres ne fait que
                   // ~70% de la taille nominale → marge visuelle réelle conservée.
-                  const effCharW = zone.type === 'calcul' ? 0.45 : charW;
-                  const fitW = hasFraction
-                    ? (unitW > 0 ? availW / unitW : rawFontSize)
-                    : (contentStr.length > 0 ? (availW * 1.0) / (contentStr.length * effCharW) : rawFontSize);
-                  // Fraction empilée ≈ 1.6× plus haute qu'un texte simple → bride dédiée
-                  const fitH = hasFraction ? availH * 0.62 : availH * 1.05;
+                  const effCharW = zone.type === 'calcul' ? 0.43 : charW;
+                  const fitW = contentStr.length > 0 ? (availW * 1.0) / (contentStr.length * effCharW) : rawFontSize;
+                  const fitH = availH * 1.12;
                   // Pour chiffres: bbox ne reflète pas la taille visuelle (handles Bézier hors bbox), skip fitH
-                  const fontSize = Math.max(10, (zone.type === 'chiffre' && !hasFraction) ? Math.min(rawFontSize, fitW) : Math.min(rawFontSize, fitW, fitH));
+                  const fontSize = hasFraction
+                    ? fracD
+                    : Math.max(10, zone.type === 'chiffre' ? Math.min(rawFontSize, fitW) : Math.min(rawFontSize, fitW, fitH));
                   const mo = isServerMode ? (zone.mathOffset || { x: 0, y: 0 }) : (mathOffsets[zone.id] || { x: 0, y: 0 });
                   const handleRotate = (e) => {
                     if (gameActive || !editMode) return;
@@ -9282,11 +9297,12 @@ setZones(dataWithRandomTexts);
                     <g transform={`translate(${mo.x || 0} ${mo.y || 0}) rotate(${angle} ${cx} ${cy})`}>
                       {hasFraction ? (() => {
                         // Rendu fraction verticale: tokens disposés côte à côte,
-                        // chaque "a/b" devient num / barre / den empilés
-                        const fs = fontSize;
+                        // chaque "a/b" devient num / barre / den empilés.
+                        // d = taille des chiffres de la fraction (unité directe).
+                        const d = fontSize;
                         const fracColor = '#456451';
-                        const widths = fracTokens.map(t => tokenUnitW(t) * fs);
-                        const totalW = widths.reduce((a, w) => a + w, 0) + TOKEN_GAP * fs * (fracTokens.length - 1);
+                        const widths = fracTokens.map(t => tokenUnitW(t) * d);
+                        const totalW = widths.reduce((a, w) => a + w, 0) + TOKEN_GAP * d * (fracTokens.length - 1);
                         let xCur = cx - totalW / 2;
                         return (
                           <g
@@ -9307,18 +9323,17 @@ setZones(dataWithRandomTexts);
                             {fracTokens.map((t, i) => {
                               const w = widths[i];
                               const tcx = xCur + w / 2;
-                              xCur += w + TOKEN_GAP * fs;
+                              xCur += w + TOKEN_GAP * d;
                               if (!t.frac) {
                                 return (
-                                  <text key={i} x={tcx} y={cy} textAnchor="middle" alignmentBaseline="middle" fontSize={fs} fill={fracColor} fontWeight="bold">{t.text}</text>
+                                  <text key={i} x={tcx} y={cy} textAnchor="middle" alignmentBaseline="middle" fontSize={d * PLAIN_SCALE} fill={fracColor} fontWeight="bold">{t.text}</text>
                                 );
                               }
-                              const fracFs = fs * FRAC_SCALE;
                               return (
                                 <g key={i}>
-                                  <text x={tcx} y={cy - 0.44 * fs} textAnchor="middle" alignmentBaseline="middle" fontSize={fracFs} fill={fracColor} fontWeight="bold">{t.num}</text>
-                                  <line x1={tcx - w / 2 + 0.06 * fs} y1={cy} x2={tcx + w / 2 - 0.06 * fs} y2={cy} stroke={fracColor} strokeWidth={Math.max(1.2, 0.07 * fs)} strokeLinecap="round" />
-                                  <text x={tcx} y={cy + 0.48 * fs} textAnchor="middle" alignmentBaseline="middle" fontSize={fracFs} fill={fracColor} fontWeight="bold">{t.den}</text>
+                                  <text x={tcx} y={cy - 0.58 * d} textAnchor="middle" alignmentBaseline="middle" fontSize={d} fill={fracColor} fontWeight="bold">{t.num}</text>
+                                  <line x1={tcx - w / 2 + 0.05 * d} y1={cy} x2={tcx + w / 2 - 0.05 * d} y2={cy} stroke={fracColor} strokeWidth={Math.max(1.5, 0.08 * d)} strokeLinecap="round" />
+                                  <text x={tcx} y={cy + 0.62 * d} textAnchor="middle" alignmentBaseline="middle" fontSize={d} fill={fracColor} fontWeight="bold">{t.den}</text>
                                 </g>
                               );
                             })}
