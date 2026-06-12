@@ -9216,7 +9216,7 @@ setZones(dataWithRandomTexts);
                   let availW = bbox.width, availH = bbox.height;
                   // Centre réel de la bande dans le repère du texte pivoté (le centre de
                   // la bbox d'un quart d'anneau est décalé vers le cercle blanc intérieur)
-                  let bandCU = 0, bandCV = 0;
+                  let bandCU = 0, bandCV = 0, bandTh = 0;
                   if (zone.type === 'calcul' && Array.isArray(zone.points) && zone.points.length >= 2) {
                     const aRad = (-angle * Math.PI) / 180;
                     const cosA = Math.cos(aRad), sinA = Math.sin(aRad);
@@ -9228,9 +9228,26 @@ setZones(dataWithRandomTexts);
                       if (u < minU) minU = u; if (u > maxU) maxU = u;
                       if (v < minV) minV = v; if (v > maxV) maxV = v;
                     }
-                    if (Number.isFinite(minU)) {
-                      availW = maxU - minU; availH = maxV - minV;
-                      bandCU = (minU + maxU) / 2; bandCV = (minV + maxV) / 2;
+                    if (Number.isFinite(minU)) { availW = maxU - minU; availH = maxV - minV; }
+                    // ✅ Centre RADIAL de la bande: le milieu (minV+maxV)/2 est dominé par
+                    // les extrémités de l'arc (pas par la bande) et tirait la fraction vers
+                    // le cercle blanc. Le vrai milieu de bande est à ρmid = (ρmin+ρmax)/2
+                    // du centre du plateau, dans la direction du centre de la zone.
+                    let rMin = Infinity, rMax = -Infinity;
+                    for (const p of zone.points) {
+                      const rr = Math.hypot(p.x - 500, p.y - 500);
+                      if (rr < rMin) rMin = rr; if (rr > rMax) rMax = rr;
+                    }
+                    const rhoC = Math.hypot(cx - 500, cy - 500);
+                    if (rhoC > 1 && Number.isFinite(rMin) && rMax > rMin) {
+                      bandTh = rMax - rMin; // épaisseur radiale réelle de la bande
+                      const rhoMid = (rMin + rMax) / 2;
+                      const pdx = (cx - 500) * (rhoMid / rhoC - 1);
+                      const pdy = (cy - 500) * (rhoMid / rhoC - 1);
+                      // Convertir ce décalage (coords plateau) vers le repère local du
+                      // groupe pivoté: L = R(-θ)(P - C)
+                      bandCU = pdx * cosA - pdy * sinA;
+                      bandCV = pdx * sinA + pdy * cosA;
                     }
                     // ✅ COMPENSATION DE COURBURE (longs calculs): un texte DROIT posé sur
                     // une bande COURBE déborde à ses extrémités (flèche de l'arc = L²/8ρ).
@@ -9272,7 +9289,7 @@ setZones(dataWithRandomTexts);
                   const fracD = hasFraction
                     ? Math.max(8, zone.type === 'chiffre'
                         ? Math.min(rawFontSize * 0.72, fracDW)
-                        : Math.min(rawFontSize * 0.85, fracDW, availH / 1.9))
+                        : Math.min(rawFontSize * 0.85, fracDW, (bandTh > 0 ? bandTh : availH) / 1.9))
                     : 0;
                   // Coefficients calibrés: charW réel ~0.43 pour chiffres+espaces ("3 + 7").
                   // fitH à 112% de la bande: la hauteur dessinée des chiffres ne fait que
