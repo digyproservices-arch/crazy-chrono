@@ -11145,7 +11145,7 @@
     },
     {
       "id": "ncmult_1772259541773_81",
-      "content": "0,333333",
+      "content": "1/3",
       "themes": [
         "domain:math",
         "category:fraction"
@@ -17739,5 +17739,5 @@
       "levelClass": "CP"
     }
   ],
-  "_dataVersion": 11
+  "_dataVersion": 12
 }
