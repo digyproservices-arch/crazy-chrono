@@ -9364,13 +9364,21 @@ setZones(dataWithRandomTexts);
                     ? Math.max(8, zone.type === 'chiffre'
                         ? Math.min(rawFontSize * 0.72, fracDW)
                         : (() => {
+                            // Neutraliser la composante RADIALE de l'offset manuel (calibré
+                            // pour l'ancien rendu): sinon la recherche tourne autour d'un point
+                            // décalé vers le cercle/l'anneau et ne peut pas recentrer. On garde
+                            // sa composante tangentielle (le long de la bande), inoffensive.
+                            const moDot = (mo.x || 0) * bandDX + (mo.y || 0) * bandDY;
                             const px0 = bandPX + (mo.x || 0), py0 = bandPY + (mo.y || 0);
-                            let bestD = 0, bestOff = 0;
+                            let bestD = 0, bestOff = -moDot;
                             const steps = bandTh > 0 ? 5 : 0;
-                            for (let k = -steps; k <= steps; k++) {
-                              const off = steps ? k * 0.08 * bandTh : 0;
+                            // Ordre centre → bords + amélioration STRICTE: à taille égale,
+                            // c'est la position la plus proche du milieu de bande qui gagne.
+                            for (let i = 0; i <= 2 * steps; i++) {
+                              const k = (i % 2 === 1) ? -((i + 1) / 2) : i / 2;
+                              const off = steps ? (k * 0.08 * bandTh - moDot) : -moDot;
                               const d = maxSizeInsideZone(zone.points, px0 + bandDX * off, py0 + bandDY * off, angle, unitW, 1.92, rawFontSize * 0.85);
-                              if (d > bestD) { bestD = d; bestOff = off; }
+                              if (d > bestD + 0.5) { bestD = d; bestOff = off; }
                             }
                             fracROff = bestOff;
                             return bestD;
