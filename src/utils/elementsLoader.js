@@ -169,6 +169,9 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       ? cfg.objectiveThemes
       : (Array.isArray(cfg.themes) ? cfg.themes : []);
     const selectedThemes = rawThemes.filter(Boolean);
+    // ✅ B4 (parité serveur): catégories bonus explicitement cochées — leurs éléments
+    // contournent le filtre de niveau (ex: "Fractions" (CM2) coché en jouant CM1)
+    const extrasSet = new Set(isObjectiveMode ? [] : (Array.isArray(cfg.extras) ? cfg.extras.filter(Boolean) : []));
     const matchMode = cfg.themeMatch === 'all' ? 'all' : 'any';
     // En mode objectif: pas d'éléments non taggés (on veut UNIQUEMENT les paires des tables choisies)
     const includeUntagged = isObjectiveMode ? false : (cfg.includeUntagged !== false);
@@ -206,7 +209,12 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       return selectedThemes.some(t => tags.includes(t));
     };
 
-    const filterEl = (el) => hasClass(el) && hasThemes(el);
+    const matchesExtra = (el) => {
+      if (extrasSet.size === 0) return false;
+      const tags = Array.isArray(el?.themes) ? el.themes.map(String) : [];
+      return tags.some(t => extrasSet.has(t));
+    };
+    const filterEl = (el) => matchesExtra(el) || (hasClass(el) && hasThemes(el));
     // Filtrer éléments
     textes = textes.filter(filterEl);
     images = images.filter(filterEl);
@@ -245,10 +253,10 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       const existImg = new Set(images.map(i => i.id));
       const existCalc = new Set(calculs.map(c => c.id));
       const existNum = new Set(chiffres.map(n => n.id));
-      for (const t of origTextes) if (assocTxtIds.has(t.id) && !existTxt.has(t.id) && hasClass(t)) textes.push(t);
-      for (const i of origImages) if (assocImgIds.has(i.id) && !existImg.has(i.id) && hasClass(i)) images.push(i);
-      for (const c of origCalculs) if (assocCalcIds.has(c.id) && !existCalc.has(c.id) && hasClass(c)) calculs.push(c);
-      for (const n of origChiffres) if (assocNumIds.has(n.id) && !existNum.has(n.id) && hasClass(n)) chiffres.push(n);
+      for (const t of origTextes) if (assocTxtIds.has(t.id) && !existTxt.has(t.id) && (hasClass(t) || matchesExtra(t))) textes.push(t);
+      for (const i of origImages) if (assocImgIds.has(i.id) && !existImg.has(i.id) && (hasClass(i) || matchesExtra(i))) images.push(i);
+      for (const c of origCalculs) if (assocCalcIds.has(c.id) && !existCalc.has(c.id) && (hasClass(c) || matchesExtra(c))) calculs.push(c);
+      for (const n of origChiffres) if (assocNumIds.has(n.id) && !existNum.has(n.id) && (hasClass(n) || matchesExtra(n))) chiffres.push(n);
       console.log('[elementsLoader] Re-included elements from associations:', { textes: textes.length, images: images.length, calculs: calculs.length, chiffres: chiffres.length });
     }
   }

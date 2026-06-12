@@ -5815,18 +5815,27 @@ setZones(dataWithRandomTexts);
               : (Array.isArray(cfg?.themes) ? cfg.themes : []);
             const selThemes = selThemesRaw.filter(Boolean).map(String);
             const selClasses = Array.isArray(cfg?.classes) ? cfg.classes.filter(Boolean).map(String) : [];
+            // ✅ B4 (parité serveur): catégories bonus explicitement cochées — leurs
+            // associations contournent le filtre de niveau (ex: "Fractions" (CM2) en CM1)
+            const selExtras = new Set((cfg?.objectiveMode ? [] : (Array.isArray(cfg?.extras) ? cfg.extras : [])).filter(Boolean).map(String));
+            const matchesExtra = (a) => {
+              if (selExtras.size === 0) return false;
+              const ts = Array.isArray(a?.themes) ? a.themes.map(String) : [];
+              return ts.some(t => selExtras.has(t));
+            };
             const hasAny = (vals, selected) => {
               const ts = Array.isArray(vals) ? vals.map(String) : [];
               return selected.length === 0 || ts.some(t => selected.includes(t));
             };
             // Filtrage par thèmes (associations uniquement)
             if (selThemes.length > 0) {
+              const keepTheme = (a) => matchesExtra(a) || hasAny(a?.themes || [], selThemes);
               if (Array.isArray(assocRoot)) {
-                assocRoot = assocRoot.filter(a => hasAny(a?.themes || [], selThemes));
+                assocRoot = assocRoot.filter(keepTheme);
               } else if (assocRoot && typeof assocRoot === 'object') {
                 assocRoot = {
-                  textImage: (assocRoot.textImage || []).filter(a => hasAny(a?.themes || [], selThemes)),
-                  calcNum: (assocRoot.calcNum || []).filter(a => hasAny(a?.themes || [], selThemes)),
+                  textImage: (assocRoot.textImage || []).filter(keepTheme),
+                  calcNum: (assocRoot.calcNum || []).filter(keepTheme),
                 };
               }
             }
@@ -5849,6 +5858,7 @@ setZones(dataWithRandomTexts);
               };
               const maxLvlIdx = Math.max(...selClasses.map(c => lvlIdx[normLvl(c)] ?? -1));
               const byClassCumul = (a) => {
+                if (matchesExtra(a)) return true; // bonus explicite → bypass niveau
                 const lc = a?.levelClass ? [String(a.levelClass)] : [];
                 const arr = a?.levels || a?.classes || a?.classLevels || [];
                 const vals = [...lc, ...arr].map(normLvl).filter(Boolean);
