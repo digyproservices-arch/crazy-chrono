@@ -9214,6 +9214,9 @@ setZones(dataWithRandomTexts);
                   // d'anneau, la bbox couvre tout le quadrant alors que la bande jaune est
                   // étroite → police trop grande → le calcul débordait sur l'anneau des textes.
                   let availW = bbox.width, availH = bbox.height;
+                  // Centre réel de la bande dans le repère du texte pivoté (le centre de
+                  // la bbox d'un quart d'anneau est décalé vers le cercle blanc intérieur)
+                  let bandCU = 0, bandCV = 0;
                   if (zone.type === 'calcul' && Array.isArray(zone.points) && zone.points.length >= 2) {
                     const aRad = (-angle * Math.PI) / 180;
                     const cosA = Math.cos(aRad), sinA = Math.sin(aRad);
@@ -9225,7 +9228,10 @@ setZones(dataWithRandomTexts);
                       if (u < minU) minU = u; if (u > maxU) maxU = u;
                       if (v < minV) minV = v; if (v > maxV) maxV = v;
                     }
-                    if (Number.isFinite(minU)) { availW = maxU - minU; availH = maxV - minV; }
+                    if (Number.isFinite(minU)) {
+                      availW = maxU - minU; availH = maxV - minV;
+                      bandCU = (minU + maxU) / 2; bandCV = (minV + maxV) / 2;
+                    }
                     // ✅ COMPENSATION DE COURBURE (longs calculs): un texte DROIT posé sur
                     // une bande COURBE déborde à ses extrémités (flèche de l'arc = L²/8ρ).
                     // On limite la corde utilisable pour que la flèche reste ≤ 1/3 de
@@ -9240,7 +9246,7 @@ setZones(dataWithRandomTexts);
                   }
                   // ✅ FRACTIONS VERTICALES (demande rectorat): détecter les tokens "a/b"
                   // pour les rendre empilés (numérateur / barre / dénominateur).
-                  const fracRe = /^(\d+(?:[.,]\d+)?)\/(\d+(?:[.,]\d+)?)$/;
+                  const fracRe = /^(\d+(?:[.,]\d+)?|\?)\/(\d+(?:[.,]\d+)?|\?)$/;
                   const fracTokens = contentStr.split(/\s+/).filter(Boolean).map(t => {
                     const m = t.match(fracRe);
                     return m ? { frac: true, num: m[1], den: m[2] } : { frac: false, text: t };
@@ -9301,9 +9307,13 @@ setZones(dataWithRandomTexts);
                         // d = taille des chiffres de la fraction (unité directe).
                         const d = fontSize;
                         const fracColor = '#456451';
+                        // ✅ Recentrage dans la bande: la pile fraction (≈2× plus haute qu'un
+                        // texte en ligne) doit être posée au CENTRE de la bande jaune, pas au
+                        // centre de la bbox (décalé vers le cercle blanc pour un quart d'anneau)
+                        const fcx = cx + bandCU, fcy = cy + bandCV;
                         const widths = fracTokens.map(t => tokenUnitW(t) * d);
                         const totalW = widths.reduce((a, w) => a + w, 0) + TOKEN_GAP * d * (fracTokens.length - 1);
-                        let xCur = cx - totalW / 2;
+                        let xCur = fcx - totalW / 2;
                         return (
                           <g
                             pointerEvents={gameActive ? 'none' : 'auto'}
@@ -9326,14 +9336,14 @@ setZones(dataWithRandomTexts);
                               xCur += w + TOKEN_GAP * d;
                               if (!t.frac) {
                                 return (
-                                  <text key={i} x={tcx} y={cy} textAnchor="middle" alignmentBaseline="middle" fontSize={d * PLAIN_SCALE} fill={fracColor} fontWeight="bold">{t.text}</text>
+                                  <text key={i} x={tcx} y={fcy} textAnchor="middle" alignmentBaseline="middle" fontSize={d * PLAIN_SCALE} fill={fracColor} fontWeight="bold">{t.text}</text>
                                 );
                               }
                               return (
                                 <g key={i}>
-                                  <text x={tcx} y={cy - 0.58 * d} textAnchor="middle" alignmentBaseline="middle" fontSize={d} fill={fracColor} fontWeight="bold">{t.num}</text>
-                                  <line x1={tcx - w / 2 + 0.05 * d} y1={cy} x2={tcx + w / 2 - 0.05 * d} y2={cy} stroke={fracColor} strokeWidth={Math.max(1.5, 0.08 * d)} strokeLinecap="round" />
-                                  <text x={tcx} y={cy + 0.62 * d} textAnchor="middle" alignmentBaseline="middle" fontSize={d} fill={fracColor} fontWeight="bold">{t.den}</text>
+                                  <text x={tcx} y={fcy - 0.58 * d} textAnchor="middle" alignmentBaseline="middle" fontSize={d} fill={fracColor} fontWeight="bold">{t.num}</text>
+                                  <line x1={tcx - w / 2 + 0.05 * d} y1={fcy} x2={tcx + w / 2 - 0.05 * d} y2={fcy} stroke={fracColor} strokeWidth={Math.max(1.5, 0.08 * d)} strokeLinecap="round" />
+                                  <text x={tcx} y={fcy + 0.62 * d} textAnchor="middle" alignmentBaseline="middle" fontSize={d} fill={fracColor} fontWeight="bold">{t.den}</text>
                                 </g>
                               );
                             })}
