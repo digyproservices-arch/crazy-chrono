@@ -227,7 +227,10 @@ export default function TournamentAdmin() {
 
             {/* Partenaire (lot sponsorisé) */}
             <div style={{ padding: '14px 16px', borderRadius: 12, background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.25)' }}>
-              <label style={{ fontSize: 13, color: '#F5A623', fontWeight: 700, marginBottom: 8, display: 'block' }}>🏆 Partenaire — lot à gagner (optionnel)</label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <label style={{ fontSize: 13, color: '#F5A623', fontWeight: 700 }}>🏆 Partenaire — lot à gagner (optionnel)</label>
+                <button type="button" onClick={() => { setPartnerName('Crazy Chrono'); setPartnerLot('3 mois d\'abonnement offerts'); setPartnerLogoUrl('/images/logo_crazy_chrono.png'); setPartnerVideoUrl(''); }} style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: 'rgba(245,166,35,0.25)', color: '#F5A623', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>⭐ Lot interne</button>
+              </div>
               <div style={{ display: 'grid', gap: 10 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div>

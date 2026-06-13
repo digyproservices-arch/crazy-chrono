@@ -69,6 +69,14 @@ function resolveImageSrc(raw) {
   return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
 }
 
+// Résout une URL de logo (relative /images/... ou absolue https://...)
+function resolvePartnerLogo(raw) {
+  if (!raw) return null;
+  if (raw.startsWith('http')) return raw;
+  if (raw.startsWith('/')) return window.location.origin + raw;
+  return raw;
+}
+
 // Convertit une URL YouTube (watch / youtu.be / shorts / embed) en URL embed autoplay muet en boucle
 function getYouTubeEmbedUrl(url) {
   try {
@@ -419,7 +427,7 @@ export default function LiveBoard() {
                 )}
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, background: 'rgba(255,255,255,0.95)', borderRadius: 14, padding: '10px 20px' }}>
                   {tournamentInfo.partner_logo_url && (
-                    <img src={tournamentInfo.partner_logo_url} alt={tournamentInfo.partner_name || 'Partenaire'} style={{ height: 48, borderRadius: 8 }} onError={(e) => { e.target.style.display = 'none'; }} />
+                    <img src={resolvePartnerLogo(tournamentInfo.partner_logo_url)} alt={tournamentInfo.partner_name || 'Partenaire'} style={{ height: 48, borderRadius: 8 }} onError={(e) => { e.target.style.display = 'none'; }} />
                   )}
                   <div style={{ textAlign: 'left' }}>
                     <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Offert par notre partenaire</div>
@@ -532,7 +540,7 @@ export default function LiveBoard() {
             <div style={{ display: 'block', marginBottom: 20 }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,211,77,0.5)', borderRadius: 14, padding: '10px 22px' }}>
                 {tournamentInfo.partner_logo_url && (
-                  <img src={tournamentInfo.partner_logo_url} alt={tournamentInfo.partner_name || 'Partenaire'} style={{ height: 38, borderRadius: 6, background: '#fff', padding: 3 }} onError={(e) => { e.target.style.display = 'none'; }} />
+                  <img src={resolvePartnerLogo(tournamentInfo.partner_logo_url)} alt={tournamentInfo.partner_name || 'Partenaire'} style={{ height: 38, borderRadius: 6, background: '#fff', padding: 3 }} onError={(e) => { e.target.style.display = 'none'; }} />
                 )}
                 <span style={{ fontSize: 16, fontWeight: 800, color: '#FFD34D' }}>
                   🎁 {tournamentInfo.partner_lot || 'Lot'} — offert par {tournamentInfo.partner_name || 'notre partenaire'}
