@@ -77,6 +77,7 @@ const LiveBoard = lazyWithRetry(() => import('./components/GrandeSalle/LiveBoard
 const LearnMode = lazyWithRetry(() => import('./components/Modes/LearnMode'));
 const LegalPages = lazyWithRetry(() => import('./components/LegalPages'));
 const PresentationPage = lazyWithRetry(() => import('./components/PresentationPage'));
+const PromoVideoPage = lazyWithRetry(() => import('./components/PromoVideoPage'));
 // Fallback de chargement pour Suspense
 const LazyFallback = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '40vh', color: '#0D6A7A', fontSize: 18 }}>
@@ -913,6 +914,7 @@ function App() {
               {/* Carte (éditeur/jeu) accessible en direct si nécessaire, sinon on y accède après config */}
               <Route path="/carte" element={<GameErrorBoundary><div className="carte-container-wrapper"><Carte backgroundImage={carteVidePath} /></div></GameErrorBoundary>} />
               <Route path="/presentation" element={<PresentationPage />} />
+              <Route path="/promo" element={<PromoVideoPage />} />
               <Route path="/legal" element={<LegalPages />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
