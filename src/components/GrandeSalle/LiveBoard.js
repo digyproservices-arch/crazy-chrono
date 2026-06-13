@@ -125,7 +125,8 @@ export default function LiveBoard() {
   const [startError, setStartError] = useState(null);
   const [starting, setStarting] = useState(false);
   // Tirage au sort des ex-aequo
-  const [drawWinner, setDrawWinner] = useState(null); // { candidates: [], winner: null, spinning: false }
+  const [drawWinner, setDrawWinner] = useState(null); // { candidates: [], winner: null, spinning: false, rankLabel: null }
+  const [drawRank, setDrawRank] = useState(null); // rang spécifique pour tirage (ex: 8, 10, etc.)
 
   const chiffreRefBase = useMemo(() => {
     if (!Array.isArray(zones) || zones.length === 0) return null;
@@ -550,15 +551,15 @@ export default function LiveBoard() {
                 <div style={{ marginTop: 10 }}>
                   <button
                     onClick={() => {
-                      const candidates = winners.map(w => ({ id: w.id, name: w.name, score: w.score }));
-                      setDrawWinner({ candidates, spinning: true, winner: null });
-                      // Animation de 4 secondes avant révélation
+                      const candidates = winners.map(w => ({ id: w.id, name: w.name, score: w.score, rank: 1 }));
+                      setDrawWinner({ candidates, spinning: true, winner: null, rankLabel: 1 });
+                      // Animation de 8 secondes avant révélation (suspense dramatique)
                       setTimeout(() => {
                         const shuffled = shuffleArray(candidates);
                         const finalWinner = shuffled[Math.floor(Math.random() * shuffled.length)];
-                        setDrawWinner({ candidates, spinning: false, winner: finalWinner });
+                        setDrawWinner({ candidates, spinning: false, winner: finalWinner, rankLabel: 1 });
                         addEvent(`🏆 Tirage au sort : ${finalWinner.name} remporte le lot !`, 'success');
-                      }, 4000);
+                      }, 8000);
                     }}
                     style={{ padding: '14px 28px', borderRadius: 12, border: '2px solid #FFD34D', background: 'linear-gradient(135deg, #F5A623, #ff6b35)', color: '#fff', fontSize: 18, fontWeight: 900, cursor: 'pointer', boxShadow: '0 4px 20px rgba(245,166,35,0.4)' }}
                   >
@@ -593,7 +594,9 @@ export default function LiveBoard() {
           {drawWinner?.winner && (
             <div style={{ marginBottom: 24, animation: 'ccDrawPulse 1s ease-in-out' }}>
               <div style={{ display: 'inline-block', background: 'linear-gradient(135deg, #F5A623, #ff6b35)', borderRadius: 20, padding: '20px 40px', boxShadow: '0 8px 40px rgba(245,166,35,0.5)' }}>
-                <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)', marginBottom: 6, fontWeight: 600 }}>🏆 GRAND GAGNANT DU LOT</div>
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)', marginBottom: 6, fontWeight: 600 }}>
+                  🏆 {drawWinner.rankLabel === 'tous' ? 'GAGNANT DU TIRAGE GÉNÉRAL' : drawWinner.rankLabel === 1 ? 'GRAND GAGNANT DU LOT' : `GAGNANT DU TIRAGE ${drawWinner.rankLabel}ÈME PLACE`}
+                </div>
                 <div style={{ fontSize: 42, fontWeight: 900, color: '#fff', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>{drawWinner.winner.name}</div>
                 <div style={{ fontSize: 18, color: '#fff', marginTop: 4 }}>{drawWinner.winner.score} pts</div>
               </div>
@@ -644,6 +647,59 @@ export default function LiveBoard() {
               </div>
             ) : <div key={rank} style={{ width: rank === 1 ? 230 : 190 }} />)}
           </div>
+
+          {/* TIRAGES AU SORT PERSONNALISÉS (places 8, 10, etc.) */}
+          {isAdmin && finish?.fullRanking && !drawWinner?.spinning && (
+            <div style={{ marginTop: 30, marginBottom: 30, padding: '20px', background: 'rgba(245,166,35,0.1)', border: '2px dashed rgba(245,166,35,0.5)', borderRadius: 16, maxWidth: 600, margin: '30px auto' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#F5A623', marginBottom: 12 }}>🎲 Tirages au sort personnalisés (lots de consolation)</div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: 13, color: '#94a3b8' }}>Tirer au sort pour la place :</span>
+                {[8, 10, 15, 20].map(rank => {
+                  const atRank = finish.fullRanking.filter(p => p.finalRank === rank);
+                  const hasTieAtRank = atRank.length > 1;
+                  return (
+                    <button
+                      key={rank}
+                      onClick={() => {
+                        const candidates = atRank.map(p => ({ id: p.id, name: p.name, score: p.score, rank }));
+                        if (candidates.length === 0) return;
+                        setDrawWinner({ candidates, spinning: true, winner: null, rankLabel: rank });
+                        setTimeout(() => {
+                          const shuffled = shuffleArray(candidates);
+                          const finalWinner = shuffled[Math.floor(Math.random() * shuffled.length)];
+                          setDrawWinner({ candidates, spinning: false, winner: finalWinner, rankLabel: rank });
+                          addEvent(`🎲 Tirage ${rank}ème place : ${finalWinner.name} remporte le lot !`, 'success');
+                        }, 8000);
+                      }}
+                      disabled={atRank.length === 0}
+                      style={{ padding: '8px 16px', borderRadius: 10, border: hasTieAtRank ? '2px solid #FFD34D' : '1px solid rgba(255,255,255,0.2)', background: hasTieAtRank ? 'rgba(245,166,35,0.3)' : 'rgba(255,255,255,0.1)', color: hasTieAtRank ? '#FFD34D' : '#94a3b8', fontSize: 13, fontWeight: 700, cursor: atRank.length === 0 ? 'not-allowed' : 'pointer', opacity: atRank.length === 0 ? 0.5 : 1 }}
+                    >
+                      {rank}{hasTieAtRank ? ` (${atRank.length} ex)` : ''}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => {
+                    // Tirage parmi tous les participants
+                    const all = finish.fullRanking.map(p => ({ id: p.id, name: p.name, score: p.score }));
+                    setDrawWinner({ candidates: all, spinning: true, winner: null, rankLabel: 'tous' });
+                    setTimeout(() => {
+                      const shuffled = shuffleArray(all);
+                      const finalWinner = shuffled[Math.floor(Math.random() * shuffled.length)];
+                      setDrawWinner({ candidates: all, spinning: false, winner: finalWinner, rankLabel: 'tous' });
+                      addEvent(`🎲 Tirage général : ${finalWinner.name} remporte le lot !`, 'success');
+                    }, 8000);
+                  }}
+                  style={{ padding: '8px 16px', borderRadius: 10, border: '1px solid rgba(16,185,129,0.5)', background: 'rgba(16,185,129,0.2)', color: '#10b981', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  🎲 Tous les participants
+                </button>
+              </div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
+                Les boutons dorés indiquent des ex-aequo à cette place. Cliquez pour faire un tirage au sort live.
+              </div>
+            </div>
+          )}
 
           {/* Classement 4e et suivants */}
           {rest.length > 0 && (
