@@ -62,6 +62,13 @@ function getZoneBoundingBox(points) {
   return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
 }
 
+// Mélange Fisher-Yates
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
 function resolveImageSrc(raw) {
   if (!raw) return null;
   const normalized = raw.startsWith('http') ? raw
@@ -117,6 +124,8 @@ export default function LiveBoard() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [startError, setStartError] = useState(null);
   const [starting, setStarting] = useState(false);
+  // Tirage au sort des ex-aequo
+  const [drawWinner, setDrawWinner] = useState(null); // { candidates: [], winner: null, spinning: false }
 
   const chiffreRefBase = useMemo(() => {
     if (!Array.isArray(zones) || zones.length === 0) return null;
@@ -531,9 +540,63 @@ export default function LiveBoard() {
           <div style={{ fontSize: 17, color: 'rgba(255,255,255,0.65)', fontWeight: 600, marginBottom: hasTie ? 12 : 24 }}>
             {finish.totalPlayers} joueurs · {finish.roundsPlayed} manches
           </div>
-          {hasTie && (
-            <div style={{ display: 'inline-block', background: 'rgba(245,166,35,0.18)', border: '1px solid rgba(245,166,35,0.5)', borderRadius: 14, padding: '10px 22px', marginBottom: 20, fontSize: 16, fontWeight: 800, color: '#FFD34D' }}>
-              🎲 {winners.length} ex-aequo — le gagnant final sera tiré au sort !
+          {/* TIRAGE AU SORT DES EX-AEQUO */}
+          {hasTie && !drawWinner && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: 'inline-block', background: 'rgba(245,166,35,0.18)', border: '1px solid rgba(245,166,35,0.5)', borderRadius: 14, padding: '10px 22px', fontSize: 16, fontWeight: 800, color: '#FFD34D', marginBottom: 12 }}>
+                🎲 {winners.length} ex-aequo — le gagnant final sera tiré au sort !
+              </div>
+              {isAdmin && (
+                <div style={{ marginTop: 10 }}>
+                  <button
+                    onClick={() => {
+                      const candidates = winners.map(w => ({ id: w.id, name: w.name, score: w.score }));
+                      setDrawWinner({ candidates, spinning: true, winner: null });
+                      // Animation de 4 secondes avant révélation
+                      setTimeout(() => {
+                        const shuffled = shuffleArray(candidates);
+                        const finalWinner = shuffled[Math.floor(Math.random() * shuffled.length)];
+                        setDrawWinner({ candidates, spinning: false, winner: finalWinner });
+                        addEvent(`🏆 Tirage au sort : ${finalWinner.name} remporte le lot !`, 'success');
+                      }, 4000);
+                    }}
+                    style={{ padding: '14px 28px', borderRadius: 12, border: '2px solid #FFD34D', background: 'linear-gradient(135deg, #F5A623, #ff6b35)', color: '#fff', fontSize: 18, fontWeight: 900, cursor: 'pointer', boxShadow: '0 4px 20px rgba(245,166,35,0.4)' }}
+                  >
+                    🎰 LANCER LE TIRAGE AU SORT
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ANIMATION TIRAGE AU SORT */}
+          {drawWinner?.spinning && (
+            <div style={{ marginBottom: 24, textAlign: 'center' }}>
+              <style>{`
+                @keyframes ccDrawSpin { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
+                @keyframes ccDrawPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.9; } }
+              `}</style>
+              <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 10, fontWeight: 600, letterSpacing: 2 }}>TIRAGE EN COURS...</div>
+              <div style={{ height: 80, overflow: 'hidden', borderRadius: 16, background: 'rgba(0,0,0,0.3)', border: '2px solid #FFD34D', position: 'relative', maxWidth: 400, margin: '0 auto' }}>
+                <div style={{ animation: 'ccDrawSpin 0.15s linear infinite', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  {[...drawWinner.candidates, ...drawWinner.candidates, ...drawWinner.candidates, ...drawWinner.candidates].map((c, i) => (
+                    <div key={i} style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 900, color: i % drawWinner.candidates.length === 0 ? '#FFD34D' : '#fff' }}>
+                      {c.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* RÉSULTAT DU TIRAGE */}
+          {drawWinner?.winner && (
+            <div style={{ marginBottom: 24, animation: 'ccDrawPulse 1s ease-in-out' }}>
+              <div style={{ display: 'inline-block', background: 'linear-gradient(135deg, #F5A623, #ff6b35)', borderRadius: 20, padding: '20px 40px', boxShadow: '0 8px 40px rgba(245,166,35,0.5)' }}>
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.9)', marginBottom: 6, fontWeight: 600 }}>🏆 GRAND GAGNANT DU LOT</div>
+                <div style={{ fontSize: 42, fontWeight: 900, color: '#fff', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>{drawWinner.winner.name}</div>
+                <div style={{ fontSize: 18, color: '#fff', marginTop: 4 }}>{drawWinner.winner.score} pts</div>
+              </div>
             </div>
           )}
           {hasPartner && (
