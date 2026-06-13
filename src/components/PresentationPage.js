@@ -317,38 +317,49 @@ const FloatingBubbles = ({ count = 6 }) => (
 // ============ CAPTION (lower-third complémentaire, temporisé) ============
 // Bandeau bas façon sous-titre TV : apparaît en douceur, tient ~4s, disparaît.
 // N'affiche PAS le titre de la slide (pas de redondance) : une accroche/bénéfice.
-const CaptionOverlay = ({ caption, elapsed }) => {
+const CaptionOverlay = ({ caption, elapsed, pos = 'bottom' }) => {
   if (!caption) return null;
   // Fenêtre d'affichage temporisée
   const IN_START = 350, IN_END = 950, OUT_START = 4600, OUT_END = 5200;
-  let opacity = 0, ty = 28;
-  if (elapsed < IN_START) { opacity = 0; ty = 28; }
-  else if (elapsed < IN_END) { const t = (elapsed - IN_START) / (IN_END - IN_START); opacity = t; ty = 28 * (1 - t); }
-  else if (elapsed < OUT_START) { opacity = 1; ty = 0; }
-  else if (elapsed < OUT_END) { const t = (elapsed - OUT_START) / (OUT_END - OUT_START); opacity = 1 - t; ty = -10 * t; }
-  else { opacity = 0; }
+  let opacity = 0, prog = 0;
+  if (elapsed < IN_START) { opacity = 0; prog = 0; }
+  else if (elapsed < IN_END) { const t = (elapsed - IN_START) / (IN_END - IN_START); opacity = t; prog = t; }
+  else if (elapsed < OUT_START) { opacity = 1; prog = 1; }
+  else if (elapsed < OUT_END) { const t = (elapsed - OUT_START) / (OUT_END - OUT_START); opacity = 1 - t; prog = 1; }
+  else return null;
   if (opacity <= 0.01) return null;
 
+  const isTop = pos.startsWith('top');
+  const isRight = pos.endsWith('right');
+  const isLeft = pos.endsWith('left');
+  const isCorner = isRight || isLeft;
+  const ty = (isTop ? -1 : 1) * 26 * (1 - prog);
+
+  const container = {
+    position: 'absolute', left: 0, right: 0, zIndex: 9, display: 'flex',
+    pointerEvents: 'none', padding: '0 clamp(16px, 4vw, 56px)',
+    justifyContent: isRight ? 'flex-end' : isLeft ? 'flex-start' : 'center',
+  };
+  if (isTop) container.top = 'clamp(22px, 5vh, 54px)';
+  else container.bottom = 'clamp(22px, 6vh, 56px)';
+
   return (
-    <div style={{
-      position: 'absolute', bottom: 'clamp(28px, 7vh, 64px)', left: 0, right: 0,
-      display: 'flex', justifyContent: 'center', zIndex: 9,
-      pointerEvents: 'none', padding: '0 24px',
-    }}>
+    <div style={container}>
       <div style={{
-        display: 'inline-flex', alignItems: 'center', gap: 14,
-        maxWidth: 'min(92vw, 880px)',
-        background: 'rgba(13,30,38,0.78)', backdropFilter: 'blur(10px)',
+        display: 'inline-flex', alignItems: 'center',
+        maxWidth: isCorner ? 'min(80vw, 380px)' : 'min(92vw, 880px)',
+        background: 'rgba(13,30,38,0.82)', backdropFilter: 'blur(10px)',
         border: '1px solid rgba(255,255,255,0.12)',
         borderLeft: `4px solid ${CC.yellow}`,
-        borderRadius: 14, padding: '14px 24px',
+        borderRadius: 14, padding: isCorner ? '12px 18px' : '14px 24px',
         boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
         opacity, transform: `translateY(${ty}px)`,
         transition: 'opacity 0.12s linear, transform 0.12s linear',
       }}>
         <span style={{
-          fontSize: 'clamp(18px, 2.6vw, 30px)', fontWeight: 800,
-          color: '#fff', lineHeight: 1.2, letterSpacing: -0.3, textAlign: 'center',
+          fontSize: isCorner ? 'clamp(15px, 1.8vw, 20px)' : 'clamp(18px, 2.6vw, 30px)',
+          fontWeight: 800, color: '#fff', lineHeight: 1.25, letterSpacing: -0.3,
+          textAlign: isRight ? 'right' : isLeft ? 'left' : 'center',
         }}>{caption}</span>
       </div>
     </div>
@@ -361,6 +372,7 @@ const SLIDES = [
   {
     id: 'title', duration: 8000,
     caption: 'Le jeu qui donne envie d\'apprendre, du CP à la 6e',
+    captionPos: 'bottom',
     bg: `linear-gradient(160deg, ${CC.tealDeep} 0%, ${CC.teal} 50%, ${CC.tealDark} 100%)`,
     render: () => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: CC.white, textAlign: 'center', padding: 40, position: 'relative' }}>
@@ -388,6 +400,7 @@ const SLIDES = [
   {
     id: 'concept', duration: 10000,
     caption: 'Des centaines d\'associations : images, mots, calculs…',
+    captionPos: 'top',
     bg: CC.cream,
     render: (_, phase) => (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 60, padding: '40px 60px', flexWrap: 'wrap' }}>
@@ -431,6 +444,7 @@ const SLIDES = [
   {
     id: 'demo', duration: 14000,
     caption: 'Addictif dès la première partie',
+    captionPos: 'bottom',
     bg: '#f8fafc',
     render: () => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '40px 20px', gap: 20 }}>
@@ -450,6 +464,7 @@ const SLIDES = [
   {
     id: 'modes', duration: 10000,
     caption: 'Un mode pour chaque envie : seul, entre amis ou contre tous',
+    captionPos: 'bottom',
     bg: CC.cream,
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '40px 60px' }}>
@@ -485,6 +500,7 @@ const SLIDES = [
   {
     id: 'teacher-config', duration: 10000,
     caption: 'La difficulté s\'adapte à chaque classe',
+    captionPos: 'bottom-right',
     bg: '#f8fafc',
     render: (_, phase) => (
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', height: '100%', gap: 30, padding: '30px 40px', flexWrap: 'wrap', overflow: 'auto' }}>
@@ -568,7 +584,8 @@ const SLIDES = [
   // 5 — CRÉATION DE GROUPES
   {
     id: 'groups', duration: 12000,
-    caption: 'Des équipes sur mesure en quelques clics',
+    caption: null,
+    captionPos: 'none',
     bg: '#f8fafc',
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '30px 40px', overflow: 'auto' }}>
@@ -634,7 +651,8 @@ const SLIDES = [
   // 6 — LANCEMENT DU MATCH
   {
     id: 'launch', duration: 10000,
-    caption: 'Les élèves rejoignent en un instant, sur tout appareil',
+    caption: 'Aucun code à saisir : un clic et c\'est parti',
+    captionPos: 'top',
     bg: `linear-gradient(160deg, ${CC.tealDeep} 0%, ${CC.teal} 50%, ${CC.tealDark} 100%)`,
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff', textAlign: 'center', padding: 40, position: 'relative' }}>
@@ -642,15 +660,18 @@ const SLIDES = [
         <div style={{ zIndex: 1 }}>
           <div style={{ fontSize: 60, marginBottom: 16 }}>🚀</div>
           <h2 style={{ fontSize: 36, fontWeight: 900, margin: '0 0 12px' }}>Match lancé !</h2>
-          <p style={{ fontSize: 18, opacity: 0.85, marginBottom: 30 }}>Les élèves rejoignent avec leur code d'accès</p>
+          <p style={{ fontSize: 18, opacity: 0.85, marginBottom: 30 }}>Une notification est envoyée automatiquement à chaque élève du groupe</p>
           {phase >= 1 && (
             <div style={{
               background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)',
-              borderRadius: 20, padding: '24px 40px', border: '2px solid rgba(255,255,255,0.25)',
-              display: 'inline-block', animation: 'presFadeIn 0.5s ease-out',
+              borderRadius: 20, padding: '20px 32px', border: '2px solid rgba(255,255,255,0.25)',
+              display: 'inline-flex', alignItems: 'center', gap: 18, animation: 'presFadeIn 0.5s ease-out',
             }}>
-              <div style={{ fontSize: 13, fontWeight: 600, opacity: 0.7, marginBottom: 8 }}>Code de salle</div>
-              <div style={{ fontSize: 52, fontWeight: 900, letterSpacing: 8, fontFamily: 'monospace' }}>A3X7</div>
+              <div style={{ fontSize: 44, animation: 'presPulse 1.5s ease-in-out infinite' }}>🔔</div>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: 19, fontWeight: 800 }}>Notification envoyée à 4 élèves</div>
+                <div style={{ fontSize: 14, opacity: 0.8 }}>Ils rejoignent la partie en un seul clic — aucun code à saisir</div>
+              </div>
             </div>
           )}
           {phase >= 2 && (
@@ -687,6 +708,7 @@ const SLIDES = [
   {
     id: 'gameplay', duration: 14000,
     caption: 'Rapidité et précision font la différence',
+    captionPos: 'bottom-right',
     bg: `linear-gradient(135deg, ${CC.tealDeep} 0%, ${CC.tealDark} 30%, ${CC.teal} 60%, ${CC.tealDark} 100%)`,
     render: (_, phase) => {
       const scores = PLAYER_NAMES.map((name, i) => ({
@@ -722,6 +744,7 @@ const SLIDES = [
   {
     id: 'tournament', duration: 12000,
     caption: 'Jusqu\'au championnat académique',
+    captionPos: 'bottom',
     bg: CC.cream,
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '30px 40px' }}>
@@ -749,6 +772,7 @@ const SLIDES = [
   {
     id: 'podium', duration: 10000,
     caption: 'La motivation au sommet',
+    captionPos: 'bottom',
     bg: `linear-gradient(135deg, ${CC.tealDeep} 0%, ${CC.teal} 100%)`,
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 40, position: 'relative' }}>
@@ -768,6 +792,7 @@ const SLIDES = [
   {
     id: 'tracking', duration: 12000,
     caption: 'Un suivi précis, élève par élève',
+    captionPos: 'top-right',
     bg: '#f8fafc',
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '30px 40px', overflow: 'auto' }}>
@@ -859,7 +884,8 @@ const SLIDES = [
   // 11 — CONCLUSION
   {
     id: 'conclusion', duration: 10000,
-    caption: 'Disponible partout — crazy-chrono.com',
+    caption: 'Rendez-vous sur crazy-chrono.com',
+    captionPos: 'bottom',
     bg: `linear-gradient(160deg, ${CC.tealDeep} 0%, ${CC.teal} 50%, ${CC.tealDark} 100%)`,
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff', textAlign: 'center', padding: 40, position: 'relative' }}>
@@ -1053,7 +1079,7 @@ export default function PresentationPage() {
       </div>
 
       {/* Légende complémentaire (lower-third temporisé) */}
-      {showCaptions && <CaptionOverlay caption={slide.caption} elapsed={elapsed} />}
+      {showCaptions && <CaptionOverlay caption={slide.caption} elapsed={elapsed} pos={slide.captionPos} />}
 
       {/* Progress bar (masquée pendant l'enregistrement) */}
       {!recording && (
