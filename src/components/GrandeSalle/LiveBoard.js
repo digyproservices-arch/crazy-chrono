@@ -135,6 +135,8 @@ export default function LiveBoard() {
   const navigate = useNavigate();
   const socketRef = useRef(null);
   const zonesRef = useRef([]);
+  const podiumLockedRef = useRef(true);
+  const statusRef = useRef('lobby');
 
   const [status, setStatus] = useState('lobby');
   const [players, setPlayers] = useState([]);
@@ -161,6 +163,9 @@ export default function LiveBoard() {
   // Tirage au sort des ex-aequo
   const [drawWinner, setDrawWinner] = useState(null); // { candidates: [], winner: null, spinning: false, rankLabel: null, seed: null }
   const [drawRank, setDrawRank] = useState(null); // rang spécifique pour tirage (ex: 8, 10, etc.)
+  const [podiumLocked, setPodiumLocked] = useState(true); // Verrouille le podium jusqu'à clic manuel admin
+  useEffect(() => { podiumLockedRef.current = podiumLocked; }, [podiumLocked]);
+  useEffect(() => { statusRef.current = status; }, [status]);
 
   const chiffreRefBase = useMemo(() => {
     if (!Array.isArray(zones) || zones.length === 0) return null;
@@ -254,6 +259,11 @@ export default function LiveBoard() {
     socket.on('disconnect', () => setConnected(false));
 
     socket.on('gs:state', (d) => {
+      // ✅ Protection: ne pas écraser le statut 'finished' si le podium est verrouillé
+      if (podiumLockedRef.current && statusRef.current === 'finished' && d.status !== 'finished') {
+        console.log('[LiveBoard] Podium verrouillé - ignoring status change to:', d.status);
+        return;
+      }
       setStatus(d.status);
       setPlayers(d.players || []);
       setTotalPlayers(d.totalPlayers || 0);
@@ -758,6 +768,50 @@ export default function LiveBoard() {
                   <span style={{ fontWeight: 800, color: 'rgba(255,255,255,0.75)', fontSize: 17 }}>{p.score} pts</span>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* CONTRÔLE ADMIN - Déverrouiller le podium */}
+          {isAdmin && podiumLocked && (
+            <div style={{ marginTop: 40, textAlign: 'center' }}>
+              <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>Le podium est verrouillé. Cliquez ci-dessous pour le déverrouiller et permettre de passer à la suite.</div>
+              <button
+                onClick={() => {
+                  setPodiumLocked(false);
+                  addEvent('🔓 Podium déverrouillé par l\'admin', 'info');
+                }}
+                style={{ padding: '14px 32px', borderRadius: 12, border: '2px solid #10b981', background: 'rgba(16,185,129,0.2)', color: '#10b981', fontSize: 16, fontWeight: 800, cursor: 'pointer' }}
+              >
+                🔓 DÉVERROUILLER LE PODIUM
+              </button>
+            </div>
+          )}
+
+          {/* CONTRÔLE ADMIN - Retour au lobby (quand podium déverrouillé) */}
+          {isAdmin && !podiumLocked && (
+            <div style={{ marginTop: 30, textAlign: 'center', display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => {
+                  // Réinitialiser pour un nouveau tournoi
+                  setFinish(null);
+                  setDrawWinner(null);
+                  setStatus('lobby');
+                  setPodiumLocked(true);
+                  addEvent('🏁 Retour au lobby - nouveau tournoi prêt', 'info');
+                }}
+                style={{ padding: '12px 28px', borderRadius: 12, border: '2px solid #3b82f6', background: 'rgba(59,130,246,0.2)', color: '#60a5fa', fontSize: 15, fontWeight: 800, cursor: 'pointer' }}
+              >
+                🏁 RETOUR AU LOBBY (NOUVEAU TOURNOI)
+              </button>
+              <button
+                onClick={() => {
+                  // Re-verrouiller le podium si besoin
+                  setPodiumLocked(true);
+                }}
+                style={{ padding: '12px 24px', borderRadius: 12, border: '2px solid #f59e0b', background: 'rgba(245,158,11,0.2)', color: '#fbbf24', fontSize: 15, fontWeight: 800, cursor: 'pointer' }}
+              >
+                🔒 REVERRUILLER LE PODIUM
+              </button>
             </div>
           )}
         </div>
