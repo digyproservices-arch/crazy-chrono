@@ -314,11 +314,48 @@ const FloatingBubbles = ({ count = 6 }) => (
   </div>
 );
 
+// ============ CAPTION OVERLAY (gros titres animés motion design) ============
+const CaptionOverlay = ({ caption, slideKey }) => {
+  if (!caption) return null;
+  const words = caption.big.split(' ');
+  return (
+    <div key={slideKey} style={{
+      position: 'absolute', top: 'clamp(20px, 5vh, 56px)', left: 0, right: 0,
+      display: 'flex', flexDirection: 'column', alignItems: 'center',
+      zIndex: 8, pointerEvents: 'none', padding: '0 24px', textAlign: 'center',
+    }}>
+      <div style={{
+        fontSize: 'clamp(30px, 6.2vw, 68px)', fontWeight: 900, lineHeight: 1.02,
+        color: '#fff', letterSpacing: -1.5, textTransform: 'uppercase',
+        textShadow: '0 6px 30px rgba(0,0,0,0.45), 0 2px 4px rgba(0,0,0,0.55)',
+        maxWidth: 1150, display: 'flex', flexWrap: 'wrap', gap: '0 0.28em', justifyContent: 'center',
+      }}>
+        {words.map((w, i) => (
+          <span key={i} style={{
+            display: 'inline-block',
+            animation: `capWord 0.6s cubic-bezier(0.22,1,0.36,1) ${i * 0.08}s both`,
+          }}>{w}</span>
+        ))}
+      </div>
+      {caption.sub && (
+        <div style={{
+          marginTop: 16, fontSize: 'clamp(15px, 2.3vw, 24px)', fontWeight: 800,
+          color: '#0D6A7A', background: '#FFC940',
+          padding: '7px 22px', borderRadius: 999,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+          animation: 'capSub 0.6s cubic-bezier(0.22,1,0.36,1) 0.35s both',
+        }}>{caption.sub}</div>
+      )}
+    </div>
+  );
+};
+
 // ============ SLIDES ============
 const SLIDES = [
   // 0 — TITRE
   {
     id: 'title', duration: 8000,
+    caption: { big: 'APPRENDRE DEVIENT UN JEU', sub: '🕐 Crazy Chrono' },
     bg: `linear-gradient(160deg, ${CC.tealDeep} 0%, ${CC.teal} 50%, ${CC.tealDark} 100%)`,
     render: () => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: CC.white, textAlign: 'center', padding: 40, position: 'relative' }}>
@@ -345,6 +382,7 @@ const SLIDES = [
   // 1 — CONCEPT : LE CADRAN
   {
     id: 'concept', duration: 10000,
+    caption: { big: 'TROUVEZ LES BONNES PAIRES', sub: 'Le concept en 10 secondes' },
     bg: CC.cream,
     render: (_, phase) => (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 60, padding: '40px 60px', flexWrap: 'wrap' }}>
@@ -387,6 +425,7 @@ const SLIDES = [
   // 2 — DÉMO EN DIRECT
   {
     id: 'demo', duration: 14000,
+    caption: { big: 'SIMPLE. RAPIDE. ADDICTIF.', sub: 'Le jeu en action' },
     bg: '#f8fafc',
     render: () => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '40px 20px', gap: 20 }}>
@@ -405,6 +444,7 @@ const SLIDES = [
   // 3 — CHOIX DES MODES (ÉLÈVE)
   {
     id: 'modes', duration: 10000,
+    caption: { big: 'CHOISIS TON MODE DE JEU', sub: 'Solo, entre amis ou en grande salle' },
     bg: CC.cream,
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '40px 60px' }}>
@@ -439,6 +479,7 @@ const SLIDES = [
   // 4 — ESPACE ENSEIGNANT : CONFIGURATION
   {
     id: 'teacher-config', duration: 10000,
+    caption: { big: "L'ENSEIGNANT PILOTE TOUT", sub: 'Niveaux, thèmes & paramètres' },
     bg: '#f8fafc',
     render: (_, phase) => (
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', height: '100%', gap: 30, padding: '30px 40px', flexWrap: 'wrap', overflow: 'auto' }}>
@@ -522,6 +563,7 @@ const SLIDES = [
   // 5 — CRÉATION DE GROUPES
   {
     id: 'groups', duration: 12000,
+    caption: { big: 'DES GROUPES EN 2 CLICS', sub: 'Adaptés au niveau de chaque élève' },
     bg: '#f8fafc',
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '30px 40px', overflow: 'auto' }}>
@@ -587,6 +629,7 @@ const SLIDES = [
   // 6 — LANCEMENT DU MATCH
   {
     id: 'launch', duration: 10000,
+    caption: { big: "UN CODE, ET C'EST PARTI !", sub: 'Les élèves rejoignent en direct' },
     bg: `linear-gradient(160deg, ${CC.tealDeep} 0%, ${CC.teal} 50%, ${CC.tealDark} 100%)`,
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff', textAlign: 'center', padding: 40, position: 'relative' }}>
@@ -638,6 +681,7 @@ const SLIDES = [
   // 7 — JEU MULTI EN COURS
   {
     id: 'gameplay', duration: 14000,
+    caption: { big: 'DUEL EN TEMPS RÉEL', sub: 'Le plus rapide remporte la manche' },
     bg: `linear-gradient(135deg, ${CC.tealDeep} 0%, ${CC.tealDark} 30%, ${CC.teal} 60%, ${CC.tealDark} 100%)`,
     render: (_, phase) => {
       const scores = PLAYER_NAMES.map((name, i) => ({
@@ -672,6 +716,7 @@ const SLIDES = [
   // 8 — TOURNOI : PYRAMIDE
   {
     id: 'tournament', duration: 12000,
+    caption: { big: "DE LA CLASSE À L'ACADÉMIE", sub: 'Tournois à élimination' },
     bg: CC.cream,
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '30px 40px' }}>
@@ -698,6 +743,7 @@ const SLIDES = [
   // 9 — PODIUM
   {
     id: 'podium', duration: 10000,
+    caption: { big: 'UN CHAMPION EST COURONNÉ', sub: 'Podium, médailles & récompenses' },
     bg: `linear-gradient(135deg, ${CC.tealDeep} 0%, ${CC.teal} 100%)`,
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 40, position: 'relative' }}>
@@ -716,6 +762,7 @@ const SLIDES = [
   // 10 — SUIVI ENSEIGNANT
   {
     id: 'tracking', duration: 12000,
+    caption: { big: 'SUIVEZ CHAQUE PROGRÈS', sub: 'Statistiques détaillées par élève' },
     bg: '#f8fafc',
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '30px 40px', overflow: 'auto' }}>
@@ -807,6 +854,7 @@ const SLIDES = [
   // 11 — CONCLUSION
   {
     id: 'conclusion', duration: 10000,
+    caption: { big: 'PRÊT À JOUER ?', sub: 'crazy-chrono.com' },
     bg: `linear-gradient(160deg, ${CC.tealDeep} 0%, ${CC.teal} 50%, ${CC.tealDark} 100%)`,
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff', textAlign: 'center', padding: 40, position: 'relative' }}>
@@ -863,12 +911,76 @@ export default function PresentationPage() {
   const [slideIdx, setSlideIdx] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [showCaptions, setShowCaptions] = useState(true);
+  const [recording, setRecording] = useState(false);
   const rafRef = useRef(null);
   const startRef = useRef(null);
   const pausedRef = useRef(false);
+  const recordingRef = useRef(false);
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+  const streamRef = useRef(null);
 
   const slide = SLIDES[slideIdx] || SLIDES[0];
   const phase = getPhase(elapsed, slide.duration);
+
+  // ===== Enregistrement vidéo (capture d'onglet -> .webm) =====
+  const finalizeStop = useCallback(() => {
+    recordingRef.current = false;
+    setRecording(false);
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      alert("Votre navigateur ne supporte pas l'enregistrement. Utilisez Chrome ou Edge sur ordinateur.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 30, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      chunksRef.current = [];
+      const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+        ? 'video/webm;codecs=vp9'
+        : 'video/webm';
+      const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8000000 });
+      recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data); };
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `crazy-chrono-promo-${Date.now()}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      };
+      // Si l'utilisateur arrête le partage depuis la barre du navigateur
+      stream.getVideoTracks()[0].onended = () => finalizeStop();
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      recordingRef.current = true;
+      setRecording(true);
+      // Relance la présentation depuis le début
+      startRef.current = null;
+      setElapsed(0);
+      setSlideIdx(0);
+      setPaused(false);
+      pausedRef.current = false;
+    } catch (err) {
+      console.warn('Enregistrement annulé ou échoué:', err);
+    }
+  }, [finalizeStop]);
 
   // Animation loop
   const tick = useCallback((timestamp) => {
@@ -879,13 +991,20 @@ export default function PresentationPage() {
       if (dt >= slide.duration) {
         startRef.current = null;
         setElapsed(0);
-        setSlideIdx(prev => (prev + 1) % SLIDES.length);
+        setSlideIdx(prev => {
+          const next = (prev + 1) % SLIDES.length;
+          // Fin d'un tour complet pendant l'enregistrement -> stop auto
+          if (recordingRef.current && next === 0) {
+            setTimeout(() => finalizeStop(), 400);
+          }
+          return next;
+        });
       }
     } else {
       startRef.current = timestamp - elapsed;
     }
     rafRef.current = requestAnimationFrame(tick);
-  }, [slide.duration, elapsed]);
+  }, [slide.duration, elapsed, finalizeStop]);
 
   useEffect(() => {
     rafRef.current = requestAnimationFrame(tick);
@@ -904,14 +1023,18 @@ export default function PresentationPage() {
         startRef.current = null; setElapsed(0);
         setSlideIdx(prev => (prev - 1 + SLIDES.length) % SLIDES.length);
       } else if (e.key === 'Escape') {
-        navigate('/');
+        if (recordingRef.current) { finalizeStop(); } else { navigate('/'); }
       } else if (e.key === 'p' || e.key === 'P') {
         setPaused(p => { pausedRef.current = !p; return !p; });
+      } else if (e.key === 's' || e.key === 'S') {
+        if (recordingRef.current) finalizeStop();
+      } else if (e.key === 'c' || e.key === 'C') {
+        setShowCaptions(c => !c);
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [navigate]);
+  }, [navigate, finalizeStop]);
 
   const goSlide = (idx) => { startRef.current = null; setElapsed(0); setSlideIdx(idx); };
   const togglePause = () => { setPaused(p => { pausedRef.current = !p; return !p; }); };
@@ -924,12 +1047,18 @@ export default function PresentationPage() {
         {slide.render(elapsed, phase)}
       </div>
 
-      {/* Progress bar */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'rgba(0,0,0,0.1)', zIndex: 10 }}>
-        <div style={{ height: '100%', background: CC.yellow, width: `${progress * 100}%`, transition: 'width 0.1s linear' }} />
-      </div>
+      {/* Gros titres animés (motion design) */}
+      {showCaptions && <CaptionOverlay caption={slide.caption} slideKey={slideIdx} />}
 
-      {/* Controls bar */}
+      {/* Progress bar (masquée pendant l'enregistrement) */}
+      {!recording && (
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'rgba(0,0,0,0.1)', zIndex: 10 }}>
+          <div style={{ height: '100%', background: CC.yellow, width: `${progress * 100}%`, transition: 'width 0.1s linear' }} />
+        </div>
+      )}
+
+      {/* Controls bar (masquée pendant l'enregistrement pour une vidéo propre) */}
+      {!recording && (
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10,
         background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(10px)',
@@ -961,18 +1090,42 @@ export default function PresentationPage() {
           {slideIdx + 1} / {SLIDES.length}
         </span>
 
+        {/* Toggle légendes */}
+        <button onClick={() => setShowCaptions(c => !c)} style={{ ...btnStyle, fontSize: 12, background: showCaptions ? CC.yellow : 'rgba(255,255,255,0.15)', color: showCaptions ? '#0D6A7A' : '#fff' }}>
+          {showCaptions ? '🅰 Texte ON' : '🅰 Texte OFF'}
+        </button>
+
+        {/* Enregistrer */}
+        <button onClick={startRecording} style={{ ...btnStyle, fontSize: 12, background: 'linear-gradient(135deg, #ef4444, #dc2626)', borderColor: 'rgba(255,255,255,0.3)' }}>
+          🔴 Enregistrer
+        </button>
+
         {/* Exit */}
         <button onClick={() => navigate('/')} style={{ ...btnStyle, fontSize: 12 }}>✕ Quitter</button>
       </div>
+      )}
+
+      {/* Indicateur discret pendant l'enregistrement (coin, hors zone de contenu) */}
+      {recording && (
+        <div style={{
+          position: 'absolute', top: 10, right: 10, zIndex: 20,
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'rgba(0,0,0,0.35)', borderRadius: 999, padding: '4px 10px',
+          fontSize: 11, fontWeight: 700, color: '#fff', pointerEvents: 'none',
+        }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', animation: 'presPulse 1s infinite' }} />
+          REC — touche S pour arrêter
+        </div>
+      )}
 
       {/* Keyboard hints */}
-      {slideIdx === 0 && elapsed < 4000 && (
+      {!recording && slideIdx === 0 && elapsed < 4000 && (
         <div style={{
           position: 'absolute', bottom: 60, left: '50%', transform: 'translateX(-50%)',
           color: 'rgba(255,255,255,0.5)', fontSize: 12, zIndex: 10,
           animation: 'presFadeIn 1s ease-out 2s both',
         }}>
-          ← → Navigation • Espace Suivant • P Pause • Échap Quitter
+          ← → Navigation • Espace Suivant • P Pause • C Texte • 🔴 Enregistrer • Échap Quitter
         </div>
       )}
 
@@ -1015,6 +1168,14 @@ export default function PresentationPage() {
           20% { transform: translateY(-20px) scale(1); opacity: 1; }
           80% { transform: translateY(-200px) scale(1.1); opacity: 0.9; }
           100% { transform: translateY(-350px) scale(1.2); opacity: 0; }
+        }
+        @keyframes capWord {
+          0% { opacity: 0; transform: translateY(40px) scale(0.85); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes capSub {
+          0% { opacity: 0; transform: translateY(20px) scale(0.9); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
         }
       `}</style>
     </div>
