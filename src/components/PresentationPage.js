@@ -314,38 +314,43 @@ const FloatingBubbles = ({ count = 6 }) => (
   </div>
 );
 
-// ============ CAPTION OVERLAY (gros titres animés motion design) ============
-const CaptionOverlay = ({ caption, slideKey }) => {
+// ============ CAPTION (lower-third complémentaire, temporisé) ============
+// Bandeau bas façon sous-titre TV : apparaît en douceur, tient ~4s, disparaît.
+// N'affiche PAS le titre de la slide (pas de redondance) : une accroche/bénéfice.
+const CaptionOverlay = ({ caption, elapsed }) => {
   if (!caption) return null;
-  const words = caption.big.split(' ');
+  // Fenêtre d'affichage temporisée
+  const IN_START = 350, IN_END = 950, OUT_START = 4600, OUT_END = 5200;
+  let opacity = 0, ty = 28;
+  if (elapsed < IN_START) { opacity = 0; ty = 28; }
+  else if (elapsed < IN_END) { const t = (elapsed - IN_START) / (IN_END - IN_START); opacity = t; ty = 28 * (1 - t); }
+  else if (elapsed < OUT_START) { opacity = 1; ty = 0; }
+  else if (elapsed < OUT_END) { const t = (elapsed - OUT_START) / (OUT_END - OUT_START); opacity = 1 - t; ty = -10 * t; }
+  else { opacity = 0; }
+  if (opacity <= 0.01) return null;
+
   return (
-    <div key={slideKey} style={{
-      position: 'absolute', top: 'clamp(20px, 5vh, 56px)', left: 0, right: 0,
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      zIndex: 8, pointerEvents: 'none', padding: '0 24px', textAlign: 'center',
+    <div style={{
+      position: 'absolute', bottom: 'clamp(28px, 7vh, 64px)', left: 0, right: 0,
+      display: 'flex', justifyContent: 'center', zIndex: 9,
+      pointerEvents: 'none', padding: '0 24px',
     }}>
       <div style={{
-        fontSize: 'clamp(30px, 6.2vw, 68px)', fontWeight: 900, lineHeight: 1.02,
-        color: '#fff', letterSpacing: -1.5, textTransform: 'uppercase',
-        textShadow: '0 6px 30px rgba(0,0,0,0.45), 0 2px 4px rgba(0,0,0,0.55)',
-        maxWidth: 1150, display: 'flex', flexWrap: 'wrap', gap: '0 0.28em', justifyContent: 'center',
+        display: 'inline-flex', alignItems: 'center', gap: 14,
+        maxWidth: 'min(92vw, 880px)',
+        background: 'rgba(13,30,38,0.78)', backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.12)',
+        borderLeft: `4px solid ${CC.yellow}`,
+        borderRadius: 14, padding: '14px 24px',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
+        opacity, transform: `translateY(${ty}px)`,
+        transition: 'opacity 0.12s linear, transform 0.12s linear',
       }}>
-        {words.map((w, i) => (
-          <span key={i} style={{
-            display: 'inline-block',
-            animation: `capWord 0.6s cubic-bezier(0.22,1,0.36,1) ${i * 0.08}s both`,
-          }}>{w}</span>
-        ))}
+        <span style={{
+          fontSize: 'clamp(18px, 2.6vw, 30px)', fontWeight: 800,
+          color: '#fff', lineHeight: 1.2, letterSpacing: -0.3, textAlign: 'center',
+        }}>{caption}</span>
       </div>
-      {caption.sub && (
-        <div style={{
-          marginTop: 16, fontSize: 'clamp(15px, 2.3vw, 24px)', fontWeight: 800,
-          color: '#0D6A7A', background: '#FFC940',
-          padding: '7px 22px', borderRadius: 999,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
-          animation: 'capSub 0.6s cubic-bezier(0.22,1,0.36,1) 0.35s both',
-        }}>{caption.sub}</div>
-      )}
     </div>
   );
 };
@@ -355,7 +360,7 @@ const SLIDES = [
   // 0 — TITRE
   {
     id: 'title', duration: 8000,
-    caption: { big: 'APPRENDRE DEVIENT UN JEU', sub: '🕐 Crazy Chrono' },
+    caption: 'Le jeu qui donne envie d\'apprendre, du CP à la 6e',
     bg: `linear-gradient(160deg, ${CC.tealDeep} 0%, ${CC.teal} 50%, ${CC.tealDark} 100%)`,
     render: () => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: CC.white, textAlign: 'center', padding: 40, position: 'relative' }}>
@@ -382,7 +387,7 @@ const SLIDES = [
   // 1 — CONCEPT : LE CADRAN
   {
     id: 'concept', duration: 10000,
-    caption: { big: 'TROUVEZ LES BONNES PAIRES', sub: 'Le concept en 10 secondes' },
+    caption: 'Des centaines d\'associations : images, mots, calculs…',
     bg: CC.cream,
     render: (_, phase) => (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 60, padding: '40px 60px', flexWrap: 'wrap' }}>
@@ -425,7 +430,7 @@ const SLIDES = [
   // 2 — DÉMO EN DIRECT
   {
     id: 'demo', duration: 14000,
-    caption: { big: 'SIMPLE. RAPIDE. ADDICTIF.', sub: 'Le jeu en action' },
+    caption: 'Addictif dès la première partie',
     bg: '#f8fafc',
     render: () => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '40px 20px', gap: 20 }}>
@@ -444,7 +449,7 @@ const SLIDES = [
   // 3 — CHOIX DES MODES (ÉLÈVE)
   {
     id: 'modes', duration: 10000,
-    caption: { big: 'CHOISIS TON MODE DE JEU', sub: 'Solo, entre amis ou en grande salle' },
+    caption: 'Un mode pour chaque envie : seul, entre amis ou contre tous',
     bg: CC.cream,
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '40px 60px' }}>
@@ -479,7 +484,7 @@ const SLIDES = [
   // 4 — ESPACE ENSEIGNANT : CONFIGURATION
   {
     id: 'teacher-config', duration: 10000,
-    caption: { big: "L'ENSEIGNANT PILOTE TOUT", sub: 'Niveaux, thèmes & paramètres' },
+    caption: 'La difficulté s\'adapte à chaque classe',
     bg: '#f8fafc',
     render: (_, phase) => (
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', height: '100%', gap: 30, padding: '30px 40px', flexWrap: 'wrap', overflow: 'auto' }}>
@@ -563,7 +568,7 @@ const SLIDES = [
   // 5 — CRÉATION DE GROUPES
   {
     id: 'groups', duration: 12000,
-    caption: { big: 'DES GROUPES EN 2 CLICS', sub: 'Adaptés au niveau de chaque élève' },
+    caption: 'Des équipes sur mesure en quelques clics',
     bg: '#f8fafc',
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '30px 40px', overflow: 'auto' }}>
@@ -629,7 +634,7 @@ const SLIDES = [
   // 6 — LANCEMENT DU MATCH
   {
     id: 'launch', duration: 10000,
-    caption: { big: "UN CODE, ET C'EST PARTI !", sub: 'Les élèves rejoignent en direct' },
+    caption: 'Les élèves rejoignent en un instant, sur tout appareil',
     bg: `linear-gradient(160deg, ${CC.tealDeep} 0%, ${CC.teal} 50%, ${CC.tealDark} 100%)`,
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff', textAlign: 'center', padding: 40, position: 'relative' }}>
@@ -681,7 +686,7 @@ const SLIDES = [
   // 7 — JEU MULTI EN COURS
   {
     id: 'gameplay', duration: 14000,
-    caption: { big: 'DUEL EN TEMPS RÉEL', sub: 'Le plus rapide remporte la manche' },
+    caption: 'Rapidité et précision font la différence',
     bg: `linear-gradient(135deg, ${CC.tealDeep} 0%, ${CC.tealDark} 30%, ${CC.teal} 60%, ${CC.tealDark} 100%)`,
     render: (_, phase) => {
       const scores = PLAYER_NAMES.map((name, i) => ({
@@ -716,7 +721,7 @@ const SLIDES = [
   // 8 — TOURNOI : PYRAMIDE
   {
     id: 'tournament', duration: 12000,
-    caption: { big: "DE LA CLASSE À L'ACADÉMIE", sub: 'Tournois à élimination' },
+    caption: 'Jusqu\'au championnat académique',
     bg: CC.cream,
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '30px 40px' }}>
@@ -743,7 +748,7 @@ const SLIDES = [
   // 9 — PODIUM
   {
     id: 'podium', duration: 10000,
-    caption: { big: 'UN CHAMPION EST COURONNÉ', sub: 'Podium, médailles & récompenses' },
+    caption: 'La motivation au sommet',
     bg: `linear-gradient(135deg, ${CC.tealDeep} 0%, ${CC.teal} 100%)`,
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 40, position: 'relative' }}>
@@ -762,7 +767,7 @@ const SLIDES = [
   // 10 — SUIVI ENSEIGNANT
   {
     id: 'tracking', duration: 12000,
-    caption: { big: 'SUIVEZ CHAQUE PROGRÈS', sub: 'Statistiques détaillées par élève' },
+    caption: 'Un suivi précis, élève par élève',
     bg: '#f8fafc',
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '30px 40px', overflow: 'auto' }}>
@@ -854,7 +859,7 @@ const SLIDES = [
   // 11 — CONCLUSION
   {
     id: 'conclusion', duration: 10000,
-    caption: { big: 'PRÊT À JOUER ?', sub: 'crazy-chrono.com' },
+    caption: 'Disponible partout — crazy-chrono.com',
     bg: `linear-gradient(160deg, ${CC.tealDeep} 0%, ${CC.teal} 50%, ${CC.tealDark} 100%)`,
     render: (_, phase) => (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff', textAlign: 'center', padding: 40, position: 'relative' }}>
@@ -1047,8 +1052,8 @@ export default function PresentationPage() {
         {slide.render(elapsed, phase)}
       </div>
 
-      {/* Gros titres animés (motion design) */}
-      {showCaptions && <CaptionOverlay caption={slide.caption} slideKey={slideIdx} />}
+      {/* Légende complémentaire (lower-third temporisé) */}
+      {showCaptions && <CaptionOverlay caption={slide.caption} elapsed={elapsed} />}
 
       {/* Progress bar (masquée pendant l'enregistrement) */}
       {!recording && (
@@ -1168,14 +1173,6 @@ export default function PresentationPage() {
           20% { transform: translateY(-20px) scale(1); opacity: 1; }
           80% { transform: translateY(-200px) scale(1.1); opacity: 0.9; }
           100% { transform: translateY(-350px) scale(1.2); opacity: 0; }
-        }
-        @keyframes capWord {
-          0% { opacity: 0; transform: translateY(40px) scale(0.85); }
-          100% { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        @keyframes capSub {
-          0% { opacity: 0; transform: translateY(20px) scale(0.9); }
-          100% { opacity: 1; transform: translateY(0) scale(1); }
         }
       `}</style>
     </div>
