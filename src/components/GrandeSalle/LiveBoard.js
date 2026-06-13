@@ -62,11 +62,45 @@ function getZoneBoundingBox(points) {
   return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
 }
 
-// Mélange Fisher-Yates
+// Mélange Fisher-Yates avec graine (seed) optionnelle pour reproductibilité
+function shuffleArrayWithSeed(arr, seedStr) {
+  // Simple PRNG basé sur la graine (sfc32)
+  let h = 1779033703 ^ seedStr.length;
+  for (let i = 0; i < seedStr.length; i++) {
+    h = Math.imul(h ^ seedStr.charCodeAt(i), 3432918353);
+    h = h << 13 | h >>> 19;
+  }
+  let a = (h ^ h >>> 16) >>> 0;
+  let b = (Math.imul(h, 2246822507) ^ (h >>> 13)) >>> 0;
+  let c = (Math.imul(h, 3266489909) ^ (h >>> 16)) >>> 0;
+  let d = 4294967295 >>> 0;
+  const rand = () => {
+    a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0;
+    let t = (a + b) >>> 0;
+    a = (b ^ (b >>> 9)) >>> 0;
+    b = (c + (c << 3)) >>> 0;
+    c = ((c << 21) | (c >>> 11)) >>> 0;
+    c = (c + t) >>> 0;
+    d = (d + 1) >>> 0;
+    return ((t >>> 0) / 4294967296);
+  };
+  const a2 = [...arr];
+  for (let i = a2.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [a2[i], a2[j]] = [a2[j], a2[i]];
+  }
+  return a2;
+}
 function shuffleArray(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
   return a;
+}
+// Génère une graine traçable basée sur timestamp + bytes aléatoires hex
+function generateDrawSeed() {
+  const ts = Date.now().toString(36).toUpperCase();
+  const rand = Array.from({ length: 8 }, () => Math.floor(Math.random() * 16).toString(16).toUpperCase()).join('');
+  return `${ts}-${rand}`;
 }
 
 function resolveImageSrc(raw) {
@@ -125,7 +159,7 @@ export default function LiveBoard() {
   const [startError, setStartError] = useState(null);
   const [starting, setStarting] = useState(false);
   // Tirage au sort des ex-aequo
-  const [drawWinner, setDrawWinner] = useState(null); // { candidates: [], winner: null, spinning: false, rankLabel: null }
+  const [drawWinner, setDrawWinner] = useState(null); // { candidates: [], winner: null, spinning: false, rankLabel: null, seed: null }
   const [drawRank, setDrawRank] = useState(null); // rang spécifique pour tirage (ex: 8, 10, etc.)
 
   const chiffreRefBase = useMemo(() => {
@@ -552,13 +586,14 @@ export default function LiveBoard() {
                   <button
                     onClick={() => {
                       const candidates = winners.map(w => ({ id: w.id, name: w.name, score: w.score, rank: 1 }));
-                      setDrawWinner({ candidates, spinning: true, winner: null, rankLabel: 1 });
+                      const seed = generateDrawSeed();
+                      setDrawWinner({ candidates, spinning: true, winner: null, rankLabel: 1, seed });
                       // Animation de 8 secondes avant révélation (suspense dramatique)
                       setTimeout(() => {
-                        const shuffled = shuffleArray(candidates);
-                        const finalWinner = shuffled[Math.floor(Math.random() * shuffled.length)];
-                        setDrawWinner({ candidates, spinning: false, winner: finalWinner, rankLabel: 1 });
-                        addEvent(`🏆 Tirage au sort : ${finalWinner.name} remporte le lot !`, 'success');
+                        const shuffled = shuffleArrayWithSeed(candidates, seed);
+                        const finalWinner = shuffled[0];
+                        setDrawWinner({ candidates, spinning: false, winner: finalWinner, rankLabel: 1, seed });
+                        addEvent(`🏆 Tirage au sort [${seed}] : ${finalWinner.name} remporte le lot !`, 'success');
                       }, 8000);
                     }}
                     style={{ padding: '14px 28px', borderRadius: 12, border: '2px solid #FFD34D', background: 'linear-gradient(135deg, #F5A623, #ff6b35)', color: '#fff', fontSize: 18, fontWeight: 900, cursor: 'pointer', boxShadow: '0 4px 20px rgba(245,166,35,0.4)' }}
@@ -578,6 +613,7 @@ export default function LiveBoard() {
                 @keyframes ccDrawPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.9; } }
               `}</style>
               <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 10, fontWeight: 600, letterSpacing: 2 }}>TIRAGE EN COURS...</div>
+              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 12, fontFamily: 'monospace', background: 'rgba(0,0,0,0.2)', padding: '4px 12px', borderRadius: 6, display: 'inline-block' }}>Graine: {drawWinner.seed}</div>
               <div style={{ height: 80, overflow: 'hidden', borderRadius: 16, background: 'rgba(0,0,0,0.3)', border: '2px solid #FFD34D', position: 'relative', maxWidth: 400, margin: '0 auto' }}>
                 <div style={{ animation: 'ccDrawSpin 0.15s linear infinite', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   {[...drawWinner.candidates, ...drawWinner.candidates, ...drawWinner.candidates, ...drawWinner.candidates].map((c, i) => (
@@ -599,6 +635,11 @@ export default function LiveBoard() {
                 </div>
                 <div style={{ fontSize: 42, fontWeight: 900, color: '#fff', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>{drawWinner.winner.name}</div>
                 <div style={{ fontSize: 18, color: '#fff', marginTop: 4 }}>{drawWinner.winner.score} pts</div>
+                {drawWinner.seed && (
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 12, fontFamily: 'monospace', background: 'rgba(0,0,0,0.2)', padding: '4px 10px', borderRadius: 6 }}>
+                    🔐 Graine: {drawWinner.seed}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -663,12 +704,13 @@ export default function LiveBoard() {
                       onClick={() => {
                         const candidates = atRank.map(p => ({ id: p.id, name: p.name, score: p.score, rank }));
                         if (candidates.length === 0) return;
-                        setDrawWinner({ candidates, spinning: true, winner: null, rankLabel: rank });
+                        const seed = generateDrawSeed();
+                        setDrawWinner({ candidates, spinning: true, winner: null, rankLabel: rank, seed });
                         setTimeout(() => {
-                          const shuffled = shuffleArray(candidates);
-                          const finalWinner = shuffled[Math.floor(Math.random() * shuffled.length)];
-                          setDrawWinner({ candidates, spinning: false, winner: finalWinner, rankLabel: rank });
-                          addEvent(`🎲 Tirage ${rank}ème place : ${finalWinner.name} remporte le lot !`, 'success');
+                          const shuffled = shuffleArrayWithSeed(candidates, seed);
+                          const finalWinner = shuffled[0];
+                          setDrawWinner({ candidates, spinning: false, winner: finalWinner, rankLabel: rank, seed });
+                          addEvent(`🎲 Tirage ${rank}ème place [${seed}] : ${finalWinner.name} remporte le lot !`, 'success');
                         }, 8000);
                       }}
                       disabled={atRank.length === 0}
@@ -682,12 +724,13 @@ export default function LiveBoard() {
                   onClick={() => {
                     // Tirage parmi tous les participants
                     const all = finish.fullRanking.map(p => ({ id: p.id, name: p.name, score: p.score }));
-                    setDrawWinner({ candidates: all, spinning: true, winner: null, rankLabel: 'tous' });
+                    const seed = generateDrawSeed();
+                    setDrawWinner({ candidates: all, spinning: true, winner: null, rankLabel: 'tous', seed });
                     setTimeout(() => {
-                      const shuffled = shuffleArray(all);
-                      const finalWinner = shuffled[Math.floor(Math.random() * shuffled.length)];
-                      setDrawWinner({ candidates: all, spinning: false, winner: finalWinner, rankLabel: 'tous' });
-                      addEvent(`🎲 Tirage général : ${finalWinner.name} remporte le lot !`, 'success');
+                      const shuffled = shuffleArrayWithSeed(all, seed);
+                      const finalWinner = shuffled[0];
+                      setDrawWinner({ candidates: all, spinning: false, winner: finalWinner, rankLabel: 'tous', seed });
+                      addEvent(`🎲 Tirage général [${seed}] : ${finalWinner.name} remporte le lot !`, 'success');
                     }, 8000);
                   }}
                   style={{ padding: '8px 16px', borderRadius: 10, border: '1px solid rgba(16,185,129,0.5)', background: 'rgba(16,185,129,0.2)', color: '#10b981', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
