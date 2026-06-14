@@ -208,7 +208,7 @@ const T = {
 };
 
 // ============ COMPONENT ============
-export default function InteractiveDemo() {
+export default function InteractiveDemo({ maxWidth = 500 } = {}) {
   const [sceneIdx, setSceneIdx] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [bubbles, setBubbles] = useState([]); // flying bubbles
@@ -345,7 +345,7 @@ export default function InteractiveDemo() {
   return (
     <div ref={containerRef} style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
-      position: 'relative', userSelect: 'none', maxWidth: 560, margin: '0 auto',
+      position: 'relative', userSelect: 'none', maxWidth, width: '100%', margin: '0 auto',
     }}>
       {/* Tooltip bubble */}
       <div style={{ minHeight: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -364,7 +364,7 @@ export default function InteractiveDemo() {
 
       {/* Card container */}
       <div style={{
-        position: 'relative', width: '100%', maxWidth: 500,
+        position: 'relative', width: '100%', maxWidth,
         aspectRatio: '1 / 1', borderRadius: 16, overflow: 'hidden',
         boxShadow: '0 8px 40px rgba(13,106,122,0.3)', background: CC.teal,
       }}>

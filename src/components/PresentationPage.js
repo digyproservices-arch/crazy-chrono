@@ -518,17 +518,18 @@ const SLIDES = [
     captionPos: 'bottom',
     bg: '#f8fafc',
     render: (e) => (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '40px 20px', gap: 20 }}>
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '16px 20px', gap: 10 }}>
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', flex: '0 0 auto' }}>
           <Kicker e={e} start={150} bg="linear-gradient(135deg, #0D6A7A, #1AACBE)">▶️ DÉMO EN DIRECT</Kicker>
           <KineticHeading e={e} start={400} text="Le jeu en action" accentColor={CC.teal}
-            style={{ fontSize: 34, fontWeight: 900, color: CC.tealDeep, justifyContent: 'center', margin: '12px 0 4px' }} />
+            style={{ fontSize: 30, fontWeight: 900, color: CC.tealDeep, justifyContent: 'center', margin: '8px 0 2px' }} />
           <Reveal e={e} start={900} y={14}>
-            <p style={{ fontSize: 15, color: CC.brownLt, margin: 0 }}>Observez le curseur trouver les paires — exactement comme les élèves jouent</p>
+            <p style={{ fontSize: 14, color: CC.brownLt, margin: 0 }}>Observez le curseur trouver les paires — exactement comme les élèves jouent</p>
           </Reveal>
         </div>
-        <Reveal e={e} start={1100} dur={800} y={0} scaleFrom={0.9} style={{ maxWidth: 560, width: '100%' }}>
-          <InteractiveDemo />
+        <Reveal e={e} start={1100} dur={800} y={0} scaleFrom={0.9}
+          style={{ flex: '1 1 auto', minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+          <InteractiveDemo maxWidth="min(72vh, 100%)" />
         </Reveal>
       </div>
     ),
@@ -813,16 +814,15 @@ const SLIDES = [
       })).sort((a, b) => b.score - a.score);
       const timeLeft = phase >= 3 ? 8 : phase >= 2 ? 24 : phase >= 1 ? 42 : 60;
       return (
-        <div style={{ display: 'flex', height: '100%', padding: '12px 16px', gap: 16, maxWidth: 1400, margin: '0 auto', alignItems: 'stretch' }}>
-          <div style={{ flex: 1, position: 'relative', borderRadius: 16, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.12)', border: '1px solid rgba(255,255,255,0.1)', padding: 16 }}>
-            <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 2 }}>
-              <Kicker e={e} start={150} bg="rgba(0,0,0,0.5)">🏆 MATCH EN COURS — duel en temps réel</Kicker>
-            </div>
-            <Reveal e={e} start={500} dur={750} y={0} scaleFrom={0.9} style={{ maxWidth: 500, width: '100%' }}>
-              <InteractiveDemo />
-            </Reveal>
+        <div style={{ display: 'flex', height: '100%', padding: '10px 16px', gap: 14, alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ position: 'absolute', top: 14, left: 18, zIndex: 3 }}>
+            <Kicker e={e} start={150} bg="rgba(0,0,0,0.5)">🏆 MATCH EN COURS — duel en temps réel</Kicker>
           </div>
-          <Reveal e={e} start={800} dur={650} x={28} y={0} style={{ flex: '0 0 280px' }}>
+          <Reveal e={e} start={500} dur={750} y={0} scaleFrom={0.9}
+            style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 1 auto' }}>
+            <InteractiveDemo maxWidth="min(94vh, 100%)" />
+          </Reveal>
+          <Reveal e={e} start={800} dur={650} x={28} y={0} style={{ flex: '0 0 260px', alignSelf: 'center' }}>
             <MockScoreboard
               scores={scores}
               timeLeft={timeLeft}
@@ -1082,6 +1082,14 @@ export default function PresentationPage() {
 
   const slide = SLIDES[slideIdx] || SLIDES[0];
   const phase = getPhase(elapsed, slide.duration);
+
+  // Masquer la barre de navigation pendant toute la présentation (vidéo propre)
+  useEffect(() => {
+    try { window.dispatchEvent(new CustomEvent('cc:gameMode', { detail: { on: true } })); } catch {}
+    return () => {
+      try { window.dispatchEvent(new CustomEvent('cc:gameMode', { detail: { on: false } })); } catch {}
+    };
+  }, []);
 
   // ===== Enregistrement vidéo (capture d'onglet -> .webm) =====
   const finalizeStop = useCallback(() => {
