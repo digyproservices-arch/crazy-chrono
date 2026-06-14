@@ -528,8 +528,8 @@ const SLIDES = [
           </Reveal>
         </div>
         <Reveal e={e} start={1100} dur={800} y={0} scaleFrom={0.9}
-          style={{ flex: '1 1 auto', minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
-          <InteractiveDemo maxWidth="min(72vh, 100%)" />
+          style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 'min(calc(100vh - 200px), 92vw)' }}>
+          <InteractiveDemo maxWidth="100%" />
         </Reveal>
       </div>
     ),
@@ -819,8 +819,8 @@ const SLIDES = [
             <Kicker e={e} start={150} bg="rgba(0,0,0,0.5)">🏆 MATCH EN COURS — duel en temps réel</Kicker>
           </div>
           <Reveal e={e} start={500} dur={750} y={0} scaleFrom={0.9}
-            style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 1 auto' }}>
-            <InteractiveDemo maxWidth="min(94vh, 100%)" />
+            style={{ flex: '0 0 auto', width: 'min(calc(100vh - 80px), calc(100vw - 320px))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <InteractiveDemo maxWidth="100%" />
           </Reveal>
           <Reveal e={e} start={800} dur={650} x={28} y={0} style={{ flex: '0 0 260px', alignSelf: 'center' }}>
             <MockScoreboard
