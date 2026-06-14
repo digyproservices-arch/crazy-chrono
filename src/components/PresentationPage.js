@@ -606,13 +606,13 @@ const SLIDES = [
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', width: 60 }}>Primaire</span>
                 {['CP', 'CE1', 'CE2', 'CM1', 'CM2'].map(lv => (
-                  <Pill key={lv} selected={['CM1', 'CM2'].includes(lv)}>{lv}</Pill>
+                  <Pill key={lv} selected={lv === 'CM1'}>{lv}</Pill>
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', width: 60 }}>Collège</span>
                 {['6e', '5e', '4e', '3e'].map(lv => (
-                  <Pill key={lv} selected={lv === '6e'}>{lv}</Pill>
+                  <Pill key={lv} selected={false}>{lv}</Pill>
                 ))}
               </div>
             </Card>
