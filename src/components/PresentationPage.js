@@ -375,7 +375,6 @@ const IntroScene = ({ elapsed: e }) => {
   // Phase B — révélation de la marque
   const bIn = ccSeg(e, 2700, 700);
   const clockIn = ccSeg(e, 2700, 700);
-  const brand = 'Crazy Chrono'.split('');
   const tagIn = ccSeg(e, 3900, 700);
   const pills = ['CP', 'CE1', 'CE2', 'CM1', 'CM2', '6e'];
 
@@ -419,25 +418,15 @@ const IntroScene = ({ elapsed: e }) => {
         alignItems: 'center', justifyContent: 'center', gap: 16, padding: '0 5vw',
         opacity: bIn, transform: `translateY(${(1 - bIn) * 36}px)`, pointerEvents: 'none',
       }}>
-        <div style={{
-          fontSize: 'clamp(60px, 9vw, 108px)', lineHeight: 1,
-          transform: `scale(${0.5 + clockIn * 0.5}) rotate(${(1 - clockIn) * -25}deg)`,
-          filter: 'drop-shadow(0 14px 40px rgba(0,0,0,0.4))',
-        }}>🕐</div>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
-          {brand.map((ch, i) => {
-            const p = ccSeg(e, 3150 + i * 55, 420);
-            return (
-              <span key={i} style={{
-                display: 'inline-block', whiteSpace: 'pre',
-                fontSize: 'clamp(40px, 7vw, 88px)', fontWeight: 900, letterSpacing: -2,
-                opacity: p, transform: `translateY(${(1 - p) * 28}px)`,
-                color: '#fff', textShadow: '0 10px 32px rgba(0,0,0,0.35)',
-              }}>{ch}</span>
-            );
-          })}
-        </div>
+        <img
+          src={`${process.env.PUBLIC_URL}/images/logo_crazy_chrono.png`}
+          alt="Crazy Chrono"
+          style={{
+            width: 'clamp(200px, 30vw, 380px)', height: 'auto', display: 'block',
+            transform: `scale(${0.6 + clockIn * 0.4}) translateY(${(1 - clockIn) * 30}px)`,
+            filter: 'drop-shadow(0 18px 50px rgba(0,0,0,0.45))',
+          }}
+        />
 
         <p style={{
           margin: 0, fontSize: 'clamp(16px, 2.6vw, 26px)', fontWeight: 600,
