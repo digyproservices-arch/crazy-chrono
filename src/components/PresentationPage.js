@@ -366,34 +366,125 @@ const CaptionOverlay = ({ caption, elapsed, pos = 'bottom' }) => {
   );
 };
 
-// ============ SLIDES ============
-const SLIDES = [
-  // 0 — TITRE
-  {
-    id: 'title', duration: 8000,
-    caption: 'Le jeu qui donne envie d\'apprendre, du CP à la 6e',
-    captionPos: 'bottom',
-    bg: `linear-gradient(160deg, ${CC.tealDeep} 0%, ${CC.teal} 50%, ${CC.tealDark} 100%)`,
-    render: () => (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: CC.white, textAlign: 'center', padding: 40, position: 'relative' }}>
-        <FloatingBubbles count={8} />
-        <div style={{ fontSize: 100, marginBottom: 20, animation: 'presFloat 3s ease-in-out infinite', filter: 'drop-shadow(0 8px 30px rgba(0,0,0,0.3))', zIndex: 1 }}>🕐</div>
-        <h1 style={{ fontSize: 'clamp(48px, 8vw, 80px)', fontWeight: 900, margin: 0, letterSpacing: -2, lineHeight: 1.1, zIndex: 1 }}>Crazy Chrono</h1>
-        <p style={{ fontSize: 'clamp(18px, 3vw, 26px)', opacity: 0.9, marginTop: 16, maxWidth: 700, lineHeight: 1.5, zIndex: 1 }}>
-          Le jeu pédagogique qui transforme l'apprentissage en défi passionnant
-        </p>
-        <div style={{ display: 'flex', gap: 12, marginTop: 40, flexWrap: 'wrap', justifyContent: 'center', zIndex: 1 }}>
-          {['CP', 'CE1', 'CE2', 'CM1', 'CM2', '6e'].map((level, i) => (
-            <span key={level} style={{
-              background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
-              padding: '8px 20px', borderRadius: 12, fontSize: 16, fontWeight: 700,
-              border: '1px solid rgba(255,255,255,0.25)',
-              animation: `presFadeIn 0.5s ease-out ${0.3 + i * 0.1}s both`,
-            }}>{level}</span>
-          ))}
+// ============ HELPERS D'ANIMATION (motion design intégré) ============
+const cc01 = (x) => Math.max(0, Math.min(1, x));
+const ccEaseOut = (t) => 1 - Math.pow(1 - t, 3);
+// seg(elapsed, start, durée) -> progression 0..1 avec easing
+const ccSeg = (e, start, dur) => ccEaseOut(cc01((e - start) / dur));
+
+// ============ SCÈNE INTRO (PILOTE — typographie cinétique intégrée) ============
+const IntroScene = ({ elapsed: e }) => {
+  // Phase A — phrase cinétique mot par mot
+  const words = [
+    { t: 'Apprendre', start: 300, color: '#fff' },
+    { t: 'devient', start: 780, color: '#fff' },
+    { t: 'un jeu.', start: 1260, color: CC.yellow },
+  ];
+  const phraseOut = cc01((e - 2500) / 450);
+  const phraseAlive = 1 - phraseOut;
+
+  // Phase B — révélation de la marque
+  const bIn = ccSeg(e, 2700, 700);
+  const clockIn = ccSeg(e, 2700, 700);
+  const brand = 'Crazy Chrono'.split('');
+  const tagIn = ccSeg(e, 3900, 700);
+  const pills = ['CP', 'CE1', 'CE2', 'CM1', 'CM2', '6e'];
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', color: '#fff' }}>
+      <FloatingBubbles count={10} />
+      {/* halo lumineux animé */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: `radial-gradient(circle at 50% 44%, rgba(255,201,64,${0.06 + bIn * 0.12}), transparent 60%)`,
+      }} />
+
+      {/* Phase A : phrase cinétique */}
+      {phraseAlive > 0.01 && (
+        <div style={{
+          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
+          justifyContent: 'center', flexWrap: 'wrap', gap: '0 0.32em',
+          padding: '0 6vw', textAlign: 'center',
+          opacity: phraseAlive,
+          transform: `translateY(${-phraseOut * 44}px) scale(${1 - phraseOut * 0.12})`,
+        }}>
+          {words.map((w, i) => {
+            const p = ccSeg(e, w.start, 520);
+            return (
+              <span key={i} style={{
+                display: 'inline-block',
+                fontSize: 'clamp(46px, 10vw, 120px)', fontWeight: 900,
+                letterSpacing: -2, lineHeight: 1, color: w.color,
+                opacity: p, filter: `blur(${(1 - p) * 16}px)`,
+                transform: `translateY(${(1 - p) * 64}px) scale(${0.8 + p * 0.2})`,
+                textShadow: '0 12px 44px rgba(0,0,0,0.35)',
+              }}>{w.t}</span>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Phase B : bloc marque */}
+      <div style={{
+        position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 16, padding: '0 5vw',
+        opacity: bIn, transform: `translateY(${(1 - bIn) * 36}px)`, pointerEvents: 'none',
+      }}>
+        <div style={{
+          fontSize: 'clamp(60px, 9vw, 108px)', lineHeight: 1,
+          transform: `scale(${0.5 + clockIn * 0.5}) rotate(${(1 - clockIn) * -25}deg)`,
+          filter: 'drop-shadow(0 14px 40px rgba(0,0,0,0.4))',
+        }}>🕐</div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {brand.map((ch, i) => {
+            const p = ccSeg(e, 3150 + i * 55, 420);
+            return (
+              <span key={i} style={{
+                display: 'inline-block', whiteSpace: 'pre',
+                fontSize: 'clamp(40px, 7vw, 88px)', fontWeight: 900, letterSpacing: -2,
+                opacity: p, transform: `translateY(${(1 - p) * 28}px)`,
+                color: '#fff', textShadow: '0 10px 32px rgba(0,0,0,0.35)',
+              }}>{ch}</span>
+            );
+          })}
+        </div>
+
+        <p style={{
+          margin: 0, fontSize: 'clamp(16px, 2.6vw, 26px)', fontWeight: 600,
+          maxWidth: 760, textAlign: 'center', lineHeight: 1.5,
+          color: 'rgba(255,255,255,0.92)',
+          opacity: tagIn, transform: `translateY(${(1 - tagIn) * 18}px)`,
+        }}>Le jeu pédagogique qui transforme l'apprentissage en défi passionnant</p>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginTop: 10 }}>
+          {pills.map((lvl, i) => {
+            const p = ccSeg(e, 4500 + i * 110, 450);
+            return (
+              <span key={lvl} style={{
+                fontSize: 'clamp(13px, 1.6vw, 18px)', fontWeight: 800,
+                padding: '8px 18px', borderRadius: 999,
+                background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.25)',
+                backdropFilter: 'blur(6px)',
+                opacity: p, transform: `translateY(${(1 - p) * 16}px) scale(${0.85 + p * 0.15})`,
+              }}>{lvl}</span>
+            );
+          })}
         </div>
       </div>
-    ),
+    </div>
+  );
+};
+
+// ============ SLIDES ============
+const SLIDES = [
+  // 0 — INTRO (pilote motion design : texte intégré à la scène, pas d'overlay)
+  {
+    id: 'title', duration: 8000,
+    caption: null,
+    captionPos: 'none',
+    bg: `linear-gradient(160deg, ${CC.tealDeep} 0%, ${CC.teal} 50%, ${CC.tealDark} 100%)`,
+    render: (e) => <IntroScene elapsed={e} />,
   },
 
   // 1 — CONCEPT : LE CADRAN
