@@ -406,6 +406,7 @@ const IntroScene = ({ elapsed: e }) => {
                 opacity: p, filter: `blur(${(1 - p) * 16}px)`,
                 transform: `translateY(${(1 - p) * 64}px) scale(${0.8 + p * 0.2})`,
                 textShadow: '0 12px 44px rgba(0,0,0,0.35)',
+                marginRight: '0.25em',
               }}>{w.t}</span>
             );
           })}
@@ -819,10 +820,10 @@ const SLIDES = [
             <Kicker e={e} start={150} bg="rgba(0,0,0,0.5)">🏆 MATCH EN COURS — duel en temps réel</Kicker>
           </div>
           <Reveal e={e} start={500} dur={750} y={0} scaleFrom={0.9}
-            style={{ flex: '0 0 auto', width: 'min(calc(100vh - 80px), calc(100vw - 320px))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            style={{ flex: '0 0 auto', width: 'min(calc(100vh - 80px), calc(100vw - 420px))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <InteractiveDemo maxWidth="100%" />
           </Reveal>
-          <Reveal e={e} start={800} dur={650} x={28} y={0} style={{ flex: '0 0 260px', alignSelf: 'center' }}>
+          <Reveal e={e} start={800} dur={650} x={28} y={0} style={{ flex: '0 0 360px', alignSelf: 'center' }}>
             <MockScoreboard
               scores={scores}
               timeLeft={timeLeft}
