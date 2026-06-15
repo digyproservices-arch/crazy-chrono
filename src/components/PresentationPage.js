@@ -52,51 +52,51 @@ const GlassCard = ({ children, style }) => (
 
 
 // ============ MOCK SCOREBOARD (sidebar game) ============
-const MockScoreboard = ({ scores, timeLeft, round, animIdx }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: 280 }}>
+const MockScoreboard = ({ scores, timeLeft, round, animIdx, width = 280 }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width }}>
     <GlassCard>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{
           background: timeLeft < 10 ? 'rgba(220,38,38,0.85)' : 'rgba(0,0,0,0.3)',
-          borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)',
-          fontSize: 18, fontWeight: 900, color: timeLeft < 10 ? '#fff' : '#10b981',
+          borderRadius: 14, padding: '8px 18px', border: '1px solid rgba(255,255,255,0.12)',
+          fontSize: 24, fontWeight: 900, color: timeLeft < 10 ? '#fff' : '#10b981',
           fontFamily: 'monospace',
         }}>⏱ {timeLeft}s</div>
-        <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)', fontSize: 13, fontWeight: 700, color: '#fff' }}>
+        <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 14, padding: '8px 18px', border: '1px solid rgba(255,255,255,0.12)', fontSize: 16, fontWeight: 700, color: '#fff' }}>
           Manche {round} / 5
         </div>
       </div>
     </GlassCard>
     <GlassCard>
-      <h3 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700, color: '#fff' }}>🏆 Classement</h3>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <h3 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 800, color: '#fff' }}>🏆 Classement</h3>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {scores.map((s, idx) => (
           <div key={idx} style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '8px 10px', borderRadius: 10,
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '10px 12px', borderRadius: 12,
             background: idx === animIdx ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.08)',
             border: `1px solid ${idx === animIdx ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.08)'}`,
             transition: 'all 0.5s ease',
             transform: idx === animIdx ? 'scale(1.03)' : 'scale(1)',
           }}>
-            <div style={{ fontSize: idx === 0 ? 20 : 14, fontWeight: 900, minWidth: 26, textAlign: 'center' }}>
+            <div style={{ fontSize: idx === 0 ? 26 : 18, fontWeight: 900, minWidth: 30, textAlign: 'center' }}>
               {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '4.'}
             </div>
             <div style={{
-              width: 30, height: 30, borderRadius: '50%',
+              width: 40, height: 40, borderRadius: '50%',
               background: `linear-gradient(135deg, ${s.color}, ${s.color}88)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 13, fontWeight: 800, color: '#fff', flexShrink: 0,
+              fontSize: 17, fontWeight: 800, color: '#fff', flexShrink: 0,
             }}>{s.name[0]}</div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{s.name}</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>{s.pairs} paires</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: '#fff' }}>{s.name}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>{s.pairs} paires</div>
             </div>
             <div style={{
-              background: '#fff', borderRadius: 10, padding: '3px 10px',
-              minWidth: 36, textAlign: 'center',
+              background: '#fff', borderRadius: 12, padding: '4px 14px',
+              minWidth: 44, textAlign: 'center',
             }}>
-              <div style={{ fontSize: 20, fontWeight: 900, color: s.color, lineHeight: 1.1 }}>{s.score}</div>
+              <div style={{ fontSize: 26, fontWeight: 900, color: s.color, lineHeight: 1.1 }}>{s.score}</div>
             </div>
           </div>
         ))}
@@ -104,8 +104,8 @@ const MockScoreboard = ({ scores, timeLeft, round, animIdx }) => (
     </GlassCard>
     <GlassCard>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ width: 10, height: 10, borderRadius: 999, background: PLAYER_COLORS[0] }} />
-        <span style={{ fontSize: 13, color: '#fff' }}><b>Emma</b>: 🐬 Dauphin ↔ Dauphin</span>
+        <span style={{ width: 12, height: 12, borderRadius: 999, background: PLAYER_COLORS[0] }} />
+        <span style={{ fontSize: 15, color: '#fff' }}><b>Emma</b>: 🐬 Dauphin ↔ Dauphin</span>
       </div>
     </GlassCard>
   </div>
@@ -803,7 +803,7 @@ const SLIDES = [
 
   // 7 — JEU MULTI EN COURS
   {
-    id: 'gameplay', duration: 14000,
+    id: 'gameplay', duration: 16000,
     caption: 'Rapidité et précision font la différence',
     captionPos: 'bottom-right',
     bg: `linear-gradient(135deg, ${CC.tealDeep} 0%, ${CC.tealDark} 30%, ${CC.teal} 60%, ${CC.tealDark} 100%)`,
@@ -821,7 +821,7 @@ const SLIDES = [
           </div>
           <Reveal e={e} start={500} dur={750} y={0} scaleFrom={0.9}
             style={{ flex: '0 0 auto', width: 'min(calc(100vh - 80px), calc(100vw - 420px))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <InteractiveDemo maxWidth="100%" />
+            <InteractiveDemo maxWidth="100%" finger slow tutorial />
           </Reveal>
           <Reveal e={e} start={800} dur={650} x={28} y={0} style={{ flex: '0 0 360px', alignSelf: 'center' }}>
             <MockScoreboard
@@ -829,6 +829,7 @@ const SLIDES = [
               timeLeft={timeLeft}
               round={phase >= 3 ? 4 : phase >= 2 ? 3 : phase >= 1 ? 2 : 1}
               animIdx={phase >= 1 ? 0 : -1}
+              width={360}
             />
           </Reveal>
         </div>

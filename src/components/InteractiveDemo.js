@@ -196,8 +196,9 @@ const SCENARIOS = [
   },
 ];
 
-const SCENE_DURATION = 9500;
-const T = {
+// Timings de base (rythme normal). Le mode "slow" (pilote) étire ces valeurs
+// et laisse beaucoup plus de temps sur l'association trouvée (MATCH -> FLY_AWAY).
+const T_BASE = {
   CURSOR_TO_A: 2000,
   CLICK_A:     3200,
   CURSOR_TO_B: 4200,
@@ -205,10 +206,21 @@ const T = {
   MATCH:       5800,
   FLY_AWAY:    6400,
   PAUSE:       8500,
+  SCENE:       9500,
+};
+const T_SLOW = {
+  CURSOR_TO_A: 2600,
+  CLICK_A:     4000,
+  CURSOR_TO_B: 5600,
+  CLICK_B:     7000,
+  MATCH:       7500,
+  FLY_AWAY:    9000,   // 1500 ms de pause sur la paire trouvée
+  PAUSE:       13500,
+  SCENE:       15000,
 };
 
 // ============ COMPONENT ============
-export default function InteractiveDemo({ maxWidth = 500 } = {}) {
+export default function InteractiveDemo({ maxWidth = 500, finger = false, slow = false, tutorial = false } = {}) {
   const [sceneIdx, setSceneIdx] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [bubbles, setBubbles] = useState([]); // flying bubbles
@@ -217,6 +229,22 @@ export default function InteractiveDemo({ maxWidth = 500 } = {}) {
   const containerRef = useRef(null);
 
   const scene = SCENARIOS[sceneIdx % SCENARIOS.length];
+
+  // Rythme : normal ou ralenti (pilote)
+  const T = useMemo(() => (slow ? T_SLOW : T_BASE), [slow]);
+  const SCENE_DURATION = T.SCENE;
+  // Remappe les temps des tooltips (calés sur le rythme de base) vers le rythme courant
+  const scaleTime = useCallback((t) => {
+    const baseAnchors = [0, 2000, 4200, 6400, 9500];
+    const newAnchors = [0, T.CURSOR_TO_A, T.CURSOR_TO_B, T.FLY_AWAY, SCENE_DURATION];
+    for (let i = 1; i < baseAnchors.length; i++) {
+      if (t <= baseAnchors[i]) {
+        const r = (t - baseAnchors[i - 1]) / (baseAnchors[i] - baseAnchors[i - 1]);
+        return newAnchors[i - 1] + r * (newAnchors[i] - newAnchors[i - 1]);
+      }
+    }
+    return SCENE_DURATION;
+  }, [T, SCENE_DURATION]);
 
   const getContent = useCallback((zoneId) => {
     const override = scene.contentOverrides?.[zoneId];
@@ -247,7 +275,7 @@ export default function InteractiveDemo({ maxWidth = 500 } = {}) {
       setSceneIdx(prev => (prev + 1) % SCENARIOS.length);
     }
     animRef.current = requestAnimationFrame(tick);
-  }, []);
+  }, [SCENE_DURATION]);
 
   useEffect(() => {
     animRef.current = requestAnimationFrame(tick);
@@ -273,7 +301,7 @@ export default function InteractiveDemo({ maxWidth = 500 } = {}) {
     if (elapsed < T.FLY_AWAY) {
       bubblesSpawnedRef.current = false;
     }
-  }, [elapsed, scene, getContent]);
+  }, [elapsed, scene, getContent, T]);
 
   // Helpers
   const easeInOut = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
@@ -309,7 +337,7 @@ export default function InteractiveDemo({ maxWidth = 500 } = {}) {
 
   const getTooltip = () => {
     let active = null;
-    for (const tt of scene.tooltips) { if (elapsed >= tt.time) active = tt; }
+    for (const tt of scene.tooltips) { if (elapsed >= scaleTime(tt.time)) active = tt; }
     return active;
   };
 
@@ -632,8 +660,22 @@ export default function InteractiveDemo({ maxWidth = 500 } = {}) {
             </text>
           ))}
 
-          {/* Animated cursor */}
-          {elapsed < T.PAUSE && (
+          {/* Pointeur : doigt humain (mode finger) ou curseur flèche */}
+          {elapsed < T.PAUSE && finger && (
+            <g>
+              {isClicking && (
+                <circle cx={cursorPos.x} cy={cursorPos.y} r={35} fill="none" stroke={CC.yellow} strokeWidth={5} opacity={0.75}>
+                  <animate attributeName="r" from="18" to="70" dur="0.45s" fill="freeze" />
+                  <animate attributeName="opacity" from="0.85" to="0" dur="0.45s" fill="freeze" />
+                </circle>
+              )}
+              <g transform={`translate(${cursorPos.x},${cursorPos.y - 4}) scale(${isClicking ? 0.9 : 1})`}>
+                <text x={0} y={0} textAnchor="middle" dominantBaseline="hanging" fontSize={140}
+                  style={{ filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.45))' }}>👆</text>
+              </g>
+            </g>
+          )}
+          {elapsed < T.PAUSE && !finger && (
             <g transform={`translate(${cursorPos.x},${cursorPos.y})`}>
               {isClicking && (
                 <circle cx={0} cy={0} r={35} fill="none" stroke={CC.yellow} strokeWidth={3} opacity={0.7}>
@@ -649,6 +691,27 @@ export default function InteractiveDemo({ maxWidth = 500 } = {}) {
             </g>
           )}
         </svg>
+
+        {/* Overlay tutoriel : badges d'étapes positionnés au-dessus des zones */}
+        {tutorial && (() => {
+          const pct = (v) => `${v / 10}%`;
+          let label = null, pos = null, color = '#0D6A7A';
+          if (elapsed >= T.CURSOR_TO_A && elapsed < T.CURSOR_TO_B) { label = '1 · Repère un élément'; pos = centerA; }
+          else if (elapsed >= T.CURSOR_TO_B && elapsed < T.MATCH) { label = '2 · Trouve son association'; pos = centerB; }
+          else if (elapsed >= T.MATCH && elapsed < T.FLY_AWAY) { label = '✅ Paire trouvée !'; pos = { x: 500, y: 500 }; color = '#10b981'; }
+          if (!label) return null;
+          const isCenter = color === '#10b981';
+          return (
+            <div key={label} style={{
+              position: 'absolute', left: pct(pos.x), top: pct(pos.y),
+              transform: isCenter ? 'translate(-50%, -50%)' : 'translate(-50%, -150%)',
+              background: color, color: '#fff', padding: '8px 18px', borderRadius: 999,
+              fontWeight: 800, fontSize: 'clamp(12px, 1.5vw, 18px)', whiteSpace: 'nowrap',
+              boxShadow: '0 10px 28px rgba(0,0,0,0.4)', pointerEvents: 'none', zIndex: 4,
+              animation: 'demoBubbleIn 0.3s ease-out',
+            }}>{label}</div>
+          );
+        })()}
       </div>
 
       {/* Scenario indicators */}
