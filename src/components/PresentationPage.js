@@ -475,7 +475,7 @@ const SLIDES = [
     render: (e) => (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 60, padding: '40px 60px', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 350px', maxWidth: 520 }}>
-          <Kicker e={e} start={200}>🎯 LE CONCEPT</Kicker>
+          <Kicker e={e} start={200}>🎯 ACTE 1 · LE JEU</Kicker>
           <KineticHeading e={e} start={450} text="Trouvez les bonnes paires sur le cadran" accentWords={[2, 3]} accentColor={CC.teal}
             style={{ fontSize: 40, fontWeight: 900, color: CC.tealDeep, lineHeight: 1.12, margin: '16px 0' }} />
           <Reveal e={e} start={1100} y={20}>
@@ -512,67 +512,233 @@ const SLIDES = [
     ),
   },
 
-  // 2 — DÉMO EN DIRECT
+  // 2 — ACTE 2 · LES MODES DE JEU (refonte : 5 modes)
   {
-    id: 'demo', duration: 16000,
-    caption: 'Addictif dès la première partie',
-    captionPos: 'bottom',
-    bg: '#f8fafc',
-    render: (e) => (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '16px 20px', gap: 10 }}>
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', flex: '0 0 auto' }}>
-          <Kicker e={e} start={150} bg="linear-gradient(135deg, #0D6A7A, #1AACBE)">▶️ DÉMO EN DIRECT</Kicker>
-          <KineticHeading e={e} start={400} text="Le jeu en action" accentColor={CC.teal}
-            style={{ fontSize: 30, fontWeight: 900, color: CC.tealDeep, justifyContent: 'center', margin: '8px 0 2px' }} />
-          <Reveal e={e} start={900} y={14}>
-            <p style={{ fontSize: 14, color: CC.brownLt, margin: 0 }}>Observez le doigt trouver les paires — exactement comme les élèves jouent</p>
-          </Reveal>
-        </div>
-        <Reveal e={e} start={1100} dur={800} y={0} scaleFrom={0.9}
-          style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 'min(calc(100vh - 200px), 92vw)' }}>
-          <InteractiveDemo maxWidth="100%" finger slow />
-        </Reveal>
-      </div>
-    ),
-  },
-
-  // 3 — CHOIX DES MODES (ÉLÈVE)
-  {
-    id: 'modes', duration: 10000,
-    caption: 'Un mode pour chaque envie : seul, entre amis ou contre tous',
+    id: 'modes', duration: 12000,
+    caption: '5 façons de jouer : seul, entre amis ou contre tous',
     captionPos: 'bottom',
     bg: CC.cream,
     render: (e) => {
-      const highlight = e > 4200;
+      const modes = [
+        { title: 'Solo', icon: '🎯', sub: 'Joue à ton rythme, bats tes records', tag: 'Gratuit', tagBg: CC.green, gradient: 'linear-gradient(135deg, #1AACBE 0%, #148A9C 100%)' },
+        { title: 'Salle Privée', icon: '🔑', sub: 'Un code, tes amis, un défi en direct', tag: 'PRO', tagBg: CC.yellow, gradient: 'linear-gradient(135deg, #F5A623 0%, #d4900e 100%)' },
+        { title: 'Grande Salle', icon: '🏟️', sub: 'Course éliminatoire + cadeaux partenaires', tag: 'PRO', tagBg: CC.yellow, gradient: 'linear-gradient(135deg, #ff6b35 0%, #F5A623 100%)' },
+        { title: 'Entraînement', icon: '🎓', sub: 'Sessions encadrées par le prof, en groupes', tag: 'Classe', tagBg: CC.teal, gradient: 'linear-gradient(135deg, #0D6A7A 0%, #148A9C 100%)' },
+        { title: 'Arena', icon: '⚔️', sub: 'Tournoi compétitif : classe → académie', tag: 'Compét.', tagBg: CC.purple, gradient: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)' },
+      ];
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '40px 60px' }}>
-          <Kicker e={e} start={150}>🎮 VUE ÉLÈVE</Kicker>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '30px 50px' }}>
+          <Kicker e={e} start={150}>🎮 ACTE 2 · JOUER</Kicker>
           <KineticHeading e={e} start={400} text="Un mode pour chaque envie" accentColor={CC.teal}
-            style={{ fontSize: 38, fontWeight: 900, color: CC.tealDeep, justifyContent: 'center', margin: '12px 0 8px' }} />
+            style={{ fontSize: 38, fontWeight: 900, color: CC.tealDeep, justifyContent: 'center', margin: '12px 0 6px' }} />
           <Reveal e={e} start={950} y={14}>
-            <p style={{ fontSize: 15, color: CC.brownLt, margin: '0 0 30px' }}>Chaque élève choisit son mode depuis cette interface</p>
+            <p style={{ fontSize: 15, color: CC.brownLt, margin: '0 0 28px' }}>Du jeu solo à la compétition académique — chacun trouve son terrain</p>
           </Reveal>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, maxWidth: 1000, width: '100%' }}>
-            {[
-              { title: 'Mode Solo', icon: '🎯', sub: 'Jouer seul à son rythme', gradient: 'linear-gradient(135deg, #1AACBE 0%, #148A9C 100%)' },
-              { title: 'Salle Privée', icon: '🔑', sub: 'Entre amis avec un code', gradient: 'linear-gradient(135deg, #F5A623 0%, #d4900e 100%)' },
-              { title: 'Grande Salle', icon: '🏟️', sub: 'Course éliminatoire ouverte', gradient: 'linear-gradient(135deg, #ff6b35 0%, #F5A623 100%)' },
-              { title: 'Mes Performances', icon: '📊', sub: 'Progression et statistiques', gradient: 'linear-gradient(135deg, #0D6A7A 0%, #148A9C 100%)' },
-            ].map((mode, i) => (
-              <Reveal key={i} e={e} start={1300 + i * 180} dur={650} y={36} scaleFrom={0.9}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 18, maxWidth: 1180, width: '100%' }}>
+            {modes.map((m, i) => (
+              <Reveal key={i} e={e} start={1300 + i * 200} dur={650} y={40} scaleFrom={0.88}>
                 <div style={{
-                  background: mode.gradient, borderRadius: 16, padding: 24,
-                  color: '#fff', boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
-                  transform: highlight && i === 0 ? 'scale(1.05)' : 'scale(1)',
-                  transition: 'transform 0.4s ease, border 0.4s ease',
-                  border: highlight && i === 0 ? '3px solid #fff' : '3px solid transparent',
+                  position: 'relative', background: m.gradient, borderRadius: 18, padding: '22px 20px',
+                  color: '#fff', boxShadow: '0 12px 30px rgba(0,0,0,0.16)', minHeight: 168, overflow: 'hidden',
                 }}>
-                  <div style={{ fontSize: 48, marginBottom: 12 }}>{mode.icon}</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{mode.title}</div>
-                  <div style={{ opacity: 0.9, fontSize: 14 }}>{mode.sub}</div>
+                  <span style={{ position: 'absolute', top: 14, right: 14, background: m.tagBg, color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999 }}>{m.tag}</span>
+                  <div style={{ fontSize: 46, marginBottom: 10 }}>{m.icon}</div>
+                  <div style={{ fontSize: 21, fontWeight: 800, marginBottom: 8 }}>{m.title}</div>
+                  <div style={{ opacity: 0.92, fontSize: 13.5, lineHeight: 1.45 }}>{m.sub}</div>
                 </div>
               </Reveal>
             ))}
+          </div>
+        </div>
+      );
+    },
+  },
+
+  // 3b — DUEL VS (face-à-face) — Salle Privée
+  {
+    id: 'duel', duration: 12000,
+    caption: 'Duel en face-à-face : le plus rapide l\'emporte',
+    captionPos: 'bottom',
+    bg: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #1e1b4b 100%)',
+    render: (e, phase) => {
+      const sA = phase >= 4 ? 9 : phase >= 3 ? 7 : phase >= 2 ? 5 : phase >= 1 ? 3 : 0;
+      const sB = phase >= 4 ? 7 : phase >= 3 ? 6 : phase >= 2 ? 4 : phase >= 1 ? 2 : 0;
+      const players = [
+        { name: 'Emma', color: '#22c55e', score: sA, win: phase >= 4 },
+        { name: 'Lucas', color: '#3b82f6', score: sB, win: false },
+      ];
+      const Side = ({ p, dir }) => (
+        <Reveal e={e} start={dir < 0 ? 500 : 700} dur={700} x={40 * dir} y={0} style={{ flex: '1 1 280px', maxWidth: 360 }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              width: 118, height: 118, borderRadius: '50%', margin: '0 auto 14px',
+              background: `linear-gradient(135deg, ${p.color}, ${p.color}77)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 50, fontWeight: 900, color: '#fff',
+              boxShadow: p.win ? `0 0 44px ${p.color}` : '0 10px 30px rgba(0,0,0,0.4)',
+              border: '4px solid rgba(255,255,255,0.25)', transition: 'box-shadow 0.5s',
+            }}>{p.name[0]}</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#fff' }}>{p.name}</div>
+            <div style={{ fontSize: 60, fontWeight: 900, color: p.color, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>{p.score}</div>
+            {p.win && <div style={{ marginTop: 6, display: 'inline-block', background: '#F5A623', color: '#1e1b4b', fontWeight: 900, padding: '6px 18px', borderRadius: 999, fontSize: 15, animation: 'presPulse 1.2s infinite' }}>👑 VAINQUEUR</div>}
+          </div>
+        </Reveal>
+      );
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff', padding: '30px 40px', position: 'relative', overflow: 'hidden' }}>
+          <FloatingBubbles count={6} />
+          <div style={{ zIndex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+            <Kicker e={e} start={150} bg="linear-gradient(135deg,#8b5cf6,#6d28d9)">🔑 SALLE PRIVÉE · DUEL VS</Kicker>
+            <KineticHeading e={e} start={400} text="Le face-à-face en temps réel" accentColor={CC.yellowLt}
+              style={{ fontSize: 32, fontWeight: 900, justifyContent: 'center', margin: '12px 0 28px' }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, width: '100%', flexWrap: 'wrap' }}>
+              <Side p={players[0]} dir={-1} />
+              <Reveal e={e} start={900} dur={600} scaleFrom={0.4} y={0}>
+                <div style={{ fontSize: 64, fontWeight: 900, color: '#F5A623', textShadow: '0 0 30px rgba(245,166,35,0.6)' }}>VS</div>
+              </Reveal>
+              <Side p={players[1]} dir={1} />
+            </div>
+            <Reveal e={e} start={1400} y={16}>
+              <p style={{ fontSize: 14.5, color: 'rgba(255,255,255,0.7)', marginTop: 26, maxWidth: 580 }}>Même carte, même chrono : chaque paire trouvée fait grimper ton score. Le premier au sommet remporte le duel.</p>
+            </Reveal>
+          </div>
+        </div>
+      );
+    },
+  },
+
+  // 3c — GRANDE SALLE : vagues d'élimination + cadeaux partenaires
+  {
+    id: 'grande-salle', duration: 14000,
+    caption: 'Grande Salle : survis aux vagues, gagne des cadeaux',
+    captionPos: 'bottom',
+    bg: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
+    render: (e, phase) => {
+      const waves = [
+        { wave: 'Départ', count: 64, pct: null, finale: false },
+        { wave: 'Vague 1', count: 48, pct: 25, finale: false },
+        { wave: 'Vague 2', count: 32, pct: 33, finale: false },
+        { wave: 'Vague 3', count: 16, pct: 50, finale: false },
+        { wave: 'Finale', count: 8, pct: 50, finale: true },
+      ];
+      const gifts = [
+        { rank: '🥇', who: 'Emma', gift: 'Pass Aquarium', partner: 'Aquasud', icon: '🐬' },
+        { rank: '🥈', who: 'Lucas', gift: 'Bon Librairie', partner: 'LivreCo', icon: '📚' },
+        { rank: '🥉', who: 'Jade', gift: 'Place de Cinéma', partner: 'CinéStar', icon: '🎬' },
+      ];
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', color: '#fff', padding: '24px 40px', position: 'relative', overflow: 'hidden' }}>
+          <FloatingBubbles count={6} />
+          <div style={{ zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <Kicker e={e} start={150} bg="linear-gradient(135deg, #ff6b35, #F5A623)">🏟️ GRANDE SALLE</Kicker>
+            <KineticHeading e={e} start={400} text="La course éliminatoire ouverte à tous" accentColor={CC.yellowLt}
+              style={{ fontSize: 32, fontWeight: 900, justifyContent: 'center', margin: '12px 0 4px' }} />
+            <Reveal e={e} start={950} y={12}>
+              <p style={{ fontSize: 14.5, color: 'rgba(255,255,255,0.75)', margin: '0 0 22px', textAlign: 'center', maxWidth: 760 }}>À chaque vague, les derniers sont éliminés. Les survivants raflent les cadeaux de nos partenaires !</p>
+            </Reveal>
+          </div>
+          <div style={{ zIndex: 1, display: 'flex', gap: 30, flex: 1, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+            {/* Entonnoir des vagues */}
+            <div style={{ flex: '1 1 460px', maxWidth: 580, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {waves.map((w, i) => {
+                const isCurrent = phase === i;
+                const widthPct = 18 + (w.count / 64) * 82;
+                return (
+                  <Reveal key={i} e={e} start={1300 + i * 250} y={16}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 76, fontSize: 13, fontWeight: 800, color: isCurrent ? '#F5A623' : 'rgba(255,255,255,0.7)' }}>{w.wave}</div>
+                      <div style={{ flex: 1, height: 38, borderRadius: 10, background: 'rgba(255,255,255,0.06)', position: 'relative', overflow: 'hidden' }}>
+                        <div style={{
+                          position: 'absolute', inset: 0, width: `${widthPct}%`, borderRadius: 10,
+                          background: w.finale ? 'linear-gradient(90deg,#F5A623,#ff6b35)' : 'linear-gradient(90deg,#1AACBE,#0D6A7A)',
+                          display: 'flex', alignItems: 'center', paddingLeft: 14, fontWeight: 900, fontSize: 15,
+                          boxShadow: isCurrent ? '0 0 18px rgba(245,166,35,0.6)' : 'none', transition: 'box-shadow 0.4s',
+                        }}>{w.finale ? '🏆 ' : ''}{w.count} joueurs</div>
+                      </div>
+                      {w.pct != null && (
+                        <div style={{ width: 100, fontSize: 12, fontWeight: 700, color: '#fca5a5', opacity: phase >= i ? 1 : 0.2, transition: 'opacity 0.4s' }}>🔥 −{w.pct}% éliminés</div>
+                      )}
+                    </div>
+                  </Reveal>
+                );
+              })}
+            </div>
+            {/* Cadeaux partenaires */}
+            <Reveal e={e} start={2600} dur={700} y={24} scaleFrom={0.92} style={{ flex: '0 0 330px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(245,166,35,0.35)', borderRadius: 18, padding: '18px 20px', backdropFilter: 'blur(8px)' }}>
+                <div style={{ fontSize: 17, fontWeight: 900, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>🎁 Cadeaux partenaires</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 14 }}>Des lots offerts par nos partenaires aux meilleurs survivants</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {gifts.map((g, i) => (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 12,
+                      background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
+                      opacity: phase >= 3 ? 1 : 0.25, transform: phase >= 3 ? 'translateX(0)' : 'translateX(14px)',
+                      transition: `all 0.5s ease ${i * 0.12}s`,
+                    }}>
+                      <div style={{ fontSize: 26 }}>{g.icon}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 800 }}>{g.rank} {g.gift}</div>
+                        <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.6)' }}>{g.who} • offert par {g.partner}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </div>
+      );
+    },
+  },
+
+  // 3c — DUEL VS (face-à-face)
+  {
+    id: 'duel', duration: 12000,
+    caption: 'Duel en face-à-face : le plus rapide l\'emporte',
+    captionPos: 'bottom',
+    bg: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #1e1b4b 100%)',
+    render: (e, phase) => {
+      const sA = phase >= 4 ? 9 : phase >= 3 ? 7 : phase >= 2 ? 5 : phase >= 1 ? 3 : 0;
+      const sB = phase >= 4 ? 7 : phase >= 3 ? 6 : phase >= 2 ? 4 : phase >= 1 ? 2 : 0;
+      const players = [
+        { name: 'Emma', color: '#22c55e', score: sA, win: phase >= 4 },
+        { name: 'Lucas', color: '#3b82f6', score: sB, win: false },
+      ];
+      const Side = ({ p, dir }) => (
+        <Reveal e={e} start={dir < 0 ? 500 : 700} dur={700} x={40 * dir} y={0} style={{ flex: '1 1 280px', maxWidth: 360 }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              width: 118, height: 118, borderRadius: '50%', margin: '0 auto 14px',
+              background: `linear-gradient(135deg, ${p.color}, ${p.color}77)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 50, fontWeight: 900, color: '#fff',
+              boxShadow: p.win ? `0 0 44px ${p.color}` : '0 10px 30px rgba(0,0,0,0.4)',
+              border: '4px solid rgba(255,255,255,0.25)', transition: 'box-shadow 0.5s',
+            }}>{p.name[0]}</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: '#fff' }}>{p.name}</div>
+            <div style={{ fontSize: 60, fontWeight: 900, color: p.color, lineHeight: 1.1, fontVariantNumeric: 'tabular-nums' }}>{p.score}</div>
+            {p.win && <div style={{ marginTop: 6, display: 'inline-block', background: '#F5A623', color: '#1e1b4b', fontWeight: 900, padding: '6px 18px', borderRadius: 999, fontSize: 15, animation: 'presPulse 1.2s infinite' }}>👑 VAINQUEUR</div>}
+          </div>
+        </Reveal>
+      );
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff', padding: '30px 40px', position: 'relative', overflow: 'hidden' }}>
+          <FloatingBubbles count={6} />
+          <div style={{ zIndex: 1, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+            <Kicker e={e} start={150} bg="linear-gradient(135deg,#8b5cf6,#6d28d9)">⚔️ DUEL VS</Kicker>
+            <KineticHeading e={e} start={400} text="Le face-à-face en temps réel" accentColor={CC.yellowLt}
+              style={{ fontSize: 32, fontWeight: 900, justifyContent: 'center', margin: '12px 0 28px' }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, width: '100%', flexWrap: 'wrap' }}>
+              <Side p={players[0]} dir={-1} />
+              <Reveal e={e} start={900} dur={600} scaleFrom={0.4} y={0}>
+                <div style={{ fontSize: 64, fontWeight: 900, color: '#F5A623', textShadow: '0 0 30px rgba(245,166,35,0.6)' }}>VS</div>
+              </Reveal>
+              <Side p={players[1]} dir={1} />
+            </div>
+            <Reveal e={e} start={1400} y={16}>
+              <p style={{ fontSize: 14.5, color: 'rgba(255,255,255,0.7)', marginTop: 26, maxWidth: 580 }}>Même carte, même chrono : chaque paire trouvée fait grimper ton score. Le premier au sommet remporte le duel.</p>
+            </Reveal>
           </div>
         </div>
       );
@@ -588,7 +754,7 @@ const SLIDES = [
     render: (e) => (
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', height: '100%', gap: 30, padding: '30px 40px', flexWrap: 'wrap', overflow: 'auto' }}>
         <div style={{ flex: '1 1 500px', maxWidth: 600 }}>
-          <Kicker e={e} start={150}>👩‍🏫 VUE ENSEIGNANT</Kicker>
+          <Kicker e={e} start={150}>👩‍🏫 ACTE 3 · EN CLASSE</Kicker>
           <KineticHeading e={e} start={400} text="La difficulté s'adapte à chaque classe" accentColor={CC.teal}
             style={{ fontSize: 30, fontWeight: 900, color: CC.tealDeep, margin: '14px 0 20px', lineHeight: 1.15 }} />
           <Reveal e={e} start={1000} y={24}>
@@ -1019,28 +1185,11 @@ const SLIDES = [
               Une plateforme pédagogique complète, ludique et compétitive
             </p>
           </Reveal>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 36, width: '100%' }}>
-            {[
-              { icon: '🎯', label: 'Mode Solo', desc: 'Progression autonome' },
-              { icon: '⚔️', label: 'Multi & Arène', desc: 'Compétition en équipe' },
-              { icon: '🏆', label: 'Tournois', desc: 'Classe → Académie' },
-              { icon: '👩‍🏫', label: 'Espace Prof', desc: 'Suivi personnalisé' },
-              { icon: '📊', label: 'Dashboards', desc: 'Statistiques détaillées' },
-              { icon: '🌿', label: 'Multi-matières', desc: 'Nature, Maths, Langues' },
-            ].map((item, i) => (
-              <Reveal key={i} e={e} start={1400 + i * 130} y={26} scaleFrom={0.9}>
-                <div style={{
-                  background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)',
-                  borderRadius: 14, padding: '16px 12px',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                }}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>{item.icon}</div>
-                  <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>{item.label}</div>
-                  <div style={{ fontSize: 12, opacity: 0.75 }}>{item.desc}</div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
+          <Reveal e={e} start={1300} y={18}>
+            <p style={{ fontSize: 17, opacity: 0.85, margin: '0 0 38px', maxWidth: 660, lineHeight: 1.6 }}>
+              Jouer, défier, progresser — du Solo à l'Arena académique, le tout piloté par l'enseignant.
+            </p>
+          </Reveal>
           <Reveal e={e} start={2400} dur={600} y={18} scaleFrom={0.9}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, background: CC.yellow, color: CC.tealDeep, padding: '13px 30px', borderRadius: 999, fontWeight: 900, fontSize: 19, boxShadow: '0 12px 34px rgba(0,0,0,0.28)' }}>
               👉 crazy-chrono.com
