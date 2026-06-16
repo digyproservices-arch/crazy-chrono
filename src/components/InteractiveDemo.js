@@ -228,46 +228,56 @@ function PointerHand() {
   // Les <rect> héritent du fill/stroke du <g> parent → technique "sticker"
   // (halo de contour dessiné dessous, remplissage uni au-dessus) pour une
   // silhouette unifiée et nette, sans coutures internes.
+  // Asymétrie volontaire (style ☝️) : l'index est le SEUL doigt levé, les autres
+  // sont repliés en bosses À DROITE, le pouce sur le côté gauche du poing.
   const shapes = (
     <>
-      <rect x={-23} y={0} width={46} height={150} rx={23} />       {/* index */}
-      <rect x={20} y={86} width={44} height={62} rx={22} />        {/* jointure 1 */}
-      <rect x={50} y={94} width={40} height={56} rx={20} />        {/* jointure 2 */}
-      <g transform="rotate(-24 -77 176)">
-        <rect x={-100} y={128} width={46} height={96} rx={23} />   {/* pouce */}
+      {/* Index : seul doigt levé, pointe à l'origine (0,0) */}
+      <rect x={-21} y={0} width={42} height={132} rx={21} />
+      {/* Doigts repliés : 3 bosses au sommet du poing, à droite de l'index */}
+      <rect x={32} y={110} width={40} height={44} rx={20} />
+      <rect x={63} y={106} width={40} height={46} rx={20} />
+      <rect x={92} y={112} width={36} height={40} rx={18} />
+      {/* Pouce : côté gauche du poing */}
+      <g transform="rotate(-18 -20 192)">
+        <rect x={-44} y={152} width={42} height={80} rx={21} />
       </g>
-      <rect x={-78} y={104} width={156} height={128} rx={46} />    {/* paume */}
+      {/* Poing / paume */}
+      <rect x={-28} y={118} width={150} height={126} rx={44} />
     </>
   );
   return (
     <g>
       <defs>
+        {/* Peau afro-caribéenne : brun chaud profond */}
         <linearGradient id="cc-hand-skin" gradientUnits="userSpaceOnUse" x1="0" y1="-20" x2="0" y2="300">
-          <stop offset="0" stopColor="#FDDCB6" />
-          <stop offset="0.55" stopColor="#F4B981" />
-          <stop offset="1" stopColor="#E29A60" />
+          <stop offset="0" stopColor="#A06A3D" />
+          <stop offset="0.55" stopColor="#7C4F2C" />
+          <stop offset="1" stopColor="#5C381D" />
         </linearGradient>
-        <linearGradient id="cc-hand-sleeve" gradientUnits="userSpaceOnUse" x1="0" y1="200" x2="0" y2="300">
+        <linearGradient id="cc-hand-sleeve" gradientUnits="userSpaceOnUse" x1="0" y1="210" x2="0" y2="300">
           <stop offset="0" stopColor="#27B9CC" />
           <stop offset="1" stopColor="#0B6173" />
         </linearGradient>
       </defs>
 
       {/* Manche (derrière) */}
-      <rect x={-86} y={206} width={172} height={92} rx={30} fill="#0B6173" stroke="#0B6173" strokeWidth={9} strokeLinejoin="round" />
-      <rect x={-86} y={206} width={172} height={92} rx={30} fill="url(#cc-hand-sleeve)" />
-      <rect x={-86} y={206} width={172} height={22} rx={11} fill="rgba(255,255,255,0.20)" />
+      <rect x={-28} y={216} width={150} height={82} rx={28} fill="#0B6173" stroke="#0B6173" strokeWidth={9} strokeLinejoin="round" />
+      <rect x={-28} y={216} width={150} height={82} rx={28} fill="url(#cc-hand-sleeve)" />
+      <rect x={-28} y={216} width={150} height={20} rx={10} fill="rgba(255,255,255,0.20)" />
 
       {/* Halo de contour de la main */}
-      <g fill="#CF9560" stroke="#CF9560" strokeWidth={9} strokeLinejoin="round">{shapes}</g>
+      <g fill="#3F2510" stroke="#3F2510" strokeWidth={9} strokeLinejoin="round">{shapes}</g>
       {/* Remplissage peau */}
       <g fill="url(#cc-hand-skin)">{shapes}</g>
 
       {/* Détails premium : ongle, plis, reflet */}
-      <ellipse cx={0} cy={24} rx={12} ry={16} fill="rgba(255,255,255,0.55)" />
-      <path d="M -15 70 Q 0 78 15 70" fill="none" stroke="#CF9560" strokeWidth={3} strokeLinecap="round" opacity={0.45} />
-      <path d="M -14 104 Q 0 112 14 104" fill="none" stroke="#CF9560" strokeWidth={3} strokeLinecap="round" opacity={0.4} />
-      <rect x={-18} y={16} width={8} height={120} rx={4} fill="rgba(255,255,255,0.25)" />
+      <ellipse cx={0} cy={22} rx={11} ry={15} fill="rgba(255,236,214,0.42)" />
+      <path d="M -13 64 Q 0 71 13 64" fill="none" stroke="#3F2510" strokeWidth={3} strokeLinecap="round" opacity={0.4} />
+      <path d="M -12 100 Q 0 107 12 100" fill="none" stroke="#3F2510" strokeWidth={3} strokeLinecap="round" opacity={0.35} />
+      {/* Séparation index / doigts repliés */}
+      <path d="M 24 120 Q 30 134 27 150" fill="none" stroke="#3F2510" strokeWidth={3} strokeLinecap="round" opacity={0.35} />
+      <rect x={-16} y={14} width={7} height={104} rx={4} fill="rgba(255,255,255,0.16)" />
     </g>
   );
 }
@@ -724,7 +734,7 @@ export default function InteractiveDemo({ maxWidth = 500, finger = false, slow =
               )}
               {/* La pointe de l'index (origine 0,0) est translatée pile au centre
                   de la zone ; rotate/scale autour de l'origine ne déplacent pas la pointe. */}
-              <g transform={`translate(${cursorPos.x},${cursorPos.y}) rotate(-16) scale(${isClicking ? 0.66 : 0.72})`}
+              <g transform={`translate(${cursorPos.x},${cursorPos.y}) rotate(-7) scale(${isClicking ? 0.66 : 0.72})`}
                  style={{ filter: 'drop-shadow(0 12px 14px rgba(0,0,0,0.38))' }}>
                 <PointerHand />
               </g>
