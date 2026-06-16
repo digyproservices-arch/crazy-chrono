@@ -233,17 +233,17 @@ function PointerHand() {
   const shapes = (
     <>
       {/* Index : seul doigt levé, pointe à l'origine (0,0) */}
-      <rect x={-21} y={0} width={42} height={132} rx={21} />
+      <rect x={-21} y={0} width={42} height={134} rx={21} />
       {/* Doigts repliés : 3 bosses au sommet du poing, à droite de l'index */}
-      <rect x={32} y={110} width={40} height={44} rx={20} />
-      <rect x={63} y={106} width={40} height={46} rx={20} />
-      <rect x={92} y={112} width={36} height={40} rx={18} />
-      {/* Pouce : côté gauche du poing */}
-      <g transform="rotate(-18 -20 192)">
-        <rect x={-44} y={152} width={42} height={80} rx={21} />
+      <rect x={34} y={112} width={40} height={44} rx={20} />
+      <rect x={65} y={108} width={40} height={46} rx={20} />
+      <rect x={94} y={114} width={36} height={40} rx={18} />
+      {/* Pouce : nettement plus bas, orienté vers le bas (dégage l'index) */}
+      <g transform="rotate(-30 -22 214)">
+        <rect x={-48} y={176} width={42} height={78} rx={21} />
       </g>
-      {/* Poing / paume */}
-      <rect x={-28} y={118} width={150} height={126} rx={44} />
+      {/* Poing : bord gauche aligné avec l'index → côté gauche bien droit */}
+      <rect x={-21} y={120} width={143} height={124} rx={42} />
     </>
   );
   return (
@@ -756,28 +756,27 @@ export default function InteractiveDemo({ maxWidth = 500, finger = false, slow =
             </g>
           )}
         </svg>
-
-        {/* Overlay tutoriel : badges d'étapes positionnés au-dessus des zones */}
-        {tutorial && (() => {
-          const pct = (v) => `${v / 10}%`;
-          let label = null, pos = null, color = '#0D6A7A';
-          if (elapsed >= T.CURSOR_TO_A && elapsed < T.CURSOR_TO_B) { label = '1 · Repère un élément'; pos = centerA; }
-          else if (elapsed >= T.CURSOR_TO_B && elapsed < T.MATCH) { label = '2 · Trouve son association'; pos = centerB; }
-          else if (elapsed >= T.MATCH && elapsed < T.FLY_AWAY) { label = '✅ Paire trouvée !'; pos = { x: 500, y: 500 }; color = '#10b981'; }
-          if (!label) return null;
-          const isCenter = color === '#10b981';
-          return (
-            <div key={label} style={{
-              position: 'absolute', left: pct(pos.x), top: pct(pos.y),
-              transform: isCenter ? 'translate(-50%, -50%)' : 'translate(-50%, -150%)',
-              background: color, color: '#fff', padding: '8px 18px', borderRadius: 999,
-              fontWeight: 800, fontSize: 'clamp(12px, 1.5vw, 18px)', whiteSpace: 'nowrap',
-              boxShadow: '0 10px 28px rgba(0,0,0,0.4)', pointerEvents: 'none', zIndex: 4,
-              animation: 'demoBubbleIn 0.3s ease-out',
-            }}>{label}</div>
-          );
-        })()}
       </div>
+
+      {/* Panneau tutoriel : HORS de la carte, dans l'espace bleu à gauche */}
+      {tutorial && (() => {
+        let n = null, label = null, color = '#0D6A7A';
+        if (elapsed >= T.CURSOR_TO_A && elapsed < T.CURSOR_TO_B) { n = '1'; label = 'Repère un élément'; }
+        else if (elapsed >= T.CURSOR_TO_B && elapsed < T.MATCH) { n = '2'; label = 'Trouve son association'; }
+        else if (elapsed >= T.MATCH && elapsed < T.FLY_AWAY) { n = '✓'; label = 'Paire trouvée !'; color = '#10b981'; }
+        if (!label) return null;
+        return (
+          <div key={label} style={{
+            position: 'absolute', top: '50%', right: 'calc(100% + 28px)', transform: 'translateY(-50%)',
+            display: 'flex', alignItems: 'center', gap: 12, background: color, color: '#fff',
+            padding: '14px 20px', borderRadius: 18, boxShadow: '0 14px 34px rgba(0,0,0,0.4)',
+            whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 5, animation: 'demoBubbleIn 0.3s ease-out',
+          }}>
+            <span style={{ display: 'inline-flex', width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.25)', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 19 }}>{n}</span>
+            <span style={{ fontWeight: 800, fontSize: 'clamp(15px, 1.6vw, 20px)' }}>{label}</span>
+          </div>
+        );
+      })()}
 
       {/* Scenario indicators */}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
