@@ -821,7 +821,7 @@ const SLIDES = [
           </div>
           <Reveal e={e} start={500} dur={750} y={0} scaleFrom={0.9}
             style={{ flex: '0 0 auto', width: 'min(calc(100vh - 80px), calc(100vw - 420px))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <InteractiveDemo maxWidth="100%" finger slow tutorial />
+            <InteractiveDemo maxWidth="100%" finger slow />
           </Reveal>
           <Reveal e={e} start={800} dur={650} x={28} y={0} style={{ flex: '0 0 360px', alignSelf: 'center' }}>
             <MockScoreboard
