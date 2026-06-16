@@ -506,7 +506,7 @@ const SLIDES = [
           </div>
         </div>
         <Reveal e={e} start={900} dur={800} y={0} scaleFrom={0.86} style={{ flex: '0 0 auto', maxWidth: 420, width: '100%' }}>
-          <InteractiveDemo />
+          <InteractiveDemo finger />
         </Reveal>
       </div>
     ),
@@ -514,7 +514,7 @@ const SLIDES = [
 
   // 2 — DÉMO EN DIRECT
   {
-    id: 'demo', duration: 14000,
+    id: 'demo', duration: 16000,
     caption: 'Addictif dès la première partie',
     captionPos: 'bottom',
     bg: '#f8fafc',
@@ -525,12 +525,12 @@ const SLIDES = [
           <KineticHeading e={e} start={400} text="Le jeu en action" accentColor={CC.teal}
             style={{ fontSize: 30, fontWeight: 900, color: CC.tealDeep, justifyContent: 'center', margin: '8px 0 2px' }} />
           <Reveal e={e} start={900} y={14}>
-            <p style={{ fontSize: 14, color: CC.brownLt, margin: 0 }}>Observez le curseur trouver les paires — exactement comme les élèves jouent</p>
+            <p style={{ fontSize: 14, color: CC.brownLt, margin: 0 }}>Observez le doigt trouver les paires — exactement comme les élèves jouent</p>
           </Reveal>
         </div>
         <Reveal e={e} start={1100} dur={800} y={0} scaleFrom={0.9}
           style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 'min(calc(100vh - 200px), 92vw)' }}>
-          <InteractiveDemo maxWidth="100%" />
+          <InteractiveDemo maxWidth="100%" finger slow />
         </Reveal>
       </div>
     ),
