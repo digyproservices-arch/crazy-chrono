@@ -223,7 +223,7 @@ const T_SLOW = {
 // La pointe de l'index est calée exactement sur l'origine (0,0) :
 // le parent applique translate(centreZone) rotate scale, donc la pointe
 // touche toujours le centre exact de la zone.
-function PointerHand() {
+export function PointerHand() {
   // Silhouette de la main (doigt + jointures + pouce + paume).
   // Les <rect> héritent du fill/stroke du <g> parent → technique "sticker"
   // (halo de contour dessiné dessous, remplissage uni au-dessus) pour une
