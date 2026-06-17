@@ -218,6 +218,18 @@ const T_SLOW = {
   PAUSE:       13500,
   SCENE:       15000,
 };
+// Rythme "promo" : bref et lisible, pour les montages de gameplay où l'on veut
+// voir plusieurs paires trouvées (le score grimpe à chaque association cliquée).
+const T_PROMO = {
+  CURSOR_TO_A: 850,
+  CLICK_A:     1550,
+  CURSOR_TO_B: 2400,
+  CLICK_B:     3100,
+  MATCH:       3400,
+  FLY_AWAY:    3800,
+  PAUSE:       4700,
+  SCENE:       5100,
+};
 
 // ============ POINTER HAND (main premium dessinée en SVG) ============
 // La pointe de l'index est calée exactement sur l'origine (0,0) :
@@ -283,8 +295,8 @@ export function PointerHand() {
 }
 
 // ============ COMPONENT ============
-export default function InteractiveDemo({ maxWidth = 500, finger = false, slow = false, tutorial = false } = {}) {
-  const [sceneIdx, setSceneIdx] = useState(0);
+export default function InteractiveDemo({ maxWidth = 500, finger = false, slow = false, tutorial = false, startScene = 0, pace, onMatch, showDots = true } = {}) {
+  const [sceneIdx, setSceneIdx] = useState(startScene % SCENARIOS.length);
   const [elapsed, setElapsed] = useState(0);
   const [bubbles, setBubbles] = useState([]); // flying bubbles
   const animRef = useRef(null);
@@ -293,8 +305,11 @@ export default function InteractiveDemo({ maxWidth = 500, finger = false, slow =
 
   const scene = SCENARIOS[sceneIdx % SCENARIOS.length];
 
-  // Rythme : normal ou ralenti (pilote)
-  const T = useMemo(() => (slow ? T_SLOW : T_BASE), [slow]);
+  // Rythme : normal, ralenti (pilote/tutoriel) ou promo (montage gameplay)
+  const T = useMemo(() => {
+    const p = pace || (slow ? 'slow' : 'normal');
+    return p === 'promo' ? T_PROMO : p === 'slow' ? T_SLOW : T_BASE;
+  }, [pace, slow]);
   const SCENE_DURATION = T.SCENE;
   // Remappe les temps des tooltips (calés sur le rythme de base) vers le rythme courant
   const scaleTime = useCallback((t) => {
@@ -365,6 +380,16 @@ export default function InteractiveDemo({ maxWidth = 500, finger = false, slow =
       bubblesSpawnedRef.current = false;
     }
   }, [elapsed, scene, getContent, T]);
+
+  // Notifie le parent à CHAQUE paire trouvée (une fois par scène), pour
+  // synchroniser le score exactement sur le clic de la bonne association.
+  const matchFiredRef = useRef(-1);
+  useEffect(() => {
+    if (elapsed >= T.MATCH && matchFiredRef.current !== sceneIdx) {
+      matchFiredRef.current = sceneIdx;
+      if (onMatch) onMatch(sceneIdx, scene);
+    }
+  }, [elapsed, sceneIdx, scene, T.MATCH, onMatch]);
 
   // Helpers
   const easeInOut = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
@@ -779,6 +804,7 @@ export default function InteractiveDemo({ maxWidth = 500, finger = false, slow =
       })()}
 
       {/* Scenario indicators */}
+      {showDots && (
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
         {SCENARIOS.map((_, i) => (
           <div key={i} style={{
@@ -788,6 +814,7 @@ export default function InteractiveDemo({ maxWidth = 500, finger = false, slow =
           }} />
         ))}
       </div>
+      )}
 
       <style>{`
         @keyframes demoBubbleIn {
