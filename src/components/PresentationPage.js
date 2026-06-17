@@ -591,9 +591,9 @@ const SoloScene = ({ elapsed: e }) => {
   const lvlE = e - STEP_LEVEL;
   const lvlPicked = lvlE > 1250;            // CM1 surligné après le clic
   const startReady = lvlE >= 1850;          // bouton Démarrer prêt
-  const lvlPointer = lvlE < 550 ? { x: '50%', y: '40%' }
-    : lvlE < 1800 ? { x: '35%', y: '65%' }   // sur CM1 (ligne 2, colonne gauche)
-    : { x: '48%', y: '80%' };                // sur Démarrer
+  const lvlPointer = lvlE < 550 ? { x: '50%', y: '42%' }
+    : lvlE < 1800 ? { x: '36%', y: '57%' }   // sur CM1 (ligne 2, colonne gauche)
+    : { x: '50%', y: '70%' };                // sur Démarrer
   const lvlClicking = (lvlE >= 1050 && lvlE < 1450) || (lvlE >= 2050 && lvlE < 2450);
 
   return (
@@ -665,8 +665,8 @@ const SoloScene = ({ elapsed: e }) => {
       {inGame && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 30, padding: '64px 36px 28px', flexWrap: 'wrap' }}>
           <Reveal e={e} start={STEP_GAME + 100} dur={600} y={0} scaleFrom={0.94}
-            style={{ flex: '0 0 auto', width: 'min(68vh, 560px)' }}>
-            <InteractiveDemo maxWidth="100%" finger pace="promo" showDots={false} onMatch={handleMatch} />
+            style={{ flex: '0 0 auto', width: 'min(calc(100vh - 120px), calc(100vw - 360px))' }}>
+            <InteractiveDemo maxWidth="100%" finger pace="promo" showDots={false} onMatch={handleMatch} variant={0} />
           </Reveal>
           <Reveal e={e} start={STEP_GAME + 300} dur={600} x={30} y={0} style={{ flex: '0 0 auto' }}>
             <SoloRecordPanel score={pairs} pairs={pairs} recordToBeat={RECORD_TO_BEAT} recordPairs={myRecord} flame={flame} holdRecord={holdRecord} />
@@ -683,16 +683,16 @@ const DuelScene = ({ elapsed: e }) => {
   // démarre sur un CALCUL (startScene=2) puis varie (dauphin, héron…).
   const [emmaScore, setEmmaScore] = useState(0);
   const handleMatch = useCallback(() => setEmmaScore(s => Math.min(3, s + 1)), []);
-  // Emma trouve dans l'ordre des scénarios à partir du calcul
+  // Emma trouve dans l'ordre des scénarios (variante B) à partir du calcul
   const emmaPairs = [
-    { icon: '🔢', label: '10 × 10 = 100' },
-    { icon: '🐬', label: 'Dauphin' },
-    { icon: '🦅', label: 'Héron vert' },
+    { icon: '🔢', label: '7 × 8 = 56' },
+    { icon: '�', label: 'Caïman' },
+    { icon: '�', label: 'Iguane vert' },
   ];
   // Lucas trouve SES propres paires, à SON rythme (décalé → jamais en même temps)
   const lucasPairs = [
-    { icon: '➗', label: '146 ÷ 2 = 73' },
-    { icon: '🔢', label: '8 × 7 = 56' },
+    { icon: '➗', label: '90 ÷ 3 = 30' },
+    { icon: '🦜', label: 'Ibis rouge' },
   ];
   const lucasScore = e >= 11200 ? 2 : e >= 5400 ? 1 : 0;
   const win = emmaScore >= 3 && emmaScore > lucasScore;
@@ -760,8 +760,8 @@ const DuelScene = ({ elapsed: e }) => {
 
       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 22, padding: '104px 26px 36px', flexWrap: 'wrap' }}>
         <Panel name="Emma" color="#22c55e" pairs={emmaPairs} shown={emmaScore} dir={-1} isWinner={win} />
-        <Reveal e={e} start={550} dur={650} y={0} scaleFrom={0.94} style={{ flex: '0 0 auto', width: 'min(62vh, 500px)' }}>
-          <InteractiveDemo maxWidth="100%" finger pace="promo" startScene={2} showDots={false} onMatch={handleMatch} />
+        <Reveal e={e} start={550} dur={650} y={0} scaleFrom={0.94} style={{ flex: '0 0 auto', width: 'min(calc(100vh - 150px), calc(100vw - 500px))' }}>
+          <InteractiveDemo maxWidth="100%" finger pace="promo" startScene={2} showDots={false} onMatch={handleMatch} variant={1} />
         </Reveal>
         <Panel name="Lucas" color="#3b82f6" pairs={lucasPairs} shown={lucasScore} dir={1} isWinner={false} />
       </div>
@@ -784,9 +784,9 @@ const GrandeSalleScene = ({ elapsed: e }) => {
   const cur = GS_WAVES[waveIdx];
 
   const survivors = [
-    { name: 'Emma', color: '#22c55e', pair: '🐬 Dauphin', score: 9 },
-    { name: 'Lucas', color: '#3b82f6', pair: '🔢 10 × 10 = 100', score: 8 },
-    { name: 'Jade', color: '#f59e0b', pair: '🦩 Flamant rose', score: 7 },
+    { name: 'Emma', color: '#22c55e', pair: '🍈 Goyave', score: 9 },
+    { name: 'Lucas', color: '#3b82f6', pair: '🔢 144 ÷ 12 = 12', score: 8 },
+    { name: 'Jade', color: '#f59e0b', pair: '⭐ Carambole', score: 7 },
   ];
   const gifts = [
     { rank: '🥇', who: 'Emma', gift: 'Pass Aquarium', partner: 'Aquasud', icon: '🐬' },
@@ -802,8 +802,8 @@ const GrandeSalleScene = ({ elapsed: e }) => {
       </div>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 26, padding: '74px 32px 36px', flexWrap: 'wrap' }}>
         {/* Vraie carte de jeu (agrandie, démarre sur le héron pour varier) */}
-        <Reveal e={e} start={400} dur={650} y={0} scaleFrom={0.93} style={{ flex: '0 0 auto', width: 'min(64vh, 500px)' }}>
-          <InteractiveDemo maxWidth="100%" finger pace="promo" startScene={1} showDots={false} onMatch={handleMatch} />
+        <Reveal e={e} start={400} dur={650} y={0} scaleFrom={0.93} style={{ flex: '0 0 auto', width: 'min(calc(100vh - 120px), calc(100vw - 400px))' }}>
+          <InteractiveDemo maxWidth="100%" finger pace="promo" startScene={1} showDots={false} onMatch={handleMatch} variant={2} />
         </Reveal>
 
         {/* Colonne droite : vagues + survivants + cadeaux */}
@@ -1147,7 +1147,7 @@ const SLIDES = [
           </div>
           <Reveal e={e} start={500} dur={750} y={0} scaleFrom={0.9}
             style={{ flex: '0 0 auto', width: 'min(calc(100vh - 80px), calc(100vw - 420px))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <InteractiveDemo maxWidth="100%" finger pace="promo" startScene={2} showDots={false} />
+            <InteractiveDemo maxWidth="100%" finger pace="promo" startScene={2} showDots={false} variant={1} />
           </Reveal>
           <Reveal e={e} start={800} dur={650} x={28} y={0} style={{ flex: '0 0 360px', alignSelf: 'center' }}>
             <MockScoreboard
@@ -1302,8 +1302,8 @@ const SLIDES = [
               ))}
             </div>
           </div>
-          <Reveal e={e} start={900} dur={750} y={0} scaleFrom={0.9} style={{ flex: '0 0 auto', width: 'min(54vh, 430px)' }}>
-            <InteractiveDemo maxWidth="100%" finger slow tutorial />
+          <Reveal e={e} start={900} dur={750} y={0} scaleFrom={0.9} style={{ flex: '0 0 auto', width: 'min(calc(100vh - 130px), calc(100vw - 470px))' }}>
+            <InteractiveDemo maxWidth="100%" finger slow tutorial variant={0} />
           </Reveal>
         </div>
       </div>

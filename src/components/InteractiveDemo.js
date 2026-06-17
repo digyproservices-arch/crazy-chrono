@@ -87,6 +87,48 @@ const DEMO_CONTENT = {
   "1752572591501": { display: '60 − 35' },  // calcul bottom-left
 };
 
+// Variante B — faune terrestre & reptiles (images/mots/calculs différents)
+const DEMO_CONTENT_B = {
+  "1752568799658": { display: '56' },
+  "1752569687819": { display: '30' },
+  "1752569809115": { display: '54' },
+  "1752569975013": { display: '64' },
+  "1752571224092": { image: 'images/ibis-rouge.jpeg' },    // top-right
+  "1752571493404": { image: 'images/iguane-vert.jpeg' },   // top-left
+  "1752571661490": { image: 'images/caiman.jpeg' },        // bottom-right
+  "1752571830304": { image: 'images/cabri.jpeg' },         // bottom-left
+  "1752570164541": { display: 'Iguane vert' },     // top-left inner
+  "1752570391219": { display: 'Ibis rouge' },      // top-right inner
+  "1752570607347": { display: 'Caïman' },          // bottom-right inner
+  "1752570866370": { display: 'Cabri' },           // bottom-left inner
+  "1752572018539": { display: '7 × 8' },
+  "1752572187590": { display: '90 ÷ 3' },
+  "1752572384939": { display: '45 + 9' },
+  "1752572591501": { display: '100 − 36' },
+};
+
+// Variante C — jardin créole : fruits & légumes pays
+const DEMO_CONTENT_C = {
+  "1752568799658": { display: '54' },
+  "1752569687819": { display: '12' },
+  "1752569809115": { display: '35' },
+  "1752569975013": { display: '45' },
+  "1752571224092": { image: 'images/goyave.jpeg' },     // top-right
+  "1752571493404": { image: 'images/corossol.jpeg' },   // top-left
+  "1752571661490": { image: 'images/carambole.jpeg' },  // bottom-right
+  "1752571830304": { image: 'images/gombo.jpeg' },      // bottom-left
+  "1752570164541": { display: 'Corossol' },       // top-left inner
+  "1752570391219": { display: 'Goyave' },         // top-right inner
+  "1752570607347": { display: 'Carambole' },      // bottom-right inner
+  "1752570866370": { display: 'Gombo' },          // bottom-left inner
+  "1752572018539": { display: '6 × 9' },
+  "1752572187590": { display: '144 ÷ 12' },
+  "1752572384939": { display: '27 + 8' },
+  "1752572591501": { display: '81 − 36' },
+};
+
+const CONTENT_VARIANTS = [DEMO_CONTENT, DEMO_CONTENT_B, DEMO_CONTENT_C];
+
 // ============ ARC PATH FUNCTIONS (exact copy from Carte.js) ============
 function interpolateArc(points, idxStart, idxEnd, marginPx) {
   if (!points || points.length < 2) return { newStart:{x:0,y:0}, newEnd:{x:1,y:1}, r:1, centerX:0.5, centerY:0.5, largeArcFlag:0, sweepFlag:1, arcLen:1, delta:0.01 };
@@ -196,6 +238,76 @@ const SCENARIOS = [
   },
 ];
 
+// Scénarios variante B (faune terrestre & reptiles)
+const SCENARIOS_B = [
+  {
+    pairA: '1752571661490', // caïman image (bottom-right)
+    pairB: '1752570607347', // "Caïman" texte (bottom-right inner)
+    tooltips: [
+      { text: '👀 Observe la carte...', time: 0 },
+      { text: '🐊 Je reconnais un Caïman !', time: 2000 },
+      { text: '📝 Son nom est ici : « Caïman »', time: 4200 },
+      { text: '✨ Bravo ! La paire s\'envole !', time: 6400 },
+    ],
+  },
+  {
+    pairA: '1752571493404', // iguane image (top-left)
+    pairB: '1752570164541', // "Iguane vert" texte (top-left inner)
+    tooltips: [
+      { text: '👀 Nouvelle manche !', time: 0 },
+      { text: '🦎 Un Iguane vert en haut à gauche !', time: 2000 },
+      { text: '📝 Et voilà son nom juste à côté !', time: 4200 },
+      { text: '✨ Parfait ! Ça s\'envole !', time: 6400 },
+    ],
+  },
+  {
+    pairA: '1752572018539', // calcul "7 × 8" (top-left)
+    pairB: '1752568799658', // chiffre top (= 56)
+    tooltips: [
+      { text: '👀 Dernière manche !', time: 0 },
+      { text: '🔢 Je vois le calcul : 7 × 8', time: 2000 },
+      { text: '🎯 Son résultat est 56 !', time: 4200 },
+      { text: '✨ Bravo ! Les étoiles célèbrent !', time: 6400 },
+    ],
+  },
+];
+
+// Scénarios variante C (jardin créole : fruits & légumes pays)
+const SCENARIOS_C = [
+  {
+    pairA: '1752571224092', // goyave image (top-right)
+    pairB: '1752570391219', // "Goyave" texte (top-right inner)
+    tooltips: [
+      { text: '👀 Observe la carte...', time: 0 },
+      { text: '🍈 Je reconnais une Goyave !', time: 2000 },
+      { text: '📝 Son nom est ici : « Goyave »', time: 4200 },
+      { text: '✨ Bravo ! La paire s\'envole !', time: 6400 },
+    ],
+  },
+  {
+    pairA: '1752571493404', // corossol image (top-left)
+    pairB: '1752570164541', // "Corossol" texte (top-left inner)
+    tooltips: [
+      { text: '👀 Nouvelle manche !', time: 0 },
+      { text: '🥭 Un Corossol en haut à gauche !', time: 2000 },
+      { text: '📝 Et voilà son nom juste à côté !', time: 4200 },
+      { text: '✨ Parfait ! Ça s\'envole !', time: 6400 },
+    ],
+  },
+  {
+    pairA: '1752572187590', // calcul "144 ÷ 12" (top-right)
+    pairB: '1752569687819', // chiffre right (= 12)
+    tooltips: [
+      { text: '👀 Dernière manche !', time: 0 },
+      { text: '🔢 Je vois le calcul : 144 ÷ 12', time: 2000 },
+      { text: '🎯 Son résultat est 12 !', time: 4200 },
+      { text: '✨ Bravo ! Les étoiles célèbrent !', time: 6400 },
+    ],
+  },
+];
+
+const SCENARIO_VARIANTS = [SCENARIOS, SCENARIOS_B, SCENARIOS_C];
+
 // Timings de base (rythme normal). Le mode "slow" (pilote) étire ces valeurs
 // et laisse beaucoup plus de temps sur l'association trouvée (MATCH -> FLY_AWAY).
 const T_BASE = {
@@ -295,15 +407,18 @@ export function PointerHand() {
 }
 
 // ============ COMPONENT ============
-export default function InteractiveDemo({ maxWidth = 500, finger = false, slow = false, tutorial = false, startScene = 0, pace, onMatch, showDots = true } = {}) {
-  const [sceneIdx, setSceneIdx] = useState(startScene % SCENARIOS.length);
+export default function InteractiveDemo({ maxWidth = 500, finger = false, slow = false, tutorial = false, startScene = 0, pace, onMatch, showDots = true, variant = 0 } = {}) {
+  // Jeu de contenu + scénarios sélectionné (varie les images/mots/calculs d'une slide à l'autre)
+  const scenarios = SCENARIO_VARIANTS[variant % SCENARIO_VARIANTS.length];
+  const baseContent = CONTENT_VARIANTS[variant % CONTENT_VARIANTS.length];
+  const [sceneIdx, setSceneIdx] = useState(startScene % scenarios.length);
   const [elapsed, setElapsed] = useState(0);
   const [bubbles, setBubbles] = useState([]); // flying bubbles
   const animRef = useRef(null);
   const startRef = useRef(null);
   const containerRef = useRef(null);
 
-  const scene = SCENARIOS[sceneIdx % SCENARIOS.length];
+  const scene = scenarios[sceneIdx % scenarios.length];
 
   // Rythme : normal, ralenti (pilote/tutoriel) ou promo (montage gameplay)
   const T = useMemo(() => {
@@ -326,9 +441,9 @@ export default function InteractiveDemo({ maxWidth = 500, finger = false, slow =
 
   const getContent = useCallback((zoneId) => {
     const override = scene.contentOverrides?.[zoneId];
-    if (override) return { ...DEMO_CONTENT[zoneId], ...override };
-    return DEMO_CONTENT[zoneId] || {};
-  }, [scene]);
+    if (override) return { ...baseContent[zoneId], ...override };
+    return baseContent[zoneId] || {};
+  }, [scene, baseContent]);
 
   // chiffreRefBase (médiane pour résister aux outliers)
   const chiffreRefBase = useMemo(() => {
@@ -350,10 +465,10 @@ export default function InteractiveDemo({ maxWidth = 500, finger = false, slow =
     if (dt >= SCENE_DURATION) {
       startRef.current = null;
       setBubbles([]);
-      setSceneIdx(prev => (prev + 1) % SCENARIOS.length);
+      setSceneIdx(prev => (prev + 1) % scenarios.length);
     }
     animRef.current = requestAnimationFrame(tick);
-  }, [SCENE_DURATION]);
+  }, [SCENE_DURATION, scenarios.length]);
 
   useEffect(() => {
     animRef.current = requestAnimationFrame(tick);
