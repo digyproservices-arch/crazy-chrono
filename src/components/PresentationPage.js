@@ -1429,6 +1429,40 @@ function getPhase(elapsed, duration) {
   return 4;
 }
 
+// ============ NARRATION (voix off, synchronisée par slide) ============
+// Textes calés pour tenir dans la durée de chaque slide, ton chaleureux et dynamique.
+const NARRATION = {
+  'title': "Bienvenue sur Crazy Chrono : la plateforme pédagogique qui transforme la révision en jeu. Prêts ? C'est parti !",
+  'modes': "Six façons de jouer, une seule plateforme. De l'apprentissage tout en douceur au tournoi entre écoles, chacun trouve son terrain de jeu favori.",
+  'solo': "En mode Solo, l'élève choisit son niveau, puis se lance. À chaque bonne association, le score grimpe et la flamme s'embrase. Le but ? Battre son propre record, manche après manche, à son rythme.",
+  'duel': "Place au duel ! Dans une salle privée, les joueurs partagent la même carte, mais chacun déniche ses propres paires. Le plus rapide et le plus précis prend l'avantage. Tension garantie jusqu'à la dernière seconde !",
+  'grande-salle': "Bienvenue dans la Grande Salle : une course à élimination où il faut survivre, vague après vague. Les meilleurs tiennent jusqu'au bout, et repartent avec de vrais cadeaux offerts par nos partenaires.",
+  'teacher-config': "Côté enseignant, tout s'ajuste en un clin d'œil : le niveau, du CP à la troisième, les domaines, et la durée des manches. La difficulté s'adapte à chaque classe.",
+  'train-compete': "Entraînement ou compétition : un seul et même déroulé. On crée les groupes, on lance en un clic, les élèves jouent, et le podium s'affiche. Vous n'apprenez qu'une seule fois.",
+  'gameplay': "Et pendant le match, tout se joue en temps réel. Chaque paire trouvée fait bondir le classement. La rapidité et la précision font toute la différence.",
+  'apprendre': "Avant de jouer, on révise ! Chaque fiche propose une stratégie pour mémoriser, un fait écologique surprenant, et un petit indice. Le tout peut même être lu à voix haute.",
+  'conclusion': "Crazy Chrono : apprendre, jouer, progresser. Rejoignez-nous dès maintenant sur crazy-chrono point com. À très vite !",
+};
+
+// Choisit la voix française la plus « humaine » disponible (Edge/Chrome « Natural »/« Online »).
+function pickFrenchVoice(voices) {
+  const fr = (voices || []).filter(v => /^fr([-_]|$)/i.test(v.lang) || /fran[cç]ais|french/i.test(v.name));
+  if (!fr.length) return null;
+  const score = (v) => {
+    const n = (v.name || '').toLowerCase();
+    let s = 0;
+    if (/natural/.test(n)) s += 100;          // voix neuronales Microsoft
+    if (/online/.test(n)) s += 40;
+    if (/denise|vivienne|eloise|élo|charline|léa|lea/.test(n)) s += 30; // voix féminines chaleureuses
+    if (/henri|remy|rémy|paul/.test(n)) s += 18;
+    if (/google/.test(n)) s += 25;            // « Google français », correcte
+    if (/fr-fr/i.test(v.lang) || /france/i.test(n)) s += 10;
+    if (v.localService === false) s += 5;     // les voix en ligne sont souvent meilleures
+    return s;
+  };
+  return fr.slice().sort((a, b) => score(b) - score(a))[0] || null;
+}
+
 // ============ MAIN COMPONENT ============
 export default function PresentationPage() {
   const navigate = useNavigate();
@@ -1436,6 +1470,8 @@ export default function PresentationPage() {
   const [elapsed, setElapsed] = useState(0);
   const [paused, setPaused] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [narrationOn, setNarrationOn] = useState(false);
+  const voiceRef = useRef(null);
   const rafRef = useRef(null);
   const startRef = useRef(null);
   const pausedRef = useRef(false);
@@ -1446,6 +1482,14 @@ export default function PresentationPage() {
 
   const slide = SLIDES[slideIdx] || SLIDES[0];
   const phase = getPhase(elapsed, slide.duration);
+
+  const toggleNarration = useCallback(() => {
+    setNarrationOn(on => {
+      const next = !on;
+      if (!next) { try { window.speechSynthesis?.cancel(); } catch {} }
+      return next;
+    });
+  }, []);
 
   // Masquer la barre de navigation pendant toute la présentation (vidéo propre)
   useEffect(() => {
@@ -1559,15 +1603,59 @@ export default function PresentationPage() {
         setPaused(p => { pausedRef.current = !p; return !p; });
       } else if (e.key === 's' || e.key === 'S') {
         if (recordingRef.current) finalizeStop();
+      } else if (e.key === 'v' || e.key === 'V') {
+        toggleNarration();
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [navigate, finalizeStop]);
+  }, [navigate, finalizeStop, toggleNarration]);
 
   const goSlide = (idx) => { startRef.current = null; setElapsed(0); setSlideIdx(idx); };
   const togglePause = () => { setPaused(p => { pausedRef.current = !p; return !p; }); };
   const progress = elapsed / slide.duration;
+
+  // ===== Narration (voix off synchronisée) =====
+  const speakSlide = useCallback((id) => {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    synth.cancel();
+    const text = NARRATION[id];
+    if (!text) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'fr-FR';
+    u.rate = 1.05;   // léger dynamisme
+    u.pitch = 1.07;  // ton un peu plus vivant
+    u.volume = 1;
+    if (voiceRef.current) u.voice = voiceRef.current;
+    synth.speak(u);
+  }, []);
+
+  // Charge la liste des voix et sélectionne la meilleure voix française
+  useEffect(() => {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    const load = () => { voiceRef.current = pickFrenchVoice(synth.getVoices()); };
+    load();
+    synth.addEventListener?.('voiceschanged', load);
+    return () => synth.removeEventListener?.('voiceschanged', load);
+  }, []);
+
+  // Lance la narration à chaque changement de slide (si activée)
+  useEffect(() => {
+    if (!narrationOn) return;
+    speakSlide(slide.id);
+  }, [slideIdx, narrationOn, slide.id, speakSlide]);
+
+  // Met en pause / reprend la voix avec le diaporama
+  useEffect(() => {
+    const synth = window.speechSynthesis;
+    if (!synth || !narrationOn) return;
+    if (paused) synth.pause(); else synth.resume();
+  }, [paused, narrationOn]);
+
+  // Stoppe la voix en quittant la page
+  useEffect(() => () => { try { window.speechSynthesis?.cancel(); } catch {} }, []);
 
   return (
     <div style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', overflow: 'hidden', background: slide.bg || CC.cream, transition: 'background 0.6s ease', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
@@ -1616,6 +1704,12 @@ export default function PresentationPage() {
           {slideIdx + 1} / {SLIDES.length}
         </span>
 
+        {/* Voix off (narration) */}
+        <button onClick={toggleNarration} title="Activer/couper la voix off (V)"
+          style={{ ...btnStyle, fontSize: 12, background: narrationOn ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.3)' }}>
+          {narrationOn ? '🔊 Voix' : '🔇 Voix'}
+        </button>
+
         {/* Enregistrer */}
         <button onClick={startRecording} style={{ ...btnStyle, fontSize: 12, background: 'linear-gradient(135deg, #ef4444, #dc2626)', borderColor: 'rgba(255,255,255,0.3)' }}>
           🔴 Enregistrer
@@ -1646,7 +1740,7 @@ export default function PresentationPage() {
           color: 'rgba(255,255,255,0.5)', fontSize: 12, zIndex: 10,
           animation: 'presFadeIn 1s ease-out 2s both',
         }}>
-          ← → Navigation • Espace Suivant • P Pause • C Texte • 🔴 Enregistrer • Échap Quitter
+          ← → Navigation • Espace Suivant • P Pause • V Voix • C Texte • 🔴 Enregistrer • Échap Quitter
         </div>
       )}
 
