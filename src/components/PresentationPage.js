@@ -105,7 +105,7 @@ const MockScoreboard = ({ scores, timeLeft, round, animIdx, width = 280 }) => (
     <GlassCard>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ width: 12, height: 12, borderRadius: 999, background: PLAYER_COLORS[0] }} />
-        <span style={{ fontSize: 15, color: '#fff' }}><b>Emma</b>: 🐬 Dauphin ↔ Dauphin</span>
+        <span style={{ fontSize: 15, color: '#fff' }}><b>Emma</b>: � Dorade coryphène ↔ Dorade coryphène</span>
       </div>
     </GlassCard>
   </div>
@@ -666,7 +666,7 @@ const SoloScene = ({ elapsed: e }) => {
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 30, padding: '64px 36px 28px', flexWrap: 'wrap' }}>
           <Reveal e={e} start={STEP_GAME + 100} dur={600} y={0} scaleFrom={0.94}
             style={{ flex: '0 0 auto', width: 'min(calc(100vh - 120px), calc(100vw - 360px))' }}>
-            <InteractiveDemo maxWidth="100%" finger pace="promo" showDots={false} onMatch={handleMatch} variant={0} />
+            <InteractiveDemo maxWidth="100%" finger pace="promo" showDots={false} onMatch={handleMatch} startScene={0} />
           </Reveal>
           <Reveal e={e} start={STEP_GAME + 300} dur={600} x={30} y={0} style={{ flex: '0 0 auto' }}>
             <SoloRecordPanel score={pairs} pairs={pairs} recordToBeat={RECORD_TO_BEAT} recordPairs={myRecord} flame={flame} holdRecord={holdRecord} />
@@ -679,15 +679,15 @@ const SoloScene = ({ elapsed: e }) => {
 
 // ============ SCÈNE DUEL (Salle Privée : vraie carte + scores réalistes) ============
 const DuelScene = ({ elapsed: e }) => {
-  // Emma gagne les paires AFFICHÉES sur la carte (sync onMatch) ; la carte
-  // démarre sur un CALCUL (startScene=2) puis varie (dauphin, héron…).
+  // Emma gagne les paires AFFICHÉES sur la carte (sync onMatch). La carte
+  // démarre sur un CALCUL (startScene=1) puis varie (iguane, goyave…).
   const [emmaScore, setEmmaScore] = useState(0);
   const handleMatch = useCallback(() => setEmmaScore(s => Math.min(3, s + 1)), []);
-  // Emma trouve dans l'ordre des scénarios (variante B) à partir du calcul
+  // Emma trouve dans l'ordre des cartes (7×8 → iguane → goyave)
   const emmaPairs = [
     { icon: '🔢', label: '7 × 8 = 56' },
-    { icon: '�', label: 'Caïman' },
-    { icon: '�', label: 'Iguane vert' },
+    { icon: '🦎', label: 'Iguane vert' },
+    { icon: '🍈', label: 'Goyave' },
   ];
   // Lucas trouve SES propres paires, à SON rythme (décalé → jamais en même temps)
   const lucasPairs = [
@@ -761,7 +761,7 @@ const DuelScene = ({ elapsed: e }) => {
       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 22, padding: '104px 26px 36px', flexWrap: 'wrap' }}>
         <Panel name="Emma" color="#22c55e" pairs={emmaPairs} shown={emmaScore} dir={-1} isWinner={win} />
         <Reveal e={e} start={550} dur={650} y={0} scaleFrom={0.94} style={{ flex: '0 0 auto', width: 'min(calc(100vh - 150px), calc(100vw - 500px))' }}>
-          <InteractiveDemo maxWidth="100%" finger pace="promo" startScene={2} showDots={false} onMatch={handleMatch} variant={1} />
+          <InteractiveDemo maxWidth="100%" finger pace="promo" startScene={1} showDots={false} onMatch={handleMatch} />
         </Reveal>
         <Panel name="Lucas" color="#3b82f6" pairs={lucasPairs} shown={lucasScore} dir={1} isWinner={false} />
       </div>
@@ -786,7 +786,7 @@ const GrandeSalleScene = ({ elapsed: e }) => {
   const survivors = [
     { name: 'Emma', color: '#22c55e', pair: '🍈 Goyave', score: 9 },
     { name: 'Lucas', color: '#3b82f6', pair: '🔢 144 ÷ 12 = 12', score: 8 },
-    { name: 'Jade', color: '#f59e0b', pair: '⭐ Carambole', score: 7 },
+    { name: 'Jade', color: '#f59e0b', pair: '🐊 Caïman', score: 7 },
   ];
   const gifts = [
     { rank: '🥇', who: 'Emma', gift: 'Pass Aquarium', partner: 'Aquasud', icon: '🐬' },
@@ -803,7 +803,7 @@ const GrandeSalleScene = ({ elapsed: e }) => {
       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 26, padding: '74px 32px 36px', flexWrap: 'wrap' }}>
         {/* Vraie carte de jeu (agrandie, démarre sur le héron pour varier) */}
         <Reveal e={e} start={400} dur={650} y={0} scaleFrom={0.93} style={{ flex: '0 0 auto', width: 'min(calc(100vh - 120px), calc(100vw - 400px))' }}>
-          <InteractiveDemo maxWidth="100%" finger pace="promo" startScene={1} showDots={false} onMatch={handleMatch} variant={2} />
+          <InteractiveDemo maxWidth="100%" finger pace="promo" startScene={3} showDots={false} onMatch={handleMatch} />
         </Reveal>
 
         {/* Colonne droite : vagues + survivants + cadeaux */}
@@ -877,6 +877,74 @@ const GrandeSalleScene = ({ elapsed: e }) => {
               </div>
             </div>
           </Reveal>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============ FICHE DE RÉVISION (réplique du vrai Mode Apprendre) ============
+const LEARN_CARDS = [
+  {
+    type: 'image', img: 'iguane-vert.jpeg', name: 'Iguane vert', level: 'CM1',
+    strategy: "Pense à « igu-ANE vert » : un grand lézard vert qui se chauffe au soleil sur les branches.",
+    eco: "L'iguane vert peut mesurer jusqu'à 2 m avec sa queue et nage très bien pour échapper aux prédateurs.",
+    hint: 'Grand lézard + couleur verte = iguane vert.',
+  },
+  {
+    type: 'image', img: 'goyave.jpeg', name: 'Goyave', level: 'CE2',
+    strategy: "La goyave a une peau verte/jaune et une chair rose pleine de petits grains.",
+    eco: "La goyave est très riche en vitamine C : bien plus qu'une orange !",
+    hint: 'Chair rose + petits grains = goyave.',
+  },
+  {
+    type: 'math', expr: '7 × 8', result: '56', name: 'Table de 7', level: 'CM1',
+    strategy: "Astuce : 7 × 8 = 56. Retiens la suite « 5, 6, 7, 8 » → 56 = 7 × 8.",
+    hint: "Pense à « 56 = 7 × 8 » (5-6-7-8).",
+  },
+];
+const MockLearnCard = ({ elapsed: e }) => {
+  const idx = Math.min(LEARN_CARDS.length - 1, Math.floor(e / 4600));
+  const c = LEARN_CARDS[idx];
+  const PUB = process.env.PUBLIC_URL || '';
+  return (
+    <div key={idx} style={{
+      width: '100%', maxWidth: 460, background: '#fff', borderRadius: 20, overflow: 'hidden',
+      boxShadow: '0 18px 50px rgba(0,0,0,0.35)', color: '#111827', animation: 'soloScorePop 0.45s ease-out',
+    }}>
+      {/* En-tête : image ou calcul */}
+      {c.type === 'image' ? (
+        <div style={{ position: 'relative', width: '100%', aspectRatio: '4 / 3', background: 'linear-gradient(135deg,#e0f7fa,#b2ebf2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <img src={`${PUB}/images/${c.img}`} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </div>
+      ) : (
+        <div style={{ minHeight: 168, padding: '26px 16px', background: 'linear-gradient(135deg,#0D6A7A,#1AACBE)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <div style={{ fontSize: 52, fontWeight: 900, color: '#fff', textShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>{c.expr}</div>
+          <div style={{ fontSize: 30, fontWeight: 800, color: '#FFD700' }}>= {c.result}</div>
+        </div>
+      )}
+      {/* Corps */}
+      <div style={{ padding: '18px 22px 22px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 23, fontWeight: 800, color: '#111827' }}>{c.name}</h2>
+          <span style={{ padding: '4px 12px', borderRadius: 12, background: '#e0f2f1', color: '#0D6A7A', fontSize: 12, fontWeight: 700 }}>{c.level}</span>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#0D6A7A', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5 }}>🧠 Stratégie</div>
+          <p style={{ margin: 0, fontSize: 14.5, lineHeight: 1.55, color: '#374151' }}>{c.strategy}</p>
+        </div>
+        {c.eco && (
+          <div style={{ background: 'linear-gradient(135deg,#ecfdf5,#d1fae5)', borderRadius: 12, padding: '12px 14px', marginBottom: 14 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#065f46', marginBottom: 5 }}>🌿 Le savais-tu ?</div>
+            <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.55, color: '#064e3b' }}>{c.eco}</p>
+          </div>
+        )}
+        <div style={{ background: '#fffbeb', borderRadius: 10, padding: '10px 14px', display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 14 }}>
+          <span>💡</span>
+          <p style={{ margin: 0, fontSize: 13.5, color: '#92400e', fontStyle: 'italic' }}>{c.hint}</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '11px 16px', borderRadius: 12, border: '2px solid #1AACBE', background: '#f0fafb', color: '#0D6A7A', fontSize: 14, fontWeight: 700 }}>
+          🔊 Écouter <span style={{ marginLeft: 'auto', fontSize: 12, opacity: 0.8, fontWeight: 600 }}>Lire à voix haute</span>
         </div>
       </div>
     </div>
@@ -1147,7 +1215,7 @@ const SLIDES = [
           </div>
           <Reveal e={e} start={500} dur={750} y={0} scaleFrom={0.9}
             style={{ flex: '0 0 auto', width: 'min(calc(100vh - 80px), calc(100vw - 420px))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <InteractiveDemo maxWidth="100%" finger pace="promo" startScene={2} showDots={false} variant={1} />
+            <InteractiveDemo maxWidth="100%" finger pace="promo" startScene={6} showDots={false} />
           </Reveal>
           <Reveal e={e} start={800} dur={650} x={28} y={0} style={{ flex: '0 0 360px', alignSelf: 'center' }}>
             <MockScoreboard
@@ -1277,18 +1345,18 @@ const SLIDES = [
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 56, padding: '40px 56px', flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 340px', maxWidth: 480 }}>
             <Kicker e={e} start={150} bg="linear-gradient(135deg,#10b981,#059669)">📖 MODE APPRENDRE</Kicker>
-            <KineticHeading e={e} start={400} text="Comprendre avant de jouer" accentColor={CC.yellowLt}
+            <KineticHeading e={e} start={400} text="Des fiches pour réviser" accentColor={CC.yellowLt}
               style={{ fontSize: 36, fontWeight: 900, lineHeight: 1.12, margin: '14px 0 18px' }} />
             <Reveal e={e} start={1000} y={18}>
               <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.85)', lineHeight: 1.65, margin: '0 0 22px' }}>
-                Pas de chronomètre, pas d'adversaire : l'élève explore les associations à son rythme et mémorise les bonnes paires.
+                Avant de jouer, l'élève révise chaque association sur une fiche : une stratégie pour mémoriser, un fait écologique et un indice — le tout lu à voix haute.
               </p>
             </Reveal>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[
-                { icon: '🧭', label: 'À son rythme', desc: 'Aucune limite de temps' },
-                { icon: '🔁', label: 'Répétition', desc: 'On rejoue jusqu\'à maîtriser' },
-                { icon: '🚀', label: 'Prêt pour le défi', desc: 'Puis on passe en Solo ou en duel' },
+                { icon: '�', label: 'Stratégie de mémorisation', desc: 'Une astuce pour retenir chaque paire' },
+                { icon: '🌿', label: 'Le savais-tu ?', desc: 'Un fait écologique sur l\'espèce' },
+                { icon: '�', label: 'Audio + filtres', desc: 'Lecture à voix haute, tri par thème/niveau' },
               ].map((item, i) => (
                 <Reveal key={i} e={e} start={1500 + i * 220} y={22} x={-14}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'rgba(255,255,255,0.08)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.14)' }}>
@@ -1302,8 +1370,8 @@ const SLIDES = [
               ))}
             </div>
           </div>
-          <Reveal e={e} start={900} dur={750} y={0} scaleFrom={0.9} style={{ flex: '0 0 auto', width: 'min(calc(100vh - 130px), calc(100vw - 470px))' }}>
-            <InteractiveDemo maxWidth="100%" finger slow tutorial variant={0} />
+          <Reveal e={e} start={900} dur={750} y={0} scaleFrom={0.9} style={{ flex: '0 0 auto', width: 'min(calc(100vh - 90px), 460px)', display: 'flex', justifyContent: 'center' }}>
+            <MockLearnCard elapsed={e} />
           </Reveal>
         </div>
       </div>

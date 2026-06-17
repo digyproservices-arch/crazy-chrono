@@ -67,67 +67,30 @@ const MATH_OFFSETS = {
 // Zones that need arc flip (same as FLIP_TEXT_ARC_ZONE_IDS in Carte.js)
 const FLIP_ARC_IDS = { "1752570164541": true, "1752570866370": true };
 
-// Demo content assignment
-const DEMO_CONTENT = {
-  "1752568799658": { display: '60' },   // chiffre top
-  "1752569687819": { display: '8' },    // chiffre right
-  "1752569809115": { display: '4' },    // chiffre bottom
-  "1752569975013": { display: '18' },   // chiffre left
-  "1752571224092": { image: 'images/colibri.jpeg' },        // image top-right
-  "1752571493404": { image: 'images/flamant-rose.jpeg' },   // image top-left
-  "1752571661490": { image: 'images/dauphin.jpeg' },        // image bottom-right
-  "1752571830304": { image: 'images/heron-vert.jpeg' },     // image bottom-left
-  "1752570164541": { display: 'Héron vert' },     // texte top-left inner
-  "1752570391219": { display: 'Dauphin' },        // texte top-right inner
-  "1752570607347": { display: 'Grande aigrette' },// texte bottom-right inner
-  "1752570866370": { display: 'Scolopendre' },    // texte bottom-left inner
-  "1752572018539": { display: '10 × 10' },  // calcul top-left
-  "1752572187590": { display: '146 ÷ 2' },  // calcul top-right
-  "1752572384939": { display: '32 = ?/10' }, // calcul bottom-right
-  "1752572591501": { display: '60 − 35' },  // calcul bottom-left
+// ID des zones par position sur la carte (géométrie fixe)
+const Z = {
+  imgTR: '1752571224092', imgTL: '1752571493404', imgBR: '1752571661490', imgBL: '1752571830304',
+  txtTL: '1752570164541', txtTR: '1752570391219', txtBR: '1752570607347', txtBL: '1752570866370',
+  calcTL: '1752572018539', calcTR: '1752572187590', calcBR: '1752572384939', calcBL: '1752572591501',
+  numTop: '1752568799658', numRight: '1752569687819', numBottom: '1752569809115', numLeft: '1752569975013',
 };
 
-// Variante B — faune terrestre & reptiles (images/mots/calculs différents)
-const DEMO_CONTENT_B = {
-  "1752568799658": { display: '56' },
-  "1752569687819": { display: '30' },
-  "1752569809115": { display: '54' },
-  "1752569975013": { display: '64' },
-  "1752571224092": { image: 'images/ibis-rouge.jpeg' },    // top-right
-  "1752571493404": { image: 'images/iguane-vert.jpeg' },   // top-left
-  "1752571661490": { image: 'images/caiman.jpeg' },        // bottom-right
-  "1752571830304": { image: 'images/cabri.jpeg' },         // bottom-left
-  "1752570164541": { display: 'Iguane vert' },     // top-left inner
-  "1752570391219": { display: 'Ibis rouge' },      // top-right inner
-  "1752570607347": { display: 'Caïman' },          // bottom-right inner
-  "1752570866370": { display: 'Cabri' },           // bottom-left inner
-  "1752572018539": { display: '7 × 8' },
-  "1752572187590": { display: '90 ÷ 3' },
-  "1752572384939": { display: '45 + 9' },
-  "1752572591501": { display: '100 − 36' },
-};
-
-// Variante C — jardin créole : fruits & légumes pays
-const DEMO_CONTENT_C = {
-  "1752568799658": { display: '54' },
-  "1752569687819": { display: '12' },
-  "1752569809115": { display: '35' },
-  "1752569975013": { display: '45' },
-  "1752571224092": { image: 'images/goyave.jpeg' },     // top-right
-  "1752571493404": { image: 'images/corossol.jpeg' },   // top-left
-  "1752571661490": { image: 'images/carambole.jpeg' },  // bottom-right
-  "1752571830304": { image: 'images/gombo.jpeg' },      // bottom-left
-  "1752570164541": { display: 'Corossol' },       // top-left inner
-  "1752570391219": { display: 'Goyave' },         // top-right inner
-  "1752570607347": { display: 'Carambole' },      // bottom-right inner
-  "1752570866370": { display: 'Gombo' },          // bottom-left inner
-  "1752572018539": { display: '6 × 9' },
-  "1752572187590": { display: '144 ÷ 12' },
-  "1752572384939": { display: '27 + 8' },
-  "1752572591501": { display: '81 − 36' },
-};
-
-const CONTENT_VARIANTS = [DEMO_CONTENT, DEMO_CONTENT_B, DEMO_CONTENT_C];
+// Construit le contenu complet d'une carte (16 zones).
+// IMPORTANT : comme dans le vrai jeu, chaque carte ne contient qu'UNE SEULE bonne
+// association ; les 14 autres zones sont des distracteurs qui ne s'apparient pas.
+const makeCard = ({ images, textes, calculs, chiffres, pairA, pairB, tooltips }) => ({
+  content: {
+    [Z.imgTR]: { image: images.TR }, [Z.imgTL]: { image: images.TL },
+    [Z.imgBR]: { image: images.BR }, [Z.imgBL]: { image: images.BL },
+    [Z.txtTL]: { display: textes.TL }, [Z.txtTR]: { display: textes.TR },
+    [Z.txtBR]: { display: textes.BR }, [Z.txtBL]: { display: textes.BL },
+    [Z.calcTL]: { display: calculs.TL }, [Z.calcTR]: { display: calculs.TR },
+    [Z.calcBR]: { display: calculs.BR }, [Z.calcBL]: { display: calculs.BL },
+    [Z.numTop]: { display: chiffres.top }, [Z.numRight]: { display: chiffres.right },
+    [Z.numBottom]: { display: chiffres.bottom }, [Z.numLeft]: { display: chiffres.left },
+  },
+  pairA, pairB, tooltips,
+});
 
 // ============ ARC PATH FUNCTIONS (exact copy from Carte.js) ============
 function interpolateArc(points, idxStart, idxEnd, marginPx) {
@@ -190,123 +153,78 @@ function getZoneCenter(points) {
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 }
 
-// ============ DEMO SCENARIOS ============
+// ============ DEMO CARDS ============
+// Chaque carte = UNE seule bonne association + 14 distracteurs (comme le vrai jeu).
+// Les calculs distracteurs ne valent jamais l'un des chiffres affichés ; les images
+// distractrices n'ont pas leur mot affiché et inversement.
+const T4 = (a, b, c, d) => [
+  { text: a, time: 0 }, { text: b, time: 2000 }, { text: c, time: 4200 }, { text: d, time: 6400 },
+];
 const SCENARIOS = [
-  {
-    pairA: '1752571661490', // dauphin image (bottom-right)
-    pairB: '1752570391219', // "Dauphin" text (top-right inner)
-    contentOverrides: {
-      // Break héron-vert pair (image still shows but text no longer matches)
-      '1752570164541': { display: 'Iguane vert' },
-    },
-    tooltips: [
-      { text: '👀 Observe la carte...', time: 0 },
-      { text: '🐬 Je reconnais un Dauphin !', time: 2000 },
-      { text: '📝 Son nom est ici : « Dauphin »', time: 4200 },
-      { text: '✨ Bravo ! La paire s\'envole !', time: 6400 },
-    ],
-  },
-  {
-    pairA: '1752571830304', // héron vert image (bottom-left)
-    pairB: '1752570164541', // "Héron vert" text (top-left inner)
-    contentOverrides: {
-      // Break dauphin pair (image still shows but text no longer matches)
-      '1752570391219': { display: 'Tortue luth' },
-    },
-    tooltips: [
-      { text: '👀 Nouvelle manche !', time: 0 },
-      { text: '🦅 Un Héron vert en bas à gauche !', time: 2000 },
-      { text: '📝 Et voilà son nom en haut !', time: 4200 },
-      { text: '✨ Parfait ! Ça s\'envole !', time: 6400 },
-    ],
-  },
-  {
-    pairA: '1752572018539', // calcul "10 × 10" (top-left inner)
-    pairB: '1752568799658', // chiffre top petal
-    contentOverrides: {
-      '1752568799658': { display: '100' },
-      // Break both image-text pairs
-      '1752570164541': { display: 'Iguane vert' },
-      '1752570391219': { display: 'Tortue luth' },
-    },
-    tooltips: [
-      { text: '👀 Dernière manche !', time: 0 },
-      { text: '🔢 Je vois le calcul : 10 × 10', time: 2000 },
-      { text: '🎯 Son résultat est 100 !', time: 4200 },
-      { text: '✨ Bravo ! Les étoiles célèbrent !', time: 6400 },
-    ],
-  },
+  // 0 — TI marine : Dauphin
+  makeCard({
+    images: { TR: 'images/colibri.jpeg', TL: 'images/flamant-rose.jpeg', BR: 'images/dauphin.jpeg', BL: 'images/heron-vert.jpeg' },
+    textes: { TL: 'Scolopendre', TR: 'Dauphin', BR: 'Grande aigrette', BL: 'Tortue luth' },
+    calculs: { TL: '6 × 7', TR: '120 ÷ 4', BR: '15 + 9', BL: '50 − 8' },
+    chiffres: { top: '18', right: '8', bottom: '4', left: '60' },
+    pairA: Z.imgBR, pairB: Z.txtTR,
+    tooltips: T4('� Observe la carte...', '🐬 Je reconnais un Dauphin !', '📝 Son nom est ici : « Dauphin »', '✨ Bravo ! La paire s\'envole !'),
+  }),
+  // 1 — CC faune : 7 × 8 = 56
+  makeCard({
+    images: { TR: 'images/ibis-rouge.jpeg', TL: 'images/iguane-vert.jpeg', BR: 'images/caiman.jpeg', BL: 'images/cabri.jpeg' },
+    textes: { TL: 'Dauphin', TR: 'Flamant rose', BR: 'Héron vert', BL: 'Colibri' },
+    calculs: { TL: '7 × 8', TR: '90 ÷ 3', BR: '45 + 9', BL: '100 − 36' },
+    chiffres: { top: '56', right: '8', bottom: '4', left: '18' },
+    pairA: Z.calcTL, pairB: Z.numTop,
+    tooltips: T4('👀 Nouvelle manche !', '🔢 Je vois le calcul : 7 × 8', '🎯 Son résultat est 56 !', '✨ Bravo ! Les étoiles célèbrent !'),
+  }),
+  // 2 — TI faune : Iguane vert
+  makeCard({
+    images: { TR: 'images/ibis-rouge.jpeg', TL: 'images/iguane-vert.jpeg', BR: 'images/caiman.jpeg', BL: 'images/cabri.jpeg' },
+    textes: { TL: 'Iguane vert', TR: 'Tortue luth', BR: 'Dauphin', BL: 'Flamant rose' },
+    calculs: { TL: '8 × 4', TR: '60 ÷ 5', BR: '27 + 6', BL: '90 − 45' },
+    chiffres: { top: '100', right: '8', bottom: '4', left: '18' },
+    pairA: Z.imgTL, pairB: Z.txtTL,
+    tooltips: T4('👀 Observe la carte...', '🦎 Un Iguane vert en haut à gauche !', '📝 Et voilà son nom juste à côté !', '✨ Parfait ! Ça s\'envole !'),
+  }),
+  // 3 — TI jardin : Goyave
+  makeCard({
+    images: { TR: 'images/goyave.jpeg', TL: 'images/corossol.jpeg', BR: 'images/carambole.jpeg', BL: 'images/gombo.jpeg' },
+    textes: { TL: 'Igname', TR: 'Goyave', BR: 'Christophine', BL: 'Cythère' },
+    calculs: { TL: '5 × 6', TR: '144 ÷ 12', BR: '28 + 9', BL: '81 − 36' },
+    chiffres: { top: '54', right: '8', bottom: '4', left: '18' },
+    pairA: Z.imgTR, pairB: Z.txtTR,
+    tooltips: T4('👀 Nouvelle manche !', '🍈 Je reconnais une Goyave !', '📝 Son nom est ici : « Goyave »', '✨ Bravo ! La paire s\'envole !'),
+  }),
+  // 4 — CC jardin : 144 ÷ 12 = 12
+  makeCard({
+    images: { TR: 'images/goyave.jpeg', TL: 'images/corossol.jpeg', BR: 'images/carambole.jpeg', BL: 'images/gombo.jpeg' },
+    textes: { TL: 'Igname', TR: 'Christophine', BR: 'Aloe vera', BL: 'Cythère' },
+    calculs: { TL: '6 × 9', TR: '144 ÷ 12', BR: '27 + 8', BL: '81 − 36' },
+    chiffres: { top: '60', right: '12', bottom: '4', left: '18' },
+    pairA: Z.calcTR, pairB: Z.numRight,
+    tooltips: T4('👀 Dernière manche !', '🔢 Je vois le calcul : 144 ÷ 12', '🎯 Son résultat est 12 !', '✨ Bravo ! Les étoiles célèbrent !'),
+  }),
+  // 5 — TI faune : Caïman
+  makeCard({
+    images: { TR: 'images/ibis-rouge.jpeg', TL: 'images/iguane-vert.jpeg', BR: 'images/caiman.jpeg', BL: 'images/cabri.jpeg' },
+    textes: { TL: 'Flamant rose', TR: 'Dauphin', BR: 'Caïman', BL: 'Héron vert' },
+    calculs: { TL: '9 × 3', TR: '80 ÷ 4', BR: '14 + 8', BL: '70 − 35' },
+    chiffres: { top: '56', right: '8', bottom: '4', left: '18' },
+    pairA: Z.imgBR, pairB: Z.txtBR,
+    tooltips: T4('👀 Observe la carte...', '🐊 Je reconnais un Caïman !', '📝 Son nom est ici : « Caïman »', '✨ Parfait ! Ça s\'envole !'),
+  }),
+  // 6 — TI récifs : Dorade coryphène
+  makeCard({
+    images: { TR: 'images/dorade-coryphene.jpeg', TL: 'images/bernard-lhermite.jpeg', BR: 'images/ecrevisse.jpeg', BL: 'images/corail-cerveau.jpeg' },
+    textes: { TL: 'Oursin', TR: 'Dorade coryphène', BR: 'Langouste', BL: 'Étoile de mer' },
+    calculs: { TL: '3 × 9', TR: '72 ÷ 8', BR: '13 + 6', BL: '90 − 45' },
+    chiffres: { top: '42', right: '20', bottom: '4', left: '18' },
+    pairA: Z.imgTR, pairB: Z.txtTR,
+    tooltips: T4('👀 Nouvelle manche !', '🐟 Je reconnais une Dorade coryphène !', '📝 Son nom est ici !', '✨ Bravo ! La paire s\'envole !'),
+  }),
 ];
-
-// Scénarios variante B (faune terrestre & reptiles)
-const SCENARIOS_B = [
-  {
-    pairA: '1752571661490', // caïman image (bottom-right)
-    pairB: '1752570607347', // "Caïman" texte (bottom-right inner)
-    tooltips: [
-      { text: '👀 Observe la carte...', time: 0 },
-      { text: '🐊 Je reconnais un Caïman !', time: 2000 },
-      { text: '📝 Son nom est ici : « Caïman »', time: 4200 },
-      { text: '✨ Bravo ! La paire s\'envole !', time: 6400 },
-    ],
-  },
-  {
-    pairA: '1752571493404', // iguane image (top-left)
-    pairB: '1752570164541', // "Iguane vert" texte (top-left inner)
-    tooltips: [
-      { text: '👀 Nouvelle manche !', time: 0 },
-      { text: '🦎 Un Iguane vert en haut à gauche !', time: 2000 },
-      { text: '📝 Et voilà son nom juste à côté !', time: 4200 },
-      { text: '✨ Parfait ! Ça s\'envole !', time: 6400 },
-    ],
-  },
-  {
-    pairA: '1752572018539', // calcul "7 × 8" (top-left)
-    pairB: '1752568799658', // chiffre top (= 56)
-    tooltips: [
-      { text: '👀 Dernière manche !', time: 0 },
-      { text: '🔢 Je vois le calcul : 7 × 8', time: 2000 },
-      { text: '🎯 Son résultat est 56 !', time: 4200 },
-      { text: '✨ Bravo ! Les étoiles célèbrent !', time: 6400 },
-    ],
-  },
-];
-
-// Scénarios variante C (jardin créole : fruits & légumes pays)
-const SCENARIOS_C = [
-  {
-    pairA: '1752571224092', // goyave image (top-right)
-    pairB: '1752570391219', // "Goyave" texte (top-right inner)
-    tooltips: [
-      { text: '👀 Observe la carte...', time: 0 },
-      { text: '🍈 Je reconnais une Goyave !', time: 2000 },
-      { text: '📝 Son nom est ici : « Goyave »', time: 4200 },
-      { text: '✨ Bravo ! La paire s\'envole !', time: 6400 },
-    ],
-  },
-  {
-    pairA: '1752571493404', // corossol image (top-left)
-    pairB: '1752570164541', // "Corossol" texte (top-left inner)
-    tooltips: [
-      { text: '👀 Nouvelle manche !', time: 0 },
-      { text: '🥭 Un Corossol en haut à gauche !', time: 2000 },
-      { text: '📝 Et voilà son nom juste à côté !', time: 4200 },
-      { text: '✨ Parfait ! Ça s\'envole !', time: 6400 },
-    ],
-  },
-  {
-    pairA: '1752572187590', // calcul "144 ÷ 12" (top-right)
-    pairB: '1752569687819', // chiffre right (= 12)
-    tooltips: [
-      { text: '👀 Dernière manche !', time: 0 },
-      { text: '🔢 Je vois le calcul : 144 ÷ 12', time: 2000 },
-      { text: '🎯 Son résultat est 12 !', time: 4200 },
-      { text: '✨ Bravo ! Les étoiles célèbrent !', time: 6400 },
-    ],
-  },
-];
-
-const SCENARIO_VARIANTS = [SCENARIOS, SCENARIOS_B, SCENARIOS_C];
 
 // Timings de base (rythme normal). Le mode "slow" (pilote) étire ces valeurs
 // et laisse beaucoup plus de temps sur l'association trouvée (MATCH -> FLY_AWAY).
@@ -407,18 +325,17 @@ export function PointerHand() {
 }
 
 // ============ COMPONENT ============
-export default function InteractiveDemo({ maxWidth = 500, finger = false, slow = false, tutorial = false, startScene = 0, pace, onMatch, showDots = true, variant = 0 } = {}) {
-  // Jeu de contenu + scénarios sélectionné (varie les images/mots/calculs d'une slide à l'autre)
-  const scenarios = SCENARIO_VARIANTS[variant % SCENARIO_VARIANTS.length];
-  const baseContent = CONTENT_VARIANTS[variant % CONTENT_VARIANTS.length];
-  const [sceneIdx, setSceneIdx] = useState(startScene % scenarios.length);
+export default function InteractiveDemo({ maxWidth = 500, finger = false, slow = false, tutorial = false, startScene = 0, pace, onMatch, showDots = true } = {}) {
+  // La démo enchaîne des CARTES ; chaque slide démarre sur une carte différente
+  // (startScene) pour varier les images/mots/calculs affichés.
+  const [sceneIdx, setSceneIdx] = useState(startScene % SCENARIOS.length);
   const [elapsed, setElapsed] = useState(0);
   const [bubbles, setBubbles] = useState([]); // flying bubbles
   const animRef = useRef(null);
   const startRef = useRef(null);
   const containerRef = useRef(null);
 
-  const scene = scenarios[sceneIdx % scenarios.length];
+  const scene = SCENARIOS[sceneIdx % SCENARIOS.length];
 
   // Rythme : normal, ralenti (pilote/tutoriel) ou promo (montage gameplay)
   const T = useMemo(() => {
@@ -440,10 +357,8 @@ export default function InteractiveDemo({ maxWidth = 500, finger = false, slow =
   }, [T, SCENE_DURATION]);
 
   const getContent = useCallback((zoneId) => {
-    const override = scene.contentOverrides?.[zoneId];
-    if (override) return { ...baseContent[zoneId], ...override };
-    return baseContent[zoneId] || {};
-  }, [scene, baseContent]);
+    return scene.content?.[zoneId] || {};
+  }, [scene]);
 
   // chiffreRefBase (médiane pour résister aux outliers)
   const chiffreRefBase = useMemo(() => {
@@ -465,10 +380,10 @@ export default function InteractiveDemo({ maxWidth = 500, finger = false, slow =
     if (dt >= SCENE_DURATION) {
       startRef.current = null;
       setBubbles([]);
-      setSceneIdx(prev => (prev + 1) % scenarios.length);
+      setSceneIdx(prev => (prev + 1) % SCENARIOS.length);
     }
     animRef.current = requestAnimationFrame(tick);
-  }, [SCENE_DURATION, scenarios.length]);
+  }, [SCENE_DURATION]);
 
   useEffect(() => {
     animRef.current = requestAnimationFrame(tick);
