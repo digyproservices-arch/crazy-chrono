@@ -31,6 +31,14 @@ function AdminDashboard() {
     loading: true
   });
   const [recentUsers, setRecentUsers] = useState([]);
+  const [userFilter, setUserFilter] = useState('all');
+  const filteredUsers = recentUsers.filter(u => {
+    if (userFilter === 'all') return true;
+    if (userFilter === 'pro') return ['active', 'staff', 'admin'].includes(u.licenseStatus);
+    if (userFilter === 'school') return u.licenseStatus === 'school' || u.licenseStatus === 'school_inactive';
+    if (userFilter === 'free') return u.licenseStatus === 'free' || u.licenseStatus === 'expired';
+    return u.licenseStatus === userFilter;
+  });
   const [licenseUI, setLicenseUI] = useState({ open: false, scope: 'all', schoolId: '', classId: '', count: 100, loading: false, result: null });
   const [filters, setFilters] = useState({ schools: [], classes: [], summary: null });
   // Onboarding école
@@ -1002,9 +1010,21 @@ function AdminDashboard() {
 
         {/* Liste de TOUS les utilisateurs inscrits */}
         <div style={{ marginTop: '30px', background: '#fff', padding: '20px', borderRadius: '12px', border: '2px solid #F5A623', boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#0D6A7A' }}>
-            👤 Tous les utilisateurs inscrits ({recentUsers.length})
-          </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: '15px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: '#0D6A7A' }}>
+              👤 Tous les utilisateurs inscrits ({filteredUsers.length}{userFilter !== 'all' ? ` / ${recentUsers.length}` : ''})
+            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>Afficher :</span>
+              <select value={userFilter} onChange={e => setUserFilter(e.target.value)} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 14, color: '#334155', cursor: 'pointer' }}>
+                <option value="all">Tous</option>
+                <option value="pro">⭐ Pro (payant + staff)</option>
+                <option value="school">🏫 École</option>
+                <option value="free">Gratuit / Expiré</option>
+                <option value="admin">★ Admin</option>
+              </select>
+            </div>
+          </div>
           {stats.loading ? (
             <div style={{ fontSize: '14px', color: '#64748b' }}>Chargement...</div>
           ) : (
@@ -1020,7 +1040,7 @@ function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {recentUsers.map(user => {
+                  {filteredUsers.map(user => {
                     const licenseColors = {
                       active: { bg: '#22c55e', label: '⭐ Pro' },
                       school: { bg: '#0D6A7A', label: '🏫 École' },
