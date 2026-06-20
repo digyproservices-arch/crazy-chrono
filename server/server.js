@@ -1269,6 +1269,235 @@ function generateAccessCode(firstName, className) {
   return `${name}-${cls}-${num}`;
 }
 
+// ============================================================
+// BONS CADEAUX / CODES PROMO
+// Codes générés par l'admin, activés par le bénéficiaire.
+// La durée démarre à l'activation -> crée une ligne subscriptions.
+// ============================================================
+
+// Alphabet sans caractères ambigus (0/O, 1/I/L)
+const GIFT_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function genGiftCode(prefix = 'CADEAU') {
+  const block = (n) => Array.from({ length: n }, () =>
+    GIFT_ALPHABET[Math.floor(Math.random() * GIFT_ALPHABET.length)]).join('');
+  return `${prefix}-${block(4)}-${block(4)}`;
+}
+function normalizeGiftCode(code) {
+  return String(code || '').toUpperCase().replace(/\s+/g, '').trim();
+}
+
+// POST /api/admin/gift-codes -> génère un lot de codes
+app.post('/api/admin/gift-codes', requireAdminAuth, async (req, res) => {
+  try {
+    const {
+      quantity = 1,
+      durationMonths,
+      type = 'generic',
+      beneficiaryLabel = null,
+      campaign = null,
+      notes = null,
+      prefix = 'CADEAU',
+    } = req.body || {};
+
+    const dur = parseInt(durationMonths, 10);
+    const qty = Math.min(Math.max(parseInt(quantity, 10) || 1, 1), 1000);
+    if (!Number.isFinite(dur) || dur <= 0) {
+      return res.status(400).json({ ok: false, error: 'durationMonths invalide' });
+    }
+    if (!['generic', 'nominative'].includes(type)) {
+      return res.status(400).json({ ok: false, error: 'type invalide' });
+    }
+    const cleanPrefix = String(prefix || 'CADEAU').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) || 'CADEAU';
+    const finalQty = type === 'nominative' ? 1 : qty;
+
+    // Génère des codes uniques (évite collisions intra-lot)
+    const codes = new Set();
+    let guard = 0;
+    while (codes.size < finalQty && guard < finalQty * 20) {
+      codes.add(genGiftCode(cleanPrefix));
+      guard++;
+    }
+    const codeList = Array.from(codes);
+
+    // Vérifie l'unicité contre l'existant
+    const { data: existing } = await supabaseAdmin
+      .from('gift_codes')
+      .select('code')
+      .in('code', codeList);
+    const taken = new Set((existing || []).map(r => r.code));
+    const rows = codeList
+      .filter(c => !taken.has(c))
+      .map(code => ({
+        code,
+        type,
+        duration_months: dur,
+        status: 'active',
+        beneficiary_label: type === 'nominative' ? beneficiaryLabel : null,
+        campaign: campaign || null,
+        notes: notes || null,
+        created_by: req.adminUser?.email || null,
+      }));
+
+    if (rows.length === 0) {
+      return res.status(500).json({ ok: false, error: 'Échec de génération (collision), réessaie.' });
+    }
+
+    const { data: inserted, error } = await supabaseAdmin
+      .from('gift_codes')
+      .insert(rows)
+      .select('code, type, duration_months, campaign, beneficiary_label, status, created_at');
+    if (error) {
+      logger.error('[GiftCodes] insert error', { error: error.message });
+      return res.status(500).json({ ok: false, error: 'db_error' });
+    }
+    return res.json({ ok: true, created: inserted.length, codes: inserted });
+  } catch (e) {
+    logger.error('[GiftCodes] create error', { error: e.message });
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+// GET /api/admin/gift-codes -> liste (filtres optionnels: status, campaign)
+app.get('/api/admin/gift-codes', requireAdminAuth, async (req, res) => {
+  try {
+    let q = supabaseAdmin
+      .from('gift_codes')
+      .select('code, type, duration_months, status, beneficiary_label, campaign, created_by, created_at, redeemed_by_email, redeemed_at, valid_until')
+      .order('created_at', { ascending: false })
+      .limit(1000);
+    if (req.query.status) q = q.eq('status', String(req.query.status));
+    if (req.query.campaign) q = q.eq('campaign', String(req.query.campaign));
+    const { data, error } = await q;
+    if (error) return res.status(500).json({ ok: false, error: 'db_error' });
+
+    const summary = {
+      total: data.length,
+      active: data.filter(c => c.status === 'active').length,
+      redeemed: data.filter(c => c.status === 'redeemed').length,
+      revoked: data.filter(c => c.status === 'revoked').length,
+    };
+    return res.json({ ok: true, codes: data, summary });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+// GET /api/admin/gift-codes/export -> CSV
+app.get('/api/admin/gift-codes/export', requireAdminAuth, async (req, res) => {
+  try {
+    let q = supabaseAdmin
+      .from('gift_codes')
+      .select('code, type, duration_months, status, beneficiary_label, campaign, created_at, redeemed_by_email, redeemed_at, valid_until')
+      .order('created_at', { ascending: false });
+    if (req.query.campaign) q = q.eq('campaign', String(req.query.campaign));
+    const { data, error } = await q;
+    if (error) return res.status(500).json({ ok: false, error: 'db_error' });
+    const BOM = '\uFEFF';
+    const sep = ';';
+    const header = ['Code', 'Type', 'Durée (mois)', 'Statut', 'Bénéficiaire', 'Campagne', 'Créé le', 'Activé par', 'Activé le', 'Expire le'].join(sep);
+    const lines = (data || []).map(c => [
+      c.code, c.type, c.duration_months, c.status,
+      c.beneficiary_label || '', c.campaign || '',
+      c.created_at ? new Date(c.created_at).toLocaleDateString('fr-FR') : '',
+      c.redeemed_by_email || '',
+      c.redeemed_at ? new Date(c.redeemed_at).toLocaleDateString('fr-FR') : '',
+      c.valid_until ? new Date(c.valid_until).toLocaleDateString('fr-FR') : '',
+    ].join(sep));
+    const csv = BOM + header + '\n' + lines.join('\n') + '\n';
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="bons_cadeaux.csv"');
+    res.send(csv);
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+// POST /api/admin/gift-codes/:code/revoke -> désactive un code non utilisé
+app.post('/api/admin/gift-codes/:code/revoke', requireAdminAuth, async (req, res) => {
+  try {
+    const code = normalizeGiftCode(req.params.code);
+    const { data: gc } = await supabaseAdmin.from('gift_codes').select('code, status').eq('code', code).maybeSingle();
+    if (!gc) return res.status(404).json({ ok: false, error: 'Code introuvable' });
+    if (gc.status === 'redeemed') return res.status(409).json({ ok: false, error: 'Code déjà utilisé, impossible de révoquer' });
+    await supabaseAdmin.from('gift_codes').update({ status: 'revoked' }).eq('code', code);
+    return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+// POST /api/redeem-code -> le bénéficiaire active son bon cadeau
+app.post('/api/redeem-code', requireAuth, async (req, res) => {
+  try {
+    const code = normalizeGiftCode(req.body?.code);
+    if (!code) return res.status(400).json({ ok: false, error: 'Code manquant' });
+
+    const { data: gc } = await supabaseAdmin
+      .from('gift_codes')
+      .select('code, status, duration_months')
+      .eq('code', code)
+      .maybeSingle();
+
+    if (!gc) return res.status(404).json({ ok: false, error: 'Code invalide. Vérifie et réessaie.' });
+    if (gc.status === 'revoked') return res.status(403).json({ ok: false, error: 'Ce code a été désactivé.' });
+    if (gc.status === 'redeemed') return res.status(409).json({ ok: false, error: 'Ce code a déjà été utilisé.' });
+
+    // Cumul : on prolonge à partir de la fin d'abonnement en cours si elle est future
+    let base = Date.now();
+    try {
+      const { data: subs } = await supabaseAdmin
+        .from('subscriptions')
+        .select('status, current_period_end')
+        .eq('user_id', req.authUser.id)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      const cur = Array.isArray(subs) && subs[0] ? subs[0] : null;
+      if (cur && ['active', 'trialing'].includes(String(cur.status || '').toLowerCase()) && cur.current_period_end) {
+        const end = Date.parse(cur.current_period_end);
+        if (Number.isFinite(end) && end > base) base = end;
+      }
+    } catch {}
+
+    const validUntil = new Date(base);
+    validUntil.setMonth(validUntil.getMonth() + gc.duration_months);
+    const validUntilISO = validUntil.toISOString();
+
+    // 1) Marque le code comme utilisé (garde anti double-usage via filtre status)
+    const { data: claimed, error: claimErr } = await supabaseAdmin
+      .from('gift_codes')
+      .update({
+        status: 'redeemed',
+        redeemed_by_user_id: req.authUser.id,
+        redeemed_by_email: req.authUser.email || null,
+        redeemed_at: new Date().toISOString(),
+        valid_until: validUntilISO,
+      })
+      .eq('code', code)
+      .eq('status', 'active')
+      .select('code')
+      .maybeSingle();
+    if (claimErr || !claimed) {
+      return res.status(409).json({ ok: false, error: 'Ce code vient d\'être utilisé.' });
+    }
+
+    // 2) Accorde l'accès via subscriptions (mécanisme pro standard)
+    await supabaseAdmin.from('subscriptions').insert({
+      user_id: req.authUser.id,
+      status: 'active',
+      current_period_end: validUntilISO,
+      price_id: 'gift',
+      source: 'gift',
+      stripe_subscription_id: `gift_${code}`,
+    });
+
+    logger.info('[GiftCodes] redeemed', { code, userId: req.authUser.id, validUntil: validUntilISO });
+    return res.json({ ok: true, durationMonths: gc.duration_months, validUntil: validUntilISO });
+  } catch (e) {
+    logger.error('[GiftCodes] redeem error', { error: e.message });
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
 // GET CSV template download
 app.get('/api/admin/onboarding/csv-template', requireAdminAuth, (req, res) => {
   const BOM = '\uFEFF';
@@ -1695,6 +1924,34 @@ app.post('/api/auth/student-login', ...validateStudentLogin, async (req, res) =>
 
     if (!student.licensed) {
       return res.status(403).json({ ok: false, error: 'Ta licence n\'est pas encore activée. Contacte ton professeur.' });
+    }
+
+    // 1b) Time-limited rewards (ex: lauréats du tournoi): faire respecter valid_until.
+    // Si une licence datée existe pour cet élève et qu'elle est expirée/révoquée,
+    // on bascule students.licensed=false automatiquement -> aucune action manuelle requise.
+    try {
+      const { data: lic } = await supabaseAdmin
+        .from('licenses')
+        .select('id, status, valid_until')
+        .eq('owner_type', 'student')
+        .eq('owner_id', student.id)
+        .not('valid_until', 'is', null)
+        .order('valid_until', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lic && lic.valid_until) {
+        const expired = new Date(lic.valid_until).getTime() < Date.now();
+        if (expired || lic.status === 'expired' || lic.status === 'revoked') {
+          await supabaseAdmin.from('students').update({ licensed: false }).eq('id', student.id);
+          if (lic.status === 'active') {
+            await supabaseAdmin.from('licenses').update({ status: 'expired' }).eq('id', lic.id);
+          }
+          console.log(`[StudentLogin] Licence datée expirée -> licensed=false pour ${student.full_name} (${cleanCode})`);
+          return res.status(403).json({ ok: false, error: 'Ton abonnement gagné au tournoi est arrivé à expiration. Bravo pour ta participation !' });
+        }
+      }
+    } catch (e) {
+      console.warn('[StudentLogin] license expiry check failed:', e.message);
     }
 
     // 2) Generate pseudo-email from code (unique per student)

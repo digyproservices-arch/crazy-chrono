@@ -187,6 +187,7 @@ const NavBar = () => {
               <DropdownItem icon="📊" label="Dashboard" to="/admin/dashboard" navigate={navigate} active={isActive('/admin/dashboard')} />
               <DropdownItem icon="👥" label="Rôles" to="/admin/roles" navigate={navigate} active={isActive('/admin/roles')} />
               <DropdownItem icon="✉️" label="Invitations" to="/admin/invite" navigate={navigate} active={isActive('/admin/invite')} />
+              <DropdownItem icon="🎁" label="Bons cadeaux" to="/admin/gift-codes" navigate={navigate} active={isActive('/admin/gift-codes')} />
               <DropdownItem icon="" label="Monitoring" to="/admin/monitoring" navigate={navigate} active={isActive('/admin/monitoring')} />
               <DropdownItem icon="🏛️" label="Contenu" to="/admin" navigate={navigate} active={location.pathname === '/admin'} />
               <DropdownSeparator />
@@ -265,6 +266,7 @@ const NavBar = () => {
           {isAdmin && <MobileLink icon="📊" label="Admin Dashboard" to="/admin/dashboard" navigate={navigate} active={isActive('/admin/dashboard')} />}
           {isAdmin && <MobileLink icon="👥" label="Rôles" to="/admin/roles" navigate={navigate} active={isActive('/admin/roles')} />}
           {isAdmin && <MobileLink icon="✉️" label="Invitations" to="/admin/invite" navigate={navigate} active={isActive('/admin/invite')} />}
+          {isAdmin && <MobileLink icon="🎁" label="Bons cadeaux" to="/admin/gift-codes" navigate={navigate} active={isActive('/admin/gift-codes')} />}
           {isAdmin && <MobileLink icon="�" label="Monitoring" to="/admin/monitoring" navigate={navigate} active={isActive('/admin/monitoring')} />}
           {isAdmin && <MobileLink icon="🏛️" label="Contenu" to="/admin" navigate={navigate} active={location.pathname === '/admin'} />}
           {isAdmin && <div style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, color: '#fff', fontSize: 14 }} onClick={() => { setMobileOpen(false); window.open('/bot-tester.html', '_blank'); }}>🤖 Testeur Robots</div>}

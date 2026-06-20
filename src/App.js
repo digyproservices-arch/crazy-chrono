@@ -64,6 +64,7 @@ const StudentPerformance = lazyWithRetry(() => import('./components/Student/Stud
 const AdminRoles = lazyWithRetry(() => import('./components/Admin/AdminRoles'));
 const MonitoringDashboard = lazyWithRetry(() => import('./components/MonitoringDashboard'));
 const AdminInvite = lazyWithRetry(() => import('./components/Admin/AdminInvite'));
+const GiftCodes = lazyWithRetry(() => import('./components/Admin/GiftCodes'));
 const RectoratDashboard = lazyWithRetry(() => import('./components/Rectorat/RectoratDashboard'));
 const TeacherModeSelector = lazyWithRetry(() => import('./components/Teacher/TeacherModeSelector'));
 const TeacherDashboard = lazyWithRetry(() => import('./components/Teacher/TeacherDashboard'));
@@ -874,6 +875,7 @@ function App() {
               <Route path="/admin/monitoring" element={<RequireAdmin><MonitoringDashboard /></RequireAdmin>} />
               <Route path="/admin/roles" element={<RequireAdmin><AdminRoles /></RequireAdmin>} />
               <Route path="/admin/invite" element={<RequireAdmin><AdminInvite /></RequireAdmin>} />
+              <Route path="/admin/gift-codes" element={<RequireAdmin><GiftCodes /></RequireAdmin>} />
               <Route path="/account" element={<RequireAuth auth={auth}><Account /></RequireAuth>} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/debug/progress" element={<RequireAuth auth={auth}><ProgressDebug /></RequireAuth>} />

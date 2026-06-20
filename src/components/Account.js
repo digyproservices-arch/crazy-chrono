@@ -39,6 +39,10 @@ const Account = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isSchoolStudent, setIsSchoolStudent] = useState(false);
+  const [redeemCode, setRedeemCode] = useState('');
+  const [redeemLoading, setRedeemLoading] = useState(false);
+  const [redeemMsg, setRedeemMsg] = useState('');
+  const [redeemErr, setRedeemErr] = useState('');
 
   useEffect(() => {
     const onAuth = () => setAuth(readAuth());
@@ -83,6 +87,32 @@ const Account = () => {
       setPortalLoading(false);
     }
   }, [auth?.id]);
+
+  const handleRedeem = useCallback(async () => {
+    setRedeemMsg(''); setRedeemErr('');
+    const code = redeemCode.trim().toUpperCase();
+    if (!code) { setRedeemErr('Saisis ton code cadeau.'); return; }
+    setRedeemLoading(true);
+    try {
+      const token = getAuthToken();
+      if (!token) { setRedeemErr('Tu dois être connecté pour activer un code.'); return; }
+      const res = await fetch(`${BACKEND_URL}/api/redeem-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) { setRedeemErr(json.error || 'Code invalide.'); return; }
+      const until = json.validUntil ? new Date(json.validUntil).toLocaleDateString('fr-FR') : '';
+      setRedeemMsg(`🎉 Code activé ! ${json.durationMonths} mois offerts${until ? ` — accès Pro jusqu'au ${until}` : ''}.`);
+      setRedeemCode('');
+      if (auth?.id) { await fetchAndSyncStatus(auth.id); setSubStatus(getSubscriptionStatus()); }
+    } catch (e) {
+      setRedeemErr('Erreur réseau. Réessaie plus tard.');
+    } finally {
+      setRedeemLoading(false);
+    }
+  }, [redeemCode, auth?.id]);
 
   // Detect if user is a school-linked student + load profile preferences from server
   useEffect(() => {
@@ -368,6 +398,32 @@ const Account = () => {
           )}
         </div>
       </div>
+
+      {/* Activer un bon cadeau */}
+      {!isSchoolStudent && (
+        <div style={{ padding: '16px 20px', borderRadius: 12, marginBottom: 20, background: '#fffbeb', border: '2px solid #fde68a' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e', textTransform: 'uppercase', marginBottom: 8 }}>🎁 J'ai un bon cadeau</div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              value={redeemCode}
+              onChange={e => setRedeemCode(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleRedeem(); }}
+              placeholder="CADEAU-XXXX-XXXX"
+              style={{ flex: 1, minWidth: 200, padding: 10, borderRadius: 8, border: '1px solid #fcd34d', fontSize: 15, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}
+            />
+            <button
+              onClick={handleRedeem}
+              disabled={redeemLoading}
+              style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #F5A623, #FFC940)', color: '#4A3728', fontWeight: 800, cursor: redeemLoading ? 'wait' : 'pointer', opacity: redeemLoading ? 0.6 : 1 }}
+            >
+              {redeemLoading ? 'Activation...' : 'Activer'}
+            </button>
+          </div>
+          {redeemMsg && <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8, background: '#ecfdf5', color: '#065f46', fontSize: 14, fontWeight: 600 }}>{redeemMsg}</div>}
+          {redeemErr && <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8, background: '#fef2f2', color: '#991b1b', fontSize: 14, fontWeight: 600 }}>{redeemErr}</div>}
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 16, alignItems: 'start' }}>
         <div>
           <div style={{ width: 120, height: 120, borderRadius: '50%', overflow: 'hidden', background: '#e5e7eb', border: '1px solid #d1d5db', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
