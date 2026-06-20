@@ -103,6 +103,17 @@ export default function GiftCodes() {
     } catch (e) { alert(e.message); }
   };
 
+  const remove = async (code) => {
+    if (!window.confirm(`Supprimer définitivement le code ${code} ?\n\nCette action est irréversible.`)) return;
+    try {
+      const headers = await getAdminHeaders();
+      const res = await fetch(`${getBackendUrl()}/api/admin/gift-codes/${encodeURIComponent(code)}`, { method: 'DELETE', headers });
+      const data = await res.json();
+      if (!data.ok) { alert(data.error || 'Erreur'); return; }
+      loadList();
+    } catch (e) { alert(e.message); }
+  };
+
   const exportCsv = async () => {
     try {
       const headers = await getAdminHeaders();
@@ -173,7 +184,8 @@ export default function GiftCodes() {
             )}
             <div>
               <label style={lbl}>Préfixe du code</label>
-              <input type="text" placeholder="CADEAU" style={input} value={form.prefix} onChange={e => setForm(f => ({ ...f, prefix: e.target.value }))} />
+              <input type="text" placeholder="TOURNOI3CC2026" style={input} value={form.prefix} onChange={e => setForm(f => ({ ...f, prefix: e.target.value }))} />
+              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>Apparaît au début du code. Ex : « TOURNOI3CC2026 » → TOURNOI3CC2026-A7K9-2F4P</div>
             </div>
             <div>
               <label style={lbl}>Campagne (optionnel)</label>
@@ -257,8 +269,13 @@ export default function GiftCodes() {
                     <td style={{ padding: 8, color: '#64748b' }}>{c.redeemed_by_email || '—'}</td>
                     <td style={{ padding: 8, color: '#64748b' }}>{c.valid_until ? new Date(c.valid_until).toLocaleDateString('fr-FR') : '—'}</td>
                     <td style={{ padding: 8 }}>
-                      {c.status === 'active' && (
-                        <button onClick={() => revoke(c.code)} style={{ padding: '4px 8px', fontSize: 12, fontWeight: 600, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 6, cursor: 'pointer' }}>Désactiver</button>
+                      {c.status !== 'redeemed' && (
+                        <span style={{ display: 'inline-flex', gap: 6 }}>
+                          {c.status === 'active' && (
+                            <button onClick={() => revoke(c.code)} style={{ padding: '4px 8px', fontSize: 12, fontWeight: 600, background: '#fef9c3', color: '#a16207', border: '1px solid #fde68a', borderRadius: 6, cursor: 'pointer' }}>Désactiver</button>
+                          )}
+                          <button onClick={() => remove(c.code)} style={{ padding: '4px 8px', fontSize: 12, fontWeight: 600, background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 6, cursor: 'pointer' }}>Supprimer</button>
+                        </span>
                       )}
                     </td>
                   </tr>

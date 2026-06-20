@@ -1307,7 +1307,7 @@ app.post('/api/admin/gift-codes', requireAdminAuth, async (req, res) => {
     if (!['generic', 'nominative'].includes(type)) {
       return res.status(400).json({ ok: false, error: 'type invalide' });
     }
-    const cleanPrefix = String(prefix || 'CADEAU').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) || 'CADEAU';
+    const cleanPrefix = String(prefix || 'CADEAU').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20) || 'CADEAU';
     const finalQty = type === 'nominative' ? 1 : qty;
 
     // Génère des codes uniques (évite collisions intra-lot)
@@ -1420,6 +1420,24 @@ app.post('/api/admin/gift-codes/:code/revoke', requireAdminAuth, async (req, res
     if (!gc) return res.status(404).json({ ok: false, error: 'Code introuvable' });
     if (gc.status === 'redeemed') return res.status(409).json({ ok: false, error: 'Code déjà utilisé, impossible de révoquer' });
     await supabaseAdmin.from('gift_codes').update({ status: 'revoked' }).eq('code', code);
+    return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+// DELETE /api/admin/gift-codes/:code -> supprime un code NON UTILISÉ
+app.delete('/api/admin/gift-codes/:code', requireAdminAuth, async (req, res) => {
+  try {
+    const code = normalizeGiftCode(req.params.code);
+    const { data: gc } = await supabaseAdmin.from('gift_codes').select('code, status').eq('code', code).maybeSingle();
+    if (!gc) return res.status(404).json({ ok: false, error: 'Code introuvable' });
+    if (gc.status === 'redeemed') {
+      return res.status(409).json({ ok: false, error: 'Code déjà utilisé : suppression interdite (historique protégé). Utilise plutôt Désactiver.' });
+    }
+    const { error } = await supabaseAdmin.from('gift_codes').delete().eq('code', code).neq('status', 'redeemed');
+    if (error) return res.status(500).json({ ok: false, error: 'db_error' });
+    logger.info('[GiftCodes] deleted', { code, by: req.adminUser?.email });
     return res.json({ ok: true });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'server_error' });
