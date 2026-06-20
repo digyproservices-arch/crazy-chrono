@@ -1022,7 +1022,10 @@ function AdminDashboard() {
                 <tbody>
                   {recentUsers.map(user => {
                     const licenseColors = {
-                      active: { bg: '#22c55e', label: '✓ Active' },
+                      active: { bg: '#22c55e', label: '⭐ Pro' },
+                      school: { bg: '#0D6A7A', label: '🏫 École' },
+                      school_inactive: { bg: '#cbd5e1', label: '🏫 Non activé' },
+                      staff: { bg: '#1AACBE', label: '👩‍🏫 Enseignant' },
                       admin: { bg: '#e53e3e', label: '★ Admin' },
                       expired: { bg: '#f59e0b', label: '⚠ Expirée' },
                       free: { bg: '#94a3b8', label: 'Gratuit' },

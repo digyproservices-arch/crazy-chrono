@@ -907,6 +907,18 @@ app.get('/api/admin/dashboard-stats', requireAdminAuth, async (req, res) => {
       licensedStudents = licensed || 0;
     } catch {}
 
+    // 4b. Map des élèves par préfixe email (= access_code) pour relier
+    //     les comptes auth @eleve.crazychrono.app à leur licence école.
+    let studentByPrefix = {};
+    try {
+      const { data: stuRows } = await supabaseAdmin.from('students').select('access_code, licensed');
+      for (const s of (stuRows || [])) {
+        if (!s.access_code) continue;
+        const key = s.access_code.toLowerCase().replace(/[^a-z0-9]/g, '');
+        studentByPrefix[key] = s;
+      }
+    } catch {}
+
     // 5. Activité aujourd'hui (training_results + match_results créés aujourd'hui)
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -959,13 +971,23 @@ app.get('/api/admin/dashboard-stats', requireAdminAuth, async (req, res) => {
     const usersList = allAuthUsers.map(u => {
       const role = profilesMap[u.id] || 'user';
       const sub = subsMap[u.id];
+      const isStudentEmail = (u.email || '').endsWith('@eleve.crazychrono.app');
       let licenseStatus = 'free';
       if (sub && ['active', 'trialing'].includes(sub.status)) {
+        // Abonnement payant ou bon cadeau actif
         licenseStatus = 'active';
+      } else if (isStudentEmail) {
+        // Compte élève : licence gérée par l'école (table students)
+        const prefix = u.email.replace('@eleve.crazychrono.app', '');
+        const stu = studentByPrefix[prefix];
+        licenseStatus = (stu && stu.licensed) ? 'school' : 'school_inactive';
       } else if (sub && sub.status === 'expired') {
         licenseStatus = 'expired';
       } else if (role === 'admin') {
         licenseStatus = 'admin';
+      } else if (['teacher', 'cpd', 'cpc'].includes(role)) {
+        // Personnel pédagogique : accès Pro métier
+        licenseStatus = 'staff';
       }
       return {
         id: u.id,
@@ -977,7 +999,7 @@ app.get('/api/admin/dashboard-stats', requireAdminAuth, async (req, res) => {
       };
     }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    const usersWithLicense = usersList.filter(u => ['active', 'admin'].includes(u.licenseStatus)).length;
+    const usersWithLicense = usersList.filter(u => ['active', 'admin', 'school', 'staff'].includes(u.licenseStatus)).length;
 
     res.json({
       ok: true,
