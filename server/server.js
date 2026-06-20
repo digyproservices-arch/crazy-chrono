@@ -1444,6 +1444,30 @@ app.delete('/api/admin/gift-codes/:code', requireAdminAuth, async (req, res) => 
   }
 });
 
+// POST /api/admin/gift-codes/bulk-delete -> supprime plusieurs codes NON UTILISÉS
+app.post('/api/admin/gift-codes/bulk-delete', requireAdminAuth, async (req, res) => {
+  try {
+    const raw = Array.isArray(req.body?.codes) ? req.body.codes : [];
+    const codes = [...new Set(raw.map(normalizeGiftCode).filter(Boolean))];
+    if (codes.length === 0) return res.status(400).json({ ok: false, error: 'Aucun code fourni' });
+
+    const { data: deleted, error } = await supabaseAdmin
+      .from('gift_codes')
+      .delete()
+      .in('code', codes)
+      .neq('status', 'redeemed')
+      .select('code');
+    if (error) return res.status(500).json({ ok: false, error: 'db_error' });
+
+    const deletedCount = (deleted || []).length;
+    const skipped = codes.length - deletedCount; // déjà utilisés ou introuvables
+    logger.info('[GiftCodes] bulk-deleted', { deletedCount, skipped, by: req.adminUser?.email });
+    return res.json({ ok: true, deleted: deletedCount, skipped });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
 // POST /api/redeem-code -> le bénéficiaire active son bon cadeau
 app.post('/api/redeem-code', requireAuth, async (req, res) => {
   try {

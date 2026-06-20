@@ -43,6 +43,7 @@ export default function GiftCodes() {
   const [summary, setSummary] = useState(null);
   const [filterStatus, setFilterStatus] = useState('');
   const [loadingList, setLoadingList] = useState(false);
+  const [selected, setSelected] = useState(() => new Set());
 
   const loadList = useCallback(async () => {
     setLoadingList(true);
@@ -51,7 +52,7 @@ export default function GiftCodes() {
       const qs = filterStatus ? `?status=${encodeURIComponent(filterStatus)}` : '';
       const res = await fetch(`${getBackendUrl()}/api/admin/gift-codes${qs}`, { headers });
       const data = await res.json();
-      if (data.ok) { setList(data.codes || []); setSummary(data.summary || null); }
+      if (data.ok) { setList(data.codes || []); setSummary(data.summary || null); setSelected(new Set()); }
     } catch (e) { console.error('loadList', e); }
     finally { setLoadingList(false); }
   }, [filterStatus]);
@@ -110,6 +111,36 @@ export default function GiftCodes() {
       const res = await fetch(`${getBackendUrl()}/api/admin/gift-codes/${encodeURIComponent(code)}`, { method: 'DELETE', headers });
       const data = await res.json();
       if (!data.ok) { alert(data.error || 'Erreur'); return; }
+      loadList();
+    } catch (e) { alert(e.message); }
+  };
+
+  const deletableCodes = list.filter(c => c.status !== 'redeemed').map(c => c.code);
+  const allSelected = deletableCodes.length > 0 && deletableCodes.every(c => selected.has(c));
+
+  const toggleOne = (code) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code); else next.add(code);
+      return next;
+    });
+  };
+  const toggleAll = () => {
+    setSelected(allSelected ? new Set() : new Set(deletableCodes));
+  };
+
+  const bulkDelete = async () => {
+    const codes = [...selected];
+    if (codes.length === 0) return;
+    if (!window.confirm(`Supprimer définitivement ${codes.length} code(s) ?\n\nCette action est irréversible.`)) return;
+    try {
+      const headers = await getAdminHeaders();
+      const res = await fetch(`${getBackendUrl()}/api/admin/gift-codes/bulk-delete`, {
+        method: 'POST', headers, body: JSON.stringify({ codes }),
+      });
+      const data = await res.json();
+      if (!data.ok) { alert(data.error || 'Erreur'); return; }
+      if (data.skipped > 0) alert(`${data.deleted} supprimé(s). ${data.skipped} ignoré(s) (déjà utilisés).`);
       loadList();
     } catch (e) { alert(e.message); }
   };
@@ -225,6 +256,9 @@ export default function GiftCodes() {
                 <option value="redeemed">Utilisés</option>
                 <option value="revoked">Désactivés</option>
               </select>
+              {selected.size > 0 && (
+                <button onClick={bulkDelete} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#dc2626', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>🗑️ Supprimer la sélection ({selected.size})</button>
+              )}
               <button onClick={exportCsv} style={{ padding: '8px 14px', borderRadius: 8, border: '2px solid #F5A623', background: '#fffbeb', color: '#92400e', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>📥 Export CSV</button>
             </div>
           </div>
@@ -242,6 +276,9 @@ export default function GiftCodes() {
             <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #f0f0f0', textAlign: 'left', color: '#64748b' }}>
+                  <th style={{ padding: 8, width: 32 }}>
+                    <input type="checkbox" checked={allSelected} onChange={toggleAll} disabled={deletableCodes.length === 0} title="Tout sélectionner (codes supprimables)" />
+                  </th>
                   <th style={{ padding: 8 }}>Code</th>
                   <th style={{ padding: 8 }}>Type</th>
                   <th style={{ padding: 8 }}>Durée</th>
@@ -255,11 +292,16 @@ export default function GiftCodes() {
               </thead>
               <tbody>
                 {loadingList ? (
-                  <tr><td colSpan={9} style={{ padding: 16, textAlign: 'center', color: '#94a3b8' }}>Chargement…</td></tr>
+                  <tr><td colSpan={10} style={{ padding: 16, textAlign: 'center', color: '#94a3b8' }}>Chargement…</td></tr>
                 ) : list.length === 0 ? (
-                  <tr><td colSpan={9} style={{ padding: 16, textAlign: 'center', color: '#94a3b8' }}>Aucun bon pour l'instant.</td></tr>
+                  <tr><td colSpan={10} style={{ padding: 16, textAlign: 'center', color: '#94a3b8' }}>Aucun bon pour l'instant.</td></tr>
                 ) : list.map(c => (
-                  <tr key={c.code} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <tr key={c.code} style={{ borderBottom: '1px solid #f0f0f0', background: selected.has(c.code) ? '#fef2f2' : 'transparent' }}>
+                    <td style={{ padding: 8 }}>
+                      {c.status !== 'redeemed' && (
+                        <input type="checkbox" checked={selected.has(c.code)} onChange={() => toggleOne(c.code)} />
+                      )}
+                    </td>
                     <td style={{ padding: 8 }}><code style={{ fontWeight: 700, color: C.teal }}>{c.code}</code></td>
                     <td style={{ padding: 8, color: '#64748b' }}>{c.type === 'nominative' ? 'Nominatif' : 'Générique'}</td>
                     <td style={{ padding: 8 }}>{c.duration_months} mois</td>
