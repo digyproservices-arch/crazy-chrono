@@ -566,8 +566,14 @@ function TournamentDetailModal({ detail, loading, error, onSaveDraw, onClose }) 
           <div>
             <h3 style={{ fontSize: 14, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 10px' }}>Cartes générées ({rounds.length} manches)</h3>
             {rounds.map((rd, i) => {
-              const gp = rd.good_pair_content || {};
+              const gp = rd.good_pair_content;
               const zones = Array.isArray(rd.zones) ? rd.zones : [];
+              // Dérive les 2 cartes de la bonne paire (zones non-distractrices partageant un pairId)
+              const goodZones = zones.filter(z => z?.pairId && !z?.isDistractor);
+              let pairA, pairB;
+              if (gp && typeof gp === 'object') { pairA = gp.a; pairB = gp.b; }
+              else if (goodZones.length >= 2) { pairA = goodZones[0].content; pairB = goodZones[1].content; }
+              else { pairA = goodZones[0]?.content ?? (typeof gp === 'string' ? gp : null); pairB = goodZones[1]?.content ?? null; }
               return (
                 <div key={i} style={{ marginBottom: 10, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
@@ -578,9 +584,9 @@ function TournamentDetailModal({ detail, loading, error, onSaveDraw, onClose }) 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: 13 }}>
                     <span style={{ fontSize: 11, color: '#10b981', fontWeight: 700 }}>BONNE PAIRE</span>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 10px', borderRadius: 8, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.4)' }}>
-                      {isImageUrl(gp.a) ? <img src={gp.a} alt="" style={{ height: 28, borderRadius: 4 }} /> : <strong>{String(gp.a ?? '—')}</strong>}
+                      {isImageUrl(pairA) ? <img src={pairA} alt="" style={{ height: 28, borderRadius: 4 }} /> : <strong>{pairA != null ? String(pairA) : '—'}</strong>}
                       <span style={{ color: '#64748b' }}>↔</span>
-                      {isImageUrl(gp.b) ? <img src={gp.b} alt="" style={{ height: 28, borderRadius: 4 }} /> : <strong>{String(gp.b ?? '—')}</strong>}
+                      {isImageUrl(pairB) ? <img src={pairB} alt="" style={{ height: 28, borderRadius: 4 }} /> : <strong>{pairB != null ? String(pairB) : '—'}</strong>}
                     </span>
                   </div>
                   {/* Gagnant */}

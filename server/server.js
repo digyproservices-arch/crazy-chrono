@@ -3038,7 +3038,10 @@ async function gsFinish(salleId) {
         .sort((a, b) => b.score - a.score)
         .map((p, idx) => ({ ...p, position: idx + 1 }));
 
-      if (identifiedPlayers.length > 0) {
+      // On crée/relie une session et on sauvegarde les cartes (match_rounds) dès qu'il y a des manches jouées,
+      // même sans élève identifié (tournois publics/invités) — les training_results restent réservés aux élèves identifiés.
+      const hasRoundHistory = Array.isArray(salle.roundHistory) && salle.roundHistory.length > 0;
+      if (identifiedPlayers.length > 0 || hasRoundHistory) {
         const { v4: uuidv4 } = require('uuid');
         const timeMs = salle.startedAt ? (Date.now() - salle.startedAt) : ((salle.config.duration || 90) * salle.roundsPlayed * 1000);
         let sessionId = salle._sessionId || null;
@@ -3185,7 +3188,7 @@ async function gsFinish(salleId) {
           } catch (diagErr) { console.error('[GS] Diagnostic pédagogique save error:', diagErr.message); }
         }
       } else {
-        console.log(`[GS] Aucun joueur identifié (studentId) — résultats non sauvegardés`);
+        console.log(`[GS] Aucune manche jouée ni joueur identifié — rien à sauvegarder`);
       }
     } catch (e) { console.error('[GS] Persistance erreur générale:', e.message); } })();
   }
