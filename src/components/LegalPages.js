@@ -262,7 +262,7 @@ function CGU() {
 
       <Section title="3. Accès au service">
         <h4 style={h4Style}>Accès gratuit</h4>
-        <p>Sans compte, tout utilisateur peut bénéficier de 3 sessions gratuites par jour en mode Solo.</p>
+        <p>Sans compte, tout utilisateur peut bénéficier de 2 sessions gratuites par jour en mode Solo.</p>
 
         <h4 style={h4Style}>Accès avec compte</h4>
         <p>La création d'un compte est gratuite et permet d'accéder au suivi de progression. L'accès illimité à tous les modes nécessite un abonnement payant.</p>

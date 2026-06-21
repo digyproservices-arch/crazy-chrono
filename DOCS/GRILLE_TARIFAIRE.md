@@ -85,7 +85,7 @@
 
 ### Non inclus (gratuit pour tous) :
 
-- 🆓 3 sessions gratuites/jour sans compte
+- 🆓 2 sessions gratuites/jour sans compte
 - 🆓 Mode Solo sans limite de temps (sans multijoueur)
 
 ---
@@ -106,7 +106,7 @@
 ### Particulier
 
 ```
-1. Parent crée un compte gratuit (3 sessions/jour)
+1. Parent crée un compte gratuit (2 sessions/jour)
 2. Parent va sur /pricing → Stripe Checkout
 3. Paiement CB → licence active immédiatement
 4. Renouvellement automatique mensuel ou annuel

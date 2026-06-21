@@ -32,7 +32,7 @@ const STEPS = [
   {
     icon: '🚀',
     title: 'Prêt à jouer ?',
-    text: 'Commence par le Mode Solo pour t\'entraîner. Tu as 3 sessions gratuites par jour. Lance ta première partie !',
+    text: 'Commence par le Mode Solo pour t\'entraîner. Tu as 2 sessions gratuites par jour. Lance ta première partie !',
   },
 ];
 

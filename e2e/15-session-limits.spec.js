@@ -6,8 +6,8 @@ const { TEST_ACCOUNTS, BACKEND_URL, loginWithEmail, ensureBackendAwake } = requi
  * SESSION LIMITS — Vérification de la limite de sessions pour les joueurs free
  *
  * Tests :
- * 1. Un joueur free peut démarrer jusqu'à 3 sessions/jour
- * 2. À la 4e tentative, le jeu bloque et redirige vers /pricing
+ * 1. Un joueur free peut démarrer jusqu'à 2 sessions/jour
+ * 2. À la 3e tentative, le jeu bloque et redirige vers /pricing
  * 3. Le compteur local est cohérent avec le serveur
  * 4. Les logs [CC][quota] sont émis pour traçabilité
  * 5. Un joueur pro n'est PAS bloqué
@@ -17,7 +17,7 @@ test.describe('Session Limits — Limite quotidienne joueurs free', () => {
 
   test.skip(!TEST_ACCOUNTS.admin.password, 'E2E_ADMIN_PASSWORD non défini');
 
-  test('Vérifier que la limite locale fonctionne (3 sessions max)', async ({ page }) => {
+  test('Vérifier que la limite locale fonctionne (2 sessions max)', async ({ page }) => {
     test.setTimeout(90000);
 
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
@@ -54,10 +54,10 @@ test.describe('Session Limits — Limite quotidienne joueurs free', () => {
     console.log('  📊 Quota initial:', JSON.stringify(initialQuota));
     expect(initialQuota.sessions).toBe(0);
 
-    // Simuler 3 sessions en incrémentant le compteur
+    // Simuler 2 sessions en incrémentant le compteur (limite atteinte)
     await page.evaluate(() => {
       const today = new Date().toISOString().slice(0, 10);
-      localStorage.setItem('cc_free_quota', JSON.stringify({ date: today, sessions: 3 }));
+      localStorage.setItem('cc_free_quota', JSON.stringify({ date: today, sessions: 2 }));
     });
 
     // Vérifier que canStartSessionToday retourne false maintenant
@@ -68,20 +68,20 @@ test.describe('Session Limits — Limite quotidienne joueurs free', () => {
         const data = JSON.parse(raw);
         const today = new Date().toISOString().slice(0, 10);
         if (data.date !== today) return true;
-        return (data.sessions || 0) < 3;
+        return (data.sessions || 0) < 2;
       } catch { return true; }
     });
     expect(canStart).toBe(false);
-    console.log('  ✅ canStartSessionToday=false après 3 sessions');
+    console.log('  ✅ canStartSessionToday=false après 2 sessions');
 
-    // Vérifier que le compteur est bien à 3
+    // Vérifier que le compteur est bien à 2
     const finalQuota = await page.evaluate(() => {
       try {
         return JSON.parse(localStorage.getItem('cc_free_quota') || '{}');
       } catch { return {}; }
     });
-    expect(finalQuota.sessions).toBe(3);
-    console.log('  ✅ Compteur local = 3 sessions');
+    expect(finalQuota.sessions).toBe(2);
+    console.log('  ✅ Compteur local = 2 sessions');
   });
 
   test('Vérifier que le serveur enforce la limite', async ({ page, request }) => {
@@ -143,11 +143,11 @@ test.describe('Session Limits — Limite quotidienne joueurs free', () => {
 
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
 
-    // Forcer statut free avec compteur à 2 (encore 1 session disponible)
+    // Forcer statut free avec compteur à 1 (encore 1 session disponible)
     await page.evaluate(() => {
       localStorage.setItem('cc_subscription_status', 'free');
       const today = new Date().toISOString().slice(0, 10);
-      localStorage.setItem('cc_free_quota', JSON.stringify({ date: today, sessions: 2 }));
+      localStorage.setItem('cc_free_quota', JSON.stringify({ date: today, sessions: 1 }));
     });
 
     // Collecter les logs
@@ -178,7 +178,7 @@ test.describe('Session Limits — Limite quotidienne joueurs free', () => {
       console.log(`    ${log}`);
     }
 
-    // Le compteur devrait avoir été incrémenté à 3
+    // Le compteur devrait avoir été incrémenté à 2 (limite atteinte)
     const finalQuota = await page.evaluate(() => {
       try {
         return JSON.parse(localStorage.getItem('cc_free_quota') || '{}');

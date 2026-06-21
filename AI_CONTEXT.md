@@ -77,7 +77,7 @@ Tous les modes utilisent `src/components/Carte.js` (555KB, ~10 000 lignes) comme
 | `teacher` | Tout sauf admin | Aucune |
 | `cpd` / `cpc` / `rectorat` | Dashboard rectorat + bypass maintenance | Aucune |
 | `student` | Jeu + performances | Max 2 appareils, 1 session active |
-| `user` | Jeu (freemium 3 sessions/jour) | Max 2 appareils, 1 session active |
+| `user` | Jeu (freemium 2 sessions/jour) | Max 2 appareils, 1 session active |
 
 **Roles exemptés** de : session unique, device limit, session guard : `admin, teacher, cpd, cpc, rectorat`.
 
