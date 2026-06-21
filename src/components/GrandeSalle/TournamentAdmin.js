@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getBackendUrl } from '../../utils/subscription';
 import { DataContext } from '../../context/DataContext';
 import PedagogicConfig from '../Shared/PedagogicConfig';
+import { generateDrawSeed, shuffleArrayWithSeed, positionLabel, getTieRanks } from '../../utils/draw';
 
 const PAGE = { minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', color: '#fff', padding: '20px 16px' };
 const CARD = { background: 'rgba(255,255,255,0.08)', borderRadius: 16, padding: 20, border: '1px solid rgba(255,255,255,0.1)' };
@@ -165,10 +166,27 @@ export default function TournamentAdmin() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const json = await res.json();
-      if (json.ok) setDetail({ tournament: json.tournament || t, ranking: json.ranking || [], rounds: json.rounds || [] });
+      if (json.ok) setDetail({ tournament: json.tournament || t, ranking: json.ranking || [], rounds: json.rounds || [], draws: json.draws || [] });
       else setDetailError(json.error || 'Erreur inconnue');
     } catch (e) { setDetailError(e.message); }
     setDetailLoading(false);
+  };
+
+  // Enregistre un tirage effectué depuis l'historique puis rafraîchit la liste des tirages
+  const saveHistoryDraw = async (tournamentId, payload) => {
+    try {
+      const token = getToken();
+      await fetch(`${backendUrl}/api/gs/tournaments/${tournamentId}/draws`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ ...payload, drawn_from: 'history' }),
+      });
+      const res = await fetch(`${backendUrl}/api/gs/tournaments/${tournamentId}/draws`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const json = await res.json();
+      if (json.ok) setDetail(d => (d && d.tournament?.id === tournamentId) ? { ...d, draws: json.draws } : d);
+    } catch (e) { console.warn('[GS Admin] saveHistoryDraw error:', e.message); }
   };
 
   const upcoming = tournaments.filter(t => ['scheduled', 'open'].includes(t.status));
@@ -377,6 +395,7 @@ export default function TournamentAdmin() {
           detail={detail}
           loading={detailLoading}
           error={detailError}
+          onSaveDraw={saveHistoryDraw}
           onClose={() => { setDetail(null); setDetailError(null); }}
         />
       )}
@@ -400,11 +419,32 @@ function isImageUrl(s) {
   return typeof s === 'string' && (/^https?:\/\//.test(s) || /\.(png|jpe?g|webp|gif|svg)(\?|$)/i.test(s));
 }
 
-function TournamentDetailModal({ detail, loading, error, onClose }) {
+function TournamentDetailModal({ detail, loading, error, onSaveDraw, onClose }) {
   const t = detail.tournament || {};
   const ranking = detail.ranking || [];
   const rounds = detail.rounds || [];
+  const draws = detail.draws || [];
   const byRank = (r) => ranking.filter(p => (p.finalRank || 0) === r);
+  const tieRanks = getTieRanks(ranking);
+
+  // Tirage relancé depuis l'historique : { spinning, position, label, seed, winner }
+  const [draw, setDraw] = useState(null);
+
+  const runDraw = (position) => {
+    const candidates = (position == null
+      ? ranking
+      : ranking.filter(p => (p.finalRank || 0) === position)
+    ).map(p => ({ id: p.id, name: p.name, score: p.score }));
+    if (candidates.length === 0) return;
+    const label = positionLabel(position);
+    const seed = generateDrawSeed();
+    setDraw({ spinning: true, position, label, seed, winner: null });
+    setTimeout(() => {
+      const winner = shuffleArrayWithSeed(candidates, seed)[0];
+      setDraw({ spinning: false, position, label, seed, winner });
+      if (onSaveDraw && t.id) onSaveDraw(t.id, { position, label, seed, candidates, winner });
+    }, 2500);
+  };
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 12px', overflowY: 'auto' }}>
@@ -464,6 +504,60 @@ function TournamentDetailModal({ detail, loading, error, onClose }) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* TIRAGE AU SORT (relançable depuis l'historique) */}
+        {ranking.length > 0 && (
+          <div style={{ marginBottom: 20, padding: 16, borderRadius: 12, background: 'rgba(245,166,35,0.08)', border: '2px dashed rgba(245,166,35,0.4)' }}>
+            <h3 style={{ fontSize: 14, color: '#F5A623', margin: '0 0 10px', fontWeight: 800 }}>🎲 Tirage au sort</h3>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+              {tieRanks.length > 0 ? (
+                <>
+                  <span style={{ fontSize: 12, color: '#94a3b8' }}>Départager la :</span>
+                  {tieRanks.map(r => (
+                    <button key={r} onClick={() => runDraw(r)} disabled={draw?.spinning}
+                      style={{ padding: '7px 14px', borderRadius: 10, border: '2px solid #FFD34D', background: 'rgba(245,166,35,0.3)', color: '#FFD34D', fontSize: 12, fontWeight: 700, cursor: draw?.spinning ? 'wait' : 'pointer' }}>
+                      {positionLabel(r)} ({byRank(r).length} ex-aequo)
+                    </button>
+                  ))}
+                </>
+              ) : (
+                <span style={{ fontSize: 12, color: '#94a3b8' }}>Aucune égalité à départager.</span>
+              )}
+              <button onClick={() => runDraw(null)} disabled={draw?.spinning}
+                style={{ padding: '7px 14px', borderRadius: 10, border: '1px solid rgba(16,185,129,0.5)', background: 'rgba(16,185,129,0.2)', color: '#10b981', fontSize: 12, fontWeight: 700, cursor: draw?.spinning ? 'wait' : 'pointer' }}>
+                🎲 Tous les participants
+              </button>
+            </div>
+            {draw?.spinning && (
+              <div style={{ fontSize: 13, color: '#FFD34D', fontWeight: 700 }}>Tirage en cours… <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#64748b' }}>graine {draw.seed}</span></div>
+            )}
+            {draw && !draw.spinning && draw.winner && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 10, background: 'linear-gradient(135deg, rgba(245,166,35,0.25), rgba(255,107,53,0.25))', border: '1px solid rgba(245,166,35,0.5)' }}>
+                <span style={{ fontSize: 20 }}>🏆</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 800 }}>{draw.winner.name} <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>— {draw.label}</span></div>
+                  <div style={{ fontSize: 11, color: '#64748b', fontFamily: 'monospace' }}>🔐 graine {draw.seed}</div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TIRAGES ENREGISTRÉS */}
+        {draws.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <h3 style={{ fontSize: 14, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 10px' }}>Tirages enregistrés ({draws.length})</h3>
+            {draws.map((d, i) => (
+              <div key={d.id || i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', marginBottom: 6, borderRadius: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', fontSize: 12 }}>
+                <span style={{ fontSize: 16 }}>🎲</span>
+                <div style={{ flex: 1 }}>
+                  <div><strong style={{ color: '#e2e8f0' }}>{d.winner_name}</strong> <span style={{ color: '#94a3b8' }}>— {d.label || (d.position ? positionLabel(d.position) : 'Tous')}</span></div>
+                  <div style={{ color: '#64748b', fontFamily: 'monospace', fontSize: 10 }}>🔐 {d.seed} · {d.drawn_from === 'history' ? 'a posteriori' : 'live'} · {d.created_at && new Date(d.created_at).toLocaleString('fr-FR')}</div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

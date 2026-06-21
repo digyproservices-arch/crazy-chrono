@@ -313,7 +313,62 @@ router.get('/tournaments/:id/details', requireAdmin, async (req, res) => {
       rounds = roundRows || [];
     }
 
-    res.json({ ok: true, tournament, ranking, rounds });
+    // Tirages au sort déjà effectués (traçabilité)
+    let draws = [];
+    try {
+      const { data: drawRows } = await supabaseAdmin
+        .from('gs_draws')
+        .select('*')
+        .eq('tournament_id', req.params.id)
+        .order('created_at', { ascending: false });
+      draws = drawRows || [];
+    } catch {}
+
+    res.json({ ok: true, tournament, ranking, rounds, draws });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ===== GET /api/gs/tournaments/:id/draws — Liste des tirages effectués (admin) =====
+router.get('/tournaments/:id/draws', requireAdmin, async (req, res) => {
+  const supabaseAdmin = req.app.locals.supabaseAdmin;
+  if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('gs_draws')
+      .select('*')
+      .eq('tournament_id', req.params.id)
+      .order('created_at', { ascending: false });
+    if (error) return res.status(400).json({ ok: false, error: error.message });
+    res.json({ ok: true, draws: data || [] });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ===== POST /api/gs/tournaments/:id/draws — Enregistrer un tirage au sort (admin) =====
+router.post('/tournaments/:id/draws', requireAdmin, async (req, res) => {
+  const supabaseAdmin = req.app.locals.supabaseAdmin;
+  if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
+  try {
+    const { position, label, seed, candidates, winner, drawn_from } = req.body || {};
+    if (!seed || !winner) return res.status(400).json({ ok: false, error: 'seed_and_winner_required' });
+
+    const row = {
+      tournament_id: req.params.id,
+      position: position != null ? Number(position) : null,
+      label: label || null,
+      seed: String(seed),
+      candidates: Array.isArray(candidates) ? candidates : [],
+      winner_id: winner.id != null ? String(winner.id) : null,
+      winner_name: winner.name || null,
+      winner_score: winner.score != null ? Number(winner.score) : null,
+      drawn_from: drawn_from === 'history' ? 'history' : 'live',
+    };
+    const { data, error } = await supabaseAdmin.from('gs_draws').insert(row).select('*').single();
+    if (error) return res.status(400).json({ ok: false, error: error.message });
+    res.json({ ok: true, draw: data });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }

@@ -181,6 +181,26 @@ export default function LiveBoard() {
     setEvents(prev => [{ text, type, time: Date.now(), ...(extra || {}) }, ...prev].slice(0, 50));
   }, []);
 
+  // Enregistre un tirage au sort en base (traçabilité officielle)
+  const saveDraw = useCallback(async ({ position, label, seed, candidates, winner }) => {
+    if (!tournamentId || !winner) return;
+    try {
+      const token = (() => { try { return JSON.parse(localStorage.getItem('cc_auth') || '{}').token; } catch { return null; } })();
+      await fetch(`${getBackendUrl()}/api/gs/tournaments/${tournamentId}/draws`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          position: position ?? null,
+          label,
+          seed,
+          candidates: (candidates || []).map(c => ({ id: c.id, name: c.name, score: c.score })),
+          winner: { id: winner.id, name: winner.name, score: winner.score },
+          drawn_from: 'live',
+        }),
+      });
+    } catch (e) { console.warn('[GS] saveDraw error:', e.message); }
+  }, [tournamentId]);
+
   const getPlayerColor = (idx) => PLAYER_PRIMARY_COLORS[idx % PLAYER_PRIMARY_COLORS.length];
   const getMedal = (idx) => idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`;
   const isFlashedZone = (zoneId) => flashPair && (flashPair.zoneAId === zoneId || flashPair.zoneBId === zoneId);
@@ -607,6 +627,7 @@ export default function LiveBoard() {
                         const finalWinner = shuffled[0];
                         setDrawWinner({ candidates, spinning: false, winner: finalWinner, rankLabel: 1, seed });
                         addEvent(`🏆 Tirage au sort [${seed}] : ${finalWinner.name} remporte le lot !`, 'success');
+                        saveDraw({ position: 1, label: '1ère place', seed, candidates, winner: finalWinner });
                       }, 8000);
                     }}
                     style={{ padding: '14px 28px', borderRadius: 12, border: '2px solid #FFD34D', background: 'linear-gradient(135deg, #F5A623, #ff6b35)', color: '#fff', fontSize: 18, fontWeight: 900, cursor: 'pointer', boxShadow: '0 4px 20px rgba(245,166,35,0.4)' }}
@@ -711,60 +732,73 @@ export default function LiveBoard() {
             ) : <div key={rank} style={{ width: rank === 1 ? 230 : 190 }} />)}
           </div>
 
-          {/* TIRAGES AU SORT PERSONNALISÉS (places 8, 10, etc.) */}
-          {isAdmin && finish?.fullRanking && !drawWinner?.spinning && (
-            <div style={{ marginTop: 30, marginBottom: 30, padding: '20px', background: 'rgba(245,166,35,0.1)', border: '2px dashed rgba(245,166,35,0.5)', borderRadius: 16, maxWidth: 600, margin: '30px auto' }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#F5A623', marginBottom: 12 }}>🎲 Tirages au sort personnalisés (lots de consolation)</div>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ fontSize: 13, color: '#94a3b8' }}>Tirer au sort pour la place :</span>
-                {[8, 10, 15, 20].map(rank => {
-                  const atRank = finish.fullRanking.filter(p => p.finalRank === rank);
-                  const hasTieAtRank = atRank.length > 1;
-                  return (
-                    <button
-                      key={rank}
-                      onClick={() => {
-                        const candidates = atRank.map(p => ({ id: p.id, name: p.name, score: p.score, rank }));
-                        if (candidates.length === 0) return;
-                        const seed = generateDrawSeed();
-                        setDrawWinner({ candidates, spinning: true, winner: null, rankLabel: rank, seed });
-                        setTimeout(() => {
-                          const shuffled = shuffleArrayWithSeed(candidates, seed);
-                          const finalWinner = shuffled[0];
-                          setDrawWinner({ candidates, spinning: false, winner: finalWinner, rankLabel: rank, seed });
-                          addEvent(`🎲 Tirage ${rank}ème place [${seed}] : ${finalWinner.name} remporte le lot !`, 'success');
-                        }, 8000);
-                      }}
-                      disabled={atRank.length === 0}
-                      style={{ padding: '8px 16px', borderRadius: 10, border: hasTieAtRank ? '2px solid #FFD34D' : '1px solid rgba(255,255,255,0.2)', background: hasTieAtRank ? 'rgba(245,166,35,0.3)' : 'rgba(255,255,255,0.1)', color: hasTieAtRank ? '#FFD34D' : '#94a3b8', fontSize: 13, fontWeight: 700, cursor: atRank.length === 0 ? 'not-allowed' : 'pointer', opacity: atRank.length === 0 ? 0.5 : 1 }}
-                    >
-                      {rank}{hasTieAtRank ? ` (${atRank.length} ex)` : ''}
-                    </button>
-                  );
-                })}
-                <button
-                  onClick={() => {
-                    // Tirage parmi tous les participants
-                    const all = finish.fullRanking.map(p => ({ id: p.id, name: p.name, score: p.score }));
-                    const seed = generateDrawSeed();
-                    setDrawWinner({ candidates: all, spinning: true, winner: null, rankLabel: 'tous', seed });
-                    setTimeout(() => {
-                      const shuffled = shuffleArrayWithSeed(all, seed);
-                      const finalWinner = shuffled[0];
-                      setDrawWinner({ candidates: all, spinning: false, winner: finalWinner, rankLabel: 'tous', seed });
-                      addEvent(`🎲 Tirage général [${seed}] : ${finalWinner.name} remporte le lot !`, 'success');
-                    }, 8000);
-                  }}
-                  style={{ padding: '8px 16px', borderRadius: 10, border: '1px solid rgba(16,185,129,0.5)', background: 'rgba(16,185,129,0.2)', color: '#10b981', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-                >
-                  🎲 Tous les participants
-                </button>
+          {/* TIRAGES AU SORT PAR POSITION (détection auto des ex-aequo) */}
+          {isAdmin && finish?.fullRanking && !drawWinner?.spinning && (() => {
+            // Positions ayant des ex-aequo (>= 2 joueurs au même rang)
+            const counts = {};
+            finish.fullRanking.forEach(p => { const r = p.finalRank || 0; if (r) counts[r] = (counts[r] || 0) + 1; });
+            const tieRanks = Object.keys(counts).map(Number).filter(r => counts[r] > 1).sort((a, b) => a - b);
+            const posLabel = (r) => r === 1 ? '1ère place' : `${r}e place`;
+            return (
+              <div style={{ marginTop: 30, marginBottom: 30, padding: '20px', background: 'rgba(245,166,35,0.1)', border: '2px dashed rgba(245,166,35,0.5)', borderRadius: 16, maxWidth: 600, margin: '30px auto' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#F5A623', marginBottom: 12 }}>🎲 Tirage au sort pour départager les ex-aequo</div>
+                {tieRanks.length === 0 ? (
+                  <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>Aucune égalité à départager dans le classement.</div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
+                    <span style={{ fontSize: 13, color: '#94a3b8' }}>Départager la :</span>
+                    {tieRanks.map(rank => {
+                      const atRank = finish.fullRanking.filter(p => (p.finalRank || 0) === rank);
+                      return (
+                        <button
+                          key={rank}
+                          onClick={() => {
+                            const candidates = atRank.map(p => ({ id: p.id, name: p.name, score: p.score, rank }));
+                            if (candidates.length === 0) return;
+                            const seed = generateDrawSeed();
+                            setDrawWinner({ candidates, spinning: true, winner: null, rankLabel: rank, seed });
+                            setTimeout(() => {
+                              const shuffled = shuffleArrayWithSeed(candidates, seed);
+                              const finalWinner = shuffled[0];
+                              setDrawWinner({ candidates, spinning: false, winner: finalWinner, rankLabel: rank, seed });
+                              addEvent(`🎲 Tirage ${posLabel(rank)} [${seed}] : ${finalWinner.name} remporte le lot !`, 'success');
+                              saveDraw({ position: rank, label: posLabel(rank), seed, candidates, winner: finalWinner });
+                            }, 8000);
+                          }}
+                          style={{ padding: '8px 16px', borderRadius: 10, border: '2px solid #FFD34D', background: 'rgba(245,166,35,0.3)', color: '#FFD34D', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                        >
+                          {posLabel(rank)} ({atRank.length} ex-aequo)
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, color: '#94a3b8' }}>Lot de consolation :</span>
+                  <button
+                    onClick={() => {
+                      const all = finish.fullRanking.map(p => ({ id: p.id, name: p.name, score: p.score }));
+                      const seed = generateDrawSeed();
+                      setDrawWinner({ candidates: all, spinning: true, winner: null, rankLabel: 'tous', seed });
+                      setTimeout(() => {
+                        const shuffled = shuffleArrayWithSeed(all, seed);
+                        const finalWinner = shuffled[0];
+                        setDrawWinner({ candidates: all, spinning: false, winner: finalWinner, rankLabel: 'tous', seed });
+                        addEvent(`🎲 Tirage général [${seed}] : ${finalWinner.name} remporte le lot !`, 'success');
+                        saveDraw({ position: null, label: 'Tous les participants', seed, candidates: all, winner: finalWinner });
+                      }, 8000);
+                    }}
+                    style={{ padding: '8px 16px', borderRadius: 10, border: '1px solid rgba(16,185,129,0.5)', background: 'rgba(16,185,129,0.2)', color: '#10b981', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    🎲 Tous les participants
+                  </button>
+                </div>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
+                  Chaque tirage utilise une graine traçable (affichée) et est enregistré dans l'historique du tournoi.
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
-                Les boutons dorés indiquent des ex-aequo à cette place. Cliquez pour faire un tirage au sort live.
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Classement 4e et suivants */}
           {rest.length > 0 && (
