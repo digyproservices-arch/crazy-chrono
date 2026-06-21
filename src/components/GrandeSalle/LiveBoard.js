@@ -523,13 +523,16 @@ export default function LiveBoard() {
     const winners = finish.winners || [finish.winner].filter(Boolean);
     const hasTie = finish.hasTie || winners.length > 1;
     const ranking = finish.fullRanking || [];
-    const top3 = ranking.slice(0, 3);
-    const rest = ranking.slice(3, 10);
+    // ✅ Respect des égalités : on regroupe par rang réel (finalRank) calculé côté serveur
+    //    (ex-aequo = même rang). Un même score => même marche du podium.
+    const byRank = (r) => ranking.filter(p => (p.finalRank || 0) === r);
+    // "rest" = au-delà du rang 3 (des ex-aequo peuvent laisser une marche vide, ex: 1,2,2,4)
+    const rest = ranking.filter(p => (p.finalRank || 99) > 3).slice(0, 10);
     // Podium: [2e, 1er, 3e] pour l'effet d'escalier classique
     const PODIUM = [
-      { p: top3[1], rank: 2, h: 150, medal: '🥈', delay: 0.5, grad: 'linear-gradient(180deg, #E8EDF2, #9BA8B5)', glow: 'rgba(200,215,230,0.45)', ring: '#D7DFE8' },
-      { p: top3[0], rank: 1, h: 215, medal: '👑', delay: 0.9, grad: 'linear-gradient(180deg, #FFE34D, #F5A623)', glow: 'rgba(255,200,40,0.55)', ring: '#FFD34D' },
-      { p: top3[2], rank: 3, h: 110, medal: '🥉', delay: 0.2, grad: 'linear-gradient(180deg, #E2A26C, #B06A3B)', glow: 'rgba(205,127,60,0.45)', ring: '#D89265' },
+      { players: byRank(2), rank: 2, h: 150, medal: '🥈', delay: 0.5, grad: 'linear-gradient(180deg, #E8EDF2, #9BA8B5)', glow: 'rgba(200,215,230,0.45)', ring: '#D7DFE8' },
+      { players: byRank(1), rank: 1, h: 215, medal: '👑', delay: 0.9, grad: 'linear-gradient(180deg, #FFE34D, #F5A623)', glow: 'rgba(255,200,40,0.55)', ring: '#FFD34D' },
+      { players: byRank(3), rank: 3, h: 110, medal: '🥉', delay: 0.2, grad: 'linear-gradient(180deg, #E2A26C, #B06A3B)', glow: 'rgba(205,127,60,0.45)', ring: '#D89265' },
     ];
     const CONFETTI_COLORS = ['#FFD34D', '#F5A623', '#FF6B35', '#34d399', '#60a5fa', '#f472b6', '#a78bfa', '#fff'];
     const confetti = Array.from({ length: 60 }, (_, i) => {
@@ -668,21 +671,30 @@ export default function LiveBoard() {
 
           {/* PODIUM */}
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 14, marginTop: 18, marginBottom: 36, minHeight: 330 }}>
-            {PODIUM.map(({ p, rank, h, medal, delay, grad, glow, ring }) => p ? (
+            {PODIUM.map(({ players, rank, h, medal, delay, grad, glow, ring }) => (players && players.length > 0) ? (
               <div key={rank} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: rank === 1 ? 230 : 190 }}>
-                {/* Joueur au-dessus de la marche */}
-                <div style={{ animation: `ccChampDrop 0.6s cubic-bezier(0.34,1.56,0.64,1) ${delay + 0.55}s both`, marginBottom: 10 }}>
+                {/* Joueur(s) au-dessus de la marche — ex-aequo empilés sur la même marche */}
+                <div style={{ animation: `ccChampDrop 0.6s cubic-bezier(0.34,1.56,0.64,1) ${delay + 0.55}s both`, marginBottom: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: players.length > 1 ? 8 : 0 }}>
                   <div style={{ fontSize: rank === 1 ? 44 : 32, marginBottom: 4, animation: rank === 1 ? 'ccCrownFloat 2s ease-in-out infinite' : 'none', filter: rank === 1 ? 'drop-shadow(0 4px 12px rgba(255,200,0,0.6))' : 'none' }}>{medal}</div>
-                  <div style={{
-                    width: rank === 1 ? 86 : 66, height: rank === 1 ? 86 : 66, borderRadius: '50%', margin: '0 auto 8px',
-                    background: grad, border: `3px solid ${ring}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: rank === 1 ? 30 : 22, fontWeight: 900, color: '#3a2a10',
-                    boxShadow: `0 0 ${rank === 1 ? 45 : 25}px ${glow}, 0 8px 20px rgba(0,0,0,0.35)`,
-                  }}>
-                    {getInitials(p.name || '?')}
-                  </div>
-                  <div style={{ fontSize: rank === 1 ? 26 : 19, fontWeight: 900, color: '#fff', textShadow: '0 2px 10px rgba(0,0,0,0.4)', maxWidth: rank === 1 ? 220 : 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '0 auto' }}>{p.name}</div>
-                  <div style={{ fontSize: rank === 1 ? 20 : 16, fontWeight: 800, color: ring }}>{p.score} pts</div>
+                  {players.map((p, idx) => {
+                    const multi = players.length > 1;
+                    const big = rank === 1 && !multi;
+                    const avatar = big ? 86 : (multi ? 50 : 66);
+                    return (
+                      <div key={p.id || idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <div style={{
+                          width: avatar, height: avatar, borderRadius: '50%', margin: '0 auto 6px',
+                          background: grad, border: `3px solid ${ring}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: big ? 30 : (multi ? 17 : 22), fontWeight: 900, color: '#3a2a10',
+                          boxShadow: `0 0 ${rank === 1 ? 45 : 25}px ${glow}, 0 8px 20px rgba(0,0,0,0.35)`,
+                        }}>
+                          {getInitials(p.name || '?')}
+                        </div>
+                        <div style={{ fontSize: big ? 26 : (multi ? 16 : 19), fontWeight: 900, color: '#fff', textShadow: '0 2px 10px rgba(0,0,0,0.4)', maxWidth: rank === 1 ? 220 : 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '0 auto' }}>{p.name}</div>
+                        <div style={{ fontSize: big ? 20 : (multi ? 14 : 16), fontWeight: 800, color: ring }}>{p.score} pts{multi ? ' · ex-aequo' : ''}</div>
+                      </div>
+                    );
+                  })}
                 </div>
                 {/* Marche du podium */}
                 <div style={{ width: '100%', overflow: 'hidden', borderRadius: '14px 14px 0 0' }}>
