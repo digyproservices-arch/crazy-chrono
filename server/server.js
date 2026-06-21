@@ -4325,8 +4325,10 @@ io.on('connection', (socket) => {
     // NOTE: Room setup is already done above so room:setConfig and startGame
     // events can be processed during this await without being silently dropped.
     const uid = socket.authUser?.id || playerStudentId || sid || null;
-    sTrace.push('sub:joinRoom', { socketId: socket.id, authUserId: socket.authUser?.id || null, playerStudentId: playerStudentId || null, sid: sid || null, resolvedUid: uid, room: newRoom });
-    const sub = await checkSubscription(uid);
+    const isSoloRoom = newRoom.startsWith('solo-');
+    sTrace.push('sub:joinRoom', { socketId: socket.id, authUserId: socket.authUser?.id || null, playerStudentId: playerStudentId || null, sid: sid || null, resolvedUid: uid, room: newRoom, isSoloRoom });
+    // Le mode Solo est gratuit (quota journalier géré séparément) -> pas de gate abonnement.
+    const sub = isSoloRoom ? { isPro: true } : await checkSubscription(uid);
     if (!sub.isPro) {
       // ✅ FIX: bypass si l'élève est détecté par son email @eleve.crazychrono.app
       if (socket.authUser?.isStudent) {
