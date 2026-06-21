@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { isFree, getDailyCounts } from '../utils/subscription';
+import { isFree, getDailyCounts, FREE_SESSIONS_PER_DAY } from '../utils/subscription';
 import supabase from '../utils/supabaseClient';
 import NetworkIndicator from './NetworkIndicator';
 import { logAuth } from '../utils/authLogger';
@@ -209,7 +209,7 @@ const NavBar = () => {
               padding: '5px 12px', textDecoration: 'none', fontWeight: 700,
               whiteSpace: 'nowrap', boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
             }}>
-              Free {quota.sessions || 0}/3 · Upgrade
+              Free {Math.min(quota.sessions || 0, FREE_SESSIONS_PER_DAY)}/{FREE_SESSIONS_PER_DAY} · Upgrade
             </Link>
           )}
 
