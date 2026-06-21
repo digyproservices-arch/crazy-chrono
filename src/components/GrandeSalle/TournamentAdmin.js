@@ -569,6 +569,10 @@ function TournamentDetailModal({ detail, loading, error, onSaveDraw, onClose }) 
               const gp = rd.good_pair_content;
               const zones = Array.isArray(rd.zones) ? rd.zones : [];
               const pairsFound = Array.isArray(rd.pairs_found) ? rd.pairs_found : [];
+              // Séquence des plateaux successifs de la manche (repli sur le plateau unique si ancien format)
+              const boards = (Array.isArray(rd.boards) && rd.boards.length > 0)
+                ? rd.boards
+                : (zones.length > 0 ? [{ board_index: 0, zones }] : []);
               // Bonne paire de secours (anciennes données sans pairs_found détaillé)
               const goodZones = zones.filter(z => z?.pairId && !z?.isDistractor);
               let pairA, pairB;
@@ -619,17 +623,27 @@ function TournamentDetailModal({ detail, loading, error, onSaveDraw, onClose }) 
                   {Array.isArray(rd.errors) && rd.errors.length > 0 && (
                     <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 4 }}>{rd.errors.length} erreur(s) durant la manche</div>
                   )}
-                  {/* Zones (cartes affichées) */}
-                  {zones.length > 0 && (
+                  {/* Plateaux successifs de la manche (chaque plateau = 16 zones) */}
+                  {boards.length > 0 && (
                     <details style={{ marginTop: 8 }}>
-                      <summary style={{ cursor: 'pointer', fontSize: 12, color: '#64748b' }}>Voir les {zones.length} cartes affichées</summary>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                        {zones.map((z, zi) => (
-                          <span key={zi} style={{ display: 'inline-flex', alignItems: 'center', maxWidth: 140, padding: '3px 8px', borderRadius: 6, fontSize: 11, background: z && !z.isDistractor ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.05)', border: z && !z.isDistractor ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {isImageUrl(z?.content) ? <img src={z.content} alt="" style={{ height: 22, borderRadius: 3 }} /> : (z?.content != null ? String(z.content) : '—')}
-                          </span>
-                        ))}
-                      </div>
+                      <summary style={{ cursor: 'pointer', fontSize: 12, color: '#64748b' }}>
+                        Voir les plateaux de la manche ({boards.length})
+                      </summary>
+                      {boards.map((bd, bi) => {
+                        const bz = Array.isArray(bd?.zones) ? bd.zones : [];
+                        return (
+                          <div key={bi} style={{ marginTop: 8, paddingTop: 8, borderTop: bi > 0 ? '1px dashed rgba(255,255,255,0.1)' : 'none' }}>
+                            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Plateau {bi + 1} <span style={{ color: '#64748b' }}>· {bz.length} cartes</span></div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {bz.map((z, zi) => (
+                                <span key={zi} style={{ display: 'inline-flex', alignItems: 'center', maxWidth: 140, padding: '3px 8px', borderRadius: 6, fontSize: 11, background: z && !z.isDistractor ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.05)', border: z && !z.isDistractor ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {isImageUrl(z?.content) ? <img src={z.content} alt="" style={{ height: 22, borderRadius: 3 }} /> : (z?.content != null ? String(z.content) : '—')}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </details>
                   )}
                 </div>

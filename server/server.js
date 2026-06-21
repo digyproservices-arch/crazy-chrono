@@ -2779,9 +2779,12 @@ function gsStartRound(salleId) {
   // 📊 DIAGNOSTIC: Pousser entrée roundHistory
   if (!salle.roundHistory) salle.roundHistory = [];
   const goodPair = zones.find(z => z.pairId && !z.isDistractor);
+  const compactZones = zones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 200), pairId: z.pairId || null, isDistractor: !!z.isDistractor }));
   salle.roundHistory.push({
     round_number: salle.roundsPlayed,
-    zones: zones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 200), pairId: z.pairId || null, isDistractor: !!z.isDistractor })),
+    zones: compactZones,
+    // Séquence des plateaux successifs de la manche (le 1er ici, les suivants ajoutés à chaque régénération)
+    boards: [{ board_index: 0, seed, zones: compactZones }],
     good_pair_type: goodPair?.type || null,
     good_pair_theme: goodPair?.theme || null,
     good_pair_level: goodPair?.levelClass || null,
@@ -3133,6 +3136,7 @@ async function gsFinish(salleId) {
                 winner_display_name: rh.pairs_found && rh.pairs_found[0] ? rh.pairs_found[0].display_name : null,
                 winner_time_ms: rh.pairs_found && rh.pairs_found[0] ? rh.pairs_found[0].time_ms : null,
                 pairs_found: rh.pairs_found || [],
+                boards: rh.boards || [],
                 errors: rh.errors || []
               }));
               const { error: mrErr } = await supabaseAdmin.from('match_rounds').insert(roundRows);
@@ -5845,6 +5849,21 @@ io.on('connection', (socket) => {
         salle.currentZones = newZones;
         salle.roundSeed = newSeed;
         salle.foundPairs.clear();
+        
+        // 📊 DIAGNOSTIC: Conserver le nouveau plateau dans la séquence de la manche (plafonné à 100)
+        try {
+          const lr = salle.roundHistory && salle.roundHistory[salle.roundHistory.length - 1];
+          if (lr) {
+            if (!Array.isArray(lr.boards)) lr.boards = [];
+            if (lr.boards.length < 100) {
+              lr.boards.push({
+                board_index: lr.boards.length,
+                seed: newSeed,
+                zones: newZones.map(z => ({ id: z.id, type: z.type, content: String(z.content || '').substring(0, 200), pairId: z.pairId || null, isDistractor: !!z.isDistractor }))
+              });
+            }
+          }
+        } catch {}
         
         // Valider les zones régénérées (monitoring double PA / fausse paire)
         try { validateZonesServer(newZones, { source: 'gs:round-regen', salleId: currentGS, roundIndex: salle.roundsPlayed }); } catch (e) { logger.warn('[GS] Zone validation error (regen):', e.message); }
