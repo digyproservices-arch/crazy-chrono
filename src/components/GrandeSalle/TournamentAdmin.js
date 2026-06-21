@@ -35,6 +35,11 @@ export default function TournamentAdmin() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
+  // Détail historique (podium + classement + cartes générées)
+  const [detail, setDetail] = useState(null); // { tournament, ranking, rounds }
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState(null);
+
   const { data } = useContext(DataContext);
 
   // Form state
@@ -149,6 +154,22 @@ export default function TournamentAdmin() {
     } catch (e) { console.error(e); }
   };
 
+
+  const openDetails = async (t) => {
+    setDetail({ tournament: t, ranking: [], rounds: [] });
+    setDetailLoading(true);
+    setDetailError(null);
+    try {
+      const token = getToken();
+      const res = await fetch(`${backendUrl}/api/gs/tournaments/${t.id}/details`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const json = await res.json();
+      if (json.ok) setDetail({ tournament: json.tournament || t, ranking: json.ranking || [], rounds: json.rounds || [] });
+      else setDetailError(json.error || 'Erreur inconnue');
+    } catch (e) { setDetailError(e.message); }
+    setDetailLoading(false);
+  };
 
   const upcoming = tournaments.filter(t => ['scheduled', 'open'].includes(t.status));
   const past = tournaments.filter(t => ['finished', 'cancelled', 'playing'].includes(t.status));
@@ -332,20 +353,168 @@ export default function TournamentAdmin() {
       {past.length > 0 && <>
         <h2 style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginTop: 30, marginBottom: 12 }}>Historique ({past.length})</h2>
         {past.map(t => (
-          <div key={t.id} style={{ ...CARD, marginBottom: 8, opacity: 0.7 }}>
+          <div key={t.id} onClick={() => openDetails(t)} title="Voir le détail (podium, classement, cartes)" style={{ ...CARD, marginBottom: 8, opacity: 0.85, cursor: 'pointer', transition: 'opacity 0.15s, border-color 0.15s', border: '1px solid rgba(255,255,255,0.1)' }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = 1; e.currentTarget.style.borderColor = 'rgba(245,166,35,0.4)'; }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = 0.85; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <span style={{ fontSize: 15, fontWeight: 600, color: '#e2e8f0' }}>{t.title}</span>
                 <span style={{ ...BADGE(STATUS_COLORS[t.status] || '#64748b'), marginLeft: 8 }}>{STATUS_LABELS[t.status] || t.status}</span>
               </div>
-              <div style={{ fontSize: 12, color: '#64748b' }}>
+              <div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 8 }}>
                 {new Date(t.scheduled_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                <span style={{ color: '#F5A623', fontWeight: 700 }}>Détail →</span>
               </div>
             </div>
             {t.winner_name && <div style={{ fontSize: 13, color: '#F5A623', marginTop: 6 }}>🏆 {t.winner_name} ({t.winner_score} pts) — {t.total_players} joueurs, {t.total_rounds} manches</div>}
           </div>
         ))}
       </>}
+
+      {detail && (
+        <TournamentDetailModal
+          detail={detail}
+          loading={detailLoading}
+          error={detailError}
+          onClose={() => { setDetail(null); setDetailError(null); }}
+        />
+      )}
     </div></div>
+  );
+}
+
+// ==========================================
+// MODAL DÉTAIL HISTORIQUE — podium, classement, cartes générées
+// ==========================================
+const MEDALS = { 1: '🥇', 2: '🥈', 3: '🥉' };
+const RANK_COLORS = { 1: '#F5A623', 2: '#cbd5e1', 3: '#cd7f32' };
+
+function PairTypeLabel(type) {
+  if (type === 'TI') return 'Texte ↔ Image';
+  if (type === 'CC') return 'Calcul ↔ Chiffre';
+  return type || '—';
+}
+
+function isImageUrl(s) {
+  return typeof s === 'string' && (/^https?:\/\//.test(s) || /\.(png|jpe?g|webp|gif|svg)(\?|$)/i.test(s));
+}
+
+function TournamentDetailModal({ detail, loading, error, onClose }) {
+  const t = detail.tournament || {};
+  const ranking = detail.ranking || [];
+  const rounds = detail.rounds || [];
+  const byRank = (r) => ranking.filter(p => (p.finalRank || 0) === r);
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 12px', overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)', border: '1px solid rgba(245,166,35,0.3)', borderRadius: 16, maxWidth: 760, width: '100%', padding: 24, color: '#e2e8f0', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 20, color: '#F5A623', fontWeight: 900 }}>{t.title || 'Tournoi'}</h2>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+              {t.scheduled_at && new Date(t.scheduled_at).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              {t.total_players != null && <span> · {t.total_players} joueurs · {t.total_rounds || 0} manches</span>}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: 24, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+        </div>
+
+        {loading && <div style={{ color: '#64748b', padding: 20, textAlign: 'center' }}>Chargement du détail…</div>}
+        {error && <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.15)', color: '#ef4444', fontSize: 13, marginBottom: 12 }}>{error}</div>}
+
+        {!loading && ranking.length === 0 && rounds.length === 0 && !error && (
+          <div style={{ color: '#94a3b8', padding: 16, background: 'rgba(255,255,255,0.04)', borderRadius: 10, fontSize: 13 }}>
+            Aucun détail enregistré pour ce tournoi. Les tournois joués <strong>après cette mise à jour</strong> afficheront le classement complet et les cartes générées.
+          </div>
+        )}
+
+        {/* PODIUM */}
+        {ranking.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <h3 style={{ fontSize: 14, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 10px' }}>Podium</h3>
+            {[1, 2, 3].map(r => {
+              const players = byRank(r);
+              if (players.length === 0) return null;
+              return (
+                <div key={r} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', marginBottom: 6, borderRadius: 10, background: `${RANK_COLORS[r]}1a`, border: `1px solid ${RANK_COLORS[r]}55` }}>
+                  <span style={{ fontSize: 22 }}>{MEDALS[r]}</span>
+                  <span style={{ flex: 1, fontWeight: 700 }}>
+                    {players.map(p => p.name).join(' · ')}
+                    {players.length > 1 && <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}> (ex-aequo)</span>}
+                  </span>
+                  <span style={{ fontWeight: 800, color: RANK_COLORS[r] }}>{players[0].score} pts</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* CLASSEMENT COMPLET */}
+        {ranking.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <h3 style={{ fontSize: 14, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 10px' }}>Classement complet ({ranking.length})</h3>
+            <div style={{ maxHeight: 240, overflowY: 'auto', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)' }}>
+              {ranking.map((p, i) => (
+                <div key={p.id || i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '7px 12px', background: i % 2 ? 'rgba(255,255,255,0.02)' : 'transparent', fontSize: 13 }}>
+                  <span style={{ width: 34, fontWeight: 800, color: p.finalRank <= 3 ? RANK_COLORS[p.finalRank] : '#64748b' }}>#{p.finalRank}</span>
+                  <span style={{ flex: 1, fontWeight: 600 }}>{p.name}{p.eliminated ? <span style={{ fontSize: 11, color: '#ef4444', marginLeft: 6 }}>éliminé</span> : null}</span>
+                  <span style={{ fontWeight: 700, color: '#94a3b8' }}>{p.score} pts</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* CARTES GÉNÉRÉES PAR MANCHE */}
+        {rounds.length > 0 && (
+          <div>
+            <h3 style={{ fontSize: 14, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 10px' }}>Cartes générées ({rounds.length} manches)</h3>
+            {rounds.map((rd, i) => {
+              const gp = rd.good_pair_content || {};
+              const zones = Array.isArray(rd.zones) ? rd.zones : [];
+              return (
+                <div key={i} style={{ marginBottom: 10, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                    <span style={{ fontWeight: 800, color: '#F5A623' }}>Manche {rd.round_number}</span>
+                    <span style={{ fontSize: 12, color: '#94a3b8' }}>{PairTypeLabel(rd.good_pair_type)}{rd.good_pair_theme ? ` · ${rd.good_pair_theme}` : ''}{rd.good_pair_level ? ` · ${rd.good_pair_level}` : ''}</span>
+                  </div>
+                  {/* Bonne paire */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: 13 }}>
+                    <span style={{ fontSize: 11, color: '#10b981', fontWeight: 700 }}>BONNE PAIRE</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 10px', borderRadius: 8, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.4)' }}>
+                      {isImageUrl(gp.a) ? <img src={gp.a} alt="" style={{ height: 28, borderRadius: 4 }} /> : <strong>{String(gp.a ?? '—')}</strong>}
+                      <span style={{ color: '#64748b' }}>↔</span>
+                      {isImageUrl(gp.b) ? <img src={gp.b} alt="" style={{ height: 28, borderRadius: 4 }} /> : <strong>{String(gp.b ?? '—')}</strong>}
+                    </span>
+                  </div>
+                  {/* Gagnant */}
+                  <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                    {rd.winner_display_name
+                      ? <>🏆 Trouvé par <strong style={{ color: '#e2e8f0' }}>{rd.winner_display_name}</strong>{rd.winner_time_ms ? ` en ${(rd.winner_time_ms / 1000).toFixed(1)}s` : ''}</>
+                      : 'Personne n\'a trouvé cette manche'}
+                    {Array.isArray(rd.errors) && rd.errors.length > 0 && <span style={{ marginLeft: 10, color: '#ef4444' }}>· {rd.errors.length} erreur(s)</span>}
+                  </div>
+                  {/* Zones (cartes affichées) */}
+                  {zones.length > 0 && (
+                    <details style={{ marginTop: 8 }}>
+                      <summary style={{ cursor: 'pointer', fontSize: 12, color: '#64748b' }}>Voir les {zones.length} cartes affichées</summary>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                        {zones.map((z, zi) => (
+                          <span key={zi} style={{ display: 'inline-flex', alignItems: 'center', maxWidth: 140, padding: '3px 8px', borderRadius: 6, fontSize: 11, background: z && !z.isDistractor ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.05)', border: z && !z.isDistractor ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(255,255,255,0.1)', color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {isImageUrl(z?.content) ? <img src={z.content} alt="" style={{ height: 22, borderRadius: 3 }} /> : (z?.content != null ? String(z.content) : '—')}
+                          </span>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

@@ -286,6 +286,39 @@ router.get('/tournaments/:id/entries', requireAdmin, async (req, res) => {
   }
 });
 
+// ===== GET /api/gs/tournaments/:id/details — Détail historique (podium, classement, cartes) (admin) =====
+router.get('/tournaments/:id/details', requireAdmin, async (req, res) => {
+  const supabaseAdmin = req.app.locals.supabaseAdmin;
+  if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
+
+  try {
+    const { data: tournament, error: tErr } = await supabaseAdmin
+      .from('gs_tournaments')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+    if (tErr || !tournament) return res.status(404).json({ ok: false, error: 'tournament_not_found' });
+
+    // Classement complet figé (avec finalRank / ex-aequo)
+    const ranking = Array.isArray(tournament.final_ranking) ? tournament.final_ranking : [];
+
+    // Cartes générées manche par manche (via la session liée)
+    let rounds = [];
+    if (tournament.session_id) {
+      const { data: roundRows } = await supabaseAdmin
+        .from('match_rounds')
+        .select('round_number, zones, good_pair_type, good_pair_theme, good_pair_level, good_pair_content, winner_display_name, winner_time_ms, errors')
+        .eq('session_id', tournament.session_id)
+        .order('round_number', { ascending: true });
+      rounds = roundRows || [];
+    }
+
+    res.json({ ok: true, tournament, ranking, rounds });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ===== POST /api/gs/tournaments/:id/checkout — Créer session Stripe Checkout pour paiement tournoi =====
 router.post('/tournaments/:id/checkout', async (req, res) => {
   const supabaseAdmin = req.app.locals.supabaseAdmin;

@@ -3016,6 +3016,11 @@ async function gsFinish(salleId) {
         winner_score: winner?.score || 0,
         total_players: allPlayers.length,
         total_rounds: salle.roundsPlayed,
+        // Historique détaillé: classement complet figé (avec finalRank/ex-aequo) + égalité au sommet
+        final_ranking: allPlayers,
+        has_tie: winners.length > 1,
+        // Lien vers la session (cartes/manches) si elle a été créée au démarrage
+        session_id: salle._sessionId || null,
         updated_at: new Date().toISOString(),
       }).eq('id', salle.tournamentId);
       console.log(`[GS] Tournament ${salle.tournamentId} results saved to Supabase`);
@@ -3085,6 +3090,10 @@ async function gsFinish(salleId) {
             console.error(`[GS] Persistance erreur (session_insert):`, sessErr.message);
           } else {
             sessionId = session.id;
+            // Relier ce session_id au tournoi pour l'historique détaillé (cartes/manches)
+            if (salle.tournamentId) {
+              try { await supabaseAdmin.from('gs_tournaments').update({ session_id: sessionId }).eq('id', salle.tournamentId); } catch {}
+            }
           }
         }
 
