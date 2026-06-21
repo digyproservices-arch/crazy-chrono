@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import supabase from '../../utils/supabaseClient';
-import { isFree, getDailyCounts, FREE_SESSIONS_PER_DAY } from '../../utils/subscription';
+import { isFree, getDailyCounts, getFreeLimit } from '../../utils/subscription';
 
 export default function ProgressDebug() {
   const [auth, setAuth] = useState(() => {
@@ -88,7 +88,7 @@ export default function ProgressDebug() {
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Dernière session</div>
           {isFree() && (
             <div style={{ marginBottom: 8, fontSize: 12, color: '#065f46', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 6, padding: '6px 8px' }}>
-              Free: {Math.min(quota.sessions || 0, FREE_SESSIONS_PER_DAY)}/{FREE_SESSIONS_PER_DAY} sessions aujourd'hui
+              Free: {Math.min(quota.sessions || 0, getFreeLimit())}/{getFreeLimit()} sessions aujourd'hui
             </div>
           )}
           {loading ? (

@@ -31,10 +31,42 @@ export function getDailyCounts() {
   } catch { return { dayISO: todayISO(), sessions: 0 }; }
 }
 
-// Nombre de parties gratuites par jour (doit rester aligné avec FREE_SESSIONS_PER_DAY côté serveur)
+// Valeur par défaut (fallback) si le serveur n'a pas encore répondu.
+// La source de vérité est la variable d'env FREE_SESSIONS_PER_DAY côté serveur,
+// exposée via GET /api/config/free-limit et mise en cache localement.
 export const FREE_SESSIONS_PER_DAY = 2;
+const KEY_FREE_LIMIT = 'cc_free_limit';
 
-export function canStartSessionToday(limit = FREE_SESSIONS_PER_DAY) {
+// Limite courante : valeur serveur en cache, sinon fallback constant.
+export function getFreeLimit() {
+  try {
+    const raw = localStorage.getItem(KEY_FREE_LIMIT);
+    const n = raw != null ? Number(raw) : NaN;
+    if (Number.isFinite(n) && n > 0) return n;
+  } catch {}
+  return FREE_SESSIONS_PER_DAY;
+}
+
+// Récupère la limite réelle depuis le serveur et la met en cache.
+// À appeler au démarrage (ex: NavBar). Émet 'cc:freeLimitChanged' si la valeur change.
+export async function refreshFreeLimit() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/config/free-limit`, { headers: { 'Accept': 'application/json' } });
+    const json = await res.json().catch(() => ({}));
+    const limit = Number(json?.limit);
+    if (json?.ok && Number.isFinite(limit) && limit > 0) {
+      const prev = getFreeLimit();
+      try { localStorage.setItem(KEY_FREE_LIMIT, String(limit)); } catch {}
+      if (limit !== prev) {
+        try { window.dispatchEvent(new Event('cc:freeLimitChanged')); } catch {}
+      }
+      return limit;
+    }
+  } catch {}
+  return getFreeLimit();
+}
+
+export function canStartSessionToday(limit = getFreeLimit()) {
   const q = getDailyCounts();
   return (q.sessions || 0) < limit;
 }

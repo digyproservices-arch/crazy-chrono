@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { isFree, getDailyCounts, FREE_SESSIONS_PER_DAY } from '../utils/subscription';
+import { isFree, getDailyCounts, getFreeLimit, refreshFreeLimit } from '../utils/subscription';
 import supabase from '../utils/supabaseClient';
 import NetworkIndicator from './NetworkIndicator';
 import { logAuth } from '../utils/authLogger';
@@ -30,6 +30,7 @@ const NavBar = () => {
     try { return JSON.parse(localStorage.getItem('cc_auth') || 'null'); } catch { return null; }
   });
   const [quota, setQuota] = useState(() => getDailyCounts());
+  const [freeLimit, setFreeLimit] = useState(() => getFreeLimit());
   const [mobileOpen, setMobileOpen] = useState(false);
   const [gameHidden, setGameHidden] = useState(false);
 
@@ -45,12 +46,17 @@ const NavBar = () => {
     const onGame = (e) => setGameHidden(!!e?.detail?.on);
     window.addEventListener('cc:gameMode', onGame);
     window.addEventListener('cc:gameFullscreen', onGame);
+    // Limite gratuite : lire la valeur serveur (cache + fallback) et écouter les changements
+    const onLimit = () => setFreeLimit(getFreeLimit());
+    window.addEventListener('cc:freeLimitChanged', onLimit);
+    refreshFreeLimit().then(() => setFreeLimit(getFreeLimit())).catch(() => {});
     return () => {
       window.removeEventListener('cc:authChanged', onAuth);
       window.removeEventListener('cc:quotaChanged', onQ);
       window.removeEventListener('cc:subscriptionChanged', onQ);
       window.removeEventListener('cc:gameMode', onGame);
       window.removeEventListener('cc:gameFullscreen', onGame);
+      window.removeEventListener('cc:freeLimitChanged', onLimit);
     };
   }, []);
 
@@ -209,7 +215,7 @@ const NavBar = () => {
               padding: '5px 12px', textDecoration: 'none', fontWeight: 700,
               whiteSpace: 'nowrap', boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
             }}>
-              Free {Math.min(quota.sessions || 0, FREE_SESSIONS_PER_DAY)}/{FREE_SESSIONS_PER_DAY} · Upgrade
+              Free {Math.min(quota.sessions || 0, freeLimit)}/{freeLimit} · Upgrade
             </Link>
           )}
 

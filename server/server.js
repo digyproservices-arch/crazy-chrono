@@ -313,12 +313,21 @@ app.use('/api/mastery', masteryRoutes);
 const rgpdRoutes = require('./routes/rgpd');
 app.use('/api/rgpd', rgpdRoutes);
 
+// Nombre de parties gratuites/jour — source de vérité (pilotable via Render env).
+const FREE_SESSIONS_PER_DAY = Number(process.env.FREE_SESSIONS_PER_DAY || 2);
+
+// GET /api/config/free-limit -> { ok:true, limit:number }
+// Endpoint public (pas d'auth) pour que le frontend affiche dynamiquement la limite.
+app.get('/api/config/free-limit', (req, res) => {
+  res.json({ ok: true, limit: FREE_SESSIONS_PER_DAY });
+});
+
 // POST /usage/can-start { user_id }
 // Returns { ok:true, allow:boolean, limit:number, sessionsToday:number, reason?:string }
 app.post('/usage/can-start', requireAuth, async (req, res) => {
   try {
     const userId = String(req.body?.user_id || '').trim();
-    const FREE_LIMIT = Number(process.env.FREE_SESSIONS_PER_DAY || 2);
+    const FREE_LIMIT = FREE_SESSIONS_PER_DAY;
     if (!userId) return res.status(400).json({ ok: false, error: 'missing_user_id' });
 
     // If Supabase admin is not set, allow to avoid blocking; frontend still enforces local limit
