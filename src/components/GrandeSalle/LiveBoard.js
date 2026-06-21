@@ -740,13 +740,13 @@ export default function LiveBoard() {
             const tieRanks = Object.keys(counts).map(Number).filter(r => counts[r] > 1).sort((a, b) => a - b);
             const posLabel = (r) => r === 1 ? '1ère place' : `${r}e place`;
             return (
-              <div style={{ marginTop: 30, marginBottom: 30, padding: '20px', background: 'rgba(245,166,35,0.1)', border: '2px dashed rgba(245,166,35,0.5)', borderRadius: 16, maxWidth: 600, margin: '30px auto' }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#F5A623', marginBottom: 12 }}>🎲 Tirage au sort pour départager les ex-aequo</div>
+              <div style={{ marginTop: 30, marginBottom: 30, padding: '22px', background: 'rgba(15,23,42,0.7)', border: '2px solid rgba(245,166,35,0.7)', borderRadius: 16, maxWidth: 640, margin: '30px auto', boxShadow: '0 8px 30px rgba(0,0,0,0.4)' }}>
+                <div style={{ fontSize: 17, fontWeight: 900, color: '#FFD34D', marginBottom: 16, textAlign: 'center' }}>� Tirage au sort pour départager les ex-aequo</div>
                 {tieRanks.length === 0 ? (
-                  <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>Aucune égalité à départager dans le classement.</div>
+                  <div style={{ fontSize: 14, color: '#cbd5e1', marginBottom: 16, textAlign: 'center' }}>Aucune égalité à départager dans le classement.</div>
                 ) : (
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
-                    <span style={{ fontSize: 13, color: '#94a3b8' }}>Départager la :</span>
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
+                    <span style={{ fontSize: 15, color: '#e2e8f0', fontWeight: 700 }}>Départager la :</span>
                     {tieRanks.map(rank => {
                       const atRank = finish.fullRanking.filter(p => (p.finalRank || 0) === rank);
                       return (
@@ -765,36 +765,41 @@ export default function LiveBoard() {
                               saveDraw({ position: rank, label: posLabel(rank), seed, candidates, winner: finalWinner });
                             }, 8000);
                           }}
-                          style={{ padding: '8px 16px', borderRadius: 10, border: '2px solid #FFD34D', background: 'rgba(245,166,35,0.3)', color: '#FFD34D', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+                          style={{ padding: '11px 20px', borderRadius: 10, border: '2px solid #FFD34D', background: 'linear-gradient(135deg, #F5A623, #ff6b35)', color: '#fff', fontSize: 15, fontWeight: 800, cursor: 'pointer', boxShadow: '0 3px 14px rgba(245,166,35,0.45)' }}
                         >
-                          {posLabel(rank)} ({atRank.length} ex-aequo)
+                          🎲 {posLabel(rank)} ({atRank.length} ex-aequo)
                         </button>
                       );
                     })}
                   </div>
                 )}
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, color: '#94a3b8' }}>Lot de consolation :</span>
-                  <button
-                    onClick={() => {
-                      const all = finish.fullRanking.map(p => ({ id: p.id, name: p.name, score: p.score }));
-                      const seed = generateDrawSeed();
-                      setDrawWinner({ candidates: all, spinning: true, winner: null, rankLabel: 'tous', seed });
-                      setTimeout(() => {
-                        const shuffled = shuffleArrayWithSeed(all, seed);
-                        const finalWinner = shuffled[0];
-                        setDrawWinner({ candidates: all, spinning: false, winner: finalWinner, rankLabel: 'tous', seed });
-                        addEvent(`🎲 Tirage général [${seed}] : ${finalWinner.name} remporte le lot !`, 'success');
-                        saveDraw({ position: null, label: 'Tous les participants', seed, candidates: all, winner: finalWinner });
-                      }, 8000);
-                    }}
-                    style={{ padding: '8px 16px', borderRadius: 10, border: '1px solid rgba(16,185,129,0.5)', background: 'rgba(16,185,129,0.2)', color: '#10b981', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-                  >
-                    🎲 Tous les participants
-                  </button>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.12)', paddingTop: 14, marginTop: 4 }}>
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ fontSize: 15, color: '#e2e8f0', fontWeight: 700 }}>Lot de consolation :</span>
+                    <button
+                      onClick={() => {
+                        const all = finish.fullRanking.map(p => ({ id: p.id, name: p.name, score: p.score }));
+                        const seed = generateDrawSeed();
+                        setDrawWinner({ candidates: all, spinning: true, winner: null, rankLabel: 'tous', seed });
+                        setTimeout(() => {
+                          const shuffled = shuffleArrayWithSeed(all, seed);
+                          const finalWinner = shuffled[0];
+                          setDrawWinner({ candidates: all, spinning: false, winner: finalWinner, rankLabel: 'tous', seed });
+                          addEvent(`🎲 Tirage général [${seed}] : ${finalWinner.name} remporte le lot !`, 'success');
+                          saveDraw({ position: null, label: 'Tous les participants', seed, candidates: all, winner: finalWinner });
+                        }, 8000);
+                      }}
+                      style={{ padding: '11px 20px', borderRadius: 10, border: '2px solid #10b981', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', fontSize: 15, fontWeight: 800, cursor: 'pointer', boxShadow: '0 3px 14px rgba(16,185,129,0.4)' }}
+                    >
+                      🎲 Tous les participants ({finish.fullRanking.length})
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 8, lineHeight: 1.5 }}>
+                    Tire un gagnant <strong style={{ color: '#cbd5e1' }}>au hasard parmi TOUS les joueurs</strong>, quel que soit leur classement (idéal pour un lot offert à un participant chanceux).
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 8 }}>
-                  Chaque tirage utilise une graine traçable (affichée) et est enregistré dans l'historique du tournoi.
+                <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 14, textAlign: 'center', fontStyle: 'italic' }}>
+                  🔐 Chaque tirage utilise une graine traçable (affichée) et est enregistré dans l'historique du tournoi.
                 </div>
               </div>
             );
