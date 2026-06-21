@@ -568,34 +568,57 @@ function TournamentDetailModal({ detail, loading, error, onSaveDraw, onClose }) 
             {rounds.map((rd, i) => {
               const gp = rd.good_pair_content;
               const zones = Array.isArray(rd.zones) ? rd.zones : [];
-              // Dérive les 2 cartes de la bonne paire (zones non-distractrices partageant un pairId)
+              const pairsFound = Array.isArray(rd.pairs_found) ? rd.pairs_found : [];
+              // Bonne paire de secours (anciennes données sans pairs_found détaillé)
               const goodZones = zones.filter(z => z?.pairId && !z?.isDistractor);
               let pairA, pairB;
               if (gp && typeof gp === 'object') { pairA = gp.a; pairB = gp.b; }
               else if (goodZones.length >= 2) { pairA = goodZones[0].content; pairB = goodZones[1].content; }
               else { pairA = goodZones[0]?.content ?? (typeof gp === 'string' ? gp : null); pairB = goodZones[1]?.content ?? null; }
+              const renderCell = (v) => isImageUrl(v) ? <img src={v} alt="" style={{ height: 26, borderRadius: 4 }} /> : <strong>{v != null ? String(v) : '—'}</strong>;
               return (
                 <div key={i} style={{ marginBottom: 10, padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                     <span style={{ fontWeight: 800, color: '#F5A623' }}>Manche {rd.round_number}</span>
                     <span style={{ fontSize: 12, color: '#94a3b8' }}>{PairTypeLabel(rd.good_pair_type)}{rd.good_pair_theme ? ` · ${rd.good_pair_theme}` : ''}{rd.good_pair_level ? ` · ${rd.good_pair_level}` : ''}</span>
                   </div>
-                  {/* Bonne paire */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: 13 }}>
-                    <span style={{ fontSize: 11, color: '#10b981', fontWeight: 700 }}>BONNE PAIRE</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 10px', borderRadius: 8, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.4)' }}>
-                      {isImageUrl(pairA) ? <img src={pairA} alt="" style={{ height: 28, borderRadius: 4 }} /> : <strong>{pairA != null ? String(pairA) : '—'}</strong>}
-                      <span style={{ color: '#64748b' }}>↔</span>
-                      {isImageUrl(pairB) ? <img src={pairB} alt="" style={{ height: 28, borderRadius: 4 }} /> : <strong>{pairB != null ? String(pairB) : '—'}</strong>}
-                    </span>
-                  </div>
-                  {/* Gagnant */}
-                  <div style={{ fontSize: 12, color: '#94a3b8' }}>
-                    {rd.winner_display_name
-                      ? <>🏆 Trouvé par <strong style={{ color: '#e2e8f0' }}>{rd.winner_display_name}</strong>{rd.winner_time_ms ? ` en ${(rd.winner_time_ms / 1000).toFixed(1)}s` : ''}</>
-                      : 'Personne n\'a trouvé cette manche'}
-                    {Array.isArray(rd.errors) && rd.errors.length > 0 && <span style={{ marginLeft: 10, color: '#ef4444' }}>· {rd.errors.length} erreur(s)</span>}
-                  </div>
+
+                  {/* Paires trouvées pendant la manche */}
+                  {pairsFound.length > 0 ? (
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ fontSize: 11, color: '#10b981', fontWeight: 700, marginBottom: 6 }}>PAIRES TROUVÉES ({pairsFound.length})</div>
+                      {pairsFound.map((pf, pi) => (
+                        <div key={pi} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', marginBottom: 4, borderRadius: 8, background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', fontSize: 13, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 13 }}>{pi === 0 ? '🏆' : '✓'}</span>
+                          <strong style={{ color: '#e2e8f0' }}>{pf.display_name || '—'}</strong>
+                          {(pf.pair_a != null || pf.pair_b != null) && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
+                              {renderCell(pf.pair_a)}<span style={{ color: '#64748b' }}>↔</span>{renderCell(pf.pair_b)}
+                            </span>
+                          )}
+                          {pf.time_ms != null && <span style={{ marginLeft: 'auto', fontSize: 11, color: '#94a3b8' }}>{(pf.time_ms / 1000).toFixed(1)}s</span>}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    // Ancien format : une seule paire / un seul gagnant
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: 13 }}>
+                        <span style={{ fontSize: 11, color: '#10b981', fontWeight: 700 }}>BONNE PAIRE</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 10px', borderRadius: 8, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.4)' }}>
+                          {renderCell(pairA)}<span style={{ color: '#64748b' }}>↔</span>{renderCell(pairB)}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                        {rd.winner_display_name
+                          ? <>🏆 Trouvé par <strong style={{ color: '#e2e8f0' }}>{rd.winner_display_name}</strong>{rd.winner_time_ms ? ` en ${(rd.winner_time_ms / 1000).toFixed(1)}s` : ''}</>
+                          : 'Personne n\'a trouvé cette manche'}
+                      </div>
+                    </>
+                  )}
+                  {Array.isArray(rd.errors) && rd.errors.length > 0 && (
+                    <div style={{ fontSize: 12, color: '#ef4444', marginBottom: 4 }}>{rd.errors.length} erreur(s) durant la manche</div>
+                  )}
                   {/* Zones (cartes affichées) */}
                   {zones.length > 0 && (
                     <details style={{ marginTop: 8 }}>

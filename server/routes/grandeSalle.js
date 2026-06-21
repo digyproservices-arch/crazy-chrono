@@ -307,7 +307,7 @@ router.get('/tournaments/:id/details', requireAdmin, async (req, res) => {
     if (tournament.session_id) {
       const { data: roundRows } = await supabaseAdmin
         .from('match_rounds')
-        .select('round_number, zones, good_pair_type, good_pair_theme, good_pair_level, good_pair_content, winner_display_name, winner_time_ms, errors')
+        .select('round_number, zones, good_pair_type, good_pair_theme, good_pair_level, good_pair_content, winner_display_name, winner_time_ms, pairs_found, errors')
         .eq('session_id', tournament.session_id)
         .order('round_number', { ascending: true });
       rounds = roundRows || [];

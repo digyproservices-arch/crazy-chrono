@@ -3132,6 +3132,7 @@ async function gsFinish(salleId) {
                 winner_player_id: rh.pairs_found && rh.pairs_found[0] ? rh.pairs_found[0].player_id : null,
                 winner_display_name: rh.pairs_found && rh.pairs_found[0] ? rh.pairs_found[0].display_name : null,
                 winner_time_ms: rh.pairs_found && rh.pairs_found[0] ? rh.pairs_found[0].time_ms : null,
+                pairs_found: rh.pairs_found || [],
                 errors: rh.errors || []
               }));
               const { error: mrErr } = await supabaseAdmin.from('match_rounds').insert(roundRows);
@@ -5745,8 +5746,23 @@ io.on('connection', (socket) => {
     player.score = (player.score || 0) + 1;
     // 📊 Suivi tentative correcte pour la progression
     try { persistMPAttempt(salle, socket.id, { isCorrect: true, zoneAId: a, zoneBId: b }); } catch {}
-    // 📊 DIAGNOSTIC: Enregistrer la paire trouvée dans roundHistory
-    try { const lr = salle.roundHistory && salle.roundHistory[salle.roundHistory.length - 1]; if (lr) lr.pairs_found.push({ player_id: player.studentId || socket.id, display_name: player.name, timestamp: Date.now(), time_ms: salle.currentRoundStartedAt ? (Date.now() - salle.currentRoundStartedAt) : null }); } catch {}
+    // 📊 DIAGNOSTIC: Enregistrer la paire trouvée dans roundHistory (avec le contenu de la paire)
+    try {
+      const lr = salle.roundHistory && salle.roundHistory[salle.roundHistory.length - 1];
+      if (lr) {
+        const zAf = salle.currentZones?.find(z => String(z.id) === String(a));
+        const zBf = salle.currentZones?.find(z => String(z.id) === String(b));
+        lr.pairs_found.push({
+          player_id: player.studentId || socket.id,
+          display_name: player.name,
+          timestamp: Date.now(),
+          time_ms: salle.currentRoundStartedAt ? (Date.now() - salle.currentRoundStartedAt) : null,
+          pair_id: zAf?.pairId || null,
+          pair_a: zAf ? String(zAf.content || '').substring(0, 200) : null,
+          pair_b: zBf ? String(zBf.content || '').substring(0, 200) : null,
+        });
+      }
+    } catch {}
     
     // Track validated pairId for exclusion
     try {
