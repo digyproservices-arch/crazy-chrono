@@ -5917,77 +5917,27 @@ io.on('connection', (socket) => {
             console.log(`[GS] Player "${player.name}" disconnected from "${currentGS}" (kept for reconnection, eliminated=${!!player.eliminated}, ${salle.players.size} players)`);
             sTrace.push('gs:disconnect', { salle: currentGS, name: player.name, socketId: socket.id, reason, sessionActive: true, keptForReconnect: true, players: salle.players.size, eliminated: !!player.eliminated });
 
-            // ✅ Ne PAS mettre en pause si le joueur est éliminé (spectateur)
+            // ✅ GRANDE SALLE — PAS DE PAUSE (expérience dynamique, ambition mondiale)
+            // Un déconnecté n'arrête JAMAIS le match : il reste marqué `disconnected`
+            // (score gelé), peut revenir en cours de manche (reconnexion gérée au gs:join),
+            // et sera naturellement éliminé à la prochaine vague comme plus faible score.
+            // La pause/grace-period d'origine est volontairement neutralisée ici.
+            // NB: Crazy Arena et le multijoueur classique (mp:*) conservent leur pause.
             if (player.eliminated) {
-              // Joueur éliminé: pas de pause, pas d'attente
               console.log(`[GS] Eliminated player "${player.name}" disconnected — no pause needed`);
             } else {
-            // ✅ PAUSE: Geler le match si peu de joueurs actifs (≤ 4 connectés restants)
-            const activePlayers = Array.from(salle.players.values()).filter(p => !p.disconnected && !p.eliminated);
-            if (salle.status === 'playing' && activePlayers.length <= 3 && !salle._pauseState) {
-              // Geler le round timer
-              let remainingMs = (salle.config.duration || 90) * 1000;
-              if (salle._roundTimerSetAt) {
-                const elapsed = Date.now() - salle._roundTimerSetAt;
-                remainingMs = Math.max(0, (salle.config.duration || 90) * 1000 - elapsed);
+              const activeConnected = Array.from(salle.players.values()).filter(p => !p.disconnected && !p.eliminated);
+              console.log(`[GS] "${player.name}" déconnecté — match CONTINUE (no-pause) — ${activeConnected.length} joueur(s) connecté(s) actif(s)`);
+              sTrace.push('gs:disconnect:no-pause', { salle: currentGS, player: player.name, activeConnected: activeConnected.length });
+
+              // Filet de sécurité: si plus aucun joueur connecté actif, terminer proprement
+              // (évite que le match tourne dans le vide en attendant une vague d'élimination).
+              if (salle.status === 'playing' && activeConnected.length === 0) {
+                console.log(`[GS] ▶️ Salle "${currentGS}" — plus aucun joueur connecté actif → FIN`);
+                sTrace.push('gs:finish:no-active-connected', { salle: currentGS });
+                if (salle.roundTimer) { try { clearTimeout(salle.roundTimer); } catch {} salle.roundTimer = null; }
+                gsFinish(currentGS);
               }
-              if (salle.roundTimer) { try { clearTimeout(salle.roundTimer); } catch {} salle.roundTimer = null; }
-
-              salle._pauseState = {
-                previousStatus: salle.status,
-                pausedAt: Date.now(),
-                remainingMs,
-                disconnectedSocketId: socket.id,
-                disconnectedPlayerName: player.name
-              };
-              salle.status = 'paused';
-
-              const GS_GRACE_PERIOD_MS = 15000;
-
-              io.to(`gs:${currentGS}`).emit('gs:match-paused', {
-                disconnectedPlayer: player.name,
-                gracePeriodMs: GS_GRACE_PERIOD_MS
-              });
-
-              console.log(`[GS] ⏸️ Salle "${currentGS}" en PAUSE — ${player.name} déconnecté — grace ${GS_GRACE_PERIOD_MS / 1000}s — timer restant ${Math.round(remainingMs / 1000)}s`);
-              sTrace.push('gs:match-paused', { salle: currentGS, player: player.name, gracePeriodMs: GS_GRACE_PERIOD_MS, remainingMs: Math.round(remainingMs), activePlayers: activePlayers.length });
-
-              salle._forfeitTimeout = setTimeout(() => {
-                if (!salle || salle.status !== 'paused') return;
-
-                const forfeitName = salle._pauseState?.disconnectedPlayerName || '?';
-                const forfeitSocketId = salle._pauseState?.disconnectedSocketId;
-
-                console.log(`[GS] ⏰ Grace period expirée — forfait de ${forfeitName} dans "${currentGS}"`);
-                sTrace.push('gs:player-forfeit', { salle: currentGS, player: forfeitName });
-
-                if (forfeitSocketId) salle.players.delete(forfeitSocketId);
-
-                io.to(`gs:${currentGS}`).emit('gs:player-forfeit', {
-                  forfeitPlayer: forfeitName,
-                  remainingPlayers: salle.players.size
-                });
-
-                // Reprendre
-                const ps = salle._pauseState;
-                salle.status = ps?.previousStatus || 'playing';
-                delete salle._pauseState;
-                salle._forfeitTimeout = null;
-
-                // Vérifier immédiatement si la partie doit finir (≤1 joueur actif)
-                const activeAfterForfeit = Array.from(salle.players.values()).filter(p => !p.eliminated && !p.disconnected);
-                if (activeAfterForfeit.length <= 1) {
-                  console.log(`[GS] ▶️ Salle "${currentGS}" — forfait de ${forfeitName} → ${activeAfterForfeit.length} actif(s) restant(s) → FIN`);
-                  gsFinish(currentGS);
-                } else {
-                  const remMs = ps?.remainingMs || 1000;
-                  salle._roundTimerSetAt = Date.now() - ((salle.config.duration || 90) * 1000 - remMs);
-                  salle.roundTimer = setTimeout(() => { gsEndRound(currentGS); }, remMs);
-                  console.log(`[GS] ▶️ Salle "${currentGS}" reprise après forfait — ${activeAfterForfeit.length} joueur(s) actifs — timer restant ${Math.round(remMs / 1000)}s`);
-                }
-                gsEmitState(currentGS);
-              }, GS_GRACE_PERIOD_MS);
-            }
             } // end else (not eliminated)
           }
           salle.spectators.delete(socket.id);
