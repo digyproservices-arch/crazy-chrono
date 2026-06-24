@@ -2597,6 +2597,11 @@ function createGrandeSalle(id, config = {}) {
 }
 
 const GS_AUTO_START_DELAY = 60; // seconds before auto-start when >= minPlayers
+// ✅ FIX FINISH INSTANTANÉ: au démarrage d'une manche, TOUS les clients GrandeSalle.js
+// se déconnectent pour naviguer vers /carte puis se reconnectent (nouveau socket).
+// Pendant ce court laps, activeConnected peut tomber à 0 alors que la partie est vivante.
+// On attend cette grâce avant de conclure qu'il n'y a réellement plus personne.
+const GS_EMPTY_GRACE_MS = 10000;
 
 function gsCheckAutoStart(salleId) {
   const salle = grandeSalles.get(salleId);
@@ -5545,6 +5550,8 @@ io.on('connection', (socket) => {
           }
           salle.players.set(socket.id, playerData);
           reconnected = true;
+          // ✅ FIX FINISH INSTANTANÉ: un joueur revient → annuler la vérification "salle vide"
+          if (salle._emptyCheckTimer) { try { clearTimeout(salle._emptyCheckTimer); } catch {} salle._emptyCheckTimer = null; }
           console.log(`[GS] ${playerName} reconnected in "${id}" (${bestOldId} -> ${socket.id}), score=${playerData.score}, eliminated=${!!playerData.eliminated}${duplicates.length > 1 ? ` [cleaned ${duplicates.length - 1} duplicate(s)]` : ''}`);
           sTrace.push('gs:reconnect', { salle: id, name: playerName, oldSocketId: bestOldId, newSocketId: socket.id, score: playerData.score, eliminated: !!playerData.eliminated, duplicatesCleaned: duplicates.length - 1 });
 
@@ -5932,11 +5939,28 @@ io.on('connection', (socket) => {
 
               // Filet de sécurité: si plus aucun joueur connecté actif, terminer proprement
               // (évite que le match tourne dans le vide en attendant une vague d'élimination).
+              // ✅ FIX FINISH INSTANTANÉ: NE PAS finir tout de suite. Au démarrage d'une manche,
+              // tous les clients GrandeSalle.js se déconnectent pour naviguer vers /carte puis se
+              // reconnectent. On attend GS_EMPTY_GRACE_MS et on re-vérifie avant de conclure.
               if (salle.status === 'playing' && activeConnected.length === 0) {
-                console.log(`[GS] ▶️ Salle "${currentGS}" — plus aucun joueur connecté actif → FIN`);
-                sTrace.push('gs:finish:no-active-connected', { salle: currentGS });
-                if (salle.roundTimer) { try { clearTimeout(salle.roundTimer); } catch {} salle.roundTimer = null; }
-                gsFinish(currentGS);
+                console.log(`[GS] ⏳ Salle "${currentGS}" — 0 joueur connecté actif → vérification dans ${GS_EMPTY_GRACE_MS / 1000}s (grâce reconnexion /carte)`);
+                sTrace.push('gs:empty-check:scheduled', { salle: currentGS, graceMs: GS_EMPTY_GRACE_MS });
+                if (salle._emptyCheckTimer) { try { clearTimeout(salle._emptyCheckTimer); } catch {} }
+                salle._emptyCheckTimer = setTimeout(() => {
+                  const s = grandeSalles.get(currentGS);
+                  if (s) s._emptyCheckTimer = null;
+                  if (!s || !s.sessionActive || s.status !== 'playing') return;
+                  const stillConnected = Array.from(s.players.values()).filter(p => !p.disconnected && !p.eliminated);
+                  if (stillConnected.length === 0) {
+                    console.log(`[GS] ▶️ Salle "${currentGS}" — toujours 0 joueur connecté actif après grâce → FIN`);
+                    sTrace.push('gs:finish:no-active-connected', { salle: currentGS });
+                    if (s.roundTimer) { try { clearTimeout(s.roundTimer); } catch {} s.roundTimer = null; }
+                    gsFinish(currentGS);
+                  } else {
+                    console.log(`[GS] ✅ Salle "${currentGS}" — ${stillConnected.length} joueur(s) reconnecté(s) → match maintenu`);
+                    sTrace.push('gs:empty-check:recovered', { salle: currentGS, reconnected: stillConnected.length });
+                  }
+                }, GS_EMPTY_GRACE_MS);
               }
             } // end else (not eliminated)
           }
