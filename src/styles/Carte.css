@@ -521,6 +521,20 @@ h3 {
   }
 }
 
+/* ✅ FIX PORTRAIT: carte carrée GARANTIE + roue entièrement visible (aucun rognage).
+   Sans ça, le conteneur pouvait être plus haut que large → object-fit:cover et
+   l'overlay SVG (slice) recadraient les côtés de la roue. On force un carré exact
+   (dimensionné sur la plus petite dimension dispo) et un rendu "contain". */
+@media (max-width: 768px) and (orientation: portrait) {
+  .carte {
+    width: min(100vw, calc(100dvh - 150px)) !important;
+    height: min(100vw, calc(100dvh - 150px)) !important;
+    aspect-ratio: 1 / 1;
+    margin: 0 auto !important;
+  }
+  .carte-bg { object-fit: contain !important; }
+}
+
 /* ========================================
    MOBILE LANDSCAPE — Expérience immersive comme PC
    Restaure le grid, le fond teal et la sidebar
