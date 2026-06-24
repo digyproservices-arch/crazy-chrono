@@ -690,6 +690,20 @@ h3 {
   color: rgba(255, 255, 255, 0.6);
   margin: 0;
 }
+.cc-rotate-dismiss {
+  margin-top: 24px;
+  padding: 12px 28px;
+  border-radius: 12px;
+  border: 2px solid #1AACBE;
+  background: rgba(26, 172, 190, 0.18);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.cc-rotate-dismiss:active {
+  background: rgba(26, 172, 190, 0.35);
+}
 
 @keyframes ccRotatePhone {
   0%, 100% { transform: rotate(0deg); }

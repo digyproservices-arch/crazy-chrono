@@ -302,6 +302,8 @@ const Carte = () => {
   // Responsive UI state
   const [isMobile, setIsMobile] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
+  // Permet au joueur de fermer l'overlay "tournez votre téléphone" et de jouer en portrait
+  const [rotateOverlayDismissed, setRotateOverlayDismissed] = useState(false);
   // Socket and timers
   const socketRef = useRef(null);
   const trainingEndedRef = useRef(false);
@@ -7995,14 +7997,21 @@ setZones(dataWithRandomTexts);
 
  return (
     <div className={`carte-container ${hasSidebar ? 'game-with-sidebar' : ''}`} style={{ position: 'relative' }}>
-      {/* Overlay: tournez votre téléphone en mode paysage */}
-      {isMobile && isPortrait && (gameActive || roomStatus === 'playing') && (
+      {/* Overlay: tournez votre téléphone en mode paysage (non bloquant — on peut jouer en vertical) */}
+      {isMobile && isPortrait && !rotateOverlayDismissed && (gameActive || roomStatus === 'playing') && (
         <div className="cc-rotate-overlay">
           <div className="cc-rotate-content">
             <div className="cc-rotate-phone">📱</div>
             <div className="cc-rotate-arrow">↻</div>
             <p className="cc-rotate-text">Tournez votre téléphone en mode paysage</p>
-            <p className="cc-rotate-sub">pour une meilleure expérience de jeu</p>
+            <p className="cc-rotate-sub">recommandé pour une meilleure expérience</p>
+            <button
+              type="button"
+              className="cc-rotate-dismiss"
+              onClick={() => setRotateOverlayDismissed(true)}
+            >
+              Jouer en vertical
+            </button>
           </div>
         </div>
       )}
