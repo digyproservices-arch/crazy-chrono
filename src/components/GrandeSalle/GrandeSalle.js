@@ -54,6 +54,17 @@ function resolveImageSrc(raw) {
     : process.env.PUBLIC_URL + '/' + (raw.startsWith('/') ? raw.slice(1) : (raw.startsWith('images/') ? raw : 'images/' + raw));
   return encodeURI(normalized).replace(/ /g, '%20').replace(/\(/g, '%28').replace(/\)/g, '%29');
 }
+// Résout une URL de logo/image partenaire (relative /images/... ou absolue https://...)
+function resolvePartnerLogo(raw) {
+  if (!raw) return null;
+  if (raw.startsWith('http')) return raw;
+  if (raw.startsWith('/')) return window.location.origin + raw;
+  return raw;
+}
+// Détecte si une URL pointe vers une image (et non une vidéo YouTube)
+function isPartnerImageUrl(u) {
+  return /\.(png|jpe?g|webp|gif|avif|svg)(\?.*)?$/i.test(String(u || '').trim());
+}
 
 const PAGE = { minHeight: '100dvh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', color: '#fff', padding: '20px 16px' };
 const CARD = { background: 'rgba(255,255,255,0.08)', borderRadius: 16, padding: 20, border: '1px solid rgba(255,255,255,0.1)' };
@@ -81,6 +92,7 @@ export default function GrandeSalle() {
   const [pairFeedback, setPairFeedback] = useState(null);
   const [roundTimeLeft, setRoundTimeLeft] = useState(null);
   const [tournamentTitle, setTournamentTitle] = useState(null);
+  const [tournamentInfo, setTournamentInfo] = useState(null);
   const [upcomingTournaments, setUpcomingTournaments] = useState([]);
   const [lobbyCountdown, setLobbyCountdown] = useState(null);
   const [eliminatedData, setEliminatedData] = useState(null);
@@ -185,6 +197,16 @@ export default function GrandeSalle() {
     fetch(`${backendUrl}/api/gs/tournaments?upcoming=true`)
       .then(r => r.json())
       .then(j => { if (j.ok) setUpcomingTournaments(j.tournaments || []); })
+      .catch(() => {});
+  }, [tournamentId]);
+
+  // Fetch tournament details (titre + infos lot partenaire) pour l'écran d'attente du joueur
+  useEffect(() => {
+    if (!tournamentId) return;
+    const backendUrl = getBackendUrl();
+    fetch(`${backendUrl}/api/gs/tournaments/${tournamentId}`)
+      .then(r => r.json())
+      .then(j => { if (j.ok && j.tournament) { setTournamentInfo(j.tournament); if (j.tournament.title) setTournamentTitle(t => t || j.tournament.title); } })
       .catch(() => {});
   }, [tournamentId]);
 
@@ -492,8 +514,33 @@ export default function GrandeSalle() {
         <h1 style={{ fontSize: 32, fontWeight: 900, margin: 0, background: 'linear-gradient(135deg, #F5A623, #ff6b35)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{tournamentTitle || 'Grande Salle'}</h1>
         <p style={{ color: '#94a3b8', fontSize: 16, marginTop: 8 }}>{tournamentId ? 'Tournoi programmé' : 'Course Éliminatoire — Tous les abonnés sont les bienvenus !'}</p>
       </div>
-      {/* QR CODE pour les tournois (visible quand projeté) */}
-      {tournamentId && (
+      {/* Le joueur a déjà rejoint via le QR → on lui montre le LOT À GAGNER.
+          Repli sur le QR uniquement si aucun lot n'est défini pour ce tournoi. */}
+      {tournamentId && (tournamentInfo?.partner_lot || tournamentInfo?.partner_name) ? (
+        <div style={{ ...CARD, textAlign: 'center', marginBottom: 24, background: 'linear-gradient(135deg, rgba(245,166,35,0.18), rgba(255,107,53,0.10))', border: '2px solid rgba(245,166,35,0.5)' }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#F5A623', letterSpacing: 1, marginBottom: 12 }}>🎁 LOT À GAGNER</div>
+          {isPartnerImageUrl(tournamentInfo.partner_video_url) && (
+            <img
+              src={resolvePartnerLogo(tournamentInfo.partner_video_url)}
+              alt="Lot à gagner"
+              style={{ width: '100%', borderRadius: 12, display: 'block', marginBottom: 14, boxShadow: '0 8px 24px rgba(0,0,0,0.35)' }}
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+          )}
+          {tournamentInfo.partner_lot && (
+            <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', marginBottom: 14, textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>{tournamentInfo.partner_lot}</div>
+          )}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12, background: 'rgba(255,255,255,0.95)', borderRadius: 14, padding: '10px 18px' }}>
+            {tournamentInfo.partner_logo_url && (
+              <img src={resolvePartnerLogo(tournamentInfo.partner_logo_url)} alt={tournamentInfo.partner_name || 'Partenaire'} style={{ height: 42, borderRadius: 8 }} onError={(e) => { e.target.style.display = 'none'; }} />
+            )}
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Offert par</div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: '#0D6A7A' }}>{tournamentInfo.partner_name || 'notre partenaire'}</div>
+            </div>
+          </div>
+        </div>
+      ) : tournamentId && (
         <div style={{ ...CARD, textAlign: 'center', marginBottom: 24, background: 'rgba(255,255,255,0.95)', border: '2px solid #F5A623' }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>Flashez pour rejoindre</div>
           <img
