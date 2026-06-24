@@ -286,9 +286,9 @@ export default function TournamentAdmin() {
                   <input value={partnerLot} onChange={e => setPartnerLot(e.target.value)} placeholder="Ex: Une tablette + un bon d'achat de 50€" style={INPUT} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4, display: 'block' }}>Vidéo YouTube de présentation du lot</label>
-                  <input value={partnerVideoUrl} onChange={e => setPartnerVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." style={INPUT} />
-                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Diffusée dans la salle d'attente du tournoi (chaîne YouTube Crazy Chrono)</div>
+                  <label style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4, display: 'block' }}>Vidéo YouTube ou image (paysage) de présentation du lot</label>
+                  <input value={partnerVideoUrl} onChange={e => setPartnerVideoUrl(e.target.value)} placeholder="https://...youtube.com/watch?v=...  ou  https://.../bannière.png" style={INPUT} />
+                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Diffusée dans la salle d'attente. Accepte une vidéo YouTube OU une image paysage (.png/.jpg/.webp), idéalement au format 16:9.</div>
                 </div>
                 {partnerLogoUrl.trim() && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

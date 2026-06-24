@@ -420,6 +420,13 @@ export default function LiveBoard() {
   const svgPath = `${process.env.PUBLIC_URL}/images/carte-svg.svg`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(`${window.location.origin}/grande-salle/join/${tournamentId}`)}&color=0D6A7A`;
   const partnerVideoEmbed = getYouTubeEmbedUrl(tournamentInfo?.partner_video_url);
+  // ✅ Le champ "vidéo" accepte AUSSI une image paysage (.png/.jpg/...) :
+  // si ce n'est pas une vidéo YouTube mais une URL d'image, on l'affiche dans le cadre.
+  const isImageUrl = (u) => /\.(png|jpe?g|webp|gif|avif|svg)(\?.*)?$/i.test(String(u || '').trim());
+  const partnerImageUrl = (!partnerVideoEmbed && isImageUrl(tournamentInfo?.partner_video_url))
+    ? resolvePartnerLogo(String(tournamentInfo.partner_video_url).trim())
+    : null;
+  const hasPartnerMedia = !!(partnerVideoEmbed || partnerImageUrl);
   const hasPartner = !!(tournamentInfo?.partner_name || tournamentInfo?.partner_lot);
 
   const BADGE = (c) => ({ display: 'inline-block', padding: '4px 12px', borderRadius: 20, background: c, fontSize: 12, fontWeight: 700 });
@@ -493,7 +500,7 @@ export default function LiveBoard() {
         {/* ENCART PARTENAIRE — lot à gagner + vidéo de présentation */}
         {hasPartner && (
           <div style={{ marginTop: 24, background: 'linear-gradient(135deg, rgba(245,166,35,0.18), rgba(255,107,53,0.10))', border: '2px solid rgba(245,166,35,0.5)', borderRadius: 20, padding: 24 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: partnerVideoEmbed ? '1fr 1fr' : '1fr', gap: 24, alignItems: 'center' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: hasPartnerMedia ? '1fr 1fr' : '1fr', gap: 24, alignItems: 'center' }}>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 16, fontWeight: 800, color: CC.yellow, marginBottom: 10, letterSpacing: 1 }}>🎁 LOT À GAGNER</div>
                 {tournamentInfo.partner_lot && (
@@ -517,6 +524,16 @@ export default function LiveBoard() {
                     style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
                     allow="autoplay; encrypted-media; picture-in-picture"
                     allowFullScreen
+                  />
+                </div>
+              )}
+              {!partnerVideoEmbed && partnerImageUrl && (
+                <div style={{ borderRadius: 14, overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.4)' }}>
+                  <img
+                    src={partnerImageUrl}
+                    alt="Lot à gagner — présentation"
+                    style={{ width: '100%', display: 'block' }}
+                    onError={(e) => { e.target.style.display = 'none'; }}
                   />
                 </div>
               )}
