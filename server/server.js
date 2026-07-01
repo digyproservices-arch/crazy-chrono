@@ -2732,6 +2732,25 @@ function gsRemainingMs(salle) {
   return Math.max(0, durMs - (Date.now() - basis));
 }
 
+// ✅ Log DURABLE (Supabase) d'incidents Grande Salle — survit aux redémarrages et au
+// débordement des tampons mémoire (500 max), pour l'analyse post-événement.
+// Ne bloque JAMAIS le jeu si l'insert échoue.
+function logGsIncidentDurable(type, details = {}) {
+  if (!supabaseAdmin) return;
+  (async () => {
+    try {
+      const { error } = await supabaseAdmin.from('mon_game_incidents').insert({
+        incident_type: type,
+        severity: 'warning',
+        session_info: { salle: details.salle || null, name: details.name || null },
+        details,
+        created_at: new Date().toISOString(),
+      });
+      if (error) logger.warn('[GS][Incident durable] insert error:', error.message);
+    } catch (e) { logger.warn('[GS][Incident durable] insert failed:', e.message); }
+  })();
+}
+
 function gsStartRound(salleId) {
   const salle = grandeSalles.get(salleId);
   if (!salle || !salle.sessionActive) return;
@@ -5598,7 +5617,20 @@ io.on('connection', (socket) => {
       if (!reconnected) {
         salle.spectators.add(socket.id);
         socket.emit('gs:joined-as-spectator', { salleId: id, tournamentTitle: salle.tournamentTitle || null });
+        // ✅ FIX SALLE D'ATTENTE: un joueur qui arrive en cours de partie doit recevoir
+        // la manche en cours, sinon il reste bloqué sur un écran vide/figé.
+        if (Array.isArray(salle.currentZones) && salle.currentZones.length > 0) {
+          socket.emit('gs:round:new', {
+            zones: salle.currentZones,
+            duration: salle.config.duration || 90,
+            roundIndex: salle.roundsPlayed,
+            startedAt: salle.currentRoundStartedAt || Date.now(),
+            remainingMs: gsRemainingMs(salle),
+            eliminationWave: salle.eliminationWave,
+          });
+        }
         console.log(`[GS] ${playerName} joined "${id}" as spectator (game in progress)`);
+        logGsIncidentDurable('gs_join_midgame_spectator', { salle: id, name: playerName, socket: socket.id });
       }
     } else {
       // ✅ FIX: Dédupliquer — si un joueur avec le même nom existe déjà en lobby, supprimer TOUS les anciens sockets
@@ -5630,6 +5662,29 @@ io.on('connection', (socket) => {
     
     gsEmitState(id);
     if (typeof cb === 'function') cb({ ok: true, salleId: id, status: salle.status, playerCount: salle.players.size, tournamentTitle: salle.tournamentTitle || null, autoStartCountdown: salle.autoStartCountdown, manualStart: salle.config.manualStart || false });
+  });
+
+  // ✅ FIX SALLE D'ATTENTE: rattrapage — un joueur qui a raté le gs:round:new unique
+  // (décrochage réseau au moment du lancement) redemande la manche en cours.
+  socket.on('gs:request-round', () => {
+    if (!currentGS) return;
+    const salle = grandeSalles.get(currentGS);
+    if (!salle || !salle.sessionActive) return;
+    if (!Array.isArray(salle.currentZones) || salle.currentZones.length === 0) return;
+    try { socket.join(`gs:${currentGS}`); } catch {}
+    const player = salle.players.get(socket.id);
+    const isEliminated = !!(player?.eliminated) || salle.spectators.has(socket.id);
+    socket.emit('gs:round:new', {
+      zones: salle.currentZones,
+      duration: salle.config.duration || 90,
+      roundIndex: salle.roundsPlayed,
+      startedAt: salle.currentRoundStartedAt || Date.now(),
+      remainingMs: gsRemainingMs(salle),
+      eliminationWave: salle.eliminationWave,
+    });
+    console.log(`[GS] ⏪ Rattrapage round pour ${player?.name || socket.id} dans "${currentGS}" (eliminated=${isEliminated})`);
+    sTrace.push('gs:round-catchup', { salle: currentGS, socket: socket.id, name: player?.name || null, eliminated: isEliminated });
+    logGsIncidentDurable('gs_lobby_stuck_recovered', { salle: currentGS, name: player?.name || null, socket: socket.id, eliminated: isEliminated });
   });
 
   socket.on('gs:leave', () => {

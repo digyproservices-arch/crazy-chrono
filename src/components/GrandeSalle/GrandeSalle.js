@@ -123,6 +123,9 @@ export default function GrandeSalle() {
   }, [leaderboard, players]);
   // ✅ FIX: Ref to track eliminated status across closures (prevents gs:round:new from navigating back to /carte)
   const eliminatedRef = useRef((() => { try { return !!localStorage.getItem('cc_gs_elimination'); } catch { return false; } })());
+  // ✅ FIX SALLE D'ATTENTE: rattrapage d'un gs:round:new manqué (décrochage réseau au lancement)
+  const isSpectatorRef = useRef(false);
+  const lastRoundRequestRef = useRef(0);
 
   // Check if user is admin (can start manually)
   const isAdmin = (() => { try { const a = JSON.parse(localStorage.getItem('cc_auth') || '{}'); return a.role === 'admin' || a.role === 'cpd'; } catch { return false; } })();
@@ -274,6 +277,7 @@ export default function GrandeSalle() {
         // Si status=playing/paused, le joueur reconnecte et le serveur enverra gs:joined-as-spectator
         if (res?.status === 'lobby') {
           eliminatedRef.current = false;
+          isSpectatorRef.current = false;
           setIsSpectator(false);
           try { localStorage.removeItem('cc_gs_elimination'); } catch {}
         }
@@ -286,12 +290,24 @@ export default function GrandeSalle() {
     socket.on('gs:state', (d) => {
       setStatus(d.status); setPlayers(d.players||[]); setTotalPlayers(d.totalPlayers||0);
       setActivePlayers(d.activePlayers||0); setEliminationWave(d.eliminationWave||0); setRoundsPlayed(d.roundsPlayed||0);
+      // ✅ FIX SALLE D'ATTENTE: si la partie tourne (status=playing) mais que ce client est
+      // toujours sur l'écran d'attente (composant non démonté), c'est qu'il a raté le
+      // gs:round:new unique. On redemande la manche en cours (max 1 fois / 2s).
+      if (d.status === 'playing' && !isSpectatorRef.current && !eliminatedRef.current) {
+        const now = Date.now();
+        if (now - lastRoundRequestRef.current > 2000) {
+          lastRoundRequestRef.current = now;
+          console.warn('[GS] ⏪ Rattrapage: gs:round:new manqué → gs:request-round');
+          try { socket.emit('gs:request-round'); } catch {}
+        }
+      }
     });
-    socket.on('gs:joined-as-spectator', (d) => { setIsSpectator(true); if (d?.reason === 'eliminated') eliminatedRef.current = true; if (d?.tournamentTitle) setTournamentTitle(d.tournamentTitle); });
+    socket.on('gs:joined-as-spectator', (d) => { setIsSpectator(true); isSpectatorRef.current = true; if (d?.reason === 'eliminated') eliminatedRef.current = true; if (d?.tournamentTitle) setTournamentTitle(d.tournamentTitle); });
     socket.on('gs:lobby-countdown', ({ t }) => setLobbyCountdown(t));
     socket.on('gs:countdown', ({ t }) => {
       // ✅ FIX: Si countdown reçu, le joueur est actif dans cette partie
       eliminatedRef.current = false;
+      isSpectatorRef.current = false;
       setIsSpectator(false);
       setLobbyCountdown(null); setCountdown(t); setStatus('countdown');
     });
