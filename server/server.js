@@ -20,6 +20,11 @@ const alerting = require('./utils/alerting');
 try { require('dotenv').config({ path: require('path').join(__dirname, '.env') }); } catch {}
 const app = express();
 
+// ✅ FIX: Render (et la plupart des PaaS) placent l'app derrière UN proxy.
+// Sans ceci, express-rate-limit lève "ERR_ERL_UNEXPECTED_X_FORWARDED_FOR" et req.ip
+// vaut l'IP du proxy (tous les joueurs vus comme une seule IP). '1' = 1 seul hop de confiance.
+app.set('trust proxy', 1);
+
 // ==========================================
 // CORS CONFIGURATION (MUST BE FIRST)
 // ==========================================
@@ -3151,7 +3156,7 @@ async function gsFinish(salleId) {
               const roundRows = roundHistory.map(rh => ({
                 session_id: sessionId,
                 round_number: rh.round_number,
-                zones: rh.zones,
+                zones: rh.zones || [], // ✅ FIX: colonne NOT NULL — jamais envoyer null
                 good_pair_type: rh.good_pair_type,
                 good_pair_theme: rh.good_pair_theme,
                 good_pair_level: rh.good_pair_level,
@@ -3947,7 +3952,7 @@ function endSession(roomCode) {
             const roundRows = roundHistory.map(rh => ({
               session_id: sessionId,
               round_number: rh.roundNumber,
-              zones: rh.zones,
+              zones: rh.zones || [], // ✅ FIX: colonne NOT NULL — jamais envoyer null
               good_pair_type: rh.goodPairType,
               good_pair_theme: rh.goodPairTheme,
               good_pair_level: rh.goodPairLevel,
@@ -5543,14 +5548,22 @@ io.on('connection', (socket) => {
       return;
     }
     
+    // ✅ FIX RECONNEXION: identifier un joueur par studentId (unique) en priorité,
+    // repli sur le nom uniquement si l'un des deux côtés n'a pas de studentId.
+    // Évite qu'un homonyme se reconnecte sur la fiche (score) d'un autre joueur.
+    const isSamePlayer = (p) => {
+      if (gsStudentId && p.studentId) return String(p.studentId) === String(gsStudentId);
+      return p.name === playerName;
+    };
+
     // If game is in progress, check if this player was already in the room (reconnection from Carte.js)
     if (salle.sessionActive) {
-      // Try to find existing player by name (reconnection after navigating to /carte)
+      // Try to find existing player by studentId (fallback name) — reconnection after navigating to /carte
       let reconnected = false;
       // ✅ FIX: Collecter TOUS les doublons pour ce joueur, garder le meilleur score
       const duplicates = [];
       for (const [oldId, p] of salle.players.entries()) {
-        if (p.name === playerName && oldId !== socket.id) duplicates.push([oldId, p]);
+        if (isSamePlayer(p) && oldId !== socket.id) duplicates.push([oldId, p]);
       }
       // Trier par score desc pour garder le meilleur
       duplicates.sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
@@ -5633,10 +5646,10 @@ io.on('connection', (socket) => {
         logGsIncidentDurable('gs_join_midgame_spectator', { salle: id, name: playerName, socket: socket.id });
       }
     } else {
-      // ✅ FIX: Dédupliquer — si un joueur avec le même nom existe déjà en lobby, supprimer TOUS les anciens sockets
+      // ✅ FIX: Dédupliquer — même joueur (studentId prioritaire, repli nom) déjà en lobby → purger anciens sockets
       const lobbyDups = [];
       for (const [oldId, p] of salle.players.entries()) {
-        if (p.name === playerName && oldId !== socket.id) lobbyDups.push(oldId);
+        if (isSamePlayer(p) && oldId !== socket.id) lobbyDups.push(oldId);
       }
       for (const oldId of lobbyDups) {
         salle.players.delete(oldId);

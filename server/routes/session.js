@@ -274,14 +274,18 @@ router.post('/device/register', async (req, res) => {
     // Non-student: enregistrer le device pour info/monitoring, mais ne jamais bloquer
     if (role !== 'student') {
       // Enregistrer silencieusement pour le monitoring, sans limite
-      await supabaseAdmin.rpc('register_device', {
-        p_user_id: userId,
-        p_fingerprint: fingerprint,
-        p_device_name: name || null,
-        p_browser: browser || null,
-        p_os: os || null,
-        p_max_devices: 9999,
-      }).catch(() => {});
+      // ✅ FIX: le builder supabase.rpc() n'a PAS de .catch() (thenable seulement) —
+      // .catch() provoquait "TypeError: .catch is not a function". On enveloppe.
+      try {
+        await supabaseAdmin.rpc('register_device', {
+          p_user_id: userId,
+          p_fingerprint: fingerprint,
+          p_device_name: name || null,
+          p_browser: browser || null,
+          p_os: os || null,
+          p_max_devices: 9999,
+        });
+      } catch (e) { console.warn('[Device] register_device (non-student) ignoré:', e.message); }
       console.log(`[Device] ✅ ${role} ${who.user.email} — device enregistré (pas de limite)`);
       return res.json({ ok: true, status: 'ok', deviceCount: 0 });
     }

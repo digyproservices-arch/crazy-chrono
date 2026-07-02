@@ -3698,7 +3698,7 @@ class CrazyArenaManager {
           const roundRows = match._roundHistory.map(rh => ({
             session_id: match._sessionId,
             round_number: rh.round_number,
-            zones: rh.zones,
+            zones: rh.zones || [], // ✅ FIX: colonne NOT NULL — jamais envoyer null
             good_pair_type: rh.good_pair_type,
             good_pair_theme: rh.good_pair_theme,
             good_pair_level: rh.good_pair_level,
@@ -4021,7 +4021,7 @@ class CrazyArenaManager {
           const roundRows = match._roundHistory.map(rh => ({
             session_id: matchId,
             round_number: rh.round_number,
-            zones: rh.zones,
+            zones: rh.zones || [], // ✅ FIX: colonne NOT NULL — jamais envoyer null
             good_pair_type: rh.good_pair_type,
             good_pair_theme: rh.good_pair_theme,
             good_pair_level: rh.good_pair_level,

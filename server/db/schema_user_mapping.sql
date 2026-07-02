@@ -74,6 +74,17 @@ LEFT JOIN licenses l ON
   (l.owner_type = 'student' AND l.owner_id = usm.student_id)
 WHERE usm.student_id IS NOT NULL;
 
+-- ============================================================
+-- SÉCURITÉ — Alerte Supabase "auth_users_exposed"
+-- La vue user_licenses lit auth.users (email, id). Elle ne doit
+-- JAMAIS être accessible aux rôles publics de l'API. Le backend
+-- l'interroge via la clé service_role (qui ignore ces restrictions),
+-- donc fermer l'accès public NE CASSE PAS l'application.
+-- ============================================================
+REVOKE ALL ON user_licenses FROM anon;
+REVOKE ALL ON user_licenses FROM authenticated;
+ALTER VIEW user_licenses SET (security_invoker = true);
+
 -- Fonction pour vérifier si un user peut jouer
 CREATE OR REPLACE FUNCTION check_user_can_play(p_user_id UUID)
 RETURNS TABLE(
