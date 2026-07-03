@@ -261,6 +261,25 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     }
   }
 
+  // 🔍 [OBJ-TRACE] Trace temporaire (diagnostic bug objectif) — à retirer après analyse
+  try {
+    const catCount = {};
+    for (const a of associations) {
+      for (const t of (Array.isArray(a.themes) ? a.themes : [])) {
+        const ts = String(t);
+        if (ts.startsWith('category:')) catCount[ts] = (catCount[ts] || 0) + 1;
+      }
+    }
+    console.log('[OBJ-TRACE][elementsLoader] Filtre appliqué:', {
+      objectiveMode: isObjectiveMode,
+      classesFiltre: isObjectiveMode ? 'DÉSACTIVÉ (mode objectif)' : (cfg?.classes || null),
+      extrasFiltre: isObjectiveMode ? 'DÉSACTIVÉ (mode objectif)' : (cfg?.extras || null),
+      themesSource: isObjectiveMode ? `objectiveThemes (${(cfg?.objectiveThemes || []).length})` : `themes (${(cfg?.themes || []).length})`,
+      associationsRestantes: associations.length,
+      distributionParCategorie: catCount,
+    });
+  } catch {}
+
   // ===== Filtrage des paires déjà validées =====
   // Construire les pairIds pour chaque association et exclure celles déjà validées
   // Format: assoc-img-{imageId}-txt-{texteId} ou assoc-calc-{calculId}-num-{chiffreId}

@@ -253,6 +253,30 @@ export default function PedagogicConfig({ data, onChange, initialConfig, options
     return tags;
   }, [enabledDomains, selectedExtras]);
 
+  // ✅ FIX OBJECTIF: liste des thèmes pour le MODE OBJECTIF uniquement.
+  // Contrairement à computedThemes (qui inclut TOUTES les catégories des domaines activés,
+  // contenu par le filtre de niveau en mode normal), le mode objectif désactive le filtre
+  // de niveau côté génération (elementsLoader). Il faut donc restreindre ici les catégories
+  // math à celles du niveau choisi (LEVEL_INCLUDES) + les extras explicitement cochés,
+  // sinon un CP reçoit fractions/équations/tables 10-12 (bug constaté).
+  const objectiveComputedThemes = useMemo(() => {
+    const allEnabled = CONTENT_DOMAINS.every(d => enabledDomains[d.key]);
+    if (allEnabled && selectedExtras.length === 0) return []; // objectif simple (nombre de paires)
+    const inc = LEVEL_INCLUDES[selectedLevel] || new Set();
+    const tags = [];
+    CONTENT_DOMAINS.forEach(d => {
+      if (!enabledDomains[d.key]) return;
+      // ⚠️ Pas les tags génériques math (domain:math, multiplication): un calcul
+      // "category:fraction" taggé aussi "domain:math" passerait le filtre par thème.
+      if (d.key !== 'math') tags.push(...d.tags);
+      d.categories.forEach(c => {
+        if (d.key !== 'math' || inc.has(c)) tags.push(c);
+      });
+    });
+    selectedExtras.forEach(e => { if (!tags.includes(e)) tags.push(e); });
+    return tags;
+  }, [enabledDomains, selectedExtras, selectedLevel]);
+
   const dataStats = useMemo(() => {
     const maxIdx = Math.max(...selectedClasses.map(c => LEVEL_INDEX[NORM_LEVEL(c)] ?? -1));
     const themeSet = new Set(computedThemes);
@@ -304,6 +328,16 @@ export default function PedagogicConfig({ data, onChange, initialConfig, options
     if (!onChange) return;
     const r = clampInt(rounds, 1, maxRounds, 3);
     const d = clampInt(duration, 15, maxDuration, 60);
+    // 🔍 [OBJ-TRACE] Trace temporaire (diagnostic bug objectif) — à retirer après analyse
+    try {
+      if (objectiveMode) console.log('[OBJ-TRACE][PedagogicConfig] Config objectif émise:', {
+        selectedLevel,
+        extras: selectedExtras,
+        objectiveThemesCount: objectiveComputedThemes.length,
+        objectiveThemes: objectiveComputedThemes,
+        objectiveTarget: showObjectiveTarget ? objectiveTarget : objectiveComputedThemes.length,
+      });
+    } catch {}
     onChange({
       selectedLevel,
       classes: selectedClasses,
@@ -313,15 +347,15 @@ export default function PedagogicConfig({ data, onChange, initialConfig, options
       rounds: r,
       duration: objectiveMode ? null : d,
       objectiveMode: !!objectiveMode,
-      objectiveTarget: objectiveMode ? (showObjectiveTarget ? objectiveTarget : computedThemes.length) : null,
-      objectiveThemes: objectiveMode ? computedThemes : [],
+      objectiveTarget: objectiveMode ? (showObjectiveTarget ? objectiveTarget : objectiveComputedThemes.length) : null,
+      objectiveThemes: objectiveMode ? objectiveComputedThemes : [],
       helpEnabled: !!helpEnabled,
       allowEmptyMathWhenNoData: !!allowEmptyMath,
       playerZone: playerZone || '',
       dataStats,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLevel, selectedClasses, selectedExtras, computedThemes, enabledDomains, rounds, duration, objectiveMode, objectiveTarget, helpEnabled, allowEmptyMath, playerZone, dataStats, maxRounds, maxDuration]);
+  }, [selectedLevel, selectedClasses, selectedExtras, computedThemes, objectiveComputedThemes, enabledDomains, rounds, duration, objectiveMode, objectiveTarget, helpEnabled, allowEmptyMath, playerZone, dataStats, maxRounds, maxDuration]);
 
   // ===== UI =====
   return (
