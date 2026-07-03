@@ -259,21 +259,24 @@ export default function PedagogicConfig({ data, onChange, initialConfig, options
   // de niveau côté génération (elementsLoader). Il faut donc restreindre ici les catégories
   // math à celles du niveau choisi (LEVEL_INCLUDES) + les extras explicitement cochés,
   // sinon un CP reçoit fractions/équations/tables 10-12 (bug constaté).
+  // Choix pédagogique "100% ciblé": si le domaine math est actif, les objectifs (et donc
+  // le plateau, filtré par objectiveThemes) = catégories math du niveau + extras UNIQUEMENT.
+  // Si math est désactivé, objectifs = catégories des domaines activés (jamais les tags
+  // génériques type domain:botany, qui n'ont pas de progression comptable → 0/0 bloquant).
   const objectiveComputedThemes = useMemo(() => {
     const allEnabled = CONTENT_DOMAINS.every(d => enabledDomains[d.key]);
     if (allEnabled && selectedExtras.length === 0) return []; // objectif simple (nombre de paires)
-    const inc = LEVEL_INCLUDES[selectedLevel] || new Set();
     const tags = [];
-    CONTENT_DOMAINS.forEach(d => {
-      if (!enabledDomains[d.key]) return;
-      // ⚠️ Pas les tags génériques math (domain:math, multiplication): un calcul
-      // "category:fraction" taggé aussi "domain:math" passerait le filtre par thème.
-      if (d.key !== 'math') tags.push(...d.tags);
-      d.categories.forEach(c => {
-        if (d.key !== 'math' || inc.has(c)) tags.push(c);
+    if (enabledDomains['math']) {
+      const inc = LEVEL_INCLUDES[selectedLevel] || new Set();
+      inc.forEach(c => { if (!tags.includes(c)) tags.push(c); });
+      selectedExtras.forEach(e => { if (!tags.includes(e)) tags.push(e); });
+    } else {
+      CONTENT_DOMAINS.forEach(d => {
+        if (d.key === 'math' || !enabledDomains[d.key]) return;
+        d.categories.forEach(c => { if (!tags.includes(c)) tags.push(c); });
       });
-    });
-    selectedExtras.forEach(e => { if (!tags.includes(e)) tags.push(e); });
+    }
     return tags;
   }, [enabledDomains, selectedExtras, selectedLevel]);
 

@@ -36,16 +36,11 @@ function computeThemesLikePedagogicConfig(selectedExtras) {
 }
 
 // ===== Réplique EXACTE de objectiveComputedThemes (PedagogicConfig.js — FIX OBJECTIF) =====
-// Catégories math limitées au niveau (LEVEL_INCLUDES) + extras cochés
+// "100% ciblé": math actif → catégories math du niveau (LEVEL_INCLUDES) + extras UNIQUEMENT
 function computeObjectiveThemesLikeFix(selectedLevel, selectedExtras) {
   const inc = LEVEL_INCLUDES[selectedLevel] || new Set();
   const tags = [];
-  CONTENT_DOMAINS.forEach(d => {
-    if (d.key !== 'math') tags.push(...d.tags);
-    d.categories.forEach(c => {
-      if (d.key !== 'math' || inc.has(c)) tags.push(c);
-    });
-  });
+  inc.forEach(c => { if (!tags.includes(c)) tags.push(c); });
   selectedExtras.forEach(e => { if (!tags.includes(e)) tags.push(e); });
   return tags;
 }

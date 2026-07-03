@@ -2507,6 +2507,34 @@ const Carte = () => {
       addDiag('round:new', { duration: payload?.duration, roundIndex: payload?.roundIndex, roundsTotal: payload?.roundsTotal, hasZones: !!payload?.zones, zonesCount: payload?.zones?.length || 0 });
       // Clear waiting timer, if any
       try { if (roundNewTimerRef.current) { clearTimeout(roundNewTimerRef.current); roundNewTimerRef.current = null; } } catch {}
+      // ✅ FIX OBJECTIF: en solo objectif, le plateau est généré et géré 100% localement
+      // (filtré par objectiveThemes). La session serveur (défaut 3×60s) enverrait des
+      // round:new avec zones NON filtrées objectif → écrase le plateau thématique.
+      // 1re manche: démarrage local (timer count-up + génération). Manches suivantes: ignorées.
+      try {
+        const __cfgRN = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
+        if (__cfgRN && __cfgRN.objectiveMode && __cfgRN.mode === 'solo') {
+          if ((payload?.roundIndex || 0) > 0 || payload?.isRegen) {
+            console.log('[CC] round:new IGNORED in solo objective mode (server round churn)');
+            return;
+          }
+          console.log('[CC] round:new (1re manche) solo objectif: génération locale, zones serveur ignorées');
+          setObjectiveMode(true);
+          if (__cfgRN.objectiveTarget) setObjectiveTarget(Math.max(3, Math.min(50, parseInt(__cfgRN.objectiveTarget, 10) || 10)));
+          setObjectiveThemes(Array.isArray(__cfgRN.objectiveThemes) ? __cfgRN.objectiveThemes : []);
+          setHelpEnabled(!!__cfgRN.helpEnabled);
+          setGameActive(true);
+          setTimerResetKey(k => k + 1);
+          setGameSelectedIds([]);
+          setGameMsg('');
+          setCurrentTargetPairKey(null);
+          setValidatedPairIds(new Set());
+          try { enterGameFullscreen(); } catch {}
+          try { setPanelCollapsed(true); } catch {}
+          safeHandleAutoAssign();
+          return;
+        }
+      } catch {}
       // Détecter le mode: si le serveur envoie des zones, c'est multijoueur
       // ✅ FIX: Ne PAS se fier à cc_session_cfg qui peut être stale (ex: mode:solo d'une partie précédente)
       const hasServerZones = Array.isArray(payload?.zones) && payload.zones.length > 0;
@@ -4984,6 +5012,25 @@ const handleEditGreenZone = (zone) => {
   }, [socket]);
   // Handler global pour terminer la session (utilisable dans le rendu)
   const handleEndSessionNow = () => {
+    // ✅ FIX OBJECTIF: en mode objectif, le client gère la fin (session:end serveur est ignoré
+    // par design, cf. handler session:end). Terminer = fin locale immédiate avec bilan.
+    if (objectiveModeRef.current) {
+      const pairsFound = objectivePairsRef.current;
+      const finalTime = timeElapsed + helpPenalty;
+      try { setGameActive(false); } catch {}
+      try { exitGameFullscreen(); } catch {}
+      setSoloGameEndOverlay({
+        score: pairsFound, pairsValidated: pairsFound, duration: finalTime, errors: 0, mode: 'solo',
+        timestamp: Date.now(), objectiveMode: true,
+        objectiveTarget: objectiveThemes.length > 0 ? pairsFound : objectiveTarget,
+        objectiveThemes,
+        objectiveProgress: Array.isArray(objectiveProgressRef.current) ? objectiveProgressRef.current : [],
+        helpStats: { ...helpStatsRef.current },
+        masterySession: getActiveSessionProgress(), masteryAll: getMasteryProgress()
+      });
+      try { socketRef.current && socketRef.current.emit('session:end'); } catch {}
+      return;
+    }
     const s = socketRef.current;
     if (!s) return;
     try { s.emit('session:end'); } catch {}
