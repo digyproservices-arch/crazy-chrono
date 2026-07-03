@@ -2515,7 +2515,16 @@ const Carte = () => {
         const __cfgRN = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
         if (__cfgRN && __cfgRN.objectiveMode && __cfgRN.mode === 'solo') {
           if ((payload?.roundIndex || 0) > 0 || payload?.isRegen) {
-            console.log('[CC] round:new IGNORED in solo objective mode (server round churn)');
+            // Récupération: si le plateau local est cassé (aucune paire valide → écran bloqué,
+            // ex: rejoin watchdog), régénérer localement au lieu d'ignorer.
+            const boardBroken = !(zonesRef.current || []).some(z => (z.pairId || '').trim());
+            if (boardBroken) {
+              console.warn('[CC] round:new in solo objective mode: board broken → local regen (watchdog recovery)');
+              setGameActive(true);
+              safeHandleAutoAssign();
+            } else {
+              console.log('[CC] round:new IGNORED in solo objective mode (server round churn)');
+            }
             return;
           }
           console.log('[CC] round:new (1re manche) solo objectif: génération locale, zones serveur ignorées');

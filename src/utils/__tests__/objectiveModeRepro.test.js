@@ -145,4 +145,45 @@ describe('REPRO bug objectif solo — CP + tables 4/5/6', () => {
     console.log('[REPRO][Objectif ON] Catégories interdites vues:', forbidden);
     expect(forbidden).toEqual([]);
   });
+
+  test('Objectif ON: plateau mixte → zones texte/image remplies par des leurres (pas vides, non appariables)', async () => {
+    const cfg = {
+      mode: 'solo',
+      selectedLevel: 'CP',
+      classes: ['CP'],
+      extras: EXTRAS,
+      themes: COMPUTED_THEMES,
+      objectiveMode: true,
+      objectiveTarget: 10,
+      objectiveThemes: OBJECTIVE_THEMES_FIXED,
+      includeUntagged: true,
+    };
+    localStorage.setItem('cc_session_cfg', JSON.stringify(cfg));
+    resetElementDecks('test-mixed-' + Math.random());
+    const rng = makeRng(7);
+    // Plateau réaliste type zones2: 4 texte, 4 image, 4 calcul, 4 chiffre
+    const MIXED_ZONES = [
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 3000 + i, type: 'texte' })),
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 4000 + i, type: 'image' })),
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 5000 + i, type: 'calcul' })),
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 6000 + i, type: 'chiffre' })),
+    ];
+    let emptyTexteImage = 0;
+    let tiPaired = 0;
+    let ccPairs = 0;
+    for (let r = 0; r < 30; r++) {
+      const result = await assignElementsToZones(MIXED_ZONES.map(z => ({ ...z })), null, assocData, rng, new Set());
+      for (const z of result) {
+        if ((z.type === 'texte' || z.type === 'image')) {
+          if (!(z.content || '').trim()) emptyTexteImage++;
+          if ((z.pairId || '').trim()) tiPaired++;
+        }
+      }
+      if (result.some(z => z.type === 'calcul' && (z.pairId || '').trim())) ccPairs++;
+    }
+    console.log('[REPRO][Plateau mixte] zones texte/image vides:', emptyTexteImage, '| appariables TI:', tiPaired, '| manches avec paire CC:', ccPairs, '/30');
+    expect(emptyTexteImage).toBe(0);   // bug "cartes vides" corrigé
+    expect(tiPaired).toBe(0);          // les leurres ne sont jamais appariables
+    expect(ccPairs).toBe(30);          // la bonne paire reste 100% math
+  });
 });

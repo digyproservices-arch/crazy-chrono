@@ -158,6 +158,12 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   let cfg = null;
   try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch {}
   const isObjectiveMode = !!(cfg && cfg.objectiveMode && Array.isArray(cfg.objectiveThemes) && cfg.objectiveThemes.length > 0);
+  // ✅ FIX OBJECTIF (cartes vides): en mode objectif "100% ciblé" (ex: maths uniquement),
+  // aucun texte/image ne survit au filtre par objectiveThemes → zones texte/image blanches.
+  // On conserve un pool de DISTRACTEURS texte/image filtré par NIVEAU (jamais appariable:
+  // aucune association TI ne survit au filtre → zones sans pairId, clic rejeté).
+  let objectiveDecoyTextes = null;
+  let objectiveDecoyImages = null;
   if (cfg && (Array.isArray(cfg.classes) || Array.isArray(cfg.themes) || isObjectiveMode)) {
     // En mode objectif: ignorer le filtre de niveau (classes), filtrer UNIQUEMENT par objectiveThemes
     const selectedClasses = isObjectiveMode ? null : (Array.isArray(cfg.classes) ? cfg.classes : null);
@@ -215,6 +221,25 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       return tags.some(t => extrasSet.has(t));
     };
     const filterEl = (el) => matchesExtra(el) || (hasClass(el) && hasThemes(el));
+    // ✅ FIX OBJECTIF: pool de distracteurs texte/image filtré par niveau uniquement
+    if (isObjectiveMode) {
+      const lvlClasses = Array.isArray(cfg.classes) ? cfg.classes.filter(Boolean) : [];
+      const maxDecoyIdx = lvlClasses.length ? Math.max(...lvlClasses.map(c => lvlIdx[c] ?? -1)) : 99;
+      const decoyHasClass = (el) => {
+        if (!lvlClasses.length) return true;
+        const lc = el?.levelClass ? [String(el.levelClass)] : [];
+        const arr = el?.levels || el?.classes || el?.classLevels || [];
+        const vals = [...lc, ...arr].map(normLvl).filter(Boolean);
+        if (vals.length === 0) return false;
+        return vals.some(v => (lvlIdx[v] ?? 99) <= maxDecoyIdx);
+      };
+      objectiveDecoyTextes = textes.filter(decoyHasClass);
+      objectiveDecoyImages = images.filter(decoyHasClass);
+      // Fallback: la plupart des textes/images n'ont pas de métadonnées de niveau →
+      // si le filtre vide le pool, prendre tout (simples leurres, jamais cliquables).
+      if (objectiveDecoyTextes.length === 0) objectiveDecoyTextes = textes.slice();
+      if (objectiveDecoyImages.length === 0) objectiveDecoyImages = images.slice();
+    }
     // Filtrer éléments
     textes = textes.filter(filterEl);
     images = images.filter(filterEl);
@@ -497,6 +522,33 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
         } catch (verifyErr) { console.warn('[elementsLoader] CC verify error:', verifyErr); }
       }
     }
+  }
+
+  // ✅ FIX OBJECTIF (cartes vides): si les pools texte/image sont vides (objectifs 100% maths),
+  // injecter les distracteurs de niveau dans les pools AVANT le remplissage des zones.
+  // Les mappings TI d'origine sont ajoutés pour éviter d'afficher un texte + son image
+  // (paire visuellement correcte mais non cliquable → frustration).
+  if (isObjectiveMode) {
+    const origAssocTI = (Array.isArray(data.associations) ? data.associations : []).filter(a => a.texteId && a.imageId);
+    if (texteIds.length === 0 && texteZones.length > 0 && Array.isArray(objectiveDecoyTextes)) {
+      for (const t of objectiveDecoyTextes) {
+        if (!textesById[t.id]) textesById[t.id] = t;
+        if (!texteIds.includes(t.id)) texteIds.push(t.id);
+      }
+    }
+    if (imageIds.length === 0 && imageZones.length > 0 && Array.isArray(objectiveDecoyImages)) {
+      for (const i of objectiveDecoyImages) {
+        if (!imagesById[i.id]) imagesById[i.id] = i;
+        if (!imageIds.includes(i.id)) imageIds.push(i.id);
+      }
+    }
+    for (const a of origAssocTI) {
+      if (textesById[a.texteId] && imagesById[a.imageId]) {
+        addMap(texteToImages, a.texteId, a.imageId);
+        addMap(imageToTextes, a.imageId, a.texteId);
+      }
+    }
+    console.log('[elementsLoader] Mode objectif: pools distracteurs texte/image =', texteIds.length, '/', imageIds.length);
   }
 
   // Remplissage distracteurs via deck (anti-répétition inter-manches)
