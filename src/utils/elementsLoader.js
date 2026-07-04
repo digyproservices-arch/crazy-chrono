@@ -309,6 +309,11 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     });
   } catch {}
 
+  // ✅ FIX OBJECTIF (fuite hors niveau): mémoriser le pool filtré AVANT exclusion des paires
+  // validées — si le pool s'épuise, le fallback doit re-piocher ICI (niveau + extras),
+  // jamais dans les données complètes non filtrées (ex: division CM1 en CP).
+  const preExcludeAssociations = associations.slice();
+
   // ===== Filtrage des paires déjà validées =====
   // Construire les pairIds pour chaque association et exclure celles déjà validées
   // Format: assoc-img-{imageId}-txt-{texteId} ou assoc-calc-{calculId}-num-{chiffreId}
@@ -393,12 +398,17 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
 
   // ===== SAFETY FALLBACK: Si aucune paire possible après filtrage, utiliser les données non filtrées =====
   if (!canTI && !canCC) {
-    console.warn('[elementsLoader] ⚠️ ZERO pairs after filtering — falling back to FULL unfiltered associations');
+    // ✅ FIX OBJECTIF: en mode objectif, rester dans le pool filtré niveau+extras
+    // (re-autoriser les paires déjà validées) au lieu du pool complet non filtré.
+    const fallbackAssociations = (isObjectiveMode && preExcludeAssociations.length > 0)
+      ? preExcludeAssociations
+      : (Array.isArray(data.associations) ? data.associations : []);
+    console.warn('[elementsLoader] ⚠️ ZERO pairs after filtering — fallback to', (isObjectiveMode && preExcludeAssociations.length > 0) ? 'FILTERED pool (objective, validated pairs re-allowed)' : 'FULL unfiltered associations');
     const origTextes = Array.isArray(data.textes) ? data.textes : [];
     const origImages = Array.isArray(data.images) ? data.images : [];
     const origCalculs = Array.isArray(data.calculs) ? data.calculs : [];
     const origChiffres = Array.isArray(data.chiffres) ? data.chiffres : [];
-    const origAssociations = Array.isArray(data.associations) ? data.associations : [];
+    const origAssociations = fallbackAssociations;
     const origTById = Object.fromEntries(origTextes.map(x => [x.id, x]));
     const origIById = Object.fromEntries(origImages.map(x => [x.id, x]));
     const origCById = Object.fromEntries(origCalculs.map(x => [x.id, x]));
@@ -903,11 +913,33 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     }
     z.isDistractor = true;
     z.pairId = '';
+    // ✅ FIX fausse paire (2×4 ↔ 8): les contenus aléatoires doivent éviter les valeurs
+    // déjà présentes sur le plateau (résultats des calculs et chiffres placés).
+    const boardValues = new Set();
+    for (const other of result) {
+      if (other === z || !other.content) continue;
+      if (other.type === 'calcul') {
+        const r = _evalCalc(other.content);
+        if (Number.isFinite(r)) boardValues.add(_round8(r));
+      } else if (other.type === 'chiffre') {
+        const v = _parseNum(other.content);
+        if (Number.isFinite(v)) boardValues.add(v);
+      }
+    }
     if (type === 'calcul') {
-      const a = Math.floor(rng() * 9) + 2, b = Math.floor(rng() * 9) + 2;
-      z.content = `${a} × ${b}`;
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const a = Math.floor(rng() * 9) + 2, b = Math.floor(rng() * 9) + 2;
+        if (boardValues.has(a * b) && attempt < 29) continue;
+        z.content = `${a} × ${b}`;
+        break;
+      }
     } else if (type === 'chiffre') {
-      z.content = String(Math.floor(rng() * 80) + 2);
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const n = Math.floor(rng() * 80) + 2;
+        if (boardValues.has(n) && attempt < 29) continue;
+        z.content = String(n);
+        break;
+      }
     } else if (type === 'texte') {
       const remaining = texteIds.filter(id => !used.texte.has(id));
       if (remaining.length > 0) {

@@ -186,4 +186,90 @@ describe('REPRO bug objectif solo — CP + tables 4/5/6', () => {
     expect(tiPaired).toBe(0);          // les leurres ne sont jamais appariables
     expect(ccPairs).toBe(30);          // la bonne paire reste 100% math
   });
+
+  test('Objectif ON: pool épuisé (toutes paires validées) → fallback reste dans niveau + extras', async () => {
+    const cfg = {
+      mode: 'solo',
+      selectedLevel: 'CP',
+      classes: ['CP'],
+      extras: EXTRAS,
+      themes: COMPUTED_THEMES,
+      objectiveMode: true,
+      objectiveTarget: 10,
+      objectiveThemes: OBJECTIVE_THEMES_FIXED,
+      includeUntagged: true,
+    };
+    localStorage.setItem('cc_session_cfg', JSON.stringify(cfg));
+    resetElementDecks('test-exhausted-' + Math.random());
+    const rng = makeRng(99);
+    // Épuiser le pool: exclure TOUTES les paires CC existantes (comme si tout était validé)
+    const allPairIds = new Set(
+      (assocData.associations || [])
+        .filter(a => a.calculId && a.chiffreId)
+        .map(a => `assoc-calc-${a.calculId}-num-${a.chiffreId}`)
+    );
+    const catDistribution = {};
+    for (let r = 0; r < 40; r++) {
+      const result = await assignElementsToZones(ZONES.map(z => ({ ...z })), null, assocData, rng, allPairIds);
+      const calcZone = result.find(z => z.type === 'calcul' && z.pairId);
+      if (!calcZone) continue;
+      const m = String(calcZone.pairId).match(/^assoc-calc-(.+)-num-(.+)$/);
+      if (!m) continue;
+      const assoc = ccAssocByKey.get(`${m[1]}|${m[2]}`);
+      const calc = calcById.get(m[1]);
+      const cats = [
+        ...(Array.isArray(assoc?.themes) ? assoc.themes : []),
+        ...(Array.isArray(calc?.themes) ? calc.themes : []),
+      ].filter(t => String(t).startsWith('category:'));
+      for (const c of [...new Set(cats.map(String))]) {
+        catDistribution[c] = (catDistribution[c] || 0) + 1;
+      }
+    }
+    const forbidden = forbiddenCats(catDistribution);
+    console.log('[REPRO][Pool épuisé] Distribution:', catDistribution, '| interdites:', forbidden);
+    expect(forbidden).toEqual([]);     // bug "26,04 ÷ 2 en CP" corrigé
+  });
+
+  test('Objectif ON: aucune fausse paire calcul↔chiffre sur le plateau (2×4 vs 8)', async () => {
+    const cfg = {
+      mode: 'solo',
+      selectedLevel: 'CP',
+      classes: ['CP'],
+      extras: EXTRAS,
+      themes: COMPUTED_THEMES,
+      objectiveMode: true,
+      objectiveTarget: 10,
+      objectiveThemes: OBJECTIVE_THEMES_FIXED,
+      includeUntagged: true,
+    };
+    localStorage.setItem('cc_session_cfg', JSON.stringify(cfg));
+    resetElementDecks('test-falsepair-' + Math.random());
+    const rng = makeRng(1234);
+    const evalCalc = (expr) => {
+      const s = String(expr || '').replace(/×/g, '*').replace(/÷/g, '/').replace(/:/g, '/').replace(/\s/g, '').replace(/,/g, '.');
+      const m = s.match(/^(-?[\d.]+)([+\-*/])(-?[\d.]+)$/);
+      if (!m) return NaN;
+      const a = parseFloat(m[1]), op = m[2], b = parseFloat(m[3]);
+      switch (op) { case '+': return a + b; case '-': return a - b; case '*': return a * b; case '/': return b ? a / b : NaN; default: return NaN; }
+    };
+    const falsePairs = [];
+    for (let r = 0; r < 60; r++) {
+      const result = await assignElementsToZones(ZONES.map(z => ({ ...z })), null, assocData, rng, new Set());
+      const calcZones = result.filter(z => z.type === 'calcul' && (z.content || '').trim());
+      const numZones = result.filter(z => z.type === 'chiffre' && (z.content || '').trim());
+      for (const cz of calcZones) {
+        const cr = evalCalc(cz.content);
+        if (!Number.isFinite(cr)) continue;
+        for (const nz of numZones) {
+          const nv = parseFloat(String(nz.content).replace(/\s/g, '').replace(/,/g, '.'));
+          if (!Number.isFinite(nv) || Math.round(cr * 1e8) !== Math.round(nv * 1e8)) continue;
+          // valeur identique → doit être la bonne paire (mêmes pairId non vides)
+          const samePair = (cz.pairId || '') !== '' && cz.pairId === nz.pairId;
+          if (!samePair) falsePairs.push({ round: r, calc: cz.content, num: nz.content });
+        }
+      }
+    }
+    console.log('[REPRO][Fausses paires] détectées:', falsePairs.length, falsePairs.slice(0, 5));
+    expect(falsePairs).toEqual([]);    // bug "2×4 ↔ 8 non cliquable" corrigé
+  });
 });
