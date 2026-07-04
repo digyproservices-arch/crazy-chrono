@@ -165,8 +165,10 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   let objectiveDecoyTextes = null;
   let objectiveDecoyImages = null;
   if (cfg && (Array.isArray(cfg.classes) || Array.isArray(cfg.themes) || isObjectiveMode)) {
-    // En mode objectif: ignorer le filtre de niveau (classes), filtrer UNIQUEMENT par objectiveThemes
-    const selectedClasses = isObjectiveMode ? null : (Array.isArray(cfg.classes) ? cfg.classes : null);
+    // ✅ FIX OBJECTIF (42+38 en CP): garder le filtre de niveau (classes) actif AUSSI en mode
+    // objectif — sinon category:addition inclut les additions de tous niveaux. Les extras
+    // (ex: tables 4/5/6 hors niveau CP) passent via le bypass matchesExtra, comme en mode normal.
+    const selectedClasses = Array.isArray(cfg.classes) && cfg.classes.length ? cfg.classes : null;
     const LEVEL_ORDER = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"];
     const lvlIdx = Object.fromEntries(LEVEL_ORDER.map((l, i) => [l, i]));
     const maxLvlIdx = selectedClasses ? Math.max(...selectedClasses.map(c => lvlIdx[c] ?? -1)) : 99;
@@ -177,7 +179,9 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     const selectedThemes = rawThemes.filter(Boolean);
     // ✅ B4 (parité serveur): catégories bonus explicitement cochées — leurs éléments
     // contournent le filtre de niveau (ex: "Fractions" (CM2) coché en jouant CM1)
-    const extrasSet = new Set(isObjectiveMode ? [] : (Array.isArray(cfg.extras) ? cfg.extras.filter(Boolean) : []));
+    // En mode objectif, les extras restent en bypass du niveau mais sont restreints aux thèmes objectifs
+    const rawExtras = Array.isArray(cfg.extras) ? cfg.extras.filter(Boolean) : [];
+    const extrasSet = new Set(isObjectiveMode ? rawExtras.filter(e => selectedThemes.includes(e)) : rawExtras);
     const matchMode = cfg.themeMatch === 'all' ? 'all' : 'any';
     // En mode objectif: pas d'éléments non taggés (on veut UNIQUEMENT les paires des tables choisies)
     const includeUntagged = isObjectiveMode ? false : (cfg.includeUntagged !== false);
@@ -297,8 +301,8 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     }
     console.log('[OBJ-TRACE][elementsLoader] Filtre appliqué:', {
       objectiveMode: isObjectiveMode,
-      classesFiltre: isObjectiveMode ? 'DÉSACTIVÉ (mode objectif)' : (cfg?.classes || null),
-      extrasFiltre: isObjectiveMode ? 'DÉSACTIVÉ (mode objectif)' : (cfg?.extras || null),
+      classesFiltre: cfg?.classes || null,
+      extrasFiltre: cfg?.extras || null,
       themesSource: isObjectiveMode ? `objectiveThemes (${(cfg?.objectiveThemes || []).length})` : `themes (${(cfg?.themes || []).length})`,
       associationsRestantes: associations.length,
       distributionParCategorie: catCount,
@@ -580,7 +584,7 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
 
   // ===== ANTI-FAUSSE-PAIRE: tracking numérique des valeurs placées =====
   // Évalue le résultat d'un calcul (ex: "15 - 6" → 9, "6 × 9" → 54)
-  const _evalCalc = (expr) => {
+  function _evalCalc(expr) {
     if (!expr) return NaN;
     const raw = String(expr).trim().normalize('NFC');
     // Format textuel (le double/moitié/tiers/quart/triple de X)
@@ -608,9 +612,9 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       switch (op) { case '+': return a+b; case '-': return a-b; case '*': return a*b; case '/': return b!==0?a/b:NaN; default: return NaN; }
     }
     return NaN;
-  };
-  const _round8 = (v) => Math.round(v * 1e8) / 1e8;
-  const _parseNum = (s) => {
+  }
+  function _round8(v) { return Math.round(v * 1e8) / 1e8; }
+  function _parseNum(s) {
     const raw = String(s).replace(/\s/g, '').replace(/,/g, '.');
     // Try simple float first
     const v = parseFloat(raw);
@@ -620,7 +624,7 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     if (Number.isFinite(exprResult)) return _round8(exprResult);
     // Last resort: return parseFloat result if valid
     return Number.isFinite(v) ? _round8(v) : NaN;
-  };
+  }
 
   // Track numeric values of all placed calculs/chiffres (good pair + distractors)
   const placedCalcResults = new Set(); // numeric results of placed calcul zones

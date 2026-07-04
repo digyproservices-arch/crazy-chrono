@@ -278,6 +278,9 @@ const Carte = () => {
   // --- MODE OBJECTIF & AIDE ---
   const [objectiveMode, setObjectiveMode] = useState(false);
   const objectiveModeRef = useRef(false);
+  // ✅ FIX OBJECTIF: le roundIndex serveur est en base 1 (et égal à 1 aussi après validation)
+  // → impossible de détecter la "1re manche" par roundIndex. Flag d'init dédié.
+  const objSoloInitRef = useRef(false);
   const [objectiveTarget, setObjectiveTarget] = useState(10);
   const [objectiveThemes, setObjectiveThemes] = useState([]); // ['category:table_7', ...]
   const objectiveProgressRef = useRef([]); // [{ theme, key, label, sessionFound, total }]
@@ -881,6 +884,8 @@ const Carte = () => {
   const [arenaGameEndOverlay, setArenaGameEndOverlay] = useState(null); // { ranking: [], winner: {}, duration: number }
   // Overlay fin de partie Solo (performance du joueur)
   const [soloGameEndOverlay, setSoloGameEndOverlay] = useState(null); // { score, pairsValidated, duration, mode }
+  // Fin de partie (tous chemins) → permettre une nouvelle init objectif au prochain round:new
+  useEffect(() => { if (soloGameEndOverlay) objSoloInitRef.current = false; }, [soloGameEndOverlay]);
   const [replayWaiting, setReplayWaiting] = useState(null); // { readyCount, totalCount } ou null
   const replayRequestedRef = useRef(false); // true si CE joueur a cliqué Rejouer
   // Session tracking refs (pour sauvegarder une seule fois en fin de session, pas par manche)
@@ -2514,7 +2519,7 @@ const Carte = () => {
       try {
         const __cfgRN = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null');
         if (__cfgRN && __cfgRN.objectiveMode && __cfgRN.mode === 'solo') {
-          if ((payload?.roundIndex || 0) > 0 || payload?.isRegen) {
+          if (objSoloInitRef.current) {
             // Récupération: si le plateau local est cassé (aucune paire valide → écran bloqué,
             // ex: rejoin watchdog), régénérer localement au lieu d'ignorer.
             const boardBroken = !(zonesRef.current || []).some(z => (z.pairId || '').trim());
@@ -2528,6 +2533,7 @@ const Carte = () => {
             return;
           }
           console.log('[CC] round:new (1re manche) solo objectif: génération locale, zones serveur ignorées');
+          objSoloInitRef.current = true;
           setObjectiveMode(true);
           if (__cfgRN.objectiveTarget) setObjectiveTarget(Math.max(3, Math.min(50, parseInt(__cfgRN.objectiveTarget, 10) || 10)));
           setObjectiveThemes(Array.isArray(__cfgRN.objectiveThemes) ? __cfgRN.objectiveThemes : []);
