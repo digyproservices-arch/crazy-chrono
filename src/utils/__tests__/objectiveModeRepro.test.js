@@ -451,4 +451,33 @@ describe('REPRO bug objectif solo — CP + tables 4/5/6', () => {
     localStorage.removeItem('cc_obj_demoted');
     localStorage.removeItem('cc_mastery_progress');
   });
+
+  test('Phase 4 (objectif-intelligent): N réglable par le prof/parent (bornes 3-10)', () => {
+    localStorage.removeItem('cc_mastery_progress');
+    localStorage.removeItem('cc_obj_demoted');
+    initMasteryTracker(assocData, null);
+    resetMasterySession();
+    const base = {
+      selectedLevel: 'CP',
+      classes: ['CP'],
+      extras: EXTRAS,
+      objectiveMode: true,
+      objectiveThemes: OBJECTIVE_THEMES_FIXED,
+    };
+    // N=3 → grosses catégories plafonnées à 3, petites inchangées
+    let r = computeObjectiveSessionTargets(assocData, { ...base, objectivePairsPerCategory: 3 });
+    expect(r.targets['category:addition']).toBe(3);
+    expect(r.targets['category:epice']).toBe(1);
+    // N=10 → additions à 10 (29 dispo), oiseaux à 4 (pool limité)
+    r = computeObjectiveSessionTargets(assocData, { ...base, objectivePairsPerCategory: 10 });
+    expect(r.targets['category:addition']).toBe(10);
+    expect(r.targets['category:oiseau']).toBe(4);
+    // Hors bornes → clampé (99 → 10; 1 → 3); absent → défaut 5
+    r = computeObjectiveSessionTargets(assocData, { ...base, objectivePairsPerCategory: 99 });
+    expect(r.targets['category:addition']).toBe(10);
+    r = computeObjectiveSessionTargets(assocData, { ...base, objectivePairsPerCategory: 1 });
+    expect(r.targets['category:addition']).toBe(3);
+    r = computeObjectiveSessionTargets(assocData, base);
+    expect(r.targets['category:addition']).toBe(5);
+  });
 });

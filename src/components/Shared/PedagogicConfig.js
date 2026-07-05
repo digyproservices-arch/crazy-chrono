@@ -169,6 +169,8 @@ export default function PedagogicConfig({ data, onChange, initialConfig, options
   const [allowEmptyMath, setAllowEmptyMath] = useState(true);
   const [objectiveMode, setObjectiveMode] = useState(false);
   const [objectiveTarget, setObjectiveTarget] = useState(10);
+  // 🎯 Phase 4 (workflow objectif-intelligent): N paires à trouver par catégorie (réglable prof/parent)
+  const [objectivePairsPerCategory, setObjectivePairsPerCategory] = useState(5);
   const [helpEnabled, setHelpEnabled] = useState(false);
   const [playerZone, setPlayerZone] = useState('');
 
@@ -201,6 +203,7 @@ export default function PedagogicConfig({ data, onChange, initialConfig, options
     if (typeof prev.allowEmptyMathWhenNoData === 'boolean') setAllowEmptyMath(prev.allowEmptyMathWhenNoData);
     if (typeof prev.objectiveMode === 'boolean') setObjectiveMode(prev.objectiveMode);
     if (prev.objectiveTarget != null) setObjectiveTarget(clampInt(prev.objectiveTarget, 3, 50, 10));
+    if (prev.objectivePairsPerCategory != null) setObjectivePairsPerCategory(clampInt(prev.objectivePairsPerCategory, 3, 10, 5));
     if (typeof prev.helpEnabled === 'boolean') setHelpEnabled(prev.helpEnabled);
     if (prev.playerZone) setPlayerZone(prev.playerZone);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -330,16 +333,6 @@ export default function PedagogicConfig({ data, onChange, initialConfig, options
     if (!onChange) return;
     const r = clampInt(rounds, 1, maxRounds, 3);
     const d = clampInt(duration, 15, maxDuration, 60);
-    // 🔍 [OBJ-TRACE] Trace temporaire (diagnostic bug objectif) — à retirer après analyse
-    try {
-      if (objectiveMode) console.log('[OBJ-TRACE][PedagogicConfig] Config objectif émise:', {
-        selectedLevel,
-        extras: selectedExtras,
-        objectiveThemesCount: objectiveComputedThemes.length,
-        objectiveThemes: objectiveComputedThemes,
-        objectiveTarget: showObjectiveTarget ? objectiveTarget : objectiveComputedThemes.length,
-      });
-    } catch {}
     onChange({
       selectedLevel,
       classes: selectedClasses,
@@ -351,13 +344,14 @@ export default function PedagogicConfig({ data, onChange, initialConfig, options
       objectiveMode: !!objectiveMode,
       objectiveTarget: objectiveMode ? (showObjectiveTarget ? objectiveTarget : objectiveComputedThemes.length) : null,
       objectiveThemes: objectiveMode ? objectiveComputedThemes : [],
+      objectivePairsPerCategory: objectiveMode ? clampInt(objectivePairsPerCategory, 3, 10, 5) : null,
       helpEnabled: !!helpEnabled,
       allowEmptyMathWhenNoData: !!allowEmptyMath,
       playerZone: playerZone || '',
       dataStats,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLevel, selectedClasses, selectedExtras, computedThemes, objectiveComputedThemes, enabledDomains, rounds, duration, objectiveMode, objectiveTarget, helpEnabled, allowEmptyMath, playerZone, dataStats, maxRounds, maxDuration]);
+  }, [selectedLevel, selectedClasses, selectedExtras, computedThemes, objectiveComputedThemes, enabledDomains, rounds, duration, objectiveMode, objectiveTarget, objectivePairsPerCategory, helpEnabled, allowEmptyMath, playerZone, dataStats, maxRounds, maxDuration]);
 
   // ===== UI =====
   return (
@@ -594,13 +588,26 @@ export default function PedagogicConfig({ data, onChange, initialConfig, options
                   {locked
                     ? <>Réservé aux abonnés. <a href="/pricing" style={{ color: '#0D6A7A', fontWeight: 700 }}>Passer en Pro</a></>
                     : objectiveMode
-                      ? 'Activé — Pas de limite de temps. Trouvez toutes les paires pour terminer.'
+                      ? 'Activé — Pas de limite de temps. Complétez chaque objectif pour terminer.'
                       : 'Sans limite de temps. Les domaines activés deviennent vos objectifs.'}
                 </div>
               </div>
             </div>
           );
         })()}
+
+        {/* 🎯 Phase 4: paires à trouver par catégorie (mode objectif uniquement) */}
+        {showObjectiveMode && objectiveMode && !isFreeTier && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>🎯 Paires à trouver par catégorie</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, maxWidth: 260 }}>
+              <button onClick={() => setObjectivePairsPerCategory(p => Math.max(3, p - 1))} style={{ width: 40, height: 40, borderRadius: 10, border: '2px solid #e2e8f0', background: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>−</button>
+              <div style={{ flex: 1, textAlign: 'center', padding: '8px 12px', border: '2px solid #e2e8f0', borderRadius: 10, background: '#f8fafc', fontWeight: 800, fontSize: 18, color: '#0D6A7A' }}>{objectivePairsPerCategory}</div>
+              <button onClick={() => setObjectivePairsPerCategory(p => Math.min(10, p + 1))} style={{ width: 40, height: 40, borderRadius: 10, border: '2px solid #e2e8f0', background: '#fff', fontSize: 18, fontWeight: 700, cursor: 'pointer', color: '#475569' }}>+</button>
+            </div>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>3 à 10 paires — les catégories déjà acquises ne demandent que 2 paires de révision</div>
+          </div>
+        )}
 
         {/* Manches & Durée — masqués en mode objectif */}
         {!objectiveMode && (

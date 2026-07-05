@@ -4449,15 +4449,6 @@ function handleGameClick(zone) {
               } catch {}
               const allComplete = objProgress.length > 0 && objProgress.every(p => p.sessionFound >= p.total);
               try { window.ccAddDiag && window.ccAddDiag('objective:thematic:check', { objProgress, allComplete }); } catch {}
-              // 🔍 [OBJ-TRACE] Trace temporaire (diagnostic bug objectif) — à retirer après analyse
-              try {
-                console.log('[OBJ-TRACE][Carte] Progression objectifs:', {
-                  nbObjectifs: objProgress.length,
-                  allComplete,
-                  objectifsSansContenu: objProgress.filter(p => !p.total).map(p => p.key),
-                  detail: objProgress.map(p => `${p.key}: ${p.sessionFound}/${p.total}`),
-                });
-              } catch {}
               if (allComplete) {
                 const finalTime = timeElapsed + helpPenalty;
                 try { window.ccAddDiag && window.ccAddDiag('objective:thematic:completed', { objProgress, timeElapsed, penalty: helpPenalty, finalTime }); } catch {}

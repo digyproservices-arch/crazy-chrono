@@ -201,16 +201,21 @@ export function clearDemotedCategory(catTag) {
 // et catégorie non rétrogradée (révision ratée précédemment → cc_obj_demoted).
 // → cible révision R au lieu de N. Source unique pour Carte.js ET le tirage priorisé.
 export function computeObjectiveSessionTargets(assocData, cfgArg) {
-  const pairsByCat = _computeFilteredThemePairIds(assocData, cfgArg);
+  let cfg = cfgArg;
+  if (!cfg) { try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch { cfg = null; } }
+  const pairsByCat = _computeFilteredThemePairIds(assocData, cfg);
   let foundPairIds = new Set();
   try { foundPairIds = getObjectivePriorityData().foundPairIds; } catch {}
   const demoted = getDemotedCategories();
+  // 🎯 Phase 4: N réglable par le prof/parent (cfg.objectivePairsPerCategory, bornes 3-10)
+  const nRaw = parseInt(cfg?.objectivePairsPerCategory, 10);
+  const N = Number.isFinite(nRaw) ? Math.max(3, Math.min(10, nRaw)) : OBJ_PAIRS_PER_CATEGORY;
   const targets = {}, acquired = {}, poolTotals = {};
   for (const [cat, set] of Object.entries(pairsByCat)) {
     poolTotals[cat] = set.size;
     const isAcq = set.size > 0 && !demoted[cat] && [...set].every(pid => foundPairIds.has(pid));
     acquired[cat] = isAcq;
-    targets[cat] = isAcq ? Math.min(OBJ_REVISION_PAIRS, set.size) : Math.min(OBJ_PAIRS_PER_CATEGORY, set.size);
+    targets[cat] = isAcq ? Math.min(OBJ_REVISION_PAIRS, set.size) : Math.min(N, set.size);
   }
   return { targets, acquired, poolTotals };
 }
@@ -404,25 +409,6 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       console.log('[elementsLoader] Re-included elements from associations:', { textes: textes.length, images: images.length, calculs: calculs.length, chiffres: chiffres.length });
     }
   }
-
-  // 🔍 [OBJ-TRACE] Trace temporaire (diagnostic bug objectif) — à retirer après analyse
-  try {
-    const catCount = {};
-    for (const a of associations) {
-      for (const t of (Array.isArray(a.themes) ? a.themes : [])) {
-        const ts = String(t);
-        if (ts.startsWith('category:')) catCount[ts] = (catCount[ts] || 0) + 1;
-      }
-    }
-    console.log('[OBJ-TRACE][elementsLoader] Filtre appliqué:', {
-      objectiveMode: isObjectiveMode,
-      classesFiltre: cfg?.classes || null,
-      extrasFiltre: cfg?.extras || null,
-      themesSource: isObjectiveMode ? `objectiveThemes (${(cfg?.objectiveThemes || []).length})` : `themes (${(cfg?.themes || []).length})`,
-      associationsRestantes: associations.length,
-      distributionParCategorie: catCount,
-    });
-  } catch {}
 
   // ✅ FIX OBJECTIF (fuite hors niveau): mémoriser le pool filtré AVANT exclusion des paires
   // validées — si le pool s'épuise, le fallback doit re-piocher ICI (niveau + extras),
