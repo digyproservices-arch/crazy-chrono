@@ -6,7 +6,7 @@ import { pointToSvgCoords, polygonToPointsStr, segmentsToSvgPath, pointsToBezier
 import { getBackendUrl } from '../utils/subscription';
 import { getAuthSocketOptions } from '../utils/socketAuth';
 import { getAuthHeaders } from '../utils/apiHelpers';
-import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck } from '../utils/elementsLoader';
+import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck, computeFilteredThemeTotals } from '../utils/elementsLoader';
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
 import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError, reportIncident as incidentReportIncident, INCIDENT_TYPES as INCIDENT_TYPES_TRACKER } from '../utils/gameIncidentTracker';
 import { logRound } from '../utils/roundLogger';
@@ -284,6 +284,7 @@ const Carte = () => {
   const [objectiveTarget, setObjectiveTarget] = useState(10);
   const [objectiveThemes, setObjectiveThemes] = useState([]); // ['category:table_7', ...]
   const objectiveProgressRef = useRef([]); // [{ theme, key, label, sessionFound, total }]
+  const objectiveTotalsRef = useRef(null); // totaux par thème filtrés niveau+extras (calculé 1x/session)
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [helpEnabled, setHelpEnabled] = useState(false);
   const [helpLevel, setHelpLevel] = useState(0); // 0=rien, 1=indice demandé, 2=réponse demandée
@@ -3865,6 +3866,7 @@ async function doStart() {
     helpStatsRef.current = { hintsUsed: 0, answersUsed: 0, totalPenalty: 0 };
     objectivePairsRef.current = 0;
     objectiveProgressRef.current = [];
+    objectiveTotalsRef.current = null;
     setTimeElapsed(0);
     // Reset score pour nouvelle partie
     setScore(0);
@@ -4409,13 +4411,20 @@ function handleGameClick(zone) {
             // Mode thématique: vérifier progression par thème via mastery tracker
             if (objectiveThemes.length > 0) {
               const progress = getMasteryProgress();
+              // ✅ FIX OBJECTIF (totaux): utiliser les totaux du pool filtré niveau+extras,
+              // pas les totaux de maîtrise tous niveaux (sinon objectifs inatteignables).
+              if (!objectiveTotalsRef.current) {
+                try { objectiveTotalsRef.current = computeFilteredThemeTotals(assocDataRef.current || {}); } catch { objectiveTotalsRef.current = {}; }
+              }
+              const fTotals = objectiveTotalsRef.current || {};
               const objProgress = objectiveThemes.map(t => {
                 const key = t.replace('category:', '');
                 const p = progress.find(x => x.key === key);
-                return { theme: t, key, label: p?.label || key, sessionFound: p?.sessionFound || 0, total: p?.total || 0 };
-              });
+                const total = Number.isFinite(fTotals[t]) ? fTotals[t] : (p?.total || 0);
+                return { theme: t, key, label: p?.label || key, sessionFound: p?.sessionFound || 0, total };
+              }).filter(p => p.total > 0); // thèmes sans contenu au niveau choisi → pas d'objectif (évite 0/0 bloquant)
               objectiveProgressRef.current = objProgress;
-              const allComplete = objProgress.every(p => p.total > 0 && p.sessionFound >= p.total);
+              const allComplete = objProgress.length > 0 && objProgress.every(p => p.sessionFound >= p.total);
               try { window.ccAddDiag && window.ccAddDiag('objective:thematic:check', { objProgress, allComplete }); } catch {}
               // 🔍 [OBJ-TRACE] Trace temporaire (diagnostic bug objectif) — à retirer après analyse
               try {
@@ -8216,7 +8225,7 @@ setZones(dataWithRandomTexts);
             {objectiveMode ? (
               objectiveThemes.length > 0 ? (
                 <div className="hud-chip" style={{ background: 'rgba(13,106,122,0.7)', fontSize: 10, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  🎯 {(Array.isArray(objectiveProgressRef.current) ? objectiveProgressRef.current : []).filter(p => p.sessionFound >= p.total && p.total > 0).length}/{objectiveThemes.length}
+                  🎯 {(Array.isArray(objectiveProgressRef.current) ? objectiveProgressRef.current : []).filter(p => p.sessionFound >= p.total && p.total > 0).length}/{(objectiveProgressRef.current?.length || objectiveThemes.length)}
                 </div>
               ) : (
                 <div className="hud-chip" style={{ background: 'rgba(13,106,122,0.7)' }}>
@@ -8320,7 +8329,7 @@ setZones(dataWithRandomTexts);
               {objectiveMode ? (
                 objectiveThemes.length > 0 ? (
                   <div style={{ background: 'rgba(13,106,122,0.7)', borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)', fontSize: 13, fontWeight: 700, color: '#fff' }}>
-                    🎯 {(Array.isArray(objectiveProgressRef.current) ? objectiveProgressRef.current : []).filter(p => p.sessionFound >= p.total && p.total > 0).length}/{objectiveThemes.length} thèmes
+                    🎯 {(Array.isArray(objectiveProgressRef.current) ? objectiveProgressRef.current : []).filter(p => p.sessionFound >= p.total && p.total > 0).length}/{(objectiveProgressRef.current?.length || objectiveThemes.length)} thèmes
                   </div>
                 ) : (
                   <div style={{ background: 'rgba(13,106,122,0.7)', borderRadius: 12, padding: '6px 14px', border: '1px solid rgba(255,255,255,0.12)', fontSize: 13, fontWeight: 700, color: '#fff' }}>

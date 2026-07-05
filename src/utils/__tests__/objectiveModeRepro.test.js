@@ -15,7 +15,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { assignElementsToZones, resetElementDecks } from '../elementsLoader';
+import { assignElementsToZones, resetElementDecks, computeFilteredThemeTotals } from '../elementsLoader';
 import { CONTENT_DOMAINS, LEVEL_INCLUDES } from '../../components/Shared/PedagogicConfig';
 
 // ===== Données réelles =====
@@ -36,11 +36,18 @@ function computeThemesLikePedagogicConfig(selectedExtras) {
 }
 
 // ===== Réplique EXACTE de objectiveComputedThemes (PedagogicConfig.js — FIX OBJECTIF) =====
-// "100% ciblé": math actif → catégories math du niveau (LEVEL_INCLUDES) + extras UNIQUEMENT
+// Spec "100% niveau choisi + extras": tous domaines actifs — math restreint à
+// LEVEL_INCLUDES[niveau], non-math = toutes les catégories du domaine — + extras.
 function computeObjectiveThemesLikeFix(selectedLevel, selectedExtras) {
-  const inc = LEVEL_INCLUDES[selectedLevel] || new Set();
   const tags = [];
-  inc.forEach(c => { if (!tags.includes(c)) tags.push(c); });
+  CONTENT_DOMAINS.forEach(d => {
+    if (d.key === 'math') {
+      const inc = LEVEL_INCLUDES[selectedLevel] || new Set();
+      inc.forEach(c => { if (!tags.includes(c)) tags.push(c); });
+    } else {
+      d.categories.forEach(c => { if (!tags.includes(c)) tags.push(c); });
+    }
+  });
   selectedExtras.forEach(e => { if (!tags.includes(e)) tags.push(e); });
   return tags;
 }
@@ -168,23 +175,33 @@ describe('REPRO bug objectif solo — CP + tables 4/5/6', () => {
       ...Array.from({ length: 4 }, (_, i) => ({ id: 5000 + i, type: 'calcul' })),
       ...Array.from({ length: 4 }, (_, i) => ({ id: 6000 + i, type: 'chiffre' })),
     ];
+    // Index TI pour vérifier le niveau des bonnes paires texte/image
+    const tiAssocByKey = new Map();
+    for (const a of (assocData.associations || [])) {
+      if (a.texteId && a.imageId) tiAssocByKey.set(`${a.imageId}|${a.texteId}`, a);
+    }
     let emptyTexteImage = 0;
-    let tiPaired = 0;
-    let ccPairs = 0;
+    let goodPairs = 0;
+    const outOfLevelTI = [];
     for (let r = 0; r < 30; r++) {
       const result = await assignElementsToZones(MIXED_ZONES.map(z => ({ ...z })), null, assocData, rng, new Set());
       for (const z of result) {
-        if ((z.type === 'texte' || z.type === 'image')) {
-          if (!(z.content || '').trim()) emptyTexteImage++;
-          if ((z.pairId || '').trim()) tiPaired++;
-        }
+        if ((z.type === 'texte' || z.type === 'image') && !(z.content || '').trim()) emptyTexteImage++;
       }
-      if (result.some(z => z.type === 'calcul' && (z.pairId || '').trim())) ccPairs++;
+      // Spec: la bonne paire peut être TI OU CC, mais toujours du pool niveau+extras
+      const tiZone = result.find(z => z.type === 'texte' && (z.pairId || '').trim());
+      const ccZone = result.find(z => z.type === 'calcul' && (z.pairId || '').trim());
+      if (tiZone || ccZone) goodPairs++;
+      if (tiZone) {
+        const m = String(tiZone.pairId).match(/^assoc-img-(.+)-txt-(.+)$/);
+        const assoc = m ? tiAssocByKey.get(`${m[1]}|${m[2]}`) : null;
+        if (String(assoc?.levelClass || '') !== 'CP') outOfLevelTI.push({ round: r, pairId: tiZone.pairId, levelClass: assoc?.levelClass });
+      }
     }
-    console.log('[REPRO][Plateau mixte] zones texte/image vides:', emptyTexteImage, '| appariables TI:', tiPaired, '| manches avec paire CC:', ccPairs, '/30');
+    console.log('[REPRO][Plateau mixte] zones texte/image vides:', emptyTexteImage, '| manches avec bonne paire:', goodPairs, '/30 | TI hors niveau:', outOfLevelTI.length);
     expect(emptyTexteImage).toBe(0);   // bug "cartes vides" corrigé
-    expect(tiPaired).toBe(0);          // les leurres ne sont jamais appariables
-    expect(ccPairs).toBe(30);          // la bonne paire reste 100% math
+    expect(goodPairs).toBe(30);        // toujours exactement une bonne paire
+    expect(outOfLevelTI).toEqual([]);  // bug "Jaguar CM1 en CP" corrigé
   });
 
   test('Objectif ON: pool épuisé (toutes paires validées) → fallback reste dans niveau + extras', async () => {
@@ -271,5 +288,33 @@ describe('REPRO bug objectif solo — CP + tables 4/5/6', () => {
     }
     console.log('[REPRO][Fausses paires] détectées:', falsePairs.length, falsePairs.slice(0, 5));
     expect(falsePairs).toEqual([]);    // bug "2×4 ↔ 8 non cliquable" corrigé
+  });
+
+  test('Totaux objectifs: comptés sur le pool filtré niveau+extras (atteignables)', () => {
+    const cfg = {
+      selectedLevel: 'CP',
+      classes: ['CP'],
+      extras: EXTRAS,
+      objectiveMode: true,
+      objectiveThemes: OBJECTIVE_THEMES_FIXED,
+    };
+    const totals = computeFilteredThemeTotals(assocData, cfg);
+    console.log('[REPRO][Totaux filtrés]', totals);
+    // Les extras cochés doivent être comptables (objectif jouable)
+    expect(totals['category:table_4'] || 0).toBeGreaterThan(0);
+    expect(totals['category:table_5'] || 0).toBeGreaterThan(0);
+    // Chaque total filtré ≤ total global de la catégorie (jamais plus)
+    const globalCount = {};
+    for (const a of (assocData.associations || [])) {
+      for (const t of (a.themes || [])) {
+        if (String(t).startsWith('category:')) globalCount[t] = (globalCount[t] || 0) + 1;
+      }
+    }
+    for (const [theme, n] of Object.entries(totals)) {
+      expect(n).toBeLessThanOrEqual(globalCount[theme] || 0);
+    }
+    // Une catégorie math hors niveau CP (ex: division) ne doit pas figurer dans les totaux
+    expect(totals['category:division']).toBeUndefined();
+    expect(totals['category:fraction']).toBeUndefined();
   });
 });

@@ -253,30 +253,29 @@ export default function PedagogicConfig({ data, onChange, initialConfig, options
     return tags;
   }, [enabledDomains, selectedExtras]);
 
-  // ✅ FIX OBJECTIF: liste des thèmes pour le MODE OBJECTIF uniquement.
-  // Contrairement à computedThemes (qui inclut TOUTES les catégories des domaines activés,
-  // contenu par le filtre de niveau en mode normal), le mode objectif désactive le filtre
-  // de niveau côté génération (elementsLoader). Il faut donc restreindre ici les catégories
-  // math à celles du niveau choisi (LEVEL_INCLUDES) + les extras explicitement cochés,
-  // sinon un CP reçoit fractions/équations/tables 10-12 (bug constaté).
-  // Choix pédagogique "100% ciblé": si le domaine math est actif, les objectifs (et donc
-  // le plateau, filtré par objectiveThemes) = catégories math du niveau + extras UNIQUEMENT.
-  // Si math est désactivé, objectifs = catégories des domaines activés (jamais les tags
-  // génériques type domain:botany, qui n'ont pas de progression comptable → 0/0 bloquant).
+  // ✅ FIX OBJECTIF (spec "100% niveau choisi + extras"): liste des thèmes pour le MODE
+  // OBJECTIF. Les objectifs couvrent TOUT le contenu du niveau choisi (tous les domaines
+  // activés: math, nature, animaux...) + les extras explicitement cochés.
+  //  - Catégories MATH: restreintes à LEVEL_INCLUDES[niveau] (sinon un CP reçoit
+  //    fractions/équations/tables 10-12 — bug constaté) + extras.
+  //  - Catégories NON-MATH: toutes celles des domaines activés — le filtre de NIVEAU
+  //    (levelClass des éléments) est appliqué par elementsLoader côté génération, et les
+  //    totaux d'objectifs sont comptés sur le pool filtré niveau+extras (Carte.js).
+  //  - Jamais les tags génériques type domain:botany (pas de progression comptable → 0/0).
   const objectiveComputedThemes = useMemo(() => {
     const allEnabled = CONTENT_DOMAINS.every(d => enabledDomains[d.key]);
     if (allEnabled && selectedExtras.length === 0) return []; // objectif simple (nombre de paires)
     const tags = [];
-    if (enabledDomains['math']) {
-      const inc = LEVEL_INCLUDES[selectedLevel] || new Set();
-      inc.forEach(c => { if (!tags.includes(c)) tags.push(c); });
-      selectedExtras.forEach(e => { if (!tags.includes(e)) tags.push(e); });
-    } else {
-      CONTENT_DOMAINS.forEach(d => {
-        if (d.key === 'math' || !enabledDomains[d.key]) return;
+    CONTENT_DOMAINS.forEach(d => {
+      if (!enabledDomains[d.key]) return;
+      if (d.key === 'math') {
+        const inc = LEVEL_INCLUDES[selectedLevel] || new Set();
+        inc.forEach(c => { if (!tags.includes(c)) tags.push(c); });
+      } else {
         d.categories.forEach(c => { if (!tags.includes(c)) tags.push(c); });
-      });
-    }
+      }
+    });
+    selectedExtras.forEach(e => { if (!tags.includes(e)) tags.push(e); });
     return tags;
   }, [enabledDomains, selectedExtras, selectedLevel]);
 

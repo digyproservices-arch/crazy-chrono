@@ -100,6 +100,69 @@ export function drawFromDeck(deckName, allIds, rng, filterFn) {
   return _drawFromDeck(deckName, allIds, rng, filterFn || (() => true));
 }
 
+// ✅ FIX OBJECTIF (totaux): compte les paires DISPONIBLES par thème sous le filtre
+// niveau+extras (même sémantique qu'assignElementsToZones). Sans cela, les objectifs
+// utilisent les totaux de maîtrise TOUS niveaux confondus → objectifs inatteignables.
+// Retourne { 'category:x': nbPaires } pour les thèmes de cfg.objectiveThemes.
+export function computeFilteredThemeTotals(assocData, cfgArg) {
+  let cfg = cfgArg;
+  if (!cfg) { try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch { cfg = null; } }
+  const totals = {};
+  if (!assocData || !Array.isArray(assocData.associations)) return totals;
+  const objThemes = Array.isArray(cfg?.objectiveThemes) ? cfg.objectiveThemes.filter(Boolean) : [];
+  if (!objThemes.length) return totals;
+  const LEVEL_ORDER = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"];
+  const lvlIdx = Object.fromEntries(LEVEL_ORDER.map((l, i) => [l, i]));
+  const selectedClasses = Array.isArray(cfg?.classes) && cfg.classes.length ? cfg.classes : null;
+  const maxLvlIdx = selectedClasses ? Math.max(...selectedClasses.map(c => lvlIdx[c] ?? -1)) : 99;
+  const extrasSet = new Set((Array.isArray(cfg?.extras) ? cfg.extras : []).filter(e => objThemes.includes(e)));
+  const normLvl = (s) => {
+    const x = String(s || '').toLowerCase();
+    if (/\bcp\b/.test(x)) return 'CP';
+    if (/\bce1\b/.test(x)) return 'CE1';
+    if (/\bce2\b/.test(x)) return 'CE2';
+    if (/\bcm1\b/.test(x)) return 'CM1';
+    if (/\bcm2\b/.test(x)) return 'CM2';
+    if (/\b6e\b|\bsixieme\b/.test(x)) return '6e';
+    if (/\b5e\b|\bcinquieme\b/.test(x)) return '5e';
+    if (/\b4e\b|\bquatrieme\b/.test(x)) return '4e';
+    if (/\b3e\b|\btroisieme\b/.test(x)) return '3e';
+    return '';
+  };
+  const hasClass = (el) => {
+    if (!selectedClasses) return true;
+    const lc = el?.levelClass ? [String(el.levelClass)] : [];
+    const arr = el?.levels || el?.classes || el?.classLevels || [];
+    const vals = [...lc, ...arr].map(normLvl).filter(Boolean);
+    if (vals.length === 0) return false;
+    return vals.some(v => (lvlIdx[v] ?? 99) <= maxLvlIdx);
+  };
+  const matchesExtra = (el) => {
+    if (extrasSet.size === 0) return false;
+    const tags = Array.isArray(el?.themes) ? el.themes.map(String) : [];
+    return tags.some(t => extrasSet.has(t));
+  };
+  const byId = (arr) => new Map((Array.isArray(arr) ? arr : []).map(x => [x.id, x]));
+  const T = byId(assocData.textes), I = byId(assocData.images), C = byId(assocData.calculs), N = byId(assocData.chiffres);
+  const objSet = new Set(objThemes);
+  for (const a of assocData.associations) {
+    const tags = Array.isArray(a?.themes) ? a.themes.map(String) : [];
+    const catTag = tags.find(t => objSet.has(t) && t.startsWith('category:'));
+    if (!catTag) continue;
+    const aHasMeta = (a.themes && a.themes.length) || a.levelClass;
+    let ok;
+    if (aHasMeta) {
+      ok = matchesExtra(a) || hasClass(a);
+    } else {
+      const sideA = a.texteId ? T.get(a.texteId) : C.get(a.calculId);
+      const sideB = a.imageId ? I.get(a.imageId) : N.get(a.chiffreId);
+      ok = (matchesExtra(sideA) || hasClass(sideA)) && (matchesExtra(sideB) || hasClass(sideB));
+    }
+    if (ok) totals[catTag] = (totals[catTag] || 0) + 1;
+  }
+  return totals;
+}
+
 // Chargement dynamique des éléments depuis le dossier public/data/elements.json
 export async function fetchElements() {
   try {
