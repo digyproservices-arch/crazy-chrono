@@ -1,6 +1,7 @@
 console.log('ELEMENTS LOADER CHARGE');
 // Charge, mélange et attribue les éléments à des zones de la carte
 // Utilisation : import { assignElementsToZones, fetchElements } from '../utils/elementsLoader';
+import { getObjectivePriorityData } from './masteryTracker';
 
 // ===== Cache du référentiel botanique pour localisation =====
 let _botanicalRefCache = null;
@@ -454,7 +455,41 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   const result = zones.map(z => ({ ...z }));
   const used = { image: new Set(), texte: new Set(), calcul: new Set(), chiffre: new Set() };
 
-  // Sélectionne le type de paire à poser sans priorité: TI ou CC au hasard si les deux sont possibles
+  // 🎯 Phase 2 (workflow objectif-intelligent): tirage priorisé de la bonne paire.
+  // Rang 0 = paire JAMAIS trouvée (cumulé Maîtrise) dans une catégorie non complétée (session)
+  // Rang 1 = catégorie non complétée (session), paire déjà connue
+  // Rang 2 = tout le reste (catégories déjà au seuil) — fallback
+  // Le seuil par catégorie doit rester aligné avec OBJ_PAIRS_PER_CATEGORY (Carte.js).
+  const OBJ_PAIRS_PER_CATEGORY = 5;
+  let objPairRank = null; // (pairId) => 0 | 1 | 2
+  if (isObjectiveMode) {
+    try {
+      const totalsForPriority = computeFilteredThemeTotals(data, cfg);
+      const { foundPairIds, sessionFoundByCategory } = getObjectivePriorityData();
+      const incompleteCats = new Set();
+      for (const [catTag, poolTotal] of Object.entries(totalsForPriority)) {
+        const target = Math.min(OBJ_PAIRS_PER_CATEGORY, poolTotal);
+        const found = sessionFoundByCategory[catTag.replace('category:', '')] || 0;
+        if (found < target) incompleteCats.add(catTag);
+      }
+      const pairIdToCat = new Map();
+      for (const a of associations) {
+        const cat = (Array.isArray(a.themes) ? a.themes : []).map(String).find(t => t.startsWith('category:'));
+        if (!cat) continue;
+        if (a.texteId && a.imageId) pairIdToCat.set(`assoc-img-${a.imageId}-txt-${a.texteId}`, cat);
+        if (a.calculId && a.chiffreId) pairIdToCat.set(`assoc-calc-${a.calculId}-num-${a.chiffreId}`, cat);
+      }
+      objPairRank = (pairId) => {
+        const cat = pairIdToCat.get(pairId);
+        if (cat && incompleteCats.has(cat)) return foundPairIds.has(pairId) ? 1 : 0;
+        return 2;
+      };
+      console.log('[elementsLoader] 🎯 Tirage priorisé actif — catégories non complétées:', [...incompleteCats]);
+    } catch (e) { objPairRank = null; console.warn('[elementsLoader] Tirage priorisé indisponible:', e); }
+  }
+
+  // Sélectionne le type de paire à poser: TI ou CC au hasard si les deux sont possibles
+  // (en mode objectif priorisé: le type offrant le meilleur rang de priorité gagne)
   let placedPairType = null;
   let canTI = imageZones.length && texteZones.length && imageIds.length && texteIds.length;
   let canCC = calculZones.length && chiffreZones.length && calculIds.length && chiffreIds.length;
@@ -499,8 +534,39 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     console.log('[elementsLoader] After fallback: canTI=', !!canTI, 'canCC=', !!canCC);
   }
 
+  // 🎯 Phase 2: meilleur rang de priorité atteignable par type de paire
+  let bestRankTI = null, bestRankCC = null;
+  if (objPairRank) {
+    if (canTI) {
+      bestRankTI = 2;
+      for (const [tId, imgSet] of texteToImages.entries()) {
+        for (const imgId of imgSet) {
+          const r = objPairRank(`assoc-img-${imgId}-txt-${tId}`);
+          if (r < bestRankTI) bestRankTI = r;
+          if (bestRankTI === 0) break;
+        }
+        if (bestRankTI === 0) break;
+      }
+    }
+    if (canCC) {
+      bestRankCC = 2;
+      for (const [cId, nSet] of calculToChiffres.entries()) {
+        for (const nId of nSet) {
+          const r = objPairRank(`assoc-calc-${cId}-num-${nId}`);
+          if (r < bestRankCC) bestRankCC = r;
+          if (bestRankCC === 0) break;
+        }
+        if (bestRankCC === 0) break;
+      }
+    }
+  }
   if (canTI && canCC) {
-    placedPairType = (typeof rng === 'function' ? (rng() < 0.5) : (Math.random() < 0.5)) ? 'TI' : 'CC';
+    if (objPairRank && bestRankTI !== bestRankCC) {
+      placedPairType = bestRankTI < bestRankCC ? 'TI' : 'CC';
+      console.log('[elementsLoader] 🎯 Type de paire choisi par priorité:', placedPairType, '(TI rang', bestRankTI, '/ CC rang', bestRankCC, ')');
+    } else {
+      placedPairType = (typeof rng === 'function' ? (rng() < 0.5) : (Math.random() < 0.5)) ? 'TI' : 'CC';
+    }
   } else if (canTI) {
     placedPairType = 'TI';
   } else if (canCC) {
@@ -527,10 +593,20 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       }
     }
     const tiKeys = [...tiLinkMap.keys()];
-    const chosenKey = _drawFromDeck('assocTI', tiKeys, rng, (key) => {
+    const tiValid = (key) => {
       const l = tiLinkMap.get(key);
       return l && imageIds.includes(l.imgId) && texteIds.includes(l.tId);
-    });
+    };
+    // 🎯 Phase 2: piocher d'abord au meilleur rang de priorité, fallback sans rang si vide
+    let chosenKey = null;
+    if (objPairRank && bestRankTI !== null && bestRankTI < 2) {
+      chosenKey = _drawFromDeck('assocTI', tiKeys, rng, (key) => {
+        if (!tiValid(key)) return false;
+        const l = tiLinkMap.get(key);
+        return objPairRank(`assoc-img-${l.imgId}-txt-${l.tId}`) <= bestRankTI;
+      });
+    }
+    if (!chosenKey) chosenKey = _drawFromDeck('assocTI', tiKeys, rng, tiValid);
     const chosen = chosenKey ? tiLinkMap.get(chosenKey) : null;
     if (chosen) {
       const pairKey = `assoc-img-${chosen.imgId}-txt-${chosen.tId}`;
@@ -551,7 +627,7 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       }
     }
     const ccKeys = [...ccLinkMap.keys()];
-    const chosenKey = _drawFromDeck('assocCC', ccKeys, rng, (key) => {
+    const ccValid = (key) => {
       const l = ccLinkMap.get(key);
       if (!l || !calculIds.includes(l.cId) || !chiffreIds.includes(l.nId)) return false;
       // ✅ FIX: Valider que le résultat du calcul correspond bien au chiffre (éviter WRONG_CALC_RESULT)
@@ -572,7 +648,17 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
         }
       } catch {}
       return true;
-    });
+    };
+    // 🎯 Phase 2: piocher d'abord au meilleur rang de priorité, fallback sans rang si vide
+    let chosenKey = null;
+    if (objPairRank && bestRankCC !== null && bestRankCC < 2) {
+      chosenKey = _drawFromDeck('assocCC', ccKeys, rng, (key) => {
+        if (!ccValid(key)) return false;
+        const l = ccLinkMap.get(key);
+        return objPairRank(`assoc-calc-${l.cId}-num-${l.nId}`) <= bestRankCC;
+      });
+    }
+    if (!chosenKey) chosenKey = _drawFromDeck('assocCC', ccKeys, rng, ccValid);
     const chosen = chosenKey ? ccLinkMap.get(chosenKey) : null;
     if (chosen) {
       const pairKey = `assoc-calc-${chosen.cId}-num-${chosen.nId}`;

@@ -166,6 +166,29 @@ export function recordPair(pairId, correct, latencyMs) {
 }
 
 /**
+ * 🎯 Phase 2 (workflow objectif-intelligent): données pour le tirage priorisé.
+ * @returns {Object} - {
+ *   foundPairIds: Set<pairId>  — paires trouvées au moins 1 fois (cumulé toutes sessions),
+ *   sessionFoundByCategory: { categoryKey: nbPairesTrouvéesCetteSession }
+ * }
+ */
+export function getObjectivePriorityData() {
+  const foundPairIds = new Set();
+  if (_progress) {
+    for (const key of Object.keys(_progress)) {
+      for (const pid of (_progress[key]?.found || [])) foundPairIds.add(pid);
+    }
+  }
+  const sessionFoundByCategory = {};
+  if (_sessionState) {
+    for (const [key, sess] of Object.entries(_sessionState)) {
+      sessionFoundByCategory[key] = sess?.found ? sess.found.size : 0;
+    }
+  }
+  return { foundPairIds, sessionFoundByCategory };
+}
+
+/**
  * Get current progress for all themes.
  * @returns {Array} - [{ key, label, found, total, tiers, sessionFound, sessionErrors }]
  */

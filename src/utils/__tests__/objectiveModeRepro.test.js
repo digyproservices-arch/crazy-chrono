@@ -16,6 +16,7 @@
 import fs from 'fs';
 import path from 'path';
 import { assignElementsToZones, resetElementDecks, computeFilteredThemeTotals } from '../elementsLoader';
+import { initMasteryTracker, resetMasterySession, recordPair } from '../masteryTracker';
 import { CONTENT_DOMAINS, LEVEL_INCLUDES } from '../../components/Shared/PedagogicConfig';
 
 // ===== Données réelles =====
@@ -357,5 +358,53 @@ describe('REPRO bug objectif solo — CP + tables 4/5/6', () => {
     expect(sumTargets).toBeGreaterThan(0);
     expect(sumTargets).toBeLessThanOrEqual(sumPool);
     expect(sumTargets).toBeLessThan(sumPool * 0.6);
+  });
+
+  test('Phase 2 (objectif-intelligent): tirage priorisé — catégories complétées évitées', async () => {
+    const cfg = {
+      mode: 'solo',
+      selectedLevel: 'CP',
+      classes: ['CP'],
+      extras: EXTRAS,
+      themes: COMPUTED_THEMES,
+      objectiveMode: true,
+      objectiveThemes: OBJECTIVE_THEMES_FIXED,
+    };
+    localStorage.setItem('cc_session_cfg', JSON.stringify(cfg));
+    localStorage.removeItem('cc_mastery_progress');
+    initMasteryTracker(assocData, null);
+    resetMasterySession();
+    resetElementDecks('test-priority-' + Math.random());
+    const rng = makeRng(11);
+    // Simuler: les 4 catégories MATH sont complétées cette session (5 paires chacune)
+    const validated = new Set();
+    const mathCats = ['category:addition', 'category:table_4', 'category:table_5', 'category:table_6'];
+    for (const cat of mathCats) {
+      const pairs = (assocData.associations || [])
+        .filter(a => a.calculId && a.chiffreId && (a.themes || []).includes(cat))
+        .slice(0, 5);
+      expect(pairs.length).toBe(5);
+      for (const a of pairs) {
+        const pid = `assoc-calc-${a.calculId}-num-${a.chiffreId}`;
+        recordPair(pid, true, 1000);
+        validated.add(pid);
+      }
+    }
+    // Plateau mixte: TI et CC possibles → la priorité doit imposer TI (math complété = rang 2)
+    const MIXED_ZONES = [
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 3000 + i, type: 'texte' })),
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 4000 + i, type: 'image' })),
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 5000 + i, type: 'calcul' })),
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 6000 + i, type: 'chiffre' })),
+    ];
+    let tiGood = 0, ccGood = 0;
+    for (let r = 0; r < 20; r++) {
+      const result = await assignElementsToZones(MIXED_ZONES.map(z => ({ ...z })), null, assocData, rng, validated);
+      if (result.some(z => z.type === 'texte' && (z.pairId || '').trim())) tiGood++;
+      if (result.some(z => z.type === 'calcul' && (z.pairId || '').trim())) ccGood++;
+    }
+    console.log('[REPRO][Phase 2] bonnes paires TI:', tiGood, '| CC:', ccGood, '(math complété → attendu 100% TI)');
+    expect(tiGood).toBe(20); // toutes les bonnes paires viennent des catégories NON complétées (nature/animaux)
+    expect(ccGood).toBe(0);  // plus jamais de paire math tant que d'autres catégories attendent
   });
 });
