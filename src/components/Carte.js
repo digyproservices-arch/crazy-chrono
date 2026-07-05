@@ -4413,14 +4413,22 @@ function handleGameClick(zone) {
               const progress = getMasteryProgress();
               // ✅ FIX OBJECTIF (totaux): utiliser les totaux du pool filtré niveau+extras,
               // pas les totaux de maîtrise tous niveaux (sinon objectifs inatteignables).
+              // STRICT: si les totaux filtrés sont calculables, une catégorie absente = 0
+              // (PAS de fallback vers le total maîtrise tous niveaux, sinon "Plantes
+              // médicinales 0/14" apparaît en CP alors qu'aucune n'est CP — bug constaté).
               if (!objectiveTotalsRef.current) {
-                try { objectiveTotalsRef.current = computeFilteredThemeTotals(assocDataRef.current || {}); } catch { objectiveTotalsRef.current = {}; }
+                try {
+                  const ad = assocDataRef.current || {};
+                  objectiveTotalsRef.current = (Array.isArray(ad.associations) && ad.associations.length > 0)
+                    ? computeFilteredThemeTotals(ad)
+                    : null; // données pas encore chargées → retenter au prochain appel
+                } catch { objectiveTotalsRef.current = null; }
               }
-              const fTotals = objectiveTotalsRef.current || {};
+              const fTotals = objectiveTotalsRef.current;
               const objProgress = objectiveThemes.map(t => {
                 const key = t.replace('category:', '');
                 const p = progress.find(x => x.key === key);
-                const total = Number.isFinite(fTotals[t]) ? fTotals[t] : (p?.total || 0);
+                const total = fTotals ? (fTotals[t] || 0) : (p?.total || 0);
                 return { theme: t, key, label: p?.label || key, sessionFound: p?.sessionFound || 0, total };
               }).filter(p => p.total > 0); // thèmes sans contenu au niveau choisi → pas d'objectif (évite 0/0 bloquant)
               objectiveProgressRef.current = objProgress;

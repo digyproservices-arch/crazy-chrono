@@ -316,5 +316,14 @@ describe('REPRO bug objectif solo — CP + tables 4/5/6', () => {
     // Une catégorie math hors niveau CP (ex: division) ne doit pas figurer dans les totaux
     expect(totals['category:division']).toBeUndefined();
     expect(totals['category:fraction']).toBeUndefined();
+    // Catégories non-math SANS contenu CP (vérifié dans les données): absentes des totaux
+    // (bug constaté: "Plantes médicinales 0/14" affiché en CP alors que 0 paire CP)
+    expect(totals['category:plante_medicinale']).toBeUndefined();
+    expect(totals['category:poisson']).toBeUndefined();
+    expect(totals['category:corail']).toBeUndefined();
+    expect(totals['category:tubercule']).toBeUndefined();
+    // Catégories non-math AVEC contenu CP: présentes et au bon compte
+    expect(totals['category:fruit']).toBe(12);
+    expect(totals['category:oiseau']).toBe(4);
   });
 });
