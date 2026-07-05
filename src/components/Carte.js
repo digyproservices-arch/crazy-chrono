@@ -6,7 +6,7 @@ import { pointToSvgCoords, polygonToPointsStr, segmentsToSvgPath, pointsToBezier
 import { getBackendUrl } from '../utils/subscription';
 import { getAuthSocketOptions } from '../utils/socketAuth';
 import { getAuthHeaders } from '../utils/apiHelpers';
-import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck, computeObjectiveSessionTargets, demoteCategory, clearDemotedCategory } from '../utils/elementsLoader';
+import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck, getFrozenObjectiveSessionTargets, demoteCategory, clearDemotedCategory } from '../utils/elementsLoader';
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
 import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError, reportIncident as incidentReportIncident, INCIDENT_TYPES as INCIDENT_TYPES_TRACKER } from '../utils/gameIncidentTracker';
 import { logRound } from '../utils/roundLogger';
@@ -4423,8 +4423,10 @@ function handleGameClick(zone) {
               if (!objectiveTotalsRef.current) {
                 try {
                   const ad = assocDataRef.current || {};
+                  // ✅ FIX (jeu interminable): même snapshot FIGÉ que le tirage priorisé
+                  // (getFrozenObjectiveSessionTargets) — jamais un recalcul live désynchronisé.
                   objectiveTotalsRef.current = (Array.isArray(ad.associations) && ad.associations.length > 0)
-                    ? computeObjectiveSessionTargets(ad)
+                    ? getFrozenObjectiveSessionTargets(ad)
                     : null; // données pas encore chargées → retenter au prochain appel
                 } catch { objectiveTotalsRef.current = null; }
               }

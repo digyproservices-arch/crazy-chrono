@@ -50,6 +50,8 @@ function localizeText(text, locMap) {
 // Elements are drawn sequentially from the deck. When exhausted, the deck is refilled & reshuffled.
 // This guarantees maximum variety: every element appears before any element repeats.
 let _deckState = null;
+// ✅ FIX (jeu interminable): cibles objectif FIGÉES par session (voir getFrozenObjectiveSessionTargets)
+let _frozenObjTargets = null;
 
 export function resetElementDecks(sessionId) {
   _deckState = {
@@ -57,6 +59,7 @@ export function resetElementDecks(sessionId) {
     decks: {},
     roundCount: 0,
   };
+  _frozenObjTargets = null;
   console.log('[elementsLoader] Anti-repetition decks reset for session:', _deckState.sessionId);
 }
 
@@ -203,6 +206,16 @@ export function clearDemotedCategory(catTag) {
 // ACQUIS = toutes les paires du pool filtré trouvées au moins 1 fois (cumulé Maîtrise)
 // et catégorie non rétrogradée (révision ratée précédemment → cc_obj_demoted).
 // → cible révision R au lieu de N. Source unique pour Carte.js ET le tirage priorisé.
+// ✅ FIX (jeu interminable): cibles FIGÉES pour toute la session. Le cumul Maîtrise
+// évolue pendant la partie (paires trouvées → catégorie « acquise » → cible live 4→2),
+// ce qui désynchronisait le tirage priorisé (recalculé chaque manche) du HUD (figé):
+// le moteur croyait « oiseaux » complété et proposait autre chose → objectif inatteignable.
+// Source unique: figée au 1er appel de la session, remise à zéro par resetElementDecks().
+export function getFrozenObjectiveSessionTargets(assocData, cfgArg) {
+  if (!_frozenObjTargets) _frozenObjTargets = computeObjectiveSessionTargets(assocData, cfgArg);
+  return _frozenObjTargets;
+}
+
 export function computeObjectiveSessionTargets(assocData, cfgArg) {
   let cfg = cfgArg;
   if (!cfg) { try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch { cfg = null; } }
@@ -522,7 +535,7 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   let objPairRank = null; // (pairId) => 0 | 1 | 2
   if (isObjectiveMode) {
     try {
-      const { targets: targetsForPriority } = computeObjectiveSessionTargets(data, cfg);
+      const { targets: targetsForPriority } = getFrozenObjectiveSessionTargets(data, cfg);
       const { foundPairIds, sessionFoundByCategory } = getObjectivePriorityData();
       const incompleteCats = new Set();
       for (const [catTag, target] of Object.entries(targetsForPriority)) {

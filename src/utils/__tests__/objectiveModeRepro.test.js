@@ -15,7 +15,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { assignElementsToZones, resetElementDecks, computeFilteredThemeTotals, computeObjectiveSessionTargets, demoteCategory, clearDemotedCategory } from '../elementsLoader';
+import { assignElementsToZones, resetElementDecks, computeFilteredThemeTotals, computeObjectiveSessionTargets, getFrozenObjectiveSessionTargets, demoteCategory, clearDemotedCategory } from '../elementsLoader';
 import { initMasteryTracker, resetMasterySession, recordPair } from '../masteryTracker';
 import { CONTENT_DOMAINS, LEVEL_INCLUDES } from '../../components/Shared/PedagogicConfig';
 
@@ -541,5 +541,140 @@ describe('REPRO bug objectif solo — CP + tables 4/5/6', () => {
       }
     }
     expect(falsePairs).toEqual([]);
+  });
+
+  test('RÉGRESSION (jeu interminable): la session objectif converge — les catégories incomplètes sont privilégiées', async () => {
+    const { getObjectivePriorityData: getPrio } = require('../masteryTracker');
+    const cfg = {
+      mode: 'solo',
+      selectedLevel: 'CP',
+      classes: ['CP'],
+      extras: EXTRAS,
+      themes: COMPUTED_THEMES,
+      objectiveMode: true,
+      objectiveThemes: OBJECTIVE_THEMES_FIXED,
+    };
+    localStorage.setItem('cc_session_cfg', JSON.stringify(cfg));
+    localStorage.removeItem('cc_mastery_progress');
+    localStorage.removeItem('cc_obj_demoted');
+    initMasteryTracker(assocData, null);
+    resetMasterySession();
+    resetElementDecks('test-endless');
+    const rng = makeRng(2026);
+    const MIXED_ZONES = [
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 3000 + i, type: 'image' })),
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 4000 + i, type: 'texte' })),
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 5000 + i, type: 'calcul' })),
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 6000 + i, type: 'chiffre' })),
+    ];
+    // Cibles de session (figées comme dans Carte.js)
+    const { targets } = computeObjectiveSessionTargets(assocData, cfg);
+    const totalTarget = Object.values(targets).reduce((s, n) => s + n, 0);
+    expect(totalTarget).toBeGreaterThan(0);
+    // pairId → catégorie (même logique que _computeFilteredThemePairIds: tag ∈ objectiveThemes)
+    const objSet = new Set(OBJECTIVE_THEMES_FIXED);
+    const pairCat = new Map();
+    for (const a of (assocData.associations || [])) {
+      const cat = (a.themes || []).map(String).find(t => objSet.has(t) && t.startsWith('category:'));
+      if (!cat) continue;
+      if (a.texteId && a.imageId) pairCat.set(`assoc-img-${a.imageId}-txt-${a.texteId}`, cat);
+      if (a.calculId && a.chiffreId) pairCat.set(`assoc-calc-${a.calculId}-num-${a.chiffreId}`, cat);
+    }
+    const isComplete = () => {
+      const { sessionFoundByCategory } = getPrio();
+      return Object.entries(targets).every(([cat, t]) => (sessionFoundByCategory[cat.replace('category:', '')] || 0) >= t);
+    };
+    const validated = new Set();
+    const wastedRounds = []; // manches proposant une catégorie déjà complétée alors qu'il en reste d'incomplètes
+    let rounds = 0;
+    const MAX_ROUNDS = totalTarget + 15;
+    while (!isComplete() && rounds < MAX_ROUNDS) {
+      rounds++;
+      const result = await assignElementsToZones(MIXED_ZONES.map(z => ({ ...z })), null, assocData, rng, validated);
+      const good = result.find(z => z.pairId);
+      expect(good).toBeTruthy();
+      const cat = pairCat.get(good.pairId);
+      const { sessionFoundByCategory } = getPrio();
+      const incomplete = Object.entries(targets)
+        .filter(([c, t]) => (sessionFoundByCategory[c.replace('category:', '')] || 0) < t)
+        .map(([c]) => c);
+      if (cat && incomplete.length > 0 && !incomplete.includes(cat)) {
+        wastedRounds.push(`R${rounds}: paire "${cat}" proposée alors qu'incomplètes = ${incomplete.join(',')}`);
+      }
+      // Valider la paire (comme le joueur)
+      recordPair(good.pairId, true, 1000);
+      validated.add(good.pairId);
+    }
+    const { sessionFoundByCategory } = getPrio();
+    const remaining = Object.entries(targets)
+      .filter(([c, t]) => (sessionFoundByCategory[c.replace('category:', '')] || 0) < t)
+      .map(([c, t]) => `${c}: ${sessionFoundByCategory[c.replace('category:', '')] || 0}/${t}`);
+    console.log('[REPRO][Session complète] manches:', rounds, '| cible totale:', totalTarget, '| manches gaspillées:', wastedRounds.length, wastedRounds.slice(0, 8), '| restants:', remaining);
+    expect(remaining).toEqual([]);            // la session DOIT se terminer (pas de jeu interminable)
+    expect(rounds).toBeLessThanOrEqual(MAX_ROUNDS - 1);
+    expect(wastedRounds).toEqual([]);          // chaque manche doit cibler une catégorie incomplète
+  });
+
+  test('RÉGRESSION (cibles figées): acquisition en cours de session ne dévie pas le tirage — scénario oiseaux vécu', async () => {
+    const { getObjectivePriorityData: getPrio } = require('../masteryTracker');
+    const cfg = {
+      mode: 'solo',
+      selectedLevel: 'CP',
+      classes: ['CP'],
+      extras: EXTRAS,
+      themes: COMPUTED_THEMES,
+      objectiveMode: true,
+      objectiveThemes: OBJECTIVE_THEMES_FIXED,
+    };
+    localStorage.setItem('cc_session_cfg', JSON.stringify(cfg));
+    localStorage.removeItem('cc_mastery_progress');
+    localStorage.removeItem('cc_obj_demoted');
+    initMasteryTracker(assocData, null);
+    resetMasterySession();
+    // Scénario vécu: 2 des 4 oiseaux CP déjà connus (sessions passées, cumul Maîtrise)
+    const cpBirds = (assocData.associations || [])
+      .filter(a => a.texteId && a.imageId && String(a.levelClass) === 'CP' && (a.themes || []).includes('category:oiseau'))
+      .map(a => `assoc-img-${a.imageId}-txt-${a.texteId}`);
+    expect(cpBirds.length).toBeGreaterThanOrEqual(3);
+    recordPair(cpBirds[0], true, 800);
+    recordPair(cpBirds[1], true, 800);
+    // Nouvelle session: reset session (le cumul persiste), decks + cibles figées reset
+    resetMasterySession();
+    resetElementDecks('test-frozen-targets');
+    const rng = makeRng(555);
+    const MIXED_ZONES = [
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 3000 + i, type: 'image' })),
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 4000 + i, type: 'texte' })),
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 5000 + i, type: 'calcul' })),
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 6000 + i, type: 'chiffre' })),
+    ];
+    // Cibles figées (même source que Carte.js ET le tirage priorisé)
+    const { targets } = getFrozenObjectiveSessionTargets(assocData, cfg);
+    // Oiseaux non acquis (2 paires inconnues) → cible pleine min(N, pool)
+    expect(targets['category:oiseau']).toBe(Math.min(5, cpBirds.length));
+    const totalTarget = Object.values(targets).reduce((s, n) => s + n, 0);
+    const isComplete = () => {
+      const { sessionFoundByCategory } = getPrio();
+      return Object.entries(targets).every(([cat, t]) => (sessionFoundByCategory[cat.replace('category:', '')] || 0) >= t);
+    };
+    const validated = new Set();
+    let rounds = 0;
+    const MAX_ROUNDS = totalTarget + 15;
+    while (!isComplete() && rounds < MAX_ROUNDS) {
+      rounds++;
+      const result = await assignElementsToZones(MIXED_ZONES.map(z => ({ ...z })), null, assocData, rng, validated);
+      const good = result.find(z => z.pairId);
+      expect(good).toBeTruthy();
+      recordPair(good.pairId, true, 1000);
+      validated.add(good.pairId);
+    }
+    const { sessionFoundByCategory } = getPrio();
+    const remaining = Object.entries(targets)
+      .filter(([c, t]) => (sessionFoundByCategory[c.replace('category:', '')] || 0) < t)
+      .map(([c, t]) => `${c}: ${sessionFoundByCategory[c.replace('category:', '')] || 0}/${t}`);
+    console.log('[REPRO][Cibles figées] manches:', rounds, '/', MAX_ROUNDS, '| cible totale:', totalTarget, '| restants:', remaining);
+    expect(remaining).toEqual([]);   // oiseaux DOIT se compléter malgré l'acquisition en cours de session
+    expect(rounds).toBeLessThanOrEqual(MAX_ROUNDS - 1);
+    localStorage.removeItem('cc_mastery_progress');
   });
 });
