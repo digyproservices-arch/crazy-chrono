@@ -306,6 +306,29 @@ const Carte = () => {
     try { const auth = JSON.parse(localStorage.getItem('cc_auth') || '{}'); if (auth.id) return auth.id; } catch {}
     return localStorage.getItem('cc_student_id') || null;
   };
+  // ✅ FIX RECORD: en mode objectif, le nombre de paires est plafonné par les cibles
+  // (incomparable avec le solo classique) → exclu du record solo cc_solo_best.
+  const isObjectiveSessionCfg = () => {
+    try { return !!JSON.parse(localStorage.getItem('cc_session_cfg') || 'null')?.objectiveMode; } catch { return false; }
+  };
+  // Record « meilleur temps objectif », par élève ET par configuration comparable
+  // (niveau + thèmes objectifs triés + N paires/catégorie). Plus petit temps = meilleur.
+  const updateObjectiveTimeRecord = (finalTimeSec) => {
+    try {
+      const cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null') || {};
+      const lvl = cfg.selectedLevel || (Array.isArray(cfg.classes) && cfg.classes[0]) || '';
+      const n = parseInt(cfg.objectivePairsPerCategory, 10) || 5;
+      const themes = Array.isArray(cfg.objectiveThemes) ? [...cfg.objectiveThemes].sort().join(',') : '';
+      const sig = `${lvl}|N${n}|${themes}`;
+      const sid = getMyStudentId();
+      const key = sid ? `cc_obj_best_time_${sid}` : 'cc_obj_best_time';
+      const all = JSON.parse(localStorage.getItem(key) || '{}') || {};
+      const prev = Number(all[sig]) || 0;
+      const isNew = finalTimeSec > 0 && (prev === 0 || finalTimeSec < prev);
+      if (isNew) { all[sig] = finalTimeSec; localStorage.setItem(key, JSON.stringify(all)); }
+      return { bestTime: isNew ? finalTimeSec : prev, previousBest: prev, isNew };
+    } catch { return { bestTime: 0, previousBest: 0, isNew: false }; }
+  };
   // Index des zones par id pour éviter les .find() répétitifs (déclaré après l'init de `zones`)
   // Responsive UI state
   const [isMobile, setIsMobile] = useState(false);
@@ -2913,8 +2936,9 @@ const Carte = () => {
       // Reset session start time
       sessionStartTimeRef.current = null;
 
-      // FIX: Mettre à jour le record personnel (cc_solo_best_<sid>) — tous modes
-      if (myScore > 0) {
+      // FIX: Mettre à jour le record personnel (cc_solo_best_<sid>) — tous modes SAUF objectif
+      // (paires plafonnées par les cibles → incomparable avec le solo classique)
+      if (myScore > 0 && !isObjectiveSessionCfg()) {
         try {
           const PPM_CAP = 30;
           const rawPPM = sessionDur > 0 ? myScore / sessionDur * 60 : 0;
@@ -3593,9 +3617,9 @@ useEffect(() => {
           masteryAll: getMasteryProgress()
         });
 
-        // Update personal record if beaten — tous modes (solo + multi)
-        // PPM cap: 30/min max (1 paire/2s = surhumain). Durée min: 30s pour éviter aberrations.
-        if (finalScore > 0 || pairsCount > 0) {
+        // Update personal record if beaten — tous modes (solo + multi) SAUF objectif
+        // (paires plafonnées par les cibles → incomparable avec le solo classique)
+        if ((finalScore > 0 || pairsCount > 0) && !isObjectiveSessionCfg()) {
           try {
             const PPM_CAP = 30;
             const rawPPM = sessionElapsedSec > 0 ? (pairsCount || finalScore) / sessionElapsedSec * 60 : 0;
@@ -4453,12 +4477,15 @@ function handleGameClick(zone) {
               try { window.ccAddDiag && window.ccAddDiag('objective:thematic:check', { objProgress, allComplete }); } catch {}
               if (allComplete) {
                 const finalTime = timeElapsed + helpPenalty;
-                try { window.ccAddDiag && window.ccAddDiag('objective:thematic:completed', { objProgress, timeElapsed, penalty: helpPenalty, finalTime }); } catch {}
+                // ✅ Record objectif = meilleur TEMPS (par config comparable), pas le nombre de paires
+                const objRecord = updateObjectiveTimeRecord(finalTime);
+                try { window.ccAddDiag && window.ccAddDiag('objective:thematic:completed', { objProgress, timeElapsed, penalty: helpPenalty, finalTime, objRecord }); } catch {}
                 setTimeout(() => {
                   setGameActive(false);
                   setSoloGameEndOverlay({
                     score: pairsFound, pairsValidated: pairsFound, duration: finalTime, errors: 0, mode: 'solo',
                     timestamp: Date.now(), objectiveMode: true, objectiveTarget: pairsFound,
+                    objectiveBestTime: objRecord.bestTime, objectivePreviousBest: objRecord.previousBest, objectiveNewRecord: objRecord.isNew,
                     objectiveThemes, objectiveProgress: objProgress,
                     helpStats: { ...helpStatsRef.current },
                     masterySession: getActiveSessionProgress(), masteryAll: getMasteryProgress()
@@ -4468,12 +4495,14 @@ function handleGameClick(zone) {
             } else if (pairsFound >= objectiveTarget) {
               // Fallback: mode simple (nombre de paires)
               const finalTime = timeElapsed + helpPenalty;
-              try { window.ccAddDiag && window.ccAddDiag('objective:completed', { pairsFound, target: objectiveTarget, timeElapsed, penalty: helpPenalty, finalTime }); } catch {}
+              const objRecord = updateObjectiveTimeRecord(finalTime);
+              try { window.ccAddDiag && window.ccAddDiag('objective:completed', { pairsFound, target: objectiveTarget, timeElapsed, penalty: helpPenalty, finalTime, objRecord }); } catch {}
               setTimeout(() => {
                 setGameActive(false);
                 setSoloGameEndOverlay({
                   score: pairsFound, pairsValidated: pairsFound, duration: finalTime, errors: 0, mode: 'solo',
                   timestamp: Date.now(), objectiveMode: true, objectiveTarget,
+                  objectiveBestTime: objRecord.bestTime, objectivePreviousBest: objRecord.previousBest, objectiveNewRecord: objRecord.isNew,
                   helpStats: { ...helpStatsRef.current },
                   masterySession: getActiveSessionProgress(), masteryAll: getMasteryProgress()
                 });
@@ -4779,6 +4808,8 @@ const handleEditGreenZone = (zone) => {
   // Détection live: le joueur vient de battre le record (perso OU global)
   // + Mise à jour en temps réel du record perso pour afficher "🏆 Vous détenez le record" pendant la session
   useEffect(() => {
+    // ✅ FIX RECORD: en mode objectif, score plafonné par les cibles → ni flash ni mise à jour live
+    if (isObjectiveSessionCfg()) return;
     const recordToBeat = Math.max(soloPersonalBest.bestScore || 0, soloGlobalBest.bestScore || 0);
     if (score > 0 && recordToBeat > 0 && score > recordToBeat && !recordBeatTriggeredRef.current) {
       recordBeatTriggeredRef.current = true;
@@ -10207,6 +10238,15 @@ setZones(dataWithRandomTexts);
                       dont +{ov.helpStats.totalPenalty}s de pénalité aide
                     </div>
                   )}
+                  {ov.objectiveNewRecord ? (
+                    <div style={{ marginTop: 8, background: 'linear-gradient(135deg, #ff6b35, #F5A623)', borderRadius: 12, padding: '8px 18px', fontSize: isMobile ? 14 : 16, fontWeight: 900, color: '#fff', boxShadow: '0 6px 20px rgba(255,107,53,0.45)' }}>
+                      🔥 NOUVEAU RECORD !{ov.objectivePreviousBest > 0 ? ` (ancien : ${ov.objectivePreviousBest}s)` : ''}
+                    </div>
+                  ) : (ov.objectiveBestTime > 0 && (
+                    <div style={{ marginTop: 8, fontSize: isMobile ? 13 : 15, fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>
+                      🏅 Meilleur temps : {ov.objectiveBestTime}s
+                    </div>
+                  ))}
                 </>
               ) : (
                 <>
