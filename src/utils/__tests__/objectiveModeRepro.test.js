@@ -480,4 +480,66 @@ describe('REPRO bug objectif solo — CP + tables 4/5/6', () => {
     r = computeObjectiveSessionTargets(assocData, base);
     expect(r.targets['category:addition']).toBe(5);
   });
+
+  test('RÉGRESSION (fausses paires visuelles): les 2 moitiés d\'une paire validée ne doivent jamais être placées ensemble comme distracteurs', async () => {
+    const cfg = {
+      mode: 'solo',
+      selectedLevel: 'CP',
+      classes: ['CP'],
+      extras: EXTRAS,
+      themes: COMPUTED_THEMES,
+      objectiveMode: true,
+      objectiveThemes: OBJECTIVE_THEMES_FIXED,
+    };
+    localStorage.setItem('cc_session_cfg', JSON.stringify(cfg));
+    resetElementDecks('test-false-pair');
+    const rng = makeRng(7);
+    // Plateau mixte comme en jeu réel: images + textes + calculs + chiffres
+    const MIXED_ZONES = [
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 3000 + i, type: 'image' })),
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 4000 + i, type: 'texte' })),
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 5000 + i, type: 'calcul' })),
+      ...Array.from({ length: 4 }, (_, i) => ({ id: 6000 + i, type: 'chiffre' })),
+    ];
+    // Index complets (TOUTES associations, comme le détecteur de monitoring)
+    const normFile = (u) => { let s = String(u || ''); try { s = decodeURIComponent(s); } catch {} return s.toLowerCase().replace(/\\/g, '/').split('/').pop(); };
+    const imgIdByFile = new Map((assocData.images || []).map(i => [normFile(i.url), String(i.id)]));
+    const txtIdByCont = new Map((assocData.textes || []).map(t => [String(t.content || '').trim().toLowerCase(), String(t.id)]));
+    const imgTxtSet = new Set((assocData.associations || []).filter(a => a.imageId && a.texteId).map(a => `${a.imageId}|${a.texteId}`));
+    const calcByContent = new Map((assocData.calculs || []).map(c => [String(c.content || '').trim(), String(c.id)]));
+    const numByContent = new Map((assocData.chiffres || []).map(n => [String(n.content || '').trim(), String(n.id)]));
+    const calcNumSet = new Set((assocData.associations || []).filter(a => a.calculId && a.chiffreId).map(a => `${a.calculId}|${a.chiffreId}`));
+
+    const validated = new Set();
+    const falsePairs = [];
+    for (let r = 0; r < 60; r++) {
+      const result = await assignElementsToZones(MIXED_ZONES.map(z => ({ ...z })), null, assocData, rng, validated);
+      // Simuler la validation de la bonne paire (comme en session réelle)
+      const good = result.find(z => z.pairId);
+      if (good) validated.add(good.pairId);
+      // Vérifier fausses paires TI parmi les distracteurs
+      const dImgs = result.filter(z => z.isDistractor && (z.type || 'image') === 'image' && z.content);
+      const dTxts = result.filter(z => z.isDistractor && z.type === 'texte' && z.content);
+      for (const iz of dImgs) {
+        const iId = imgIdByFile.get(normFile(iz.content));
+        if (!iId) continue;
+        for (const tz of dTxts) {
+          const tId = txtIdByCont.get(String(tz.content || '').trim().toLowerCase());
+          if (tId && imgTxtSet.has(`${iId}|${tId}`)) falsePairs.push(`R${r} TI: ${normFile(iz.content)} + ${tz.content}`);
+        }
+      }
+      // Vérifier fausses paires CC parmi les distracteurs
+      const dCalcs = result.filter(z => z.isDistractor && z.type === 'calcul' && z.content);
+      const dNums = result.filter(z => z.isDistractor && z.type === 'chiffre' && z.content);
+      for (const cz of dCalcs) {
+        const cId = calcByContent.get(String(cz.content || '').trim());
+        if (!cId) continue;
+        for (const nz of dNums) {
+          const nId = numByContent.get(String(nz.content || '').trim());
+          if (nId && calcNumSet.has(`${cId}|${nId}`)) falsePairs.push(`R${r} CC: ${cz.content} + ${nz.content}`);
+        }
+      }
+    }
+    expect(falsePairs).toEqual([]);
+  });
 });

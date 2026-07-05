@@ -72,8 +72,11 @@ function _drawFromDeck(deckName, allIds, rng, filterFn) {
   const deck = _deckState.decks[deckName];
 
   // Try drawing from existing deck
+  // ✅ FIX (fausses paires/cartes vides): le deck persiste entre manches et peut contenir
+  // des ids retirés du pool courant (ex: paires validées exclues) — les ignorer.
+  const poolSet = new Set(allIds);
   for (let i = 0; i < deck.length; i++) {
-    if (filterFn(deck[i])) {
+    if (poolSet.has(deck[i]) && filterFn(deck[i])) {
       return deck.splice(i, 1)[0];
     }
   }
@@ -458,6 +461,25 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     }
   }
 
+  // ✅ FIX (fausses paires visuelles): cartes de GARDE construites sur TOUTES les associations,
+  // y compris les paires validées exclues du tirage ci-dessus. Sans cela, l'image ET le texte
+  // d'une paire déjà trouvée (ex: Toucan) peuvent être placés ensemble comme distracteurs
+  // en fin de session objectif — les gardes ne les connaissent plus.
+  const guardTexteToImages = new Map();
+  const guardImageToTextes = new Map();
+  const guardCalculToChiffres = new Map();
+  const guardChiffreToCalculs = new Map();
+  for (const a of (Array.isArray(data.associations) ? data.associations : [])) {
+    if (a.texteId && a.imageId) {
+      addMap(guardTexteToImages, a.texteId, a.imageId);
+      addMap(guardImageToTextes, a.imageId, a.texteId);
+    }
+    if (a.calculId && a.chiffreId) {
+      addMap(guardCalculToChiffres, a.calculId, a.chiffreId);
+      addMap(guardChiffreToCalculs, a.chiffreId, a.calculId);
+    }
+  }
+
   // Helpers
   const shuffle = (arr) => {
     for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(rng()*(i+1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
@@ -752,22 +774,22 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   // Remplissage distracteurs via deck (anti-répétition inter-manches)
   const pickImageDistractor = (forbiddenTextIds) => {
     return _drawFromDeck('distImg', imageIds, rng, (imgId) =>
-      !used.image.has(imgId) && (!forbiddenTextIds || !imageToTextes.get(imgId) || ![...imageToTextes.get(imgId)].some(t => forbiddenTextIds.has(t)))
+      !used.image.has(imgId) && (!forbiddenTextIds || !guardImageToTextes.get(imgId) || ![...guardImageToTextes.get(imgId)].some(t => forbiddenTextIds.has(t)))
     );
   };
   const pickTexteDistractor = (forbiddenImageIds) => {
     return _drawFromDeck('distTxt', texteIds, rng, (tId) =>
-      !used.texte.has(tId) && (!forbiddenImageIds || !texteToImages.get(tId) || ![...texteToImages.get(tId)].some(i => forbiddenImageIds.has(i)))
+      !used.texte.has(tId) && (!forbiddenImageIds || !guardTexteToImages.get(tId) || ![...guardTexteToImages.get(tId)].some(i => forbiddenImageIds.has(i)))
     );
   };
   const pickCalculDistractor = (forbiddenChiffreIds) => {
     return _drawFromDeck('distCalc', calculIds, rng, (cId) =>
-      !used.calcul.has(cId) && (!forbiddenChiffreIds || !calculToChiffres.get(cId) || ![...calculToChiffres.get(cId)].some(n => forbiddenChiffreIds.has(n)))
+      !used.calcul.has(cId) && (!forbiddenChiffreIds || !guardCalculToChiffres.get(cId) || ![...guardCalculToChiffres.get(cId)].some(n => forbiddenChiffreIds.has(n)))
     );
   };
   const pickChiffreDistractor = (forbiddenCalculIds) => {
     return _drawFromDeck('distNum', chiffreIds, rng, (nId) =>
-      !used.chiffre.has(nId) && (!forbiddenCalculIds || !chiffreToCalculs.get(nId) || ![...chiffreToCalculs.get(nId)].some(c => forbiddenCalculIds.has(c)))
+      !used.chiffre.has(nId) && (!forbiddenCalculIds || !guardChiffreToCalculs.get(nId) || ![...guardChiffreToCalculs.get(nId)].some(c => forbiddenCalculIds.has(c)))
     );
   };
 
@@ -842,7 +864,7 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       if (imgId) {
         z.content = encodedImageUrl(imagesById[imgId]?.url || ''); used.image.add(imgId); z.isDistractor = true; z._distId = imgId;
         // Update forbidden: prevent associated textes from being placed
-        const assocT = imageToTextes.get(imgId);
+        const assocT = guardImageToTextes.get(imgId);
         if (assocT) assocT.forEach(tId => forbiddenTextIds.add(tId));
         // CROSS-PREVENT: prevent texts associated with this image from being placed
         forbiddenImageIds.add(imgId);
@@ -852,7 +874,7 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       if (tId) {
         z.content = localizeText(textesById[tId]?.content || '', locMap); used.texte.add(tId); z.isDistractor = true; z._distId = tId;
         // Update forbidden: prevent associated images from being placed
-        const assocI = texteToImages.get(tId);
+        const assocI = guardTexteToImages.get(tId);
         if (assocI) assocI.forEach(imgId => forbiddenImageIds.add(imgId));
         // CROSS-PREVENT: prevent images associated with this text from being placed
         forbiddenTextIds.add(tId);
@@ -872,7 +894,7 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
           z.content = calcContent; used.calcul.add(cId); z.isDistractor = true;
           if (Number.isFinite(calcResultRounded)) placedCalcResults.add(calcResultRounded);
           // Update forbidden: prevent associated chiffres from being placed
-          const assocN = calculToChiffres.get(cId);
+          const assocN = guardCalculToChiffres.get(cId);
           if (assocN) assocN.forEach(nId => forbiddenChiffreIds.add(nId));
         }
       }
@@ -890,7 +912,7 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
           z.content = numContent; used.chiffre.add(nId); z.isDistractor = true;
           if (Number.isFinite(numValue)) placedChiffreValues.add(numValue);
           // Update forbidden: prevent associated calculs from being placed
-          const assocC = chiffreToCalculs.get(nId);
+          const assocC = guardChiffreToCalculs.get(nId);
           if (assocC) assocC.forEach(cId => forbiddenCalculIds.add(cId));
         }
       }
@@ -934,14 +956,14 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     const distImages = result.filter(z => z.isDistractor && (z.type || 'image') === 'image' && z._distId);
     const distTextes = result.filter(z => z.isDistractor && z.type === 'texte' && z._distId);
     for (const imgZ of distImages) {
-      const assocTxtIds = imageToTextes.get(imgZ._distId);
+      const assocTxtIds = guardImageToTextes.get(imgZ._distId);
       if (!assocTxtIds) continue;
       for (const txtZ of distTextes) {
         if (assocTxtIds.has(txtZ._distId)) {
           console.warn('[elementsLoader] POST-VALIDATION: fausse paire visuelle détectée — image', imgZ._distId, '+ texte', txtZ._distId, '— remplacement du texte');
           const replacement = _drawFromDeck('distTxt', texteIds, rng, (candidateId) => {
             if (used.texte.has(candidateId)) return false;
-            const ci = texteToImages.get(candidateId);
+            const ci = guardTexteToImages.get(candidateId);
             if (!ci) return true;
             // Vérifier que ce candidat ne forme pas de fausse paire avec AUCUNE image placée
             for (const dImg of distImages) {
@@ -1082,9 +1104,6 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     console.warn('[elementsLoader] POST-VALIDATION calc-num error:', e);
   }
 
-  // Nettoyage: supprimer _distId temporaire des zones
-  for (const z of result) delete z._distId;
-
   // ===== FINAL PASS: fill remaining empty-content zones with safe fallback =====
   // FIX BUG 2: Prevents zones vides (content: "") causing invisible zones and pair_rejected
   for (const z of result) {
@@ -1125,33 +1144,62 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
         break;
       }
     } else if (type === 'texte') {
-      const remaining = texteIds.filter(id => !used.texte.has(id));
+      // ✅ FIX fausse paire visuelle: le remplissage final doit respecter les gardes
+      // (ne jamais poser un texte dont l'image associée est déjà sur le plateau).
+      const placedImgIds = new Set(
+        result.filter(o => (o.type || 'image') === 'image' && o._distId).map(o => o._distId)
+      );
+      if (goodPairIds?.imageId) placedImgIds.add(goodPairIds.imageId);
+      const isSafeTxt = (id) => {
+        const imgs = guardTexteToImages.get(id);
+        if (!imgs) return true;
+        for (const i of imgs) if (placedImgIds.has(i)) return false;
+        return true;
+      };
+      const remaining = texteIds.filter(id => !used.texte.has(id) && isSafeTxt(id));
       if (remaining.length > 0) {
         const tId = remaining[Math.floor(rng() * remaining.length)];
         z.content = localizeText(textesById[tId]?.content || '', locMap);
         used.texte.add(tId);
+        z._distId = tId;
       } else {
-        // Fallback: utiliser n'importe quel texte du pool complet (même déjà utilisé)
+        // Fallback: n'importe quel texte du pool complet, mais toujours SÛR vis-à-vis des images placées
         const allTextes = Array.isArray(data.textes) ? data.textes : [];
-        const anyT = allTextes.filter(t => t.content && String(t.content).trim() !== '');
+        const anyT = allTextes.filter(t => t.content && String(t.content).trim() !== '' && isSafeTxt(t.id));
         if (anyT.length > 0) {
-          z.content = localizeText(anyT[Math.floor(rng() * anyT.length)].content, locMap);
+          const pick = anyT[Math.floor(rng() * anyT.length)];
+          z.content = localizeText(pick.content, locMap);
+          z._distId = pick.id;
         } else {
           z.content = String(Math.floor(rng() * 100) + 1);
         }
       }
     } else if (type === 'image') {
-      const remaining = imageIds.filter(id => !used.image.has(id));
+      // ✅ FIX fausse paire visuelle: symétrique côté image (texte associé déjà placé → interdit)
+      const placedTxtIds = new Set(
+        result.filter(o => o.type === 'texte' && o._distId).map(o => o._distId)
+      );
+      if (goodPairIds?.texteId) placedTxtIds.add(goodPairIds.texteId);
+      const isSafeImg = (id) => {
+        const txts = guardImageToTextes.get(id);
+        if (!txts) return true;
+        for (const t of txts) if (placedTxtIds.has(t)) return false;
+        return true;
+      };
+      const remaining = imageIds.filter(id => !used.image.has(id) && isSafeImg(id));
       if (remaining.length > 0) {
         const imgId = remaining[Math.floor(rng() * remaining.length)];
         z.content = encodedImageUrl(imagesById[imgId]?.url || '');
         used.image.add(imgId);
+        z._distId = imgId;
       } else {
-        // Fallback: utiliser n'importe quelle image (même déjà utilisée)
+        // Fallback: n'importe quelle image, mais toujours SÛRE vis-à-vis des textes placés
         const allImages = Array.isArray(data.images) ? data.images : [];
-        const anyI = allImages.filter(i => i.url && String(i.url).trim() !== '');
+        const anyI = allImages.filter(i => i.url && String(i.url).trim() !== '' && isSafeImg(i.id));
         if (anyI.length > 0) {
-          z.content = encodedImageUrl(anyI[Math.floor(rng() * anyI.length)].url);
+          const pick = anyI[Math.floor(rng() * anyI.length)];
+          z.content = encodedImageUrl(pick.url);
+          z._distId = pick.id;
         }
       }
     }
@@ -1161,6 +1209,9 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       console.warn('[elementsLoader] FINAL PASS: Could not fill zone', z.id, type, '— zone will remain empty');
     }
   }
+
+  // Nettoyage: supprimer _distId temporaire des zones (après le FINAL PASS qui en a besoin)
+  for (const z of result) delete z._distId;
 
   // Increment round counter for logging (via monitoring pipeline)
   if (_deckState) {

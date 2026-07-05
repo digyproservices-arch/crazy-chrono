@@ -5729,33 +5729,6 @@ setZones(dataWithRandomTexts);
         // Monitoring: valider les zones en mode objectif aussi
         let _objInc = []; try { _objInc = incidentValidateZones(post, { source: 'objective:assignElements', assocData: assocData?.associations }) || []; } catch {}
         try { const _rl = logRound(post, { mode: 'objective', source: 'objective:assignElements', assocData }); if (_rl && (_rl.doublePairIssues > 0 || _objInc.length > 0)) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues.length > 0 ? _rl.issues : _objInc, mode: 'objective' }; } catch {}
-        // Détection fausses paires visuelles texte-image via associations
-        try {
-          if (assocData && assocData.associations) {
-            const _imgTxtSet = new Set((assocData.associations || []).filter(a => a.imageId && a.texteId).map(a => `${a.imageId}|${a.texteId}`));
-            const _normUrl = (p) => { if (!p) return ''; try { p = decodeURIComponent(p); } catch {} return p.toLowerCase().replace(/\\/g, '/').split('/').pop(); };
-            const _imgIdByFile = new Map((assocData.images || []).map(i => [_normUrl(i.url), String(i.id)]));
-            const _txtIdByCont = new Map((assocData.textes || []).map(t => [String(t.content || '').trim().toLowerCase(), String(t.id)]));
-            const _distImgs = post.filter(z => z.isDistractor && (z.type || 'image') === 'image' && z.content);
-            const _distTxts = post.filter(z => z.isDistractor && z.type === 'texte' && z.content);
-            for (const iz of _distImgs) {
-              const iId = _imgIdByFile.get(_normUrl(iz.content));
-              if (!iId) continue;
-              for (const tz of _distTxts) {
-                const tId = _txtIdByCont.get(String(tz.content || '').trim().toLowerCase());
-                if (tId && _imgTxtSet.has(`${iId}|${tId}`)) {
-                  incidentReportIncident(INCIDENT_TYPES_TRACKER.FALSE_TEXT_IMAGE_PAIR, {
-                    imageZoneId: iz.id, imageContent: String(iz.content || '').substring(0, 60),
-                    texteZoneId: tz.id, texteContent: String(tz.content || '').substring(0, 60),
-                    imageId: iId, texteId: tId,
-                    message: `Fausse paire visuelle: image "${_normUrl(iz.content)}" + texte "${String(tz.content || '').substring(0, 30)}" sont associés mais placés comme distracteurs`,
-                    source: 'objective:assignElements'
-                  });
-                }
-              }
-            }
-          }
-        } catch (e) { console.warn('[CC] Erreur détection fausse paire TI:', e); }
         // ANTI-FAUSSE-PAIRE IMAGE-TEXTE (mode objectif): remplacer les textes distracteurs formant paire avec une image présente
         try {
           if (assocData && assocData.associations) {
@@ -5797,6 +5770,35 @@ setZones(dataWithRandomTexts);
             });
           }
         } catch (e) { console.warn('[CC][OBJ] Erreur anti-fausse-paire:', e); }
+        // Détection fausses paires visuelles texte-image via associations
+        // ✅ FIX monitoring: exécutée APRÈS la correction anti-fausse-paire ci-dessus,
+        // pour ne signaler que ce qui est réellement affiché à l'enfant.
+        try {
+          if (assocData && assocData.associations) {
+            const _imgTxtSet = new Set((assocData.associations || []).filter(a => a.imageId && a.texteId).map(a => `${a.imageId}|${a.texteId}`));
+            const _normUrl = (p) => { if (!p) return ''; try { p = decodeURIComponent(p); } catch {} return p.toLowerCase().replace(/\\/g, '/').split('/').pop(); };
+            const _imgIdByFile = new Map((assocData.images || []).map(i => [_normUrl(i.url), String(i.id)]));
+            const _txtIdByCont = new Map((assocData.textes || []).map(t => [String(t.content || '').trim().toLowerCase(), String(t.id)]));
+            const _distImgs = post.filter(z => z.isDistractor && (z.type || 'image') === 'image' && z.content);
+            const _distTxts = post.filter(z => z.isDistractor && z.type === 'texte' && z.content);
+            for (const iz of _distImgs) {
+              const iId = _imgIdByFile.get(_normUrl(iz.content));
+              if (!iId) continue;
+              for (const tz of _distTxts) {
+                const tId = _txtIdByCont.get(String(tz.content || '').trim().toLowerCase());
+                if (tId && _imgTxtSet.has(`${iId}|${tId}`)) {
+                  incidentReportIncident(INCIDENT_TYPES_TRACKER.FALSE_TEXT_IMAGE_PAIR, {
+                    imageZoneId: iz.id, imageContent: String(iz.content || '').substring(0, 60),
+                    texteZoneId: tz.id, texteContent: String(tz.content || '').substring(0, 60),
+                    imageId: iId, texteId: tId,
+                    message: `Fausse paire visuelle: image "${_normUrl(iz.content)}" + texte "${String(tz.content || '').substring(0, 30)}" sont associés mais placés comme distracteurs`,
+                    source: 'objective:assignElements'
+                  });
+                }
+              }
+            }
+          }
+        } catch (e) { console.warn('[CC] Erreur détection fausse paire TI:', e); }
         // SAFETY NET CRITIQUE (mode objectif): Vérifier et corriger la paire calcul-chiffre officielle
         try {
           const _objEval = (expr) => {
