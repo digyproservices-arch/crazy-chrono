@@ -326,4 +326,36 @@ describe('REPRO bug objectif solo — CP + tables 4/5/6', () => {
     expect(totals['category:fruit']).toBe(12);
     expect(totals['category:oiseau']).toBe(4);
   });
+
+  test('Phase 1 (objectif-intelligent): seuil N=5 par catégorie → partie courte, petites catégories conservées', () => {
+    const cfg = {
+      selectedLevel: 'CP',
+      classes: ['CP'],
+      extras: EXTRAS,
+      objectiveMode: true,
+      objectiveThemes: OBJECTIVE_THEMES_FIXED,
+    };
+    const totals = computeFilteredThemeTotals(assocData, cfg);
+    // Réplique du calcul Carte.js (OBJ_PAIRS_PER_CATEGORY = 5)
+    const N = 5;
+    const targets = Object.fromEntries(Object.entries(totals).map(([t, n]) => [t, Math.min(N, n)]));
+    console.log('[REPRO][Phase 1] Objectifs de session:', targets);
+    // Grosses catégories plafonnées à N
+    expect(targets['category:addition']).toBe(5);
+    expect(targets['category:fruit']).toBe(5);
+    expect(targets['category:table_4']).toBe(5);
+    // Petites catégories JAMAIS retirées (exigence Marius): objectif = leur taille réelle
+    expect(targets['category:epice']).toBe(1);
+    expect(targets['category:mollusque']).toBe(1);
+    expect(targets['category:reptile']).toBe(1);
+    // Toute catégorie du pool reste un objectif (aucune perte)
+    expect(Object.keys(targets).sort()).toEqual(Object.keys(totals).sort());
+    // La partie est nettement raccourcie: somme des seuils << somme du pool
+    const sumTargets = Object.values(targets).reduce((a, b) => a + b, 0);
+    const sumPool = Object.values(totals).reduce((a, b) => a + b, 0);
+    console.log('[REPRO][Phase 1] paires à trouver:', sumTargets, '/ pool complet:', sumPool);
+    expect(sumTargets).toBeGreaterThan(0);
+    expect(sumTargets).toBeLessThanOrEqual(sumPool);
+    expect(sumTargets).toBeLessThan(sumPool * 0.6);
+  });
 });

@@ -283,8 +283,13 @@ const Carte = () => {
   const objSoloInitRef = useRef(false);
   const [objectiveTarget, setObjectiveTarget] = useState(10);
   const [objectiveThemes, setObjectiveThemes] = useState([]); // ['category:table_7', ...]
-  const objectiveProgressRef = useRef([]); // [{ theme, key, label, sessionFound, total }]
+  const objectiveProgressRef = useRef([]); // [{ theme, key, label, sessionFound, total, poolTotal }]
   const objectiveTotalsRef = useRef(null); // totaux par thème filtrés niveau+extras (calculé 1x/session)
+  // 🎯 Phase 1 (workflow objectif-intelligent): seuil de session par catégorie.
+  // L'objectif d'une catégorie = min(N, paires disponibles au niveau) au lieu de TOUTES
+  // les paires (≈89 paires → ~15 min, trop long). N=5 → parties de ~5-6 min.
+  // La Maîtrise (Bronze/Argent/Or) continue de compter TOUTES les paires en cumulé.
+  const OBJ_PAIRS_PER_CATEGORY = 5;
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [helpEnabled, setHelpEnabled] = useState(false);
   const [helpLevel, setHelpLevel] = useState(0); // 0=rien, 1=indice demandé, 2=réponse demandée
@@ -4428,9 +4433,11 @@ function handleGameClick(zone) {
               const objProgress = objectiveThemes.map(t => {
                 const key = t.replace('category:', '');
                 const p = progress.find(x => x.key === key);
-                const total = fTotals ? (fTotals[t] || 0) : (p?.total || 0);
-                return { theme: t, key, label: p?.label || key, sessionFound: p?.sessionFound || 0, total };
-              }).filter(p => p.total > 0); // thèmes sans contenu au niveau choisi → pas d'objectif (évite 0/0 bloquant)
+                const poolTotal = fTotals ? (fTotals[t] || 0) : (p?.total || 0);
+                // 🎯 Phase 1: l'objectif de session = min(N, disponibles), pas tout le pool
+                const total = Math.min(OBJ_PAIRS_PER_CATEGORY, poolTotal);
+                return { theme: t, key, label: p?.label || key, sessionFound: p?.sessionFound || 0, total, poolTotal };
+              }).filter(p => p.poolTotal > 0); // thèmes sans contenu au niveau choisi → pas d'objectif (évite 0/0 bloquant)
               objectiveProgressRef.current = objProgress;
               const allComplete = objProgress.length > 0 && objProgress.every(p => p.sessionFound >= p.total);
               try { window.ccAddDiag && window.ccAddDiag('objective:thematic:check', { objProgress, allComplete }); } catch {}
