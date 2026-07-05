@@ -41,6 +41,15 @@ allComplete = toutes les catégories (y compris révisions) confirmées.
 - Les paliers Maîtrise (Bronze/Argent/Or) restent inchangés — on les LIT, on ne les modifie pas.
 - UI enfant lisible: états visibles, pas de mécanique cachée.
 
+# Statut (05/07/2026)
+
+- Phase 1 LIVRÉE (a9adca6) — seuil N=5, 37 paires au lieu de 89 en CP+extras
+- Phase 2 LIVRÉE (51ac957) — tirage priorisé (jamais-trouvée > catégorie incomplète > reste)
+- Phase 3 LIVRÉE (d0a0836) — ACQUIS → révision R=2, rétrogradation cc_obj_demoted
+- Phase 4 LIVRÉE (f1a93bb) — N réglable (3-10) dans PedagogicConfig, traces OBJ-TRACE retirées
+- Tests: 22/22 verts. EN ATTENTE: validation Marius sur staging (test de bout en bout),
+  puis déploiement production sur son ordre uniquement.
+
 # Étapes d'exécution
 
 ## Phase 1 — Socle: seuil N + fin de session
