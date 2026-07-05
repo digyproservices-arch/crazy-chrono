@@ -101,17 +101,17 @@ export function drawFromDeck(deckName, allIds, rng, filterFn) {
   return _drawFromDeck(deckName, allIds, rng, filterFn || (() => true));
 }
 
-// ✅ FIX OBJECTIF (totaux): compte les paires DISPONIBLES par thème sous le filtre
+// ✅ FIX OBJECTIF (totaux): liste les paires DISPONIBLES par thème sous le filtre
 // niveau+extras (même sémantique qu'assignElementsToZones). Sans cela, les objectifs
 // utilisent les totaux de maîtrise TOUS niveaux confondus → objectifs inatteignables.
-// Retourne { 'category:x': nbPaires } pour les thèmes de cfg.objectiveThemes.
-export function computeFilteredThemeTotals(assocData, cfgArg) {
+// Retourne { 'category:x': Set<pairId> } pour les thèmes de cfg.objectiveThemes.
+function _computeFilteredThemePairIds(assocData, cfgArg) {
   let cfg = cfgArg;
   if (!cfg) { try { cfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); } catch { cfg = null; } }
-  const totals = {};
-  if (!assocData || !Array.isArray(assocData.associations)) return totals;
+  const pairsByCat = {};
+  if (!assocData || !Array.isArray(assocData.associations)) return pairsByCat;
   const objThemes = Array.isArray(cfg?.objectiveThemes) ? cfg.objectiveThemes.filter(Boolean) : [];
-  if (!objThemes.length) return totals;
+  if (!objThemes.length) return pairsByCat;
   const LEVEL_ORDER = ["CP","CE1","CE2","CM1","CM2","6e","5e","4e","3e"];
   const lvlIdx = Object.fromEntries(LEVEL_ORDER.map((l, i) => [l, i]));
   const selectedClasses = Array.isArray(cfg?.classes) && cfg.classes.length ? cfg.classes : null;
@@ -159,9 +159,60 @@ export function computeFilteredThemeTotals(assocData, cfgArg) {
       const sideB = a.imageId ? I.get(a.imageId) : N.get(a.chiffreId);
       ok = (matchesExtra(sideA) || hasClass(sideA)) && (matchesExtra(sideB) || hasClass(sideB));
     }
-    if (ok) totals[catTag] = (totals[catTag] || 0) + 1;
+    if (ok) {
+      const pid = (a.texteId && a.imageId)
+        ? `assoc-img-${a.imageId}-txt-${a.texteId}`
+        : ((a.calculId && a.chiffreId) ? `assoc-calc-${a.calculId}-num-${a.chiffreId}` : null);
+      if (pid) {
+        if (!pairsByCat[catTag]) pairsByCat[catTag] = new Set();
+        pairsByCat[catTag].add(pid);
+      }
+    }
   }
+  return pairsByCat;
+}
+
+// Compat: totaux par thème (taille des pools filtrés)
+export function computeFilteredThemeTotals(assocData, cfgArg) {
+  const pairsByCat = _computeFilteredThemePairIds(assocData, cfgArg);
+  const totals = {};
+  for (const [cat, set] of Object.entries(pairsByCat)) totals[cat] = set.size;
   return totals;
+}
+
+// 🎯 Phases 1-3 (workflow objectif-intelligent): constantes du mode objectif.
+// N = paires à trouver par catégorie non acquise; R = paires de révision par catégorie acquise.
+export const OBJ_PAIRS_PER_CATEGORY = 5;
+export const OBJ_REVISION_PAIRS = 2;
+const DEMOTED_KEY = 'cc_obj_demoted';
+
+export function getDemotedCategories() {
+  try { return JSON.parse(localStorage.getItem(DEMOTED_KEY) || '{}') || {}; } catch { return {}; }
+}
+export function demoteCategory(catTag) {
+  try { const d = getDemotedCategories(); d[catTag] = Date.now(); localStorage.setItem(DEMOTED_KEY, JSON.stringify(d)); } catch {}
+}
+export function clearDemotedCategory(catTag) {
+  try { const d = getDemotedCategories(); if (d[catTag]) { delete d[catTag]; localStorage.setItem(DEMOTED_KEY, JSON.stringify(d)); } } catch {}
+}
+
+// 🎯 Phase 3: cibles de session par catégorie, avec état ACQUIS.
+// ACQUIS = toutes les paires du pool filtré trouvées au moins 1 fois (cumulé Maîtrise)
+// et catégorie non rétrogradée (révision ratée précédemment → cc_obj_demoted).
+// → cible révision R au lieu de N. Source unique pour Carte.js ET le tirage priorisé.
+export function computeObjectiveSessionTargets(assocData, cfgArg) {
+  const pairsByCat = _computeFilteredThemePairIds(assocData, cfgArg);
+  let foundPairIds = new Set();
+  try { foundPairIds = getObjectivePriorityData().foundPairIds; } catch {}
+  const demoted = getDemotedCategories();
+  const targets = {}, acquired = {}, poolTotals = {};
+  for (const [cat, set] of Object.entries(pairsByCat)) {
+    poolTotals[cat] = set.size;
+    const isAcq = set.size > 0 && !demoted[cat] && [...set].every(pid => foundPairIds.has(pid));
+    acquired[cat] = isAcq;
+    targets[cat] = isAcq ? Math.min(OBJ_REVISION_PAIRS, set.size) : Math.min(OBJ_PAIRS_PER_CATEGORY, set.size);
+  }
+  return { targets, acquired, poolTotals };
 }
 
 // Chargement dynamique des éléments depuis le dossier public/data/elements.json
@@ -459,16 +510,14 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
   // Rang 0 = paire JAMAIS trouvée (cumulé Maîtrise) dans une catégorie non complétée (session)
   // Rang 1 = catégorie non complétée (session), paire déjà connue
   // Rang 2 = tout le reste (catégories déjà au seuil) — fallback
-  // Le seuil par catégorie doit rester aligné avec OBJ_PAIRS_PER_CATEGORY (Carte.js).
-  const OBJ_PAIRS_PER_CATEGORY = 5;
+  // Phase 3: cibles par catégorie via computeObjectiveSessionTargets (acquis → révision R).
   let objPairRank = null; // (pairId) => 0 | 1 | 2
   if (isObjectiveMode) {
     try {
-      const totalsForPriority = computeFilteredThemeTotals(data, cfg);
+      const { targets: targetsForPriority } = computeObjectiveSessionTargets(data, cfg);
       const { foundPairIds, sessionFoundByCategory } = getObjectivePriorityData();
       const incompleteCats = new Set();
-      for (const [catTag, poolTotal] of Object.entries(totalsForPriority)) {
-        const target = Math.min(OBJ_PAIRS_PER_CATEGORY, poolTotal);
+      for (const [catTag, target] of Object.entries(targetsForPriority)) {
         const found = sessionFoundByCategory[catTag.replace('category:', '')] || 0;
         if (found < target) incompleteCats.add(catTag);
       }

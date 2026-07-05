@@ -6,7 +6,7 @@ import { pointToSvgCoords, polygonToPointsStr, segmentsToSvgPath, pointsToBezier
 import { getBackendUrl } from '../utils/subscription';
 import { getAuthSocketOptions } from '../utils/socketAuth';
 import { getAuthHeaders } from '../utils/apiHelpers';
-import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck, computeFilteredThemeTotals } from '../utils/elementsLoader';
+import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck, computeObjectiveSessionTargets, demoteCategory, clearDemotedCategory } from '../utils/elementsLoader';
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
 import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError, reportIncident as incidentReportIncident, INCIDENT_TYPES as INCIDENT_TYPES_TRACKER } from '../utils/gameIncidentTracker';
 import { logRound } from '../utils/roundLogger';
@@ -283,13 +283,12 @@ const Carte = () => {
   const objSoloInitRef = useRef(false);
   const [objectiveTarget, setObjectiveTarget] = useState(10);
   const [objectiveThemes, setObjectiveThemes] = useState([]); // ['category:table_7', ...]
-  const objectiveProgressRef = useRef([]); // [{ theme, key, label, sessionFound, total, poolTotal }]
-  const objectiveTotalsRef = useRef(null); // totaux par thème filtrés niveau+extras (calculé 1x/session)
-  // 🎯 Phase 1 (workflow objectif-intelligent): seuil de session par catégorie.
-  // L'objectif d'une catégorie = min(N, paires disponibles au niveau) au lieu de TOUTES
-  // les paires (≈89 paires → ~15 min, trop long). N=5 → parties de ~5-6 min.
+  const objectiveProgressRef = useRef([]); // [{ theme, key, label, sessionFound, total, poolTotal, acquired }]
+  // 🎯 Phases 1-3 (workflow objectif-intelligent): cibles de session par catégorie,
+  // figées au 1er calcul de la session ({ targets, acquired, poolTotals }).
+  // Catégorie non acquise → min(N=5, pool niveau) paires; acquise → R=2 paires de révision.
   // La Maîtrise (Bronze/Argent/Or) continue de compter TOUTES les paires en cumulé.
-  const OBJ_PAIRS_PER_CATEGORY = 5;
+  const objectiveTotalsRef = useRef(null);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [helpEnabled, setHelpEnabled] = useState(false);
   const [helpLevel, setHelpLevel] = useState(0); // 0=rien, 1=indice demandé, 2=réponse demandée
@@ -4416,29 +4415,38 @@ function handleGameClick(zone) {
             // Mode thématique: vérifier progression par thème via mastery tracker
             if (objectiveThemes.length > 0) {
               const progress = getMasteryProgress();
-              // ✅ FIX OBJECTIF (totaux): utiliser les totaux du pool filtré niveau+extras,
-              // pas les totaux de maîtrise tous niveaux (sinon objectifs inatteignables).
-              // STRICT: si les totaux filtrés sont calculables, une catégorie absente = 0
-              // (PAS de fallback vers le total maîtrise tous niveaux, sinon "Plantes
-              // médicinales 0/14" apparaît en CP alors qu'aucune n'est CP — bug constaté).
+              // ✅ FIX OBJECTIF (totaux): cibles calculées sur le pool filtré niveau+extras,
+              // JAMAIS sur les totaux de maîtrise tous niveaux (objectifs inatteignables /
+              // "Plantes médicinales 0/14" en CP — bugs constatés).
+              // 🎯 Phase 3: catégories ACQUISES (Bronze sur le pool niveau) → cible révision R=2,
+              // affichées "Acquis — à confirmer". Cibles figées au 1er calcul de la session.
               if (!objectiveTotalsRef.current) {
                 try {
                   const ad = assocDataRef.current || {};
                   objectiveTotalsRef.current = (Array.isArray(ad.associations) && ad.associations.length > 0)
-                    ? computeFilteredThemeTotals(ad)
+                    ? computeObjectiveSessionTargets(ad)
                     : null; // données pas encore chargées → retenter au prochain appel
                 } catch { objectiveTotalsRef.current = null; }
               }
-              const fTotals = objectiveTotalsRef.current;
+              const sess = objectiveTotalsRef.current;
               const objProgress = objectiveThemes.map(t => {
                 const key = t.replace('category:', '');
                 const p = progress.find(x => x.key === key);
-                const poolTotal = fTotals ? (fTotals[t] || 0) : (p?.total || 0);
-                // 🎯 Phase 1: l'objectif de session = min(N, disponibles), pas tout le pool
-                const total = Math.min(OBJ_PAIRS_PER_CATEGORY, poolTotal);
-                return { theme: t, key, label: p?.label || key, sessionFound: p?.sessionFound || 0, total, poolTotal };
+                const poolTotal = sess ? (sess.poolTotals[t] || 0) : (p?.total || 0);
+                const total = sess ? (sess.targets[t] || 0) : (p?.total || 0);
+                const acquired = sess ? !!sess.acquired[t] : false;
+                return { theme: t, key, label: p?.label || key, sessionFound: p?.sessionFound || 0, sessionErrors: p?.sessionErrors || 0, total, poolTotal, acquired };
               }).filter(p => p.poolTotal > 0); // thèmes sans contenu au niveau choisi → pas d'objectif (évite 0/0 bloquant)
               objectiveProgressRef.current = objProgress;
+              // 🎯 Phase 3: transitions d'état (effectives à la PROCHAINE session, cibles figées)
+              try {
+                for (const p of objProgress) {
+                  // Révision ratée (erreur sur une catégorie acquise) → rétrogradée EN_COURS
+                  if (p.acquired && p.sessionErrors > 0) demoteCategory(p.theme);
+                  // Catégorie non acquise re-complétée au seuil plein sans erreur → refait ses preuves
+                  if (!p.acquired && p.sessionFound >= p.total && p.sessionErrors === 0) clearDemotedCategory(p.theme);
+                }
+              } catch {}
               const allComplete = objProgress.length > 0 && objProgress.every(p => p.sessionFound >= p.total);
               try { window.ccAddDiag && window.ccAddDiag('objective:thematic:check', { objProgress, allComplete }); } catch {}
               // 🔍 [OBJ-TRACE] Trace temporaire (diagnostic bug objectif) — à retirer après analyse
@@ -8449,14 +8457,17 @@ setZones(dataWithRandomTexts);
                   {(Array.isArray(objectiveProgressRef.current) ? objectiveProgressRef.current : []).map(p => {
                     const pct = p.total > 0 ? Math.min(100, Math.round((p.sessionFound / p.total) * 100)) : 0;
                     const done = p.total > 0 && p.sessionFound >= p.total;
+                    // 🎯 Phase 3: catégorie acquise → objectif de révision (confirmer l'acquis)
+                    const icon = done ? '✅' : (p.acquired ? '🏅' : '🎯');
+                    const label = p.acquired ? `${p.label} (révision)` : p.label;
                     return (
                       <div key={p.key}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: done ? '#86efac' : '#cbd5e1', fontWeight: 600, marginBottom: 2 }}>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{done ? '✅' : '🎯'} {p.label}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: done ? '#86efac' : (p.acquired ? '#fcd34d' : '#cbd5e1'), fontWeight: 600, marginBottom: 2 }}>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{icon} {label}</span>
                           <span>{p.sessionFound}/{p.total}</span>
                         </div>
                         <div style={{ height: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 3, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${pct}%`, background: done ? '#22c55e' : 'linear-gradient(90deg, #0d6a7a, #22d3ee)', borderRadius: 3, transition: 'width 0.5s ease' }} />
+                          <div style={{ height: '100%', width: `${pct}%`, background: done ? '#22c55e' : (p.acquired ? 'linear-gradient(90deg, #b45309, #fcd34d)' : 'linear-gradient(90deg, #0d6a7a, #22d3ee)'), borderRadius: 3, transition: 'width 0.5s ease' }} />
                         </div>
                       </div>
                     );

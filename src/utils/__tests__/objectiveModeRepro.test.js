@@ -15,7 +15,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { assignElementsToZones, resetElementDecks, computeFilteredThemeTotals } from '../elementsLoader';
+import { assignElementsToZones, resetElementDecks, computeFilteredThemeTotals, computeObjectiveSessionTargets, demoteCategory, clearDemotedCategory } from '../elementsLoader';
 import { initMasteryTracker, resetMasterySession, recordPair } from '../masteryTracker';
 import { CONTENT_DOMAINS, LEVEL_INCLUDES } from '../../components/Shared/PedagogicConfig';
 
@@ -406,5 +406,49 @@ describe('REPRO bug objectif solo — CP + tables 4/5/6', () => {
     console.log('[REPRO][Phase 2] bonnes paires TI:', tiGood, '| CC:', ccGood, '(math complété → attendu 100% TI)');
     expect(tiGood).toBe(20); // toutes les bonnes paires viennent des catégories NON complétées (nature/animaux)
     expect(ccGood).toBe(0);  // plus jamais de paire math tant que d'autres catégories attendent
+  });
+
+  test('Phase 3 (objectif-intelligent): catégorie ACQUISE → cible révision R=2; rétrogradée → N=5', () => {
+    const cfg = {
+      selectedLevel: 'CP',
+      classes: ['CP'],
+      extras: EXTRAS,
+      objectiveMode: true,
+      objectiveThemes: OBJECTIVE_THEMES_FIXED,
+    };
+    localStorage.setItem('cc_session_cfg', JSON.stringify(cfg));
+    localStorage.removeItem('cc_mastery_progress');
+    localStorage.removeItem('cc_obj_demoted');
+    initMasteryTracker(assocData, null);
+    resetMasterySession();
+    // État initial (aucun historique): rien d'acquis, cibles = min(5, pool)
+    let r = computeObjectiveSessionTargets(assocData, cfg);
+    expect(Object.values(r.acquired).every(v => v === false)).toBe(true);
+    expect(r.targets['category:fruit']).toBe(5);
+    expect(r.targets['category:epice']).toBe(1);
+    // Simuler: TOUTES les paires fruits CP trouvées (cumulé) → ACQUIS → cible révision 2
+    const fruitPairs = (assocData.associations || [])
+      .filter(a => a.texteId && a.imageId && (a.themes || []).includes('category:fruit') && a.levelClass === 'CP');
+    expect(fruitPairs.length).toBe(12);
+    for (const a of fruitPairs) recordPair(`assoc-img-${a.imageId}-txt-${a.texteId}`, true, 1000);
+    r = computeObjectiveSessionTargets(assocData, cfg);
+    console.log('[REPRO][Phase 3] fruit acquis:', r.acquired['category:fruit'], '| cible:', r.targets['category:fruit'], '| pool:', r.poolTotals['category:fruit']);
+    expect(r.acquired['category:fruit']).toBe(true);
+    expect(r.targets['category:fruit']).toBe(2);           // révision R=2
+    expect(r.poolTotals['category:fruit']).toBe(12);       // pool inchangé (info)
+    expect(r.acquired['category:oiseau']).toBe(false);     // oiseaux non acquis → cible pleine
+    expect(r.targets['category:oiseau']).toBe(4);          // min(5, 4 dispo)
+    // Révision ratée → rétrogradée: cible repasse à 5
+    demoteCategory('category:fruit');
+    r = computeObjectiveSessionTargets(assocData, cfg);
+    expect(r.acquired['category:fruit']).toBe(false);
+    expect(r.targets['category:fruit']).toBe(5);
+    // Réhabilitée (seuil plein réussi sans erreur) → redevient acquise
+    clearDemotedCategory('category:fruit');
+    r = computeObjectiveSessionTargets(assocData, cfg);
+    expect(r.acquired['category:fruit']).toBe(true);
+    expect(r.targets['category:fruit']).toBe(2);
+    localStorage.removeItem('cc_obj_demoted');
+    localStorage.removeItem('cc_mastery_progress');
   });
 });
