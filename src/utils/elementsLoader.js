@@ -389,13 +389,26 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     // Filtrer associations si elles ont leurs propres métadonnées; sinon, on garde si leurs deux côtés survivent
     const byIdGeneric = (arr) => new Map(arr.map(x => [x.id, x]));
     const T = byIdGeneric(textes), I = byIdGeneric(images), C = byIdGeneric(calculs), N = byIdGeneric(chiffres);
+    // ✅ FIX (jeu interminable tables 6/7): éléments référencés par une association qui a
+    // survécu via ses PROPRES métadonnées (ex: extra category:table_6, levelClass CE2 joué en CP).
+    // Ces éléments doivent être ré-inclus même s'ils échouent au filtre de niveau — sinon la
+    // paire est COMPTÉE dans les cibles (_computeFilteredThemePairIds filtre au niveau assoc)
+    // mais JAMAIS posable (ex: chiffre "12" themes:[multiplication], levelClass CE2 → filtré).
+    const metaAssocElemIds = { texte: new Set(), image: new Set(), calcul: new Set(), chiffre: new Set() };
     associations = associations.filter(a => {
       const hasTI = a.texteId && a.imageId;
       const hasCN = a.calculId && a.chiffreId;
       const aHasMeta = (a.themes && a.themes.length) || a.levelClass;
       if (aHasMeta) {
         // si l'asso est explicitement taggée, on filtre sur elle
-        return filterEl(a);
+        const ok = filterEl(a);
+        if (ok) {
+          if (a.texteId) metaAssocElemIds.texte.add(a.texteId);
+          if (a.imageId) metaAssocElemIds.image.add(a.imageId);
+          if (a.calculId) metaAssocElemIds.calcul.add(a.calculId);
+          if (a.chiffreId) metaAssocElemIds.chiffre.add(a.chiffreId);
+        }
+        return ok;
       }
       // sinon on vérifie les deux côtés
       if (hasTI) return T.has(a.texteId) && I.has(a.imageId);
@@ -418,10 +431,10 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
       const existImg = new Set(images.map(i => i.id));
       const existCalc = new Set(calculs.map(c => c.id));
       const existNum = new Set(chiffres.map(n => n.id));
-      for (const t of origTextes) if (assocTxtIds.has(t.id) && !existTxt.has(t.id) && (hasClass(t) || matchesExtra(t))) textes.push(t);
-      for (const i of origImages) if (assocImgIds.has(i.id) && !existImg.has(i.id) && (hasClass(i) || matchesExtra(i))) images.push(i);
-      for (const c of origCalculs) if (assocCalcIds.has(c.id) && !existCalc.has(c.id) && (hasClass(c) || matchesExtra(c))) calculs.push(c);
-      for (const n of origChiffres) if (assocNumIds.has(n.id) && !existNum.has(n.id) && (hasClass(n) || matchesExtra(n))) chiffres.push(n);
+      for (const t of origTextes) if (assocTxtIds.has(t.id) && !existTxt.has(t.id) && (hasClass(t) || matchesExtra(t) || metaAssocElemIds.texte.has(t.id))) textes.push(t);
+      for (const i of origImages) if (assocImgIds.has(i.id) && !existImg.has(i.id) && (hasClass(i) || matchesExtra(i) || metaAssocElemIds.image.has(i.id))) images.push(i);
+      for (const c of origCalculs) if (assocCalcIds.has(c.id) && !existCalc.has(c.id) && (hasClass(c) || matchesExtra(c) || metaAssocElemIds.calcul.has(c.id))) calculs.push(c);
+      for (const n of origChiffres) if (assocNumIds.has(n.id) && !existNum.has(n.id) && (hasClass(n) || matchesExtra(n) || metaAssocElemIds.chiffre.has(n.id))) chiffres.push(n);
       console.log('[elementsLoader] Re-included elements from associations:', { textes: textes.length, images: images.length, calculs: calculs.length, chiffres: chiffres.length });
     }
   }
@@ -1119,6 +1132,17 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
 
   // ===== FINAL PASS: fill remaining empty-content zones with safe fallback =====
   // FIX BUG 2: Prevents zones vides (content: "") causing invisible zones and pair_rejected
+  // ✅ FIX (distracteurs hors niveau à l'épuisement): les contenus aléatoires de dernier
+  // recours doivent respecter le niveau choisi (CP/CE1 → additions et petits nombres,
+  // pas de "9 × 8" ni de chiffres jusqu'à 81).
+  let _fpMaxLvlIdx = 99;
+  try {
+    const _FP_LV = { CP: 0, CE1: 1, CE2: 2, CM1: 3, CM2: 4, '6e': 5, '5e': 6, '4e': 7, '3e': 8 };
+    if (cfg && Array.isArray(cfg.classes) && cfg.classes.length) {
+      _fpMaxLvlIdx = Math.max(...cfg.classes.map(c => _FP_LV[c] ?? 99));
+    }
+  } catch {}
+  const _fpLowLevel = _fpMaxLvlIdx <= 1; // CP ou CE1
   for (const z of result) {
     if (z.content && String(z.content).trim() !== '') continue; // already has content
     const type = z.type || 'image';
@@ -1144,14 +1168,23 @@ export async function assignElementsToZones(zones, _elements, assocData, rng = M
     }
     if (type === 'calcul') {
       for (let attempt = 0; attempt < 30; attempt++) {
-        const a = Math.floor(rng() * 9) + 2, b = Math.floor(rng() * 9) + 2;
-        if (boardValues.has(a * b) && attempt < 29) continue;
-        z.content = `${a} × ${b}`;
+        let content, value;
+        if (_fpLowLevel) {
+          // CP/CE1: addition simple (résultat ≤ 20)
+          const a = Math.floor(rng() * 10) + 1, b = Math.floor(rng() * 10) + 1;
+          content = `${a} + ${b}`; value = a + b;
+        } else {
+          const a = Math.floor(rng() * 9) + 2, b = Math.floor(rng() * 9) + 2;
+          content = `${a} × ${b}`; value = a * b;
+        }
+        if (boardValues.has(value) && attempt < 29) continue;
+        z.content = content;
         break;
       }
     } else if (type === 'chiffre') {
+      const _numRange = _fpLowLevel ? 20 : 80;
       for (let attempt = 0; attempt < 30; attempt++) {
-        const n = Math.floor(rng() * 80) + 2;
+        const n = Math.floor(rng() * _numRange) + 2;
         if (boardValues.has(n) && attempt < 29) continue;
         z.content = String(n);
         break;

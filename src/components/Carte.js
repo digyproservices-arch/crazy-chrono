@@ -2602,8 +2602,12 @@ const Carte = () => {
       if (hasServerZones) {
         console.log('[CC][client] MULTIPLAYER MODE: Using server-generated zones:', payload.zones.length);
         payload.zones.forEach(z => { if (!(z.pairId || '').trim() && !z.isDistractor) z.isDistractor = true; });
-        let _mpInc = []; try { _mpInc = incidentValidateZones(payload.zones, { source: 'multiplayer:round-new' }) || []; } catch {}
-        try { const _rl = logRound(payload.zones, { mode: 'multiplayer', source: 'multiplayer:round-new' }); if (_rl && (_rl.doublePairIssues > 0 || _mpInc.length > 0)) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues.length > 0 ? _rl.issues : _mpInc, mode: 'multiplayer' }; } catch {}
+        // ✅ FIX étiquette logger: le serveur génère aussi les zones du SOLO classique —
+        // dériver le mode de cc_session_cfg au lieu de forcer 'multiplayer'.
+        let _rlMode = 'multiplayer';
+        try { const _rlCfg = JSON.parse(localStorage.getItem('cc_session_cfg') || 'null'); if (_rlCfg && _rlCfg.mode === 'solo') _rlMode = 'solo'; } catch {}
+        let _mpInc = []; try { _mpInc = incidentValidateZones(payload.zones, { source: _rlMode + ':round-new' }) || []; } catch {}
+        try { const _rl = logRound(payload.zones, { mode: _rlMode, source: _rlMode + ':round-new' }); if (_rl && (_rl.doublePairIssues > 0 || _mpInc.length > 0)) pendingScreenshotRef.current = { roundId: _rl.id, issues: _rl.issues.length > 0 ? _rl.issues : _mpInc, mode: _rlMode }; } catch {}
         
         const zonesWithPairId = payload.zones.filter(z => z.pairId);
         addDiag('zones:received', {

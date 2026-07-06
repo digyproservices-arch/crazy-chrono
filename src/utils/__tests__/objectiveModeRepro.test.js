@@ -677,4 +677,55 @@ describe('REPRO bug objectif solo — CP + tables 4/5/6', () => {
     expect(rounds).toBeLessThanOrEqual(MAX_ROUNDS - 1);
     localStorage.removeItem('cc_mastery_progress');
   });
+
+  test('RÉGRESSION (paires imposables): TOUTES les paires comptées dans les cibles sont posables — table_6 en CP (chiffres non taggés levelClass CE2)', async () => {
+    // Bug vécu (session interminable tables 6/7): 5 des 12 paires de table_6 ont un chiffre
+    // SANS tag category:table_6 (themes:["multiplication"], levelClass CE2). En CP + extra
+    // table_6, ces chiffres échouaient au filtre de niveau ET au bypass extras → paires
+    // comptées dans les cibles mais JAMAIS posables.
+    const cfg = {
+      mode: 'solo',
+      selectedLevel: 'CP',
+      classes: ['CP'],
+      extras: ['category:table_6'],
+      themes: COMPUTED_THEMES,
+      objectiveMode: true,
+      objectiveThemes: ['category:table_6'],
+    };
+    localStorage.setItem('cc_session_cfg', JSON.stringify(cfg));
+    localStorage.removeItem('cc_mastery_progress');
+    localStorage.removeItem('cc_obj_demoted');
+    initMasteryTracker(assocData, null);
+    resetMasterySession();
+    resetElementDecks('test-drawable-pairs');
+    const rng = makeRng(777);
+    // Paires table_6 attendues (comptage au niveau ASSOCIATION, comme les cibles)
+    const expectedPairIds = new Set(
+      (assocData.associations || [])
+        .filter(a => a.calculId && a.chiffreId && (a.themes || []).includes('category:table_6'))
+        .map(a => `assoc-calc-${a.calculId}-num-${a.chiffreId}`)
+    );
+    expect(expectedPairIds.size).toBeGreaterThanOrEqual(10);
+    const CC_ZONES = [
+      ...Array.from({ length: 6 }, (_, i) => ({ id: 7000 + i, type: 'calcul' })),
+      ...Array.from({ length: 6 }, (_, i) => ({ id: 8000 + i, type: 'chiffre' })),
+    ];
+    const validated = new Set();
+    const MAX_ROUNDS = expectedPairIds.size + 10;
+    let rounds = 0;
+    while (validated.size < expectedPairIds.size && rounds < MAX_ROUNDS) {
+      rounds++;
+      const result = await assignElementsToZones(CC_ZONES.map(z => ({ ...z })), null, assocData, rng, validated);
+      const good = result.find(z => z.type === 'calcul' && z.pairId);
+      if (!good) break;
+      expect(expectedPairIds.has(good.pairId)).toBe(true); // jamais hors table_6
+      recordPair(good.pairId, true, 1000);
+      validated.add(good.pairId);
+    }
+    console.log('[REPRO][Paires imposables] validées:', validated.size, '/', expectedPairIds.size, 'en', rounds, 'manches');
+    // AVANT le fix: bloqué à 7/12 (chiffres 12/18/24/30/36 filtrés). APRÈS: 12/12.
+    expect(validated.size).toBe(expectedPairIds.size);
+    localStorage.removeItem('cc_mastery_progress');
+    localStorage.removeItem('cc_session_cfg');
+  });
 });
