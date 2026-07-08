@@ -5087,6 +5087,27 @@ const handleEditGreenZone = (zone) => {
   }, [socket]);
   // Handler global pour terminer la session (utilisable dans le rendu)
   const handleEndSessionNow = () => {
+    // ✅ Confirmation anti-clic accidentel: un appui involontaire sur "Terminer" tuait la
+    // session en pleine manche (minuteur figé avant 0 — cf. rapport monitoring 08/07).
+    try { if (!window.confirm('Terminer la session en cours ?')) return; } catch {}
+    // ✅ Traçabilité: logger le clic volontaire pour distinguer arrêt utilisateur vs bug
+    try {
+      const traceData = {
+        event: 'ui:terminer-click',
+        ts: Date.now(),
+        socketId: socketRef.current?.id || null,
+        gameActive: !!gameActive,
+        score: scoreRef.current,
+        roundsPlayed,
+        roundsPerSession: Number.isFinite(roundsPerSession) ? roundsPerSession : null,
+        objectiveMode: !!objectiveModeRef.current
+      };
+      const diags = JSON.parse(localStorage.getItem('cc_game_trace') || '[]');
+      diags.push(traceData);
+      if (diags.length > 50) diags.splice(0, diags.length - 50);
+      localStorage.setItem('cc_game_trace', JSON.stringify(diags));
+      syncGameTraceToServer();
+    } catch {}
     // ✅ FIX OBJECTIF: en mode objectif, le client gère la fin (session:end serveur est ignoré
     // par design, cf. handler session:end). Terminer = fin locale immédiate avec bilan.
     if (objectiveModeRef.current) {
