@@ -52,3 +52,6 @@ e2e-report/
 test-results/
 playwright-report/
 server/data/server_trace.json 
+server/data/stripe_events.json
+server/data/payment_events.json
+server/data/online_players.json

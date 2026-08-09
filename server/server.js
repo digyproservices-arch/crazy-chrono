@@ -42,7 +42,25 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(apmMiddleware); // APM: mesure temps de réponse de chaque requête
-app.use(express.json({ limit: '10mb' }));
+
+// ==========================================
+// WEBHOOK STRIPE — corps brut garanti (CTO-002 revue finale)
+// Stripe signe les octets réellement envoyés: tout parser JSON qui toucherait
+// cette route rendrait la signature invérifiable. Le parser brut est donc monté
+// AVANT express.json/bodyParser.json, et body-parser marque req._body, ce qui
+// neutralise les parsers JSON montés ensuite. Le handler est câblé plus bas,
+// après l'initialisation du SDK Stripe.
+// ==========================================
+const STRIPE_WEBHOOK_PATH = '/webhooks/stripe';
+app.use(STRIPE_WEBHOOK_PATH, bodyParser.raw({ type: '*/*', limit: '1mb' }));
+
+// Ceinture et bretelles: même si l'ordre de montage changeait, les parsers JSON
+// globaux ignorent explicitement la route du webhook.
+const skipStripeWebhook = (parser) => (req, res, next) => (
+  req.path === STRIPE_WEBHOOK_PATH ? next() : parser(req, res, next)
+);
+
+app.use(skipStripeWebhook(express.json({ limit: '10mb' })));
 
 // Rate limiting — global (exempte /api/monitoring car déjà protégé par requireAdminAuth)
 const globalLimiter = rateLimit({
@@ -636,8 +654,8 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) || 4000 : 4000;
 const TIE_WINDOW_MS = 200;
 
 // CORS déjà configuré plus haut (ligne 118)
-app.use(bodyParser.json({ limit: '10mb' }));
-// Stripe webhooks require raw body; mount a dedicated raw parser on that route below
+app.use(skipStripeWebhook(bodyParser.json({ limit: '10mb' })));
+// Stripe webhooks require raw body; the raw parser is mounted at the top of the stack
 
 // Ajout du support upload images
 const uploadRouter = require('./upload');
@@ -2229,158 +2247,89 @@ try {
   if (process.env.STRIPE_SECRET_KEY) stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 } catch (e) { console.warn('[Stripe] SDK not available:', e.message); }
 
-// Create Checkout Session (enhanced)
-app.post('/stripe/create-checkout-session', requireAuth, async (req, res) => {
-  try {
-    const priceId = req.body?.price_id || process.env.STRIPE_PRICE_ID;
-    const userId = req.body?.user_id ? String(req.body.user_id) : null;
-    const success_url = req.body?.success_url || (process.env.FRONTEND_URL || 'http://localhost:3000') + '/account?checkout=success';
-    const cancel_url = req.body?.cancel_url || (process.env.FRONTEND_URL || 'http://localhost:3000') + '/pricing?checkout=cancel';
-    if (!stripe || !priceId) {
-      // Sprint 1: ne bloque pas – renvoie une URL factice pour tester le flux
-      const mock = success_url + '&mock=1';
-      return res.json({ ok: true, url: mock, mocked: true });
-    }
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url,
-      cancel_url,
-      allow_promotion_codes: true,
-      metadata: userId ? { user_id: userId } : undefined
+// CTO-002: aucun fallback mock/success. Handlers extraits et testables.
+const { makeCheckoutHandler, makePortalHandler, parsePriceWhitelist } = require('./billing/stripeCheckout');
+const { makeWebhookHandler } = require('./billing/stripeWebhook');
+const { createStripeEventStore } = require('./billing/stripeEventStore');
+const { makeStripeEventProcessor } = require('./billing/stripeEventProcessor');
+
+const frontendBaseUrl = () => process.env.FRONTEND_URL || 'http://localhost:3000';
+
+app.post('/stripe/create-checkout-session', requireAuth, makeCheckoutHandler({
+  getStripe: () => stripe,
+  getDefaultPriceId: () => process.env.STRIPE_PRICE_ID || null,
+  getAllowedPriceIds: () => parsePriceWhitelist(process.env),
+  getFrontendUrl: frontendBaseUrl,
+  logger,
+}));
+
+/**
+ * Associe l'utilisateur authentifié à son client Stripe sans jamais lire le
+ * corps de la requête: abonnement le plus récent en base, puis Stripe comme
+ * source de vérité si la colonne stripe_customer_id n'existe pas encore.
+ */
+async function resolveStripeCustomerId(userId) {
+  if (!supabaseAdmin) throw new Error('supabase_unavailable');
+  const { data, error } = await supabaseAdmin
+    .from('subscriptions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (error) throw new Error(error.message);
+  const row = Array.isArray(data) && data.length ? data[0] : null;
+  if (!row) return null;
+  if (row.stripe_customer_id) return String(row.stripe_customer_id);
+  if (!row.stripe_subscription_id || !stripe) return null;
+  const sub = await stripe.subscriptions.retrieve(String(row.stripe_subscription_id));
+  const cust = sub?.customer;
+  return cust ? String(typeof cust === 'object' ? cust.id : cust) : null;
+}
+
+app.post('/stripe/create-portal-session', requireAuth, makePortalHandler({
+  getStripe: () => stripe,
+  resolveCustomerId: resolveStripeCustomerId,
+  getReturnUrl: () => process.env.STRIPE_CUSTOMER_PORTAL_RETURN_URL || frontendBaseUrl() + '/account',
+  logger,
+}));
+
+// Webhook Stripe — signature obligatoire (CTO-002). Le corps brut est déjà
+// capté en tête de pile (STRIPE_WEBHOOK_PATH); rawParser reste comme garde-fou
+// si le middleware amont venait à disparaître (no-op quand req._body est posé).
+const rawParser = bodyParser.raw({ type: '*/*', limit: '1mb' });
+const stripeEventStore = createStripeEventStore({
+  filePath: process.env.CC_STRIPE_EVENT_STORE || undefined,
+});
+
+const processStripeEvent = makeStripeEventProcessor({
+  getSupabaseAdmin: () => supabaseAdmin,
+  getStripe: () => stripe,
+  invalidateSubCache: (userId) => { if (app.locals.invalidateSubCache) app.locals.invalidateSubCache(userId); },
+  logPaymentEvent: (event) => {
+    const { loadPaymentEvents, savePaymentEvents } = require('./routes/monitoringHelpers');
+    const evts = loadPaymentEvents();
+    const s = event.data?.object || {};
+    evts.push({
+      source: 'stripe', type: event.type,
+      userId: s?.metadata?.user_id || null,
+      stripeCustomer: s?.customer || null,
+      status: s?.status || null,
+      amount: s?.amount_total ? (s.amount_total / 100) : null,
+      currency: s?.currency || null,
+      timestamp: new Date().toISOString(),
     });
-    return res.json({ ok: true, url: session.url });
-  } catch (e) {
-    console.error('[Stripe] create-checkout-session error', e);
-    return res.status(500).json({ ok: false, error: 'checkout_error' });
-  }
+    savePaymentEvents(evts);
+  },
+  logger,
 });
 
-// Create Customer Portal Session (skeleton)
-app.post('/stripe/create-portal-session', requireAuth, async (req, res) => {
-  try {
-    if (!stripe) {
-      // Fallback de démo: renvoie pricing page
-      const url = (process.env.FRONTEND_URL || 'http://localhost:3000') + '/pricing?portal=mock';
-      return res.json({ ok: true, url, mocked: true });
-    }
-    const { customer_id } = req.body || {};
-    if (!customer_id) return res.status(400).json({ ok: false, error: 'missing_customer_id' });
-    const return_url = process.env.STRIPE_CUSTOMER_PORTAL_RETURN_URL || (process.env.FRONTEND_URL || 'http://localhost:3000') + '/account';
-    const session = await stripe.billingPortal.sessions.create({ customer: customer_id, return_url });
-    return res.json({ ok: true, url: session.url });
-  } catch (e) {
-    console.error('[Stripe] create-portal-session error', e);
-    return res.status(500).json({ ok: false, error: 'portal_error' });
-  }
-});
-
-// Webhook Stripe (sprint 1: stub + signature check si dispo)
-const rawParser = bodyParser.raw({ type: 'application/json' });
-app.post('/webhooks/stripe', rawParser, async (req, res) => {
-  try {
-    const sig = req.headers['stripe-signature'];
-    const whSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    let event = null;
-    if (stripe && whSecret && sig) {
-      try {
-        event = stripe.webhooks.constructEvent(req.body, sig, whSecret);
-      } catch (err) {
-        console.error('[Stripe] webhook signature verification failed', err.message);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-      }
-    } else {
-      // Pas de vérification en Sprint 1
-      event = { id: 'evt_mock', type: 'mock.event', data: { object: {} } };
-    }
-    console.log('[Stripe] webhook received:', event.type);
-    // Sprint 2 minimal: upsert subscriptions on key events if supabaseAdmin available
-    try {
-      if (supabaseAdmin && event && event.type) {
-        if (event.type === 'checkout.session.completed') {
-          const s = event.data.object;
-
-          // === Paiement tournoi ===
-          if (s?.metadata?.type === 'tournament_entry') {
-            const tId = s.metadata.tournament_id;
-            const tEmail = s.metadata.email;
-            if (tId && tEmail) {
-              await supabaseAdmin.from('gs_tournament_entries').upsert({
-                tournament_id: tId,
-                email: tEmail,
-                first_name: s.metadata.first_name || '',
-                last_name: s.metadata.last_name || '',
-                paid: true,
-                payment_id: s.payment_intent || s.id,
-                joined_at: new Date().toISOString(),
-              }, { onConflict: 'tournament_id,email' });
-              console.log(`[Stripe] Tournament entry paid: ${tEmail} for ${tId}`);
-            }
-          }
-
-          // === Abonnement classique ===
-          const userId = s?.metadata?.user_id || null;
-          const subscriptionId = s?.subscription || null;
-          if (userId && subscriptionId) {
-            const sub = await stripe.subscriptions.retrieve(subscriptionId);
-            const payload = {
-              user_id: userId,
-              stripe_subscription_id: sub.id,
-              price_id: sub.items?.data?.[0]?.price?.id || null,
-              status: sub.status,
-              current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
-            };
-            await supabaseAdmin.from('subscriptions').upsert(payload, { onConflict: 'stripe_subscription_id' });
-          }
-        }
-        if (event.type.startsWith('customer.subscription.')) {
-          const sub = event.data.object;
-          // We need user_id: fetch latest checkout session metadata if possible is complex; if we already have row, update by stripe_subscription_id
-          if (sub?.id) {
-            const payload = {
-              stripe_subscription_id: sub.id,
-              price_id: sub.items?.data?.[0]?.price?.id || null,
-              status: sub.status,
-              current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
-              updated_at: new Date().toISOString(),
-            };
-            await supabaseAdmin.from('subscriptions').update(payload).eq('stripe_subscription_id', sub.id);
-            // ── Phase 3: Invalider le cache abonnement pour mise à jour immédiate ──
-            try {
-              const { data: subRow } = await supabaseAdmin.from('subscriptions').select('user_id').eq('stripe_subscription_id', sub.id).single();
-              if (subRow?.user_id && app.locals.invalidateSubCache) {
-                app.locals.invalidateSubCache(subRow.user_id);
-                logger.info(`[Stripe][Sub] Cache invalidé pour user ${subRow.user_id} (status: ${sub.status})`);
-              }
-            } catch {}
-          }
-        }
-      }
-    } catch (e) { console.error('[Stripe] webhook handling error', e); }
-
-    // Log payment event for monitoring dashboard
-    try {
-      const { loadPaymentEvents, savePaymentEvents } = require('./routes/monitoringHelpers');
-      const evts = loadPaymentEvents();
-      const s = event.data?.object || {};
-      evts.push({
-        source: 'stripe', type: event.type,
-        userId: s?.metadata?.user_id || null,
-        stripeCustomer: s?.customer || null,
-        status: s?.status || null,
-        amount: s?.amount_total ? (s.amount_total / 100) : null,
-        currency: s?.currency || null,
-        timestamp: new Date().toISOString(),
-      });
-      savePaymentEvents(evts);
-    } catch (pe) { console.warn('[Stripe] payment event log failed:', pe.message); }
-
-    return res.json({ received: true });
-  } catch (e) {
-    console.error('[Stripe] webhook error', e);
-    return res.status(500).end();
-  }
-});
+app.post(STRIPE_WEBHOOK_PATH, rawParser, makeWebhookHandler({
+  getStripe: () => stripe,
+  getWebhookSecret: () => process.env.STRIPE_WEBHOOK_SECRET || null,
+  processEvent: processStripeEvent,
+  eventStore: stripeEventStore,
+  logger,
+}));
 
 // Endpoint: liste d'élèves (avec option de filtrage licensed=true)
 app.get('/students', async (req, res) => {
@@ -4090,26 +4039,49 @@ io.use(async (socket, next) => {
   const auth = socket.handshake.auth || {};
   const { token, sessionToken } = auth;
 
+  // CTO-002 (revue): un jeton de session présenté mais non vérifiable ferme
+  // l'accès payant. On mémorise donc s'il a été présenté, indépendamment du
+  // résultat de la vérification.
+  socket.sessionTokenPresented = Boolean(sessionToken);
+  socket.sessionValid = null;
+
   // Pas d'auth → autoriser (guests Grande Salle, spectateurs, monitoring)
   if (!token && !sessionToken) {
     socket.authUser = null;
-    socket.sessionValid = null;
     return next();
   }
 
   // 1) Vérifier JWT si présent
-  if (token && supabaseAdmin) {
-    try {
-      const { data: who, error: whoErr } = await supabaseAdmin.auth.getUser(token);
-      if (!whoErr && who?.user) {
-        socket.authUser = { id: who.user.id, email: who.user.email, isStudent: who.user.email?.endsWith('@eleve.crazychrono.app') || false };
+  // CTO-002: un jeton invalide ou non vérifiable n'aboutit jamais à une identité.
+  // La connexion reste acceptée (guests Grande Salle, spectateurs, monitoring)
+  // mais authError ferme l'accès aux événements payants.
+  if (token) {
+    if (!supabaseAdmin) {
+      socket.authError = 'verification_unavailable';
+      logger.warn('[Socket][AUTH] JWT non vérifiable: Supabase non configuré');
+    } else {
+      try {
+        const { data: who, error: whoErr } = await supabaseAdmin.auth.getUser(token);
+        if (!whoErr && who?.user) {
+          socket.authUser = { id: who.user.id, email: who.user.email, isStudent: who.user.email?.endsWith('@eleve.crazychrono.app') || false };
+        } else {
+          socket.authError = 'invalid_token';
+          logger.warn('[Socket][AUTH] JWT rejeté (invalid_token)', { socketId: socket.id });
+        }
+      } catch (e) {
+        socket.authError = 'verification_error';
+        logger.warn(`[Socket][AUTH] JWT verification failed: ${e.message}`);
       }
-    } catch (e) {
-      logger.warn(`[Socket][AUTH] JWT verification failed: ${e.message}`);
     }
   }
 
   // 2) Vérifier sessionToken si présent → rejeter si session invalidée
+  if (sessionToken && !supabaseAdmin) {
+    // Jeton présenté sans moyen de le vérifier: connexion acceptée (usages
+    // publics) mais `sessionValid` reste faux → fail closed côté payant.
+    logger.warn('[Socket][AUTH] sessionToken présenté mais Supabase indisponible → accès payant fermé', { socketId: socket.id });
+    return next();
+  }
   if (sessionToken && supabaseAdmin) {
     try {
       // Cache check
@@ -4124,7 +4096,22 @@ io.use(async (socket, next) => {
         // Query Supabase
         const { data, error } = await supabaseAdmin.rpc('check_session_active', { p_token: sessionToken });
         const result = data && data.length > 0 ? data[0] : null;
-        const isActive = result?.is_valid ?? true; // fail-open si erreur
+        // CTO-002: plus de `?? true`. Une session inconnue ne vaut pas une session
+        // valide → accès payant fermé (la connexion reste acceptée pour les usages
+        // publics). Une erreur d'infrastructure reste `null` (indéterminé): elle ne
+        // sert pas de porte ouverte, car l'habilitation elle-même échoue alors en
+        // fail-closed, mais elle n'invalide pas les sessions des abonnés légitimes.
+        if (error) {
+          logger.warn('[Socket][AUTH] check_session_active en erreur → session indéterminée', { socketId: socket.id });
+          socket.sessionValid = null;
+          return next();
+        }
+        if (!result) {
+          logger.warn('[Socket][AUTH] Session inconnue → accès payant fermé', { socketId: socket.id });
+          socket.sessionValid = false;
+          return next();
+        }
+        const isActive = result.is_valid === true;
 
         _socketSessionCache.set(sessionToken, { isActive, ts: Date.now() });
         if (_socketSessionCache.size > 5000) {
@@ -4139,8 +4126,8 @@ io.use(async (socket, next) => {
         socket.sessionValid = true;
       }
     } catch (e) {
-      // Fail-open: ne pas bloquer si Supabase est down
-      logger.warn(`[Socket][AUTH] Session check error (fail-open): ${e.message}`);
+      // Erreur d'infrastructure: état indéterminé (voir commentaire ci-dessus).
+      logger.warn(`[Socket][AUTH] Session check error (indéterminé): ${e.message}`);
       socket.sessionValid = null;
     }
   }
@@ -4159,96 +4146,116 @@ app.locals.invalidateSocketSessionCache = (userId) => {
 // PHASE 3 — Vérification abonnement serveur
 // Cache en mémoire: évite de frapper Supabase à chaque event
 // ==========================================
-const _subCache = new Map();
-const SUB_CACHE_TTL = 5 * 60_000; // 5 min
+const { resolveEntitlement, resolveRole, createEntitlementCache } = require('./access/entitlements');
+const { checkSocketAccess, isFreeSoloRoom, isDevBypassEnabled, activeOccupants, isExclusiveSoloRoom } = require('./access/socketAccess');
+const { authorizeManagerAction, isMatchParticipant } = require('./access/matchAccess');
+const { resolveGrandeSalleAccess, issueTicket, getTicketSecret, normalizeEmail } = require('./access/gsAccess');
 
+const _subCache = createEntitlementCache();
+const _roleCache = createEntitlementCache();
+
+if (isDevBypassEnabled()) {
+  logger.warn('[Access] ⚠️ CC_DEV_ALLOW_UNVERIFIED_MP=1 — accès multijoueur sans habilitation vérifiée (dev uniquement, ignoré si NODE_ENV=production)');
+}
+
+// FAIL CLOSED (CTO-002): toute incertitude ferme l'accès payant.
 async function checkSubscription(userId) {
-  if (!userId || !supabaseAdmin) {
-    sTrace.push('sub:check', { userId, decision: 'fail-open', reason: !userId ? 'no_userId' : 'no_supabase' });
-    return { isPro: true };
-  }
-
   const cached = _subCache.get(userId);
-  if (cached && Date.now() - cached.ts < SUB_CACHE_TTL) {
-    sTrace.push('sub:check', { userId, decision: 'cached', isPro: cached.isPro, role: cached.role, status: cached.status });
+  if (cached) {
+    sTrace.push('sub:check', { userId, decision: 'cached', isPro: cached.isPro, reason: cached.reason, source: cached.source });
     return cached;
   }
+  const result = await resolveEntitlement({ supabase: supabaseAdmin, userId });
+  sTrace.push('sub:check', { userId, isPro: result.isPro, reason: result.reason, source: result.source, status: result.status, role: result.role });
+  if (userId) _subCache.set(userId, result);
+  return result;
+}
 
+// Décision d'accès pour un événement Socket.IO payant.
+async function authorizePaidSocket(socket, event, extra = {}) {
+  const decision = await checkSocketAccess({ socket, checkEntitlement: checkSubscription });
+  sTrace.push(decision.allowed ? 'sub:GRANTED' : 'sub:REJECTED', {
+    event, socketId: socket.id, userId: decision.userId, reason: decision.reason, ...extra,
+  });
+  if (!decision.allowed) {
+    logger.warn(`[Socket][SUB] ❌ ${event} refusé (${decision.reason})`, { socketId: socket.id, userId: decision.userId });
+  }
+  return decision;
+}
+
+// Rôle serveur (jamais client) — mis en cache comme l'habilitation.
+async function checkRole(userId) {
+  const cached = _roleCache.get(userId);
+  if (cached) return cached;
+  const result = await resolveRole({ supabase: supabaseAdmin, userId });
+  // Ne pas mémoriser une incertitude d'infrastructure (fail closed non figé).
+  if (userId && result.reason !== 'verification_error' && result.reason !== 'verification_unavailable') {
+    _roleCache.set(userId, result);
+  }
+  return result;
+}
+
+// Décision d'accès pour une action de pilotage (professeur/admin).
+async function authorizeManagerSocket(socket, event, { match = null, ...extra } = {}) {
+  const decision = await authorizeManagerAction({ socket, resolveRoleFor: checkRole, match });
+  sTrace.push(decision.allowed ? 'role:GRANTED' : 'role:REJECTED', {
+    event, socketId: socket.id, userId: decision.userId, role: decision.role, reason: decision.reason, ...extra,
+  });
+  if (!decision.allowed) {
+    logger.warn(`[Socket][ROLE] ❌ ${event} refusé (${decision.reason})`, { socketId: socket.id, userId: decision.userId, role: decision.role });
+  }
+  return decision;
+}
+
+/** Un socket est-il encore réellement connecté ? (entrées de salle obsolètes) */
+function isSocketStillConnected(id) {
+  const s = io.sockets.sockets.get(id);
+  return !!(s && s.connected);
+}
+
+/** Solo gratuit = salle `solo-*` occupée par ce seul socket connecté. */
+function isServerSoloRoom(roomId, socket) {
+  if (!isFreeSoloRoom(roomId)) return false;
+  const room = rooms.get(roomId);
+  if (!room) return true;
+  const self = room.players.get(socket.id);
+  const occupants = activeOccupants(room, socket.id, isSocketStillConnected)
+    .filter(id => !self || room.players.get(id)?.name !== self.name);
+  return isExclusiveSoloRoom(roomId, occupants);
+}
+
+/** Match serveur (source de vérité pour la propriété prof), jamais le client. */
+function getServerMatch(matchId) {
   try {
-    // Si le userId est un studentId (non-UUID, ex: std_demo_0267), c'est un élève licencié → pro
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
-    if (!isUUID) {
-      // Tout élève existant dans la table students est pro (le professeur paye la licence)
-      try {
-        const { data: stu, error: stuErr } = await supabaseAdmin.from('students').select('id, licensed').eq('id', userId).single();
-        if (stu) {
-          const result = { isPro: true, status: 'student_enrolled', role: 'student', ts: Date.now() };
-          sTrace.push('sub:check', { userId, isUUID: false, decision: 'student_enrolled', found: true, licensed: stu.licensed, isPro: true });
-          _subCache.set(userId, result);
-          return result;
-        }
-        sTrace.push('sub:check', { userId, isUUID: false, decision: 'fail-open', reason: 'student_not_found', err: stuErr?.message || 'none' });
-      } catch (e2) {
-        sTrace.push('sub:check', { userId, isUUID: false, decision: 'fail-open', reason: 'students_exception', err: e2.message });
-      }
-      return { isPro: true };
-    }
-
-    const { data: rows } = await supabaseAdmin
-      .from('subscriptions')
-      .select('status')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false })
-      .limit(1);
-    const status = rows?.[0]?.status || null;
-    const isPro = (status === 'active' || status === 'trialing');
-
-    // Aussi vérifier le rôle (teacher/admin/cpd/cpc/rectorat/student = toujours pro)
-    let role = null;
-    let profErr = null;
-    try {
-      const { data: prof, error: pErr } = await supabaseAdmin.from('user_profiles').select('role, email').eq('id', userId).single();
-      role = prof?.role || null;
-      profErr = pErr?.message || null;
-      // ✅ FIX: Fallback élève — si user_profiles.role n'est pas 'student', vérifier email + mapping
-      if (!['admin', 'teacher', 'cpd', 'cpc', 'rectorat', 'student'].includes(role)) {
-        // Détection par email @eleve.crazychrono.app
-        if (prof?.email?.endsWith('@eleve.crazychrono.app')) {
-          role = 'student';
-          profErr = (profErr || '') + ' [fixed:email_pattern]';
-        } else {
-          // Détection par user_student_mapping
-          try {
-            const { data: mapping } = await supabaseAdmin.from('user_student_mapping').select('student_id').eq('user_id', userId).eq('active', true).maybeSingle();
-            if (mapping?.student_id) {
-              role = 'student';
-              profErr = (profErr || '') + ' [fixed:student_mapping]';
-            }
-          } catch {}
-        }
-      }
-    } catch (e3) { profErr = e3.message; }
-    const isPrivileged = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat', 'student'].includes(role);
-
-    const result = { isPro: isPro || isPrivileged, status, role, ts: Date.now() };
-    sTrace.push('sub:check', { userId, isUUID: true, subStatus: status, role, profErr, isPrivileged, isPro: result.isPro });
-    _subCache.set(userId, result);
-
-    // Cleanup cache si trop grand
-    if (_subCache.size > 5000) {
-      const keys = [..._subCache.keys()].slice(0, 1000);
-      keys.forEach(k => _subCache.delete(k));
-    }
-
-    return result;
+    return (matchId && crazyArena?.matches?.get(matchId)) || null;
   } catch (e) {
-    sTrace.push('sub:check', { userId, decision: 'fail-open', reason: 'exception', err: e.message });
-    return { isPro: true }; // fail-open
+    return null;
   }
 }
 
+/**
+ * Un socket ne peut muter un match que s'il y a été admis comme joueur par un
+ * join autorisé. Sinon (spectateur, socket inconnu) l'habilitation est exigée.
+ */
+async function authorizeMatchPlayer(socket, event, matchId) {
+  try {
+    // Le mapping serveur doit désigner *ce* match: un socket admis dans un match
+    // ne doit pas pouvoir muter un autre match.
+    const mapped = crazyArena?.playerMatches?.get(socket.id) || null;
+    if (mapped && (!matchId || String(mapped) === String(matchId))) {
+      return { allowed: true, reason: 'match_player', userId: socket.authUser?.id || null, matchId: mapped };
+    }
+  } catch (e) { /* ignore */ }
+  if (!isMatchParticipant(socket, matchId)) {
+    sTrace.push('sub:REJECTED', { event, socketId: socket.id, reason: 'not_in_match', matchId });
+    logger.warn(`[Socket][SUB] ❌ ${event} refusé (not_in_match)`, { socketId: socket.id, matchId });
+    return { allowed: false, reason: 'not_in_match', userId: socket.authUser?.id || null };
+  }
+  return authorizePaidSocket(socket, event, { matchId });
+}
+
 // Invalider le cache abo quand un webhook Stripe modifie le statut
-app.locals.invalidateSubCache = (userId) => { _subCache.delete(userId); };
+app.locals.invalidateSubCache = (userId) => { _subCache.invalidate(userId); _roleCache.invalidate(userId); };
 
 io.on('connection', (socket) => {
   let currentRoom = null;
@@ -4292,20 +4299,12 @@ io.on('connection', (socket) => {
 
   // Créer une salle et renvoyer le code au client (ack)
   socket.on('room:create', async (cb) => {
-    // ── Phase 3: Vérification abonnement pour créer une salle MP ──
-    const uid = socket.authUser?.id || playerStudentId || null;
-    sTrace.push('sub:room:create', { socketId: socket.id, authUserId: socket.authUser?.id || null, playerStudentId: playerStudentId || null, resolvedUid: uid });
-    const sub = await checkSubscription(uid);
-    if (!sub.isPro) {
-      // ✅ FIX: bypass si l'élève est détecté par son email @eleve.crazychrono.app
-      if (socket.authUser?.isStudent) {
-        sTrace.push('sub:BYPASS', { event: 'room:create', socketId: socket.id, uid, reason: 'authUser.isStudent' });
-      } else {
-        sTrace.push('sub:REJECTED', { event: 'room:create', socketId: socket.id, uid, sub });
-        socket.emit('subscription:required', { event: 'room:create', message: 'Le mode multijoueur est réservé aux abonnés.' });
-        if (typeof cb === 'function') cb({ ok: false, error: 'subscription_required' });
-        return;
-      }
+    // ── CTO-002: identité + habilitation vérifiées côté serveur ──
+    const access = await authorizePaidSocket(socket, 'room:create');
+    if (!access.allowed) {
+      socket.emit('subscription:required', { event: 'room:create', reason: access.reason, message: 'Le mode multijoueur est réservé aux abonnés connectés.' });
+      if (typeof cb === 'function') cb({ ok: false, error: 'subscription_required' });
+      return;
     }
     const code = genRoomCode();
     const room = getRoom(code); // initialise
@@ -4379,33 +4378,39 @@ io.on('connection', (socket) => {
     // ── Phase 3: Vérification abonnement pour multijoueur (ASYNC) ──
     // NOTE: Room setup is already done above so room:setConfig and startGame
     // events can be processed during this await without being silently dropped.
-    const uid = socket.authUser?.id || playerStudentId || sid || null;
-    const isSoloRoom = newRoom.startsWith('solo-');
-    sTrace.push('sub:joinRoom', { socketId: socket.id, authUserId: socket.authUser?.id || null, playerStudentId: playerStudentId || null, sid: sid || null, resolvedUid: uid, room: newRoom, isSoloRoom });
     // Le mode Solo est gratuit (quota journalier géré séparément) -> pas de gate abonnement.
-    const sub = isSoloRoom ? { isPro: true } : await checkSubscription(uid);
-    if (!sub.isPro) {
-      // ✅ FIX: bypass si l'élève est détecté par son email @eleve.crazychrono.app
-      if (socket.authUser?.isStudent) {
-        sTrace.push('sub:BYPASS', { event: 'joinRoom', socketId: socket.id, uid, room: newRoom, reason: 'authUser.isStudent' });
-      } else {
-        // Rollback: remove player from room since subscription check failed
-        sTrace.push('sub:REJECTED', { event: 'joinRoom', socketId: socket.id, uid, room: newRoom, sub });
-        room.players.delete(socket.id);
-        if (room.hostId === socket.id) {
-          const first = room.players.keys().next();
-          room.hostId = first.done ? null : first.value;
-        }
-        socket.leave(currentRoom);
-        if (room.players.size === 0) {
-          rooms.delete(currentRoom);
-        } else {
-          emitRoomState(currentRoom);
-        }
-        currentRoom = null;
-        socket.emit('subscription:required', { event: 'joinRoom', message: 'Le mode multijoueur est réservé aux abonnés.' });
-        return;
+    // CTO-002 (revue): le préfixe `solo-` est une demande du client, pas une preuve.
+    // Une salle Solo n'est gratuite que si le socket courant en est le seul occupant
+    // connecté; un second joueur en fait un multijoueur soumis à habilitation.
+    // Les entrées obsolètes et l'homonyme (reconnexion) sont ignorés pour ne pas
+    // casser la reprise après coupure réseau.
+    const soloOccupants = activeOccupants(room, socket.id, isSocketStillConnected)
+      .filter(id => room.players.get(id)?.name !== playerName);
+    const isSoloRoom = isExclusiveSoloRoom(newRoom, soloOccupants);
+    if (isFreeSoloRoom(newRoom) && !isSoloRoom) {
+      sTrace.push('solo:shared-room', { room: newRoom, socketId: socket.id, occupants: soloOccupants.length });
+      logger.warn('[Socket][SUB] Salle solo-* partagée → traitée comme multijoueur', { room: newRoom, occupants: soloOccupants.length });
+    }
+    const access = isSoloRoom
+      ? { allowed: true, reason: 'free_solo', userId: socket.authUser?.id || null }
+      : await authorizePaidSocket(socket, 'joinRoom', { room: newRoom });
+    if (access.allowed) room._soloExclusive = isSoloRoom;
+    if (!access.allowed) {
+      // Rollback: le joueur est retiré de la salle puisque l'accès est refusé
+      room.players.delete(socket.id);
+      if (room.hostId === socket.id) {
+        const first = room.players.keys().next();
+        room.hostId = first.done ? null : first.value;
       }
+      socket.leave(currentRoom);
+      if (room.players.size === 0) {
+        rooms.delete(currentRoom);
+      } else {
+        emitRoomState(currentRoom);
+      }
+      currentRoom = null;
+      socket.emit('subscription:required', { event: 'joinRoom', reason: access.reason, message: 'Le mode multijoueur est réservé aux abonnés connectés.' });
+      return;
     }
     // ── TRAÇAGE: log quand un joueur rejoint une room ──
     console.log(`[GAME-TRACE] joinRoom | room=${currentRoom} socket=${socket.id} name=${playerName} playersNow=${room.players.size} sessionActive=${room.sessionActive} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession} existingScore=${existing.score||0}`);
@@ -4605,10 +4610,18 @@ io.on('connection', (socket) => {
   });
 
   // Démarrage de la partie (hôte uniquement) si tous prêts et >=2 joueurs
-  socket.on('room:start', () => {
+  socket.on('room:start', async () => {
     if (!currentRoom) return;
     const room = getRoom(currentRoom);
     if (socket.id !== room.hostId) return; // seul l'hôte démarre
+    // CTO-002: revalider l'habilitation de l'hôte avant de démarrer une session payante
+    if (!isServerSoloRoom(currentRoom, socket)) {
+      const access = await authorizePaidSocket(socket, 'room:start', { room: currentRoom });
+      if (!access.allowed) {
+        socket.emit('subscription:required', { event: 'room:start', reason: access.reason, message: 'Le mode multijoueur est réservé aux abonnés connectés.' });
+        return;
+      }
+    }
     // Eviter de relancer une session si elle est déjà active
     if (room.sessionActive) {
       console.warn(`[MP] room:start ignored: session already active room=${currentRoom}`);
@@ -4657,8 +4670,17 @@ io.on('connection', (socket) => {
   // Chaque joueur émet room:requestReplay quand il clique "Rejouer".
   // Le serveur attend que TOUS les joueurs de la salle aient émis l'événement,
   // puis lance un countdown + startRound synchronisé (même mécanisme que room:start).
-  socket.on('room:requestReplay', () => {
+  socket.on('room:requestReplay', async () => {
     if (!currentRoom) return;
+    // CTO-002 (revue): rejouer relance une session multijoueur → même habilitation
+    // que room:start (le Solo exclusif reste gratuit).
+    if (!isServerSoloRoom(currentRoom, socket)) {
+      const access = await authorizePaidSocket(socket, 'room:requestReplay', { room: currentRoom });
+      if (!access.allowed) {
+        socket.emit('subscription:required', { event: 'room:requestReplay', reason: access.reason, message: 'Le mode multijoueur est réservé aux abonnés connectés.' });
+        return;
+      }
+    }
     const room = getRoom(currentRoom);
     // Ignorer si une session est déjà en cours
     if (room.sessionActive) {
@@ -4711,11 +4733,20 @@ io.on('connection', (socket) => {
   });
 
   // startGame (compat): démarre une session solo/simple en suivant le même pipeline que room:start
-  socket.on('startGame', () => {
+  socket.on('startGame', async () => {
     // ── TRAÇAGE: log quand startGame est reçu ──
     console.log(`[GAME-TRACE] startGame received | room=${currentRoom} socketId=${socket.id}`);
     sTrace.push('startGame', { room: currentRoom, socketId: socket.id });
     if (!currentRoom) return;
+    // CTO-002: startGame est le chemin de compatibilité — il démarre aussi les
+    // salles non-solo et doit donc être habilité comme room:start.
+    if (!isServerSoloRoom(currentRoom, socket)) {
+      const access = await authorizePaidSocket(socket, 'startGame', { room: currentRoom });
+      if (!access.allowed) {
+        socket.emit('subscription:required', { event: 'startGame', reason: access.reason, message: 'Le mode multijoueur est réservé aux abonnés connectés.' });
+        return;
+      }
+    }
     const room = getRoom(currentRoom);
     // Ne rien faire si une session est déjà en cours
     if (room.sessionActive) {
@@ -5175,10 +5206,17 @@ io.on('connection', (socket) => {
 
   // ===== TRAINING MODE EVENTS (Mode Entraînement) =====
   
-  socket.on('training:create-match', ({ matchId, studentIds, config, classId, teacherId }) => {
-    logger.info('[Server][Training] Création match', { matchId, studentCount: studentIds.length, classId, teacherId });
-    
-    crazyArena.createTrainingMatch(matchId, studentIds, config, classId, teacherId);
+  socket.on('training:create-match', async ({ matchId, studentIds, config, classId }) => {
+    // ── CTO-002 (revue): rôle professeur résolu côté serveur; le teacherId
+    //    envoyé par le client est ignoré au profit de l'identité JWT vérifiée.
+    const mgr = await authorizeManagerSocket(socket, 'training:create-match', { matchId });
+    if (!mgr.allowed) {
+      socket.emit('access:denied', { event: 'training:create-match', reason: mgr.reason });
+      return;
+    }
+    logger.info('[Server][Training] Création match', { matchId, studentCount: studentIds.length, classId, teacherId: mgr.userId });
+
+    crazyArena.createTrainingMatch(matchId, studentIds, config, classId, mgr.userId);
     
     // Confirmer la création
     socket.emit('training:match-started', { matchId });
@@ -5189,12 +5227,10 @@ io.on('connection', (socket) => {
   socket.on('training:join', async ({ matchId, studentData }, cb) => {
     logger.info('[Server][Training] Joueur tente de rejoindre', { matchId, studentId: studentData.studentId, name: studentData.name, socketId: socket.id });
 
-    // ── Phase 3: Vérification abonnement pour Training ──
-    const uid = socket.authUser?.id || studentData?.studentId || null;
-    const sub = await checkSubscription(uid);
-    if (!sub.isPro) {
-      logger.warn(`[Socket][SUB] ❌ Joueur free tente training:join`, { socketId: socket.id, userId: uid, matchId });
-      socket.emit('subscription:required', { event: 'training:join', message: 'Le mode Training est réservé aux abonnés.' });
+    // ── CTO-002: identité serveur uniquement (studentData ignoré pour l'autorisation) ──
+    const access = await authorizePaidSocket(socket, 'training:join', { matchId });
+    if (!access.allowed) {
+      socket.emit('subscription:required', { event: 'training:join', reason: access.reason, message: 'Le mode Training est réservé aux abonnés connectés.' });
       if (typeof cb === 'function') cb({ ok: false, error: 'subscription_required' });
       return;
     }
@@ -5212,13 +5248,20 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('training:ready', ({ matchId, studentId }) => {
+  socket.on('training:ready', async ({ matchId, studentId }) => {
+    const player = await authorizeMatchPlayer(socket, 'training:ready', matchId);
+    if (!player.allowed) return;
     logger.info('[Server][Training] Joueur marque prêt', { matchId, studentId, socketId: socket.id });
     const readyResult = crazyArena.trainingPlayerReady(socket, matchId, studentId);
     sTrace.push('training:ready', { matchId: (matchId || '').slice(-8), studentId: (studentId || '').slice(-8), socketId: socket.id.slice(0, 8), result: readyResult || 'void' });
   });
 
-  socket.on('training:teacher-join', ({ matchIds }) => {
+  socket.on('training:teacher-join', async ({ matchIds }) => {
+    const mgr = await authorizeManagerSocket(socket, 'training:teacher-join');
+    if (!mgr.allowed) {
+      socket.emit('access:denied', { event: 'training:teacher-join', reason: mgr.reason });
+      return;
+    }
     console.log(`[Server][Training] Professeur rejoint rooms Training:`, matchIds);
     matchIds.forEach(matchId => {
       socket.join(matchId);
@@ -5241,7 +5284,13 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('training:force-start', ({ matchId }, cb) => {
+  socket.on('training:force-start', async ({ matchId }, cb) => {
+    const mgr = await authorizeManagerSocket(socket, 'training:force-start', { match: getServerMatch(matchId), matchId });
+    if (!mgr.allowed) {
+      socket.emit('access:denied', { event: 'training:force-start', reason: mgr.reason });
+      if (typeof cb === 'function') cb({ ok: false, error: mgr.reason });
+      return;
+    }
     console.log(`[Server][Training] Démarrage forcé match ${matchId}`);
     const success = crazyArena.trainingForceStart(matchId);
     if (typeof cb === 'function') {
@@ -5250,7 +5299,9 @@ io.on('connection', (socket) => {
   });
 
   // Training: Validation de paire (IDENTIQUE HANDLER ARENA)
-  socket.on('training:pair-validated', (data) => {
+  socket.on('training:pair-validated', async (data) => {
+    const player = await authorizeMatchPlayer(socket, 'training:pair-validated', data?.matchId);
+    if (!player.allowed) return;
     logger.info('[Server][Training] Paire validée', { 
       matchId: data.matchId?.slice(-8), 
       studentId: data.studentId,
@@ -5261,12 +5312,19 @@ io.on('connection', (socket) => {
     crazyArena.trainingPairValidated(socket, data);
   });
 
-  socket.on('training:subscribe-manager', ({ matchId }) => {
+  socket.on('training:subscribe-manager', async ({ matchId }) => {
+    const mgr = await authorizeManagerSocket(socket, 'training:subscribe-manager', { match: getServerMatch(matchId), matchId });
+    if (!mgr.allowed) {
+      socket.emit('access:denied', { event: 'training:subscribe-manager', reason: mgr.reason });
+      return;
+    }
     console.log(`[Server][Training] Manager souscrit au match ${matchId}`);
     socket.join(matchId);
   });
 
-  socket.on('training:player-ready-tiebreaker', ({ matchId, studentId, playerName }) => {
+  socket.on('training:player-ready-tiebreaker', async ({ matchId, studentId, playerName }) => {
+    const player = await authorizeMatchPlayer(socket, 'training:player-ready-tiebreaker', matchId);
+    if (!player.allowed) return;
     console.log(`[Server][Training] Joueur ${playerName} prêt pour départage match ${matchId}`);
     logger.training('player-ready-tiebreaker', { 
       matchId: matchId?.slice(-8), 
@@ -5279,12 +5337,23 @@ io.on('connection', (socket) => {
   });
 
   socket.on('training:start-tiebreaker', async ({ matchId }) => {
+    const mgr = await authorizeManagerSocket(socket, 'training:start-tiebreaker', { match: getServerMatch(matchId), matchId });
+    if (!mgr.allowed) {
+      socket.emit('access:denied', { event: 'training:start-tiebreaker', reason: mgr.reason });
+      return;
+    }
     console.log(`[Server][Training] Professeur lance départage pour match ${matchId}`);
     await crazyArena.trainingStartTiebreakerByTeacher(matchId);
   });
 
   // Training/Arena: Suppression manuelle d'un match par le prof
-  socket.on('delete-match', ({ matchId }, cb) => {
+  socket.on('delete-match', async ({ matchId }, cb) => {
+    const mgr = await authorizeManagerSocket(socket, 'delete-match', { match: getServerMatch(matchId), matchId });
+    if (!mgr.allowed) {
+      socket.emit('access:denied', { event: 'delete-match', reason: mgr.reason });
+      if (typeof cb === 'function') cb({ ok: false, error: mgr.reason });
+      return;
+    }
     logger.info('[Server] Demande suppression match', { matchId, socketId: socket.id });
     const result = crazyArena.deleteMatch(matchId);
     
@@ -5304,12 +5373,10 @@ io.on('connection', (socket) => {
   socket.on('arena:join', async ({ matchId, studentData }, cb) => {
     logger.info('[Server][Arena] Joueur rejoint', { matchId, studentId: studentData.studentId, name: studentData.name, socketId: socket.id });
 
-    // ── Phase 3: Vérification abonnement pour Arena ──
-    const uid = socket.authUser?.id || studentData?.studentId || null;
-    const sub = await checkSubscription(uid);
-    if (!sub.isPro) {
-      logger.warn(`[Socket][SUB] ❌ Joueur free tente arena:join`, { socketId: socket.id, userId: uid, matchId });
-      socket.emit('subscription:required', { event: 'arena:join', message: 'Le mode Arena est réservé aux abonnés.' });
+    // ── CTO-002: identité serveur uniquement (studentData ignoré pour l'autorisation) ──
+    const access = await authorizePaidSocket(socket, 'arena:join', { matchId });
+    if (!access.allowed) {
+      socket.emit('subscription:required', { event: 'arena:join', reason: access.reason, message: 'Le mode Arena est réservé aux abonnés connectés.' });
       if (typeof cb === 'function') cb({ ok: false, error: 'subscription_required' });
       return;
     }
@@ -5325,13 +5392,17 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('arena:ready', ({ studentId }) => {
+  socket.on('arena:ready', async ({ studentId, matchId }) => {
+    const player = await authorizeMatchPlayer(socket, 'arena:ready', matchId);
+    if (!player.allowed) return;
     logger.info('[Server][Arena] Joueur marque prêt (lobby)', { studentId, socketId: socket.id });
     const readyResult = crazyArena.playerReady(socket, studentId);
     sTrace.push('arena:ready', { studentId: (studentId || '').slice(-8), socketId: socket.id.slice(0, 8), result: readyResult || 'void' });
   });
 
-  socket.on('arena:pair-validated', (data) => {
+  socket.on('arena:pair-validated', async (data) => {
+    const player = await authorizeMatchPlayer(socket, 'arena:pair-validated', data?.matchId);
+    if (!player.allowed) return;
     logger.info('[Server][Arena] Paire validée', { 
       matchId: data.matchId?.slice(-8), 
       studentId: data.studentId,
@@ -5342,7 +5413,13 @@ io.on('connection', (socket) => {
     crazyArena.pairValidated(socket, data);
   });
 
-  socket.on('arena:force-start', ({ matchId }, cb) => {
+  socket.on('arena:force-start', async ({ matchId }, cb) => {
+    const mgr = await authorizeManagerSocket(socket, 'arena:force-start', { match: getServerMatch(matchId), matchId });
+    if (!mgr.allowed) {
+      socket.emit('access:denied', { event: 'arena:force-start', reason: mgr.reason });
+      if (typeof cb === 'function') cb({ ok: false, error: mgr.reason });
+      return;
+    }
     // Démarrage forcé par le professeur (2-4 joueurs)
     console.log(`[Server] arena:force-start reçu pour match ${matchId}`);
     const success = crazyArena.forceStart(matchId);
@@ -5351,7 +5428,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('arena:subscribe-manager', ({ matchId }) => {
+  socket.on('arena:subscribe-manager', async ({ matchId }) => {
+    const mgr = await authorizeManagerSocket(socket, 'arena:subscribe-manager', { match: getServerMatch(matchId), matchId });
+    if (!mgr.allowed) {
+      socket.emit('access:denied', { event: 'arena:subscribe-manager', reason: mgr.reason });
+      return;
+    }
     // Le dashboard professeur s'abonne aux mises à jour d'un match
     console.log(`[Server] Dashboard s'abonne au match ${matchId}`);
     socket.join(matchId);
@@ -5381,12 +5463,19 @@ io.on('connection', (socket) => {
   });
 
   // Joueur clique "Je suis prêt" pour le départage
-  socket.on('arena:player-ready-tiebreaker', ({ matchId, studentId, playerName }) => {
+  socket.on('arena:player-ready-tiebreaker', async ({ matchId, studentId, playerName }) => {
+    const player = await authorizeMatchPlayer(socket, 'arena:player-ready-tiebreaker', matchId);
+    if (!player.allowed) return;
     logger.info('[Server][Arena] Joueur prêt pour départage', { matchId, studentId, playerName, socketId: socket.id });
     crazyArena.playerReadyForTiebreaker(matchId, studentId, playerName, io);
   });
 
   socket.on('arena:start-tiebreaker', async ({ matchId }) => {
+    const mgr = await authorizeManagerSocket(socket, 'arena:start-tiebreaker', { match: getServerMatch(matchId), matchId });
+    if (!mgr.allowed) {
+      socket.emit('access:denied', { event: 'arena:start-tiebreaker', reason: mgr.reason });
+      return;
+    }
     // Le professeur lance manuellement le départage
     console.log(`[Server] Professeur lance départage pour match ${matchId}`);
     await crazyArena.startTiebreakerByTeacher(matchId);
@@ -5395,7 +5484,30 @@ io.on('connection', (socket) => {
   // ===== GRANDE SALLE EVENTS =====
   let currentGS = null; // salleId the player is in
 
-  socket.on('gs:join', async ({ name, salleId, tournamentId, studentId: gsStudentId, email: gsEmail, userId: gsUserId, spectator: gsSpectatorFlag }, cb) => {
+  // ── CTO-002 (revue): l'accès Grande Salle ne dépend plus d'aucune valeur
+  //    envoyée par le navigateur. Deux preuves seulement: identité JWT vérifiée
+  //    + habilitation serveur, ou billet signé émis après paiement Stripe vérifié.
+  const gsHasPaidEntry = async (tId, mail) => {
+    if (!supabaseAdmin || !tId || !mail) return null;
+    const { data, error } = await supabaseAdmin
+      .from('gs_tournament_entries')
+      .select('paid')
+      .eq('tournament_id', tId)
+      .eq('email', mail)
+      .maybeSingle();
+    if (error) return null; // vérification impossible → fail closed
+    return data?.paid === true;
+  };
+  const gsCheckAccess = (accessType, tId, entryTicket) => resolveGrandeSalleAccess({
+    accessType,
+    tournamentId: tId,
+    socket,
+    checkEntitlement: checkSubscription,
+    hasPaidEntry: gsHasPaidEntry,
+    entryTicket,
+  });
+
+  socket.on('gs:join', async ({ name, salleId, tournamentId, studentId: gsStudentId, entryTicket: gsEntryTicket, spectator: gsSpectatorFlag }, cb) => {
     let id = salleId || 'grande-salle-publique';
     
     // If joining a tournament, use tournament ID as salle ID and load config
@@ -5408,47 +5520,16 @@ io.on('connection', (socket) => {
             // ===== CONTRÔLE D'ACCÈS =====
             const accessType = t.access_type || 'free';
             if (accessType !== 'free') {
-              const uid = gsUserId || gsStudentId || null;
-              let isSubscriber = false;
-
-              // Vérifier l'abonnement si on a un user_id
-              if (uid) {
-                try {
-                  const { data: subs } = await supabaseAdmin
-                    .from('subscriptions')
-                    .select('status')
-                    .eq('user_id', uid)
-                    .order('created_at', { ascending: false })
-                    .limit(1);
-                  isSubscriber = subs && subs.length > 0 && subs[0].status === 'active';
-                } catch (e) { console.error('[GS] Subscription check error:', e.message); }
-              }
-
-              if (accessType === 'subscribers' && !isSubscriber) {
-                console.log(`[GS] Access denied (subscribers only) for ${name || 'unknown'} uid=${uid}`);
-                if (typeof cb === 'function') cb({ ok: false, error: 'Ce tournoi est réservé aux abonnés Crazy Chrono.', accessType: 'subscribers' });
+              const gsAccess = await gsCheckAccess(accessType, tournamentId, gsEntryTicket);
+              sTrace.push(gsAccess.allowed ? 'gs:access:GRANTED' : 'gs:access:REJECTED', { salle: id, accessType, reason: gsAccess.reason, via: gsAccess.via, userId: gsAccess.userId, socketId: socket.id });
+              if (!gsAccess.allowed) {
+                console.log(`[GS] Access denied (${accessType}/${gsAccess.reason}) socket=${socket.id}`);
+                if (accessType === 'subscribers') {
+                  if (typeof cb === 'function') cb({ ok: false, error: 'Ce tournoi est réservé aux abonnés Crazy Chrono.', accessType: 'subscribers', reason: gsAccess.reason });
+                } else {
+                  if (typeof cb === 'function') cb({ ok: false, error: `Ce tournoi nécessite un paiement de ${((t.entry_price || 0) / 100).toFixed(2)}€ pour participer.`, accessType: 'paid', price: t.entry_price || 0, reason: gsAccess.reason });
+                }
                 return;
-              }
-
-              if (accessType === 'paid' && !isSubscriber) {
-                // Vérifier si le paiement a été effectué
-                let hasPaid = false;
-                if (gsEmail) {
-                  try {
-                    const { data: entry } = await supabaseAdmin
-                      .from('gs_tournament_entries')
-                      .select('paid')
-                      .eq('tournament_id', tournamentId)
-                      .eq('email', String(gsEmail).trim().toLowerCase())
-                      .single();
-                    hasPaid = entry?.paid === true;
-                  } catch {}
-                }
-                if (!hasPaid) {
-                  console.log(`[GS] Access denied (paid, not paid) for ${name || 'unknown'} email=${gsEmail}`);
-                  if (typeof cb === 'function') cb({ ok: false, error: `Ce tournoi nécessite un paiement de ${((t.entry_price || 0) / 100).toFixed(2)}€ pour participer.`, accessType: 'paid', price: t.entry_price || 0 });
-                  return;
-                }
               }
             }
 
@@ -5482,31 +5563,16 @@ io.on('connection', (socket) => {
     const salle = grandeSalles.has(id) ? grandeSalles.get(id) : createGrandeSalle(id);
 
     // Contrôle d'accès pour les joueurs rejoignant une salle existante
-    if (salle.accessType && salle.accessType !== 'free' && supabaseAdmin) {
-      const uid = gsUserId || gsStudentId || null;
-      let isSubscriber = false;
-      if (uid) {
-        try {
-          const { data: subs } = await supabaseAdmin.from('subscriptions').select('status').eq('user_id', uid).order('created_at', { ascending: false }).limit(1);
-          isSubscriber = subs && subs.length > 0 && subs[0].status === 'active';
-        } catch {}
-      }
-      if (salle.accessType === 'subscribers' && !isSubscriber) {
-        if (typeof cb === 'function') cb({ ok: false, error: 'Ce tournoi est réservé aux abonnés Crazy Chrono.', accessType: 'subscribers' });
+    if (salle.accessType && salle.accessType !== 'free') {
+      const gsAccess = await gsCheckAccess(salle.accessType, salle.tournamentId || tournamentId, gsEntryTicket);
+      sTrace.push(gsAccess.allowed ? 'gs:access:GRANTED' : 'gs:access:REJECTED', { salle: id, accessType: salle.accessType, reason: gsAccess.reason, via: gsAccess.via, userId: gsAccess.userId, socketId: socket.id });
+      if (!gsAccess.allowed) {
+        if (salle.accessType === 'subscribers') {
+          if (typeof cb === 'function') cb({ ok: false, error: 'Ce tournoi est réservé aux abonnés Crazy Chrono.', accessType: 'subscribers', reason: gsAccess.reason });
+        } else {
+          if (typeof cb === 'function') cb({ ok: false, error: `Ce tournoi nécessite un paiement de ${((salle.entryPrice || 0) / 100).toFixed(2)}€ pour participer.`, accessType: 'paid', price: salle.entryPrice || 0, reason: gsAccess.reason });
+        }
         return;
-      }
-      if (salle.accessType === 'paid' && !isSubscriber) {
-        let hasPaid = false;
-        if (gsEmail) {
-          try {
-            const { data: entry } = await supabaseAdmin.from('gs_tournament_entries').select('paid').eq('tournament_id', salle.tournamentId || tournamentId).eq('email', String(gsEmail).trim().toLowerCase()).single();
-            hasPaid = entry?.paid === true;
-          } catch {}
-        }
-        if (!hasPaid) {
-          if (typeof cb === 'function') cb({ ok: false, error: `Ce tournoi nécessite un paiement de ${((salle.entryPrice || 0) / 100).toFixed(2)}€ pour participer.`, accessType: 'paid', price: salle.entryPrice || 0 });
-          return;
-        }
       }
     }
     
@@ -5727,7 +5793,14 @@ io.on('connection', (socket) => {
     currentGS = null;
   });
 
-  socket.on('gs:start', ({ salleId }, cb) => {
+  socket.on('gs:start', async ({ salleId }, cb) => {
+    // CTO-002 (revue): le lancement manuel est une action d'administration —
+    // le rôle est résolu côté serveur, jamais lu dans `cc_auth` du navigateur.
+    const mgr = await authorizeManagerSocket(socket, 'gs:start', { salleId });
+    if (!mgr.allowed) {
+      if (typeof cb === 'function') cb({ ok: false, error: 'Action réservée aux comptes autorisés.', reason: mgr.reason });
+      return;
+    }
     const id = salleId || 'grande-salle-publique';
     const salle = grandeSalles.get(id);
     if (!salle) { if (typeof cb === 'function') cb({ ok: false, error: 'Salle introuvable' }); return; }

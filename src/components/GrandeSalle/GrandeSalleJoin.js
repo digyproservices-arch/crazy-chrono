@@ -38,6 +38,24 @@ export default function GrandeSalleJoin() {
   const { tournamentId } = useParams();
   const [searchParams] = useSearchParams();
   const paymentStatus = searchParams.get('payment');
+  const checkoutSessionId = searchParams.get('session_id');
+
+  // CTO-002 (revue): après paiement, le serveur émet un billet signé lié à la
+  // session Stripe. C'est ce billet — et non l'email saisi — qui prouve l'entrée.
+  useEffect(() => {
+    if (paymentStatus !== 'success' || !checkoutSessionId || !tournamentId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`${getBackendUrl()}/api/gs/tournaments/${tournamentId}/ticket?session_id=${encodeURIComponent(checkoutSessionId)}`);
+        const j = await r.json();
+        if (cancelled || !j?.ok || !j.ticket) return;
+        const guest = JSON.parse(localStorage.getItem('cc_gs_guest') || '{}');
+        localStorage.setItem('cc_gs_guest', JSON.stringify({ ...guest, email: j.email || guest.email, entryTicket: j.ticket, tournamentId }));
+      } catch (e) { /* le serveur refusera l'entrée sans billet */ }
+    })();
+    return () => { cancelled = true; };
+  }, [paymentStatus, checkoutSessionId, tournamentId]);
 
   const [tournament, setTournament] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -113,8 +131,10 @@ export default function GrandeSalleJoin() {
     setFormError(null);
     setJoining(true);
 
-    // Store guest info for GrandeSalle.js to use
+    // Store guest info for GrandeSalle.js to use (le billet déjà émis est conservé)
+    const previous = (() => { try { return JSON.parse(localStorage.getItem('cc_gs_guest') || '{}'); } catch { return {}; } })();
     const guestData = {
+      ...previous,
       firstName: fn,
       lastName: ln,
       email: em,
@@ -147,7 +167,9 @@ export default function GrandeSalleJoin() {
     const guestEmail = existingAuth.email || '';
     const guestFN = existingAuth.firstName || name.split(' ')[0] || '';
     const guestLN = existingAuth.lastName || name.split(' ').slice(1).join(' ') || '';
+    const prevAuthGuest = (() => { try { return JSON.parse(localStorage.getItem('cc_gs_guest') || '{}'); } catch { return {}; } })();
     localStorage.setItem('cc_gs_guest', JSON.stringify({
+      ...prevAuthGuest,
       firstName: guestFN,
       lastName: guestLN,
       email: guestEmail,
