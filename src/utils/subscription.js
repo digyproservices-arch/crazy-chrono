@@ -97,11 +97,12 @@ export function isFree() { return !isPro(); }
 // Fetch real status from backend and sync local storage
 export async function fetchAndSyncStatus(userId) {
   try {
-    const uid = String(userId || '').trim();
-    if (!uid) return { ok: false, error: 'missing_user_id' };
-    const url = `${BACKEND_URL}/me/subscription?user_id=${encodeURIComponent(uid)}`;
+    // CTO-003: le serveur ne lit que l'abonnement du porteur du JWT;
+    // `userId` n'est plus transmis (il n'était pas une autorité).
     const token = getAuthToken();
-    const res = await fetch(url, { headers: { 'Accept': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) } });
+    if (!token) return { ok: false, error: 'missing_token' };
+    const url = `${BACKEND_URL}/me/subscription`;
+    const res = await fetch(url, { headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` } });
     const json = await res.json().catch(() => ({}));
     const active = !!(json && json.ok && (json.status === 'active' || json.status === 'trialing'));
     setSubscriptionStatus(active ? 'pro' : 'free');

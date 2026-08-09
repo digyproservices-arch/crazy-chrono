@@ -1121,7 +1121,9 @@ const { loadPaymentEvents, savePaymentEvents } = require('./monitoringHelpers');
  * Enregistre un événement de paiement (appelé par les webhook handlers)
  * Body: { source, type, userId, email, status, details }
  */
-router.post('/payment-event', (req, res) => {
+// CTO-003: journal financier — écriture réservée à l'administration
+// (aucun appelant client; les webhooks écrivent directement via les helpers).
+router.post('/payment-event', requireAdminAuth, (req, res) => {
   try {
     const evt = req.body || {};
     if (!evt.source || !evt.type) return res.status(400).json({ ok: false, error: 'missing source/type' });

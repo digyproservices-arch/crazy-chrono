@@ -165,6 +165,21 @@ async function requireAuth(req, res, next) {
   }
 }
 
+// Rôle encadrant (admin/teacher/cpd/cpc/rectorat) résolu côté serveur.
+// FAIL CLOSED: rôle inconnu, profil absent, base injoignable ou erreur → refus.
+// À utiliser après requireAuth.
+const entitlements = require('./access/entitlements');
+async function requireManagerRole(req, res, next) {
+  const userId = req.authUser?.id || null;
+  const { role, reason } = await entitlements.resolveRole({ supabase: supabaseAdmin, userId });
+  if (!role || !entitlements.MANAGER_ROLES.includes(role)) {
+    logger.warn('[Security] Accès encadrant refusé', { userId, role, reason, path: req.path });
+    return res.status(403).json({ ok: false, error: 'forbidden' });
+  }
+  req.managerRole = role;
+  next();
+}
+
 // Crazy Arena Manager pour tournois (groupes de 4) - AVEC Supabase
 const CrazyArenaManager = require('./crazyArenaManager');
 const crazyArena = new CrazyArenaManager(io, supabaseAdmin);
@@ -349,9 +364,16 @@ app.get('/api/config/free-limit', (req, res) => {
 // Returns { ok:true, allow:boolean, limit:number, sessionsToday:number, reason?:string }
 app.post('/usage/can-start', requireAuth, async (req, res) => {
   try {
-    const userId = String(req.body?.user_id || '').trim();
+    // CTO-003: le quota porte sur le porteur du JWT. Un user_id envoyé par le
+    // client n'est jamais une autorité (sinon un compte gratuit emprunte le
+    // quota illimité d'un professeur ou d'un abonné).
+    const userId = String(req.authUser?.id || '').trim();
+    const claimed = String(req.body?.user_id || '').trim();
+    if (claimed && claimed !== userId) {
+      logger.warn('[Security] /usage/can-start user_id ignoré', { authUserId: userId, claimed });
+    }
     const FREE_LIMIT = FREE_SESSIONS_PER_DAY;
-    if (!userId) return res.status(400).json({ ok: false, error: 'missing_user_id' });
+    if (!userId) return res.status(401).json({ ok: false, error: 'unauthorized' });
 
     // If Supabase admin is not set, allow to avoid blocking; frontend still enforces local limit
     if (!supabaseAdmin) {
@@ -434,35 +456,13 @@ app.post('/usage/can-start', requireAuth, async (req, res) => {
   }
 });
 // GET /me  -> { ok:true, user:{id,email}, role, subscription }
-app.get('/me', async (req, res) => {
+// CTO-003: identité exclusivement issue du JWT vérifié. Le paramètre ?email=
+// permettait d'énumérer n'importe quel compte (id, rôle, région, abonnement,
+// fiche élève) en devinant une adresse: il est supprimé, ainsi que le recours
+// à auth.admin.listUsers pour identifier un appelant.
+app.get('/me', requireAuth, async (req, res) => {
   try {
-    // 1) Try to authenticate via Supabase JWT if provided
-    const authz = String(req.headers['authorization'] || '').trim();
-    let user = null;
-    if (supabaseAdmin && authz && authz.startsWith('Bearer ')) {
-      const token = authz.slice(7).trim();
-      try {
-        const { data, error } = await supabaseAdmin.auth.getUser(token);
-        if (!error && data && data.user) {
-          user = { id: data.user.id, email: data.user.email };
-        }
-      } catch {}
-    }
-    // 2) Bootstrap fallback: lookup by email using Supabase Admin API
-    //    Note: querying auth.users via PostgREST is not supported; use auth.admin.listUsers
-    if (!user) {
-      const qEmail = String(req.query.email || '').trim().toLowerCase();
-      if (supabaseAdmin && qEmail) {
-        try {
-          const { data: usersPage, error: lErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-          if (!lErr && usersPage && Array.isArray(usersPage.users)) {
-            const found = usersPage.users.find(u => String(u.email || '').toLowerCase() === qEmail);
-            if (found) user = { id: found.id, email: found.email };
-          }
-        } catch {}
-      }
-    }
-    if (!user) return res.status(401).json({ ok: false, error: 'unauthorized' });
+    const user = { id: req.authUser.id, email: req.authUser.email };
 
     // 3) Role + region + circonscription from user_profiles (default: 'user')
     let role = 'user';
@@ -631,8 +631,14 @@ app.post('/webhooks/revenuecat', async (req, res) => {
 // GET /me/subscription?user_id=...  -> { ok:true, status, current_period_end }
 app.get('/me/subscription', requireAuth, async (req, res) => {
   try {
-    const userId = String(req.query.user_id || req.headers['x-user-id'] || '').trim();
-    if (!userId) return res.status(400).json({ ok: false, error: 'missing_user_id' });
+    // CTO-003: seul l'abonnement du porteur du JWT est lisible ici.
+    // query.user_id et x-user-id ne sont plus des sources d'autorité.
+    const userId = String(req.authUser?.id || '').trim();
+    const claimed = String(req.query.user_id || req.headers['x-user-id'] || '').trim();
+    if (claimed && claimed !== userId) {
+      logger.warn('[Security] /me/subscription user_id ignoré', { authUserId: userId, claimed });
+    }
+    if (!userId) return res.status(401).json({ ok: false, error: 'unauthorized' });
     if (!supabaseAdmin) return res.json({ ok: true, status: null, current_period_end: null });
     const { data: rows, error } = await supabaseAdmin
       .from('subscriptions')
@@ -2332,7 +2338,9 @@ app.post(STRIPE_WEBHOOK_PATH, rawParser, makeWebhookHandler({
 }));
 
 // Endpoint: liste d'élèves (avec option de filtrage licensed=true)
-app.get('/students', async (req, res) => {
+// CTO-003: une liste nominative d'élèves n'est jamais publique. Réservée aux
+// rôles encadrants, résolus côté serveur depuis le JWT.
+app.get('/students', requireAuth, requireManagerRole, async (req, res) => {
   try {
     const publicBase = path.resolve(__dirname, '..', 'public');
     const filePath = path.join(publicBase, 'data', 'students.json');
@@ -2342,14 +2350,8 @@ app.get('/students', async (req, res) => {
       const json = JSON.parse(raw);
       if (Array.isArray(json)) list = json;
     } catch (e) {
-      // Fallback de démonstration si fichier absent
       if (e && e.code !== 'ENOENT') console.warn('students.json read error:', e.message);
-      list = [
-        { id: 's1', name: 'Alice B.', licensed: true },
-        { id: 's2', name: 'Boris C.', licensed: true },
-        { id: 's3', name: 'Chloé D.', licensed: false },
-        { id: 's4', name: 'David E.', licensed: true },
-      ];
+      list = [];
     }
     const onlyLicensed = String(req.query.licensed || '').toLowerCase() === 'true';
     if (onlyLicensed) list = list.filter(s => !!s.licensed);
@@ -2362,7 +2364,7 @@ app.get('/students', async (req, res) => {
 
 // Supprimer une image physiquement du dossier public
 // Body attendu: { path: 'images/nom-fichier.png' } (chemin relatif depuis public)
-app.delete('/delete-image', async (req, res) => {
+app.delete('/delete-image', requireAdminAuth, async (req, res) => {
   try {
     const relPath = (req.body && req.body.path) ? String(req.body.path) : '';
     if (!relPath) {
@@ -2418,6 +2420,9 @@ app.post('/api/logs', async (req, res) => {
     if (!logs || typeof logs !== 'string') {
       return res.status(400).json({ ok: false, error: 'Missing logs' });
     }
+    // CTO-003: `source` composait un nom de fichier: un `../` permettait
+    // d'écrire hors du dossier logs/.
+    const safeSource = String(source || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) || 'unknown';
     
     // Créer dossier logs/ s'il n'existe pas
     const logsDir = path.join(__dirname, 'logs');
@@ -2427,7 +2432,7 @@ app.post('/api/logs', async (req, res) => {
     
     // Nom fichier avec timestamp
     const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-    const filename = `logs-${ts}-${source || 'unknown'}.txt`;
+    const filename = `logs-${ts}-${safeSource}.txt`;
     const filepath = path.join(logsDir, filename);
     
     // Contenu enrichi
@@ -2467,7 +2472,7 @@ Log Lines: ${logs.split('\n').length}
 });
 
 // Purge globale: enlève de elements.json toutes les images non listées dans associations.json
-app.post('/purge-elements', async (req, res) => {
+app.post('/purge-elements', requireAdminAuth, async (req, res) => {
   try {
     const publicBase = path.resolve(__dirname, '..', 'public');
     const assocPath = path.join(publicBase, 'data', 'associations.json');
