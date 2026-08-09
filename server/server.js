@@ -42,7 +42,25 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use(apmMiddleware); // APM: mesure temps de réponse de chaque requête
-app.use(express.json({ limit: '10mb' }));
+
+// ==========================================
+// WEBHOOK STRIPE — corps brut garanti (CTO-002 revue finale)
+// Stripe signe les octets réellement envoyés: tout parser JSON qui toucherait
+// cette route rendrait la signature invérifiable. Le parser brut est donc monté
+// AVANT express.json/bodyParser.json, et body-parser marque req._body, ce qui
+// neutralise les parsers JSON montés ensuite. Le handler est câblé plus bas,
+// après l'initialisation du SDK Stripe.
+// ==========================================
+const STRIPE_WEBHOOK_PATH = '/webhooks/stripe';
+app.use(STRIPE_WEBHOOK_PATH, bodyParser.raw({ type: '*/*', limit: '1mb' }));
+
+// Ceinture et bretelles: même si l'ordre de montage changeait, les parsers JSON
+// globaux ignorent explicitement la route du webhook.
+const skipStripeWebhook = (parser) => (req, res, next) => (
+  req.path === STRIPE_WEBHOOK_PATH ? next() : parser(req, res, next)
+);
+
+app.use(skipStripeWebhook(express.json({ limit: '10mb' })));
 
 // Rate limiting — global (exempte /api/monitoring car déjà protégé par requireAdminAuth)
 const globalLimiter = rateLimit({
@@ -636,8 +654,8 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) || 4000 : 4000;
 const TIE_WINDOW_MS = 200;
 
 // CORS déjà configuré plus haut (ligne 118)
-app.use(bodyParser.json({ limit: '10mb' }));
-// Stripe webhooks require raw body; mount a dedicated raw parser on that route below
+app.use(skipStripeWebhook(bodyParser.json({ limit: '10mb' })));
+// Stripe webhooks require raw body; the raw parser is mounted at the top of the stack
 
 // Ajout du support upload images
 const uploadRouter = require('./upload');
@@ -2275,9 +2293,13 @@ app.post('/stripe/create-portal-session', requireAuth, makePortalHandler({
   logger,
 }));
 
-// Webhook Stripe — signature obligatoire (CTO-002)
-const rawParser = bodyParser.raw({ type: 'application/json' });
-const stripeEventStore = createStripeEventStore();
+// Webhook Stripe — signature obligatoire (CTO-002). Le corps brut est déjà
+// capté en tête de pile (STRIPE_WEBHOOK_PATH); rawParser reste comme garde-fou
+// si le middleware amont venait à disparaître (no-op quand req._body est posé).
+const rawParser = bodyParser.raw({ type: '*/*', limit: '1mb' });
+const stripeEventStore = createStripeEventStore({
+  filePath: process.env.CC_STRIPE_EVENT_STORE || undefined,
+});
 
 const processStripeEvent = makeStripeEventProcessor({
   getSupabaseAdmin: () => supabaseAdmin,
@@ -2301,7 +2323,7 @@ const processStripeEvent = makeStripeEventProcessor({
   logger,
 });
 
-app.post('/webhooks/stripe', rawParser, makeWebhookHandler({
+app.post(STRIPE_WEBHOOK_PATH, rawParser, makeWebhookHandler({
   getStripe: () => stripe,
   getWebhookSecret: () => process.env.STRIPE_WEBHOOK_SECRET || null,
   processEvent: processStripeEvent,
