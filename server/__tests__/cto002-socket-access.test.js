@@ -94,6 +94,57 @@ describe('CTO-002 — accès aux événements payants', () => {
   });
 });
 
+// ── C. Un jeton de session présenté mais non prouvé valide ferme le payant ──
+describe('CTO-002 (revue) — jeton de session non vérifiable', () => {
+  const authed = (extra) => ({ authUser: { id: UID, email: 'client@example.com' }, ...extra });
+
+  test('C1. aucun jeton de session présenté → règles JWT + habilitation inchangées', async () => {
+    const socket = authed({ sessionTokenPresented: false, sessionValid: null });
+    await expect(checkSocketAccess({ socket, checkEntitlement: entitled, env: PROD_ENV }))
+      .resolves.toMatchObject({ allowed: true, reason: 'subscription' });
+  });
+
+  test('C2. jeton présenté et session vérifiée valide → autorisé', async () => {
+    const socket = authed({ sessionTokenPresented: true, sessionValid: true });
+    await expect(checkSocketAccess({ socket, checkEntitlement: entitled, env: PROD_ENV }))
+      .resolves.toMatchObject({ allowed: true, reason: 'subscription' });
+  });
+
+  test('C3. session inconnue (sessionValid=false) → refusé', async () => {
+    const socket = authed({ sessionTokenPresented: true, sessionValid: false });
+    await expect(checkSocketAccess({ socket, checkEntitlement: entitled, env: PROD_ENV }))
+      .resolves.toMatchObject({ allowed: false, reason: 'session_unverified' });
+  });
+
+  test('C4. RPC check_session_active en erreur (sessionValid=null) → refusé', async () => {
+    const socket = authed({ sessionTokenPresented: true, sessionValid: null });
+    await expect(checkSocketAccess({ socket, checkEntitlement: entitled, env: PROD_ENV }))
+      .resolves.toMatchObject({ allowed: false, reason: 'session_unverified' });
+  });
+
+  test('C5. exception pendant la vérification de session → refusé', async () => {
+    const socket = authed({ sessionTokenPresented: true, sessionValid: undefined });
+    await expect(checkSocketAccess({ socket, checkEntitlement: entitled, env: PROD_ENV }))
+      .resolves.toMatchObject({ allowed: false, reason: 'session_unverified' });
+  });
+
+  test('C6. Supabase indisponible au handshake → refusé côté payant', async () => {
+    // Le handshake laisse `sessionValid = null` et accepte la connexion
+    // (spectateurs, monitoring), mais le payant reste fermé.
+    const socket = authed({ sessionTokenPresented: true, sessionValid: null });
+    const never = jest.fn();
+    const d = await checkSocketAccess({ socket, checkEntitlement: never, env: PROD_ENV });
+    expect(d.allowed).toBe(false);
+    expect(never).not.toHaveBeenCalled();
+  });
+
+  test("C7. l'élève à email institutionnel ne contourne pas un jeton non vérifié", async () => {
+    const socket = { authUser: { id: UID, email: 'leo.b@eleve.crazychrono.app' }, sessionTokenPresented: true, sessionValid: false };
+    await expect(checkSocketAccess({ socket, checkEntitlement: notEntitled, env: PROD_ENV }))
+      .resolves.toMatchObject({ allowed: false, reason: 'session_unverified' });
+  });
+});
+
 describe('CTO-002 — dérogation de développement', () => {
   test('impossible à activer en production', () => {
     expect(isDevBypassEnabled({ NODE_ENV: 'production', CC_DEV_ALLOW_UNVERIFIED_MP: '1' })).toBe(false);

@@ -62,23 +62,15 @@ const Account = () => {
   const handleManageSubscription = useCallback(async () => {
     setPortalLoading(true);
     try {
-      // Pour le portail Stripe, on a besoin du customer_id.
-      // Approche simplifiée: rediriger vers la page pricing avec info
-      const tokenSub = getAuthToken();
-      const res = await fetch(`${BACKEND_URL}/me/subscription?user_id=${encodeURIComponent(auth?.id || '')}`, {
-        headers: { ...(tokenSub ? { 'Authorization': `Bearer ${tokenSub}` } : {}) }
+      // CTO-002 (revue): le client Stripe est résolu côté serveur depuis le jeton
+      // authentifié. Le navigateur n'envoie plus (et ne connaît plus) de customer_id.
+      const token = getAuthToken();
+      const portalRes = await fetch(`${BACKEND_URL}/stripe/create-portal-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
       });
-      const json = await res.json();
-      if (json?.customer_id) {
-        const token = getAuthToken();
-        const portalRes = await fetch(`${BACKEND_URL}/stripe/create-portal-session`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ customer_id: json.customer_id }),
-        });
-        const portalJson = await portalRes.json();
-        if (portalJson?.url) { window.location.assign(portalJson.url); return; }
-      }
+      const portalJson = await portalRes.json();
+      if (portalJson?.url) { window.location.assign(portalJson.url); return; }
       // Fallback: rediriger vers pricing
       window.location.assign('/pricing');
     } catch {

@@ -146,19 +146,13 @@ export default function Pricing() {
     try {
       setLoadingPlan(plan.id);
       setError('');
-      let userId = null;
-      try { userId = JSON.parse(localStorage.getItem('cc_auth') || 'null')?.id || null; } catch {}
-
       const token = getAuthToken();
       const resp = await fetch(`${BACKEND_URL}/stripe/create-checkout-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
-        body: JSON.stringify({
-          price_id: plan.priceId,
-          user_id: userId || undefined,
-          success_url: window.location.origin + '/account?checkout=success',
-          cancel_url: window.location.origin + '/pricing?checkout=cancel',
-        }),
+        // CTO-002 (revue): le serveur impose son tarif (liste blanche) et ses URL
+        // de retour; l'identité vient du jeton. Rien d'autre n'est transmis.
+        body: JSON.stringify({ price_id: plan.priceId }),
       });
       const json = await resp.json();
       if (!resp.ok || !json?.url) throw new Error(json?.error || 'checkout_failed');

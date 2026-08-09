@@ -260,11 +260,11 @@ export default function GrandeSalle() {
       setConnected(true); setMyId(socket.id);
       const joinPayload = { name: getPlayerName() };
       try { const uid = localStorage.getItem('cc_user_id'); if (uid) joinPayload.studentId = uid; } catch {}
-      // Ajouter email/userId depuis cc_gs_guest pour le contrôle d'accès
+      // CTO-002 (revue): l'accès payant se prouve par le billet signé émis par le
+      // serveur après paiement Stripe — plus par un email/userId du navigateur.
       try {
         const g = JSON.parse(localStorage.getItem('cc_gs_guest') || 'null');
-        if (g?.email) joinPayload.email = g.email;
-        if (g?.userId) joinPayload.userId = g.userId;
+        if (g?.entryTicket) joinPayload.entryTicket = g.entryTicket;
       } catch {}
       if (tournamentId) joinPayload.tournamentId = tournamentId;
       else joinPayload.salleId = 'grande-salle-publique';

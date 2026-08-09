@@ -37,8 +37,16 @@ async function checkSocketAccess({ socket, checkEntitlement, env = process.env }
     if (isDevBypassEnabled(env)) return { allowed: true, reason: 'dev_bypass', userId: null };
     return { allowed: false, reason: identity.authError || 'unauthenticated', userId: null };
   }
-  // Un sessionToken fourni mais non validé (session inconnue, RPC en erreur,
-  // Supabase injoignable) ne donne pas accès au payant.
+  // Un sessionToken présenté mais non prouvé valide (session inconnue, RPC en
+  // erreur, Supabase injoignable, résultat indéterminé) ferme le payant.
+  // Ne pas présenter de sessionToken reste autorisé: le parcours légitime
+  // s'appuie alors sur le JWT + l'habilitation.
+  if (socket?.sessionTokenPresented === true && socket?.sessionValid !== true) {
+    if (isDevBypassEnabled(env)) return { allowed: true, reason: 'dev_bypass', userId: identity.userId };
+    return { allowed: false, reason: 'session_unverified', userId: identity.userId };
+  }
+  // Compatibilité: un socket explicitement marqué invalide est refusé même si
+  // l'indicateur de présentation n'a pas été positionné.
   if (socket?.sessionValid === false) {
     if (isDevBypassEnabled(env)) return { allowed: true, reason: 'dev_bypass', userId: identity.userId };
     return { allowed: false, reason: 'session_unverified', userId: identity.userId };
@@ -61,9 +69,43 @@ async function checkSocketAccess({ socket, checkEntitlement, env = process.env }
   return { allowed: false, reason: entitlement?.reason || 'not_entitled', userId: identity.userId };
 }
 
-/** Le mode Solo reste gratuit: aucune vérification d'abonnement. */
+/** Un roomId `solo-*` est une *demande* du client, jamais une preuve. */
 function isFreeSoloRoom(roomId) {
   return typeof roomId === 'string' && roomId.startsWith('solo-');
 }
 
-module.exports = { getSocketIdentity, isDevBypassEnabled, checkSocketAccess, isFreeSoloRoom };
+/**
+ * Sockets encore connectés occupant la salle, hors socket courant.
+ * Les entrées obsolètes (socket déconnecté non encore purgé) sont ignorées
+ * afin de ne pas casser la reconnexion Solo.
+ * @param {{players?: Map<string, object>}} room
+ * @param {string} socketId
+ * @param {(id: string) => boolean} isSocketConnected
+ */
+function activeOccupants(room, socketId, isSocketConnected) {
+  const out = [];
+  if (!room || !room.players || typeof room.players.keys !== 'function') return out;
+  for (const id of room.players.keys()) {
+    if (id === socketId) continue;
+    if (isSocketConnected(id)) out.push(id);
+  }
+  return out;
+}
+
+/**
+ * Le caractère Solo est une décision serveur: une salle `solo-*` n'est gratuite
+ * que si un seul socket connecté l'occupe. Dès qu'un second joueur s'y branche,
+ * l'expérience devient multijoueur et l'habilitation payante est exigée.
+ */
+function isExclusiveSoloRoom(roomId, occupants) {
+  return isFreeSoloRoom(roomId) && (occupants || []).length === 0;
+}
+
+module.exports = {
+  getSocketIdentity,
+  isDevBypassEnabled,
+  checkSocketAccess,
+  isFreeSoloRoom,
+  activeOccupants,
+  isExclusiveSoloRoom,
+};

@@ -5,6 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
+const { issueTicket, getTicketSecret, normalizeEmail } = require('../access/gsAccess');
 
 // Middleware: vérifier que l'utilisateur est admin ou teacher
 async function requireAdmin(req, res, next) {
@@ -415,7 +416,7 @@ router.post('/tournaments/:id/checkout', async (req, res) => {
         quantity: 1,
       }],
       customer_email: email,
-      success_url: `${frontendUrl}/grande-salle/join/${tournament.id}?payment=success`,
+      success_url: `${frontendUrl}/grande-salle/join/${tournament.id}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${frontendUrl}/grande-salle/join/${tournament.id}?payment=cancel`,
       metadata: {
         type: 'tournament_entry',
@@ -430,6 +431,38 @@ router.post('/tournaments/:id/checkout', async (req, res) => {
   } catch (e) {
     console.error('[GS] Checkout error:', e.message);
     res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ===== GET /api/gs/tournaments/:id/ticket — Billet d'entrée signé après paiement =====
+// CTO-002 (revue): le navigateur ne prouve plus un paiement en envoyant un email.
+// Le billet est émis ici uniquement si Stripe confirme la session payée pour CE
+// tournoi; il est ensuite recoupé avec gs_tournament_entries.paid à l'entrée.
+router.get('/tournaments/:id/ticket', async (req, res) => {
+  const sessionId = req.query.session_id ? String(req.query.session_id) : null;
+  if (!sessionId) return res.status(400).json({ ok: false, error: 'missing_session_id' });
+
+  const secret = getTicketSecret();
+  if (!secret) return res.status(503).json({ ok: false, error: 'ticket_secret_not_configured' });
+
+  let stripe = null;
+  try { if (process.env.STRIPE_SECRET_KEY) stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); } catch {}
+  if (!stripe) return res.status(503).json({ ok: false, error: 'stripe_not_configured' });
+
+  try {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const paid = session?.payment_status === 'paid';
+    const sameTournament = String(session?.metadata?.tournament_id || '') === String(req.params.id);
+    const email = normalizeEmail(session?.metadata?.email || session?.customer_details?.email);
+    if (!paid || !sameTournament || !email) {
+      return res.status(402).json({ ok: false, error: 'payment_not_confirmed' });
+    }
+    const ticket = issueTicket({ secret, tournamentId: req.params.id, email });
+    if (!ticket) return res.status(500).json({ ok: false, error: 'ticket_issue_failed' });
+    return res.json({ ok: true, ticket, email });
+  } catch (e) {
+    console.error('[GS] Ticket error:', e.message);
+    return res.status(502).json({ ok: false, error: 'stripe_lookup_failed' });
   }
 });
 

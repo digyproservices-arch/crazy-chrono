@@ -11,6 +11,9 @@
 // ==========================================
 
 const PRIVILEGED_ROLES = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat', 'student'];
+// Rôles autorisés à piloter un match (créer, forcer le départ, supprimer).
+// Un abonnement Pro n'accorde jamais ces pouvoirs.
+const MANAGER_ROLES = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat'];
 const ACTIVE_SUB_STATUSES = ['active', 'trialing'];
 const STUDENT_EMAIL_DOMAIN = '@eleve.crazychrono.app';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -88,6 +91,29 @@ async function resolveEntitlement({ supabase, userId, now = Date.now() }) {
 }
 
 /**
+ * Rôle serveur d'un utilisateur (jamais issu du client). FAIL CLOSED:
+ * toute incertitude renvoie `null`.
+ * @returns {Promise<{role: string|null, reason: string}>}
+ */
+async function resolveRole({ supabase, userId }) {
+  if (!userId) return { role: null, reason: 'unauthenticated' };
+  if (!isTrustedUserId(userId)) return { role: null, reason: 'untrusted_identifier' };
+  if (!supabase) return { role: null, reason: 'verification_unavailable' };
+  try {
+    const { data: prof, error } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) return { role: null, reason: 'verification_error' };
+    if (!prof) return { role: null, reason: 'user_not_found' };
+    return { role: prof.role || null, reason: prof.role ? 'resolved' : 'no_role' };
+  } catch (e) {
+    return { role: null, reason: 'verification_error' };
+  }
+}
+
+/**
  * Cache TTL: les accès accordés sont gardés plus longtemps que les refus
  * (un refus doit être réévalué vite après un paiement).
  */
@@ -115,9 +141,11 @@ function createEntitlementCache({ grantTtlMs = 5 * 60_000, denyTtlMs = 30_000, m
 
 module.exports = {
   resolveEntitlement,
+  resolveRole,
   createEntitlementCache,
   isTrustedUserId,
   PRIVILEGED_ROLES,
+  MANAGER_ROLES,
   ACTIVE_SUB_STATUSES,
   STUDENT_EMAIL_DOMAIN,
 };

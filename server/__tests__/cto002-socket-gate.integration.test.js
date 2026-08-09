@@ -110,4 +110,68 @@ describe('CTO-002 — non-régression Solo gratuit', () => {
     const payload = await round;
     expect(payload).not.toBeNull();
   }, 20_000);
+
+  test('aucune invite abonnement pendant deux manches Solo consécutives', async () => {
+    socket = await connect();
+    const prompts = [];
+    socket.on('subscription:required', (p) => prompts.push(p));
+
+    socket.emit('joinRoom', { roomId: `solo-${Date.now()}-b`, name: 'Solo' });
+    socket.emit('room:setRounds', 2);
+    const first = waitFor(socket, 'round:new', 8000);
+    socket.emit('startGame');
+    expect(await first).not.toBeNull();
+
+    socket.emit('room:requestReplay');
+    await new Promise((r) => setTimeout(r, 1500));
+    expect(prompts).toEqual([]);
+  }, 25_000);
+});
+
+// ── F. Le préfixe `solo-` est une demande du client, pas une preuve ──
+describe('CTO-002 (revue) — contournement par salle solo-* partagée', () => {
+  const sockets = [];
+  afterEach(() => { while (sockets.length) sockets.pop().close(); });
+
+  test('un second socket anonyme dans la même salle solo-* ne devient pas joueur multijoueur gratuit', async () => {
+    const roomId = `solo-partage-${Date.now()}`;
+
+    const a = await connect(); sockets.push(a);
+    const aDenied = waitFor(a, 'subscription:required', 1500);
+    a.emit('joinRoom', { roomId, name: 'Joueur A' });
+    // Le premier occupant reste en Solo gratuit.
+    await expect(aDenied).resolves.toBeNull();
+
+    const b = await connect(); sockets.push(b);
+    const bDenied = waitFor(b, 'subscription:required', 4000);
+    b.emit('joinRoom', { roomId, name: 'Joueur B' });
+
+    // Le second occupant transforme la salle en multijoueur → habilitation exigée.
+    await expect(bDenied).resolves.toMatchObject({ event: 'joinRoom' });
+
+    // Et aucune partie multijoueur ne peut démarrer depuis ce socket.
+    const bRound = waitFor(b, 'round:new', 2000);
+    b.emit('startGame');
+    await expect(bRound).resolves.toBeNull();
+  }, 25_000);
+
+  test("l'intrus n'apparaît jamais comme joueur de la salle solo-*", async () => {
+    const roomId = `solo-partage2-${Date.now()}`;
+
+    const a = await connect(); sockets.push(a);
+    const states = [];
+    a.on('room:state', (s) => states.push(s));
+    a.emit('joinRoom', { roomId, name: 'Hôte' });
+    await new Promise((r) => setTimeout(r, 300));
+
+    const b = await connect(); sockets.push(b);
+    b.emit('joinRoom', { roomId, name: 'Intrus' });
+    await waitFor(b, 'subscription:required', 4000);
+    await new Promise((r) => setTimeout(r, 500));
+
+    // L'intrus est inscrit puis retiré (rollback) dès que l'habilitation échoue:
+    // l'état final de la salle ne contient que l'occupant Solo légitime.
+    const last = states[states.length - 1];
+    expect((last?.players || []).map((p) => p.nickname)).toEqual(['Hôte']);
+  }, 25_000);
 });
