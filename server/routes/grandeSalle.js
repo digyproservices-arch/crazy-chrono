@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { issueTicket, getTicketSecret, normalizeEmail } = require('../access/gsAccess');
+const entitlements = require('../access/entitlements');
 
 // Middleware: vérifier que l'utilisateur est admin ou teacher
 async function requireAdmin(req, res, next) {
@@ -259,6 +260,15 @@ router.post('/tournaments/:id/entry', async (req, res) => {
       } catch {}
     }
 
+    // CTO-003: être authentifié ne prouve pas un abonnement. Le drapeau est
+    // résolu côté serveur (abonnement Stripe actif ou licence) et reste faux
+    // si la vérification échoue.
+    let isSubscriber = false;
+    if (authUserId) {
+      const ent = await entitlements.resolveEntitlement({ supabase: supabaseAdmin, userId: authUserId });
+      isSubscriber = !!ent?.allowed;
+    }
+
     const { data, error } = await supabaseAdmin
       .from('gs_tournament_entries')
       .upsert({
@@ -267,7 +277,7 @@ router.post('/tournaments/:id/entry', async (req, res) => {
         last_name: String(last_name).trim(),
         email: String(email).trim().toLowerCase(),
         user_id: authUserId,
-        is_subscriber: !!authUserId,
+        is_subscriber: isSubscriber,
         joined_at: new Date().toISOString(),
       }, { onConflict: 'tournament_id,email' })
       .select()

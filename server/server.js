@@ -375,9 +375,15 @@ app.post('/usage/can-start', requireAuth, async (req, res) => {
     const FREE_LIMIT = FREE_SESSIONS_PER_DAY;
     if (!userId) return res.status(401).json({ ok: false, error: 'unauthorized' });
 
-    // If Supabase admin is not set, allow to avoid blocking; frontend still enforces local limit
+    // CTO-003: base indisponible => aucun droit supérieur n'est accordé. La
+    // réponse reste au niveau le moins privilégié (quota gratuit, jamais
+    // limit:null) pour ne pas bloquer le Solo gratuit, et signale la
+    // dégradation au client.
     if (!supabaseAdmin) {
-      return res.json({ ok: true, allow: true, limit: FREE_LIMIT, sessionsToday: 0, reason: 'no_admin_config' });
+      return res.json({
+        ok: true, allow: true, limit: FREE_LIMIT, sessionsToday: 0,
+        degraded: true, reason: 'verification_unavailable'
+      });
     }
 
     // If user is admin or teacher, always allow (unlimited access)

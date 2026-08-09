@@ -74,14 +74,9 @@ export default function SessionConfig() {
         const arr = await res.json();
         if (!cancelled) setStudents(Array.isArray(arr) ? arr : []);
       } catch {
-        // Fallback local si backend absent
-        const demo = [
-          { id: 's1', name: 'Alice B.', licensed: true },
-          { id: 's2', name: 'Boris C.', licensed: true },
-          { id: 's3', name: 'Chloé D.', licensed: false },
-          { id: 's4', name: 'David E.', licensed: true },
-        ];
-        if (!cancelled) setStudents(demo);
+        // CTO-003: la liste d'élèves est réservée aux encadrants côté serveur.
+        // Un refus (401/403) ou une panne ne doit jamais afficher d'élèves.
+        if (!cancelled) setStudents([]);
       }
     };
     load();
