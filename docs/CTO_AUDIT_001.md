@@ -383,6 +383,22 @@ L'écran joueur (`Carte.js`) et `GrandeSalle.js` portent l'ancre → animation v
 | Lint | **aucun script de lint** dans `package.json` → impossible à exécuter |
 | `npx playwright test` (E2E) | **non exécuté** : `playwright.config.js` a `baseURL` par défaut `https://app.crazy-chrono.com` et le workflow CI réveille le Render de production avec des secrets de production. Exécuter cette suite aurait violé l'interdiction de toucher la production. |
 
+### CI en échec permanent sur `main`
+
+**[VÉRIFIÉ-EXÉCUTION]** Le workflow « Tests serveur (parité + persistance) » est **rouge sur `main` sur les 5 derniers déclenchements** (du 2026-06-24 au 2026-07-08, dont le commit audité `4346dc6`). Cause : `server/__tests__/game-persistence.integration.test.js` ne démarre pas en CI —
+
+```
+● Test suite failed to run
+  ReferenceError: Headers is not defined
+  at createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)  // ligne 35
+```
+
+En CI, les secrets Supabase sont fournis, donc `canRunIntegration` est vrai et `createClient()` est appelé dans un environnement de test jsdom qui ne fournit pas `Headers`/`fetch`. En local sans secrets, la suite est simplement ignorée (les 3 tests « skipped » constatés plus haut) : **l'échec n'existe qu'en CI, et personne ne le corrige depuis au moins six semaines**.
+
+Le workflow E2E planifié est lui aussi non concluant : les 4 dernières exécutions nocturnes sur `main` sont **`cancelled` après ~30 minutes** (2026-08-06 → 2026-08-09).
+
+**P1 — la CI est un signal mort.** Une CI rouge en permanence signifie qu'aucune régression ne sera jamais détectée par la CI : l'équipe a appris à l'ignorer. C'est aussi pourquoi les deux bugs de cette mission ont pu vivre des semaines en production.
+
 **Tests ignorés côté serveur** (3) : insertion de session SP, insertion base de `persistSessionStart`, nettoyage des sessions de plus de deux heures — c'est-à-dire précisément la persistance en base. **La persistance des parties n'est donc couverte par aucun test actif.**
 
 **Avertissements pendant les tests serveur** : `FINAL PASS: Could not fill zone ... image` émis par le générateur de zones. Les tests passent malgré tout.
@@ -549,6 +565,7 @@ Autrement dit : un produit dont la vitrine (Solo, Apprendre, écrans) est prése
 | 8 | Désynchronisation possible des plateaux via repli de génération locale | P1 | handler `round:new` de `Carte.js`, log `DESYNC RISK` serveur |
 | 9 | `Carte.js` (10 605 lignes) : tout mode partagé, toute modification risquée | P1 | mesure de lignes ; les bugs 1 et 8 en sortent |
 | 10 | Trois sources de vérité tarifaires + quota production à 3 au lieu de 2 | P1 | `Pricing.js`, `DOCS/GRILLE_TARIFAIRE.md`, `render.yaml` |
+| 11 | CI serveur rouge en permanence sur `main` (≥ 6 semaines) et E2E nocturne annulée : aucune régression n'est plus détectée automatiquement | P1 | 5 derniers runs `tests.yml` sur `main` en échec ; `Headers is not defined` |
 
 ## C. BLOQUEURS AVANT PREMIER CLIENT PAYANT
 
@@ -588,6 +605,8 @@ Second défaut, latent : quand `round:new` arrive sans zones, le client **génè
 
 **Insuffisant mais honnête là où il existe.** Frontend : 26/26 verts. Serveur : 27 verts, 3 ignorés (tous sur la persistance en base), 0 échec. Build production : succès. Aucun lint disponible. E2E Playwright : 15 fichiers de scénarios existent mais la suite cible `https://app.crazy-chrono.com` par défaut et le workflow CI exige des secrets de production → **non exécutable en préproduction, donc non exécutée dans cet audit**. Avertissements récurrents du générateur de zones (`FINAL PASS: Could not fill zone`) sans défaut reproduit sur 40 manches sondées.
 
+**Et surtout : la CI est rouge sur `main` depuis au moins six semaines** (`game-persistence.integration.test.js` → `ReferenceError: Headers is not defined`, uniquement en CI car les secrets Supabase y activent une suite qui reste ignorée en local), avec des E2E nocturnes annulées après 30 minutes. La CI ne protège donc plus rien.
+
 ## H. ÉTAT DE LA SÉCURITÉ
 
 **Fondations correctes, brèches critiques.** Points sains : pas de secret dans le dépôt, clé service role côté serveur uniquement, `requireAuth`/`requireAdminAuth` bien écrits et utilisés sur les routes admin, rate limiting, Helmet, CORS liste blanche, webhook RevenueCat authentifié par secret.
@@ -603,7 +622,7 @@ Architecture **cohérente sur le papier, insuffisamment cloisonnée en pratique*
 ## J. DETTE TECHNIQUE PRINCIPALE
 
 1. `Carte.js` 10 605 lignes / `server.js` 6 363 lignes — extraction des modes et des domaines indispensable avant toute nouvelle fonctionnalité multijoueur (P1).
-2. Absence de préproduction et de E2E exécutable hors production (P1).
+2. Absence de préproduction et de E2E exécutable hors production, CI rouge en permanence sur `main` (P1).
 3. Absence de lint et de typage, 826 `console.log` (P1).
 4. URLs de production codées en dur dans le frontend (P1).
 5. 80 vulnérabilités npm cumulées (65 front / 15 serveur) dont 2 critiques (P2).
@@ -642,7 +661,7 @@ Chaque mission est calibrée pour une session de travail focalisée, avec un cri
 | 3 | **Fermer le fail-open d'abonnement** : refuser l'accès aux modes payants sans identité vérifiée côté serveur ; cesser de faire confiance au `studentId` fourni par le client. | P0 | Socket anonyme → refus de `room:create` / `joinRoom` non-solo ; élève licencié → accès. |
 | 4 | **Refermer les fuites de données** : authentifier ou supprimer `GET /me?email=`, corriger l'IDOR de `/me/subscription`, protéger `/students`, `DELETE /delete-image`, `POST /purge-elements`. | P0 | Chaque route sensible renvoie 401/403 sans jeton valide ; test automatisé par route. |
 | 5 | **Audit et durcissement RLS Supabase production** : inventaire table par table, RLS activée sur toutes les tables de données personnelles, suppression des politiques `USING (true)`, migrations rejouables versionnées. | P0 | Rapport table/politique ; clé anon incapable de lire `students`, `user_profiles`, `subscriptions`. |
-| 6 | **Créer une préproduction réelle** : `staging` distinct de `main`, backend et base Supabase de préproduction, E2E Playwright pointant sur la préproduction, `npm ci` au build Render, `engines` Node unifié. | P1 | Une release passe par staging ; suite E2E verte sans toucher la production. |
+| 6 | **Remettre la CI au vert et créer une préproduction réelle** : corriger `game-persistence.integration.test.js` (environnement de test Node pour cette suite), `staging` distinct de `main`, backend et base Supabase de préproduction, E2E Playwright pointant sur la préproduction, `npm ci` au build Render, `engines` Node unifié. | P1 | CI verte sur `main` ; une release passe par staging ; suite E2E verte sans toucher la production. |
 | 7 | **Aligner les prix et les quotas sur une source unique** : `render.yaml` à 2 sessions/jour, réécriture de `DOCS/GRILLE_TARIFAIRE.md`, quota vérifié côté serveur et non contournable côté client. | P1 | Une seule grille de référence ; `/api/config/free-limit` renvoie 2 ; vider le `localStorage` ne rend pas de sessions gratuites. |
 | 8 | **Corriger l'écran Live et sécuriser le contrat d'animation** : ancre `data-cc-vignette` dans `LiveBoard`, préservation des arguments lors de la nouvelle tentative, test garantissant que chaque écran de jeu porte une ancre. | P1 | Bulles visibles sur `/grande-salle/live/:id` ; test échouant si une ancre disparaît. |
 | 9 | **Supprimer le repli de génération locale en multijoueur** : traiter l'absence de zones comme une erreur (attente/resynchronisation serveur) plutôt qu'une divergence silencieuse ; couvrir l'arrivée tardive et le rechargement. | P1 | Arrivée tardive et rechargement → plateau identique à l'hôte ; plus aucun incident `DESYNC_LOCAL_FALLBACK`. |
