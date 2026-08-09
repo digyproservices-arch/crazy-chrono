@@ -213,7 +213,7 @@ La présence de code n'est jamais comptée comme preuve de fonctionnement.
 5. Aucun bouton « ✅ Je suis prêt » ni « 🚀 Démarrer » n'est visible, sur aucun des deux clients.
 6. La partie ne peut jamais démarrer.
 
-**Statut de reproduction :** cause racine **[VÉRIFIÉ-CODE]** ; symptôme observé en navigateur local lors des tests d'écran (plateau vide, « Manche 0/3 », 0 zone, pas de contrôle de démarrage). Une capture d'écran horodatée n'est pas joint à ce rapport ; la preuve décisive reste la lecture du code ci-dessous, qui est déterministe.
+**Statut de reproduction : REPRODUIT** — **[VÉRIFIÉ-EXÉCUTION]** en navigateur, deux origines isolées, backend et frontend 100 % locaux, domaines de production bloqués pendant toute la session. L'hôte crée la salle et reçoit un code (`E2NT`, puis `SESJ`), le second joueur rejoint, les deux joueurs sont bien enregistrés côté serveur, **et aucun contrôle « prêt » ou « démarrer » n'existe** : ni en fenêtre bureau, ni en viewport mobile, ni dans la barre latérale qui remplace le lobby. Journal serveur sur toute la session : **0 `ready:toggle`, 0 `room:start`**. Les deux joueurs restent sur un plateau vide à « Manche 0/3 », 0 zone. La cause racine ci-dessous est en outre déterministe **[VÉRIFIÉ-CODE]**.
 
 ### Cause racine (déterministe)
 
@@ -283,12 +283,21 @@ Le serveur journalise le même risque pour les arrivées tardives : `« [MP] ⚠
 
 **[VÉRIFIÉ-EXÉCUTION]** Une sonde Socket.IO locale à trois clients (hôte, joueur présent avant le départ, arrivant tardif) sur le serveur local a montré, dans le scénario nominal, des charges `round:new` **identiques** : `hasZones: true`, 16 zones, 0 zone vide, 0 point manquant, empreintes (`zonesFingerprint`) et identifiants de paires identiques pour les trois clients. Le protocole nominal est donc sain.
 
+**[VÉRIFIÉ-EXÉCUTION]** Confirmé en navigateur : le démarrage ayant été forcé côté serveur (chemin de compatibilité `startGame`, en observation seule, sans modifier une ligne de code), les deux clients ont reçu des charges **identiques de 16 zones**, 0 contenu vide, 0 géométrie manquante, empreintes `zones:ack` concordantes, **aucun `[MP][DESYNC]`**, aucun avertissement `Fallback to local generation`, aucune image 404, aucune frontière d'erreur React. L'arrivée tardive en cours de manche a été correctement resynchronisée (`[MP] Late joiner ... synced to ongoing round 3 in room SESJ (zones: 16)`), et une paire valide de l'hôte s'est bien propagée en score et « dernière paire » chez l'autre joueur.
+
+### Troisième défaut : les plateaux sont identiques, mais l'un est illisible
+
+**[VÉRIFIÉ-EXÉCUTION]** Alors que les charges reçues étaient identiques, le plateau du second client s'est affiché avec des **étiquettes de calcul surdimensionnées et chevauchantes** : taille de police calculée ≈ **56,2 px** chez le second client contre ≈ **42,7 px** chez l'hôte, rendant la carte inexploitable. **C'est très probablement le symptôme réellement observé par les utilisateurs sous le nom « les cartes ne s'affichent pas correctement », et ce n'est pas une désynchronisation de données.**
+
+**[HYPOTHÈSE]** — à ne pas attribuer au rôle « joueur invité » : le même rendu surdimensionné a été observé sur un onglet ayant reçu `round:new` **en arrière-plan**. Le déclencheur probable est donc un dimensionnement d'étiquette calculé à partir d'un viewport masqué ou obsolète (onglet non visible au moment du calcul), pas le rôle du joueur. **Cette distinction doit être tranchée par lecture de code avant correction** : elle change complètement le correctif (recalcul du dimensionnement à la reprise de visibilité vs logique spécifique à l'invité). Sevérité : **P1**, mais à traiter dans la même mission que le déblocage du lobby, sans quoi le mode privé restera inutilisable une fois débloqué.
+
 **Conclusion BUG A.** Deux défauts superposés :
 
 1. **P0 — bloquant** : le lobby de salle privée n'est jamais rendu ; le mode privé est inutilisable (cause : `a6b45cb`).
-2. **P1 — latent** : le repli de génération locale peut produire des plateaux différents dès que le serveur n'envoie pas de zones (arrivée tardive sans `currentZones`, rechargement, reconnexion). Le code le sait, le journalise, et continue quand même.
+2. **P1 — confirmé en navigateur** : mêmes données, rendu illisible chez le second joueur (étiquettes ≈ 56 px contre ≈ 43 px), probablement lié à un calcul de dimensionnement sur onglet en arrière-plan.
+3. **P1 — latent** : le repli de génération locale peut produire des plateaux différents dès que le serveur n'envoie pas de zones (arrivée tardive sans `currentZones`, rechargement, reconnexion). Le code le sait, le journalise, et continue quand même.
 
-**Sévérité globale BUG A : P0.**
+**Sévérité globale BUG A : P0.** Corriger le lobby seul ne suffira pas : sans le défaut de rendu (point 2), le mode privé restera injouable une fois débloqué.
 
 ---
 
@@ -301,6 +310,8 @@ Sur l'écran Live (`/grande-salle/live/:tournamentId`, `src/components/GrandeSal
 ### Comportement réel
 
 Le flash de la paire fonctionne, mais **aucune bulle animée n'apparaît**.
+
+**Statut de reproduction : REPRODUIT** — **[VÉRIFIÉ-EXÉCUTION]** en navigateur sur une manche Grande Salle locale à 3 joueurs. La validation de la paire « Colibri » depuis un onglet joueur a produit bulles + score sur l'écran joueur, tandis que l'écran Live n'a fait qu'ajouter l'entrée au « 📡 Fil en direct » et mettre à jour le classement. Un `MutationObserver` installé sur le `document.body` de l'onglet Live a enregistré **zéro nœud de bulle ou d'overlay** pour cet événement. Mesure DOM pendant `status === 'playing'` : `document.querySelectorAll('[data-cc-vignette]').length` → **0 sur l'écran Live**, **1 sur l'écran joueur** (`last-pair` sur « Dernière paire »). La cause racine est donc confirmée en exécution, pas seulement en lecture de code.
 
 ### Chaîne d'exécution et point de rupture
 
@@ -405,10 +416,20 @@ Le workflow E2E planifié est lui aussi non concluant : les 4 dernières exécut
 
 **[VÉRIFIÉ-EXÉCUTION]** Sonde locale : 40 manches générées sur plusieurs configurations → **0 zone vide, 0 manche sans paire valide, 0 manche à plusieurs paires valides, 0 échec de génération**. L'avertissement ne s'est donc pas traduit en défaut observable dans cet échantillon, mais il signale que le générateur atteint régulièrement son dernier recours : à surveiller, pas à classer comme résolu.
 
+### Le développement local n'est pas praticable en l'état
+
+**[VÉRIFIÉ-EXÉCUTION]** Trois obstacles rencontrés pour simplement faire tourner le produit en local, aucun documenté :
+
+1. **`npm start` ne compile pas** : ESLint remonte 4 `no-undef` (`gameActiveRef`, `pulseVignette`, `_normUrl`, `_imgTxtSet` — détail en section 8). Contournement utilisé pour l'audit : `DISABLE_ESLINT_PLUGIN=true` en variable d'environnement, **sans modifier un seul fichier**.
+2. **Un frontend local appelle la production** si `REACT_APP_BACKEND_URL` n'est pas défini (URL Render en dur en repli dans plusieurs modules). Les appels observés avant blocage : `/api/config/free-limit`, `/me`, `/me/subscription`, `/api/training/records`, `/math-positions`, `/healthz`, `/api/monitoring/client-telemetry`, `/api/progress/log`. Mesure de protection appliquée pendant l'audit : `REACT_APP_BACKEND_URL=http://localhost:4000` **et** blocage des deux domaines de production via `/etc/hosts` pour toute la durée des tests, restauré ensuite.
+3. **L'écran Live affiche un overlay d'erreur rouge `Permissions check failed` en local** faute de Supabase configuré. C'est un constat d'environnement local, **pas** une preuve de défaillance en production ; l'écran restait néanmoins utilisable pour la reproduction du BUG B.
+
+**P1 — le coût d'entrée d'un nouveau développeur est anormalement élevé, et le risque de polluer la production depuis un poste local est réel.**
+
 **Constats.**
 
 - **P1** — aucune couverture E2E exécutable hors production. Il n'existe aucun moyen aujourd'hui de valider une release sans taper la production.
-- **P1** — aucun lint, aucun typage. 826 `console.log` dans `src/` + `server/`.
+- **P1** — aucun script de lint, aucun typage, et le lint implicite de CRA est **désactivé en build** (`.env.production` → `DISABLE_ESLINT_PLUGIN=true`) alors qu'il détecte 4 erreurs réelles. 826 `console.log` dans `src/` + `server/`.
 - **P2** — la couverture (26 + 27 tests pour ~90 000 lignes) est symbolique au regard de la surface fonctionnelle ; elle est concentrée sur la génération de zones et le mode objectif.
 
 ---
@@ -434,8 +455,18 @@ Constats.
 3. **P2 — `server/server.js` mélange** CORS, auth, Stripe, RevenueCat, quotas, Socket.IO, fichiers statiques et administration dans un seul module.
 4. **P2 — dépendances vulnérables** : frontend **65** (2 critiques, 36 hautes, 14 moyennes, 13 basses) ; serveur **15** (10 hautes, 5 moyennes). Aucun `npm audit fix` exécuté (hors périmètre d'audit).
 5. **P2 — 826 `console.log`** en production, dont des traces potentiellement bavardes sur des identités élèves.
-6. **P3** — 7 marqueurs `TODO/FIXME/HACK` seulement : la dette n'est pas signalée dans le code, elle est structurelle.
-7. **P2 — pas d'`engines`** déclaré : le CI utilise Node 18 dans un workflow et Node 20 dans un autre, et Render/Vercel choisissent librement.
+6. **P1 — quatre identifiants non définis dans `Carte.js`, masqués par la désactivation d'ESLint.** **[VÉRIFIÉ-EXÉCUTION]** `npm start` sans `DISABLE_ESLINT_PLUGIN=true` **ne compile pas** : `no-undef` sur `gameActiveRef` (`Carte.js:3163`), `pulseVignette` (`Carte.js:4433`), `_normUrl` (`Carte.js:7929`, `7934`, `7943`) et `_imgTxtSet` (`Carte.js:7938`). Vérification **[VÉRIFIÉ-CODE]** :
+
+   - `gameActiveRef` n'est **déclaré nulle part** dans le fichier (unique occurrence : son usage ligne 3163, dans le diagnostic de démontage).
+   - `pulseVignette` est bien défini dans `src/utils/gameAnimation.js:56` mais **n'est ni exporté ni importé** (`Carte.js:25` n'importe que `animateBubblesFromZones` et `invalidateZoneCenterCache`).
+   - `_normUrl` et `_imgTxtSet` sont déclarés en `const` locaux aux lignes **5836-5837**, dans une autre portée que leur usage vers 7929-7943.
+
+   Ces quatre usages sont à l'intérieur de `try { } catch {}` silencieux : ils ne font pas planter l'application, **ils désactivent du code sans que personne ne le sache**. Conséquence concrète : le bloc de détection des **« fausses paires visuelles » en mode Solo** (7929-7943) lève une `ReferenceError` dès sa première ligne — **cette détection ne fonctionne pas**, alors qu'elle a été ajoutée exprès (commit `1293669`, « fix(fausses paires visuelles) »). De même, l'impulsion visuelle de vignette en repli hors ligne (4433) et le diagnostic de démontage (3163) sont morts.
+
+   Le build de production passe malgré tout parce que `.env.production` fixe `DISABLE_ESLINT_PLUGIN=true` : **l'équipe a désactivé le seul garde-fou qui signalait ces bugs.**
+
+7. **P3** — 7 marqueurs `TODO/FIXME/HACK` seulement : la dette n'est pas signalée dans le code, elle est structurelle.
+8. **P2 — pas d'`engines`** déclaré : le CI utilise Node 18 dans un workflow et Node 20 dans un autre, et Render/Vercel choisissent librement.
 
 ---
 
@@ -553,6 +584,8 @@ Autrement dit : un produit dont la vitrine (Solo, Apprendre, écrans) est prése
 
 ## B. 10 RISQUES LES PLUS GRAVES
 
+Les 10 premiers sont classés par gravité ; les lignes 11 à 13 sont ajoutées parce qu'elles ont été établies après la première rédaction et qu'aucune des dix ne pouvait être retirée.
+
 | # | Risque | Sév. | Preuve |
 |---|---|---|---|
 | 1 | Mode privé impossible à démarrer : lobby jamais rendu (`hasSidebar`), régression de `a6b45cb` | P0 | `Carte.js:4889` / `9783` / `9981` / `9995` |
@@ -565,7 +598,9 @@ Autrement dit : un produit dont la vitrine (Solo, Apprendre, écrans) est prése
 | 8 | Désynchronisation possible des plateaux via repli de génération locale | P1 | handler `round:new` de `Carte.js`, log `DESYNC RISK` serveur |
 | 9 | `Carte.js` (10 605 lignes) : tout mode partagé, toute modification risquée | P1 | mesure de lignes ; les bugs 1 et 8 en sortent |
 | 10 | Trois sources de vérité tarifaires + quota production à 3 au lieu de 2 | P1 | `Pricing.js`, `DOCS/GRILLE_TARIFAIRE.md`, `render.yaml` |
-| 11 | CI serveur rouge en permanence sur `main` (≥ 6 semaines) et E2E nocturne annulée : aucune régression n'est plus détectée automatiquement | P1 | 5 derniers runs `tests.yml` sur `main` en échec ; `Headers is not defined` |
+| 11 | Plateau illisible chez le second joueur (étiquettes surdimensionnées, ≈ 56 px vs ≈ 43 px) alors que les données sont identiques — probablement lié à un onglet en arrière-plan | P1 | mesure DOM en navigateur, captures hôte/invité |
+| 12 | Quatre identifiants non définis dans `Carte.js` avalés par des `try/catch`, ESLint désactivé en production : la détection des fausses paires visuelles Solo ne s'exécute jamais | P1 | `no-undef` à la compilation, `Carte.js:3163/4433/7929-7943` |
+| 13 | CI serveur rouge en permanence sur `main` (≥ 6 semaines) et E2E nocturne annulée : aucune régression n'est plus détectée automatiquement | P1 | 5 derniers runs `tests.yml` sur `main` en échec ; `Headers is not defined` |
 
 ## C. BLOQUEURS AVANT PREMIER CLIENT PAYANT
 
@@ -581,13 +616,15 @@ Strictement les points sans lesquels encaisser de l'argent est irresponsable. Le
 
 ## D. ÉTAT DU MODE PRIVÉ
 
-**Non fonctionnel — P0.** Deux joueurs peuvent créer et rejoindre une salle, le serveur les enregistre, mais **aucun contrôle « Je suis prêt » / « Démarrer » n'est rendu** : ces boutons vivent exclusivement dans un bloc conditionné par `!hasSidebar` (`Carte.js:9783`), alors que `hasSidebar` devient vrai dès la connexion du socket en mode non-solo (`Carte.js:4889`). Sans `ready:toggle`, le serveur refuse `room:start` (il exige ≥ 2 joueurs tous prêts), donc aucun `round:new`, donc plateau vide et « Manche 0/3 ». Régression introduite par `a6b45cb` (2026-06-06) en corrigeant un écran blanc.
+**Non fonctionnel — P0, reproduit en navigateur.** Deux joueurs peuvent créer et rejoindre une salle, le serveur les enregistre, mais **aucun contrôle « Je suis prêt » / « Démarrer » n'est rendu** : ces boutons vivent exclusivement dans un bloc conditionné par `!hasSidebar` (`Carte.js:9783`), alors que `hasSidebar` devient vrai dès la connexion du socket en mode non-solo (`Carte.js:4889`). Sans `ready:toggle`, le serveur refuse `room:start` (il exige ≥ 2 joueurs tous prêts), donc aucun `round:new`, donc plateau vide et « Manche 0/3 ». Régression introduite par `a6b45cb` (2026-06-06) en corrigeant un écran blanc.
 
-Second défaut, latent : quand `round:new` arrive sans zones, le client **génère les zones localement** (repli explicitement commenté « DESYNC RISK » dans le code, et journalisé côté serveur pour les arrivants tardifs) → plateaux différents entre joueurs. Le protocole nominal, lui, est sain : sonde locale à 3 clients, charges identiques (16 zones, empreintes et paires identiques, 0 zone vide).
+**Deuxième défaut, confirmé en navigateur** : démarrage forcé côté serveur → les deux clients reçoivent des **données identiques** (16 zones, empreintes concordantes, aucun `[MP][DESYNC]`), mais le plateau du second joueur s'affiche avec des étiquettes **surdimensionnées et chevauchantes** (≈ 56 px vs ≈ 43 px) → carte illisible. Même rendu sur un onglet ayant reçu la manche en arrière-plan : déclencheur probable = dimensionnement calculé sur viewport masqué, **pas** le rôle du joueur (à trancher par lecture de code). C'est vraisemblablement le « les cartes ne s'affichent pas correctement » rapporté.
+
+Troisième défaut, latent : quand `round:new` arrive sans zones, le client **génère les zones localement** (repli explicitement commenté « DESYNC RISK » dans le code, et journalisé côté serveur pour les arrivants tardifs) → plateaux différents entre joueurs. Le protocole nominal, lui, est sain : sonde locale à 3 clients, charges identiques (16 zones, empreintes et paires identiques, 0 zone vide).
 
 ## E. ÉTAT DE L'ÉCRAN LIVE
 
-**Partiellement fonctionnel — P1.** L'écran affiche le plateau, les scores, le flash de la paire validée et le fil en direct. Les **bulles animées ne peuvent pas apparaître** : `animateBubblesFromZones()` cherche sa destination via `[data-cc-vignette]`, attribut présent dans `Carte.js`, `GrandeSalle.js`, `ArenaSpectator.js` et `TrainingArenaGame.js` mais **absent de `LiveBoard.js`** (titre « 📡 Fil en direct », `LiveBoard.js:1020`). La destination est `null`, l'unique nouvelle tentative à 60 ms est neutralisée par le garde anti-doublon de 800 ms : panne silencieuse, sans erreur console. Confirmé isolément par sonde jsdom (0 bulle sans ancre, animation effective avec ancre).
+**Partiellement fonctionnel — P1.** L'écran affiche le plateau, les scores, le flash de la paire validée et le fil en direct. Les **bulles animées ne peuvent pas apparaître** : `animateBubblesFromZones()` cherche sa destination via `[data-cc-vignette]`, attribut présent dans `Carte.js`, `GrandeSalle.js`, `ArenaSpectator.js` et `TrainingArenaGame.js` mais **absent de `LiveBoard.js`** (titre « 📡 Fil en direct », `LiveBoard.js:1020`). La destination est `null`, l'unique nouvelle tentative à 60 ms est neutralisée par le garde anti-doublon de 800 ms : panne silencieuse, sans erreur console. **Reproduit en navigateur** sur une Grande Salle locale à 3 joueurs : paire validée → bulles et score côté joueur, fil et classement mis à jour côté Live, **zéro nœud de bulle créé sur l'écran Live** (MutationObserver), `document.querySelectorAll('[data-cc-vignette]').length` = **0** sur Live contre **1** sur l'écran joueur. Également confirmé isolément par sonde jsdom (0 bulle sans ancre, animation effective avec ancre).
 
 ## F. ÉTAT DES PAIEMENTS ET ABONNEMENTS
 
@@ -604,6 +641,8 @@ Second défaut, latent : quand `round:new` arrive sans zones, le client **génè
 ## G. ÉTAT DES TESTS
 
 **Insuffisant mais honnête là où il existe.** Frontend : 26/26 verts. Serveur : 27 verts, 3 ignorés (tous sur la persistance en base), 0 échec. Build production : succès. Aucun lint disponible. E2E Playwright : 15 fichiers de scénarios existent mais la suite cible `https://app.crazy-chrono.com` par défaut et le workflow CI exige des secrets de production → **non exécutable en préproduction, donc non exécutée dans cet audit**. Avertissements récurrents du générateur de zones (`FINAL PASS: Could not fill zone`) sans défaut reproduit sur 40 manches sondées.
+
+**Le lint implicite est désactivé en build alors qu'il détecte de vrais bugs** : `npm start` sans `DISABLE_ESLINT_PLUGIN=true` échoue sur 4 `no-undef` dans `Carte.js`, dont un qui rend inopérante la détection Solo des « fausses paires visuelles ».
 
 **Et surtout : la CI est rouge sur `main` depuis au moins six semaines** (`game-persistence.integration.test.js` → `ReferenceError: Headers is not defined`, uniquement en CI car les secrets Supabase y activent une suite qui reste ignorée en local), avec des E2E nocturnes annulées après 30 minutes. La CI ne protège donc plus rien.
 
@@ -656,7 +695,7 @@ Chaque mission est calibrée pour une session de travail focalisée, avec un cri
 
 | # | Mission | Sév. | Critère d'acceptation |
 |---|---|---|---|
-| 1 | **Réparer le lobby de salle privée** : découpler l'affichage du lobby de `hasSidebar` et faire vivre `roomStatus` (`lobby` → `playing`) au lieu de le contourner. | P0 | 2 joueurs se mettent prêts, l'hôte démarre, `round:new` reçu, plateaux identiques ; test de non-régression sur l'écran blanc de `a6b45cb`. |
+| 1 | **Réparer le lobby de salle privée ET le rendu du plateau** : découpler l'affichage du lobby de `hasSidebar`, faire vivre `roomStatus` (`lobby` → `playing`) au lieu de le contourner, puis trancher l'origine des étiquettes surdimensionnées (viewport masqué vs rôle invité) et recalculer le dimensionnement à la reprise de visibilité. | P0 | 2 joueurs se mettent prêts, l'hôte démarre, `round:new` reçu, **les deux plateaux sont lisibles et identiques à l'œil** ; test de non-régression sur l'écran blanc de `a6b45cb`. |
 | 2 | **Sécuriser la chaîne de paiement** : supprimer le checkout mocké en production, rendre la signature du webhook Stripe obligatoire, journaliser les événements idempotents. | P0 | En production sans configuration Stripe → erreur explicite ; webhook non signé → 400 ; paiement Stripe test → `subscriptions.status='active'`. |
 | 3 | **Fermer le fail-open d'abonnement** : refuser l'accès aux modes payants sans identité vérifiée côté serveur ; cesser de faire confiance au `studentId` fourni par le client. | P0 | Socket anonyme → refus de `room:create` / `joinRoom` non-solo ; élève licencié → accès. |
 | 4 | **Refermer les fuites de données** : authentifier ou supprimer `GET /me?email=`, corriger l'IDOR de `/me/subscription`, protéger `/students`, `DELETE /delete-image`, `POST /purge-elements`. | P0 | Chaque route sensible renvoie 401/403 sans jeton valide ; test automatisé par route. |
@@ -665,7 +704,7 @@ Chaque mission est calibrée pour une session de travail focalisée, avec un cri
 | 7 | **Aligner les prix et les quotas sur une source unique** : `render.yaml` à 2 sessions/jour, réécriture de `DOCS/GRILLE_TARIFAIRE.md`, quota vérifié côté serveur et non contournable côté client. | P1 | Une seule grille de référence ; `/api/config/free-limit` renvoie 2 ; vider le `localStorage` ne rend pas de sessions gratuites. |
 | 8 | **Corriger l'écran Live et sécuriser le contrat d'animation** : ancre `data-cc-vignette` dans `LiveBoard`, préservation des arguments lors de la nouvelle tentative, test garantissant que chaque écran de jeu porte une ancre. | P1 | Bulles visibles sur `/grande-salle/live/:id` ; test échouant si une ancre disparaît. |
 | 9 | **Supprimer le repli de génération locale en multijoueur** : traiter l'absence de zones comme une erreur (attente/resynchronisation serveur) plutôt qu'une divergence silencieuse ; couvrir l'arrivée tardive et le rechargement. | P1 | Arrivée tardive et rechargement → plateau identique à l'hôte ; plus aucun incident `DESYNC_LOCAL_FALLBACK`. |
-| 10 | **Assainir les fondations** : extraire les modes de `Carte.js`, centraliser `getBackendUrl()`, ajouter lint + CI bloquante, réduire les `console.log`, traiter les vulnérabilités critiques, remettre `README.md` en conformité. | P1/P2 | Lint vert en CI ; aucune URL de production en dur ; `Carte.js` réduit par extraction sans régression Solo. |
+| 10 | **Assainir les fondations** : corriger les 4 `no-undef` de `Carte.js` et **réactiver ESLint** (le build masque des `ReferenceError` avérées, dont la détection Solo des fausses paires visuelles qui ne s'exécute jamais), extraire les modes de `Carte.js`, centraliser `getBackendUrl()`, ajouter lint + CI bloquante, réduire les `console.log`, traiter les vulnérabilités critiques, remettre `README.md` en conformité. | P1/P2 | Lint vert en CI ; aucune URL de production en dur ; `Carte.js` réduit par extraction sans régression Solo. |
 
 Les missions 1 à 5 conditionnent le premier euro encaissé. Les missions 6 et 7 conditionnent la capacité à livrer sans casser. Les missions 8 à 10 conditionnent la crédibilité commerciale et la vitesse future.
 
