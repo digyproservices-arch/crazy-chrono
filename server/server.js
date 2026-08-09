@@ -2229,72 +2229,33 @@ try {
   if (process.env.STRIPE_SECRET_KEY) stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 } catch (e) { console.warn('[Stripe] SDK not available:', e.message); }
 
-// Create Checkout Session (enhanced)
-app.post('/stripe/create-checkout-session', requireAuth, async (req, res) => {
-  try {
-    const priceId = req.body?.price_id || process.env.STRIPE_PRICE_ID;
-    const userId = req.body?.user_id ? String(req.body.user_id) : null;
-    const success_url = req.body?.success_url || (process.env.FRONTEND_URL || 'http://localhost:3000') + '/account?checkout=success';
-    const cancel_url = req.body?.cancel_url || (process.env.FRONTEND_URL || 'http://localhost:3000') + '/pricing?checkout=cancel';
-    if (!stripe || !priceId) {
-      // Sprint 1: ne bloque pas – renvoie une URL factice pour tester le flux
-      const mock = success_url + '&mock=1';
-      return res.json({ ok: true, url: mock, mocked: true });
-    }
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url,
-      cancel_url,
-      allow_promotion_codes: true,
-      metadata: userId ? { user_id: userId } : undefined
-    });
-    return res.json({ ok: true, url: session.url });
-  } catch (e) {
-    console.error('[Stripe] create-checkout-session error', e);
-    return res.status(500).json({ ok: false, error: 'checkout_error' });
-  }
-});
+// CTO-002: aucun fallback mock/success. Handlers extraits et testables.
+const { makeCheckoutHandler, makePortalHandler } = require('./billing/stripeCheckout');
+const { makeWebhookHandler } = require('./billing/stripeWebhook');
+const { createStripeEventStore } = require('./billing/stripeEventStore');
 
-// Create Customer Portal Session (skeleton)
-app.post('/stripe/create-portal-session', requireAuth, async (req, res) => {
-  try {
-    if (!stripe) {
-      // Fallback de démo: renvoie pricing page
-      const url = (process.env.FRONTEND_URL || 'http://localhost:3000') + '/pricing?portal=mock';
-      return res.json({ ok: true, url, mocked: true });
-    }
-    const { customer_id } = req.body || {};
-    if (!customer_id) return res.status(400).json({ ok: false, error: 'missing_customer_id' });
-    const return_url = process.env.STRIPE_CUSTOMER_PORTAL_RETURN_URL || (process.env.FRONTEND_URL || 'http://localhost:3000') + '/account';
-    const session = await stripe.billingPortal.sessions.create({ customer: customer_id, return_url });
-    return res.json({ ok: true, url: session.url });
-  } catch (e) {
-    console.error('[Stripe] create-portal-session error', e);
-    return res.status(500).json({ ok: false, error: 'portal_error' });
-  }
-});
+const frontendBaseUrl = () => process.env.FRONTEND_URL || 'http://localhost:3000';
 
-// Webhook Stripe (sprint 1: stub + signature check si dispo)
+app.post('/stripe/create-checkout-session', requireAuth, makeCheckoutHandler({
+  getStripe: () => stripe,
+  getDefaultPriceId: () => process.env.STRIPE_PRICE_ID || null,
+  getFrontendUrl: frontendBaseUrl,
+  logger,
+}));
+
+app.post('/stripe/create-portal-session', requireAuth, makePortalHandler({
+  getStripe: () => stripe,
+  getReturnUrl: () => process.env.STRIPE_CUSTOMER_PORTAL_RETURN_URL || frontendBaseUrl() + '/account',
+  logger,
+}));
+
+// Webhook Stripe — signature obligatoire (CTO-002)
 const rawParser = bodyParser.raw({ type: 'application/json' });
-app.post('/webhooks/stripe', rawParser, async (req, res) => {
-  try {
-    const sig = req.headers['stripe-signature'];
-    const whSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    let event = null;
-    if (stripe && whSecret && sig) {
-      try {
-        event = stripe.webhooks.constructEvent(req.body, sig, whSecret);
-      } catch (err) {
-        console.error('[Stripe] webhook signature verification failed', err.message);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-      }
-    } else {
-      // Pas de vérification en Sprint 1
-      event = { id: 'evt_mock', type: 'mock.event', data: { object: {} } };
-    }
+const stripeEventStore = createStripeEventStore();
+
+async function processStripeEvent(event) {
     console.log('[Stripe] webhook received:', event.type);
-    // Sprint 2 minimal: upsert subscriptions on key events if supabaseAdmin available
+    // Upsert subscriptions on key events if supabaseAdmin available
     try {
       if (supabaseAdmin && event && event.type) {
         if (event.type === 'checkout.session.completed') {
@@ -2356,7 +2317,12 @@ app.post('/webhooks/stripe', rawParser, async (req, res) => {
           }
         }
       }
-    } catch (e) { console.error('[Stripe] webhook handling error', e); }
+    } catch (e) {
+      // Propagé: le webhook répond 500 et Stripe rejouera l'événement
+      // (la réservation d'idempotence est libérée par le handler).
+      console.error('[Stripe] webhook handling error', e);
+      throw e;
+    }
 
     // Log payment event for monitoring dashboard
     try {
@@ -2374,13 +2340,15 @@ app.post('/webhooks/stripe', rawParser, async (req, res) => {
       });
       savePaymentEvents(evts);
     } catch (pe) { console.warn('[Stripe] payment event log failed:', pe.message); }
+}
 
-    return res.json({ received: true });
-  } catch (e) {
-    console.error('[Stripe] webhook error', e);
-    return res.status(500).end();
-  }
-});
+app.post('/webhooks/stripe', rawParser, makeWebhookHandler({
+  getStripe: () => stripe,
+  getWebhookSecret: () => process.env.STRIPE_WEBHOOK_SECRET || null,
+  processEvent: processStripeEvent,
+  eventStore: stripeEventStore,
+  logger,
+}));
 
 // Endpoint: liste d'élèves (avec option de filtrage licensed=true)
 app.get('/students', async (req, res) => {
@@ -4098,14 +4066,26 @@ io.use(async (socket, next) => {
   }
 
   // 1) Vérifier JWT si présent
-  if (token && supabaseAdmin) {
-    try {
-      const { data: who, error: whoErr } = await supabaseAdmin.auth.getUser(token);
-      if (!whoErr && who?.user) {
-        socket.authUser = { id: who.user.id, email: who.user.email, isStudent: who.user.email?.endsWith('@eleve.crazychrono.app') || false };
+  // CTO-002: un jeton invalide ou non vérifiable n'aboutit jamais à une identité.
+  // La connexion reste acceptée (guests Grande Salle, spectateurs, monitoring)
+  // mais authError ferme l'accès aux événements payants.
+  if (token) {
+    if (!supabaseAdmin) {
+      socket.authError = 'verification_unavailable';
+      logger.warn('[Socket][AUTH] JWT non vérifiable: Supabase non configuré');
+    } else {
+      try {
+        const { data: who, error: whoErr } = await supabaseAdmin.auth.getUser(token);
+        if (!whoErr && who?.user) {
+          socket.authUser = { id: who.user.id, email: who.user.email, isStudent: who.user.email?.endsWith('@eleve.crazychrono.app') || false };
+        } else {
+          socket.authError = 'invalid_token';
+          logger.warn('[Socket][AUTH] JWT rejeté (invalid_token)', { socketId: socket.id });
+        }
+      } catch (e) {
+        socket.authError = 'verification_error';
+        logger.warn(`[Socket][AUTH] JWT verification failed: ${e.message}`);
       }
-    } catch (e) {
-      logger.warn(`[Socket][AUTH] JWT verification failed: ${e.message}`);
     }
   }
 
@@ -4124,7 +4104,22 @@ io.use(async (socket, next) => {
         // Query Supabase
         const { data, error } = await supabaseAdmin.rpc('check_session_active', { p_token: sessionToken });
         const result = data && data.length > 0 ? data[0] : null;
-        const isActive = result?.is_valid ?? true; // fail-open si erreur
+        // CTO-002: plus de `?? true`. Une session inconnue ne vaut pas une session
+        // valide → accès payant fermé (la connexion reste acceptée pour les usages
+        // publics). Une erreur d'infrastructure reste `null` (indéterminé): elle ne
+        // sert pas de porte ouverte, car l'habilitation elle-même échoue alors en
+        // fail-closed, mais elle n'invalide pas les sessions des abonnés légitimes.
+        if (error) {
+          logger.warn('[Socket][AUTH] check_session_active en erreur → session indéterminée', { socketId: socket.id });
+          socket.sessionValid = null;
+          return next();
+        }
+        if (!result) {
+          logger.warn('[Socket][AUTH] Session inconnue → accès payant fermé', { socketId: socket.id });
+          socket.sessionValid = false;
+          return next();
+        }
+        const isActive = result.is_valid === true;
 
         _socketSessionCache.set(sessionToken, { isActive, ts: Date.now() });
         if (_socketSessionCache.size > 5000) {
@@ -4139,8 +4134,8 @@ io.use(async (socket, next) => {
         socket.sessionValid = true;
       }
     } catch (e) {
-      // Fail-open: ne pas bloquer si Supabase est down
-      logger.warn(`[Socket][AUTH] Session check error (fail-open): ${e.message}`);
+      // Erreur d'infrastructure: état indéterminé (voir commentaire ci-dessus).
+      logger.warn(`[Socket][AUTH] Session check error (indéterminé): ${e.message}`);
       socket.sessionValid = null;
     }
   }
@@ -4159,96 +4154,42 @@ app.locals.invalidateSocketSessionCache = (userId) => {
 // PHASE 3 — Vérification abonnement serveur
 // Cache en mémoire: évite de frapper Supabase à chaque event
 // ==========================================
-const _subCache = new Map();
-const SUB_CACHE_TTL = 5 * 60_000; // 5 min
+const { resolveEntitlement, createEntitlementCache } = require('./access/entitlements');
+const { checkSocketAccess, isFreeSoloRoom, isDevBypassEnabled } = require('./access/socketAccess');
 
+const _subCache = createEntitlementCache();
+
+if (isDevBypassEnabled()) {
+  logger.warn('[Access] ⚠️ CC_DEV_ALLOW_UNVERIFIED_MP=1 — accès multijoueur sans habilitation vérifiée (dev uniquement, ignoré si NODE_ENV=production)');
+}
+
+// FAIL CLOSED (CTO-002): toute incertitude ferme l'accès payant.
 async function checkSubscription(userId) {
-  if (!userId || !supabaseAdmin) {
-    sTrace.push('sub:check', { userId, decision: 'fail-open', reason: !userId ? 'no_userId' : 'no_supabase' });
-    return { isPro: true };
-  }
-
   const cached = _subCache.get(userId);
-  if (cached && Date.now() - cached.ts < SUB_CACHE_TTL) {
-    sTrace.push('sub:check', { userId, decision: 'cached', isPro: cached.isPro, role: cached.role, status: cached.status });
+  if (cached) {
+    sTrace.push('sub:check', { userId, decision: 'cached', isPro: cached.isPro, reason: cached.reason, source: cached.source });
     return cached;
   }
+  const result = await resolveEntitlement({ supabase: supabaseAdmin, userId });
+  sTrace.push('sub:check', { userId, isPro: result.isPro, reason: result.reason, source: result.source, status: result.status, role: result.role });
+  if (userId) _subCache.set(userId, result);
+  return result;
+}
 
-  try {
-    // Si le userId est un studentId (non-UUID, ex: std_demo_0267), c'est un élève licencié → pro
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
-    if (!isUUID) {
-      // Tout élève existant dans la table students est pro (le professeur paye la licence)
-      try {
-        const { data: stu, error: stuErr } = await supabaseAdmin.from('students').select('id, licensed').eq('id', userId).single();
-        if (stu) {
-          const result = { isPro: true, status: 'student_enrolled', role: 'student', ts: Date.now() };
-          sTrace.push('sub:check', { userId, isUUID: false, decision: 'student_enrolled', found: true, licensed: stu.licensed, isPro: true });
-          _subCache.set(userId, result);
-          return result;
-        }
-        sTrace.push('sub:check', { userId, isUUID: false, decision: 'fail-open', reason: 'student_not_found', err: stuErr?.message || 'none' });
-      } catch (e2) {
-        sTrace.push('sub:check', { userId, isUUID: false, decision: 'fail-open', reason: 'students_exception', err: e2.message });
-      }
-      return { isPro: true };
-    }
-
-    const { data: rows } = await supabaseAdmin
-      .from('subscriptions')
-      .select('status')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false })
-      .limit(1);
-    const status = rows?.[0]?.status || null;
-    const isPro = (status === 'active' || status === 'trialing');
-
-    // Aussi vérifier le rôle (teacher/admin/cpd/cpc/rectorat/student = toujours pro)
-    let role = null;
-    let profErr = null;
-    try {
-      const { data: prof, error: pErr } = await supabaseAdmin.from('user_profiles').select('role, email').eq('id', userId).single();
-      role = prof?.role || null;
-      profErr = pErr?.message || null;
-      // ✅ FIX: Fallback élève — si user_profiles.role n'est pas 'student', vérifier email + mapping
-      if (!['admin', 'teacher', 'cpd', 'cpc', 'rectorat', 'student'].includes(role)) {
-        // Détection par email @eleve.crazychrono.app
-        if (prof?.email?.endsWith('@eleve.crazychrono.app')) {
-          role = 'student';
-          profErr = (profErr || '') + ' [fixed:email_pattern]';
-        } else {
-          // Détection par user_student_mapping
-          try {
-            const { data: mapping } = await supabaseAdmin.from('user_student_mapping').select('student_id').eq('user_id', userId).eq('active', true).maybeSingle();
-            if (mapping?.student_id) {
-              role = 'student';
-              profErr = (profErr || '') + ' [fixed:student_mapping]';
-            }
-          } catch {}
-        }
-      }
-    } catch (e3) { profErr = e3.message; }
-    const isPrivileged = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat', 'student'].includes(role);
-
-    const result = { isPro: isPro || isPrivileged, status, role, ts: Date.now() };
-    sTrace.push('sub:check', { userId, isUUID: true, subStatus: status, role, profErr, isPrivileged, isPro: result.isPro });
-    _subCache.set(userId, result);
-
-    // Cleanup cache si trop grand
-    if (_subCache.size > 5000) {
-      const keys = [..._subCache.keys()].slice(0, 1000);
-      keys.forEach(k => _subCache.delete(k));
-    }
-
-    return result;
-  } catch (e) {
-    sTrace.push('sub:check', { userId, decision: 'fail-open', reason: 'exception', err: e.message });
-    return { isPro: true }; // fail-open
+// Décision d'accès pour un événement Socket.IO payant.
+async function authorizePaidSocket(socket, event, extra = {}) {
+  const decision = await checkSocketAccess({ socket, checkEntitlement: checkSubscription });
+  sTrace.push(decision.allowed ? 'sub:GRANTED' : 'sub:REJECTED', {
+    event, socketId: socket.id, userId: decision.userId, reason: decision.reason, ...extra,
+  });
+  if (!decision.allowed) {
+    logger.warn(`[Socket][SUB] ❌ ${event} refusé (${decision.reason})`, { socketId: socket.id, userId: decision.userId });
   }
+  return decision;
 }
 
 // Invalider le cache abo quand un webhook Stripe modifie le statut
-app.locals.invalidateSubCache = (userId) => { _subCache.delete(userId); };
+app.locals.invalidateSubCache = (userId) => { _subCache.invalidate(userId); };
 
 io.on('connection', (socket) => {
   let currentRoom = null;
@@ -4292,20 +4233,12 @@ io.on('connection', (socket) => {
 
   // Créer une salle et renvoyer le code au client (ack)
   socket.on('room:create', async (cb) => {
-    // ── Phase 3: Vérification abonnement pour créer une salle MP ──
-    const uid = socket.authUser?.id || playerStudentId || null;
-    sTrace.push('sub:room:create', { socketId: socket.id, authUserId: socket.authUser?.id || null, playerStudentId: playerStudentId || null, resolvedUid: uid });
-    const sub = await checkSubscription(uid);
-    if (!sub.isPro) {
-      // ✅ FIX: bypass si l'élève est détecté par son email @eleve.crazychrono.app
-      if (socket.authUser?.isStudent) {
-        sTrace.push('sub:BYPASS', { event: 'room:create', socketId: socket.id, uid, reason: 'authUser.isStudent' });
-      } else {
-        sTrace.push('sub:REJECTED', { event: 'room:create', socketId: socket.id, uid, sub });
-        socket.emit('subscription:required', { event: 'room:create', message: 'Le mode multijoueur est réservé aux abonnés.' });
-        if (typeof cb === 'function') cb({ ok: false, error: 'subscription_required' });
-        return;
-      }
+    // ── CTO-002: identité + habilitation vérifiées côté serveur ──
+    const access = await authorizePaidSocket(socket, 'room:create');
+    if (!access.allowed) {
+      socket.emit('subscription:required', { event: 'room:create', reason: access.reason, message: 'Le mode multijoueur est réservé aux abonnés connectés.' });
+      if (typeof cb === 'function') cb({ ok: false, error: 'subscription_required' });
+      return;
     }
     const code = genRoomCode();
     const room = getRoom(code); // initialise
@@ -4379,33 +4312,27 @@ io.on('connection', (socket) => {
     // ── Phase 3: Vérification abonnement pour multijoueur (ASYNC) ──
     // NOTE: Room setup is already done above so room:setConfig and startGame
     // events can be processed during this await without being silently dropped.
-    const uid = socket.authUser?.id || playerStudentId || sid || null;
-    const isSoloRoom = newRoom.startsWith('solo-');
-    sTrace.push('sub:joinRoom', { socketId: socket.id, authUserId: socket.authUser?.id || null, playerStudentId: playerStudentId || null, sid: sid || null, resolvedUid: uid, room: newRoom, isSoloRoom });
     // Le mode Solo est gratuit (quota journalier géré séparément) -> pas de gate abonnement.
-    const sub = isSoloRoom ? { isPro: true } : await checkSubscription(uid);
-    if (!sub.isPro) {
-      // ✅ FIX: bypass si l'élève est détecté par son email @eleve.crazychrono.app
-      if (socket.authUser?.isStudent) {
-        sTrace.push('sub:BYPASS', { event: 'joinRoom', socketId: socket.id, uid, room: newRoom, reason: 'authUser.isStudent' });
-      } else {
-        // Rollback: remove player from room since subscription check failed
-        sTrace.push('sub:REJECTED', { event: 'joinRoom', socketId: socket.id, uid, room: newRoom, sub });
-        room.players.delete(socket.id);
-        if (room.hostId === socket.id) {
-          const first = room.players.keys().next();
-          room.hostId = first.done ? null : first.value;
-        }
-        socket.leave(currentRoom);
-        if (room.players.size === 0) {
-          rooms.delete(currentRoom);
-        } else {
-          emitRoomState(currentRoom);
-        }
-        currentRoom = null;
-        socket.emit('subscription:required', { event: 'joinRoom', message: 'Le mode multijoueur est réservé aux abonnés.' });
-        return;
+    const isSoloRoom = isFreeSoloRoom(newRoom);
+    const access = isSoloRoom
+      ? { allowed: true, reason: 'free_solo', userId: socket.authUser?.id || null }
+      : await authorizePaidSocket(socket, 'joinRoom', { room: newRoom });
+    if (!access.allowed) {
+      // Rollback: le joueur est retiré de la salle puisque l'accès est refusé
+      room.players.delete(socket.id);
+      if (room.hostId === socket.id) {
+        const first = room.players.keys().next();
+        room.hostId = first.done ? null : first.value;
       }
+      socket.leave(currentRoom);
+      if (room.players.size === 0) {
+        rooms.delete(currentRoom);
+      } else {
+        emitRoomState(currentRoom);
+      }
+      currentRoom = null;
+      socket.emit('subscription:required', { event: 'joinRoom', reason: access.reason, message: 'Le mode multijoueur est réservé aux abonnés connectés.' });
+      return;
     }
     // ── TRAÇAGE: log quand un joueur rejoint une room ──
     console.log(`[GAME-TRACE] joinRoom | room=${currentRoom} socket=${socket.id} name=${playerName} playersNow=${room.players.size} sessionActive=${room.sessionActive} roundsPlayed=${room.roundsPlayed}/${room.roundsPerSession} existingScore=${existing.score||0}`);
@@ -4605,10 +4532,18 @@ io.on('connection', (socket) => {
   });
 
   // Démarrage de la partie (hôte uniquement) si tous prêts et >=2 joueurs
-  socket.on('room:start', () => {
+  socket.on('room:start', async () => {
     if (!currentRoom) return;
     const room = getRoom(currentRoom);
     if (socket.id !== room.hostId) return; // seul l'hôte démarre
+    // CTO-002: revalider l'habilitation de l'hôte avant de démarrer une session payante
+    if (!isFreeSoloRoom(currentRoom)) {
+      const access = await authorizePaidSocket(socket, 'room:start', { room: currentRoom });
+      if (!access.allowed) {
+        socket.emit('subscription:required', { event: 'room:start', reason: access.reason, message: 'Le mode multijoueur est réservé aux abonnés connectés.' });
+        return;
+      }
+    }
     // Eviter de relancer une session si elle est déjà active
     if (room.sessionActive) {
       console.warn(`[MP] room:start ignored: session already active room=${currentRoom}`);
@@ -4711,11 +4646,20 @@ io.on('connection', (socket) => {
   });
 
   // startGame (compat): démarre une session solo/simple en suivant le même pipeline que room:start
-  socket.on('startGame', () => {
+  socket.on('startGame', async () => {
     // ── TRAÇAGE: log quand startGame est reçu ──
     console.log(`[GAME-TRACE] startGame received | room=${currentRoom} socketId=${socket.id}`);
     sTrace.push('startGame', { room: currentRoom, socketId: socket.id });
     if (!currentRoom) return;
+    // CTO-002: startGame est le chemin de compatibilité — il démarre aussi les
+    // salles non-solo et doit donc être habilité comme room:start.
+    if (!isFreeSoloRoom(currentRoom)) {
+      const access = await authorizePaidSocket(socket, 'startGame', { room: currentRoom });
+      if (!access.allowed) {
+        socket.emit('subscription:required', { event: 'startGame', reason: access.reason, message: 'Le mode multijoueur est réservé aux abonnés connectés.' });
+        return;
+      }
+    }
     const room = getRoom(currentRoom);
     // Ne rien faire si une session est déjà en cours
     if (room.sessionActive) {
@@ -5189,12 +5133,10 @@ io.on('connection', (socket) => {
   socket.on('training:join', async ({ matchId, studentData }, cb) => {
     logger.info('[Server][Training] Joueur tente de rejoindre', { matchId, studentId: studentData.studentId, name: studentData.name, socketId: socket.id });
 
-    // ── Phase 3: Vérification abonnement pour Training ──
-    const uid = socket.authUser?.id || studentData?.studentId || null;
-    const sub = await checkSubscription(uid);
-    if (!sub.isPro) {
-      logger.warn(`[Socket][SUB] ❌ Joueur free tente training:join`, { socketId: socket.id, userId: uid, matchId });
-      socket.emit('subscription:required', { event: 'training:join', message: 'Le mode Training est réservé aux abonnés.' });
+    // ── CTO-002: identité serveur uniquement (studentData ignoré pour l'autorisation) ──
+    const access = await authorizePaidSocket(socket, 'training:join', { matchId });
+    if (!access.allowed) {
+      socket.emit('subscription:required', { event: 'training:join', reason: access.reason, message: 'Le mode Training est réservé aux abonnés connectés.' });
       if (typeof cb === 'function') cb({ ok: false, error: 'subscription_required' });
       return;
     }
@@ -5304,12 +5246,10 @@ io.on('connection', (socket) => {
   socket.on('arena:join', async ({ matchId, studentData }, cb) => {
     logger.info('[Server][Arena] Joueur rejoint', { matchId, studentId: studentData.studentId, name: studentData.name, socketId: socket.id });
 
-    // ── Phase 3: Vérification abonnement pour Arena ──
-    const uid = socket.authUser?.id || studentData?.studentId || null;
-    const sub = await checkSubscription(uid);
-    if (!sub.isPro) {
-      logger.warn(`[Socket][SUB] ❌ Joueur free tente arena:join`, { socketId: socket.id, userId: uid, matchId });
-      socket.emit('subscription:required', { event: 'arena:join', message: 'Le mode Arena est réservé aux abonnés.' });
+    // ── CTO-002: identité serveur uniquement (studentData ignoré pour l'autorisation) ──
+    const access = await authorizePaidSocket(socket, 'arena:join', { matchId });
+    if (!access.allowed) {
+      socket.emit('subscription:required', { event: 'arena:join', reason: access.reason, message: 'Le mode Arena est réservé aux abonnés connectés.' });
       if (typeof cb === 'function') cb({ ok: false, error: 'subscription_required' });
       return;
     }
