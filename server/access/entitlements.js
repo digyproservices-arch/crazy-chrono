@@ -78,20 +78,12 @@ async function resolveEntitlement({ supabase, userId, now = Date.now() }) {
     if (PRIVILEGED_ROLES.includes(role)) return grant(`role:${role}`, { status, role });
 
     // Élève: la licence doit être prouvée par une fiche `students` licensed=true
-    // rattachée au compte, jamais par le rôle ni par le domaine de l'adresse.
-    const email = typeof prof.email === 'string' ? prof.email.toLowerCase() : '';
-    const ownIds = await schoolScope.resolveOwnStudentIds({ supabase, userId, email });
-    if (ownIds === null) return deny('verification_error', { status, role });
-    for (const studentId of ownIds) {
-      const { data: student, error: stuErr } = await supabase
-        .from('students')
-        .select('id, licensed')
-        .eq('id', studentId)
-        .maybeSingle();
-      if (stuErr) return deny('verification_error', { status, role });
-      if (student?.licensed) return grant('student_license', { status, role: role || 'student' });
-    }
-    if (ownIds.length) return deny('student_not_licensed', { status, role });
+    // rattachée au compte via `user_student_mapping`. Ni le rôle, ni l'adresse
+    // @eleve…, ni le code d'accès ne valent rattachement (revue CTO finale).
+    const linked = await schoolScope.resolveLinkedStudent({ supabase, userId });
+    if (!linked.ok) return deny('verification_error', { status, role });
+    if (linked.student?.licensed) return grant('student_license', { status, role: role || 'student' });
+    if (linked.student) return deny('student_not_licensed', { status, role });
 
     return deny(status ? 'subscription_inactive' : 'no_entitlement', { status, role });
   } catch (e) {

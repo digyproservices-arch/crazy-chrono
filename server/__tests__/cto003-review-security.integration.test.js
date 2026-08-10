@@ -21,8 +21,13 @@ const CPC_C1 = { id: 'cccccccc-3333-4333-8333-333333333333', email: 'cpc.c1@exam
 const STD_USER = { id: 'dddddddd-4444-4444-8444-444444444444', email: 'standard@example.com' };
 // Élève sans licence: rôle "student" déclaré, aucune fiche élève correspondante.
 const STUDENT_UNLICENSED = { id: 'eeeeeeee-5555-4555-8555-555555555555', email: 'nolicence@eleve.crazychrono.app' };
-// Élève licencié: fiche students licensed=true rapprochée du code d'accès.
+// Élève licencié: fiche students licensed=true rattachée par user_student_mapping.
 const STUDENT_LICENSED = { id: 'ffffffff-6666-4666-8666-666666666666', email: 'zoec2b7788@eleve.crazychrono.app' };
+// Compte dont l'adresse reprend le code d'accès d'un élève licencié d'une AUTRE
+// classe, sans aucun mapping: l'adresse ne doit rien prouver.
+const STUDENT_SPOOF = { id: '99999999-7777-4777-8777-777777777777', email: 'nilsd3c9900@eleve.crazychrono.app' };
+// Élève rattaché à une fiche non licenciée.
+const STUDENT_MAPPED_UNLICENSED = { id: '88888888-8888-4888-8888-888888888888', email: 'lucm4d1122@eleve.crazychrono.app' };
 
 const TOKENS = {
   ADMIN: 'tok-admin',
@@ -32,6 +37,8 @@ const TOKENS = {
   STD: 'tok-std',
   STUDENT_UNLICENSED: 'tok-student-nolic',
   STUDENT_LICENSED: 'tok-student-lic',
+  STUDENT_SPOOF: 'tok-student-spoof',
+  STUDENT_MAPPED_UNLICENSED: 'tok-student-mapped-nolic',
 };
 
 function baseFixture() {
@@ -44,6 +51,8 @@ function baseFixture() {
       [TOKENS.STD]: STD_USER,
       [TOKENS.STUDENT_UNLICENSED]: STUDENT_UNLICENSED,
       [TOKENS.STUDENT_LICENSED]: STUDENT_LICENSED,
+      [TOKENS.STUDENT_SPOOF]: STUDENT_SPOOF,
+      [TOKENS.STUDENT_MAPPED_UNLICENSED]: STUDENT_MAPPED_UNLICENSED,
     },
     unique: { webhook_events: 'event_id' },
     tables: {
@@ -55,6 +64,8 @@ function baseFixture() {
         { id: STD_USER.id, email: STD_USER.email, role: 'user' },
         { id: STUDENT_UNLICENSED.id, email: STUDENT_UNLICENSED.email, role: 'student' },
         { id: STUDENT_LICENSED.id, email: STUDENT_LICENSED.email, role: 'student' },
+        { id: STUDENT_SPOOF.id, email: STUDENT_SPOOF.email, role: 'student' },
+        { id: STUDENT_MAPPED_UNLICENSED.id, email: STUDENT_MAPPED_UNLICENSED.email, role: 'student' },
       ],
       schools: [
         { id: 'sch-1', circonscription_id: 'circo-1' },
@@ -67,9 +78,11 @@ function baseFixture() {
       students: [
         { id: 'stu-a1', class_id: 'cls-a', school_id: 'sch-1', circonscription_id: 'circo-1', first_name: 'Zoé', last_name: 'C', full_name: 'Zoé C.', licensed: true, access_code: 'ZOE-C2B-7788' },
         { id: 'stu-b1', class_id: 'cls-b', school_id: 'sch-2', circonscription_id: 'circo-2', first_name: 'Nils', last_name: 'D', full_name: 'Nils D.', licensed: true, access_code: 'NILS-D3C-9900' },
+        { id: 'stu-c1', class_id: 'cls-b', school_id: 'sch-2', circonscription_id: 'circo-2', first_name: 'Luc', last_name: 'M', full_name: 'Luc M.', licensed: false, access_code: 'LUC-M4D-1122' },
       ],
       user_student_mapping: [
         { user_id: STUDENT_LICENSED.id, student_id: 'stu-a1', active: true },
+        { user_id: STUDENT_MAPPED_UNLICENSED.id, student_id: 'stu-c1', active: true },
       ],
       tournament_groups: [],
       subscriptions: [],
@@ -88,12 +101,10 @@ let noSecret = null;  // REVENUECAT_WEBHOOK_SECRET absent
 let failWrite = null; // écriture subscriptions en échec
 
 beforeAll(async () => {
-  const failFixture = baseFixture();
-  failFixture.failWrites = { subscriptions: 'connection reset' };
   [main, noSecret, failWrite] = await Promise.all([
     startServer({ port: 4587, fixture: baseFixture(), env: { REVENUECAT_WEBHOOK_SECRET: RC_SECRET } }),
     startServer({ port: 4588, fixture: baseFixture(), env: { REVENUECAT_WEBHOOK_SECRET: '' } }),
-    startServer({ port: 4589, fixture: failFixture, env: { REVENUECAT_WEBHOOK_SECRET: RC_SECRET } }),
+    startServer({ port: 4589, fixture: baseFixture(), env: { REVENUECAT_WEBHOOK_SECRET: RC_SECRET } }),
   ]);
 }, BOOT_TIMEOUT);
 
@@ -148,22 +159,72 @@ describe('CTO-003 A — webhook RevenueCat fail-closed', () => {
 });
 
 describe('CTO-003 B — fiabilité du traitement RevenueCat', () => {
+  afterEach(() => failWrite.setFaults({}));
+
   test('écriture abonnement en échec → 500 retryable, pas de faux succès', async () => {
+    failWrite.setFaults({ failWrites: { subscriptions: 'connection reset' } });
     const res = await failWrite.request('POST', '/webhooks/revenuecat', {
       headers: { Authorization: `Bearer ${RC_SECRET}` },
       body: rcEvent('evt-dbfail', STD_USER.id),
     });
     expect(res.status).toBe(500);
     expect(res.json).toMatchObject({ ok: false, error: 'subscription_write_failed', retryable: true });
+
+    const sub = await failWrite.request('GET', '/me/subscription', { token: TOKENS.STD });
+    expect(sub.json.status).toBeNull();
   });
 
-  test('rejeu après échec: la réservation d\'idempotence a été libérée', async () => {
+  test('échec métier + échec de nettoyage → le rejeu retraite et persiste', async () => {
+    // Scénario exact de la revue: l'effet métier échoue ET la libération de la
+    // réservation d'idempotence échoue silencieusement (l'insert, lui, réussit).
+    failWrite.setFaults({
+      failWrites: { subscriptions: 'connection reset', webhook_events: { delete: 'connection reset' } },
+    });
+    const first = await failWrite.request('POST', '/webhooks/revenuecat', {
+      headers: { Authorization: `Bearer ${RC_SECRET}` },
+      body: rcEvent('evt-cleanupfail', TEACHER_A.id),
+    });
+    expect(first.status).toBe(500);
+    expect(first.json.duplicate).toBeUndefined();
+
+    // Base rétablie: RevenueCat rejoue le même événement.
+    failWrite.setFaults({});
     const second = await failWrite.request('POST', '/webhooks/revenuecat', {
       headers: { Authorization: `Bearer ${RC_SECRET}` },
-      body: rcEvent('evt-dbfail', STD_USER.id),
+      body: rcEvent('evt-cleanupfail', TEACHER_A.id),
     });
-    expect(second.status).toBe(500);
+    expect(second.status).toBe(200);
     expect(second.json.duplicate).toBeUndefined();
+
+    // L'abonnement est finalement persisté, et un 3e rejeu ne retraite plus.
+    const sub = await failWrite.request('GET', '/me/subscription', { token: TOKENS.TEACHER_A });
+    expect(sub.json.status).toBe('active');
+    const third = await failWrite.request('POST', '/webhooks/revenuecat', {
+      headers: { Authorization: `Bearer ${RC_SECRET}` },
+      body: rcEvent('evt-cleanupfail', TEACHER_A.id),
+    });
+    expect(third.json).toMatchObject({ ok: true, duplicate: true });
+  });
+
+  test('event.id absent → 400, aucun abonnement', async () => {
+    const res = await failWrite.request('POST', '/webhooks/revenuecat', {
+      headers: { Authorization: `Bearer ${RC_SECRET}` },
+      body: { event: { type: 'initial_purchase', app_user_id: CPC_C1.id, entitlement_id: 'pro' } },
+    });
+    expect(res.status).toBe(400);
+    expect(res.json).toMatchObject({ ok: false, error: 'missing_event_id' });
+    const sub = await failWrite.request('GET', '/me/subscription', { token: TOKENS.CPC });
+    expect(sub.json.status).toBeNull();
+  });
+
+  test('erreur de lecture du magasin d\'idempotence → fail closed retryable', async () => {
+    failWrite.setFaults({ failReads: { webhook_events: 'read timeout' } });
+    const res = await failWrite.request('POST', '/webhooks/revenuecat', {
+      headers: { Authorization: `Bearer ${RC_SECRET}` },
+      body: rcEvent('evt-idemread', STD_USER.id),
+    });
+    expect(res.status).toBe(500);
+    expect(res.json).toMatchObject({ ok: false, error: 'idempotency_store_error', retryable: true });
   });
 
   test('même event.id deux fois → traité une seule fois', async () => {
@@ -198,6 +259,48 @@ describe('CTO-003 C — le rôle "student" seul ne vaut pas licence', () => {
   test('professeur → illimité (rôle encadrant conservé)', async () => {
     const res = await main.request('POST', '/usage/can-start', { token: TOKENS.TEACHER_A, body: {} });
     expect(res.json).toMatchObject({ allow: true, reason: 'role_unlimited' });
+  });
+});
+
+describe('CTO-003 B(bis) — l\'identité élève repose sur user_student_mapping', () => {
+  afterEach(() => main.setFaults({}));
+
+  test('adresse reprenant le code d\'accès d\'un élève, sans mapping → aucune licence', async () => {
+    const usage = await main.request('POST', '/usage/can-start', { token: TOKENS.STUDENT_SPOOF, body: {} });
+    expect(usage.json.limit).toBe(2);
+    expect(usage.json.reason).not.toBe('student_licensed');
+
+    // …et aucune fiche élève d'autrui n'est révélée.
+    const me = await main.request('GET', '/me', { token: TOKENS.STUDENT_SPOOF });
+    expect(me.json.student).toBeNull();
+    expect(me.json.subscription).toBeNull();
+    expect(me.raw).not.toContain('Nils');
+  });
+
+  test('mapping actif vers une fiche licensed=false → non Pro', async () => {
+    const usage = await main.request('POST', '/usage/can-start', { token: TOKENS.STUDENT_MAPPED_UNLICENSED, body: {} });
+    expect(usage.json.limit).toBe(2);
+
+    const me = await main.request('GET', '/me', { token: TOKENS.STUDENT_MAPPED_UNLICENSED });
+    expect(me.json.student).toMatchObject({ id: 'stu-c1', licensed: false });
+    expect(me.json.subscription).toBeNull();
+  });
+
+  test('/me applique la même règle que /usage/can-start pour un élève licencié', async () => {
+    const me = await main.request('GET', '/me', { token: TOKENS.STUDENT_LICENSED });
+    expect(me.json.student).toMatchObject({ id: 'stu-a1', fullName: 'Zoé C.', licensed: true });
+    expect(me.json.subscription).toBe('active');
+  });
+
+  test('panne de lecture user_student_mapping → fail closed', async () => {
+    main.setFaults({ failReads: { user_student_mapping: 'read timeout' } });
+    const usage = await main.request('POST', '/usage/can-start', { token: TOKENS.STUDENT_LICENSED, body: {} });
+    expect(usage.json.limit).toBe(2);
+    expect(usage.json.reason).not.toBe('student_licensed');
+
+    const me = await main.request('GET', '/me', { token: TOKENS.STUDENT_LICENSED });
+    expect(me.json.student).toBeNull();
+    expect(me.json.subscription).toBeNull();
   });
 });
 
@@ -284,6 +387,6 @@ describe('CTO-003 E — /students respecte le périmètre serveur', () => {
   test('admin → liste globale', async () => {
     const res = await main.request('GET', '/students', { token: TOKENS.ADMIN });
     expect(res.status).toBe(200);
-    expect(res.json.map((s) => s.id).sort()).toEqual(['stu-a1', 'stu-b1']);
+    expect(res.json.map((s) => s.id).sort()).toEqual(['stu-a1', 'stu-b1', 'stu-c1']);
   });
 });

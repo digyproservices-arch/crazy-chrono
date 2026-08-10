@@ -9,6 +9,12 @@
 // JSON désigné par CC_TEST_SUPABASE_FIXTURE. Options supportées:
 //   - unique:     { table: 'colonne' }  → insert dupliqué renvoie { error: 23505 }
 //   - failWrites: { table: 'message' }  → écriture renvoyant une erreur
+//                 { table: { delete: 'message' } } → panne ciblée sur un verbe
+//   - failReads:  { table: 'message' }  → lecture renvoyant une erreur
+//
+// Les pannes peuvent aussi être basculées en cours de test via le fichier
+// CC_TEST_SUPABASE_CONTROL (relu à chaque requête), ce qui permet de rejouer un
+// webhook après rétablissement de la base.
 // =============================================
 
 const fs = require('fs');
@@ -18,7 +24,26 @@ const fixture = JSON.parse(fs.readFileSync(process.env.CC_TEST_SUPABASE_FIXTURE,
 const usersByToken = fixture.usersByToken || {};
 const tables = fixture.tables || {};
 const uniqueBy = fixture.unique || {};
-const failWrites = fixture.failWrites || {};
+const controlFile = process.env.CC_TEST_SUPABASE_CONTROL || '';
+
+function faults() {
+  const base = { failWrites: fixture.failWrites || {}, failReads: fixture.failReads || {} };
+  if (!controlFile) return base;
+  try {
+    const ctl = JSON.parse(fs.readFileSync(controlFile, 'utf8'));
+    return {
+      failWrites: { ...base.failWrites, ...(ctl.failWrites || {}) },
+      failReads: { ...base.failReads, ...(ctl.failReads || {}) },
+    };
+  } catch {
+    return base;
+  }
+}
+
+function readFault(table) {
+  const msg = faults().failReads[table];
+  return msg ? { data: null, error: { message: String(msg), code: 'XX000' }, count: null } : null;
+}
 
 function matches(row, filters) {
   return filters.every(({ col, op, value }) => {
@@ -56,8 +81,10 @@ function createQuery(table) {
 
   const applyWrite = () => {
     const list = tables[table] || (tables[table] = []);
-    if (failWrites[table]) {
-      return { data: null, error: { message: String(failWrites[table]), code: 'XX000' } };
+    const declared = faults().failWrites[table];
+    const failMsg = declared && typeof declared === 'object' ? declared[pendingWrite.kind] : declared;
+    if (failMsg) {
+      return { data: null, error: { message: String(failMsg), code: 'XX000' } };
     }
     if (pendingWrite.kind === 'delete') {
       tables[table] = list.filter((r) => !matches(r, filters));
@@ -88,6 +115,8 @@ function createQuery(table) {
 
   const result = () => {
     if (pendingWrite) return applyWrite();
+    const fault = readFault(table);
+    if (fault) return fault;
     const data = rows();
     return { data: headOnly ? null : data, error: null, count: wantCount ? data.length : null };
   };
@@ -107,11 +136,15 @@ function createQuery(table) {
     limit(n) { limitN = n; return q; },
     range() { return q; },
     single() {
+      const fault = readFault(table);
+      if (fault) return Promise.resolve(fault);
       const data = rows();
       if (data.length !== 1) return Promise.resolve({ data: null, error: { message: 'no rows' } });
       return Promise.resolve({ data: data[0], error: null });
     },
     maybeSingle() {
+      const fault = readFault(table);
+      if (fault) return Promise.resolve(fault);
       const data = rows();
       return Promise.resolve({ data: data[0] || null, error: null });
     },

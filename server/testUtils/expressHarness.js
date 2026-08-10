@@ -16,6 +16,9 @@ const HOST = '127.0.0.1';
 function startServer({ port, fixture, env = {} }) {
   const fixtureFile = path.join(os.tmpdir(), `cc-fixture-${port}-${Date.now()}.json`);
   fs.writeFileSync(fixtureFile, JSON.stringify(fixture), 'utf8');
+  // Pannes Supabase basculées en cours de test (rejeu après rétablissement).
+  const controlFile = path.join(os.tmpdir(), `cc-control-${port}-${Date.now()}.json`);
+  fs.writeFileSync(controlFile, JSON.stringify({ failWrites: {}, failReads: {} }), 'utf8');
   const preload = path.join(__dirname, 'supabaseStubPreload.js');
 
   return new Promise((resolve, reject) => {
@@ -26,6 +29,7 @@ function startServer({ port, fixture, env = {} }) {
         NODE_ENV: 'test',
         NODE_OPTIONS: `--require ${preload}`,
         CC_TEST_SUPABASE_FIXTURE: fixtureFile,
+        CC_TEST_SUPABASE_CONTROL: controlFile,
         SUPABASE_URL: 'http://supabase.invalid',
         SUPABASE_SERVICE_ROLE_KEY: 'stub-service-role-key',
         SUPABASE_ANON_KEY: 'stub-anon-key',
@@ -50,6 +54,11 @@ function startServer({ port, fixture, env = {} }) {
       stop() {
         try { child.kill('SIGKILL'); } catch {}
         try { fs.unlinkSync(fixtureFile); } catch {}
+        try { fs.unlinkSync(controlFile); } catch {}
+      },
+      /** Injecte/retire des pannes Supabase: { failWrites, failReads }. */
+      setFaults(control) {
+        fs.writeFileSync(controlFile, JSON.stringify(control || {}), 'utf8');
       },
       request(method, urlPath, opts) { return request(port, method, urlPath, opts); },
     };

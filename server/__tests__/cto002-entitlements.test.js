@@ -120,7 +120,7 @@ describe('CTO-002 — resolveEntitlement (fail closed)', () => {
       .resolves.toMatchObject({ isPro: true, source: 'role:teacher' });
   });
 
-  test('adresse @eleve… rapprochée d\'une fiche licenciée → Pro', async () => {
+  test('adresse @eleve… reprenant un code d\'accès, sans mapping → non Pro (revue CTO)', async () => {
     const sb = fakeSupabase({
       ...noSub,
       user_profiles: { rows: [{ role: 'student', email: 'leob@eleve.crazychrono.app' }] },
@@ -128,7 +128,7 @@ describe('CTO-002 — resolveEntitlement (fail closed)', () => {
       students: { rows: [{ id: 'std_1', access_code: 'LEO-B', licensed: true }] },
     });
     await expect(resolveEntitlement({ supabase: sb, userId: UID }))
-      .resolves.toMatchObject({ isPro: true, source: 'student_license' });
+      .resolves.toMatchObject({ isPro: false, reason: 'no_entitlement', role: 'student' });
   });
 
   test('rôle student seul, sans fiche élève → non Pro (revue CTO)', async () => {

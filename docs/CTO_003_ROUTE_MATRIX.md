@@ -68,7 +68,7 @@ vérifié; aucun `studentId`, `classId`, `teacherId`, `schoolId` ou
 | `admin` | global | `user_profiles.role` |
 | `teacher` | uniquement les classes dont il est l'enseignant, et leurs élèves | `classes.teacher_email` = email du JWT |
 | `cpc`, `cpd`, `rectorat` | uniquement leur circonscription | `user_profiles.circonscription_id` = `schools.circonscription_id` / `students.circonscription_id` |
-| compte élève | uniquement sa propre fiche | `user_student_mapping(user_id, student_id, active)` ou email `@eleve.crazychrono.app` rapproché de `students.access_code` |
+| compte élève | uniquement sa propre fiche | `user_student_mapping(user_id, student_id, active)` **exclusivement** |
 | utilisateur standard | aucune donnée scolaire | — |
 
 Toute incertitude refuse (base injoignable, erreur de requête, profil absent,
@@ -91,6 +91,43 @@ Routes désormais autorisées (`requireClassAccess` / `requireStudentAccess`):
   `classes.teacher_user_id` serait la relation robuste.
 - `tournament_groups.student_ids` est un JSON sans contrainte référentielle: les
   routes de groupes sont autorisées par la classe (`class_id`), pas élève par élève.
+
+### `LEGACY_STUDENT_MAPPING_REQUIRED`
+
+Revue CTO finale: l'identité élève ne se déduit plus que d'un lien serveur.
+Chaîne d'autorité unique, utilisée par `resolveEntitlement()`, `/usage/can-start`
+et `GET /me` via `schoolScope.resolveLinkedStudent()`:
+
+```
+JWT Supabase vérifié → req.authUser.id → user_student_mapping (active)
+  → students.id → students.licensed
+```
+
+**Flux qui crée ces comptes.** `POST /api/auth/student-login` cherche l'élève par
+`access_code`, refuse s'il n'est pas `licensed`, fabrique l'adresse
+`<access_code normalisé>@eleve.crazychrono.app`, crée le compte Supabase Auth, le
+profil `role='student'`, puis insère `user_student_mapping`. Le mapping est donc
+créé par le serveur pour tout compte issu de ce flux.
+
+**Ce qui manque.** Les comptes élèves antérieurs à ce flux (ou importés
+directement dans `auth.users`) peuvent n'avoir aucune ligne
+`user_student_mapping`. Ils étaient jusqu'ici rattachés en rapprochant le préfixe
+de leur adresse de `students.access_code`. Ce rapprochement n'est pas une preuve:
+quiconque obtient une adresse de cette forme hérite de la fiche et de la licence
+de l'élève correspondant. Il est supprimé.
+
+**Conséquence dans CTO-003.** Fail closed: ces comptes n'obtiennent ni licence ni
+fiche élève, jusqu'à leur rattachement explicite. Aucun mapping n'est créé
+automatiquement, aucune donnée de production n'est modifiée, aucune migration
+n'est embarquée dans cette PR.
+
+**Backfill sûr, ultérieur.** Il doit être administratif et serveur, sans jamais
+utiliser une donnée fournie par le navigateur comme preuve d'identité:
+rapprochement hors ligne `auth.users.id` → `students.id` validé par
+l'établissement, appliqué via la fonction existante
+`link_user_to_student(p_user_email, p_student_id, p_admin_email)`
+(<code>server/db/schema_user_mapping.sql</code>), journalisé (`linked_by`), avec
+une revue des collisions (`UNIQUE(student_id)`) avant exécution.
 
 ## 5. IDOR restants, hors périmètre
 

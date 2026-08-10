@@ -383,61 +383,19 @@ app.post('/usage/can-start', requireAuth, async (req, res) => {
       });
     }
 
-    // Rôles encadrants: accès illimité. CTO-003 (revue): 'student' n'en fait
-    // plus partie, un rôle déclaratif ne vaut pas licence — l'illimité passe
-    // désormais uniquement par la vérification de licence ci-dessous.
-    try {
-      const { data: profile } = await supabaseAdmin
-        .from('user_profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-      if (profile && entitlements.MANAGER_ROLES.includes(profile.role)) {
-        return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason: 'role_unlimited' });
-      }
-    } catch {}
-
-    // If user is a licensed student, allow unlimited
-    // Strategy: check user's email — if it matches @eleve.crazychrono.app, look up student by access code
-    try {
-      const { data: profile2 } = await supabaseAdmin
-        .from('user_profiles')
-        .select('email')
-        .eq('id', userId)
-        .single();
-      const email = profile2?.email || '';
-      if (email.endsWith('@eleve.crazychrono.app')) {
-        // Email format: {code_lowercase_alphanumeric}@eleve.crazychrono.app
-        // Access code format: ALICE-CE1A-1234 → email: alicece1a1234@eleve.crazychrono.app
-        // We need to find the student by matching — query all students in one go and match
-        const emailPrefix = email.replace('@eleve.crazychrono.app', '');
-        const { data: allStudents } = await supabaseAdmin
-          .from('students')
-          .select('id, access_code, licensed')
-          .eq('licensed', true);
-        const matched = (allStudents || []).find(s => {
-          if (!s.access_code) return false;
-          const normalized = s.access_code.toLowerCase().replace(/[^a-z0-9]/g, '');
-          return normalized === emailPrefix;
-        });
-        if (matched) {
-          return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason: 'student_licensed' });
-        }
-      }
-    } catch {}
-
-    // If user has active subscription, allow
-    try {
-      const { data: subs, error: subErr } = await supabaseAdmin
-        .from('subscriptions')
-        .select('status')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      if (!subErr && Array.isArray(subs) && subs[0] && ['active', 'trialing'].includes(String(subs[0].status))) {
-        return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason: 'pro_active' });
-      }
-    } catch {}
+    // CTO-003 (revue finale): une seule primitive serveur décide du droit
+    // (abonnement actif, rôle encadrant, ou fiche élève licenciée rattachée par
+    // `user_student_mapping`). Le quota ne reproduit plus sa propre logique
+    // email/access_code, qui laissait un compte choisir son adresse pour
+    // hériter d'une licence.
+    const ent = await entitlements.resolveEntitlement({ supabase: supabaseAdmin, userId });
+    if (ent.role && entitlements.MANAGER_ROLES.includes(ent.role)) {
+      return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason: 'role_unlimited' });
+    }
+    if (ent.isPro) {
+      const reason = ent.source === 'student_license' ? 'student_licensed' : 'pro_active';
+      return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason });
+    }
 
     // Count sessions today for this user
     const now = new Date();
@@ -508,21 +466,20 @@ app.get('/me', requireAuth, async (req, res) => {
       if (['admin', 'teacher'].includes(role) && !['active','trialing'].includes(String(subscription || '').toLowerCase())) {
         subscription = 'active';
       }
-      // Licensed students get active subscription status (via email pattern match)
-      if (user.email?.endsWith('@eleve.crazychrono.app')) {
-        const emailPrefix = user.email.replace('@eleve.crazychrono.app', '');
-        const { data: allStu } = await supabaseAdmin
-          .from('students')
-          .select('id, access_code, licensed, full_name, avatar_url')
-          .eq('licensed', true);
-        const matched = (allStu || []).find(s => {
-          if (!s.access_code) return false;
-          return s.access_code.toLowerCase().replace(/[^a-z0-9]/g, '') === emailPrefix;
-        });
-        if (matched) {
-          subscription = 'active';
-          student = { id: matched.id, fullName: matched.full_name, avatarUrl: matched.avatar_url };
-        }
+      // CTO-003 (revue finale): la fiche élève renvoyée provient du seul
+      // rattachement serveur `user_student_mapping`. Le rapprochement
+      // email ↔ access_code permettait à un compte de réclamer la fiche d'un
+      // autre élève en choisissant son adresse.
+      const linked = await schoolScope.resolveLinkedStudent({ supabase: supabaseAdmin, userId: user.id });
+      if (linked.ok && linked.student) {
+        student = {
+          id: linked.student.id,
+          fullName: linked.student.full_name
+            || [linked.student.first_name, linked.student.last_name].filter(Boolean).join(' ').trim(),
+          avatarUrl: linked.student.avatar_url || null,
+          licensed: !!linked.student.licensed,
+        };
+        if (linked.student.licensed) subscription = 'active';
       }
     } catch {}
 
@@ -563,6 +520,9 @@ app.post('/webhooks/revenuecat', async (req, res) => {
     const eventId = String(payload.id || req.body?.id || '').trim();
     const userId = payload.app_user_id || req.body?.app_user_id || req.body?.subscriber?.app_user_id;
     if (!userId) return res.status(400).json({ ok: false, error: 'missing_app_user_id' });
+    // Sans identifiant d'événement, l'idempotence est impossible: on refuse
+    // plutôt que de risquer une double activation ou un rejeu perdu.
+    if (!eventId) return res.status(400).json({ ok: false, error: 'missing_event_id' });
 
     // 3) CTO-003 (revue): Supabase renvoie ses erreurs dans { error } sans
     // lever d'exception; l'idempotence doit lire ce champ. Sans base, aucun
@@ -571,24 +531,29 @@ app.post('/webhooks/revenuecat', async (req, res) => {
       logger.error('[RevenueCat] Supabase indisponible — événement non persisté, rejeu attendu', { type, env });
       return res.status(503).json({ ok: false, error: 'storage_unavailable', retryable: true });
     }
-    if (eventId) {
-      let insErr = null;
-      try {
-        const { error } = await supabaseAdmin.from('webhook_events').insert({ event_id: eventId });
-        insErr = error || null;
-      } catch (e) {
-        insErr = e;
-      }
-      if (insErr) {
-        const code = String(insErr.code || '');
-        const msg = String(insErr.message || '').toLowerCase();
-        if (code === '23505' || msg.includes('duplicate') || msg.includes('unique')) {
-          return res.json({ ok: true, duplicate: true });
-        }
-        logger.error('[RevenueCat] réservation d\'idempotence impossible', { code, type });
+    // Revue CTO finale: la marque d'idempotence est écrite APRÈS l'effet métier,
+    // jamais avant. Une réservation posée en amont devenait un faux « déjà
+    // traité » dès que son nettoyage échouait, et le droit n'était jamais
+    // persisté. `webhook_events` ne porte donc qu'un seul état: présent =
+    // abonnement réellement écrit. L'upsert étant idempotent sur user_id, un
+    // retraitement est sans danger, contrairement à un acquittement à tort.
+    let already = false;
+    try {
+      const { data: seen, error: seenErr } = await supabaseAdmin
+        .from('webhook_events')
+        .select('event_id')
+        .eq('event_id', eventId)
+        .maybeSingle();
+      if (seenErr) {
+        logger.error('[RevenueCat] lecture d\'idempotence impossible', { code: String(seenErr.code || ''), type });
         return res.status(500).json({ ok: false, error: 'idempotency_store_error', retryable: true });
       }
+      already = !!seen;
+    } catch (e) {
+      logger.error('[RevenueCat] lecture d\'idempotence impossible', { type });
+      return res.status(500).json({ ok: false, error: 'idempotency_store_error', retryable: true });
     }
+    if (already) return res.json({ ok: true, duplicate: true });
 
     // 4) Champs utiles pour subscriptions
     const entitlement = payload.entitlement_id || (Array.isArray(payload.entitlement_ids) ? payload.entitlement_ids[0] : null) || 'pro';
@@ -617,8 +582,7 @@ app.post('/webhooks/revenuecat', async (req, res) => {
       current_period_end,
       updated_at: new Date().toISOString(),
     };
-    // CTO-003 (revue): un droit non persisté ne doit jamais être acquitté en
-    // 200. On libère la réservation d'idempotence pour que le rejeu aboutisse.
+    // CTO-003 (revue): un droit non persisté ne doit jamais être acquitté en 200.
     let upsertErr = null;
     try {
       const { error } = await supabaseAdmin
@@ -630,10 +594,27 @@ app.post('/webhooks/revenuecat', async (req, res) => {
     }
     if (upsertErr) {
       logger.error('[RevenueCat] écriture abonnement échouée', { type, status, message: upsertErr.message });
-      if (eventId) {
-        try { await supabaseAdmin.from('webhook_events').delete().eq('event_id', eventId); } catch {}
-      }
       return res.status(500).json({ ok: false, error: 'subscription_write_failed', retryable: true });
+    }
+
+    // Effet métier acquis: on marque l'événement terminé. Si cette marque
+    // échoue, on demande un rejeu — il rejouera un upsert identique (sans
+    // double effet) puis remarquera l'événement.
+    let markErr = null;
+    try {
+      const { error } = await supabaseAdmin.from('webhook_events').insert({ event_id: eventId });
+      markErr = error || null;
+    } catch (e) {
+      markErr = e;
+    }
+    if (markErr) {
+      const code = String(markErr.code || '');
+      const msg = String(markErr.message || '').toLowerCase();
+      const isDuplicate = code === '23505' || msg.includes('duplicate') || msg.includes('unique');
+      if (!isDuplicate) {
+        logger.error('[RevenueCat] marquage d\'idempotence impossible', { code, type });
+        return res.status(500).json({ ok: false, error: 'idempotency_store_error', retryable: true });
+      }
     }
 
     console.log('[RevenueCat] webhook synced:', { type, env, userId, status, entitlement, productId });

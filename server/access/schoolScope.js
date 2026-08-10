@@ -12,6 +12,13 @@
 //   - schools.circonscription_id   → rattachement école ↔ circonscription
 //   - user_student_mapping(user_id, student_id, active) → compte ↔ élève
 //
+// Revue CTO finale : `user_student_mapping` est l'UNIQUE preuve de propriété
+// d'une fiche élève. Le rôle `student`, l'adresse @eleve… et le rapprochement
+// de son préfixe avec `students.access_code` ne prouvent rien : ils décrivent
+// une convention de nommage, pas un lien vérifié. Voir LEGACY_STUDENT_MAPPING_REQUIRED
+// dans docs/CTO_003_ROUTE_MATRIX.md pour les comptes historiques sans ligne de
+// mapping (fail closed, backfill administratif hors CTO-003).
+//
 // Relation manquante documentée : aucune table ne relie une circonscription à
 // une région académique. Le périmètre « région » d'un CPD/rectorat n'est donc
 // pas prouvable ; ces rôles sont ramenés à leur circonscription lorsqu'elle est
@@ -85,9 +92,8 @@ async function resolveSchoolScope({ supabase, userId, email }) {
     }
   }
 
-  // Compte élève : uniquement sa propre fiche, prouvée par le mapping ou par
-  // l'adresse @eleve… rapprochée du code d'accès.
-  const studentIds = await resolveOwnStudentIds({ supabase, userId, email: userEmail });
+  // Compte élève : uniquement sa propre fiche, prouvée par un mapping actif.
+  const studentIds = await resolveOwnStudentIds({ supabase, userId });
   if (studentIds === null) return noScope('verification_error');
   if (studentIds.length) {
     return { scope: SCOPE_SELF, reason: 'student_self', role, circonscriptionId: null, classIds: [], studentIds };
@@ -96,9 +102,15 @@ async function resolveSchoolScope({ supabase, userId, email }) {
   return noScope('no_school_scope');
 }
 
-/** @returns {Promise<string[]|null>} null = erreur de vérification (fail closed) */
-async function resolveOwnStudentIds({ supabase, userId, email }) {
-  const ids = new Set();
+/**
+ * Fiches élèves possédées par le porteur du JWT. Seul `user_student_mapping`
+ * actif fait foi (revue CTO). L'email et le code d'accès ne sont jamais une
+ * preuve : un compte ne peut pas s'attribuer une fiche en choisissant son
+ * adresse.
+ * @returns {Promise<string[]|null>} null = erreur de vérification (fail closed)
+ */
+async function resolveOwnStudentIds({ supabase, userId }) {
+  if (!supabase || !isTrustedUserId(userId)) return null;
   try {
     const { data, error } = await supabase
       .from('user_student_mapping')
@@ -106,30 +118,43 @@ async function resolveOwnStudentIds({ supabase, userId, email }) {
       .eq('user_id', userId)
       .eq('active', true);
     if (error) return null;
+    const ids = new Set();
     (data || []).forEach((m) => { if (m?.student_id) ids.add(String(m.student_id)); });
+    return [...ids];
   } catch {
     return null;
   }
+}
 
-  if (!ids.size && typeof email === 'string' && email.endsWith(STUDENT_EMAIL_DOMAIN)) {
-    const prefix = email.slice(0, -STUDENT_EMAIL_DOMAIN.length).replace(/[^a-z0-9]/g, '');
-    if (!prefix) return [...ids];
+/**
+ * Primitive unique de rattachement compte → fiche élève, utilisée par
+ * `resolveEntitlement()`, `/me` et `/usage/can-start` pour qu'une seule règle
+ * existe côté serveur.
+ * @returns {Promise<{ok:boolean, student:object|null, reason:string}>}
+ *          ok=false → erreur de vérification, l'appelant doit fermer l'accès.
+ */
+async function resolveLinkedStudent({ supabase, userId }) {
+  const ids = await resolveOwnStudentIds({ supabase, userId });
+  if (ids === null) return { ok: false, student: null, reason: 'verification_error' };
+  if (!ids.length) return { ok: true, student: null, reason: 'no_student_mapping' };
+
+  for (const studentId of ids) {
+    let row = null;
     try {
       const { data, error } = await supabase
         .from('students')
-        .select('id, access_code')
-        .eq('licensed', true);
-      if (error) return null;
-      (data || []).forEach((s) => {
-        const norm = String(s?.access_code || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (norm && norm === prefix) ids.add(String(s.id));
-      });
+        .select('id, full_name, first_name, last_name, avatar_url, licensed, class_id, school_id')
+        .eq('id', studentId)
+        .maybeSingle();
+      if (error) return { ok: false, student: null, reason: 'verification_error' };
+      row = data || null;
     } catch {
-      return null;
+      return { ok: false, student: null, reason: 'verification_error' };
     }
+    if (row?.licensed) return { ok: true, student: row, reason: 'student_licensed' };
+    if (row && !row.licensed) return { ok: true, student: row, reason: 'student_not_licensed' };
   }
-
-  return [...ids];
+  return { ok: true, student: null, reason: 'student_record_missing' };
 }
 
 /** Accès en lecture à une classe. */
@@ -233,6 +258,7 @@ async function canAccessStudent({ supabase, scope, studentId }) {
 module.exports = {
   resolveSchoolScope,
   resolveOwnStudentIds,
+  resolveLinkedStudent,
   canAccessClass,
   canAccessStudent,
   isTrustedUserId,
