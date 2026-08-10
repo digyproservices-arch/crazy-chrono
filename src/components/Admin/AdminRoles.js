@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import supabase from '../../utils/supabaseClient';
 import { getBackendUrl } from '../../utils/subscription';
+import { getAuthHeaders } from '../../utils/apiHelpers';
 
 export default function AdminRoles() {
   const [email, setEmail] = useState('');
@@ -22,23 +22,22 @@ export default function AdminRoles() {
     const em = String(email || '').trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { setErr('Email invalide'); return; }
     if (!['admin','editor','user','teacher','cpd','cpc'].includes(role)) { setErr('Rôle invalide'); return; }
-    if (!supabase) { setErr('Supabase non configuré'); return; }
     try {
       setLoading(true);
-      
-      // Mise à jour directe dans Supabase
-      const { data: updated, error } = await supabase
-        .from('user_profiles')
-        .update({ role })
-        .eq('email', em)
-        .select();
-      
-      if (error) throw error;
-      if (!updated || updated.length === 0) {
-        setErr('Utilisateur non trouvé');
+
+      // CTO-005A : `user_profiles.role` n'est plus modifiable par le client
+      // (RLS + trigger). L'administration des rôles passe par le service role.
+      const res = await fetch(`${getBackendUrl()}/api/admin/set-role`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ email: em, role })
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setErr(data.error === 'user_not_found' ? 'Utilisateur non trouvé' : (data.error || 'Echec de mise à jour'));
         return;
       }
-      
+
       setMsg(`Rôle mis à jour: ${em} → ${role}`);
       setEmail('');
     } catch (e1) {

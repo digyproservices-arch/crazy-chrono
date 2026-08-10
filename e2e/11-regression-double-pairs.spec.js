@@ -14,6 +14,11 @@ const { TEST_ACCOUNTS, BACKEND_URL, loginWithEmail, loginWithStudentCode } = req
  * 3. Signale toute anomalie au monitoring
  */
 
+// CTO-005A : la clé anon n'est plus commitée ; elle vient de l'environnement.
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY || '';
+
+
 const CONFIGS_TO_TEST = [
   { name: 'CE1-all', classes: ['CE1'], themes: [] },
   { name: 'CE2-math', classes: ['CE2'], themes: ['domain:math'] },
@@ -148,9 +153,9 @@ test.describe('Régression Double Paires — Détection automatique', () => {
       // Login
       let studentCode = null;
       try {
-        const loginRes = await request.post('https://dfrwoabuftlbrhqxnrbl.supabase.co/auth/v1/token?grant_type=password', {
+        const loginRes = await request.post(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
           data: { email: TEST_ACCOUNTS.admin.email, password: TEST_ACCOUNTS.admin.password },
-          headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmcndvYWJ1ZnRsYnJocXhucmJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY0MjExMjUsImV4cCI6MjA0MTk5NzEyNX0.o_WhCaOQ0fft-JI5cUwlOxonaVCmBYW2PfEb3KNkJMQ' },
+          headers: { 'apikey': SUPABASE_ANON_KEY },
         });
         if (loginRes.ok()) {
           const auth = await loginRes.json();

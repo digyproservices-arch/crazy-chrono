@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import supabase from '../../utils/supabaseClient';
 import { getAuthHeaders, getBackendUrl } from '../../utils/apiHelpers';
 
 export default function AdminInvite() {
@@ -33,13 +32,10 @@ export default function AdminInvite() {
 
   const loadInvitations = async () => {
     try {
-      // Try backend first, fallback to direct Supabase
-      const { data } = await supabase
-        .from('invitations')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(20);
-      setInvitations(data || []);
+      // CTO-005A : plus de lecture Supabase directe (table fermée par la RLS).
+      const res = await fetch(`${getBackendUrl()}/api/admin/invitations`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      setInvitations(data.ok ? (data.invitations || []) : []);
     } catch (e) {
       console.error('Erreur chargement invitations:', e);
     }

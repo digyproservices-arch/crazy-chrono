@@ -905,6 +905,123 @@ app.post('/api/admin/send-invite', requireAdminAuth, express.json(), async (req,
 });
 
 // ==========================================
+// CTO-005A — Validation d'invitation sans lecture client de la table
+// Le navigateur ne doit plus interroger `invitations` : la RLS ferme
+// désormais cette table à anon, et une lecture directe permettait
+// d'énumérer les tokens. Réponse minimale, jeton uniquement.
+// ==========================================
+const inviteValidateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'too_many_requests' }
+});
+
+app.post('/api/invitations/validate', inviteValidateLimiter, express.json(), async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
+
+    const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+    if (!token || token.length > 128) return res.status(400).json({ ok: false, error: 'token_required' });
+
+    const { data: inv, error } = await supabaseAdmin
+      .from('invitations')
+      .select('email, role, region, circonscription_id, expires_at, used')
+      .eq('token', token)
+      .eq('used', false)
+      .maybeSingle();
+
+    // Fail closed : une panne de lecture ne doit jamais valider une invitation.
+    if (error) {
+      logger.error('[Invite] validate read error:', error.message);
+      return res.status(503).json({ ok: false, error: 'verification_error' });
+    }
+    if (!inv || (inv.expires_at && new Date(inv.expires_at) < new Date())) {
+      return res.status(404).json({ ok: false, error: 'invalid_invitation' });
+    }
+
+    res.json({
+      ok: true,
+      invitation: {
+        email: inv.email,
+        role: inv.role,
+        region: inv.region || null,
+        circonscription_id: inv.circonscription_id || null
+      }
+    });
+  } catch (err) {
+    logger.error('[Invite] validate error:', err.message);
+    res.status(500).json({ ok: false, error: 'internal_error' });
+  }
+});
+
+// Liste des invitations : réservée à l'admin authentifié côté serveur.
+app.get('/api/admin/invitations', requireAdminAuth, async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
+    const { data, error } = await supabaseAdmin
+      .from('invitations')
+      .select('email, role, region, circonscription_id, used, created_at, expires_at')
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (error) return res.status(500).json({ ok: false, error: error.message });
+    // Projection explicite : les tokens ne quittent jamais le serveur.
+    const invitations = (data || []).map((i) => ({
+      email: i.email,
+      role: i.role,
+      region: i.region || null,
+      circonscription_id: i.circonscription_id || null,
+      used: !!i.used,
+      created_at: i.created_at,
+      expires_at: i.expires_at
+    }));
+    res.json({ ok: true, invitations });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'internal_error' });
+  }
+});
+
+// ==========================================
+// CTO-005A — Administration des rôles côté serveur uniquement
+// `user_profiles.role` n'est plus modifiable par le client (RLS + trigger).
+// ==========================================
+const ASSIGNABLE_ROLES = ['admin', 'editor', 'user', 'teacher', 'cpd', 'cpc', 'rectorat'];
+
+app.post('/api/admin/set-role', requireAdminAuth, express.json(), async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
+
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const role = typeof req.body?.role === 'string' ? req.body.role.trim() : '';
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ ok: false, error: 'invalid_email' });
+    }
+    if (!ASSIGNABLE_ROLES.includes(role)) {
+      return res.status(400).json({ ok: false, error: 'invalid_role' });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('user_profiles')
+      .update({ role })
+      .eq('email', email)
+      .select('id');
+
+    if (error) {
+      logger.error('[AdminRoles] update error:', error.message);
+      return res.status(500).json({ ok: false, error: 'update_failed' });
+    }
+    if (!data || data.length === 0) return res.status(404).json({ ok: false, error: 'user_not_found' });
+
+    logger.info('[AdminRoles] role updated', { target: email, role, by: req.adminUser?.email });
+    res.json({ ok: true, email, role });
+  } catch (err) {
+    logger.error('[AdminRoles] error:', err.message);
+    res.status(500).json({ ok: false, error: 'internal_error' });
+  }
+});
+
+// ==========================================
 // ADMIN DASHBOARD STATS — Données réelles
 // ==========================================
 app.get('/api/admin/dashboard-stats', requireAdminAuth, async (req, res) => {

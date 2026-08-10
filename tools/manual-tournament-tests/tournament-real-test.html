@@ -155,8 +155,10 @@
 // ═══════════════════════════════════════
 // CONFIG & STATE
 // ═══════════════════════════════════════
-const SUPABASE_URL = 'https://vimtycpjofejtgwejfht.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpbXR5Y3Bqb2ZlanRnd2VqZmh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgxNTQ5OTAsImV4cCI6MjA3MzczMDk5MH0.JQ4Ciy5SPYQ79JrWDA9UwMdln0PtvNnLzYx6QJAcJ5Q';
+const SUPABASE_URL = localStorage.getItem('supabaseUrl') || '';
+// CTO-005A : clé non commitée — à fournir localement :
+//   localStorage.setItem('supabaseAnonKey', '<clé anon>')
+const SUPABASE_KEY = localStorage.getItem('supabaseAnonKey') || '';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const SPEED_RANGES = { slow: [4000, 7000], normal: [1500, 3500], fast: [400, 1200] };

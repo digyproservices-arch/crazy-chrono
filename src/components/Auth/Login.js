@@ -100,14 +100,21 @@ export default function Login({ onLogin }) {
         // Vérifier invitation (URL ou localStorage)
         const token = searchParams.get('invite') || localStorage.getItem('cc_pending_invite');
         if (token) {
-          const { data: inv } = await supabase
-            .from('invitations')
-            .select('*')
-            .eq('token', token)
-            .eq('used', false)
-            .single();
-          
-          if (inv && new Date(inv.expires_at) > new Date()) {
+          // CTO-005A : plus de lecture directe de `invitations` (énumération de
+          // tokens possible avec la clé anon). Le serveur valide et ne renvoie
+          // que le strict nécessaire.
+          let inv = null;
+          try {
+            const res = await fetch(`${BACKEND_URL}/api/invitations/validate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token })
+            });
+            const payload = await res.json();
+            if (res.ok && payload?.ok) inv = payload.invitation;
+          } catch {}
+
+          if (inv) {
             // Persister le token pour le retrouver après confirmation email
             try { localStorage.setItem('cc_pending_invite', token); } catch {}
             setInviteToken(token);
