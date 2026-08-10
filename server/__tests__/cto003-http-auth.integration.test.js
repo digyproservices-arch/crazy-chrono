@@ -49,7 +49,11 @@ const FIXTURE = {
       { user_id: USER_B.id, status: 'active', current_period_end: '2099-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z' },
     ],
     sessions: [],
-    students: [],
+    schools: [{ id: 'sch-1', circonscription_id: 'c-42' }],
+    classes: [{ id: 'cls-1', school_id: 'sch-1', teacher_email: TEACHER.email }],
+    students: [
+      { id: 'stu-1', class_id: 'cls-1', school_id: 'sch-1', circonscription_id: 'c-42', first_name: 'Alice', last_name: 'B', full_name: 'Alice B.', licensed: true, access_code: 'ALICE-CE1A-1234' },
+    ],
     user_student_mapping: [],
   },
 };
@@ -74,6 +78,7 @@ function startServer() {
         SUPABASE_ANON_KEY: 'stub-anon-key',
         STRIPE_SECRET_KEY: '',
         STRIPE_WEBHOOK_SECRET: '',
+        REVENUECAT_WEBHOOK_SECRET: '',
         CC_DEV_ALLOW_UNVERIFIED_MP: '',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -231,10 +236,11 @@ describe('CTO-003 D — /students: liste nominative non publique', () => {
     expect(res.status).toBe(403);
   });
 
-  test('professeur → autorisé', async () => {
+  test('professeur → ses élèves uniquement, sans code d\'accès', async () => {
     const res = await request('GET', '/students', { token: TOKENS.TEACHER });
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.json)).toBe(true);
+    expect(res.json).toEqual([{ id: 'stu-1', name: 'Alice B.', licensed: true }]);
+    expect(res.raw).not.toContain('ALICE-CE1A-1234');
   });
 });
 

@@ -11,7 +11,7 @@ ou qui exposent des données personnelles. État « après » = branche
 | GET | `/me` | lecture identité, rôle, région, abonnement, fiche élève | aucune (`?email=` suffisait) | JWT | `requireAuth`, identité = `req.authUser.id`, `?email=` supprimé |
 | GET | `/me/subscription` | lecture abonnement | JWT + `user_id`/`x-user-id` client faisant autorité | JWT | `requireAuth`, identité = `req.authUser.id`, paramètres client ignorés (journalisés) |
 | POST | `/usage/can-start` | décision de quota / accès illimité | JWT + `body.user_id` faisant autorité | JWT | `requireAuth`, quota = `req.authUser.id`, `body.user_id` ignoré (journalisé) |
-| GET | `/students` | liste nominative d'élèves (nom, licence) | aucune | rôle encadrant | `requireAuth` + `requireManagerRole` (admin/teacher/cpd/cpc/rectorat), liste de démonstration supprimée |
+| GET | `/students` | liste nominative d'élèves (nom, licence) | aucune | périmètre scolaire serveur | `requireAuth` + `resolveSchoolScope`: professeur → ses classes, CPC/CPD → sa circonscription, admin → global ; champs réduits à `{id,name,licensed}` (jamais `access_code`), liste de démonstration supprimée |
 | DELETE | `/delete-image` | supprime un fichier de `public/` + réécrit `public/data/elements.json` | aucune | admin | `requireAdminAuth` |
 | POST | `/purge-elements` | réécrit `public/data/elements.json` | aucune | admin | `requireAdminAuth` |
 | POST | `/api/logs` | écrit un fichier dans `server/logs/` | aucune (nom de fichier composé avec `source` non assaini → traversal) | publique, mais nom de fichier maîtrisé | publique + `source` réduit à `[A-Za-z0-9_-]{,40}` |
@@ -35,8 +35,13 @@ Auth vérifiée dans le handler (pas de middleware visible, comportement équiva
 `/api/rgpd/{export-data,delete-account}`, `/api/session/*`,
 `/api/gs/tournaments` CRUD (`requireAdmin` local), `/api/rectorat/*`.
 
-Secret partagé: `POST /webhooks/revenuecat` (`REVENUECAT_WEBHOOK_SECRET`).
 Signature Stripe: `POST /webhooks/stripe` (CTO-002).
+
+`POST /webhooks/revenuecat` (revue CTO): secret obligatoire et comparé à durée
+constante. Secret absent → `503`, `Authorization` absente ou fausse → `401`,
+Supabase indisponible → `503 retryable` (plus de `200 skipped`), réservation
+d'idempotence lue dans `{ error }` (`23505` → `duplicate:true`), échec d'écriture
+de `subscriptions` → `500 retryable` avec libération de la réservation.
 
 ## 3. Routes publiques assumées (lecture ou télémétrie)
 
@@ -52,18 +57,45 @@ champ n'accorde aucun droit: il n'est utilisé que comme étiquette d'observabil
 Il reste falsifiable (pollution du journal, faux « joueur en ligne ») → suivi
 CTO-004, sans impact sur l'autorisation.
 
-## 4. IDOR découverts et NON corrigés (hors périmètre CTO-003)
+## 4. Autorisation élèves / classes (revue CTO)
+
+Module `server/access/schoolScope.js`. Le périmètre est déduit du seul JWT
+vérifié; aucun `studentId`, `classId`, `teacherId`, `schoolId` ou
+`circonscription` envoyé par le client ne vaut preuve d'autorité.
+
+| Rôle serveur | Périmètre accordé | Relation prouvée côté serveur |
+|---|---|---|
+| `admin` | global | `user_profiles.role` |
+| `teacher` | uniquement les classes dont il est l'enseignant, et leurs élèves | `classes.teacher_email` = email du JWT |
+| `cpc`, `cpd`, `rectorat` | uniquement leur circonscription | `user_profiles.circonscription_id` = `schools.circonscription_id` / `students.circonscription_id` |
+| compte élève | uniquement sa propre fiche | `user_student_mapping(user_id, student_id, active)` ou email `@eleve.crazychrono.app` rapproché de `students.access_code` |
+| utilisateur standard | aucune donnée scolaire | — |
+
+Toute incertitude refuse (base injoignable, erreur de requête, profil absent,
+professeur sans classe, rattachement introuvable) → `403`.
+
+Routes désormais autorisées (`requireClassAccess` / `requireStudentAccess`):
+`GET /api/tournament/classes/:classId/{students,groups,students-performance,setup-data,tour-status,competition-results}`,
+`POST /api/tournament/classes/:classId/next-tour`,
+`GET /api/tournament/students/{:id,:studentId/info,:studentId/performance,:studentId/invitations,:studentId/training-invitations}`.
+
+### Relations de données manquantes (documentées, fail closed)
+
+- Aucune table ne relie une circonscription à une **région académique**: le
+  périmètre « région » d'un CPD/rectorat n'est pas prouvable. Ces rôles sont donc
+  ramenés à leur `circonscription_id`; sans circonscription renseignée, l'accès
+  aux routes élèves/classes est refusé (`institutional_scope_unprovable`).
+- Le rattachement professeur ↔ classe repose sur `classes.teacher_email`
+  (chaîne), et non sur une clé étrangère vers `auth.users`. Un changement
+  d'adresse professionnelle fait perdre le périmètre: une colonne
+  `classes.teacher_user_id` serait la relation robuste.
+- `tournament_groups.student_ids` est un JSON sans contrainte référentielle: les
+  routes de groupes sont autorisées par la classe (`class_id`), pas élève par élève.
+
+## 5. IDOR restants, hors périmètre
 
 | Route | Problème | Gravité proposée |
 |---|---|---|
-| `GET /api/tournament/students/:studentId/performance` | tout utilisateur authentifié peut lire l'historique complet d'un élève quelconque | P1 |
-| `GET /api/tournament/students/:studentId/info` | idem (nom complet, avatar) | P1 |
-| `GET /api/tournament/classes/:classId/{students,groups,students-performance,setup-data,tour-status,competition-results}` | tout utilisateur authentifié peut lire les données d'une classe quelconque | P1 |
-| `GET /api/tournament/students/:studentId/{invitations,training-invitations}` | idem | P2 |
 | `GET /api/antifraud/audit-log?user_id=` | filtre de ressource, réservé admin/rectorat/teacher: un professeur peut lire le journal de n'importe quel utilisateur | P2 |
 | `GET /api/session/device/list?user_id=` | ciblage d'un tiers autorisé après contrôle de rôle encadrant — comportement volontaire, à confirmer produit | à confirmer |
 | `GET /api/internal/screenshot-data/:id` | lecture publique par identifiant devinable | P2 |
-
-Ces routes sont authentifiées mais pas autorisées: `studentId` / `classId` y sont
-des ressources demandées, pas l'identité de l'appelant. Les corriger suppose une
-règle produit (quel encadrant voit quelle classe), donc une mission dédiée.

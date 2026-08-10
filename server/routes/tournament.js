@@ -9,6 +9,7 @@ const { v4: uuidv4 } = require('uuid');
 const { requireAuth } = require('../middleware/auth');
 const { validateCreateGroup, validateCreateMatch, validateCleanup, validateUpdateGroup, validateParamClassId, validateParamStudentId } = require('../middleware/validate');
 const { createClient } = require('@supabase/supabase-js');
+const schoolScope = require('../access/schoolScope');
 const { sendGroupInvitations } = require('../utils/emailNotifications');
 const PDFDocument = require('pdfkit');
 const nodemailer = require('nodemailer');
@@ -90,6 +91,42 @@ const requireSupabase = (req, res, next) => {
   }
   next();
 };
+
+// ==========================================
+// AUTORISATION SCOLAIRE (CTO-003, revue CTO)
+// Un compte authentifié ne lit que les classes et les élèves dont le
+// rattachement est prouvable côté serveur. Toute incertitude refuse.
+// ==========================================
+async function attachSchoolScope(req, res, next) {
+  if (req.schoolScope) return next();
+  req.schoolScope = await schoolScope.resolveSchoolScope({
+    supabase,
+    userId: req.authUser?.id || null,
+    email: req.authUser?.email || null,
+  });
+  next();
+}
+
+function denyScope(req, res, kind, id, reason) {
+  console.warn('[Security] Accès scolaire refusé', {
+    kind, id, reason, role: req.schoolScope?.role || null, userId: req.authUser?.id || null, path: req.path,
+  });
+  return res.status(403).json({ success: false, error: 'forbidden' });
+}
+
+const requireClassAccess = [attachSchoolScope, async (req, res, next) => {
+  const classId = req.params.classId || req.params.id;
+  const { allowed, reason } = await schoolScope.canAccessClass({ supabase, scope: req.schoolScope, classId });
+  if (!allowed) return denyScope(req, res, 'class', classId, reason);
+  next();
+}];
+
+const requireStudentAccess = [attachSchoolScope, async (req, res, next) => {
+  const studentId = req.params.studentId || req.params.id;
+  const { allowed, reason } = await schoolScope.canAccessStudent({ supabase, scope: req.schoolScope, studentId });
+  if (!allowed) return denyScope(req, res, 'student', studentId, reason);
+  next();
+}];
 
 // ==========================================
 // DIAGNOSTIC SCHEMA (temporaire)
@@ -496,7 +533,7 @@ router.patch('/phases/:phaseId/activate', requireSupabase, requireAuth, async (r
  * GET /api/tournament/classes/:classId/students
  * Liste des élèves d'une classe
  */
-router.get('/classes/:classId/students', requireSupabase, requireAuth, ...validateParamClassId, async (req, res) => {
+router.get('/classes/:classId/students', requireSupabase, requireAuth, ...validateParamClassId, ...requireClassAccess, async (req, res) => {
   try {
     const { classId } = req.params;
     
@@ -529,7 +566,7 @@ router.get('/classes/:classId/students', requireSupabase, requireAuth, ...valida
  * GET /api/tournament/classes/:classId/groups
  * Liste des groupes créés pour une classe
  */
-router.get('/classes/:classId/groups', requireSupabase, requireAuth, ...validateParamClassId, async (req, res) => {
+router.get('/classes/:classId/groups', requireSupabase, requireAuth, ...validateParamClassId, ...requireClassAccess, async (req, res) => {
   try {
     const { classId } = req.params;
     const { mode } = req.query;
@@ -573,7 +610,7 @@ router.get('/classes/:classId/groups', requireSupabase, requireAuth, ...validate
  * GET /api/tournament/students/:id
  * Profil d'un élève
  */
-router.get('/students/:id', requireSupabase, requireAuth, async (req, res) => {
+router.get('/students/:id', requireSupabase, requireAuth, ...requireStudentAccess, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -1080,7 +1117,7 @@ router.post('/matches', requireSupabase, requireAuth, ...validateCreateMatch, as
  * GET /api/tournament/students/:studentId/invitations
  * Récupérer les invitations en attente pour un élève (matchs pending/playing)
  */
-router.get('/students/:studentId/invitations', requireSupabase, requireAuth, ...validateParamStudentId, async (req, res) => {
+router.get('/students/:studentId/invitations', requireSupabase, requireAuth, ...validateParamStudentId, ...requireStudentAccess, async (req, res) => {
   try {
     const { studentId } = req.params;
     
@@ -1145,7 +1182,7 @@ router.get('/students/:studentId/invitations', requireSupabase, requireAuth, ...
  * GET /api/tournament/students/:studentId/training-invitations
  * Récupérer les invitations training en attente pour un élève (matchs in-memory)
  */
-router.get('/students/:studentId/training-invitations', requireAuth, ...validateParamStudentId, async (req, res) => {
+router.get('/students/:studentId/training-invitations', requireAuth, ...validateParamStudentId, ...requireStudentAccess, async (req, res) => {
   try {
     const { studentId } = req.params;
     const invitations = [];
@@ -1949,7 +1986,7 @@ router.get('/matches/:matchId/results', requireSupabase, requireAuth, async (req
  * GET /api/tournament/classes/:classId/competition-results
  * Récupérer tous les groupes, matchs et résultats pour le dashboard compétition
  */
-router.get('/classes/:classId/competition-results', requireSupabase, requireAuth, async (req, res) => {
+router.get('/classes/:classId/competition-results', requireSupabase, requireAuth, ...requireClassAccess, async (req, res) => {
   try {
     const { classId } = req.params;
     
@@ -2377,7 +2414,7 @@ router.get('/:tournamentId/competition-overview', requireSupabase, async (req, r
  * Résumé des tours pour une classe : tours terminés, gagnants, tour actuel
  * Query params: mode=arena|training, phase_level=1 (default)
  */
-router.get('/classes/:classId/tour-status', requireSupabase, requireAuth, ...validateParamClassId, async (req, res) => {
+router.get('/classes/:classId/tour-status', requireSupabase, requireAuth, ...validateParamClassId, ...requireClassAccess, async (req, res) => {
   try {
     const { classId } = req.params;
     const mode = req.query.mode || 'arena';
@@ -2477,7 +2514,7 @@ router.get('/classes/:classId/tour-status', requireSupabase, requireAuth, ...val
  *   - Sans groupings → auto-groupement (1 seul groupe avec tous les gagnants)
  *   - Avec groupings → [[id1,id2,...], [id3,id4,...]] groupement manuel
  */
-router.post('/classes/:classId/next-tour', requireSupabase, requireAuth, ...validateParamClassId, async (req, res) => {
+router.post('/classes/:classId/next-tour', requireSupabase, requireAuth, ...validateParamClassId, ...requireClassAccess, async (req, res) => {
   try {
     const { classId } = req.params;
     const { mode = 'arena', phase_level = 1, tournamentId, groupings } = req.body;
@@ -2621,7 +2658,7 @@ function generateRoomCode() {
  * Récupérer les stats de performance de TOUS les élèves d'une classe
  * Utilisé par le prof pour constituer des groupes équilibrés
  */
-router.get('/classes/:classId/students-performance', requireSupabase, requireAuth, async (req, res) => {
+router.get('/classes/:classId/students-performance', requireSupabase, requireAuth, ...requireClassAccess, async (req, res) => {
   try {
     const { classId } = req.params;
     
@@ -2798,7 +2835,7 @@ router.get('/classes/:classId/students-performance', requireSupabase, requireAut
  * GET /api/tournament/students/:studentId/info
  * Retourne le nom d'un élève (pour la vue prof)
  */
-router.get('/students/:studentId/info', requireSupabase, requireAuth, ...validateParamStudentId, async (req, res) => {
+router.get('/students/:studentId/info', requireSupabase, requireAuth, ...validateParamStudentId, ...requireStudentAccess, async (req, res) => {
   try {
     const { studentId } = req.params;
     const { data } = await supabase
@@ -2830,7 +2867,7 @@ router.get('/students/:studentId/info', requireSupabase, requireAuth, ...validat
  * GET /api/tournament/students/:studentId/performance
  * Retourne l'historique complet et les stats agrégées d'un élève
  */
-router.get('/students/:studentId/performance', requireSupabase, requireAuth, ...validateParamStudentId, async (req, res) => {
+router.get('/students/:studentId/performance', requireSupabase, requireAuth, ...validateParamStudentId, ...requireStudentAccess, async (req, res) => {
   try {
     const { studentId } = req.params;
     console.log('[Performance API] Fetching performance for studentId:', studentId);
@@ -3579,7 +3616,7 @@ router.post('/phases/:phaseId/send-results', requireSupabase, requireAuth, async
 // ENDPOINT COMBINÉ: SETUP DATA (1 requête au lieu de 5)
 // Retourne students + groups + performance + tour-status en parallèle
 // ==========================================
-router.get('/classes/:classId/setup-data', requireSupabase, requireAuth, ...validateParamClassId, async (req, res) => {
+router.get('/classes/:classId/setup-data', requireSupabase, requireAuth, ...validateParamClassId, ...requireClassAccess, async (req, res) => {
   const t0 = Date.now();
   try {
     const { classId } = req.params;

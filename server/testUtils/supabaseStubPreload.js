@@ -6,7 +6,9 @@
 // aucun appel réseau ni Supabase de production.
 //
 // Les fixtures (utilisateurs par jeton + tables) sont lues depuis le fichier
-// JSON désigné par CC_TEST_SUPABASE_FIXTURE.
+// JSON désigné par CC_TEST_SUPABASE_FIXTURE. Options supportées:
+//   - unique:     { table: 'colonne' }  → insert dupliqué renvoie { error: 23505 }
+//   - failWrites: { table: 'message' }  → écriture renvoyant une erreur
 // =============================================
 
 const fs = require('fs');
@@ -15,6 +17,8 @@ const Module = require('module');
 const fixture = JSON.parse(fs.readFileSync(process.env.CC_TEST_SUPABASE_FIXTURE, 'utf8'));
 const usersByToken = fixture.usersByToken || {};
 const tables = fixture.tables || {};
+const uniqueBy = fixture.unique || {};
+const failWrites = fixture.failWrites || {};
 
 function matches(row, filters) {
   return filters.every(({ col, op, value }) => {
@@ -35,6 +39,7 @@ function createQuery(table) {
   let limitN = null;
   let orderCol = null;
   let orderAsc = true;
+  let pendingWrite = null; // { kind:'insert'|'upsert'|'delete', payload }
 
   const rows = () => {
     let out = (tables[table] || []).filter((r) => matches(r, filters));
@@ -49,7 +54,40 @@ function createQuery(table) {
     return out;
   };
 
+  const applyWrite = () => {
+    const list = tables[table] || (tables[table] = []);
+    if (failWrites[table]) {
+      return { data: null, error: { message: String(failWrites[table]), code: 'XX000' } };
+    }
+    if (pendingWrite.kind === 'delete') {
+      tables[table] = list.filter((r) => !matches(r, filters));
+      return { data: null, error: null };
+    }
+    if (pendingWrite.kind === 'update') {
+      const touched = list.filter((r) => matches(r, filters));
+      touched.forEach((r) => Object.assign(r, pendingWrite.payload));
+      return { data: touched, error: null };
+    }
+    const payload = Array.isArray(pendingWrite.payload) ? pendingWrite.payload : [pendingWrite.payload];
+    const key = uniqueBy[table] || null;
+    for (const row of payload) {
+      if (key) {
+        const existing = list.find((r) => String(r[key]) === String(row[key]));
+        if (existing) {
+          if (pendingWrite.kind === 'insert') {
+            return { data: null, error: { message: 'duplicate key value violates unique constraint', code: '23505' } };
+          }
+          Object.assign(existing, row);
+          continue;
+        }
+      }
+      list.push(row);
+    }
+    return { data: payload, error: null };
+  };
+
   const result = () => {
+    if (pendingWrite) return applyWrite();
     const data = rows();
     return { data: headOnly ? null : data, error: null, count: wantCount ? data.length : null };
   };
@@ -77,14 +115,10 @@ function createQuery(table) {
       const data = rows();
       return Promise.resolve({ data: data[0] || null, error: null });
     },
-    insert(payload) {
-      const list = tables[table] || (tables[table] = []);
-      (Array.isArray(payload) ? payload : [payload]).forEach((r) => list.push(r));
-      return q;
-    },
-    upsert(payload) { return q.insert(payload); },
-    update() { return q; },
-    delete() { return q; },
+    insert(payload) { pendingWrite = { kind: 'insert', payload }; return q; },
+    upsert(payload) { pendingWrite = { kind: 'upsert', payload }; return q; },
+    update(payload) { pendingWrite = { kind: 'update', payload }; return q; },
+    delete() { pendingWrite = { kind: 'delete' }; return q; },
     then(resolve, reject) { return Promise.resolve(result()).then(resolve, reject); },
   };
   return q;

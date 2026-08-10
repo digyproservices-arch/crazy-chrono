@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const bodyParser = require('body-parser');
 const { validateStudentLogin } = require('./middleware/validate');
 const http = require('http');
+const nodeCrypto = require('crypto');
 const { Server } = require('socket.io');
 const { generateRoundZones, createDeckState } = require('./utils/serverZoneGenerator');
 const { validateZonesServer } = require('./utils/validateZonesServer');
@@ -24,6 +25,13 @@ const app = express();
 // Sans ceci, express-rate-limit lève "ERR_ERL_UNEXPECTED_X_FORWARDED_FOR" et req.ip
 // vaut l'IP du proxy (tous les joueurs vus comme une seule IP). '1' = 1 seul hop de confiance.
 app.set('trust proxy', 1);
+
+// Comparaison de secrets à durée constante, sans révéler la longueur attendue.
+function safeEqual(a, b) {
+  const ha = nodeCrypto.createHash('sha256').update(String(a)).digest();
+  const hb = nodeCrypto.createHash('sha256').update(String(b)).digest();
+  return nodeCrypto.timingSafeEqual(ha, hb);
+}
 
 // ==========================================
 // CORS CONFIGURATION (MUST BE FIRST)
@@ -165,20 +173,9 @@ async function requireAuth(req, res, next) {
   }
 }
 
-// Rôle encadrant (admin/teacher/cpd/cpc/rectorat) résolu côté serveur.
-// FAIL CLOSED: rôle inconnu, profil absent, base injoignable ou erreur → refus.
-// À utiliser après requireAuth.
+// Habilitations et périmètre scolaire, résolus côté serveur depuis le JWT.
 const entitlements = require('./access/entitlements');
-async function requireManagerRole(req, res, next) {
-  const userId = req.authUser?.id || null;
-  const { role, reason } = await entitlements.resolveRole({ supabase: supabaseAdmin, userId });
-  if (!role || !entitlements.MANAGER_ROLES.includes(role)) {
-    logger.warn('[Security] Accès encadrant refusé', { userId, role, reason, path: req.path });
-    return res.status(403).json({ ok: false, error: 'forbidden' });
-  }
-  req.managerRole = role;
-  next();
-}
+const schoolScope = require('./access/schoolScope');
 
 // Crazy Arena Manager pour tournois (groupes de 4) - AVEC Supabase
 const CrazyArenaManager = require('./crazyArenaManager');
@@ -386,14 +383,16 @@ app.post('/usage/can-start', requireAuth, async (req, res) => {
       });
     }
 
-    // If user is admin or teacher, always allow (unlimited access)
+    // Rôles encadrants: accès illimité. CTO-003 (revue): 'student' n'en fait
+    // plus partie, un rôle déclaratif ne vaut pas licence — l'illimité passe
+    // désormais uniquement par la vérification de licence ci-dessous.
     try {
       const { data: profile } = await supabaseAdmin
         .from('user_profiles')
         .select('role')
         .eq('id', userId)
         .single();
-      if (profile && ['admin', 'teacher', 'rectorat', 'cpd', 'cpc', 'student'].includes(profile.role)) {
+      if (profile && entitlements.MANAGER_ROLES.includes(profile.role)) {
         return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason: 'role_unlimited' });
       }
     } catch {}
@@ -542,13 +541,18 @@ app.get('/webhooks/revenuecat', (req, res) => {
 // Env: REVENUECAT_WEBHOOK_SECRET (Authorization: Bearer <secret>)
 app.post('/webhooks/revenuecat', async (req, res) => {
   try {
-    // 1) Auth normalisée (accepte "Bearer SECRET" et "SECRET")
-    const shared = process.env.REVENUECAT_WEBHOOK_SECRET || '';
+    // 1) CTO-003 (revue): fail-closed, comme Stripe. Une notification de
+    // paiement non authentifiable ne peut jamais créer un droit.
+    const shared = String(process.env.REVENUECAT_WEBHOOK_SECRET || '');
+    if (!shared) {
+      logger.error('[RevenueCat] REVENUECAT_WEBHOOK_SECRET absent — webhook refusé');
+      return res.status(503).json({ ok: false, error: 'webhook_secret_not_configured' });
+    }
     const rawAuth = String(req.headers['authorization'] || '').trim();
     const provided = rawAuth.startsWith('Bearer ')
       ? rawAuth.slice(7).trim()
       : rawAuth;
-    if (shared && (!provided || provided !== shared)) {
+    if (!provided || !safeEqual(provided, shared)) {
       return res.status(401).json({ ok: false, error: 'unauthorized' });
     }
 
@@ -560,16 +564,29 @@ app.post('/webhooks/revenuecat', async (req, res) => {
     const userId = payload.app_user_id || req.body?.app_user_id || req.body?.subscriber?.app_user_id;
     if (!userId) return res.status(400).json({ ok: false, error: 'missing_app_user_id' });
 
-    // 3) Idempotence optionnelle (si table webhook_events existe)
-    if (supabaseAdmin && eventId) {
+    // 3) CTO-003 (revue): Supabase renvoie ses erreurs dans { error } sans
+    // lever d'exception; l'idempotence doit lire ce champ. Sans base, aucun
+    // acquittement: RevenueCat rejouera.
+    if (!supabaseAdmin) {
+      logger.error('[RevenueCat] Supabase indisponible — événement non persisté, rejeu attendu', { type, env });
+      return res.status(503).json({ ok: false, error: 'storage_unavailable', retryable: true });
+    }
+    if (eventId) {
+      let insErr = null;
       try {
-        await supabaseAdmin.from('webhook_events').insert({ event_id: eventId });
+        const { error } = await supabaseAdmin.from('webhook_events').insert({ event_id: eventId });
+        insErr = error || null;
       } catch (e) {
-        // Si contrainte unique violée => déjà traité
-        if (String(e?.message || '').toLowerCase().includes('duplicate')) {
+        insErr = e;
+      }
+      if (insErr) {
+        const code = String(insErr.code || '');
+        const msg = String(insErr.message || '').toLowerCase();
+        if (code === '23505' || msg.includes('duplicate') || msg.includes('unique')) {
           return res.json({ ok: true, duplicate: true });
         }
-        // Sinon, continuer (table peut ne pas exister en dev)
+        logger.error('[RevenueCat] réservation d\'idempotence impossible', { code, type });
+        return res.status(500).json({ ok: false, error: 'idempotency_store_error', retryable: true });
       }
     }
 
@@ -591,13 +608,7 @@ app.post('/webhooks/revenuecat', async (req, res) => {
       else status = 'expired';
     }
 
-    // 5) Si pas de Supabase admin, on s'arrête ici en OK (pour ne pas bloquer)
-    if (!supabaseAdmin) {
-      console.log('[RevenueCat] no_admin_config - received:', { type, env, userId, entitlement, productId });
-      return res.json({ ok: true, skipped: 'no_admin_config' });
-    }
-
-    // 6) Upsert subscriptions par user_id (requiert un index unique sur user_id)
+    // 5) Upsert subscriptions par user_id (requiert un index unique sur user_id)
     const row = {
       user_id: userId,
       price_id: productId || entitlement,
@@ -606,12 +617,23 @@ app.post('/webhooks/revenuecat', async (req, res) => {
       current_period_end,
       updated_at: new Date().toISOString(),
     };
+    // CTO-003 (revue): un droit non persisté ne doit jamais être acquitté en
+    // 200. On libère la réservation d'idempotence pour que le rejeu aboutisse.
+    let upsertErr = null;
     try {
-      await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('subscriptions')
         .upsert(row, { onConflict: 'user_id' });
+      upsertErr = error || null;
     } catch (e) {
-      console.error('[RevenueCat] upsert error', e);
+      upsertErr = e;
+    }
+    if (upsertErr) {
+      logger.error('[RevenueCat] écriture abonnement échouée', { type, status, message: upsertErr.message });
+      if (eventId) {
+        try { await supabaseAdmin.from('webhook_events').delete().eq('event_id', eventId); } catch {}
+      }
+      return res.status(500).json({ ok: false, error: 'subscription_write_failed', retryable: true });
     }
 
     console.log('[RevenueCat] webhook synced:', { type, env, userId, status, entitlement, productId });
@@ -2344,23 +2366,44 @@ app.post(STRIPE_WEBHOOK_PATH, rawParser, makeWebhookHandler({
 }));
 
 // Endpoint: liste d'élèves (avec option de filtrage licensed=true)
-// CTO-003: une liste nominative d'élèves n'est jamais publique. Réservée aux
-// rôles encadrants, résolus côté serveur depuis le JWT.
-app.get('/students', requireAuth, requireManagerRole, async (req, res) => {
+// CTO-003 (revue): une liste nominative d'élèves n'est ni publique ni globale.
+// Le périmètre est calculé côté serveur depuis le JWT (professeur → ses classes,
+// CPC/CPD → sa circonscription, admin → global) et la réponse ne contient que
+// les champs affichés par le frontend — jamais access_code ni email.
+app.get('/students', requireAuth, async (req, res) => {
   try {
-    const publicBase = path.resolve(__dirname, '..', 'public');
-    const filePath = path.join(publicBase, 'data', 'students.json');
-    let list = [];
-    try {
-      const raw = await fs.promises.readFile(filePath, 'utf8');
-      const json = JSON.parse(raw);
-      if (Array.isArray(json)) list = json;
-    } catch (e) {
-      if (e && e.code !== 'ENOENT') console.warn('students.json read error:', e.message);
-      list = [];
+    const scope = await schoolScope.resolveSchoolScope({
+      supabase: supabaseAdmin,
+      userId: req.authUser?.id || null,
+      email: req.authUser?.email || null,
+    });
+    const canList = [schoolScope.SCOPE_GLOBAL, schoolScope.SCOPE_CLASSES, schoolScope.SCOPE_CIRCONSCRIPTION];
+    if (!canList.includes(scope.scope)) {
+      logger.warn('[Security] /students refusé', { userId: req.authUser?.id, role: scope.role, reason: scope.reason });
+      return res.status(403).json({ error: 'forbidden' });
     }
+
+    let query = supabaseAdmin
+      .from('students')
+      .select('id, full_name, first_name, last_name, licensed, class_id')
+      .order('last_name', { ascending: true });
+    if (scope.scope === schoolScope.SCOPE_CLASSES) query = query.in('class_id', scope.classIds);
+    else if (scope.scope === schoolScope.SCOPE_CIRCONSCRIPTION) query = query.eq('circonscription_id', scope.circonscriptionId);
+
+    const { data, error } = await query;
+    if (error) {
+      logger.error('[Students] lecture impossible', { message: error.message });
+      return res.status(500).json({ error: 'server_error' });
+    }
+
     const onlyLicensed = String(req.query.licensed || '').toLowerCase() === 'true';
-    if (onlyLicensed) list = list.filter(s => !!s.licensed);
+    const list = (data || [])
+      .filter((s) => (onlyLicensed ? !!s.licensed : true))
+      .map((s) => ({
+        id: s.id,
+        name: s.full_name || [s.first_name, s.last_name].filter(Boolean).join(' ').trim(),
+        licensed: !!s.licensed,
+      }));
     return res.json(list);
   } catch (err) {
     console.error('GET /students failed:', err);

@@ -266,7 +266,7 @@ router.post('/tournaments/:id/entry', async (req, res) => {
     let isSubscriber = false;
     if (authUserId) {
       const ent = await entitlements.resolveEntitlement({ supabase: supabaseAdmin, userId: authUserId });
-      isSubscriber = !!ent?.allowed;
+      isSubscriber = !!ent?.isPro;
     }
 
     const { data, error } = await supabaseAdmin
