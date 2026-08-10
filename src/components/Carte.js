@@ -5,7 +5,7 @@ import '../styles/Carte.css';
 import { pointToSvgCoords, polygonToPointsStr, segmentsToSvgPath, pointsToBezierPath } from './CarteUtils';
 import { getBackendUrl } from '../utils/subscription';
 import { getAuthSocketOptions } from '../utils/socketAuth';
-import { getAuthHeaders } from '../utils/apiHelpers';
+import { getAuthHeaders, getAuthToken } from '../utils/apiHelpers';
 import { assignElementsToZones, fetchElements, resetElementDecks, drawFromDeck, getFrozenObjectiveSessionTargets, demoteCategory, clearDemotedCategory } from '../utils/elementsLoader';
 import { startSession as pgStartSession, recordAttempt as pgRecordAttempt, flushAttempts as pgFlushAttempts, setMonitorCallback as pgSetMonitorCallback } from '../utils/progress';
 import { validateZones as incidentValidateZones, reportImageLoadError as incidentReportImageLoadError, reportIncident as incidentReportIncident, INCIDENT_TYPES as INCIDENT_TYPES_TRACKER } from '../utils/gameIncidentTracker';
@@ -453,10 +453,9 @@ const Carte = () => {
     const lsAdmin = () => { try { return localStorage.getItem('cc_admin_ui') === '1'; } catch { return false; } };
     const pre = urlHasAdmin() || lsAdmin();
     if (pre) { setIsAdminUI(true); return; }
-    // Tentative auto: si on trouve un email utilisateur en localStorage, vérifier /me côté backend
-    let email = null;
-    try { email = (JSON.parse(localStorage.getItem('cc_auth')||'null')||{}).email || localStorage.getItem('cc_profile_email') || localStorage.getItem('user_email') || localStorage.getItem('email'); } catch {}
-    if (!email) return; // pas d'email connu, on n'active pas
+    // Tentative auto: /me résout l'identité depuis le JWT (CTO-003: plus de ?email=)
+    const token = getAuthToken();
+    if (!token) return; // pas de session vérifiable, on n'active pas
     const backend = getBackendUrl();
     try {
       const THROTTLE_KEY = 'cc_last_me_email_fetch_ts_carte';
@@ -469,7 +468,7 @@ const Carte = () => {
         }
         localStorage.setItem(THROTTLE_KEY, String(now));
       } catch {}
-      fetch(`${backend}/me?email=${encodeURIComponent(email)}`, { credentials: 'omit' })
+      fetch(`${backend}/me`, { credentials: 'omit', headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.ok ? r.json() : null)
         .then(j => {
           if (j && j.ok && String(j.role||'').toLowerCase() === 'admin') setIsAdminUI(true);

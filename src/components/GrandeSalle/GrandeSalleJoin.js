@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { getBackendUrl } from '../../utils/subscription';
+import { getAuthHeaders } from '../../utils/apiHelpers';
 
 const PAGE = {
   minHeight: '100dvh',
@@ -185,8 +186,8 @@ export default function GrandeSalleJoin() {
       const backendUrl = getBackendUrl();
       fetch(`${backendUrl}/api/gs/tournaments/${tournamentId}/entry`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ first_name: guestFN, last_name: guestLN, email: guestEmail, user_id: existingAuth.id || null, is_subscriber: true }),
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ first_name: guestFN, last_name: guestLN, email: guestEmail }),
       }).catch(() => {});
     }
     navigate(`/grande-salle/tournament/${tournamentId}`);

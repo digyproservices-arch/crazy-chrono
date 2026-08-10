@@ -3,7 +3,7 @@ import React, { useContext, useState, useEffect, useLayoutEffect, useRef, useMem
 import { DataContext } from "../context/DataContext";
 import RectoratUpload from "./Rectorat/RectoratUpload";
 import RectoratLibrary from "./Rectorat/RectoratLibrary";
-import { getBackendUrl } from "../utils/apiHelpers";
+import { getBackendUrl, getAuthHeaders } from "../utils/apiHelpers";
 import supabase from "../utils/supabaseClient";
 
 function AdminPanel() {
@@ -358,7 +358,7 @@ function AdminPanel() {
       // Étape 0: Purge serveur de elements.json (supprime les entrées d'images non listées dans l'Admin)
       let purgeInfo = '';
       try {
-        const resp = await fetch(`${getBackendUrl()}/purge-elements`, { method: 'POST' });
+        const resp = await fetch(`${getBackendUrl()}/purge-elements`, { method: 'POST', headers: getAuthHeaders() });
         const pj = await resp.json();
         if (pj && pj.success) {
           console.info('purge-elements:', pj);
@@ -868,7 +868,7 @@ function AdminPanel() {
   const deleteImageOnServer = async (relPath) => {
     const res = await fetch(`${getBackendUrl()}/delete-image`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ path: relPath })
     });
     const json = await res.json();

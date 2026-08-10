@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const bodyParser = require('body-parser');
 const { validateStudentLogin } = require('./middleware/validate');
 const http = require('http');
+const nodeCrypto = require('crypto');
 const { Server } = require('socket.io');
 const { generateRoundZones, createDeckState } = require('./utils/serverZoneGenerator');
 const { validateZonesServer } = require('./utils/validateZonesServer');
@@ -24,6 +25,13 @@ const app = express();
 // Sans ceci, express-rate-limit lève "ERR_ERL_UNEXPECTED_X_FORWARDED_FOR" et req.ip
 // vaut l'IP du proxy (tous les joueurs vus comme une seule IP). '1' = 1 seul hop de confiance.
 app.set('trust proxy', 1);
+
+// Comparaison de secrets à durée constante, sans révéler la longueur attendue.
+function safeEqual(a, b) {
+  const ha = nodeCrypto.createHash('sha256').update(String(a)).digest();
+  const hb = nodeCrypto.createHash('sha256').update(String(b)).digest();
+  return nodeCrypto.timingSafeEqual(ha, hb);
+}
 
 // ==========================================
 // CORS CONFIGURATION (MUST BE FIRST)
@@ -164,6 +172,10 @@ async function requireAuth(req, res, next) {
     return res.status(500).json({ ok: false, error: 'auth_error' });
   }
 }
+
+// Habilitations et périmètre scolaire, résolus côté serveur depuis le JWT.
+const entitlements = require('./access/entitlements');
+const schoolScope = require('./access/schoolScope');
 
 // Crazy Arena Manager pour tournois (groupes de 4) - AVEC Supabase
 const CrazyArenaManager = require('./crazyArenaManager');
@@ -349,68 +361,41 @@ app.get('/api/config/free-limit', (req, res) => {
 // Returns { ok:true, allow:boolean, limit:number, sessionsToday:number, reason?:string }
 app.post('/usage/can-start', requireAuth, async (req, res) => {
   try {
-    const userId = String(req.body?.user_id || '').trim();
+    // CTO-003: le quota porte sur le porteur du JWT. Un user_id envoyé par le
+    // client n'est jamais une autorité (sinon un compte gratuit emprunte le
+    // quota illimité d'un professeur ou d'un abonné).
+    const userId = String(req.authUser?.id || '').trim();
+    const claimed = String(req.body?.user_id || '').trim();
+    if (claimed && claimed !== userId) {
+      logger.warn('[Security] /usage/can-start user_id ignoré', { authUserId: userId, claimed });
+    }
     const FREE_LIMIT = FREE_SESSIONS_PER_DAY;
-    if (!userId) return res.status(400).json({ ok: false, error: 'missing_user_id' });
+    if (!userId) return res.status(401).json({ ok: false, error: 'unauthorized' });
 
-    // If Supabase admin is not set, allow to avoid blocking; frontend still enforces local limit
+    // CTO-003: base indisponible => aucun droit supérieur n'est accordé. La
+    // réponse reste au niveau le moins privilégié (quota gratuit, jamais
+    // limit:null) pour ne pas bloquer le Solo gratuit, et signale la
+    // dégradation au client.
     if (!supabaseAdmin) {
-      return res.json({ ok: true, allow: true, limit: FREE_LIMIT, sessionsToday: 0, reason: 'no_admin_config' });
+      return res.json({
+        ok: true, allow: true, limit: FREE_LIMIT, sessionsToday: 0,
+        degraded: true, reason: 'verification_unavailable'
+      });
     }
 
-    // If user is admin or teacher, always allow (unlimited access)
-    try {
-      const { data: profile } = await supabaseAdmin
-        .from('user_profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-      if (profile && ['admin', 'teacher', 'rectorat', 'cpd', 'cpc', 'student'].includes(profile.role)) {
-        return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason: 'role_unlimited' });
-      }
-    } catch {}
-
-    // If user is a licensed student, allow unlimited
-    // Strategy: check user's email — if it matches @eleve.crazychrono.app, look up student by access code
-    try {
-      const { data: profile2 } = await supabaseAdmin
-        .from('user_profiles')
-        .select('email')
-        .eq('id', userId)
-        .single();
-      const email = profile2?.email || '';
-      if (email.endsWith('@eleve.crazychrono.app')) {
-        // Email format: {code_lowercase_alphanumeric}@eleve.crazychrono.app
-        // Access code format: ALICE-CE1A-1234 → email: alicece1a1234@eleve.crazychrono.app
-        // We need to find the student by matching — query all students in one go and match
-        const emailPrefix = email.replace('@eleve.crazychrono.app', '');
-        const { data: allStudents } = await supabaseAdmin
-          .from('students')
-          .select('id, access_code, licensed')
-          .eq('licensed', true);
-        const matched = (allStudents || []).find(s => {
-          if (!s.access_code) return false;
-          const normalized = s.access_code.toLowerCase().replace(/[^a-z0-9]/g, '');
-          return normalized === emailPrefix;
-        });
-        if (matched) {
-          return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason: 'student_licensed' });
-        }
-      }
-    } catch {}
-
-    // If user has active subscription, allow
-    try {
-      const { data: subs, error: subErr } = await supabaseAdmin
-        .from('subscriptions')
-        .select('status')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      if (!subErr && Array.isArray(subs) && subs[0] && ['active', 'trialing'].includes(String(subs[0].status))) {
-        return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason: 'pro_active' });
-      }
-    } catch {}
+    // CTO-003 (revue finale): une seule primitive serveur décide du droit
+    // (abonnement actif, rôle encadrant, ou fiche élève licenciée rattachée par
+    // `user_student_mapping`). Le quota ne reproduit plus sa propre logique
+    // email/access_code, qui laissait un compte choisir son adresse pour
+    // hériter d'une licence.
+    const ent = await entitlements.resolveEntitlement({ supabase: supabaseAdmin, userId });
+    if (ent.role && entitlements.MANAGER_ROLES.includes(ent.role)) {
+      return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason: 'role_unlimited' });
+    }
+    if (ent.isPro) {
+      const reason = ent.source === 'student_license' ? 'student_licensed' : 'pro_active';
+      return res.json({ ok: true, allow: true, limit: null, sessionsToday: 0, reason });
+    }
 
     // Count sessions today for this user
     const now = new Date();
@@ -434,35 +419,13 @@ app.post('/usage/can-start', requireAuth, async (req, res) => {
   }
 });
 // GET /me  -> { ok:true, user:{id,email}, role, subscription }
-app.get('/me', async (req, res) => {
+// CTO-003: identité exclusivement issue du JWT vérifié. Le paramètre ?email=
+// permettait d'énumérer n'importe quel compte (id, rôle, région, abonnement,
+// fiche élève) en devinant une adresse: il est supprimé, ainsi que le recours
+// à auth.admin.listUsers pour identifier un appelant.
+app.get('/me', requireAuth, async (req, res) => {
   try {
-    // 1) Try to authenticate via Supabase JWT if provided
-    const authz = String(req.headers['authorization'] || '').trim();
-    let user = null;
-    if (supabaseAdmin && authz && authz.startsWith('Bearer ')) {
-      const token = authz.slice(7).trim();
-      try {
-        const { data, error } = await supabaseAdmin.auth.getUser(token);
-        if (!error && data && data.user) {
-          user = { id: data.user.id, email: data.user.email };
-        }
-      } catch {}
-    }
-    // 2) Bootstrap fallback: lookup by email using Supabase Admin API
-    //    Note: querying auth.users via PostgREST is not supported; use auth.admin.listUsers
-    if (!user) {
-      const qEmail = String(req.query.email || '').trim().toLowerCase();
-      if (supabaseAdmin && qEmail) {
-        try {
-          const { data: usersPage, error: lErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-          if (!lErr && usersPage && Array.isArray(usersPage.users)) {
-            const found = usersPage.users.find(u => String(u.email || '').toLowerCase() === qEmail);
-            if (found) user = { id: found.id, email: found.email };
-          }
-        } catch {}
-      }
-    }
-    if (!user) return res.status(401).json({ ok: false, error: 'unauthorized' });
+    const user = { id: req.authUser.id, email: req.authUser.email };
 
     // 3) Role + region + circonscription from user_profiles (default: 'user')
     let role = 'user';
@@ -503,21 +466,20 @@ app.get('/me', async (req, res) => {
       if (['admin', 'teacher'].includes(role) && !['active','trialing'].includes(String(subscription || '').toLowerCase())) {
         subscription = 'active';
       }
-      // Licensed students get active subscription status (via email pattern match)
-      if (user.email?.endsWith('@eleve.crazychrono.app')) {
-        const emailPrefix = user.email.replace('@eleve.crazychrono.app', '');
-        const { data: allStu } = await supabaseAdmin
-          .from('students')
-          .select('id, access_code, licensed, full_name, avatar_url')
-          .eq('licensed', true);
-        const matched = (allStu || []).find(s => {
-          if (!s.access_code) return false;
-          return s.access_code.toLowerCase().replace(/[^a-z0-9]/g, '') === emailPrefix;
-        });
-        if (matched) {
-          subscription = 'active';
-          student = { id: matched.id, fullName: matched.full_name, avatarUrl: matched.avatar_url };
-        }
+      // CTO-003 (revue finale): la fiche élève renvoyée provient du seul
+      // rattachement serveur `user_student_mapping`. Le rapprochement
+      // email ↔ access_code permettait à un compte de réclamer la fiche d'un
+      // autre élève en choisissant son adresse.
+      const linked = await schoolScope.resolveLinkedStudent({ supabase: supabaseAdmin, userId: user.id });
+      if (linked.ok && linked.student) {
+        student = {
+          id: linked.student.id,
+          fullName: linked.student.full_name
+            || [linked.student.first_name, linked.student.last_name].filter(Boolean).join(' ').trim(),
+          avatarUrl: linked.student.avatar_url || null,
+          licensed: !!linked.student.licensed,
+        };
+        if (linked.student.licensed) subscription = 'active';
       }
     } catch {}
 
@@ -536,13 +498,18 @@ app.get('/webhooks/revenuecat', (req, res) => {
 // Env: REVENUECAT_WEBHOOK_SECRET (Authorization: Bearer <secret>)
 app.post('/webhooks/revenuecat', async (req, res) => {
   try {
-    // 1) Auth normalisée (accepte "Bearer SECRET" et "SECRET")
-    const shared = process.env.REVENUECAT_WEBHOOK_SECRET || '';
+    // 1) CTO-003 (revue): fail-closed, comme Stripe. Une notification de
+    // paiement non authentifiable ne peut jamais créer un droit.
+    const shared = String(process.env.REVENUECAT_WEBHOOK_SECRET || '');
+    if (!shared) {
+      logger.error('[RevenueCat] REVENUECAT_WEBHOOK_SECRET absent — webhook refusé');
+      return res.status(503).json({ ok: false, error: 'webhook_secret_not_configured' });
+    }
     const rawAuth = String(req.headers['authorization'] || '').trim();
     const provided = rawAuth.startsWith('Bearer ')
       ? rawAuth.slice(7).trim()
       : rawAuth;
-    if (shared && (!provided || provided !== shared)) {
+    if (!provided || !safeEqual(provided, shared)) {
       return res.status(401).json({ ok: false, error: 'unauthorized' });
     }
 
@@ -553,19 +520,40 @@ app.post('/webhooks/revenuecat', async (req, res) => {
     const eventId = String(payload.id || req.body?.id || '').trim();
     const userId = payload.app_user_id || req.body?.app_user_id || req.body?.subscriber?.app_user_id;
     if (!userId) return res.status(400).json({ ok: false, error: 'missing_app_user_id' });
+    // Sans identifiant d'événement, l'idempotence est impossible: on refuse
+    // plutôt que de risquer une double activation ou un rejeu perdu.
+    if (!eventId) return res.status(400).json({ ok: false, error: 'missing_event_id' });
 
-    // 3) Idempotence optionnelle (si table webhook_events existe)
-    if (supabaseAdmin && eventId) {
-      try {
-        await supabaseAdmin.from('webhook_events').insert({ event_id: eventId });
-      } catch (e) {
-        // Si contrainte unique violée => déjà traité
-        if (String(e?.message || '').toLowerCase().includes('duplicate')) {
-          return res.json({ ok: true, duplicate: true });
-        }
-        // Sinon, continuer (table peut ne pas exister en dev)
-      }
+    // 3) CTO-003 (revue): Supabase renvoie ses erreurs dans { error } sans
+    // lever d'exception; l'idempotence doit lire ce champ. Sans base, aucun
+    // acquittement: RevenueCat rejouera.
+    if (!supabaseAdmin) {
+      logger.error('[RevenueCat] Supabase indisponible — événement non persisté, rejeu attendu', { type, env });
+      return res.status(503).json({ ok: false, error: 'storage_unavailable', retryable: true });
     }
+    // Revue CTO finale: la marque d'idempotence est écrite APRÈS l'effet métier,
+    // jamais avant. Une réservation posée en amont devenait un faux « déjà
+    // traité » dès que son nettoyage échouait, et le droit n'était jamais
+    // persisté. `webhook_events` ne porte donc qu'un seul état: présent =
+    // abonnement réellement écrit. L'upsert étant idempotent sur user_id, un
+    // retraitement est sans danger, contrairement à un acquittement à tort.
+    let already = false;
+    try {
+      const { data: seen, error: seenErr } = await supabaseAdmin
+        .from('webhook_events')
+        .select('event_id')
+        .eq('event_id', eventId)
+        .maybeSingle();
+      if (seenErr) {
+        logger.error('[RevenueCat] lecture d\'idempotence impossible', { code: String(seenErr.code || ''), type });
+        return res.status(500).json({ ok: false, error: 'idempotency_store_error', retryable: true });
+      }
+      already = !!seen;
+    } catch (e) {
+      logger.error('[RevenueCat] lecture d\'idempotence impossible', { type });
+      return res.status(500).json({ ok: false, error: 'idempotency_store_error', retryable: true });
+    }
+    if (already) return res.json({ ok: true, duplicate: true });
 
     // 4) Champs utiles pour subscriptions
     const entitlement = payload.entitlement_id || (Array.isArray(payload.entitlement_ids) ? payload.entitlement_ids[0] : null) || 'pro';
@@ -585,13 +573,7 @@ app.post('/webhooks/revenuecat', async (req, res) => {
       else status = 'expired';
     }
 
-    // 5) Si pas de Supabase admin, on s'arrête ici en OK (pour ne pas bloquer)
-    if (!supabaseAdmin) {
-      console.log('[RevenueCat] no_admin_config - received:', { type, env, userId, entitlement, productId });
-      return res.json({ ok: true, skipped: 'no_admin_config' });
-    }
-
-    // 6) Upsert subscriptions par user_id (requiert un index unique sur user_id)
+    // 5) Upsert subscriptions par user_id (requiert un index unique sur user_id)
     const row = {
       user_id: userId,
       price_id: productId || entitlement,
@@ -600,12 +582,39 @@ app.post('/webhooks/revenuecat', async (req, res) => {
       current_period_end,
       updated_at: new Date().toISOString(),
     };
+    // CTO-003 (revue): un droit non persisté ne doit jamais être acquitté en 200.
+    let upsertErr = null;
     try {
-      await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('subscriptions')
         .upsert(row, { onConflict: 'user_id' });
+      upsertErr = error || null;
     } catch (e) {
-      console.error('[RevenueCat] upsert error', e);
+      upsertErr = e;
+    }
+    if (upsertErr) {
+      logger.error('[RevenueCat] écriture abonnement échouée', { type, status, message: upsertErr.message });
+      return res.status(500).json({ ok: false, error: 'subscription_write_failed', retryable: true });
+    }
+
+    // Effet métier acquis: on marque l'événement terminé. Si cette marque
+    // échoue, on demande un rejeu — il rejouera un upsert identique (sans
+    // double effet) puis remarquera l'événement.
+    let markErr = null;
+    try {
+      const { error } = await supabaseAdmin.from('webhook_events').insert({ event_id: eventId });
+      markErr = error || null;
+    } catch (e) {
+      markErr = e;
+    }
+    if (markErr) {
+      const code = String(markErr.code || '');
+      const msg = String(markErr.message || '').toLowerCase();
+      const isDuplicate = code === '23505' || msg.includes('duplicate') || msg.includes('unique');
+      if (!isDuplicate) {
+        logger.error('[RevenueCat] marquage d\'idempotence impossible', { code, type });
+        return res.status(500).json({ ok: false, error: 'idempotency_store_error', retryable: true });
+      }
     }
 
     console.log('[RevenueCat] webhook synced:', { type, env, userId, status, entitlement, productId });
@@ -631,8 +640,14 @@ app.post('/webhooks/revenuecat', async (req, res) => {
 // GET /me/subscription?user_id=...  -> { ok:true, status, current_period_end }
 app.get('/me/subscription', requireAuth, async (req, res) => {
   try {
-    const userId = String(req.query.user_id || req.headers['x-user-id'] || '').trim();
-    if (!userId) return res.status(400).json({ ok: false, error: 'missing_user_id' });
+    // CTO-003: seul l'abonnement du porteur du JWT est lisible ici.
+    // query.user_id et x-user-id ne sont plus des sources d'autorité.
+    const userId = String(req.authUser?.id || '').trim();
+    const claimed = String(req.query.user_id || req.headers['x-user-id'] || '').trim();
+    if (claimed && claimed !== userId) {
+      logger.warn('[Security] /me/subscription user_id ignoré', { authUserId: userId, claimed });
+    }
+    if (!userId) return res.status(401).json({ ok: false, error: 'unauthorized' });
     if (!supabaseAdmin) return res.json({ ok: true, status: null, current_period_end: null });
     const { data: rows, error } = await supabaseAdmin
       .from('subscriptions')
@@ -2332,27 +2347,44 @@ app.post(STRIPE_WEBHOOK_PATH, rawParser, makeWebhookHandler({
 }));
 
 // Endpoint: liste d'élèves (avec option de filtrage licensed=true)
-app.get('/students', async (req, res) => {
+// CTO-003 (revue): une liste nominative d'élèves n'est ni publique ni globale.
+// Le périmètre est calculé côté serveur depuis le JWT (professeur → ses classes,
+// CPC/CPD → sa circonscription, admin → global) et la réponse ne contient que
+// les champs affichés par le frontend — jamais access_code ni email.
+app.get('/students', requireAuth, async (req, res) => {
   try {
-    const publicBase = path.resolve(__dirname, '..', 'public');
-    const filePath = path.join(publicBase, 'data', 'students.json');
-    let list = [];
-    try {
-      const raw = await fs.promises.readFile(filePath, 'utf8');
-      const json = JSON.parse(raw);
-      if (Array.isArray(json)) list = json;
-    } catch (e) {
-      // Fallback de démonstration si fichier absent
-      if (e && e.code !== 'ENOENT') console.warn('students.json read error:', e.message);
-      list = [
-        { id: 's1', name: 'Alice B.', licensed: true },
-        { id: 's2', name: 'Boris C.', licensed: true },
-        { id: 's3', name: 'Chloé D.', licensed: false },
-        { id: 's4', name: 'David E.', licensed: true },
-      ];
+    const scope = await schoolScope.resolveSchoolScope({
+      supabase: supabaseAdmin,
+      userId: req.authUser?.id || null,
+      email: req.authUser?.email || null,
+    });
+    const canList = [schoolScope.SCOPE_GLOBAL, schoolScope.SCOPE_CLASSES, schoolScope.SCOPE_CIRCONSCRIPTION];
+    if (!canList.includes(scope.scope)) {
+      logger.warn('[Security] /students refusé', { userId: req.authUser?.id, role: scope.role, reason: scope.reason });
+      return res.status(403).json({ error: 'forbidden' });
     }
+
+    let query = supabaseAdmin
+      .from('students')
+      .select('id, full_name, first_name, last_name, licensed, class_id')
+      .order('last_name', { ascending: true });
+    if (scope.scope === schoolScope.SCOPE_CLASSES) query = query.in('class_id', scope.classIds);
+    else if (scope.scope === schoolScope.SCOPE_CIRCONSCRIPTION) query = query.eq('circonscription_id', scope.circonscriptionId);
+
+    const { data, error } = await query;
+    if (error) {
+      logger.error('[Students] lecture impossible', { message: error.message });
+      return res.status(500).json({ error: 'server_error' });
+    }
+
     const onlyLicensed = String(req.query.licensed || '').toLowerCase() === 'true';
-    if (onlyLicensed) list = list.filter(s => !!s.licensed);
+    const list = (data || [])
+      .filter((s) => (onlyLicensed ? !!s.licensed : true))
+      .map((s) => ({
+        id: s.id,
+        name: s.full_name || [s.first_name, s.last_name].filter(Boolean).join(' ').trim(),
+        licensed: !!s.licensed,
+      }));
     return res.json(list);
   } catch (err) {
     console.error('GET /students failed:', err);
@@ -2362,7 +2394,7 @@ app.get('/students', async (req, res) => {
 
 // Supprimer une image physiquement du dossier public
 // Body attendu: { path: 'images/nom-fichier.png' } (chemin relatif depuis public)
-app.delete('/delete-image', async (req, res) => {
+app.delete('/delete-image', requireAdminAuth, async (req, res) => {
   try {
     const relPath = (req.body && req.body.path) ? String(req.body.path) : '';
     if (!relPath) {
@@ -2418,6 +2450,9 @@ app.post('/api/logs', async (req, res) => {
     if (!logs || typeof logs !== 'string') {
       return res.status(400).json({ ok: false, error: 'Missing logs' });
     }
+    // CTO-003: `source` composait un nom de fichier: un `../` permettait
+    // d'écrire hors du dossier logs/.
+    const safeSource = String(source || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) || 'unknown';
     
     // Créer dossier logs/ s'il n'existe pas
     const logsDir = path.join(__dirname, 'logs');
@@ -2427,7 +2462,7 @@ app.post('/api/logs', async (req, res) => {
     
     // Nom fichier avec timestamp
     const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-    const filename = `logs-${ts}-${source || 'unknown'}.txt`;
+    const filename = `logs-${ts}-${safeSource}.txt`;
     const filepath = path.join(logsDir, filename);
     
     // Contenu enrichi
@@ -2467,7 +2502,7 @@ Log Lines: ${logs.split('\n').length}
 });
 
 // Purge globale: enlève de elements.json toutes les images non listées dans associations.json
-app.post('/purge-elements', async (req, res) => {
+app.post('/purge-elements', requireAdminAuth, async (req, res) => {
   try {
     const publicBase = path.resolve(__dirname, '..', 'public');
     const assocPath = path.join(publicBase, 'data', 'associations.json');

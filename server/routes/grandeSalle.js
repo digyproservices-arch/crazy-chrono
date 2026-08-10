@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { issueTicket, getTicketSecret, normalizeEmail } = require('../access/gsAccess');
+const entitlements = require('../access/entitlements');
 
 // Middleware: vérifier que l'utilisateur est admin ou teacher
 async function requireAdmin(req, res, next) {
@@ -237,14 +238,35 @@ router.delete('/tournaments/:id', requireAdmin, async (req, res) => {
 });
 
 // ===== POST /api/gs/tournaments/:id/entry — Enregistrer un participant (public) =====
+// CTO-003: l'inscription reste ouverte aux invités, mais `user_id` et
+// `is_subscriber` sont résolus depuis le JWT (le client pouvait auparavant
+// rattacher une inscription au compte d'un tiers et se déclarer abonné).
 router.post('/tournaments/:id/entry', async (req, res) => {
   const supabaseAdmin = req.app.locals.supabaseAdmin;
   if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
 
   try {
-    const { first_name, last_name, email, user_id, is_subscriber } = req.body;
+    const { first_name, last_name, email } = req.body;
     if (!first_name || !last_name || !email) {
       return res.status(400).json({ ok: false, error: 'first_name, last_name et email sont requis' });
+    }
+
+    let authUserId = null;
+    const authz = String(req.headers['authorization'] || '').trim();
+    if (authz.startsWith('Bearer ')) {
+      try {
+        const { data: who, error: whoErr } = await supabaseAdmin.auth.getUser(authz.slice(7).trim());
+        if (!whoErr && who?.user) authUserId = who.user.id;
+      } catch {}
+    }
+
+    // CTO-003: être authentifié ne prouve pas un abonnement. Le drapeau est
+    // résolu côté serveur (abonnement Stripe actif ou licence) et reste faux
+    // si la vérification échoue.
+    let isSubscriber = false;
+    if (authUserId) {
+      const ent = await entitlements.resolveEntitlement({ supabase: supabaseAdmin, userId: authUserId });
+      isSubscriber = !!ent?.isPro;
     }
 
     const { data, error } = await supabaseAdmin
@@ -254,8 +276,8 @@ router.post('/tournaments/:id/entry', async (req, res) => {
         first_name: String(first_name).trim(),
         last_name: String(last_name).trim(),
         email: String(email).trim().toLowerCase(),
-        user_id: user_id || null,
-        is_subscriber: !!is_subscriber,
+        user_id: authUserId,
+        is_subscriber: isSubscriber,
         joined_at: new Date().toISOString(),
       }, { onConflict: 'tournament_id,email' })
       .select()
