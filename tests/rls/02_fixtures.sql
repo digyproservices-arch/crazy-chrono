@@ -58,7 +58,11 @@ INSERT INTO gs_tournaments (id, name) VALUES
   ('20000000-0000-0000-0000-000000000001', 'Grande Salle Test');
 
 INSERT INTO invitations (email, role, token) VALUES
-  ('invite@example.test', 'admin', 'tok-secret-1');
+  ('invite@example.test', 'admin', 'tok-secret-1'),
+  -- Invitations destinées à USER A, pour prouver la consommation atomique
+  -- (§B de la revue CTO) : une seule réussite, jamais de rejeu.
+  ('usera@example.test', 'teacher', 'tok-consume-1'),
+  ('usera@example.test', 'rectorat', 'tok-race-1');
 
 INSERT INTO active_sessions (user_id, session_token, is_active) VALUES
   ('00000000-0000-0000-0000-00000000000b', 'tok-b', true);

@@ -250,13 +250,68 @@ SELECT t_assert(t_rows('SELECT 1 FROM invitations') <= 0, 'P1-3.1 anon ne lit au
 SELECT t_logout();
 
 SELECT t_login(:A::uuid);
-SELECT t_assert(t_rows('SELECT 1 FROM invitations') = 0, 'P1-3.2 authenticated non-admin ne lit aucune invitation');
+SELECT t_assert(t_rows('SELECT 1 FROM invitations') <= 0, 'P1-3.2 authenticated non-admin ne lit aucune invitation');
 SELECT t_assert(t_denied($q$INSERT INTO invitations (email, role, token) VALUES ('x@example.test', 'admin', 'tok-forged')$q$),
   'P1-3.3 authenticated ne peut pas créer une invitation admin');
 SELECT t_logout();
 
+-- Revue CTO §F : l'administration passe par Express, donc AUCUN client Supabase
+-- direct — même porteur d'un JWT admin — ne lit la table.
 SELECT t_login(:AD::uuid);
-SELECT t_assert(t_rows('SELECT 1 FROM invitations') = 1, 'P1-3.4 ADMIN lit les invitations');
+SELECT t_assert(t_rows('SELECT 1 FROM invitations') <= 0,
+  'P1-3.4 ADMIN via clé anon + JWT ne lit aucune invitation directement');
+SELECT t_assert(t_denied($q$UPDATE invitations SET used = false$q$),
+  'P1-3.5 ADMIN ne peut pas réarmer une invitation directement');
+SELECT t_logout();
+
+-- Le backend (service role) reste le seul chemin de lecture.
+SELECT t_login(NULL, 'service_role');
+SELECT t_assert(t_rows('SELECT 1 FROM invitations') = 3, 'P1-3.6 service_role lit les invitations');
+SELECT t_logout();
+
+-- ==========================================================================
+-- P0-6 — consume_invitation : destinataire, atomicité, permissions
+-- (revue CTO §A/§B)
+-- ==========================================================================
+SELECT t_login(NULL, 'anon');
+SELECT t_assert(t_denied($q$SELECT consume_invitation('tok-consume-1', '00000000-0000-0000-0000-00000000000a', 'usera@example.test')$q$),
+  'P0-6.1 anon ne peut pas exécuter consume_invitation');
+SELECT t_logout();
+
+SELECT t_login(:A::uuid);
+SELECT t_assert(t_denied($q$SELECT consume_invitation('tok-consume-1', '00000000-0000-0000-0000-00000000000a', 'usera@example.test')$q$),
+  'P0-6.2 authenticated ne peut pas exécuter consume_invitation');
+SELECT t_logout();
+
+-- Destinataire : USER B ne peut pas utiliser l'invitation de USER A même si le
+-- backend est compromis au point de passer son propre e-mail vérifié.
+SELECT t_login(NULL, 'service_role');
+SELECT t_assert(
+  (consume_invitation('tok-consume-1', :B::uuid, 'userb@example.test')->>'status') = 'email_mismatch',
+  'P0-6.3 e-mail du JWT différent du destinataire → email_mismatch');
+SELECT t_assert(
+  (SELECT count(*) FROM invitations WHERE token = 'tok-consume-1' AND used) = 0,
+  'P0-6.4 invitation non consommée après un mismatch');
+SELECT t_assert(
+  (SELECT count(*) FROM user_profiles WHERE id = :B::uuid AND role = 'teacher') = 0,
+  'P0-6.5 aucun rôle appliqué après un mismatch');
+
+-- Destinataire légitime : une seule consommation possible.
+SELECT t_assert(
+  (consume_invitation('tok-consume-1', :A::uuid, 'UserA@Example.test')->>'status') = 'ok',
+  'P0-6.6 destinataire légitime consomme l''invitation (e-mail normalisé)');
+SELECT t_assert(
+  (SELECT count(*) FROM user_profiles WHERE id = :A::uuid AND role = 'teacher') = 1,
+  'P0-6.7 rôle appliqué dans la même transaction');
+SELECT t_assert(
+  (consume_invitation('tok-consume-1', :A::uuid, 'usera@example.test')->>'status') = 'already_used',
+  'P0-6.8 rejeu du même token refusé');
+SELECT t_assert(
+  (consume_invitation('tok-forged', :A::uuid, 'usera@example.test')->>'status') = 'not_found',
+  'P0-6.9 token forgé refusé');
+-- Remise en état : les assertions suivantes supposent USER A non privilégié.
+UPDATE user_profiles SET role = 'user', region = NULL, circonscription_id = NULL WHERE id = :A::uuid;
+UPDATE invitations SET used = false, used_at = NULL WHERE token = 'tok-consume-1';
 SELECT t_logout();
 
 -- ==========================================================================

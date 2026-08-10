@@ -4,6 +4,7 @@
 
 const express = require('express');
 const router = express.Router();
+const { normalizeEmail, isAssignableRole } = require('../access/roles');
 
 /**
  * GET /api/auth/me
@@ -549,9 +550,24 @@ router.post('/supabase-login', async (req, res) => {
 
 /**
  * POST /api/auth/apply-invite
- * Applique une invitation à un utilisateur existant (après login)
+ * Applique une invitation au compte authentifié.
  * Body: { inviteToken }
+ *
+ * CTO-005A (revue CTO §A/§B) : le token n'est jamais une preuve suffisante.
+ * L'invitation n'est consommée que si l'email vérifié du JWT correspond au
+ * destinataire enregistré, et la consommation est atomique côté base
+ * (`consume_invitation`) : rôle appliqué et token marqué dans la même
+ * transaction, ou rien du tout.
  */
+const INVITE_ERROR_BY_STATUS = {
+  not_found: { http: 404, error: 'invalid_invitation' },
+  already_used: { http: 409, error: 'invitation_already_used' },
+  expired: { http: 410, error: 'invitation_expired' },
+  email_mismatch: { http: 403, error: 'invite_email_mismatch' },
+  invalid_role: { http: 400, error: 'invalid_invitation_role' },
+  invalid_request: { http: 400, error: 'inviteToken_required' },
+};
+
 router.post('/apply-invite', async (req, res) => {
   try {
     const supabase = req.app.locals.supabaseAdmin;
@@ -568,49 +584,47 @@ router.post('/apply-invite', async (req, res) => {
       return res.status(401).json({ ok: false, error: 'invalid_token' });
     }
 
-    const { inviteToken } = req.body;
-    if (!inviteToken) return res.status(400).json({ ok: false, error: 'inviteToken requis' });
-
-    // Lire l'invitation (via admin, bypass RLS)
-    const { data: inv, error: invErr } = await supabase
-      .from('invitations')
-      .select('*')
-      .eq('token', inviteToken)
-      .eq('used', false)
-      .single();
-
-    if (invErr || !inv) {
-      return res.status(404).json({ ok: false, error: 'Invitation invalide ou déjà utilisée' });
-    }
-    if (new Date(inv.expires_at) < new Date()) {
-      return res.status(410).json({ ok: false, error: 'Invitation expirée' });
+    const inviteToken = typeof req.body?.inviteToken === 'string' ? req.body.inviteToken.trim() : '';
+    if (!inviteToken || inviteToken.length > 128) {
+      return res.status(400).json({ ok: false, error: 'inviteToken_required' });
     }
 
-    // Mettre à jour le profil utilisateur avec le rôle de l'invitation (upsert pour couvrir le cas où le profil n'existe pas encore)
-    const upsertData = { id: user.id, email: user.email, role: inv.role };
-    if (inv.region) upsertData.region = inv.region;
-    if (inv.circonscription_id) upsertData.circonscription_id = inv.circonscription_id;
+    // Email issu du JWT vérifié uniquement — jamais du corps de la requête.
+    const userEmail = normalizeEmail(user.email);
+    if (!userEmail) return res.status(403).json({ ok: false, error: 'invite_email_mismatch' });
 
-    const { error: upErr } = await supabase
-      .from('user_profiles')
-      .upsert(upsertData, { onConflict: 'id' });
+    const { data: outcome, error: rpcError } = await supabase.rpc('consume_invitation', {
+      p_token: inviteToken,
+      p_user_id: user.id,
+      p_email: userEmail,
+    });
 
-    if (upErr) {
-      console.error('[Auth] apply-invite update error:', upErr.message);
-      return res.status(500).json({ ok: false, error: upErr.message });
+    // Fail closed : sans confirmation explicite de la base, aucun rôle appliqué.
+    if (rpcError || !outcome || typeof outcome.status !== 'string') {
+      console.error('[Auth] apply-invite consume error:', rpcError?.message || 'no_outcome');
+      return res.status(503).json({ ok: false, error: 'invitation_consume_failed' });
     }
 
-    // Marquer l'invitation comme utilisée
-    await supabase
-      .from('invitations')
-      .update({ used: true, used_at: new Date().toISOString() })
-      .eq('token', inviteToken);
+    if (outcome.status !== 'ok') {
+      const mapped = INVITE_ERROR_BY_STATUS[outcome.status] || { http: 400, error: 'invalid_invitation' };
+      return res.status(mapped.http).json({ ok: false, error: mapped.error });
+    }
 
-    console.log(`[Auth] Invitation appliquée: ${user.email} → ${inv.role}${inv.region ? ` (${inv.region})` : ''}${inv.circonscription_id ? ` [circo: ${inv.circonscription_id}]` : ''}`);
-    res.json({ ok: true, role: inv.role, region: inv.region || null, circonscription_id: inv.circonscription_id || null });
+    if (!isAssignableRole(outcome.role)) {
+      console.error('[Auth] apply-invite: rôle hors whitelist renvoyé par la base:', outcome.role);
+      return res.status(500).json({ ok: false, error: 'invalid_invitation_role' });
+    }
+
+    console.log(`[Auth] Invitation appliquée: ${userEmail} → ${outcome.role}`);
+    res.json({
+      ok: true,
+      role: outcome.role,
+      region: outcome.region || null,
+      circonscription_id: outcome.circonscription_id || null,
+    });
   } catch (err) {
     console.error('[Auth] apply-invite error:', err);
-    res.status(500).json({ ok: false, error: err.message });
+    res.status(500).json({ ok: false, error: 'internal_error' });
   }
 });
 

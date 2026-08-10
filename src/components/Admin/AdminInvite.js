@@ -71,7 +71,9 @@ export default function AdminInvite() {
         ? '📧 Email envoyé !' 
         : '⚠️ Email non envoyé (SMTP non configuré)';
       
-      setMsg(`✅ Invitation créée ! ${emailStatus}\nLien : ${data.inviteLink}`);
+      // Le lien contient le token : le serveur ne le renvoie qu'en secours,
+      // lorsque l'email n'a pas pu être envoyé.
+      setMsg(`✅ Invitation créée ! ${emailStatus}${data.inviteLink ? `\nLien : ${data.inviteLink}` : ''}`);
       setEmail('');
       loadInvitations();
     } catch (e) {

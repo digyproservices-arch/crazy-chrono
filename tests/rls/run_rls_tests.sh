@@ -61,6 +61,38 @@ run_suite() {
   fi
 }
 
+# Revue CTO §B : concurrence RÉELLE sur un même token, avec deux connexions.
+# La première transaction verrouille la ligne (FOR UPDATE) et dort ; la seconde
+# démarre pendant ce temps et ne doit pouvoir consommer le token qu'après le
+# COMMIT de la première — donc voir `already_used`.
+concurrency_test() {
+  local log1 out1 out2
+  log1="$(mktemp)"
+  {
+    printf "%s\n" \
+      "SET ROLE service_role;" \
+      "BEGIN;" \
+      "SELECT 'S1=' || (consume_invitation('tok-race-1', '00000000-0000-0000-0000-00000000000a', 'usera@example.test')->>'status');" \
+      "SELECT pg_sleep(3);" \
+      "COMMIT;" \
+    | docker exec -i "$CONTAINER" psql -t -A -q -U postgres -d postgres > "$log1" 2>&1
+  } &
+  local pid1=$!
+  sleep 1
+  out2=$(printf "%s\n" \
+      "SET ROLE service_role;" \
+      "SELECT 'S2=' || (consume_invitation('tok-race-1', '00000000-0000-0000-0000-00000000000a', 'usera@example.test')->>'status');" \
+    | docker exec -i "$CONTAINER" psql -t -A -q -U postgres -d postgres 2>&1)
+  wait $pid1
+  out1="$(cat "$log1")"; rm -f "$log1"
+  echo "concurrence : ${out1//$'\n'/ } | ${out2//$'\n'/ }"
+  if ! grep -q 'S1=ok' <<<"$out1" || ! grep -q 'S2=already_used' <<<"$out2"; then
+    echo "FAIL P0-6.10 deux consommations concurrentes du même token" >&2
+    return 4
+  fi
+  echo "NOTICE:  PASS P0-6.10 deux requêtes concurrentes → une seule réussite"
+}
+
 rc_baseline=""
 if [ "$MODE" = "both" ] || [ "$MODE" = "baseline" ]; then
   echo "=== BASELINE (état pré-CTO-005A : les attaques DOIVENT réussir) ==="
@@ -75,6 +107,13 @@ if [ "$MODE" = "baseline" ]; then exit 0; fi
 
 echo "=== APRÈS MIGRATIONS CTO-005A (toutes les attaques doivent être bloquées) ==="
 run_suite yes
+rc=$?
+if [ $rc -ne 0 ]; then
+  echo "RLS TESTS: FAILED (exit=$rc)"
+  exit $rc
+fi
+
+concurrency_test
 rc=$?
 if [ $rc -ne 0 ]; then
   echo "RLS TESTS: FAILED (exit=$rc)"

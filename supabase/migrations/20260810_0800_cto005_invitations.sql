@@ -8,8 +8,9 @@
 --
 -- Après : la validation d'un token passe exclusivement par
 -- `POST /api/invitations/validate` (service role, rate-limité, réponse
--- minimale). Plus aucun accès direct anon. Les écrans d'administration
--- conservent une lecture admin explicite.
+-- minimale). Plus aucun accès direct anon. Les écrans d'administration passent
+-- par `GET /api/admin/invitations` (service role) : aucun rôle client — pas même
+-- un admin muni de la clé anon — ne conserve d'accès PostgREST à cette table.
 -- ==========================================================================
 
 ALTER TABLE public.invitations ENABLE ROW LEVEL SECURITY;
@@ -21,28 +22,25 @@ DROP POLICY IF EXISTS "Admin can insert invitations"      ON public.invitations;
 DROP POLICY IF EXISTS "Admin can update invitations"      ON public.invitations;
 DROP POLICY IF EXISTS invitations_select_admin            ON public.invitations;
 
--- Toute policy permissive résiduelle (nom inconnu, USING (true)) est supprimée :
--- l'audit CTO-004 n'a pas pu établir la liste exacte des policies en production.
+-- Toute policy résiduelle (nom inconnu) est supprimée : l'audit CTO-004 n'a pas
+-- pu établir la liste exacte des policies en production, et aucune policy
+-- n'est légitime sur cette table.
 DO $$
 DECLARE p TEXT;
 BEGIN
   FOR p IN
     SELECT policyname FROM pg_policies
     WHERE schemaname = 'public' AND tablename = 'invitations'
-      AND COALESCE(qual, 'true') = 'true'
   LOOP
     EXECUTE format('DROP POLICY %I ON public.invitations', p);
   END LOOP;
 END $$;
 
-CREATE POLICY invitations_select_admin ON public.invitations
-  FOR SELECT TO authenticated
-  USING (public.cc_is_admin());
-
--- Aucune policy INSERT/UPDATE/DELETE : la création d'invitation et le marquage
--- « utilisée » sont réservés au backend (POST /api/admin/send-invite,
--- POST /api/auth/apply-invite).
+-- Aucune policy, aucun privilège client : ni SELECT, ni INSERT/UPDATE/DELETE.
+-- Un token d'invitation est un porteur de rôle privilégié ; le lire suffit à
+-- tenter une escalade. La table n'est donc atteignable que par le service role
+-- (POST /api/admin/send-invite, GET /api/admin/invitations,
+-- POST /api/invitations/validate, POST /api/auth/apply-invite).
 
 REVOKE ALL ON public.invitations FROM anon;
 REVOKE ALL ON public.invitations FROM authenticated;
-GRANT SELECT ON public.invitations TO authenticated;
