@@ -28,6 +28,10 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.REACT_APP
  * @returns {Promise<{token: string, students: Array<{id: string, access_code: string, first_name: string, full_name: string}>}>}
  */
 async function getAdminTokenAndStudents(request) {
+  // Sans configuration Supabase fournie par l'environnement, ces scénarios ne
+  // sont pas exécutables : on les saute plutôt que d'échouer à tort.
+  test.skip(!SUPABASE_URL || !SUPABASE_ANON_KEY, 'SUPABASE_URL / SUPABASE_ANON_KEY absents de l\'environnement');
+
   // S'assurer que le backend est réveillé avant les appels API
   await ensureBackendAwake(request);
 
