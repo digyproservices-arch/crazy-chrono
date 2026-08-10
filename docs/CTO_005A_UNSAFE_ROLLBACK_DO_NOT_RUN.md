@@ -1,3 +1,37 @@
+# CTO-005A — ANCIEN ROLLBACK INTÉGRAL — DO_NOT_RUN
+
+> **Ce document n'est pas exécutable et ne doit jamais l'être.**
+> Il est conservé en Markdown (et non en `.sql`) précisément pour qu'aucun outil
+> de migration ni aucun `psql -f` ne puisse l'appliquer.
+
+## Pourquoi il a été retiré des fichiers exécutables
+
+Décision CTO : **une panne fonctionnelle ne justifie jamais de rouvrir une faille
+critique.** Or ce script rétablissait délibérément l'état vulnérable inventorié
+par `docs/CTO_AUDIT_004_RLS_SUPABASE.md` :
+
+| Ligne du script | Faille réouverte | Gravité |
+| --- | --- | --- |
+| `GRANT EXECUTE ... TO PUBLIC` + `RESET search_path` sur 17 RPC | déconnexion d'un tiers, oracle de jeton, fuite d'IP, `DELETE` de masse | P0-3 |
+| `CREATE POLICY ... USING (true) WITH CHECK (true)` sur `sessions`, `attempts`, `training_*`, `user_devices`, `auth_audit_log`, `content_store`, `gift_codes` | performances d'élèves et journaux d'authentification lisibles par `anon` | P0-4 / P1-4 |
+| `gs_entries_insert_all ... WITH CHECK (true)` | preuve de paiement Grande Salle forgeable | P0-2 |
+| `GRANT ALL ON public.user_profiles TO anon, authenticated` + suppression du trigger `cc_guard_user_profiles` | auto-promotion `admin` / `rectorat` | P0-1 |
+| `GRANT SELECT ON public.invitations TO anon, authenticated` | énumération des tokens d'invitation privilégiés | P1-3 |
+| `schools_select_authenticated` / `classes_select_authenticated` en `USING (true)` | annuaire des classes et écoles (dont `teacher_email`) lisible par tout compte | P1-1 |
+
+## Ce qu'il faut faire à la place
+
+1. **Rollback exécutable** : `supabase/migrations/rollback/20260810_cto005_safe_rollback.sql`
+   — il relâche uniquement ce qui peut l'être sans fuite ni escalade (lignes
+   propres à l'utilisateur), et vérifie en fin d'exécution qu'aucun invariant
+   P0/P1 n'a été rouvert.
+2. **Pour tout ce que le safe rollback ne peut pas rendre** :
+   `NO_SAFE_ROLLBACK — FIX FORWARD REQUIRED`. Le chemin de service reste l'API
+   Express en service role (CTO-002/003), qui applique déjà le périmètre.
+
+## Contenu historique (référence seulement — ne pas exécuter)
+
+```sql
 -- ==========================================================================
 -- CTO-005A — ROLLBACK
 --
@@ -114,3 +148,4 @@ DROP FUNCTION IF EXISTS public.cc_current_email();
 DROP FUNCTION IF EXISTS public.cc_is_manager();
 DROP FUNCTION IF EXISTS public.cc_is_admin();
 DROP FUNCTION IF EXISTS public.cc_current_role();
+```

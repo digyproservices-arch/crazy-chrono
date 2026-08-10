@@ -35,10 +35,14 @@ GRANT USAGE ON SCHEMA auth   TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO service_role;
 
+-- Colonnes reprises de GoTrue : le precheck production les lit pour la revue
+-- nominative des comptes privilégiés (§G de la revue CTO).
 CREATE TABLE IF NOT EXISTS auth.users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT UNIQUE,
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(),
+  last_sign_in_at TIMESTAMPTZ,
+  email_confirmed_at TIMESTAMPTZ
 );
 
 -- auth.users n'est PAS lisible par les rôles clients (comme sur Supabase) :

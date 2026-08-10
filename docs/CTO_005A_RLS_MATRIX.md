@@ -156,21 +156,34 @@ mapping étudiant, invitations, devices/audit/content/gift codes.
 
 ## 6. Rollback
 
-`supabase/migrations/rollback/20260810_cto005_rollback.sql`.
+Seul rollback exécutable :
+`supabase/migrations/rollback/20260810_cto005_safe_rollback.sql`.
 
-**Avertissement explicite : ce rollback réouvre volontairement les
-vulnérabilités P0/P1.** Il ne doit être utilisé que comme filet de sécurité
-opérationnel immédiat (produit cassé en production après application), jamais
-comme état durable.
+Décision CTO : **une panne fonctionnelle ne justifie jamais de rouvrir une
+faille critique.** Le safe rollback ne relâche donc que ce qui l'est sans fuite
+ni escalade — les lignes propres à l'utilisateur authentifié :
 
-Il restaure les grants et policies historiques, réinitialise les `search_path`
-des RPC et rend l'exécution à `PUBLIC`. Il ne défait volontairement pas :
+| Relâchement | Limite conservée |
+| --- | --- |
+| `user_profiles` : INSERT/UPDATE des champs personnels | `role`, `region`, `circonscription_id`, `email` exclus ; trigger `cc_guard_user_profiles_trg` exigé, sinon le rollback refuse de s'exécuter |
+| `sessions` / `attempts` : INSERT de ses lignes | `user_id = auth.uid()`, aucun UPDATE/DELETE, rien pour `anon` |
+| `training_results` / `student_training_stats` : SELECT | limité à `cc_my_student_ids()` (mapping serveur) |
+| `gs_tournament_entries` : UPDATE `first_name`/`last_name` | colonnes financières non accordées, ligne propre uniquement |
 
-- `webhook_events` (table conservée : la supprimer casserait l'idempotence
-  RevenueCat/Stripe de CTO-002/003) ;
-- `classes.teacher_user_id` (colonne nullable, sans effet si inutilisée) ;
-- `subscriptions_user_id_key` (sa suppression réintroduirait l'échec `42P10`
-  sur `onConflict: 'user_id'`).
+Il se termine par quatre garde-fous qui font échouer bruyamment l'exécution si
+un privilège interdit existe encore (écriture sur colonnes d'autorité ou
+financières, table serveur accessible au client, policy `USING (true)` sur une
+table sensible, RPC `SECURITY DEFINER` exécutable par un client). Les 67
+assertions d'attaque sont rejouées après application : toutes restent bloquées
+(`./tests/rls/run_rls_tests.sh saferollback`).
+
+`NO_SAFE_ROLLBACK — FIX FORWARD REQUIRED` pour tout le reste : lecture directe
+de `invitations`, annuaire complet `classes`/`schools`, RPC à `p_user_id`
+arbitraire, écriture cliente de `paid`/`payment_id`/`role`. En cas de
+régression, le chemin de service reste l'API Express en service role.
+
+L'ancien rollback intégral — qui rouvrait délibérément les P0/P1 — est conservé
+en documentation **non exécutable** : `docs/CTO_005A_UNSAFE_ROLLBACK_DO_NOT_RUN.md`.
 
 ---
 

@@ -131,3 +131,147 @@ SELECT role, COUNT(*) AS comptes
   FROM public.user_profiles
  GROUP BY role
  ORDER BY comptes DESC;
+
+-- ── 8. Revue nominative des comptes privilégiés ---------------------------
+-- Le décompte du §7 ne dit pas QUI détient un rôle privilégié. La migration
+-- 0200 gèle l'état existant : une auto-promotion antérieure à CTO-005A
+-- resterait effective et invisible.
+--
+-- Le propriétaire doit confirmer LIGNE PAR LIGNE que chaque compte listé ici
+-- possède légitimement son rôle, et faire rétrograder les autres par
+-- POST /api/admin/set-role (jamais par une écriture SQL directe).
+--
+-- Aucune modification n'est effectuée ici.
+SELECT p.id,
+       u.email                AS auth_email,   -- NULL si le compte auth n'existe plus
+       p.role,
+       p.region,
+       p.circonscription_id,
+       p.created_at,
+       u.created_at           AS auth_created_at,
+       u.last_sign_in_at,
+       u.email_confirmed_at
+  FROM public.user_profiles p
+  LEFT JOIN auth.users u ON u.id = p.id
+ WHERE p.role IN ('admin','teacher','cpd','cpc','rectorat','editor')
+ ORDER BY CASE p.role
+            WHEN 'admin'    THEN 1
+            WHEN 'rectorat' THEN 2
+            WHEN 'cpd'      THEN 3
+            WHEN 'cpc'      THEN 4
+            WHEN 'editor'   THEN 5
+            ELSE 6
+          END,
+          u.email NULLS LAST;
+
+-- Incohérences de périmètre à trancher manuellement : un rôle régional sans
+-- région, ou un `cpc` sans circonscription, ne peut pas être arbitré par une
+-- migration.
+SELECT p.id, u.email AS auth_email, p.role, p.region, p.circonscription_id,
+       CASE
+         WHEN p.role IN ('cpd','cpc','rectorat') AND p.region IS NULL
+           THEN 'role_regional_sans_region'
+         WHEN p.role = 'cpc' AND p.circonscription_id IS NULL
+           THEN 'cpc_sans_circonscription'
+         WHEN p.role NOT IN ('cpd','cpc','rectorat')
+              AND (p.region IS NOT NULL OR p.circonscription_id IS NOT NULL)
+           THEN 'perimetre_sur_role_non_regional'
+       END AS anomalie
+  FROM public.user_profiles p
+  LEFT JOIN auth.users u ON u.id = p.id
+ WHERE (p.role IN ('cpd','cpc','rectorat')
+        AND (p.region IS NULL OR (p.role = 'cpc' AND p.circonscription_id IS NULL)))
+    OR (p.role NOT IN ('cpd','cpc','rectorat')
+        AND (p.region IS NOT NULL OR p.circonscription_id IS NOT NULL))
+ ORDER BY p.role, u.email NULLS LAST;
+
+-- Rôles présents en base mais hors whitelist serveur (server/access/roles.js) :
+-- ils ne sont plus attribuables et doivent être régularisés.
+SELECT p.id, u.email AS auth_email, p.role
+  FROM public.user_profiles p
+  LEFT JOIN auth.users u ON u.id = p.id
+ WHERE p.role IS NOT NULL
+   AND p.role NOT IN ('admin','editor','user','teacher','cpd','cpc','rectorat')
+ ORDER BY p.role;
+
+-- Invitations privilégiées encore ouvertes : chacune est un chemin d'obtention
+-- de rôle. Le token n'est jamais affiché.
+-- `region` / `circonscription_id` ne sont ajoutées à cette table que par la
+-- migration 1100 : ne pas les nommer ici, le precheck tourne AVANT.
+SELECT id, email AS destinataire, role, created_at, expires_at
+  FROM public.invitations
+ WHERE COALESCE(used, false) = false
+   AND expires_at > now()
+   AND role IN ('admin','teacher','cpd','cpc','rectorat','editor')
+ ORDER BY role, expires_at;
+
+-- ── 9. LEGACY_GS_PAYMENT_RECONCILIATION_REQUIRED --------------------------
+-- La policy historique `gs_entries_insert_all ... WITH CHECK (true)` laissait le
+-- client écrire `paid`, `is_subscriber` et `payment_id`. Conséquence : sur les
+-- lignes existantes, `payment_id IS NOT NULL` n'est PAS une preuve de paiement.
+-- La migration 0300 ferme l'écriture pour l'avenir mais ne réécrit rien.
+--
+-- Si l'inventaire ci-dessous renvoie au moins une ligne, marquer le dossier
+--   LEGACY_GS_PAYMENT_RECONCILIATION_REQUIRED
+-- et réconcilier chaque `payment_id` avec le tableau de bord Stripe /
+-- RevenueCat avant d'accorder le moindre droit sur ces entrées.
+-- Aucune donnée n'est modifiée.
+SELECT COUNT(*) AS entrees_financieres_heritees
+  FROM public.gs_tournament_entries
+ WHERE COALESCE(paid, false) = true
+    OR COALESCE(is_subscriber, false) = true
+    OR payment_id IS NOT NULL;
+
+SELECT e.id,
+       e.tournament_id,
+       e.paid,
+       e.is_subscriber,
+       e.payment_id,
+       -- Nommage constaté dans le schéma versionné. Si la base cible utilise
+       -- `created_at`, adapter les deux occurrences ci-dessous.
+       e.joined_at,
+       e.user_id,
+       -- Réconciliation administrative privée : l'e-mail est le seul lien vers
+       -- l'acheteur pour les entrées créées sans user_id. À traiter comme une
+       -- donnée personnelle (ne pas recopier dans un rapport partagé).
+       e.email,
+       CASE
+         WHEN e.payment_id IS NULL OR e.payment_id = ''
+           THEN 'aucune_reference_de_paiement'   -- forgeable, jamais payé
+         WHEN e.payment_id NOT LIKE 'pi_%'
+              AND e.payment_id NOT LIKE 'cs_%'
+              AND e.payment_id NOT LIKE 'ch_%'
+           THEN 'reference_non_stripe'           -- format inattendu → suspect
+         ELSE 'a_reconcilier_avec_stripe'
+       END AS verdict_provisoire
+  FROM public.gs_tournament_entries e
+ WHERE COALESCE(e.paid, false) = true
+    OR COALESCE(e.is_subscriber, false) = true
+    OR e.payment_id IS NOT NULL
+ ORDER BY e.joined_at NULLS LAST, e.id;
+
+-- Répartition synthétique, utile pour dimensionner la réconciliation.
+SELECT COALESCE(paid, false)          AS paid,
+       COALESCE(is_subscriber, false) AS is_subscriber,
+       (payment_id IS NOT NULL AND payment_id <> '') AS a_payment_id,
+       COUNT(*)                       AS entrees
+  FROM public.gs_tournament_entries
+ WHERE COALESCE(paid, false) = true
+    OR COALESCE(is_subscriber, false) = true
+    OR payment_id IS NOT NULL
+ GROUP BY 1, 2, 3
+ ORDER BY entrees DESC;
+
+-- Contre-preuve disponible en base : un `payment_id` d'entrée retrouvé dans
+-- webhook_events est un indice de paiement réel. L'absence n'est PAS une preuve
+-- d'absence de paiement : la table n'est créée que par la migration 0400.
+-- À SAUTER si le §1 montre que public.webhook_events n'existe pas encore.
+-- PRECHECK_REQUIRES_WEBHOOK_EVENTS (marqueur utilisé par tests/rls/run_rls_tests.sh)
+SELECT e.id, e.payment_id,
+       EXISTS (
+         SELECT 1 FROM public.webhook_events w
+          WHERE w.event_id = e.payment_id
+       ) AS trace_webhook_presente
+  FROM public.gs_tournament_entries e
+ WHERE e.payment_id IS NOT NULL AND e.payment_id <> ''
+ ORDER BY e.id;

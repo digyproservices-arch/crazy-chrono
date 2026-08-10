@@ -5,9 +5,11 @@
 # NE TOUCHE JAMAIS SUPABASE : tout se passe dans un conteneur Docker éphémère
 # (aucune variable SUPABASE_* n'est lue, aucun accès réseau sortant).
 #
-#   ./tests/rls/run_rls_tests.sh            # baseline (attendu KO) puis migré (attendu OK)
-#   ./tests/rls/run_rls_tests.sh migrated   # migré uniquement
-#   ./tests/rls/run_rls_tests.sh baseline   # baseline uniquement
+#   ./tests/rls/run_rls_tests.sh              # baseline (KO attendu), migré, safe rollback
+#   ./tests/rls/run_rls_tests.sh migrated     # migré uniquement
+#   ./tests/rls/run_rls_tests.sh baseline     # baseline uniquement
+#   ./tests/rls/run_rls_tests.sh saferollback # migré + safe rollback (les attaques
+#                                             # doivent RESTER bloquées)
 # ==========================================================================
 set -uo pipefail
 
@@ -36,15 +38,36 @@ psql_file() {
 
 run_suite() {
   local apply_migrations="$1"
+  local apply_safe_rollback="${2:-no}"
   start_db
   psql_file "$ROOT/tests/rls/00_bootstrap_supabase.sql"
   psql_file "$ROOT/tests/rls/01_baseline_legacy.sql"
+
+  # Le precheck production doit être exécutable et strictement en lecture :
+  # on le joue sur le schéma AVANT migrations (c'est son contexte réel), dans
+  # une transaction en lecture seule qui rejetterait toute écriture.
+  if [ "$apply_migrations" = "yes" ]; then
+    # La dernière requête du precheck suppose public.webhook_events (créée par la
+    # migration 0400) : on coupe au marqueur prévu à cet effet.
+    { echo "BEGIN READ ONLY;";
+      sed '/-- PRECHECK_REQUIRES_WEBHOOK_EVENTS/,$d' "$ROOT/docs/CTO_005_PRODUCTION_PRECHECK.sql";
+      echo "COMMIT;"; } \
+      | docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -q -U postgres -d postgres > /dev/null \
+      || { echo "PRECHECK SQL FAILED (syntaxe ou écriture détectée)" >&2; return 5; }
+    echo "→ docs/CTO_005_PRODUCTION_PRECHECK.sql : exécutable, READ ONLY"
+  fi
 
   if [ "$apply_migrations" = "yes" ]; then
     for f in "$ROOT"/supabase/migrations/*.sql; do
       echo "→ $(basename "$f")"
       psql_file "$f" || { echo "MIGRATION FAILED: $f" >&2; return 3; }
     done
+  fi
+
+  if [ "$apply_safe_rollback" = "yes" ]; then
+    local sr="$ROOT/supabase/migrations/rollback/20260810_cto005_safe_rollback.sql"
+    echo "→ rollback/$(basename "$sr")"
+    psql_file "$sr" || { echo "SAFE ROLLBACK FAILED: $sr" >&2; return 6; }
   fi
 
   psql_file "$ROOT/tests/rls/02_fixtures.sql"
@@ -117,6 +140,25 @@ concurrency_test
 rc=$?
 if [ $rc -ne 0 ]; then
   echo "RLS TESTS: FAILED (exit=$rc)"
+  exit $rc
+fi
+
+if [ "$MODE" = "migrated" ]; then echo "RLS TESTS: PASSED"; exit 0; fi
+
+# Revue CTO §I : le safe rollback ne doit JAMAIS réouvrir une faille P0/P1.
+# On rejoue donc l'intégralité des attaques après l'avoir appliqué.
+echo "=== APRÈS SAFE ROLLBACK (les attaques doivent RESTER bloquées) ==="
+run_suite yes yes
+rc=$?
+if [ $rc -ne 0 ]; then
+  echo "RLS TESTS: FAILED (safe rollback, exit=$rc)"
+  exit $rc
+fi
+
+concurrency_test
+rc=$?
+if [ $rc -ne 0 ]; then
+  echo "RLS TESTS: FAILED (safe rollback, exit=$rc)"
   exit $rc
 fi
 echo "RLS TESTS: PASSED"

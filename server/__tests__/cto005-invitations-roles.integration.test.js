@@ -58,6 +58,7 @@ const FIXTURE = {
       { token: 'inv-used', email: 'done@example.com', role: 'admin', region: null, circonscription_id: null, used: true, expires_at: FUTURE, created_at: FUTURE },
       { token: 'inv-race', email: NO_EMAIL.email, role: 'rectorat', region: 'GP', circonscription_id: null, used: false, expires_at: FUTURE, created_at: FUTURE },
       { token: 'inv-retry', email: USER_A.email, role: 'cpd', region: 'GP', circonscription_id: null, used: false, expires_at: FUTURE, created_at: FUTURE },
+      { token: 'inv-admin', email: 'victim@example.com', role: 'admin', region: null, circonscription_id: null, used: false, expires_at: FUTURE, created_at: FUTURE },
     ],
   },
 };
@@ -337,6 +338,27 @@ describe('CTO-005A E — POST /api/auth/apply-invite : destinataire et atomicit�
     expect(legit.json).toMatchObject({ ok: true, role: 'teacher', region: 'GP' });
     const invitedMe = await request('GET', '/me', { token: TOKENS.INVITED });
     expect(invitedMe.json.role).toBe('teacher');
+  });
+
+  // Revue CTO §J-2 : une invitation privilégiée volée ne confère aucun droit.
+  test('invitation admin volée → 403, aucun privilège, invitation intacte', async () => {
+    const stolen = await request('POST', '/api/auth/apply-invite', {
+      token: TOKENS.A, body: { inviteToken: 'inv-admin' },
+    });
+    expect(stolen.status).toBe(403);
+    expect(stolen.json.error).toBe('invite_email_mismatch');
+
+    const me = await request('GET', '/me', { token: TOKENS.A });
+    expect(me.json.role).not.toBe('admin');
+    // Le voleur n'obtient pas non plus les droits d'administration.
+    const admin = await request('GET', '/api/admin/invitations', { token: TOKENS.A });
+    expect(admin.status).toBe(403);
+    // L'invitation reste utilisable par son destinataire légitime.
+    const still = await request('POST', '/api/invitations/validate', {
+      body: { token: 'inv-admin' },
+    });
+    expect(still.status).toBe(200);
+    expect(still.json.invitation.role).toBe('admin');
   });
 
   test('invitation déjà consommée → 409, rôle non réappliqué', async () => {
