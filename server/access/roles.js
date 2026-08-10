@@ -11,6 +11,15 @@
 
 const ASSIGNABLE_ROLES = ['admin', 'editor', 'user', 'teacher', 'cpd', 'cpc', 'rectorat'];
 
+// `student` n'est jamais attribuable par un administrateur ni invitable : il est
+// écrit par le backend (service role) à la création d'un compte élève. La
+// contrainte user_profiles_role_check (migration 1200) doit donc l'accepter,
+// alors que invitations_role_check ne le tolère pas.
+const BACKEND_ONLY_ROLES = ['student'];
+
+// Valeurs de `user_profiles.role` légitimes en base, tous chemins confondus.
+const PERSISTED_ROLES = [...ASSIGNABLE_ROLES, ...BACKEND_ONLY_ROLES];
+
 // Rôles portant un périmètre institutionnel : `region` (et `circonscription_id`
 // pour un CPC) est alors significatif.
 const REGION_SCOPED_ROLES = ['cpd', 'cpc', 'rectorat'];
@@ -32,6 +41,8 @@ function normalizeEmail(email) {
 
 module.exports = {
   ASSIGNABLE_ROLES,
+  BACKEND_ONLY_ROLES,
+  PERSISTED_ROLES,
   REGION_SCOPED_ROLES,
   normalizeRole,
   isAssignableRole,

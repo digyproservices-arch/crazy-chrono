@@ -57,6 +57,14 @@ INSERT INTO subscriptions (user_id, status, price_id) VALUES
 INSERT INTO gs_tournaments (id, name) VALUES
   ('20000000-0000-0000-0000-000000000001', 'Grande Salle Test');
 
+-- Entrées Grande Salle « héritées » : écrites du temps de la policy permissive,
+-- donc avec des colonnes financières non prouvées. Elles alimentent l'inventaire
+-- LEGACY_GS_PAYMENT_RECONCILIATION_REQUIRED du precheck.
+INSERT INTO gs_tournament_entries (tournament_id, first_name, last_name, email, paid, payment_id, is_subscriber) VALUES
+  ('20000000-0000-0000-0000-000000000001', 'Legacy', 'Forge',  'legacy-forge@example.test',  true,  'forged-42', false),
+  ('20000000-0000-0000-0000-000000000001', 'Legacy', 'Stripe', 'legacy-stripe@example.test', true,  'pi_123456', false),
+  ('20000000-0000-0000-0000-000000000001', 'Legacy', 'Sub',    'legacy-sub@example.test',    false, NULL,        true);
+
 INSERT INTO invitations (email, role, token) VALUES
   ('invite@example.test', 'admin', 'tok-secret-1'),
   -- Invitations destinées à USER A, pour prouver la consommation atomique

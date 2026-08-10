@@ -26,6 +26,7 @@ Ferme les P0/P1 relevés par `docs/CTO_AUDIT_004_RLS_SUPABASE.md` (PR #5) :
 | P1-2 | `subscriptions` sans `UNIQUE(user_id)` malgré `onConflict` | `0500` | fermé (avec precheck bloquant) |
 | P1-3 | `invitations` lues par anon depuis `Login.js` | `0800` + backend | fermé |
 | P1-4 | `user_devices` / `auth_audit_log` / `content_store` permissifs | `0900` | fermé |
+| P1-5 | contraintes `*_role_check` « génération rectorat » : cpd/cpc refusés par PostgreSQL | `1200` | fermé (fail-closed) |
 | P2 | clés anon commitées dans `public/` et `e2e/` | hors SQL | fermé |
 
 ---
@@ -46,7 +47,16 @@ supabase/migrations/20260810_0700_cto005_school_scope.sql
 supabase/migrations/20260810_0800_cto005_invitations.sql
 supabase/migrations/20260810_0900_cto005_devices_audit_content.sql
 supabase/migrations/20260810_1000_cto005_rpc_hardening.sql
+supabase/migrations/20260810_1100_cto005_consume_invitation.sql
+supabase/migrations/20260810_1200_cto005_role_constraints.sql
 ```
+
+`1200` aligne `user_profiles_role_check` / `invitations_role_check` sur la
+whitelist de `server/access/roles.js` (`invitations` : rôles attribuables ;
+`user_profiles` : + `student`, écrit par le backend pour les comptes élèves).
+Elle **refuse de tourner** si une valeur hors de ces ensembles existe déjà et ne
+convertit jamais un rôle historique — la régularisation passe par
+`POST /api/admin/set-role`.
 
 ### Préconditions obligatoires
 
@@ -194,7 +204,7 @@ Distinction stricte à conserver dans toute décision CTO :
 **Prouvé par le dépôt** : contenu des migrations, adaptation du frontend,
 suppression des clés anon commitées, endpoints serveur et leurs tests.
 
-**Prouvé par PostgreSQL local isolé** : les 67 assertions d'attaque ci-dessus,
+**Prouvé par PostgreSQL local isolé** : les 78 assertions d'attaque ci-dessus,
 sur un schéma reconstruit à partir des SQL versionnés.
 
 **Non vérifié — nécessite un accès read-only Supabase production** :
@@ -206,7 +216,9 @@ sur un schéma reconstruit à partir des SQL versionnés.
    fonctions trouvées ; une signature différente serait silencieusement ignorée) ;
 4. l'existence de doublons `subscriptions.user_id` ;
 5. le comportement exact de `service_role` dans Supabase (le harness le simule) ;
-6. le nombre de comptes élèves sans `user_student_mapping`.
+6. le nombre de comptes élèves sans `user_student_mapping` ;
+7. la génération réellement en place des contraintes `*_role_check` et les
+   valeurs de `role` présentes en base (bloquent `1200` si hors whitelist).
 
 Tant que ces points ne sont pas levés, l'état production reste
 `PRODUCTION_RLS_UNVERIFIED`.

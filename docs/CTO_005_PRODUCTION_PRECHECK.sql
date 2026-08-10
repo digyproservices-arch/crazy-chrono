@@ -7,6 +7,13 @@
 -- Ce fichier ne contient QUE des SELECT. Aucun CREATE, ALTER, DROP, INSERT,
 -- UPDATE, DELETE, GRANT ou REVOKE. Le rejouer n'a aucun effet de bord.
 --
+-- Il se copie-colle TEL QUEL dans le SQL Editor de Supabase : aucune section à
+-- commenter, aucun nom de colonne à adapter, aucune connaissance du schéma
+-- requise. Les colonnes dont l'existence dépend de l'historique de la base
+-- (`joined_at` vs `created_at`, `region`, `circonscription_id`…) sont lues via
+-- `to_jsonb(ligne) ->> 'colonne'`, qui renvoie NULL au lieu d'échouer quand la
+-- colonne est absente.
+--
 -- Archiver la sortie complète : elle constitue la preuve de l'état réel et
 -- lève (ou confirme) le marqueur PRODUCTION_RLS_UNVERIFIED.
 -- ==========================================================================
@@ -145,9 +152,9 @@ SELECT role, COUNT(*) AS comptes
 SELECT p.id,
        u.email                AS auth_email,   -- NULL si le compte auth n'existe plus
        p.role,
-       p.region,
-       p.circonscription_id,
-       p.created_at,
+       to_jsonb(p) ->> 'region'             AS region,
+       to_jsonb(p) ->> 'circonscription_id' AS circonscription_id,
+       to_jsonb(p) ->> 'created_at'         AS profile_created_at,
        u.created_at           AS auth_created_at,
        u.last_sign_in_at,
        u.email_confirmed_at
@@ -167,27 +174,36 @@ SELECT p.id,
 -- Incohérences de périmètre à trancher manuellement : un rôle régional sans
 -- région, ou un `cpc` sans circonscription, ne peut pas être arbitré par une
 -- migration.
-SELECT p.id, u.email AS auth_email, p.role, p.region, p.circonscription_id,
+SELECT id, auth_email, role, region, circonscription_id,
        CASE
-         WHEN p.role IN ('cpd','cpc','rectorat') AND p.region IS NULL
+         WHEN role IN ('cpd','cpc','rectorat') AND region IS NULL
            THEN 'role_regional_sans_region'
-         WHEN p.role = 'cpc' AND p.circonscription_id IS NULL
+         WHEN role = 'cpc' AND circonscription_id IS NULL
            THEN 'cpc_sans_circonscription'
-         WHEN p.role NOT IN ('cpd','cpc','rectorat')
-              AND (p.region IS NOT NULL OR p.circonscription_id IS NOT NULL)
+         WHEN role NOT IN ('cpd','cpc','rectorat')
+              AND (region IS NOT NULL OR circonscription_id IS NOT NULL)
            THEN 'perimetre_sur_role_non_regional'
        END AS anomalie
-  FROM public.user_profiles p
-  LEFT JOIN auth.users u ON u.id = p.id
- WHERE (p.role IN ('cpd','cpc','rectorat')
-        AND (p.region IS NULL OR (p.role = 'cpc' AND p.circonscription_id IS NULL)))
-    OR (p.role NOT IN ('cpd','cpc','rectorat')
-        AND (p.region IS NOT NULL OR p.circonscription_id IS NOT NULL))
- ORDER BY p.role, u.email NULLS LAST;
+  FROM (SELECT p.id,
+               u.email AS auth_email,
+               p.role,
+               to_jsonb(p) ->> 'region'             AS region,
+               to_jsonb(p) ->> 'circonscription_id' AS circonscription_id
+          FROM public.user_profiles p
+          LEFT JOIN auth.users u ON u.id = p.id) s
+ WHERE (role IN ('cpd','cpc','rectorat')
+        AND (region IS NULL OR (role = 'cpc' AND circonscription_id IS NULL)))
+    OR (role NOT IN ('cpd','cpc','rectorat')
+        AND (region IS NOT NULL OR circonscription_id IS NOT NULL))
+ ORDER BY role, auth_email NULLS LAST;
 
--- Rôles présents en base mais hors whitelist serveur (server/access/roles.js) :
--- ils ne sont plus attribuables et doivent être régularisés.
-SELECT p.id, u.email AS auth_email, p.role
+-- Rôles présents en base mais hors whitelist attribuable (server/access/roles.js).
+-- `student` est écrit par le backend à la création d'un compte élève : il est
+-- légitime en base mais n'est pas attribuable par un administrateur. Toute autre
+-- valeur doit être régularisée à la main avant la migration 1200.
+SELECT p.id, u.email AS auth_email, p.role,
+       CASE WHEN p.role = 'student' THEN 'non_attribuable_mais_legitime'
+            ELSE 'a_regulariser_bloque_migration_1200' END AS statut
   FROM public.user_profiles p
   LEFT JOIN auth.users u ON u.id = p.id
  WHERE p.role IS NOT NULL
@@ -198,12 +214,18 @@ SELECT p.id, u.email AS auth_email, p.role
 -- de rôle. Le token n'est jamais affiché.
 -- `region` / `circonscription_id` ne sont ajoutées à cette table que par la
 -- migration 1100 : ne pas les nommer ici, le precheck tourne AVANT.
-SELECT id, email AS destinataire, role, created_at, expires_at
-  FROM public.invitations
- WHERE COALESCE(used, false) = false
-   AND expires_at > now()
+SELECT id, destinataire, role, created_at, expires_at
+  FROM (SELECT i.id,
+               i.email AS destinataire,
+               i.role,
+               (to_jsonb(i) ->> 'created_at')::timestamptz AS created_at,
+               (to_jsonb(i) ->> 'expires_at')::timestamptz AS expires_at,
+               COALESCE((to_jsonb(i) ->> 'used')::boolean, false) AS used
+          FROM public.invitations i) inv
+ WHERE used = false
+   AND (expires_at IS NULL OR expires_at > now())
    AND role IN ('admin','teacher','cpd','cpc','rectorat','editor')
- ORDER BY role, expires_at;
+ ORDER BY role, expires_at NULLS LAST;
 
 -- ── 9. LEGACY_GS_PAYMENT_RECONCILIATION_REQUIRED --------------------------
 -- La policy historique `gs_entries_insert_all ... WITH CHECK (true)` laissait le
@@ -227,9 +249,10 @@ SELECT e.id,
        e.paid,
        e.is_subscriber,
        e.payment_id,
-       -- Nommage constaté dans le schéma versionné. Si la base cible utilise
-       -- `created_at`, adapter les deux occurrences ci-dessous.
-       e.joined_at,
+       -- Le schéma versionné nomme cette colonne `joined_at`, certaines bases
+       -- historiques `created_at` : les deux sont lues sans adaptation.
+       COALESCE(to_jsonb(e) ->> 'joined_at',
+                to_jsonb(e) ->> 'created_at')::timestamptz AS date_entree,
        e.user_id,
        -- Réconciliation administrative privée : l'e-mail est le seul lien vers
        -- l'acheteur pour les entrées créées sans user_id. À traiter comme une
@@ -248,7 +271,9 @@ SELECT e.id,
  WHERE COALESCE(e.paid, false) = true
     OR COALESCE(e.is_subscriber, false) = true
     OR e.payment_id IS NOT NULL
- ORDER BY e.joined_at NULLS LAST, e.id;
+ ORDER BY COALESCE(to_jsonb(e) ->> 'joined_at',
+                   to_jsonb(e) ->> 'created_at')::timestamptz NULLS LAST,
+          e.id;
 
 -- Répartition synthétique, utile pour dimensionner la réconciliation.
 SELECT COALESCE(paid, false)          AS paid,
@@ -262,16 +287,44 @@ SELECT COALESCE(paid, false)          AS paid,
  GROUP BY 1, 2, 3
  ORDER BY entrees DESC;
 
--- Contre-preuve disponible en base : un `payment_id` d'entrée retrouvé dans
--- webhook_events est un indice de paiement réel. L'absence n'est PAS une preuve
--- d'absence de paiement : la table n'est créée que par la migration 0400.
--- À SAUTER si le §1 montre que public.webhook_events n'existe pas encore.
--- PRECHECK_REQUIRES_WEBHOOK_EVENTS (marqueur utilisé par tests/rls/run_rls_tests.sh)
-SELECT e.id, e.payment_id,
-       EXISTS (
-         SELECT 1 FROM public.webhook_events w
-          WHERE w.event_id = e.payment_id
-       ) AS trace_webhook_presente
-  FROM public.gs_tournament_entries e
- WHERE e.payment_id IS NOT NULL AND e.payment_id <> ''
- ORDER BY e.id;
+-- Aucune contre-preuve n'est disponible en base : `webhook_events.event_id`
+-- porte l'identifiant de l'ÉVÉNEMENT Stripe (`evt_…`) tandis que `payment_id`
+-- porte un PaymentIntent (`pi_…`), une Checkout Session (`cs_…`) ou autre objet.
+-- Les comparer par égalité produirait un faux verdict dans les deux sens : la
+-- réconciliation se fait contre Stripe (ou les paiements enregistrés côté
+-- serveur), jamais contre cette table.
+
+-- ── 10. Contraintes CHECK de rôle réellement en place ---------------------
+-- Le dépôt contient deux générations de contraintes (server/db/migration_rectorat.sql
+-- puis server/db/migration_cpd_cpc_roles.sql). Si la génération « rectorat »
+-- (sans `cpd` ni `cpc`) est encore active en production, toute invitation ou
+-- attribution cpd/cpc échouera au niveau PostgreSQL malgré le code CTO-005A.
+-- La migration 1200 normalise ces contraintes ; elle refuse de tourner si une
+-- valeur hors whitelist existe.
+SELECT conrelid::regclass AS table_name, conname,
+       pg_get_constraintdef(oid) AS definition,
+       convalidated AS validee,
+       (pg_get_constraintdef(oid) LIKE '%''cpd''%'
+        AND pg_get_constraintdef(oid) LIKE '%''cpc''%') AS accepte_cpd_cpc
+  FROM pg_constraint
+ WHERE connamespace = 'public'::regnamespace
+   AND contype = 'c'
+   AND conrelid::regclass::text IN ('user_profiles','invitations')
+ ORDER BY 1, 2;
+
+-- Valeurs de rôle réellement présentes. Toute valeur hors whitelist serveur
+-- (`user_profiles.role` peut légitimement valoir `student`, écrit par le backend
+-- lors de la création d'un compte élève) bloquera la migration 1200 : elle doit
+-- être régularisée à la main, jamais convertie automatiquement.
+SELECT 'user_profiles' AS table_name, role, COUNT(*) AS lignes,
+       (role IN ('admin','editor','user','teacher','cpd','cpc','rectorat','student'))
+         AS role_autorise_en_base
+  FROM public.user_profiles
+ GROUP BY role
+UNION ALL
+SELECT 'invitations' AS table_name, role, COUNT(*) AS lignes,
+       (role IN ('admin','editor','user','teacher','cpd','cpc','rectorat'))
+         AS role_autorise_en_base
+  FROM public.invitations
+ GROUP BY role
+ ORDER BY table_name, role;

@@ -416,3 +416,41 @@ describe('CTO-005A E — POST /api/auth/apply-invite : destinataire et atomicit�
     expect(after.json.role).toBe('cpd');
   });
 });
+
+// Revue CTO finale §C : les contraintes CHECK de la base et la whitelist serveur
+// ne doivent jamais diverger — sinon un rôle accepté par Express est refusé par
+// PostgreSQL (cas cpd/cpc en production).
+describe('CTO-005A — contraintes de rôle alignées sur la whitelist serveur', () => {
+  const { ASSIGNABLE_ROLES, PERSISTED_ROLES } = require('../access/roles');
+  const migration = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'supabase', 'migrations',
+      '20260810_1200_cto005_role_constraints.sql'),
+    'utf8'
+  );
+
+  const rolesOf = (constraintName) => {
+    const block = migration.split(`ADD CONSTRAINT ${constraintName}`)[1];
+    expect(block).toBeDefined();
+    return block.slice(0, block.indexOf(';')).match(/'([a-z]+)'/g).map((r) => r.slice(1, -1)).sort();
+  };
+
+  test('invitations_role_check = rôles attribuables, exactement', () => {
+    expect(rolesOf('invitations_role_check')).toEqual([...ASSIGNABLE_ROLES].sort());
+  });
+
+  test('user_profiles_role_check = rôles attribuables + student, exactement', () => {
+    expect(rolesOf('user_profiles_role_check')).toEqual([...PERSISTED_ROLES].sort());
+  });
+
+  test('consume_invitation code exactement la même whitelist attribuable', () => {
+    const rpc = fs.readFileSync(
+      path.join(__dirname, '..', '..', 'supabase', 'migrations',
+        '20260810_1100_cto005_consume_invitation.sql'),
+      'utf8'
+    );
+    const block = rpc.split('v_inv.role NOT IN (')[1];
+    const roles = block.slice(0, block.indexOf(')')).match(/'([a-z]+)'/g)
+      .map((r) => r.slice(1, -1)).sort();
+    expect(roles).toEqual([...ASSIGNABLE_ROLES].sort());
+  });
+});
