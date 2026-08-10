@@ -28,6 +28,11 @@ function fakeSupabase(tables) {
         limit: async () => result(false),
         maybeSingle: async () => result(true),
         single: async () => result(true),
+        // requête terminale sans modificateur: `await supabase.from(x).select()...`
+        then: (resolve, reject) => {
+          try { return Promise.resolve(result(false)).then(resolve, reject); }
+          catch (e) { return Promise.reject(e).catch(reject); }
+        },
       };
       return q;
     },
@@ -115,13 +120,26 @@ describe('CTO-002 — resolveEntitlement (fail closed)', () => {
       .resolves.toMatchObject({ isPro: true, source: 'role:teacher' });
   });
 
-  test('élève licencié (email institutionnel) → Pro', async () => {
+  test('adresse @eleve… rapprochée d\'une fiche licenciée → Pro', async () => {
     const sb = fakeSupabase({
       ...noSub,
-      user_profiles: { rows: [{ role: 'user', email: 'leo.b@eleve.crazychrono.app' }] },
+      user_profiles: { rows: [{ role: 'student', email: 'leob@eleve.crazychrono.app' }] },
+      user_student_mapping: { rows: [] },
+      students: { rows: [{ id: 'std_1', access_code: 'LEO-B', licensed: true }] },
     });
     await expect(resolveEntitlement({ supabase: sb, userId: UID }))
-      .resolves.toMatchObject({ isPro: true, source: 'student_email' });
+      .resolves.toMatchObject({ isPro: true, source: 'student_license' });
+  });
+
+  test('rôle student seul, sans fiche élève → non Pro (revue CTO)', async () => {
+    const sb = fakeSupabase({
+      ...noSub,
+      user_profiles: { rows: [{ role: 'student', email: 'leo@example.com' }] },
+      user_student_mapping: { rows: [] },
+      students: { rows: [] },
+    });
+    await expect(resolveEntitlement({ supabase: sb, userId: UID }))
+      .resolves.toMatchObject({ isPro: false, reason: 'no_entitlement', role: 'student' });
   });
 
   test('élève licencié (mapping actif vérifié côté serveur) → Pro', async () => {
@@ -129,9 +147,32 @@ describe('CTO-002 — resolveEntitlement (fail closed)', () => {
       ...noSub,
       user_profiles: { rows: [{ role: 'user', email: 'leo@example.com' }] },
       user_student_mapping: { rows: [{ student_id: 'std_1' }] },
+      students: { rows: [{ id: 'std_1', licensed: true }] },
     });
     await expect(resolveEntitlement({ supabase: sb, userId: UID }))
       .resolves.toMatchObject({ isPro: true, source: 'student_license' });
+  });
+
+  test('élève rattaché mais fiche non licenciée → non Pro', async () => {
+    const sb = fakeSupabase({
+      ...noSub,
+      user_profiles: { rows: [{ role: 'student', email: 'leo@example.com' }] },
+      user_student_mapping: { rows: [{ student_id: 'std_1' }] },
+      students: { rows: [{ id: 'std_1', licensed: false }] },
+    });
+    await expect(resolveEntitlement({ supabase: sb, userId: UID }))
+      .resolves.toMatchObject({ isPro: false, reason: 'student_not_licensed' });
+  });
+
+  test('erreur de lecture de la fiche élève → non Pro', async () => {
+    const sb = fakeSupabase({
+      ...noSub,
+      user_profiles: { rows: [{ role: 'student', email: 'leo@example.com' }] },
+      user_student_mapping: { rows: [{ student_id: 'std_1' }] },
+      students: { error: { message: 'timeout' } },
+    });
+    await expect(resolveEntitlement({ supabase: sb, userId: UID }))
+      .resolves.toMatchObject({ isPro: false, reason: 'verification_error' });
   });
 
   test('erreur de lecture du mapping élève → non Pro', async () => {

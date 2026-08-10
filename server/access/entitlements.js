@@ -6,11 +6,16 @@
 // Les règles commerciales existantes sont conservées:
 //   - abonnement active/trialing non expiré → accès
 //   - rôle institutionnel (admin/teacher/cpd/cpc/rectorat) → accès
-//   - élève rattaché à une licence (rôle student, email @eleve…,
-//     ou mapping user_student_mapping actif) → accès
+//   - élève rattaché à une licence RÉELLEMENT vérifiée → accès
+//
+// Revue CTO: le seul rôle `student`, ou la seule adresse @eleve…, ne vaut plus
+// licence. L'accès exige une fiche `students` licensed=true rapprochée du
+// compte (mapping actif ou code d'accès).
 // ==========================================
 
-const PRIVILEGED_ROLES = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat', 'student'];
+const schoolScope = require('./schoolScope');
+
+const PRIVILEGED_ROLES = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat'];
 // Rôles autorisés à piloter un match (créer, forcer le départ, supprimer).
 // Un abonnement Pro n'accorde jamais ces pouvoirs.
 const MANAGER_ROLES = ['admin', 'teacher', 'cpd', 'cpc', 'rectorat'];
@@ -71,18 +76,22 @@ async function resolveEntitlement({ supabase, userId, now = Date.now() }) {
 
     const role = prof.role || null;
     if (PRIVILEGED_ROLES.includes(role)) return grant(`role:${role}`, { status, role });
-    if (typeof prof.email === 'string' && prof.email.endsWith(STUDENT_EMAIL_DOMAIN)) {
-      return grant('student_email', { status, role });
-    }
 
-    const { data: mapping, error: mapErr } = await supabase
-      .from('user_student_mapping')
-      .select('student_id')
-      .eq('user_id', userId)
-      .eq('active', true)
-      .maybeSingle();
-    if (mapErr) return deny('verification_error', { status, role });
-    if (mapping?.student_id) return grant('student_license', { status, role: 'student' });
+    // Élève: la licence doit être prouvée par une fiche `students` licensed=true
+    // rattachée au compte, jamais par le rôle ni par le domaine de l'adresse.
+    const email = typeof prof.email === 'string' ? prof.email.toLowerCase() : '';
+    const ownIds = await schoolScope.resolveOwnStudentIds({ supabase, userId, email });
+    if (ownIds === null) return deny('verification_error', { status, role });
+    for (const studentId of ownIds) {
+      const { data: student, error: stuErr } = await supabase
+        .from('students')
+        .select('id, licensed')
+        .eq('id', studentId)
+        .maybeSingle();
+      if (stuErr) return deny('verification_error', { status, role });
+      if (student?.licensed) return grant('student_license', { status, role: role || 'student' });
+    }
+    if (ownIds.length) return deny('student_not_licensed', { status, role });
 
     return deny(status ? 'subscription_inactive' : 'no_entitlement', { status, role });
   } catch (e) {

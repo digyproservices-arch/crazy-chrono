@@ -112,7 +112,8 @@ async function resolveOwnStudentIds({ supabase, userId, email }) {
   }
 
   if (!ids.size && typeof email === 'string' && email.endsWith(STUDENT_EMAIL_DOMAIN)) {
-    const prefix = email.slice(0, -STUDENT_EMAIL_DOMAIN.length);
+    const prefix = email.slice(0, -STUDENT_EMAIL_DOMAIN.length).replace(/[^a-z0-9]/g, '');
+    if (!prefix) return [...ids];
     try {
       const { data, error } = await supabase
         .from('students')
