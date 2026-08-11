@@ -147,9 +147,10 @@ une base vide et jetable : la production n'est ni lue ni modifiée par cette
 ## 7. Sécurité
 
 - `C:\crazy-chrono-backup` est hors du dépôt ; si un dump est malgré tout créé
-  dans le dépôt, `.gitignore` ignore déjà `backup/`, `backups/`, `*.dump` et les
-  dumps `roles.sql` / `schema.sql` / `data.sql` / `schema_auth_storage.sql` /
-  `data_auth_storage.sql`.
+  dans le dépôt, `.gitignore` ignore déjà `/backup/`, `/backups/`, `*.dump` et
+  les dumps `/roles.sql`, `/schema.sql`, `/data.sql`,
+  `/schema_auth_storage.sql`, `/data_auth_storage.sql` (motifs ancrés à la
+  racine du dépôt, pour ne masquer aucun fichier de sous-dossier).
 - Aucun backup ne doit être poussé sur GitHub, ni collé dans une PR, ni envoyé à
   Devin : les dumps contiennent des données personnelles (élèves, emails).
 - Aucun mot de passe ni token ne figure dans ce document ni dans une commande
