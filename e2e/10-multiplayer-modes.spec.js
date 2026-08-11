@@ -2,6 +2,11 @@
 const { test, expect } = require('@playwright/test');
 const { TEST_ACCOUNTS, BACKEND_URL, loginWithEmail, loginWithStudentCode, ensureBackendAwake } = require('./helpers');
 
+// CTO-005A : la clé anon n'est plus commitée ; elle vient de l'environnement.
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY || '';
+
+
 /**
  * Tests multi-contexte pour TOUS les modes de jeu :
  * 
@@ -23,16 +28,20 @@ const { TEST_ACCOUNTS, BACKEND_URL, loginWithEmail, loginWithStudentCode, ensure
  * @returns {Promise<{token: string, students: Array<{id: string, access_code: string, first_name: string, full_name: string}>}>}
  */
 async function getAdminTokenAndStudents(request) {
+  // Sans configuration Supabase fournie par l'environnement, ces scénarios ne
+  // sont pas exécutables : on les saute plutôt que d'échouer à tort.
+  test.skip(!SUPABASE_URL || !SUPABASE_ANON_KEY, 'SUPABASE_URL / SUPABASE_ANON_KEY absents de l\'environnement');
+
   // S'assurer que le backend est réveillé avant les appels API
   await ensureBackendAwake(request);
 
   // 1. Login admin via Supabase REST (obtenir un token)
-  const loginRes = await request.post('https://dfrwoabuftlbrhqxnrbl.supabase.co/auth/v1/token?grant_type=password', {
+  const loginRes = await request.post(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
     data: {
       email: TEST_ACCOUNTS.admin.email,
       password: TEST_ACCOUNTS.admin.password,
     },
-    headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmcndvYWJ1ZnRsYnJocXhucmJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY0MjExMjUsImV4cCI6MjA0MTk5NzEyNX0.o_WhCaOQ0fft-JI5cUwlOxonaVCmBYW2PfEb3KNkJMQ' },
+    headers: { 'apikey': SUPABASE_ANON_KEY },
   });
 
   if (!loginRes.ok()) {

@@ -176,6 +176,8 @@ async function requireAuth(req, res, next) {
 // Habilitations et périmètre scolaire, résolus côté serveur depuis le JWT.
 const entitlements = require('./access/entitlements');
 const schoolScope = require('./access/schoolScope');
+const { REGION_SCOPED_ROLES, normalizeEmail: normalizeRoleEmail, normalizeRole, isAssignableRole } = require('./access/roles');
+const { setRoleByEmail } = require('./access/adminUsers');
 
 // Crazy Arena Manager pour tournois (groupes de 4) - AVEC Supabase
 const CrazyArenaManager = require('./crazyArenaManager');
@@ -212,32 +214,15 @@ app.post('/admin/users/role', async (req, res) => {
     const callerRole = (!cErr && Array.isArray(cProf) && cProf[0]?.role) ? cProf[0].role : 'user';
     if (callerRole !== 'admin') return res.status(403).json({ ok: false, error: 'forbidden' });
 
-    // Validate payload
-    const targetEmail = String(req.body?.target_email || '').trim().toLowerCase();
-    const newRole = String(req.body?.role || '').trim().toLowerCase();
-    if (!targetEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(targetEmail)) {
-      return res.status(400).json({ ok: false, error: 'invalid_target_email' });
+    // CTO-005A (revue CTO §E) : un seul chemin d'écriture du rôle.
+    // Cet endpoint historique délègue à la primitive de /api/admin/set-role,
+    // qui résout le compte dans Supabase Auth et écrit par `id`.
+    const outcome = await setRoleByEmail(supabaseAdmin, req.body?.target_email, req.body?.role);
+    if (outcome.status !== 200) {
+      const error = outcome.body.error === 'invalid_email' ? 'invalid_target_email' : outcome.body.error;
+      return res.status(outcome.status).json({ ok: false, error });
     }
-    if (!['admin','editor','user'].includes(newRole)) {
-      return res.status(400).json({ ok: false, error: 'invalid_role' });
-    }
-
-    // Find target user id in auth.users
-    const { data: tgt, error: tErr } = await supabaseAdmin
-      .from('auth.users')
-      .select('id,email')
-      .eq('email', targetEmail)
-      .limit(1);
-    if (tErr || !Array.isArray(tgt) || !tgt[0]) return res.status(404).json({ ok: false, error: 'user_not_found' });
-    const target = { id: tgt[0].id, email: tgt[0].email };
-
-    // Upsert role in user_profiles
-    const { error: upErr } = await supabaseAdmin
-      .from('user_profiles')
-      .upsert({ id: target.id, email: target.email, role: newRole }, { onConflict: 'id' });
-    if (upErr) return res.status(500).json({ ok: false, error: 'update_failed' });
-
-    return res.json({ ok: true, target: { id: target.id, email: target.email }, role: newRole });
+    return res.json({ ok: true, target: outcome.target, role: outcome.body.role });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'server_error' });
   }
@@ -783,8 +768,17 @@ app.post('/api/admin/send-invite', requireAdminAuth, express.json(), async (req,
   try {
     if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
     
-    const { email, role, region, circonscription_id } = req.body;
-    if (!email || !role) return res.status(400).json({ ok: false, error: 'email et role requis' });
+    const { email, region, circonscription_id } = req.body;
+    const inviteEmail = normalizeRoleEmail(email);
+    const role = normalizeRole(req.body?.role);
+    if (!inviteEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)) {
+      return res.status(400).json({ ok: false, error: 'invalid_email' });
+    }
+    // Une invitation porte un rôle privilégié : la whitelist serveur est la même
+    // que celle de set-role et de consume_invitation().
+    if (!isAssignableRole(role)) {
+      return res.status(400).json({ ok: false, error: 'invalid_role' });
+    }
     
     // Générer token unique
     const crypto = require('crypto');
@@ -793,12 +787,12 @@ app.post('/api/admin/send-invite', requireAdminAuth, express.json(), async (req,
     
     // Insérer invitation via supabaseAdmin (bypass RLS)
     const inviteData = {
-      email: email.trim().toLowerCase(),
+      email: inviteEmail,
       role,
       token,
       expires_at,
       invited_by: req.adminUser?.email || 'admin',
-      region: (role === 'cpd' || role === 'cpc' || role === 'rectorat') ? (region || null) : null,
+      region: REGION_SCOPED_ROLES.includes(role) ? (region || null) : null,
       circonscription_id: role === 'cpc' ? (circonscription_id || null) : null
     };
     
@@ -845,7 +839,7 @@ app.post('/api/admin/send-invite', requireAdminAuth, express.json(), async (req,
         
         await transporter.sendMail({
           from: `"Crazy Chrono" <${SMTP_USER}>`,
-          to: email,
+          to: inviteEmail,
           subject: `🎓 Invitation Crazy Chrono — ${roleLabel}`,
           html: `
 <!DOCTYPE html>
@@ -889,7 +883,7 @@ app.post('/api/admin/send-invite', requireAdminAuth, express.json(), async (req,
         });
         
         emailSent = true;
-        logger.info(`[Invite] Email envoyé à ${email} (${role})`);
+        logger.info(`[Invite] Email envoyé à ${inviteEmail} (${role})`);
       } catch (emailErr) {
         logger.error('[Invite] Erreur envoi email:', emailErr.message);
       }
@@ -897,10 +891,126 @@ app.post('/api/admin/send-invite', requireAdminAuth, express.json(), async (req,
       logger.warn('[Invite] SMTP non configuré — email non envoyé');
     }
     
-    res.json({ ok: true, invitation: inv, inviteLink, emailSent });
+    // Projection explicite : le token ne sort qu'avec le lien de secours, quand
+    // l'email n'a pas pu être envoyé et que l'admin doit le transmettre lui-même.
+    res.json({
+      ok: true,
+      invitation: {
+        email: inv.email,
+        role: inv.role,
+        region: inv.region || null,
+        circonscription_id: inv.circonscription_id || null,
+        expires_at: inv.expires_at
+      },
+      ...(emailSent ? {} : { inviteLink }),
+      emailSent
+    });
   } catch (err) {
     logger.error('[Invite] Erreur:', err.message);
     res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ==========================================
+// CTO-005A — Validation d'invitation sans lecture client de la table
+// Le navigateur ne doit plus interroger `invitations` : la RLS ferme
+// désormais cette table à anon, et une lecture directe permettait
+// d'énumérer les tokens. Réponse minimale, jeton uniquement.
+// ==========================================
+const inviteValidateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'too_many_requests' }
+});
+
+app.post('/api/invitations/validate', inviteValidateLimiter, express.json(), async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
+
+    const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+    if (!token || token.length > 128) return res.status(400).json({ ok: false, error: 'token_required' });
+
+    const { data: inv, error } = await supabaseAdmin
+      .from('invitations')
+      .select('email, role, region, circonscription_id, expires_at, used')
+      .eq('token', token)
+      .eq('used', false)
+      .maybeSingle();
+
+    // Fail closed : une panne de lecture ne doit jamais valider une invitation.
+    if (error) {
+      logger.error('[Invite] validate read error:', error.message);
+      return res.status(503).json({ ok: false, error: 'verification_error' });
+    }
+    if (!inv || (inv.expires_at && new Date(inv.expires_at) < new Date())) {
+      return res.status(404).json({ ok: false, error: 'invalid_invitation' });
+    }
+
+    res.json({
+      ok: true,
+      invitation: {
+        email: inv.email,
+        role: inv.role,
+        region: inv.region || null,
+        circonscription_id: inv.circonscription_id || null
+      }
+    });
+  } catch (err) {
+    logger.error('[Invite] validate error:', err.message);
+    res.status(500).json({ ok: false, error: 'internal_error' });
+  }
+});
+
+// Liste des invitations : réservée à l'admin authentifié côté serveur.
+app.get('/api/admin/invitations', requireAdminAuth, async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
+    const { data, error } = await supabaseAdmin
+      .from('invitations')
+      .select('email, role, region, circonscription_id, used, created_at, expires_at')
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (error) return res.status(500).json({ ok: false, error: error.message });
+    // Projection explicite : les tokens ne quittent jamais le serveur.
+    const invitations = (data || []).map((i) => ({
+      email: i.email,
+      role: i.role,
+      region: i.region || null,
+      circonscription_id: i.circonscription_id || null,
+      used: !!i.used,
+      created_at: i.created_at,
+      expires_at: i.expires_at
+    }));
+    res.json({ ok: true, invitations });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: 'internal_error' });
+  }
+});
+
+// ==========================================
+// CTO-005A — Administration des rôles côté serveur uniquement
+// `user_profiles.role` n'est plus modifiable par le client (RLS + trigger).
+// ==========================================
+app.post('/api/admin/set-role', requireAdminAuth, express.json(), async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
+
+    // L'email ne sert qu'à retrouver le compte : l'écriture se fait sur
+    // auth.users.id (user_profiles.email peut être NULL ou la ligne absente).
+    const outcome = await setRoleByEmail(supabaseAdmin, req.body?.email, req.body?.role);
+    if (outcome.status === 200) {
+      logger.info('[AdminRoles] role updated', {
+        target_id: outcome.target?.id,
+        role: outcome.body.role,
+        by: req.adminUser?.email
+      });
+    }
+    res.status(outcome.status).json(outcome.body);
+  } catch (err) {
+    logger.error('[AdminRoles] error:', err.message);
+    res.status(500).json({ ok: false, error: 'internal_error' });
   }
 });
 

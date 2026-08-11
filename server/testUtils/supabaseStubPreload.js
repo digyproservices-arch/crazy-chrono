@@ -64,7 +64,7 @@ function createQuery(table) {
   let limitN = null;
   let orderCol = null;
   let orderAsc = true;
-  let pendingWrite = null; // { kind:'insert'|'upsert'|'delete', payload }
+  let pendingWrite = null; // { kind:'insert'|'upsert'|'delete', payload, conflictKey }
 
   const rows = () => {
     let out = (tables[table] || []).filter((r) => matches(r, filters));
@@ -96,7 +96,9 @@ function createQuery(table) {
       return { data: touched, error: null };
     }
     const payload = Array.isArray(pendingWrite.payload) ? pendingWrite.payload : [pendingWrite.payload];
-    const key = uniqueBy[table] || null;
+    // La clé de conflit déclarée par l'appelant (`onConflict`) compte autant que
+    // la contrainte du fixture : sans elle, un upsert dupliquerait la ligne.
+    const key = uniqueBy[table] || (pendingWrite.kind === 'upsert' ? pendingWrite.conflictKey : null) || null;
     for (const row of payload) {
       if (key) {
         const existing = list.find((r) => String(r[key]) === String(row[key]));
@@ -136,6 +138,12 @@ function createQuery(table) {
     limit(n) { limitN = n; return q; },
     range() { return q; },
     single() {
+      if (pendingWrite) {
+        const written = applyWrite();
+        if (written.error) return Promise.resolve({ data: null, error: written.error });
+        const list = Array.isArray(written.data) ? written.data : [written.data];
+        return Promise.resolve({ data: list[0] || null, error: null });
+      }
       const fault = readFault(table);
       if (fault) return Promise.resolve(fault);
       const data = rows();
@@ -149,12 +157,56 @@ function createQuery(table) {
       return Promise.resolve({ data: data[0] || null, error: null });
     },
     insert(payload) { pendingWrite = { kind: 'insert', payload }; return q; },
-    upsert(payload) { pendingWrite = { kind: 'upsert', payload }; return q; },
+    upsert(payload, opts) { pendingWrite = { kind: 'upsert', payload, conflictKey: opts?.onConflict || null }; return q; },
     update(payload) { pendingWrite = { kind: 'update', payload }; return q; },
     delete() { pendingWrite = { kind: 'delete' }; return q; },
     then(resolve, reject) { return Promise.resolve(result()).then(resolve, reject); },
   };
   return q;
+}
+
+// Reproduit `consume_invitation` (migration 1100) : validations puis écriture du
+// rôle et marquage du token dans une seule opération indivisible — ici garantie
+// par le modèle mono-thread de Node, comme le `FOR UPDATE` côté PostgreSQL.
+const ASSIGNABLE_ROLES = ['admin', 'editor', 'user', 'teacher', 'cpd', 'cpc', 'rectorat'];
+
+function consumeInvitation(args) {
+  const norm = (v) => String(v || '').trim().toLowerCase();
+  const token = String(args?.p_token || '').trim();
+  const userId = args?.p_user_id;
+  const email = norm(args?.p_email);
+  if (!token || !userId || !email) return { status: 'invalid_request' };
+
+  const invitations = tables.invitations || [];
+  const inv = invitations.find((r) => String(r.token) === token);
+  if (!inv) return { status: 'not_found' };
+  if (inv.used) return { status: 'already_used' };
+  if (inv.expires_at && new Date(inv.expires_at) < new Date()) return { status: 'expired' };
+  if (norm(inv.email) !== email) return { status: 'email_mismatch' };
+  if (!ASSIGNABLE_ROLES.includes(inv.role)) return { status: 'invalid_role' };
+
+  const profiles = tables.user_profiles || (tables.user_profiles = []);
+  const existing = profiles.find((p) => String(p.id) === String(userId));
+  if (existing) {
+    existing.role = inv.role;
+    if (inv.region) existing.region = inv.region;
+    if (inv.circonscription_id) existing.circonscription_id = inv.circonscription_id;
+  } else {
+    profiles.push({
+      id: userId,
+      role: inv.role,
+      region: inv.region || null,
+      circonscription_id: inv.circonscription_id || null,
+    });
+  }
+  inv.used = true;
+  inv.used_at = new Date().toISOString();
+  return {
+    status: 'ok',
+    role: inv.role,
+    region: inv.region || null,
+    circonscription_id: inv.circonscription_id || null,
+  };
 }
 
 function createClient() {
@@ -166,7 +218,12 @@ function createClient() {
         return { data: { user }, error: null };
       },
       admin: {
-        listUsers: async () => ({ data: { users: Object.values(usersByToken) }, error: null }),
+        listUsers: async () => {
+          const fault = faults().failReads['auth.users'];
+          if (fault) return { data: null, error: { message: String(fault), code: 'XX000' } };
+          const extra = fixture.authOnlyUsers || [];
+          return { data: { users: [...Object.values(usersByToken), ...extra] }, error: null };
+        },
         getUserById: async (id) => {
           const user = Object.values(usersByToken).find((u) => u.id === id) || null;
           return { data: { user }, error: user ? null : { message: 'not found' } };
@@ -174,7 +231,12 @@ function createClient() {
       },
     },
     from: (table) => createQuery(table),
-    rpc: async () => ({ data: null, error: null }),
+    rpc: async (fn, args) => {
+      const fault = faults().failWrites[`rpc:${fn}`];
+      if (fault) return { data: null, error: { message: String(fault), code: 'XX000' } };
+      if (fn === 'consume_invitation') return { data: consumeInvitation(args), error: null };
+      return { data: null, error: null };
+    },
     storage: { from: () => ({ upload: async () => ({ data: null, error: null }) }) },
   };
 }

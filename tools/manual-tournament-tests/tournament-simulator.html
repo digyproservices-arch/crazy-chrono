@@ -341,7 +341,8 @@ function getSupabaseUrl() {
   return localStorage.getItem('supabaseUrl') || 'https://vimtycpjofejtgwejfht.supabase.co';
 }
 function getSupabaseAnonKey() {
-  return localStorage.getItem('supabaseAnonKey') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpbXR5Y3Bqb2ZlanRnd2VqZmh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgxNTQ5OTAsImV4cCI6MjA3MzczMDk5MH0.JQ4Ciy5SPYQ79JrWDA9UwMdln0PtvNnLzYx6QJAcJ5Q';
+  // CTO-005A : plus de clé anon commitée.
+  return localStorage.getItem('supabaseAnonKey') || '';
 }
 
 function authHeaders() {

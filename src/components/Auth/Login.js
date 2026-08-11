@@ -58,6 +58,38 @@ async function registerDeviceAtLogin(jwt) {
   }
 }
 
+// CTO-005A (revue CTO §D) : seule source d'un rôle privilégié côté client.
+// Le navigateur n'invente jamais `role`/`region`/`circonscription_id` depuis le
+// token d'invitation : il envoie le token avec son JWT et attend le verdict du
+// backend, qui vérifie le destinataire et consomme l'invitation atomiquement.
+async function applyInviteFromServer(inviteToken, jwt) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/auth/apply-invite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${jwt}` },
+      body: JSON.stringify({ inviteToken }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.ok) {
+      // Le token reste en attente si l'échec est transitoire (réseau, 503) :
+      // seul un refus définitif du serveur le retire.
+      if (res.status >= 400 && res.status < 500) {
+        try { localStorage.removeItem('cc_pending_invite'); } catch {}
+      }
+      return { ok: false, error: data?.error || `http_${res.status}` };
+    }
+    try { localStorage.removeItem('cc_pending_invite'); } catch {}
+    return {
+      ok: true,
+      role: data.role,
+      region: data.region || null,
+      circonscription_id: data.circonscription_id || null,
+    };
+  } catch (e) {
+    return { ok: false, error: e.message || 'network_error' };
+  }
+}
+
 // Redirection post-login selon le rôle (ou redirect query param)
 const getPostLoginPath = (profile, searchParams) => {
   const redirect = searchParams?.get?.('redirect');
@@ -81,8 +113,6 @@ export default function Login({ onLogin }) {
   const [signupMode, setSignupMode] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
   const [inviteToken, setInviteToken] = useState('');
-  const [inviteRole, setInviteRole] = useState('');
-  const [inviteRegion, setInviteRegion] = useState(null);
   const [studentMode, setStudentMode] = useState(false);
   const [studentCode, setStudentCode] = useState('');
   const [acceptCgu, setAcceptCgu] = useState(false);
@@ -100,19 +130,26 @@ export default function Login({ onLogin }) {
         // Vérifier invitation (URL ou localStorage)
         const token = searchParams.get('invite') || localStorage.getItem('cc_pending_invite');
         if (token) {
-          const { data: inv } = await supabase
-            .from('invitations')
-            .select('*')
-            .eq('token', token)
-            .eq('used', false)
-            .single();
-          
-          if (inv && new Date(inv.expires_at) > new Date()) {
+          // CTO-005A : plus de lecture directe de `invitations` (énumération de
+          // tokens possible avec la clé anon). Le serveur valide et ne renvoie
+          // que le strict nécessaire.
+          let inv = null;
+          try {
+            const res = await fetch(`${BACKEND_URL}/api/invitations/validate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token })
+            });
+            const payload = await res.json();
+            if (res.ok && payload?.ok) inv = payload.invitation;
+          } catch {}
+
+          if (inv) {
             // Persister le token pour le retrouver après confirmation email
             try { localStorage.setItem('cc_pending_invite', token); } catch {}
+            // Le rôle affiché n'est qu'informatif : il n'est jamais utilisé pour
+            // construire un état local privilégié (cf. apply-invite).
             setInviteToken(token);
-            setInviteRole(inv.role);
-            if (inv.region) setInviteRegion(inv.region);
             setEmail(inv.email);
             setSignupMode(true);
             setInfo(`Invitation pour ${inv.email} en tant que ${inv.role}${inv.region ? ` (${inv.region})` : ''}`);
@@ -197,21 +234,16 @@ export default function Login({ onLogin }) {
             // Auto-apply pending invite si token en localStorage
             const pendingInvite = localStorage.getItem('cc_pending_invite');
             if (pendingInvite && data?.session?.access_token) {
-              try {
-                const applyRes = await fetch(`${BACKEND_URL}/api/auth/apply-invite`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${data.session.access_token}` },
-                  body: JSON.stringify({ inviteToken: pendingInvite })
-                });
-                const applyData = await applyRes.json();
-                if (applyData.ok) {
-                  profile.role = applyData.role;
-                  if (applyData.region) profile.region = applyData.region;
-                  if (applyData.circonscription_id) profile.circonscription_id = applyData.circonscription_id;
-                  console.log(`[Login:auto] Invitation appliquée: ${applyData.role}`);
-                }
-                localStorage.removeItem('cc_pending_invite');
-              } catch (e) { console.warn('[Login:auto] apply-invite error:', e.message); }
+              const applied = await applyInviteFromServer(pendingInvite, data.session.access_token);
+              if (applied.ok) {
+                profile.role = applied.role;
+                if (applied.region) profile.region = applied.region;
+                if (applied.circonscription_id) profile.circonscription_id = applied.circonscription_id;
+                console.log(`[Login:auto] Invitation appliquée: ${applied.role}`);
+              } else {
+                // Échec = aucun privilège local ; le profil reste celui du serveur.
+                console.warn('[Login:auto] apply-invite refusé:', applied.error);
+              }
             }
             const autoRemember = !localStorage.getItem('cc_session_only');
             persistLog('[autoLogin] supabase session found, email=' + (user.email || '?') + ' role=' + (profile.role || '?') + ' rememberMe=' + autoRemember);
@@ -452,28 +484,19 @@ export default function Login({ onLogin }) {
         // Si invitation en cours, appliquer le rôle via backend (state ou localStorage)
         const tokenToApply = inviteToken || localStorage.getItem('cc_pending_invite');
         if (tokenToApply && data?.session?.access_token) {
-          try {
-            const applyRes = await fetch(`${BACKEND_URL}/api/auth/apply-invite`, {
-              method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${data.session.access_token}` 
-              },
-              body: JSON.stringify({ inviteToken: tokenToApply })
-            });
-            const applyData = await applyRes.json();
-            if (applyData.ok) {
-              profile.role = applyData.role;
-              if (applyData.region) profile.region = applyData.region;
-              if (applyData.circonscription_id) profile.circonscription_id = applyData.circonscription_id;
-              saveAuth(profile, remember);
-              console.log(`[Login] Invitation appliquée: ${applyData.role}${applyData.region ? ` (${applyData.region})` : ''}`)
-            } else {
-              console.warn('[Login] apply-invite failed:', applyData.error);
-            }
-            localStorage.removeItem('cc_pending_invite');
-          } catch (applyErr) {
-            console.warn('[Login] apply-invite error:', applyErr.message);
+          const applied = await applyInviteFromServer(tokenToApply, data.session.access_token);
+          if (applied.ok) {
+            profile.role = applied.role;
+            if (applied.region) profile.region = applied.region;
+            if (applied.circonscription_id) profile.circonscription_id = applied.circonscription_id;
+            saveAuth(profile, remember);
+            console.log(`[Login] Invitation appliquée: ${applied.role}${applied.region ? ` (${applied.region})` : ''}`);
+          } else {
+            // Aucun rôle privilégié local : le compte reste celui décidé par le serveur.
+            console.warn('[Login] apply-invite refusé:', applied.error);
+            setInfo(applied.error === 'invite_email_mismatch'
+              ? "Cette invitation a été émise pour une autre adresse e-mail : aucun rôle n'a été appliqué."
+              : "L'invitation n'a pas pu être appliquée. Réessaie plus tard.");
           }
         }
 
@@ -562,18 +585,17 @@ export default function Login({ onLogin }) {
         return;
       }
       
-      // Créer le profil utilisateur (sans rôle invitation — apply-invite le fera côté backend après login)
+      // Profil créé par le navigateur : colonnes personnelles uniquement.
+      // `email`, `role`, `region` et `circonscription_id` sont gérées par le
+      // serveur (RLS/GRANT de la migration 0200) ; le rôle initial est le
+      // DEFAULT 'user' et une invitation n'est appliquée que par le backend.
       if (user) {
         const profileData = {
-            id: user.id,
-            email: em,
-            first_name: fn,
-            last_name: ln,
-            pseudo: [fn, ln].filter(Boolean).join(' ').trim(),
-            role: inviteRole || 'user'
-          };
-        if (inviteRegion) profileData.region = inviteRegion;
-        // Tentative client-side (peut échouer si RLS bloque)
+          id: user.id,
+          first_name: fn,
+          last_name: ln,
+          pseudo: [fn, ln].filter(Boolean).join(' ').trim(),
+        };
         const { error: upsertErr } = await supabase
           .from('user_profiles')
           .upsert(profileData, { onConflict: 'id' });
@@ -588,10 +610,23 @@ export default function Login({ onLogin }) {
           id: u.id, 
           email: u.email, 
           name: u.user_metadata?.name || u.email?.split('@')[0], 
-          role: inviteRole || 'user',
-          ...(inviteRegion ? { region: inviteRegion } : {}),
+          role: 'user',
           token: session.access_token // Ajouter le token pour les API calls
         };
+        // Aucun rôle privilégié construit localement : seul le backend, après
+        // vérification du JWT et du destinataire de l'invitation, en décide.
+        if (inviteToken) {
+          const applied = await applyInviteFromServer(inviteToken, session.access_token);
+          if (!applied.ok) {
+            setError(applied.error === 'invite_email_mismatch'
+              ? "Cette invitation a été émise pour une autre adresse e-mail."
+              : "Compte créé, mais l'invitation n'a pas pu être appliquée. Connecte-toi et réessaie.");
+            return;
+          }
+          profile.role = applied.role;
+          if (applied.region) profile.region = applied.region;
+          if (applied.circonscription_id) profile.circonscription_id = applied.circonscription_id;
+        }
         saveAuth(profile);
         onLogin && onLogin(profile);
         navigate(getPostLoginPath(profile, searchParams), { replace: true });
