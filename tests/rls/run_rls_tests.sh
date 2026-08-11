@@ -14,8 +14,9 @@
 #                                             # cpd/cpc refusés avant 1200, acceptés
 #                                             # après, migration fail-closed sur une
 #                                             # valeur hors whitelist
-#   ./tests/rls/run_rls_tests.sh precheck     # precheck complet sur les deux variantes
-#                                             # de schéma (joined_at / created_at)
+#   ./tests/rls/run_rls_tests.sh precheck     # precheck + rapport consolidé sur les
+#                                             # variantes de schéma (joined_at /
+#                                             # created_at / colonnes absentes)
 # ==========================================================================
 set -uo pipefail
 
@@ -53,6 +54,24 @@ precheck_readonly() {
   echo "→ docs/CTO_005_PRODUCTION_PRECHECK.sql : exécutable intégralement, READ ONLY"
 }
 
+# Le rapport consolidé est une requête unique : il doit rendre exactement un
+# result set et ne jamais écrire.
+report_readonly() {
+  local rows
+  rows=$({ echo "BEGIN READ ONLY;";
+           cat "$ROOT/docs/CTO_005_PRODUCTION_REPORT.sql";
+           echo "COMMIT;"; } \
+    | docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -t -A -q -U postgres -d postgres 2>&1) \
+    || { echo "REPORT SQL FAILED: $rows" >&2; return 9; }
+  local n
+  n=$(grep -c '|' <<<"$rows")
+  if [ "$n" -lt 50 ]; then
+    echo "REPORT SQL a rendu $n ligne(s) : jeu de résultats inattendu" >&2
+    return 9
+  fi
+  echo "→ docs/CTO_005_PRODUCTION_REPORT.sql : $n lignes, un seul result set, READ ONLY"
+}
+
 run_suite() {
   local apply_migrations="$1"
   local apply_safe_rollback="${2:-no}"
@@ -66,6 +85,7 @@ run_suite() {
   # écriture.
   if [ "$apply_migrations" = "yes" ]; then
     precheck_readonly || return 5
+    report_readonly || return 9
   fi
 
   if [ "$apply_migrations" = "yes" ]; then
@@ -82,6 +102,11 @@ run_suite() {
   fi
 
   psql_file "$ROOT/tests/rls/02_fixtures.sql"
+
+  if [ "$apply_migrations" = "yes" ]; then
+    # le rapport doit aussi passer sur le schéma durci, pas seulement avant
+    report_readonly || return 9
+  fi
 
   if [ "$apply_migrations" = "yes" ]; then
     # état cible : la moindre attaque réussie doit faire échouer la suite
@@ -136,12 +161,14 @@ precheck_variants() {
   psql_file "$ROOT/tests/rls/02_fixtures.sql"
   echo "=== PRECHECK — variante gs_tournament_entries.joined_at ==="
   precheck_readonly || return 5
+  report_readonly || return 9
 
   echo "=== PRECHECK — variante gs_tournament_entries.created_at ==="
   docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -q -U postgres -d postgres <<'SQL'
 ALTER TABLE public.gs_tournament_entries RENAME COLUMN joined_at TO created_at;
 SQL
   precheck_readonly || return 5
+  report_readonly || return 9
 
   # Variante extrême : base historique sans périmètre institutionnel ni date de
   # création sur user_profiles, et sans aucune colonne de date sur les entrées.
@@ -153,6 +180,7 @@ ALTER TABLE public.user_profiles DROP COLUMN created_at;
 ALTER TABLE public.gs_tournament_entries DROP COLUMN created_at;
 SQL
   precheck_readonly || return 5
+  report_readonly || return 9
 }
 
 # Revue CTO finale §C3 : contraintes CHECK de rôle legacy → 1200 → cpd/cpc.

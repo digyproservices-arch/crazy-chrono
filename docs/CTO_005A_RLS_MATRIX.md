@@ -63,6 +63,13 @@ convertit jamais un rôle historique — la régularisation passe par
 1. Exécuter d'abord, en **lecture seule**, `docs/CTO_005_PRODUCTION_PRECHECK.sql`
    sur la base cible et archiver la sortie. Elle révèle les divergences de
    schéma (tables absentes, types de `user_id`, signatures RPC, doublons).
+   `docs/CTO_005_PRODUCTION_REPORT.sql` couvre les mêmes contrôles sous forme
+   d'une requête unique — le SQL Editor de Supabase n'affichant que le dernier
+   jeu de résultats, c'est cette version qui se transmet et s'archive
+   (`section | check_name | status | count | details`, statuts
+   `P0 / P1 / REVIEW / OK / INFO`). Elle n'inventorie que : les comptes
+   privilégiés et les comptes de test sont listés pour validation humaine,
+   jamais proposés à la suppression.
 2. `0500` **échoue volontairement** s'il existe des `subscriptions.user_id`
    dupliqués. Aucune déduplication automatique n'est faite : c'est une décision
    métier (quel abonnement conserver), pas une décision de migration.
