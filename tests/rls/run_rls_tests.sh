@@ -114,9 +114,55 @@ SQL
       -c "DROP FUNCTION public.$probe" >/dev/null
   done
 
+  # Contrat COMPLET d'un helper allowlisté : `authenticated` doit AVOIR EXECUTE,
+  # sans quoi les policies ne peuvent plus s'évaluer pour un utilisateur connecté.
+  # L'assertion doit nommer le helper et la raison.
+  docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -q -U postgres -d postgres \
+    -c "REVOKE EXECUTE ON FUNCTION public.cc_is_admin() FROM authenticated" >/dev/null
+  out=$(docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -q -U postgres -d postgres < "$m" 2>&1)
+  if grep -q 'cc_is_admin() \[EXECUTE authenticated manquant\]' <<<"$out" && grep -qi 'ERROR' <<<"$out"; then
+    echo "NOTICE:  PASS 1300-D EXECUTE authenticated retiré d'un helper → assertion ÉCHOUE [EXECUTE authenticated manquant]"
+  else
+    echo "FAIL 1300 n'a pas détecté la perte d'EXECUTE authenticated : $out" >&2
+    return 14
+  fi
+  docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -q -U postgres -d postgres \
+    -c "GRANT EXECUTE ON FUNCTION public.cc_is_admin() TO authenticated" >/dev/null
+
   # Retour à l'état nominal : l'assertion repasse.
-  psql_file "$m" || { echo "FAIL 1300 ne repasse pas après suppression des sondes" >&2; return 14; }
-  echo "NOTICE:  PASS 1300-C retour à l'allowlist exacte → assertion OK"
+  psql_file "$m" || { echo "FAIL 1300 ne repasse pas après restauration du contrat" >&2; return 14; }
+  echo "NOTICE:  PASS 1300-C contrat nominal des 11 helpers (SECDEF, search_path, PUBLIC non, anon non, authenticated oui) → assertion OK"
+}
+
+# Revue CTO ultime §A : le garde-fou du safe rollback utilise la MÊME allowlist
+# de signatures exactes que 1300. Une fonction `cc_*` inconnue ou une surcharge
+# inattendue doit le faire échouer, sinon le rollback validerait une exposition.
+safe_rollback_guard_test() {
+  local sr="$ROOT/supabase/migrations/rollback/20260810_cto005_safe_rollback.sql"
+  local out
+
+  psql_file "$sr" || { echo "FAIL garde-fou du safe rollback sur l'état nominal" >&2; return 17; }
+  echo "NOTICE:  PASS ROLLBACK-A garde-fou OK sur l'état nominal (11 helpers exacts)"
+
+  for probe in "cc_fake()" "cc_current_role(text)"; do
+    docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -q -U postgres -d postgres <<SQL
+CREATE FUNCTION public.${probe%%(*}($( [ "$probe" = "cc_current_role(text)" ] && echo "TEXT" ))
+RETURNS TEXT LANGUAGE sql SECURITY DEFINER AS 'SELECT ''x''::text';
+GRANT EXECUTE ON FUNCTION public.$probe TO authenticated;
+SQL
+    out=$(docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -q -U postgres -d postgres < "$sr" 2>&1)
+    if grep -q "$probe" <<<"$out" && grep -qi 'ERROR' <<<"$out"; then
+      echo "NOTICE:  PASS ROLLBACK-B $probe SECURITY DEFINER + authenticated → garde-fou ÉCHOUE en la nommant"
+    else
+      echo "FAIL le garde-fou du safe rollback n'a pas refusé $probe : $out" >&2
+      return 17
+    fi
+    docker exec -i "$CONTAINER" psql -q -U postgres -d postgres \
+      -c "DROP FUNCTION public.$probe" >/dev/null
+  done
+
+  psql_file "$sr" || { echo "FAIL garde-fou du safe rollback après suppression des sondes" >&2; return 17; }
+  echo "NOTICE:  PASS ROLLBACK-C retour à l'allowlist exacte → garde-fou OK"
 }
 
 # Le fichier doit passer TEL QUEL : aucune section coupée, aucun nom de colonne
@@ -386,6 +432,8 @@ production_like_suite() {
   rc=$?
   [ $rc -ne 0 ] && return $rc
   concurrency_test || return 4
+  echo "=== ALLOWLIST EXACTE DU GARDE-FOU DU SAFE ROLLBACK ==="
+  safe_rollback_guard_test || return 17
 }
 
 if [ "$MODE" = "prodlike" ]; then
@@ -463,6 +511,14 @@ concurrency_test
 rc=$?
 if [ $rc -ne 0 ]; then
   echo "RLS TESTS: FAILED (safe rollback, exit=$rc)"
+  exit $rc
+fi
+
+echo "=== ALLOWLIST EXACTE DU GARDE-FOU DU SAFE ROLLBACK ==="
+safe_rollback_guard_test
+rc=$?
+if [ $rc -ne 0 ]; then
+  echo "RLS TESTS: FAILED (garde-fou safe rollback, exit=$rc)"
   exit $rc
 fi
 echo "RLS TESTS: PASSED"

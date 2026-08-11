@@ -202,17 +202,44 @@ BEGIN
     RAISE EXCEPTION 'safe_rollback: policy permissive USING/WITH CHECK (true) encore présente : %', bad;
   END IF;
 
-  SELECT string_agg(p.proname, ', ')
+  -- Allowlist par SIGNATURE EXACTE, jamais par préfixe de nom : `cc_fake()`,
+  -- `cc_debug()` ou une surcharge `cc_current_role(text)` sont des fonctions
+  -- différentes des 11 helpers d'identité créés par 0100 et doivent faire
+  -- échouer ce garde-fou. Même allowlist que 20260810_1300_cto005_secdef_assertion.sql.
+  SELECT string_agg(format('%s [%s%s%s]', sig,
+                           CASE WHEN public_ok THEN 'PUBLIC ' ELSE '' END,
+                           CASE WHEN anon_ok   THEN 'anon '   ELSE '' END,
+                           CASE WHEN auth_ok   THEN 'authenticated' ELSE '' END), ', ')
     INTO bad
-    FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-   WHERE n.nspname = 'public'
-     AND p.prosecdef
-     -- Les helpers cc_* (migration 0100) sont appelés depuis les policies :
-     -- ils ne prennent aucun argument et ne parlent que de auth.uid().
-     AND p.proname NOT LIKE 'cc\_%'
-     AND (has_function_privilege('anon', p.oid, 'EXECUTE')
-          OR has_function_privilege('authenticated', p.oid, 'EXECUTE'));
+    FROM (
+      SELECT format('%I.%I(%s)', n.nspname, p.proname,
+                    pg_get_function_identity_arguments(p.oid)) AS sig,
+             has_function_privilege('anon',          p.oid, 'EXECUTE') AS anon_ok,
+             has_function_privilege('authenticated', p.oid, 'EXECUTE') AS auth_ok,
+             EXISTS (
+               SELECT 1
+                 FROM aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) a
+                WHERE a.grantee = 0 AND a.privilege_type = 'EXECUTE'
+             ) AS public_ok
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname = 'public'
+         AND p.prosecdef
+    ) f
+   WHERE f.sig <> ALL (ARRAY[
+           'public.cc_current_role()',
+           'public.cc_is_admin()',
+           'public.cc_is_manager()',
+           'public.cc_current_email()',
+           'public.cc_my_circonscription()',
+           'public.cc_my_region()',
+           'public.cc_my_student_ids()',
+           'public.cc_my_class_ids()',
+           'public.cc_managed_class_ids()',
+           'public.cc_visible_class_ids()',
+           'public.cc_visible_school_ids()'
+         ])
+     AND (f.anon_ok OR f.auth_ok OR f.public_ok);
   IF bad IS NOT NULL THEN
     RAISE EXCEPTION 'safe_rollback: RPC SECURITY DEFINER exécutable par un client : %', bad;
   END IF;

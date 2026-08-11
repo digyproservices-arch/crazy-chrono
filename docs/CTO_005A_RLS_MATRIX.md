@@ -78,8 +78,28 @@ public.cc_my_circonscription() public.cc_visible_class_ids()
 Toute autre fonction, y compris `cc_fake()`, `cc_evil()` ou une surcharge
 inattendue comme `cc_current_role(text)`, retombe sous la règle générale et fait
 échouer `1300` en la nommant. Prouvé par `secdef_allowlist_test()` du harness :
-11 helpers exacts → OK ; `cc_fake()` et `cc_current_role(text)` `SECURITY
-DEFINER` + `authenticated` → ÉCHEC nommé ; retour à l'allowlist → OK.
+11 helpers exacts → OK (`1300-A`) ; `cc_fake()` et `cc_current_role(text)`
+`SECURITY DEFINER` + `authenticated` → ÉCHEC nommé (`1300-B`) ; retour à
+l'allowlist → OK (`1300-C`).
+
+`EXECUTE authenticated` est vérifié dans les **deux sens** (revue CTO ultime §B) :
+sa présence sur une fonction non allowlistée est un échec fail-closed, et son
+**absence** sur l'un des 11 helpers est aussi un échec — une panne silencieuse de
+toutes les lectures RLS des utilisateurs connectés. `1300` nomme alors le helper
+avec la raison `[EXECUTE authenticated manquant]` (`1300-D` : `REVOKE EXECUTE …
+FROM authenticated` sur `cc_is_admin()` → ÉCHEC nommé, puis `GRANT` → PASS).
+Cette tolérance ne vaut que pour ces 11 signatures.
+
+**Le garde-fou du safe rollback partage la même allowlist exacte.**
+`supabase/migrations/rollback/20260810_cto005_safe_rollback.sql` n'utilise plus
+`proname NOT LIKE 'cc\_%'` : il compare la signature complète aux 11 entrées et
+échoue si toute autre fonction `SECURITY DEFINER` est exécutable par `PUBLIC`,
+`anon` ou `authenticated`, en indiquant les rôles concernés. Plus aucune règle
+de préfixe ne subsiste dans un garde-fou de sécurité. Prouvé par
+`safe_rollback_guard_test()` : état nominal → OK (`ROLLBACK-A`) ; `cc_fake()` et
+`cc_current_role(text)` exposées → ÉCHEC nommé (`ROLLBACK-B`) ; après nettoyage
+des sondes → OK (`ROLLBACK-C`), exécuté sur la baseline historique **et**
+production-like.
 
 #### `ensure_profile()` : versionnée et durcie (arbitrage CTO)
 

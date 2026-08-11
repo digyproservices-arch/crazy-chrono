@@ -25,9 +25,14 @@
 --   RLS échouerait. Ces helpers sont STABLE, sans argument, et ne renvoient que
 --   le périmètre de l'appelant déduit de auth.uid().
 --
---   Chaque helper allowlisté est en outre vérifié : signature présente,
---   SECURITY DEFINER, aucun EXECUTE PUBLIC, aucun EXECUTE anon, search_path
---   figé à `public, pg_temp`.
+--   Chaque helper allowlisté est vérifié sur son contrat COMPLET : signature
+--   présente, SECURITY DEFINER, search_path figé à `public, pg_temp`,
+--   PUBLIC : non, anon : non, authenticated : OUI. Ce dernier point est un
+--   contrôle d'intégrité et non une tolérance : un helper dont `authenticated`
+--   a perdu l'EXECUTE rend toute lecture RLS impossible pour les utilisateurs
+--   connectés — une panne silencieuse que l'assertion doit nommer. Cette
+--   permission ne vaut QUE pour ces 11 signatures ; pour toute autre fonction,
+--   `authenticated` reste un motif d'échec.
 -- ==========================================================================
 
 DO $$
@@ -79,6 +84,9 @@ BEGIN
       END IF;
       IF r.anon_ok THEN
         v_helper_bad := v_helper_bad || (r.sig || ' [EXECUTE anon]');
+      END IF;
+      IF NOT r.auth_ok THEN
+        v_helper_bad := v_helper_bad || (r.sig || ' [EXECUTE authenticated manquant]');
       END IF;
       IF NOT r.prosecdef THEN
         v_helper_bad := v_helper_bad || (r.sig || ' [SECURITY INVOKER]');
