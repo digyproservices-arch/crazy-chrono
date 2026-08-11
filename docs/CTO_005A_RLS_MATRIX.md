@@ -56,21 +56,79 @@ supabase/migrations/20260810_1300_cto005_secdef_assertion.sql
 toutes les fonctions `SECURITY DEFINER` du schéma `public` et échoue en donnant
 nom + signature si l'une reste exécutable par `PUBLIC`, `anon` ou
 `authenticated`. Elle ne révoque rien d'inconnu — une fonction non prévue exige
-une analyse humaine, pas une révocation aveugle. Allowlist unique et documentée :
-les helpers `cc_*` de `0100`, exécutables par `authenticated` (ils dérivent tout
-de `auth.uid()` et n'acceptent aucun paramètre d'identité), interdits à
-`PUBLIC`/`anon` — ce que `1300` vérifie aussi.
+une analyse humaine, pas une révocation aveugle.
 
-`1000` durcit aussi `ensure_profile()`, révélée exposée par le rapport
-production et absente de la liste initiale. Recherche exhaustive du dépôt :
-aucune occurrence dans le frontend, le backend, les migrations versionnées ou
-une autre RPC — elle n'est donc appelée ni par le client ni par le code
-applicatif, et n'existe qu'en production (probablement un ancien helper de
-création de profil, éventuellement branché sur un trigger). Traitement retenu :
-`search_path` figé, `REVOKE` `PUBLIC`/`anon`/`authenticated`, `GRANT` au seul
-rôle serveur. Un trigger continuerait de fonctionner : un trigger s'exécute avec
-les droits du propriétaire de la fonction, pas avec ceux de l'appelant — révoquer
-l'`EXECUTE` client ne casse que l'appel RPC direct, qui n'existe pas.
+**Allowlist par signature exacte** (revue CTO finale §B) : un préfixe `cc_`
+n'autorise rien. `1300` compare
+`format('%I.%I(%s)', nspname, proname, pg_get_function_identity_arguments(oid))`
+aux 11 signatures suivantes, exige que les 11 existent, et vérifie pour chacune
+`SECURITY DEFINER`, `search_path = public, pg_temp`, aucun `EXECUTE` à `PUBLIC`
+ni à `anon`, et `EXECUTE authenticated` — nécessaire parce que les policies
+appellent ces helpers dans le contexte de l'utilisateur connecté :
+
+```
+public.cc_current_role()        public.cc_my_region()
+public.cc_is_admin()           public.cc_my_student_ids()
+public.cc_is_manager()         public.cc_my_class_ids()
+public.cc_current_email()      public.cc_managed_class_ids()
+public.cc_my_circonscription() public.cc_visible_class_ids()
+                               public.cc_visible_school_ids()
+```
+
+Toute autre fonction, y compris `cc_fake()`, `cc_evil()` ou une surcharge
+inattendue comme `cc_current_role(text)`, retombe sous la règle générale et fait
+échouer `1300` en la nommant. Prouvé par `secdef_allowlist_test()` du harness :
+11 helpers exacts → OK ; `cc_fake()` et `cc_current_role(text)` `SECURITY
+DEFINER` + `authenticated` → ÉCHEC nommé ; retour à l'allowlist → OK.
+
+#### `ensure_profile()` : aucune hypothèse sur son contenu
+
+Le rapport production la montre `SECURITY DEFINER` et exposée au client. Elle
+n'existe dans **aucun** fichier du dépôt (recherche exhaustive : frontend,
+backend, migrations, autres RPC) : son corps, son propriétaire et ses éventuels
+triggers sont inconnus. CTO-005A ne les devine pas.
+
+`1000` la traite donc dans une liste **non versionnée** distincte et se limite à
+fermer l'accès client : `REVOKE` `PUBLIC`/`anon`/`authenticated`, `GRANT EXECUTE`
+au seul `service_role`. **Ni son corps ni son `search_path` ne sont modifiés.**
+Un trigger éventuel continue de fonctionner : un trigger s'exécute avec les
+droits du propriétaire de la fonction, pas avec ceux de l'appelant — seul l'appel
+RPC direct est fermé.
+
+L'arbitrage (durcir le `search_path` / se limiter à la fermeture cliente /
+versionner une définition / supprimer si morte) exige d'abord la lecture de la
+fonction réelle, via `docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql` : un unique
+`SELECT` en lecture seule qui rend signature(s) et surcharges, propriétaire,
+langage, `SECURITY DEFINER`, `proconfig`/`search_path`,
+`pg_get_functiondef()` complet, les triggers l'utilisant (nom, table,
+événements, actif/désactivé), les `EXECUTE` de `PUBLIC`/`anon`/`authenticated`/
+`service_role`, et le `CREATE` sur le schéma `public` pour `anon`/`authenticated`.
+**Aucune sortie de ce script n'est commitée** (elle contient du code de
+production).
+
+#### Default privileges (revue CTO finale §A)
+
+`ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM
+PUBLIC` est **inopérant** pour ce besoin : vérifié sur PostgreSQL 15 jetable,
+cette forme ne crée aucune entrée `pg_default_acl` et une nouvelle fonction garde
+son `EXECUTE` à `PUBLIC`, car le `GRANT` implicite de PostgreSQL est global et non
+porté par le schéma. `1000` utilise désormais la forme globale :
+
+```sql
+ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+```
+
+**Portée à connaître** : les default privileges sont attachés au **rôle qui crée**
+les futurs objets. Sans `FOR ROLE`, la règle ne couvre que le rôle de migration.
+`1000` étend donc la règle, par `FOR ROLE`, aux propriétaires de fonctions
+`public` réellement présents (`pg_proc.proowner`) et seulement si
+`pg_has_role(current_user, owner, 'USAGE')` — aucun rôle n'est codé en dur. Un
+rôle qui ne possède aucune fonction aujourd'hui reste hors de ce mécanisme :
+c'est `1300` qui rattrape le cas, en échouant si une fonction exposée apparaît.
+Prouvé par `tests/rls/31_default_privileges.sql` : `pg_default_acl` global présent
+pour le rôle de migration, puis une fonction créée après CTO-005A n'a d'`EXECUTE`
+ni pour `PUBLIC`, ni pour `anon`, ni pour `authenticated` (la fonction sonde est
+supprimée, harness jetable).
 
 `1200` aligne `user_profiles_role_check` / `invitations_role_check` sur la
 whitelist de `server/access/roles.js` (`invitations` : rôles attribuables ;
@@ -349,7 +407,9 @@ si la colonne est absente.
 | Aucun doublon `subscriptions.user_id` | `0500` (UNIQUE) | `PROD-1.1`, `P1-2.4` (upsert `onConflict`) | PASS | un doublon créé entre le rapport et la migration ferait échouer `0500` (fail-closed voulu) |
 | `sessions`/`attempts.user_id` TEXT | `0600` | attaques `P1-3.x` sur baseline production-like | PASS | aucun |
 | 22 policies permissives `USING (true)` | `0200`–`0900` (DROP + policies nominatives) | 78 assertions d'attaque | PASS | policies créées hors versionnement après la migration |
-| 13 `SECURITY DEFINER` exposées, dont `ensure_profile` | `1000` (liste étendue) + `1300` (assertion) | `PROD-3.1`→`3.3`, compteur harness 14 → 0 | PASS | une nouvelle fonction créée hors versionnement : détectée par `1300` au prochain run, pas en continu |
+| 13 `SECURITY DEFINER` exposées, dont `ensure_profile` | `1000` (fermeture d'accès) + `1300` (assertion, allowlist par signature exacte) | `PROD-3.1`→`3.4`, `secdef_allowlist_test()`, compteur harness 14 → 0 | PASS | une nouvelle fonction créée hors versionnement : détectée par `1300` au prochain run, pas en continu |
+| `ensure_profile()` non versionnée | `1000` : accès client fermé uniquement, corps et `search_path` **intacts** | `PROD-3.2`→`3.4` + `docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql` rejoué read-only par le harness | PASS | son corps reste inconnu : arbitrage après precheck production, avant toute modification |
+| `EXECUTE` implicite à `PUBLIC` sur les fonctions futures | `1000` (`ALTER DEFAULT PRIVILEGES` global + `FOR ROLE` prouvés) | `DEFACL-1`→`4` (`tests/rls/31_default_privileges.sql`) | PASS | un rôle créateur sans fonction actuelle et hors `pg_has_role` n'est pas couvert — rattrapé par `1300` |
 | `webhook_events` préexistante (`event_id`, `received_at`) | `0400` additive | `PROD-2.1`→`2.7` | PASS | `event_id` NULL/dupliqué apparu depuis le rapport → arrêt explicite, aucune suppression |
 | Contraintes `role` déjà compatibles `cpd`/`cpc` | `1200` | suite `roles` (13 assertions) | PASS | valeur hors whitelist créée depuis → `1200` s'arrête, aucune conversion |
 | 6 entrées GS `is_subscriber=true`, `paid=false`, `payment_id` NULL | aucune (donnée non modifiée) + `0300` ferme l'écriture cliente des colonnes financières | 3 tests `CTO-005A` dans `server/__tests__/cto002-gs-access.test.js` | PASS — accès refusé | aucun : § 11 |

@@ -49,16 +49,74 @@ psql_file() {
   docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -q -U postgres -d postgres < "$1"
 }
 
+# Allowlist des 11 helpers d'identité de 0100, par SIGNATURE EXACTE (mêmes
+# valeurs que la migration 1300 — aucun motif de nom : `cc_evil()` doit compter
+# comme une exposition).
+ALLOWLIST_SQL="ARRAY[
+  'public.cc_current_role()','public.cc_is_admin()','public.cc_is_manager()',
+  'public.cc_current_email()','public.cc_my_circonscription()','public.cc_my_region()',
+  'public.cc_my_student_ids()','public.cc_my_class_ids()','public.cc_managed_class_ids()',
+  'public.cc_visible_class_ids()','public.cc_visible_school_ids()']"
+
 # Nombre de fonctions SECURITY DEFINER du schéma public exécutables par un rôle
-# client (PUBLIC, anon ou authenticated), helpers `cc_*` inclus dans le décompte
-# uniquement s'ils sont ouverts à PUBLIC/anon.
+# client (PUBLIC, anon ou authenticated), hors allowlist exacte ; un helper
+# allowlisté ouvert à PUBLIC/anon compte aussi.
 secdef_exposed() {
   docker exec -i "$CONTAINER" psql -t -A -q -U postgres -d postgres -c "
-    SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-     WHERE n.nspname = 'public' AND p.prosecdef
-       AND p.proname NOT LIKE 'cc\\_%'
-       AND (has_function_privilege('anon', p.oid, 'EXECUTE')
-         OR has_function_privilege('authenticated', p.oid, 'EXECUTE'))" 2>/dev/null | tr -d ' '
+    WITH f AS (
+      SELECT format('%I.%I(%s)', n.nspname, p.proname,
+                    pg_get_function_identity_arguments(p.oid)) = ANY($ALLOWLIST_SQL) AS allowed,
+             has_function_privilege('anon', p.oid, 'EXECUTE') AS anon_ok,
+             has_function_privilege('authenticated', p.oid, 'EXECUTE') AS auth_ok,
+             EXISTS (SELECT 1 FROM aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) a
+                      WHERE a.grantee = 0 AND a.privilege_type = 'EXECUTE') AS public_ok
+        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname = 'public' AND p.prosecdef
+    )
+    SELECT count(*) FROM f
+     WHERE CASE WHEN allowed THEN anon_ok OR public_ok
+                ELSE anon_ok OR auth_ok OR public_ok END" 2>/dev/null | tr -d ' '
+}
+
+# Revue CTO finale §A : les default privileges doivent réellement priver PUBLIC
+# de l'EXECUTE sur les fonctions FUTURES du rôle de migration.
+default_privileges_test() {
+  docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -t -A -q -U postgres -d postgres \
+    < "$ROOT/tests/rls/31_default_privileges.sql" \
+    || { echo "DEFAULT PRIVILEGES CHECKS FAILED" >&2; return 13; }
+}
+
+# Revue CTO finale §B : l'assertion 1300 repose sur une allowlist de signatures
+# EXACTES. Une fonction `cc_*` inconnue, ou une surcharge inattendue d'un helper
+# allowlisté, doit faire ÉCHOUER 1300 en la nommant.
+secdef_allowlist_test() {
+  local m="$ROOT/supabase/migrations/20260810_1300_cto005_secdef_assertion.sql"
+  local out
+
+  # État migré nominal : les 11 helpers exacts → 1300 passe.
+  psql_file "$m" || { echo "FAIL 1300 échoue sur l'état migré nominal" >&2; return 14; }
+  echo "NOTICE:  PASS 1300-A les 11 helpers exacts attendus → assertion OK"
+
+  for probe in "cc_fake()" "cc_current_role(text)"; do
+    docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -q -U postgres -d postgres <<SQL
+CREATE FUNCTION public.${probe%%(*}($( [ "$probe" = "cc_current_role(text)" ] && echo "TEXT" ))
+RETURNS TEXT LANGUAGE sql SECURITY DEFINER AS 'SELECT ''x''::text';
+GRANT EXECUTE ON FUNCTION public.$probe TO authenticated;
+SQL
+    out=$(docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -q -U postgres -d postgres < "$m" 2>&1)
+    if grep -q "$probe" <<<"$out" && grep -qi 'ERROR' <<<"$out"; then
+      echo "NOTICE:  PASS 1300-B $probe SECURITY DEFINER + authenticated → assertion ÉCHOUE en la nommant"
+    else
+      echo "FAIL 1300 n'a pas refusé $probe : $out" >&2
+      return 14
+    fi
+    docker exec -i "$CONTAINER" psql -q -U postgres -d postgres \
+      -c "DROP FUNCTION public.$probe" >/dev/null
+  done
+
+  # Retour à l'état nominal : l'assertion repasse.
+  psql_file "$m" || { echo "FAIL 1300 ne repasse pas après suppression des sondes" >&2; return 14; }
+  echo "NOTICE:  PASS 1300-C retour à l'allowlist exacte → assertion OK"
 }
 
 # Le fichier doit passer TEL QUEL : aucune section coupée, aucun nom de colonne
@@ -102,6 +160,18 @@ legacy_students_readonly() {
   echo "→ docs/CTO_005A_LEGACY_STUDENT_ACCOUNTS.sql : exécutable, READ ONLY"
 }
 
+# Revue CTO finale §C : precheck dédié à ensure_profile, une seule instruction,
+# strictement en lecture. Il doit passer que la fonction existe ou non.
+ensure_profile_readonly() {
+  local rows
+  rows=$({ echo "BEGIN READ ONLY;";
+           cat "$ROOT/docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql";
+           echo "COMMIT;"; } \
+    | docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -t -A -q -U postgres -d postgres 2>&1) \
+    || { echo "ENSURE_PROFILE PRECHECK FAILED: $rows" >&2; return 15; }
+  echo "→ docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql : $(grep -c '|' <<<"$rows") ligne(s), un seul result set, READ ONLY"
+}
+
 run_suite() {
   local apply_migrations="$1"
   local apply_safe_rollback="${2:-no}"
@@ -125,6 +195,7 @@ run_suite() {
   if [ "$apply_migrations" = "yes" ]; then
     precheck_readonly || return 5
     report_readonly || return 9
+    ensure_profile_readonly || return 15
   fi
 
   if [ "$apply_migrations" = "yes" ]; then
@@ -208,6 +279,7 @@ precheck_variants() {
   precheck_readonly || return 5
   report_readonly || return 9
   legacy_students_readonly || return 12
+  ensure_profile_readonly || return 15
 
   echo "=== PRECHECK — variante gs_tournament_entries.created_at ==="
   docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -q -U postgres -d postgres <<'SQL'
@@ -227,6 +299,9 @@ ALTER TABLE public.gs_tournament_entries DROP COLUMN created_at;
 SQL
   precheck_readonly || return 5
   report_readonly || return 9
+  # ensure_profile n'existe pas dans la baseline du dépôt : le precheck doit
+  # néanmoins passer et le dire, sans erreur SQL.
+  ensure_profile_readonly || return 15
 }
 
 # Revue CTO finale §C3 : contraintes CHECK de rôle legacy → 1200 → cpd/cpc.
@@ -288,6 +363,12 @@ production_like_suite() {
   local rc=$?
   [ $rc -ne 0 ] && return $rc
   concurrency_test || return 4
+  echo "=== PRECHECK ensure_profile (lecture seule) ==="
+  ensure_profile_readonly || return 15
+  echo "=== DEFAULT PRIVILEGES (fonctions futures du rôle de migration) ==="
+  default_privileges_test || return 13
+  echo "=== ALLOWLIST EXACTE DE L'ASSERTION 1300 ==="
+  secdef_allowlist_test || return 14
   echo "=== PRODUCTION-LIKE + SAFE ROLLBACK (les attaques doivent RESTER bloquées) ==="
   run_suite yes yes yes
   rc=$?

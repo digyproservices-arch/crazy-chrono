@@ -108,7 +108,8 @@ DECLARE
   v_bad TEXT[] := '{}';
 BEGIN
   FOR r IN
-    SELECT p.oid::regprocedure::text AS sig, p.proname,
+    SELECT format('%I.%I(%s)', n.nspname, p.proname,
+                  pg_get_function_identity_arguments(p.oid)) AS sig,
            has_function_privilege('anon', p.oid, 'EXECUTE') AS anon_ok,
            has_function_privilege('authenticated', p.oid, 'EXECUTE') AS auth_ok,
            EXISTS (SELECT 1 FROM aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) a
@@ -116,7 +117,13 @@ BEGIN
       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
      WHERE n.nspname = 'public' AND p.prosecdef
   LOOP
-    IF r.proname LIKE 'cc\_%' THEN
+    -- Allowlist par SIGNATURE EXACTE, identique à la migration 1300 : un nom en
+    -- `cc_*` ne suffit pas, une surcharge inattendue n'est pas allowlistée.
+    IF r.sig = ANY(ARRAY[
+      'public.cc_current_role()','public.cc_is_admin()','public.cc_is_manager()',
+      'public.cc_current_email()','public.cc_my_circonscription()','public.cc_my_region()',
+      'public.cc_my_student_ids()','public.cc_my_class_ids()','public.cc_managed_class_ids()',
+      'public.cc_visible_class_ids()','public.cc_visible_school_ids()']) THEN
       IF r.anon_ok OR r.public_ok THEN v_bad := v_bad || (r.sig || ' [helper exposé à anon/PUBLIC]'); END IF;
       CONTINUE;
     END IF;
@@ -136,10 +143,24 @@ SELECT t_assert(
   AND has_function_privilege('service_role', 'public.ensure_profile()', 'EXECUTE'),
   'PROD-3.2 ensure_profile() fermée à anon/authenticated, ouverte au service_role');
 
+-- Revue CTO finale §C : sa définition n'est pas versionnée et n'a pas encore été
+-- lue en production. CTO-005A ne touche donc NI son corps NI son search_path :
+-- seul l'accès client est fermé. L'arbitrage vient après
+-- docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql.
 SELECT t_assert(
-  (SELECT p.proconfig::text FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public' AND p.proname = 'ensure_profile') LIKE '%search_path=public, pg_temp%',
-  'PROD-3.3 ensure_profile() a un search_path figé');
+  (SELECT COALESCE(p.proconfig::text, '(aucun)')
+     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = 'ensure_profile') = '(aucun)',
+  'PROD-3.3 ensure_profile() : search_path INCHANGÉ par CTO-005A (définition non versionnée)');
+
+SELECT t_assert(
+  (SELECT md5(pg_get_functiondef(p.oid))
+     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = 'ensure_profile')
+  = (SELECT md5(pg_get_functiondef(p.oid))
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public' AND p.proname = 'ensure_profile'),
+  'PROD-3.4 ensure_profile() : corps lisible, aucun CREATE OR REPLACE par CTO-005A');
 
 -- ── 10. Types identitaires réellement comparés par CTO-005A -----------------
 DO $$

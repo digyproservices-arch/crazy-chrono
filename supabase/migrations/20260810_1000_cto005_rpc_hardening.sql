@@ -30,16 +30,21 @@ DECLARE
     'cleanup_old_audit_logs',
     -- métier
     'update_student_training_stats', 'check_user_can_play', 'link_user_to_student',
-    'count_all_entities', 'mon_cleanup_old_data',
-    -- présente en production seulement (aucune définition versionnée) : le
-    -- rapport CTO-005A l'a trouvée SECURITY DEFINER et exécutable par
-    -- anon/authenticated. Aucun appel client (aucun `.rpc('ensure_profile'` dans
-    -- src/ ni server/) : elle ne peut être qu'un utilitaire serveur ou la
-    -- fonction d'un trigger. PostgreSQL contrôle le privilège EXECUTE d'une
-    -- fonction de trigger à la CRÉATION du trigger, pas à chaque déclenchement :
-    -- révoquer l'accès client ne casse donc aucun trigger existant.
-    'ensure_profile'
+    'count_all_entities', 'mon_cleanup_old_data'
   ];
+  -- Fonctions présentes en PRODUCTION SEULEMENT, sans définition versionnée : on
+  -- ne connaît pas leur corps, donc on ne modifie PAS leur `search_path` (cela
+  -- changerait le comportement d'un code qu'on n'a pas lu). Traitement minimal et
+  -- réversible : fermeture de l'accès client uniquement.
+  --
+  -- PostgreSQL contrôle le privilège EXECUTE d'une fonction de trigger à la
+  -- CRÉATION du trigger, pas à chaque déclenchement : révoquer l'accès client ne
+  -- casse aucun trigger existant.
+  --
+  -- Le durcissement complet (search_path, ou définition versionnée, ou
+  -- suppression) est arbitré APRÈS lecture de
+  -- docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql.
+  fn_unversioned TEXT[] := ARRAY['ensure_profile'];
 BEGIN
   FOR r IN
     SELECT p.oid,
@@ -60,13 +65,65 @@ BEGIN
     -- 3) Backend uniquement.
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', r.sig);
   END LOOP;
+
+  -- Fonctions non versionnées : accès client fermé, corps et search_path intacts.
+  FOR r IN
+    SELECT p.oid::regprocedure AS sig
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = ANY(fn_unversioned)
+  LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC', r.sig);
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM anon', r.sig);
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM authenticated', r.sig);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', r.sig);
+    RAISE NOTICE
+      'CTO-005A: % fermée au client sans modification de son corps ni de son search_path (définition non versionnée — voir docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql).',
+      r.sig;
+  END LOOP;
 END $$;
 
 -- ── Filet de sécurité pour les fonctions futures ---------------------------
--- Supabase accorde EXECUTE à PUBLIC par défaut sur toute nouvelle fonction.
--- On neutralise ce défaut pour le schéma public : une nouvelle RPC devra
--- accorder EXECUTE explicitement.
-ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+-- PostgreSQL accorde EXECUTE à PUBLIC par défaut sur toute nouvelle fonction.
+--
+-- ATTENTION SÉMANTIQUE (vérifié empiriquement, PostgreSQL 15) : la forme
+--   ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC
+-- ne fait RIEN. Ce défaut EXECUTE→PUBLIC est un défaut *intégré*, non rattaché à
+-- un schéma : un REVOKE restreint à un schéma n'a rien à soustraire, aucune
+-- ligne `pg_default_acl` n'est créée, et la fonction suivante est de nouveau
+-- exécutable par PUBLIC. Seule la forme SANS `IN SCHEMA` matérialise la ligne
+-- `pg_default_acl` (`defaclnamespace = 0`, `defaclacl = {owner=X/owner}`).
+--
+-- PORTÉE : les default privileges sont attachés au RÔLE QUI CRÉE l'objet, pas
+-- au schéma. Une ligne posée pour le rôle A ne protège pas une fonction créée
+-- par le rôle B. On les pose donc pour :
+--   1. le rôle courant (celui qui applique cette migration) ;
+--   2. chaque rôle qui possède DÉJÀ une fonction du schéma public — donc un
+--      créateur de fonctions prouvé par le catalogue, et non un nom de rôle
+--      Supabase codé en dur — à condition que le rôle courant en soit membre
+--      (sinon PostgreSQL refuse, et c'est normal).
+-- Un rôle qui n'a jamais créé de fonction ici reste hors de portée : c'est la
+-- limite structurelle du mécanisme, l'assertion 1300 est le filet suivant.
+ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT DISTINCT p.proowner::regrole::text AS owner
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public'
+       AND p.proowner::regrole::text <> current_user::text
+       AND pg_has_role(current_user, p.proowner, 'USAGE')
+  LOOP
+    EXECUTE format(
+      'ALTER DEFAULT PRIVILEGES FOR ROLE %I REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC',
+      r.owner);
+    RAISE NOTICE 'CTO-005A: default privileges EXECUTE→PUBLIC révoqués pour le rôle %.', r.owner;
+  END LOOP;
+END $$;
 
 -- ── Vérification (à exécuter après application) ----------------------------
 -- SELECT p.proname, p.proacl
