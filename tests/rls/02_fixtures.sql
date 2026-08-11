@@ -18,7 +18,17 @@ INSERT INTO user_profiles (id, email, role, region, circonscription_id) VALUES
   ('00000000-0000-0000-0000-0000000000c2', 'XYZ789@eleve.crazychrono.app', 'student', NULL, NULL),
   ('00000000-0000-0000-0000-0000000000f1', 'prof1@example.test', 'teacher', NULL, NULL),
   ('00000000-0000-0000-0000-0000000000cc', 'cpc1@example.test', 'cpc', 'REG1', 'CIRCO1'),
-  ('00000000-0000-0000-0000-0000000000ad', 'admin@example.test', 'admin', NULL, NULL);
+  ('00000000-0000-0000-0000-0000000000ad', 'admin@example.test', 'admin', NULL, NULL)
+-- Une fois 1400 appliquée, le trigger `on_auth_user_created` a DÉJÀ créé la ligne
+-- de profil (id + email, role par défaut) pour chaque insertion dans auth.users
+-- ci-dessus : c'est exactement le comportement production. Les fixtures se
+-- contentent donc de compléter le rôle et le périmètre, comme le fait le backend
+-- en service role.
+ON CONFLICT (id) DO UPDATE
+   SET email = EXCLUDED.email,
+       role = EXCLUDED.role,
+       region = EXCLUDED.region,
+       circonscription_id = EXCLUDED.circonscription_id;
 
 INSERT INTO schools (id, name, city, circonscription_id) VALUES
   ('sch-1', 'École 1', 'Ville1', 'CIRCO1'),

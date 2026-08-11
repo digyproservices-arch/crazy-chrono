@@ -81,30 +81,54 @@ inattendue comme `cc_current_role(text)`, retombe sous la règle générale et f
 11 helpers exacts → OK ; `cc_fake()` et `cc_current_role(text)` `SECURITY
 DEFINER` + `authenticated` → ÉCHEC nommé ; retour à l'allowlist → OK.
 
-#### `ensure_profile()` : aucune hypothèse sur son contenu
+#### `ensure_profile()` : versionnée et durcie (arbitrage CTO)
 
-Le rapport production la montre `SECURITY DEFINER` et exposée au client. Elle
-n'existe dans **aucun** fichier du dépôt (recherche exhaustive : frontend,
-backend, migrations, autres RPC) : son corps, son propriétaire et ses éventuels
-triggers sont inconnus. CTO-005A ne les devine pas.
+Elle n'existait dans **aucun** fichier du dépôt. `docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql`
+— un unique `SELECT` en lecture seule (signature(s) et surcharges, propriétaire,
+langage, `SECURITY DEFINER`, `proconfig`, `pg_get_functiondef()` complet,
+triggers l'utilisant, `EXECUTE` de `PUBLIC`/`anon`/`authenticated`/`service_role`,
+`CREATE` sur `public` pour `anon`/`authenticated`) — a été exécuté sur la
+production. **Aucune sortie n'est commitée.** État constaté : une seule
+signature, owner `postgres`, `plpgsql`, `RETURNS trigger`, `SECURITY DEFINER`,
+**aucun `search_path` figé**, trigger actif `on_auth_user_created AFTER INSERT ON
+auth.users`, `EXECUTE` ouvert à `anon`/`authenticated`/`service_role`.
 
-`1000` la traite donc dans une liste **non versionnée** distincte et se limite à
-fermer l'accès client : `REVOKE` `PUBLIC`/`anon`/`authenticated`, `GRANT EXECUTE`
-au seul `service_role`. **Ni son corps ni son `search_path` ne sont modifiés.**
-Un trigger éventuel continue de fonctionner : un trigger s'exécute avec les
-droits du propriétaire de la fonction, pas avec ceux de l'appelant — seul l'appel
-RPC direct est fermé.
+Elle est donc **vivante et nécessaire** : c'est elle qui crée la ligne
+`user_profiles` de chaque nouveau compte. Verdict CTO : ni suppression, ni
+fermeture seule → définition versionnée.
 
-L'arbitrage (durcir le `search_path` / se limiter à la fermeture cliente /
-versionner une définition / supprimer si morte) exige d'abord la lecture de la
-fonction réelle, via `docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql` : un unique
-`SELECT` en lecture seule qui rend signature(s) et surcharges, propriétaire,
-langage, `SECURITY DEFINER`, `proconfig`/`search_path`,
-`pg_get_functiondef()` complet, les triggers l'utilisant (nom, table,
-événements, actif/désactivé), les `EXECUTE` de `PUBLIC`/`anon`/`authenticated`/
-`service_role`, et le `CREATE` sur le schéma `public` pour `anon`/`authenticated`.
-**Aucune sortie de ce script n'est commitée** (elle contient du code de
-production).
+`20260810_1400_cto005_ensure_profile.sql` :
+
+* `CREATE OR REPLACE FUNCTION` avec le **corps métier production à l'identique**
+  (`insert into public.user_profiles (id, email) … on conflict (id) do nothing;
+  return new;`) — aucun `DROP FUNCTION` (il supprimerait le trigger en cascade),
+  aucun `DROP TRIGGER` : l'OID est conservé, `on_auth_user_created` continue de
+  pointer sur la même fonction ;
+* `SET search_path = pg_catalog, public, pg_temp` — `pg_temp` en **dernière**
+  position, condition de sûreté d'un `SECURITY DEFINER` (sinon un objet
+  temporaire peut masquer une table ou une fonction) ; le corps n'utilise que des
+  noms pleinement qualifiés, le comportement métier est inchangé ;
+* `REVOKE ALL` explicites pour `PUBLIC`/`anon`/`authenticated` — indispensables,
+  car `CREATE OR REPLACE` **conserve** l'ACL existante ; aucun `GRANT` n'est
+  ajouté, PostgreSQL vérifiant l'`EXECUTE` d'une fonction de trigger à la
+  *création* du trigger et non à chaque déclenchement ;
+* garde-fou d'entrée : arrêt explicite si la production diverge du precheck
+  (surcharge, arguments, type de retour ≠ `trigger`) ;
+* trigger créé **seulement s'il n'existe pas** (base neuve/harness), à l'identique
+  du trigger production, condition portée sur la fonction cible et non sur le nom.
+
+Répartition des responsabilités, sans double traitement : `1000` ne porte que les
+**privilèges** (fermeture client — nécessaire dès `1000` parce que l'assertion
+fail-closed `1300` s'exécute avant `1400`), `1400` porte la **définition**
+(corps, `search_path`, trigger).
+
+Parcours réel de création de compte testé par `tests/rls/32_ensure_profile.sql`
+(`EP-1`→`EP-20`), sur la baseline historique **et** production-like : `INSERT
+auth.users` → trigger → `user_profiles` (id, email, `role='user'`, `region` et
+`circonscription_id` `NULL`), puis l'upsert de `Login.js` par l'utilisateur
+authentifié (champs personnels enregistrés, email conservé, rôle inchangé, upsert
+sur un tiers refusé), puis `anon`/`authenticated` refusés en appel direct
+(`insufficient_privilege`) tandis que le trigger fonctionne toujours.
 
 #### Default privileges (revue CTO finale §A)
 
@@ -408,7 +432,7 @@ si la colonne est absente.
 | `sessions`/`attempts.user_id` TEXT | `0600` | attaques `P1-3.x` sur baseline production-like | PASS | aucun |
 | 22 policies permissives `USING (true)` | `0200`–`0900` (DROP + policies nominatives) | 78 assertions d'attaque | PASS | policies créées hors versionnement après la migration |
 | 13 `SECURITY DEFINER` exposées, dont `ensure_profile` | `1000` (fermeture d'accès) + `1300` (assertion, allowlist par signature exacte) | `PROD-3.1`→`3.4`, `secdef_allowlist_test()`, compteur harness 14 → 0 | PASS | une nouvelle fonction créée hors versionnement : détectée par `1300` au prochain run, pas en continu |
-| `ensure_profile()` non versionnée | `1000` : accès client fermé uniquement, corps et `search_path` **intacts** | `PROD-3.2`→`3.4` + `docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql` rejoué read-only par le harness | PASS | son corps reste inconnu : arbitrage après precheck production, avant toute modification |
+| `ensure_profile()` non versionnée, `search_path` libre, exposée au client | `1000` (privilèges) + `1400` (définition versionnée, `search_path` figé, trigger préservé) | `PROD-3.2`→`3.5`, `EP-1`→`EP-20`, `docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql` rejoué read-only | PASS | si la production a divergé depuis la lecture du precheck (surcharge, autre type de retour), `1400` s'arrête explicitement au lieu de modifier quoi que ce soit |
 | `EXECUTE` implicite à `PUBLIC` sur les fonctions futures | `1000` (`ALTER DEFAULT PRIVILEGES` global + `FOR ROLE` prouvés) | `DEFACL-1`→`4` (`tests/rls/31_default_privileges.sql`) | PASS | un rôle créateur sans fonction actuelle et hors `pg_has_role` n'est pas couvert — rattrapé par `1300` |
 | `webhook_events` préexistante (`event_id`, `received_at`) | `0400` additive | `PROD-2.1`→`2.7` | PASS | `event_id` NULL/dupliqué apparu depuis le rapport → arrêt explicite, aucune suppression |
 | Contraintes `role` déjà compatibles `cpd`/`cpc` | `1200` | suite `roles` (13 assertions) | PASS | valeur hors whitelist créée depuis → `1200` s'arrête, aucune conversion |

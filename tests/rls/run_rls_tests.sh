@@ -172,6 +172,16 @@ ensure_profile_readonly() {
   echo "→ docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql : $(grep -c '|' <<<"$rows") ligne(s), un seul result set, READ ONLY"
 }
 
+# Revue CTO §E/§F d'arbitrage : le parcours réel de création de compte
+# (INSERT auth.users → trigger on_auth_user_created → ensure_profile() →
+# user_profiles), puis l'upsert de Login.js, puis le refus d'appel direct par les
+# rôles clients. À jouer sur un schéma migré 0100→1400.
+ensure_profile_test() {
+  docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -t -A -q -U postgres -d postgres \
+    < "$ROOT/tests/rls/32_ensure_profile.sql" \
+    || { echo "ENSURE_PROFILE CHECKS FAILED" >&2; return 16; }
+}
+
 run_suite() {
   local apply_migrations="$1"
   local apply_safe_rollback="${2:-no}"
@@ -365,6 +375,8 @@ production_like_suite() {
   concurrency_test || return 4
   echo "=== PRECHECK ensure_profile (lecture seule) ==="
   ensure_profile_readonly || return 15
+  echo "=== ENSURE_PROFILE : signup réel, trigger auth.users, upsert Login.js ==="
+  ensure_profile_test || return 16
   echo "=== DEFAULT PRIVILEGES (fonctions futures du rôle de migration) ==="
   default_privileges_test || return 13
   echo "=== ALLOWLIST EXACTE DE L'ASSERTION 1300 ==="
@@ -419,6 +431,16 @@ if [ $rc -ne 0 ]; then
 fi
 
 concurrency_test
+rc=$?
+if [ $rc -ne 0 ]; then
+  echo "RLS TESTS: FAILED (exit=$rc)"
+  exit $rc
+fi
+
+# Le parcours de création de compte doit aussi passer sur la baseline historique,
+# où ni la fonction ni le trigger n'existaient avant 1400.
+echo "=== ENSURE_PROFILE (baseline historique : fonction et trigger créés par 1400) ==="
+ensure_profile_test
 rc=$?
 if [ $rc -ne 0 ]; then
   echo "RLS TESTS: FAILED (exit=$rc)"

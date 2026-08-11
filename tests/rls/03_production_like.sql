@@ -113,22 +113,30 @@ BEGIN
   RETURN true;
 END; $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- `ensure_profile` : présente en production, absente du dépôt. Reproduite ici
--- dans sa forme la plus plausible (création paresseuse du profil de l'appelant),
--- exposée à anon/authenticated comme en production.
+-- `ensure_profile` : absente du dépôt, présente en production. Reproduite ici à
+-- l'IDENTIQUE d'après docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql exécuté en
+-- lecture seule sur la production : owner postgres, plpgsql, RETURNS trigger,
+-- SECURITY DEFINER, AUCUN search_path figé, corps exact ci-dessous, branchée sur
+-- un trigger AFTER INSERT de auth.users, EXECUTE ouvert à
+-- anon/authenticated/service_role et fermé à PUBLIC.
 CREATE OR REPLACE FUNCTION public.ensure_profile()
-RETURNS public.user_profiles AS $$
-DECLARE v_row public.user_profiles;
-BEGIN
-  INSERT INTO public.user_profiles (id, email)
-  SELECT u.id, u.email FROM auth.users u WHERE u.id = auth.uid()
-  ON CONFLICT (id) DO NOTHING;
-  SELECT * INTO v_row FROM public.user_profiles WHERE id = auth.uid();
-  RETURN v_row;
-END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+RETURNS trigger AS $$
+begin
+  insert into public.user_profiles (id, email)
+  values (new.id, new.email)
+  on conflict (id) do nothing;
+  return new;
+end;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.ensure_profile();
 
 -- Exposition client explicite (état production constaté).
-GRANT EXECUTE ON FUNCTION public.ensure_profile() TO anon, authenticated;
+REVOKE ALL ON FUNCTION public.ensure_profile() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.ensure_profile() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.cleanup_old_sessions() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.cleanup_stale_devices() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.count_failed_logins(TEXT) TO anon, authenticated;

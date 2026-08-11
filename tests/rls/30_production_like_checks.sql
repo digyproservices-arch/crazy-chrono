@@ -136,31 +136,45 @@ BEGIN
   RAISE NOTICE 'NOTICE:  PASS PROD-3.1 aucune SECURITY DEFINER du schéma public exécutable par PUBLIC/anon/authenticated';
 END $$;
 
--- ── 9. ensure_profile : fermée au client, utilisable par le service role -----
+-- ── 9. ensure_profile : versionnée par 1400, fermée aux rôles clients --------
+-- Arbitrage CTO après lecture de la définition production
+-- (docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql) : la fonction est vivante — c'est
+-- elle qui crée le profil de tout nouveau compte via le trigger
+-- `on_auth_user_created` — donc versionnée et durcie, pas supprimée.
 SELECT t_assert(
   NOT has_function_privilege('anon', 'public.ensure_profile()', 'EXECUTE')
-  AND NOT has_function_privilege('authenticated', 'public.ensure_profile()', 'EXECUTE')
-  AND has_function_privilege('service_role', 'public.ensure_profile()', 'EXECUTE'),
-  'PROD-3.2 ensure_profile() fermée à anon/authenticated, ouverte au service_role');
-
--- Revue CTO finale §C : sa définition n'est pas versionnée et n'a pas encore été
--- lue en production. CTO-005A ne touche donc NI son corps NI son search_path :
--- seul l'accès client est fermé. L'arbitrage vient après
--- docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql.
-SELECT t_assert(
-  (SELECT COALESCE(p.proconfig::text, '(aucun)')
-     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public' AND p.proname = 'ensure_profile') = '(aucun)',
-  'PROD-3.3 ensure_profile() : search_path INCHANGÉ par CTO-005A (définition non versionnée)');
+  AND NOT has_function_privilege('authenticated', 'public.ensure_profile()', 'EXECUTE'),
+  'PROD-3.2 ensure_profile() fermée à anon/authenticated (aucun appel RPC client)');
 
 SELECT t_assert(
-  (SELECT md5(pg_get_functiondef(p.oid))
+  (SELECT 'search_path=pg_catalog, public, pg_temp' = ANY(COALESCE(p.proconfig, ARRAY[]::text[]))
      FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public' AND p.proname = 'ensure_profile')
-  = (SELECT md5(pg_get_functiondef(p.oid))
-       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-      WHERE n.nspname = 'public' AND p.proname = 'ensure_profile'),
-  'PROD-3.4 ensure_profile() : corps lisible, aucun CREATE OR REPLACE par CTO-005A');
+    WHERE n.nspname = 'public' AND p.proname = 'ensure_profile'),
+  'PROD-3.3 ensure_profile() : search_path figé par 1400 (pg_temp en dernier)');
+
+-- Le comportement métier doit être IDENTIQUE à celui lu en production : mêmes
+-- insert / on conflict / return, même type de retour, toujours SECURITY DEFINER.
+SELECT t_assert(
+  (SELECT p.prosecdef
+      AND pg_get_function_result(p.oid) = 'trigger'
+      AND pg_get_functiondef(p.oid) ILIKE '%insert into public.user_profiles (id, email)%'
+      AND pg_get_functiondef(p.oid) ILIKE '%on conflict (id) do nothing%'
+      AND pg_get_functiondef(p.oid) ILIKE '%return new%'
+     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = 'ensure_profile'),
+  'PROD-3.4 ensure_profile() : corps métier production préservé à l''identique');
+
+SELECT t_assert(
+  (SELECT count(*) FROM pg_trigger t
+     JOIN pg_proc p ON p.oid = t.tgfoid
+     JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE NOT t.tgisinternal AND n.nspname = 'public' AND p.proname = 'ensure_profile'
+      AND t.tgrelid = 'auth.users'::regclass AND t.tgenabled <> 'D') = 1
+  AND (SELECT t.tgname FROM pg_trigger t
+         JOIN pg_proc p ON p.oid = t.tgfoid
+        WHERE NOT t.tgisinternal AND p.proname = 'ensure_profile'
+          AND t.tgrelid = 'auth.users'::regclass) = 'on_auth_user_created',
+  'PROD-3.5 trigger on_auth_user_created préservé (aucun DROP, aucun doublon)');
 
 -- ── 10. Types identitaires réellement comparés par CTO-005A -----------------
 DO $$

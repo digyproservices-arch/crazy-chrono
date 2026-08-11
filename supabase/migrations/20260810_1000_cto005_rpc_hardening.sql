@@ -32,19 +32,23 @@ DECLARE
     'update_student_training_stats', 'check_user_can_play', 'link_user_to_student',
     'count_all_entities', 'mon_cleanup_old_data'
   ];
-  -- Fonctions présentes en PRODUCTION SEULEMENT, sans définition versionnée : on
-  -- ne connaît pas leur corps, donc on ne modifie PAS leur `search_path` (cela
-  -- changerait le comportement d'un code qu'on n'a pas lu). Traitement minimal et
-  -- réversible : fermeture de l'accès client uniquement.
+  -- RÉPARTITION DES RESPONSABILITÉS POUR `ensure_profile()` (une seule par
+  -- migration, pas de traitement en double) :
+  --   * 1000 (ici)  : PRIVILÈGES uniquement — fermeture de l'accès client. C'est
+  --                   indispensable ICI et pas plus tard, parce que l'assertion
+  --                   fail-closed de 1300 s'exécute AVANT 1400 et refuse toute
+  --                   SECURITY DEFINER encore exécutable par un rôle client.
+  --   * 1400        : DÉFINITION — corps versionné (identique au corps production
+  --                   lu par le precheck), `search_path` figé, trigger
+  --                   `on_auth_user_created` préservé, REVOKE re-affirmés (car
+  --                   `CREATE OR REPLACE` conserve l'ACL).
+  -- 1000 ne touche donc NI son corps NI son `search_path` : c'est 1400 qui les
+  -- porte, en connaissance de la définition réelle.
   --
   -- PostgreSQL contrôle le privilège EXECUTE d'une fonction de trigger à la
   -- CRÉATION du trigger, pas à chaque déclenchement : révoquer l'accès client ne
-  -- casse aucun trigger existant.
-  --
-  -- Le durcissement complet (search_path, ou définition versionnée, ou
-  -- suppression) est arbitré APRÈS lecture de
-  -- docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql.
-  fn_unversioned TEXT[] := ARRAY['ensure_profile'];
+  -- casse aucun trigger existant, y compris `on_auth_user_created`.
+  fn_privileges_only TEXT[] := ARRAY['ensure_profile'];
 BEGIN
   FOR r IN
     SELECT p.oid,
@@ -66,19 +70,18 @@ BEGIN
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', r.sig);
   END LOOP;
 
-  -- Fonctions non versionnées : accès client fermé, corps et search_path intacts.
+  -- Privilèges seuls : accès client fermé, corps et search_path intacts.
   FOR r IN
     SELECT p.oid::regprocedure AS sig
     FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public' AND p.proname = ANY(fn_unversioned)
+    WHERE n.nspname = 'public' AND p.proname = ANY(fn_privileges_only)
   LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC', r.sig);
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM anon', r.sig);
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM authenticated', r.sig);
-    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', r.sig);
     RAISE NOTICE
-      'CTO-005A: % fermée au client sans modification de son corps ni de son search_path (définition non versionnée — voir docs/CTO_005_ENSURE_PROFILE_PRECHECK.sql).',
+      'CTO-005A: % fermée aux rôles clients ; corps et search_path portés par 20260810_1400_cto005_ensure_profile.sql.',
       r.sig;
   END LOOP;
 END $$;
