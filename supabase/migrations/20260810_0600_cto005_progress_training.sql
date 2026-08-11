@@ -19,31 +19,37 @@
 -- server/migrations/create_training_tables.sql sont remplacées par celles-ci.
 -- ==========================================================================
 
--- ── sessions ---------------------------------------------------------------
-ALTER TABLE public.sessions ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "allow_all_sessions" ON public.sessions;
-DROP POLICY IF EXISTS sessions_select_own  ON public.sessions;
+-- `sessions.user_id` et `attempts.user_id` sont TEXT en production : la
+-- comparaison est construite d'après le type réel de la colonne pour rester
+-- valide si un environnement les déclare en UUID. Aucune donnée convertie.
+DO $$
+DECLARE
+  t     TEXT;
+  v_uid TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['sessions', 'attempts'] LOOP
+    SELECT CASE WHEN a.atttypid = 'uuid'::regtype THEN 'auth.uid()' ELSE 'auth.uid()::text' END
+      INTO v_uid
+      FROM pg_attribute a
+     WHERE a.attrelid = ('public.' || t)::regclass
+       AND a.attname = 'user_id'
+       AND NOT a.attisdropped;
 
-CREATE POLICY sessions_select_own ON public.sessions
-  FOR SELECT TO authenticated
-  USING (user_id = auth.uid()::text);
+    IF v_uid IS NULL THEN
+      RAISE EXCEPTION 'CTO-005A: public.%.user_id introuvable — schéma inattendu.', t;
+    END IF;
 
-REVOKE ALL ON public.sessions FROM anon;
-REVOKE ALL ON public.sessions FROM authenticated;
-GRANT SELECT ON public.sessions TO authenticated;
-
--- ── attempts ---------------------------------------------------------------
-ALTER TABLE public.attempts ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "allow_all_attempts" ON public.attempts;
-DROP POLICY IF EXISTS attempts_select_own  ON public.attempts;
-
-CREATE POLICY attempts_select_own ON public.attempts
-  FOR SELECT TO authenticated
-  USING (user_id = auth.uid()::text);
-
-REVOKE ALL ON public.attempts FROM anon;
-REVOKE ALL ON public.attempts FROM authenticated;
-GRANT SELECT ON public.attempts TO authenticated;
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', 'allow_all_' || t, t);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', t || '_select_own', t);
+    EXECUTE format(
+      'CREATE POLICY %I ON public.%I FOR SELECT TO authenticated USING (user_id = %s)',
+      t || '_select_own', t, v_uid);
+    EXECUTE format('REVOKE ALL ON public.%I FROM anon', t);
+    EXECUTE format('REVOKE ALL ON public.%I FROM authenticated', t);
+    EXECUTE format('GRANT SELECT ON public.%I TO authenticated', t);
+  END LOOP;
+END $$;
 
 -- ── training_sessions ------------------------------------------------------
 ALTER TABLE public.training_sessions ENABLE ROW LEVEL SECURITY;

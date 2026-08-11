@@ -41,10 +41,30 @@ END $$;
 -- Table financière : lecture de son propre abonnement uniquement, aucune écriture client.
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "subscriptions_read_own" ON public.subscriptions;
-CREATE POLICY subscriptions_read_own ON public.subscriptions
-  FOR SELECT TO authenticated
-  USING (auth.uid() = user_id);
+-- `subscriptions.user_id` est TEXT en production et UUID dans certains schémas
+-- historiques : la comparaison est construite d'après le type réel de la colonne,
+-- sans jamais convertir la donnée. auth.uid() est casté vers le type de la
+-- colonne (et non l'inverse) pour que l'index sur user_id reste utilisable.
+DO $$
+DECLARE
+  v_uid TEXT;
+BEGIN
+  SELECT CASE WHEN a.atttypid = 'uuid'::regtype THEN 'auth.uid()' ELSE 'auth.uid()::text' END
+    INTO v_uid
+    FROM pg_attribute a
+   WHERE a.attrelid = 'public.subscriptions'::regclass
+     AND a.attname = 'user_id'
+     AND NOT a.attisdropped;
+
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'CTO-005A: public.subscriptions.user_id introuvable — schéma inattendu.';
+  END IF;
+
+  EXECUTE 'DROP POLICY IF EXISTS "subscriptions_read_own" ON public.subscriptions';
+  EXECUTE format(
+    'CREATE POLICY subscriptions_read_own ON public.subscriptions
+       FOR SELECT TO authenticated USING (user_id = %s)', v_uid);
+END $$;
 
 REVOKE ALL ON public.subscriptions FROM anon;
 REVOKE ALL ON public.subscriptions FROM authenticated;

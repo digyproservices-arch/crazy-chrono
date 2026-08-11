@@ -111,7 +111,7 @@ BEGIN
   RETURN QUERY
   SELECT m.student_id::text
   FROM public.user_student_mapping m
-  WHERE m.user_id = auth.uid() AND m.active = true;
+  WHERE m.user_id::text = auth.uid()::text AND m.active = true;
 END;
 $$;
 
@@ -132,7 +132,7 @@ BEGIN
   FROM public.classes c
   WHERE auth.uid() IS NOT NULL
     AND (
-      (c.teacher_user_id IS NOT NULL AND c.teacher_user_id = auth.uid())
+      (c.teacher_user_id IS NOT NULL AND c.teacher_user_id::text = auth.uid()::text)
       OR (c.teacher_email IS NOT NULL AND lower(c.teacher_email) = public.cc_current_email())
     );
 END;

@@ -20,17 +20,54 @@ CREATE TABLE IF NOT EXISTS public.webhook_events (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- La table préexiste en production avec `event_id TEXT` et `received_at
+-- TIMESTAMPTZ`. Cette migration est purement additive : `received_at` est
+-- conservée telle quelle (aucun DROP, aucun renommage, aucune perte de
+-- données) et seules `provider` / `created_at` sont ajoutées si absentes.
 ALTER TABLE public.webhook_events ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'revenuecat';
 ALTER TABLE public.webhook_events ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
-ALTER TABLE public.webhook_events ALTER COLUMN event_id SET NOT NULL;
+
+DO $$
+DECLARE
+  v_nulls BIGINT;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_attribute
+     WHERE attrelid = 'public.webhook_events'::regclass
+       AND attname = 'event_id' AND NOT attisdropped
+  ) THEN
+    RAISE EXCEPTION 'CTO-005A: public.webhook_events.event_id introuvable — schéma inattendu, aucune colonne n''est renommée automatiquement.';
+  END IF;
+
+  SELECT COUNT(*) INTO v_nulls FROM public.webhook_events WHERE event_id IS NULL;
+  IF v_nulls > 0 THEN
+    RAISE EXCEPTION
+      'CTO-005A: % ligne(s) webhook_events avec event_id NULL. Aucune donnée n''est supprimée automatiquement : décider manuellement avant d''imposer NOT NULL.',
+      v_nulls;
+  END IF;
+
+  EXECUTE 'ALTER TABLE public.webhook_events ALTER COLUMN event_id SET NOT NULL';
+END $$;
 
 -- Idempotence : un même event_id ne peut pas être marqué deux fois.
 DO $$
+DECLARE
+  v_dupes BIGINT;
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
     WHERE conrelid = 'public.webhook_events'::regclass AND conname = 'webhook_events_event_id_key'
   ) THEN
+    SELECT COUNT(*) INTO v_dupes FROM (
+      SELECT event_id FROM public.webhook_events GROUP BY event_id HAVING COUNT(*) > 1
+    ) d;
+
+    IF v_dupes > 0 THEN
+      RAISE EXCEPTION
+        'CTO-005A: % event_id dupliqué(s) dans webhook_events. Aucune ligne n''est supprimée automatiquement : arbitrer manuellement avant la contrainte UNIQUE.',
+        v_dupes;
+    END IF;
+
     ALTER TABLE public.webhook_events ADD CONSTRAINT webhook_events_event_id_key UNIQUE (event_id);
   END IF;
 END $$;

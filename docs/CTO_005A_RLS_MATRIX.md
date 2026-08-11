@@ -49,7 +49,28 @@ supabase/migrations/20260810_0900_cto005_devices_audit_content.sql
 supabase/migrations/20260810_1000_cto005_rpc_hardening.sql
 supabase/migrations/20260810_1100_cto005_consume_invitation.sql
 supabase/migrations/20260810_1200_cto005_role_constraints.sql
+supabase/migrations/20260810_1300_cto005_secdef_assertion.sql
 ```
+
+`1300` est une **assertion fail-closed, sans effet de bord** : elle énumère
+toutes les fonctions `SECURITY DEFINER` du schéma `public` et échoue en donnant
+nom + signature si l'une reste exécutable par `PUBLIC`, `anon` ou
+`authenticated`. Elle ne révoque rien d'inconnu — une fonction non prévue exige
+une analyse humaine, pas une révocation aveugle. Allowlist unique et documentée :
+les helpers `cc_*` de `0100`, exécutables par `authenticated` (ils dérivent tout
+de `auth.uid()` et n'acceptent aucun paramètre d'identité), interdits à
+`PUBLIC`/`anon` — ce que `1300` vérifie aussi.
+
+`1000` durcit aussi `ensure_profile()`, révélée exposée par le rapport
+production et absente de la liste initiale. Recherche exhaustive du dépôt :
+aucune occurrence dans le frontend, le backend, les migrations versionnées ou
+une autre RPC — elle n'est donc appelée ni par le client ni par le code
+applicatif, et n'existe qu'en production (probablement un ancien helper de
+création de profil, éventuellement branché sur un trigger). Traitement retenu :
+`search_path` figé, `REVOKE` `PUBLIC`/`anon`/`authenticated`, `GRANT` au seul
+rôle serveur. Un trigger continuerait de fonctionner : un trigger s'exécute avec
+les droits du propriétaire de la fonction, pas avec ceux de l'appelant — révoquer
+l'`EXECUTE` client ne casse que l'appel RPC direct, qui n'existe pas.
 
 `1200` aligne `user_profiles_role_check` / `invitations_role_check` sur la
 whitelist de `server/access/roles.js` (`invitations` : rôles attribuables ;
@@ -156,7 +177,21 @@ n'ouvre aucune connexion réseau vers Supabase.
 ```bash
 ./tests/rls/run_rls_tests.sh baseline   # état historique, mode « soft »
 ./tests/rls/run_rls_tests.sh migrated   # après migrations, arrêt au 1er échec
+./tests/rls/run_rls_tests.sh prodlike   # baseline reproduisant le schéma production réel
+./tests/rls/run_rls_tests.sh roles      # contraintes de rôle, fail-closed 1200
+./tests/rls/run_rls_tests.sh precheck   # precheck/rapport sur variantes de schéma
 ```
+
+Le mode `prodlike` (`tests/rls/03_production_like.sql`) reproduit les
+caractéristiques du rapport production — `subscriptions/sessions/attempts.user_id`
+en TEXT, `webhook_events` préexistante sans `provider`/`created_at`, contraintes
+de rôle acceptant `cpd`/`cpc`, les 13 `SECURITY DEFINER` exposées du rapport
+dont `ensure_profile` (le harness en mesure **14** : la baseline historique
+ajoute une fonction de plus, absente de la production), policies permissives, et
+6 lignes GS synthétiques
+`paid=false / is_subscriber=true / payment_id NULL`. **Aucune donnée de
+production** n'y figure (identifiants et e-mails inventés). Il applique
+`0100`→`1300` puis rejoue les attaques et `tests/rls/30_production_like_checks.sql`.
 
 - `baseline` : **46 attaques réussies**, 19 bloquées → photographie du risque
   avant correction (des erreurs structurelles y sont attendues :
@@ -214,21 +249,26 @@ suppression des clés anon commitées, endpoints serveur et leurs tests.
 **Prouvé par PostgreSQL local isolé** : les 78 assertions d'attaque ci-dessus,
 sur un schéma reconstruit à partir des SQL versionnés.
 
-**Non vérifié — nécessite un accès read-only Supabase production** :
+**Constaté en production** par l'exécution lecture seule de
+`docs/CTO_005_PRODUCTION_REPORT.sql` (propriétaire, aucune écriture) :
 
-1. le schéma réel correspond-il aux SQL versionnés (colonnes, types de
-   `user_id` en `uuid` vs `text`, tables réellement présentes) ;
-2. quelles policies sont **réellement** déployées aujourd'hui ;
-3. les signatures exactes des RPC historiques (le `1000` ne durcit que les
-   fonctions trouvées ; une signature différente serait silencieusement ignorée) ;
-4. l'existence de doublons `subscriptions.user_id` ;
-5. le comportement exact de `service_role` dans Supabase (le harness le simule) ;
-6. le nombre de comptes élèves sans `user_student_mapping` ;
-7. la génération réellement en place des contraintes `*_role_check` et les
-   valeurs de `role` présentes en base (bloquent `1200` si hors whitelist).
+1. types réels : `subscriptions.user_id`, `sessions.user_id`, `attempts.user_id`
+   et les `user_id` de monitoring sont **TEXT**, pas `uuid` → voir § 9 ;
+2. 22 policies permissives `USING (true)` / `WITH CHECK (true)` ;
+3. 13 fonctions `SECURITY DEFINER` encore exécutables par un rôle client, dont
+   `ensure_profile` absente de la liste manuelle du `1000` → corrigé, plus
+   assertion fail-closed `1300` ;
+4. **aucun** doublon `subscriptions.user_id` → `0500` peut poser l'UNIQUE ;
+5. contraintes `*_role_check` déjà compatibles `cpd`/`cpc`, aucune valeur de
+   `role` hors whitelist → `1200` ne s'arrêtera pas ;
+6. `webhook_events` existe déjà (`event_id TEXT`, `received_at TIMESTAMPTZ`) →
+   `0400` doit être additif ;
+7. aucune table cible absente.
 
-Tant que ces points ne sont pas levés, l'état production reste
-`PRODUCTION_RLS_UNVERIFIED`.
+**Reste non vérifiable sans exécuter la migration** : le comportement exact de
+`service_role` dans Supabase (le harness le simule) et la réaction du frontend
+déployé. L'état production reste `PRODUCTION_RLS_UNVERIFIED` jusqu'à
+application autorisée.
 
 ---
 
@@ -244,3 +284,109 @@ donnée fournie par le navigateur (email `@eleve.crazychrono.app`, préfixe,
 `access_code`). Il doit être validé administrativement, ligne à ligne, puis
 inséré par le service role via `user_student_mapping`. Les comptes historiques
 sans mapping restent **fail-closed** (ni licence, ni fiche élève).
+
+### Lecture correcte des chiffres production
+
+Le rapport production donne 465 fiches élèves licenciées, 85 mappings actifs,
+donc 380 fiches licenciées sans mapping — et **4** comptes Auth
+`@eleve.crazychrono.app` sans mapping actif.
+
+Ces deux nombres ne mesurent pas la même chose et il serait faux de dire que
+380 utilisateurs perdront un accès :
+
+| Indicateur | Signification | Conséquence |
+| --- | --- | --- |
+| 380 fiches licenciées sans mapping | fiches élèves **sans compte Auth** — cas normal de l'élève qui joue via sa classe / son code d'accès | aucun compte cassé, aucune action |
+| **4** comptes Auth sans mapping | utilisateurs réels qui se connectent et restent fail-closed faute de mapping | `LEGACY_STUDENT_MAPPING_REQUIRED = 4`, revue humaine |
+
+Seul le second est un vrai signal. `docs/CTO_005_PRODUCTION_REPORT.sql` classe
+désormais le premier en `INFO` (libellé explicite) et le second en `REVIEW`.
+
+Pour identifier ces 4 comptes le moment venu :
+`docs/CTO_005A_LEGACY_STUDENT_ACCOUNTS.sql` — un seul `SELECT`, read-only,
+rejoué par le harness. **Son résultat contient des e-mails : il ne doit jamais
+être commité ni collé dans GitHub.** Il propose une piste de rattachement mais
+aucun backfill : la décision reste humaine.
+
+---
+
+## 9. Matrice de type-compatibility (production réelle)
+
+Seules les tables réellement touchées par CTO-005A figurent ici. **Aucune donnée
+de production n'est convertie** : c'est `auth.uid()` (toujours `uuid`) qui est
+casté vers le type de la colonne, jamais l'inverse.
+
+Mécanique commune : chaque migration lit `pg_attribute.atttypid` de la colonne
+d'identité et génère la policy en `EXECUTE format(...)` avec `auth.uid()` ou
+`auth.uid()::text`. Le même SQL versionné est donc correct sur le schéma
+historique (`uuid`) **et** sur la production (`text`), et échoue explicitement
+si la colonne est absente.
+
+| TABLE | COLONNE | TYPE PRODUCTION | EXPRESSION RLS | COMPATIBLE | CORRECTION |
+| --- | --- | --- | --- | --- | --- |
+| `subscriptions` | `user_id` | **text** | `user_id = auth.uid()::text` (généré) | OUI | `0500` : policy générée selon le type au lieu de `auth.uid() = user_id` |
+| `sessions` | `user_id` | **text** | `user_id = auth.uid()::text` (généré) | OUI | `0600` : génération type-aware |
+| `attempts` | `user_id` | **text** | `user_id = auth.uid()::text` (généré) | OUI | `0600` : génération type-aware |
+| `user_profiles` | `id` | uuid | `id = auth.uid()` (généré) | OUI | `0200` : génération type-aware (robustesse) |
+| `gs_tournament_entries` | `user_id` | uuid | `user_id = auth.uid()` (généré) | OUI | `0300` : génération type-aware (robustesse) |
+| `user_student_mapping` | `user_id` | uuid | `m.user_id::text = auth.uid()::text` | OUI | `0100` : comparaison normalisée en texte des deux côtés |
+| `user_student_mapping` | `student_id` | varchar | `m.student_id::text` puis `id::text IN (…)` | OUI | `0100`/`0700` : `student_id` toujours comparé en texte |
+| `classes` | `teacher_user_id` | uuid (créée par `0700`) | `c.teacher_user_id::text = auth.uid()::text` | OUI | `0100` : comparaison normalisée en texte |
+| `students` | `id` | varchar | `id::text IN (SELECT cc_my_student_ids())` | OUI | aucune (déjà textuel) |
+| `active_sessions` | `user_id` | uuid | généré selon le type | OUI | `0900` : génération type-aware |
+| `user_devices` | `user_id` | uuid | généré selon le type | OUI | `0900` : génération type-aware |
+| `invitations` | — | — | aucune policy client (table fermée) | OUI | `0800` : aucun accès `anon`/`authenticated` |
+| `webhook_events` | — | — | aucune policy client (table fermée) | OUI | `0400` : RLS + `REVOKE` |
+| `image_usage_logs`, `mon_*`, `monitoring_*` | `user_id` | text | **hors périmètre CTO-005A** — aucune policy générée | s.o. | aucune : tables de télémétrie non touchées, à traiter dans un lot dédié |
+
+---
+
+## 10. Traçabilité constat production → correction → test
+
+| PRODUCTION FINDING | MIGRATION QUI LE TRAITE | TEST | RÉSULTAT | RISQUE RÉSIDUEL |
+| --- | --- | --- | --- | --- |
+| `subscriptions.user_id` TEXT | `0500` (policy générée) | `PROD-1.0`→`1.7` (`tests/rls/30_production_like_checks.sql`) | PASS | aucun tant que la colonne reste TEXT ; la génération suit le type |
+| Aucun doublon `subscriptions.user_id` | `0500` (UNIQUE) | `PROD-1.1`, `P1-2.4` (upsert `onConflict`) | PASS | un doublon créé entre le rapport et la migration ferait échouer `0500` (fail-closed voulu) |
+| `sessions`/`attempts.user_id` TEXT | `0600` | attaques `P1-3.x` sur baseline production-like | PASS | aucun |
+| 22 policies permissives `USING (true)` | `0200`–`0900` (DROP + policies nominatives) | 78 assertions d'attaque | PASS | policies créées hors versionnement après la migration |
+| 13 `SECURITY DEFINER` exposées, dont `ensure_profile` | `1000` (liste étendue) + `1300` (assertion) | `PROD-3.1`→`3.3`, compteur harness 14 → 0 | PASS | une nouvelle fonction créée hors versionnement : détectée par `1300` au prochain run, pas en continu |
+| `webhook_events` préexistante (`event_id`, `received_at`) | `0400` additive | `PROD-2.1`→`2.7` | PASS | `event_id` NULL/dupliqué apparu depuis le rapport → arrêt explicite, aucune suppression |
+| Contraintes `role` déjà compatibles `cpd`/`cpc` | `1200` | suite `roles` (13 assertions) | PASS | valeur hors whitelist créée depuis → `1200` s'arrête, aucune conversion |
+| 6 entrées GS `is_subscriber=true`, `paid=false`, `payment_id` NULL | aucune (donnée non modifiée) + `0300` ferme l'écriture cliente des colonnes financières | 3 tests `CTO-005A` dans `server/__tests__/cto002-gs-access.test.js` | PASS — accès refusé | aucun : § 11 |
+| 4 comptes Auth élèves sans mapping | aucune (revue humaine) | `docs/CTO_005A_LEGACY_STUDENT_ACCOUNTS.sql` rejouée read-only par le harness | exécutable | ces 4 comptes restent fail-closed jusqu'à décision humaine |
+| 7 comptes privilégiés (3 admin confirmés, 1 cpc, 2 cpd, 1 teacher) | aucune (aucune rétrogradation automatique) | rapport § 6 nominatif | REVIEW | légitimité des 4 non confirmés — ne bloque pas la migration |
+
+---
+
+## 11. Les 6 entrées Grande Salle historiques ne sont pas bloquantes
+
+Constat production : 6 lignes `gs_tournament_entries` avec `paid = false`,
+`is_subscriber = true`, `payment_id IS NULL`. **Verdict : historiques, non
+bloquantes — pas de P0.** Aucune de ces lignes n'est modifiée.
+
+Preuve par le code d'accès actuel (CTO-002/003) :
+
+1. `server/access/gsAccess.js` — `resolveGrandeSalleAccess()` ne lit jamais
+   `is_subscriber`. Deux chemins seulement :
+   - `checkEntitlement(userId)` sur l'identité **du JWT vérifié**, réévaluée à
+     chaque tentative d'entrée (abonnement Stripe/RevenueCat côté serveur) ;
+   - `hasPaidEntry(tournamentId, email)`.
+2. `server/server.js` — `gsHasPaidEntry` ne sélectionne que la colonne `paid` et
+   ne renvoie `true` que sur `paid === true`. Avec `paid = false`, le résultat
+   est `false` → `not_paid`. Une erreur de lecture renvoie `null` → fail-closed.
+3. L'e-mail confronté est celui du JWT ou celui d'un billet signé HMAC ; une
+   ligne dont l'e-mail ne correspond à aucun compte connecté n'est jamais
+   consultée.
+4. `payment_id IS NULL` : aucune de ces lignes ne prétend même à une preuve de
+   paiement. Et par principe (revue CTO), `payment_id` n'est de toute façon pas
+   une preuve — l'ancienne policy permettait au client d'écrire les colonnes
+   financières ; `0300` supprime cette possibilité.
+
+Régressions ajoutées (`server/__tests__/cto002-gs-access.test.js`) : sur une
+ligne reproduisant exactement ces 6 entrées, un tournoi `paid` refuse
+(`not_paid`), un tournoi `subscribers` refuse (`not_entitled`), et un billet
+signé valide ne compense pas `paid = false`.
+
+Conséquence : `is_subscriber` est un champ d'inventaire écrit côté serveur, sans
+effet sur le contrôle d'accès. Les 6 lignes ne peuvent accorder aucun droit
+actuel.

@@ -14,6 +14,12 @@
 #                                             # cpd/cpc refusés avant 1200, acceptés
 #                                             # après, migration fail-closed sur une
 #                                             # valeur hors whitelist
+#   ./tests/rls/run_rls_tests.sh prodlike     # baseline reproduisant le schéma
+#                                             # PRODUCTION réel (user_id TEXT,
+#                                             # webhook_events préexistante, 13
+#                                             # SECURITY DEFINER exposées) :
+#                                             # migrations + attaques + contrôles
+#                                             # de compatibilité
 #   ./tests/rls/run_rls_tests.sh precheck     # precheck + rapport consolidé sur les
 #                                             # variantes de schéma (joined_at /
 #                                             # created_at / colonnes absentes)
@@ -41,6 +47,18 @@ start_db() {
 
 psql_file() {
   docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -q -U postgres -d postgres < "$1"
+}
+
+# Nombre de fonctions SECURITY DEFINER du schéma public exécutables par un rôle
+# client (PUBLIC, anon ou authenticated), helpers `cc_*` inclus dans le décompte
+# uniquement s'ils sont ouverts à PUBLIC/anon.
+secdef_exposed() {
+  docker exec -i "$CONTAINER" psql -t -A -q -U postgres -d postgres -c "
+    SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public' AND p.prosecdef
+       AND p.proname NOT LIKE 'cc\\_%'
+       AND (has_function_privilege('anon', p.oid, 'EXECUTE')
+         OR has_function_privilege('authenticated', p.oid, 'EXECUTE'))" 2>/dev/null | tr -d ' '
 }
 
 # Le fichier doit passer TEL QUEL : aucune section coupée, aucun nom de colonne
@@ -72,12 +90,33 @@ report_readonly() {
   echo "→ docs/CTO_005_PRODUCTION_REPORT.sql : $n lignes, un seul result set, READ ONLY"
 }
 
+# Requête d'identification des comptes élèves sans mapping : lecture seule et
+# exécutable telle quelle (elle contient des e-mails, donc jamais dans un log
+# partagé — on ne vérifie que son exécution).
+legacy_students_readonly() {
+  { echo "BEGIN READ ONLY;";
+    cat "$ROOT/docs/CTO_005A_LEGACY_STUDENT_ACCOUNTS.sql";
+    echo "COMMIT;"; } \
+    | docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -q -U postgres -d postgres > /dev/null \
+    || { echo "LEGACY STUDENT QUERY FAILED" >&2; return 12; }
+  echo "→ docs/CTO_005A_LEGACY_STUDENT_ACCOUNTS.sql : exécutable, READ ONLY"
+}
+
 run_suite() {
   local apply_migrations="$1"
   local apply_safe_rollback="${2:-no}"
+  local production_like="${3:-no}"
   start_db
   psql_file "$ROOT/tests/rls/00_bootstrap_supabase.sql"
   psql_file "$ROOT/tests/rls/01_baseline_legacy.sql"
+
+  # Variante PRODUCTION-COMPATIBILITY : types et objets réellement observés en
+  # production (rapport lecture seule), aucune donnée de production.
+  if [ "$production_like" = "yes" ]; then
+    psql_file "$ROOT/tests/rls/03_production_like.sql" \
+      || { echo "PRODUCTION-LIKE BASELINE FAILED" >&2; return 10; }
+    echo "→ baseline production-like appliquée ($(secdef_exposed) SECURITY DEFINER exposée(s) avant migrations)"
+  fi
 
   # Le precheck production doit être exécutable d'un seul bloc et strictement en
   # lecture : on le joue INTÉGRALEMENT sur le schéma AVANT migrations (c'est son
@@ -111,7 +150,13 @@ run_suite() {
   if [ "$apply_migrations" = "yes" ]; then
     # état cible : la moindre attaque réussie doit faire échouer la suite
     docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -t -A -q -U postgres -d postgres \
-      < "$ROOT/tests/rls/10_attacks.sql"
+      < "$ROOT/tests/rls/10_attacks.sql" || return 3
+    if [ "$production_like" = "yes" ]; then
+      echo "→ SECURITY DEFINER exposée(s) après migrations : $(secdef_exposed)"
+      docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -t -A -q -U postgres -d postgres \
+        < "$ROOT/tests/rls/30_production_like_checks.sql" \
+        || { echo "PRODUCTION-COMPATIBILITY CHECKS FAILED" >&2; return 11; }
+    fi
   else
     # baseline : on inventorie TOUTES les attaques qui réussissent
     { echo "SELECT set_config('cc.soft','1',false);";
@@ -162,6 +207,7 @@ precheck_variants() {
   echo "=== PRECHECK — variante gs_tournament_entries.joined_at ==="
   precheck_readonly || return 5
   report_readonly || return 9
+  legacy_students_readonly || return 12
 
   echo "=== PRECHECK — variante gs_tournament_entries.created_at ==="
   docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -q -U postgres -d postgres <<'SQL'
@@ -234,6 +280,28 @@ SQL
   fi
   echo "NOTICE:  PASS 1200 ne convertit aucun rôle historique"
 }
+
+# Revue CTO finale §E/§J : le schéma production réel, migré de bout en bout.
+production_like_suite() {
+  echo "=== BASELINE PRODUCTION-LIKE (types et expositions réels) ==="
+  run_suite yes no yes
+  local rc=$?
+  [ $rc -ne 0 ] && return $rc
+  concurrency_test || return 4
+  echo "=== PRODUCTION-LIKE + SAFE ROLLBACK (les attaques doivent RESTER bloquées) ==="
+  run_suite yes yes yes
+  rc=$?
+  [ $rc -ne 0 ] && return $rc
+  concurrency_test || return 4
+}
+
+if [ "$MODE" = "prodlike" ]; then
+  production_like_suite
+  rc=$?
+  [ $rc -eq 0 ] && echo "PRODUCTION-COMPATIBILITY TESTS: PASSED" \
+                || echo "PRODUCTION-COMPATIBILITY TESTS: FAILED (exit=$rc)"
+  exit $rc
+fi
 
 if [ "$MODE" = "precheck" ]; then
   precheck_variants

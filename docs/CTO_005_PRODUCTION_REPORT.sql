@@ -437,9 +437,9 @@ r12 AS (
      AND NOT EXISTS (SELECT 1 FROM public.user_student_mapping m
                       WHERE m.user_id = u.id AND m.active = true)
   UNION ALL
-  SELECT 12, 1, '12. Comptes élèves', 'eleves_licencies_sans_mapping',
-         CASE WHEN COUNT(*) = 0 THEN 'OK' ELSE 'REVIEW' END, COUNT(*),
-         'élèves licenciés sans compte rattaché : perdront l''accès licencié tant que le mapping n''est pas créé (comportement fail-closed voulu)'
+  SELECT 12, 1, '12. Comptes élèves', 'fiches_licenciees_sans_mapping',
+         'INFO', COUNT(*),
+         'fiches élèves licenciées sans mapping actif. ATTENTION : ce nombre ne compte AUCUN compte utilisateur — une fiche élève existe sans compte Auth dans le cas normal (élève qui joue via sa classe / son code d''accès). Le seul indicateur de comptes réellement à examiner est `comptes_eleve_sans_mapping` ci-dessus (LEGACY_STUDENT_MAPPING_REQUIRED)'
     FROM public.students s
    WHERE s.licensed = true
      AND NOT EXISTS (SELECT 1 FROM public.user_student_mapping m

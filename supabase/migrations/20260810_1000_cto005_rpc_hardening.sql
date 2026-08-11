@@ -30,7 +30,15 @@ DECLARE
     'cleanup_old_audit_logs',
     -- métier
     'update_student_training_stats', 'check_user_can_play', 'link_user_to_student',
-    'count_all_entities', 'mon_cleanup_old_data'
+    'count_all_entities', 'mon_cleanup_old_data',
+    -- présente en production seulement (aucune définition versionnée) : le
+    -- rapport CTO-005A l'a trouvée SECURITY DEFINER et exécutable par
+    -- anon/authenticated. Aucun appel client (aucun `.rpc('ensure_profile'` dans
+    -- src/ ni server/) : elle ne peut être qu'un utilitaire serveur ou la
+    -- fonction d'un trigger. PostgreSQL contrôle le privilège EXECUTE d'une
+    -- fonction de trigger à la CRÉATION du trigger, pas à chaque déclenchement :
+    -- révoquer l'accès client ne casse donc aucun trigger existant.
+    'ensure_profile'
   ];
 BEGIN
   FOR r IN

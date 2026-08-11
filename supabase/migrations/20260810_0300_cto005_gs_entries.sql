@@ -17,23 +17,44 @@ DROP POLICY IF EXISTS "gs_entries_insert_all"    ON public.gs_tournament_entries
 DROP POLICY IF EXISTS gs_entries_insert_free     ON public.gs_tournament_entries;
 DROP POLICY IF EXISTS gs_entries_select_own      ON public.gs_tournament_entries;
 
--- Inscription gratuite : aucune colonne financière ne peut être positionnée.
--- (Défense en profondeur : les GRANT colonne ci-dessous empêchent déjà de les
---  nommer ; la policy verrouille aussi les valeurs par défaut.)
-CREATE POLICY gs_entries_insert_free ON public.gs_tournament_entries
-  FOR INSERT TO anon, authenticated
-  WITH CHECK (
-    COALESCE(paid, false) = false
-    AND COALESCE(is_subscriber, false) = false
-    AND payment_id IS NULL
-    AND (user_id IS NULL OR user_id = auth.uid())
-  );
+-- La comparaison d'identité est construite d'après le type réel de
+-- `user_id` (UUID en production, TEXT dans certains schémas historiques) :
+-- aucune donnée n'est convertie, seul auth.uid() est casté.
+DO $$
+DECLARE
+  v_uid TEXT;
+BEGIN
+  SELECT CASE WHEN a.atttypid = 'uuid'::regtype THEN 'auth.uid()' ELSE 'auth.uid()::text' END
+    INTO v_uid
+    FROM pg_attribute a
+   WHERE a.attrelid = 'public.gs_tournament_entries'::regclass
+     AND a.attname = 'user_id'
+     AND NOT a.attisdropped;
 
--- Lecture : l'inscrit voit sa propre inscription, l'admin voit tout
--- (policy gs_entries_select_admin conservée telle quelle).
-CREATE POLICY gs_entries_select_own ON public.gs_tournament_entries
-  FOR SELECT TO authenticated
-  USING (user_id IS NOT NULL AND user_id = auth.uid());
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'CTO-005A: public.gs_tournament_entries.user_id introuvable — schéma inattendu.';
+  END IF;
+
+  -- Inscription gratuite : aucune colonne financière ne peut être positionnée.
+  -- (Défense en profondeur : les GRANT colonne ci-dessous empêchent déjà de les
+  --  nommer ; la policy verrouille aussi les valeurs par défaut.)
+  EXECUTE format(
+    'CREATE POLICY gs_entries_insert_free ON public.gs_tournament_entries
+       FOR INSERT TO anon, authenticated
+       WITH CHECK (
+         COALESCE(paid, false) = false
+         AND COALESCE(is_subscriber, false) = false
+         AND payment_id IS NULL
+         AND (user_id IS NULL OR user_id = %s)
+       )', v_uid);
+
+  -- Lecture : l'inscrit voit sa propre inscription, l'admin voit tout
+  -- (policy gs_entries_select_admin conservée telle quelle).
+  EXECUTE format(
+    'CREATE POLICY gs_entries_select_own ON public.gs_tournament_entries
+       FOR SELECT TO authenticated
+       USING (user_id IS NOT NULL AND user_id = %s)', v_uid);
+END $$;
 
 REVOKE ALL ON public.gs_tournament_entries FROM anon;
 REVOKE ALL ON public.gs_tournament_entries FROM authenticated;

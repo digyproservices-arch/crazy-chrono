@@ -42,24 +42,33 @@ BEGIN
   END LOOP;
 END $$;
 
--- active_sessions : la lecture de ses propres sessions reste utile côté client.
+-- active_sessions / user_devices : lecture de ses propres lignes uniquement
+-- (écran « mes appareils »). La comparaison suit le type réel de `user_id`.
 DO $$
+DECLARE
+  t     TEXT;
+  v_uid TEXT;
 BEGIN
-  IF to_regclass('public.active_sessions') IS NOT NULL THEN
-    EXECUTE 'DROP POLICY IF EXISTS active_sessions_select_own ON public.active_sessions';
-    EXECUTE $p$CREATE POLICY active_sessions_select_own ON public.active_sessions
-                 FOR SELECT TO authenticated USING (user_id = auth.uid())$p$;
-    EXECUTE 'GRANT SELECT ON public.active_sessions TO authenticated';
-  END IF;
-END $$;
+  FOREACH t IN ARRAY ARRAY['active_sessions', 'user_devices'] LOOP
+    IF to_regclass('public.' || t) IS NULL THEN
+      CONTINUE;
+    END IF;
 
--- user_devices : lecture de ses propres appareils (écran « mes appareils »).
-DO $$
-BEGIN
-  IF to_regclass('public.user_devices') IS NOT NULL THEN
-    EXECUTE 'DROP POLICY IF EXISTS user_devices_select_own ON public.user_devices';
-    EXECUTE $p$CREATE POLICY user_devices_select_own ON public.user_devices
-                 FOR SELECT TO authenticated USING (user_id = auth.uid())$p$;
-    EXECUTE 'GRANT SELECT ON public.user_devices TO authenticated';
-  END IF;
+    SELECT CASE WHEN a.atttypid = 'uuid'::regtype THEN 'auth.uid()' ELSE 'auth.uid()::text' END
+      INTO v_uid
+      FROM pg_attribute a
+     WHERE a.attrelid = ('public.' || t)::regclass
+       AND a.attname = 'user_id'
+       AND NOT a.attisdropped;
+
+    IF v_uid IS NULL THEN
+      RAISE EXCEPTION 'CTO-005A: public.%.user_id introuvable — schéma inattendu.', t;
+    END IF;
+
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', t || '_select_own', t);
+    EXECUTE format(
+      'CREATE POLICY %I ON public.%I FOR SELECT TO authenticated USING (user_id = %s)',
+      t || '_select_own', t, v_uid);
+    EXECUTE format('GRANT SELECT ON public.%I TO authenticated', t);
+  END LOOP;
 END $$;

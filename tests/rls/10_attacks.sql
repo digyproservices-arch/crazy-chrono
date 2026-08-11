@@ -189,11 +189,13 @@ SELECT t_assert(t_denied(format($q$INSERT INTO subscriptions (user_id, status) V
 SELECT t_logout();
 
 SET ROLE service_role;
-INSERT INTO subscriptions (user_id, status) VALUES (:A::uuid, 'trialing')
+-- Littéraux non typés : la suite doit passer aussi bien sur un schéma
+-- `subscriptions.user_id UUID` (dépôt) que TEXT (production).
+INSERT INTO subscriptions (user_id, status) VALUES (:A, 'trialing')
 ON CONFLICT (user_id) DO UPDATE SET status = EXCLUDED.status;
-INSERT INTO subscriptions (user_id, status) VALUES (:A::uuid, 'active')
+INSERT INTO subscriptions (user_id, status) VALUES (:A, 'active')
 ON CONFLICT (user_id) DO UPDATE SET status = EXCLUDED.status;
-SELECT t_assert((SELECT count(*) FROM subscriptions WHERE user_id = :A::uuid) = 1,
+SELECT t_assert((SELECT count(*) FROM subscriptions WHERE user_id = :A) = 1,
   'P1-2.4 upsert onConflict user_id fonctionne et ne crée qu''une ligne');
 SELECT t_assert(t_denied(format($q$INSERT INTO subscriptions (user_id, status) VALUES (%L, 'active')$q$, :A)),
   'P1-2.5 deux abonnements pour un même user_id impossibles');

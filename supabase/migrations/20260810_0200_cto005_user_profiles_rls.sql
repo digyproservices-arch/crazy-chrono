@@ -24,9 +24,34 @@ DROP POLICY IF EXISTS user_profiles_select_admin    ON public.user_profiles;
 DROP POLICY IF EXISTS user_profiles_insert_own      ON public.user_profiles;
 DROP POLICY IF EXISTS user_profiles_update_own      ON public.user_profiles;
 
-CREATE POLICY user_profiles_select_own ON public.user_profiles
-  FOR SELECT TO authenticated
-  USING (id = auth.uid());
+-- `user_profiles.id` est UUID partout où il a été observé ; la comparaison est
+-- néanmoins construite d'après le type réel pour ne jamais échouer sur un
+-- schéma qui l'aurait déclaré en TEXT. Aucune donnée n'est convertie.
+DO $$
+DECLARE
+  v_uid TEXT;
+BEGIN
+  SELECT CASE WHEN a.atttypid = 'uuid'::regtype THEN 'auth.uid()' ELSE 'auth.uid()::text' END
+    INTO v_uid
+    FROM pg_attribute a
+   WHERE a.attrelid = 'public.user_profiles'::regclass
+     AND a.attname = 'id'
+     AND NOT a.attisdropped;
+
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'CTO-005A: public.user_profiles.id introuvable — schéma inattendu.';
+  END IF;
+
+  EXECUTE format(
+    'CREATE POLICY user_profiles_select_own ON public.user_profiles
+       FOR SELECT TO authenticated USING (id = %s)', v_uid);
+  EXECUTE format(
+    'CREATE POLICY user_profiles_insert_own ON public.user_profiles
+       FOR INSERT TO authenticated WITH CHECK (id = %s)', v_uid);
+  EXECUTE format(
+    'CREATE POLICY user_profiles_update_own ON public.user_profiles
+       FOR UPDATE TO authenticated USING (id = %s) WITH CHECK (id = %s)', v_uid, v_uid);
+END $$;
 
 -- Besoin institutionnel : l'administration des comptes se fait par le backend
 -- (service role). On conserve toutefois une lecture admin explicite pour les
@@ -34,15 +59,6 @@ CREATE POLICY user_profiles_select_own ON public.user_profiles
 CREATE POLICY user_profiles_select_admin ON public.user_profiles
   FOR SELECT TO authenticated
   USING (public.cc_is_admin());
-
-CREATE POLICY user_profiles_insert_own ON public.user_profiles
-  FOR INSERT TO authenticated
-  WITH CHECK (id = auth.uid());
-
-CREATE POLICY user_profiles_update_own ON public.user_profiles
-  FOR UPDATE TO authenticated
-  USING (id = auth.uid())
-  WITH CHECK (id = auth.uid());
 
 -- Aucune policy DELETE : la suppression passe par le service role (RGPD).
 

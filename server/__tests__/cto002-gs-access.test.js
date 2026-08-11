@@ -205,3 +205,60 @@ describe('CTO-002 (revue) — billet signé', () => {
     expect(verifyTicket({ secret: SECRET, tournamentId: TOURNOI, ticket })).toBe('a@test.fr');
   });
 });
+
+// =============================================
+// CTO-005A (compatibilité production) — les 6 entrées Grande Salle historiques
+// (paid=false, is_subscriber=true, payment_id NULL) ne doivent accorder aucun
+// droit actuel. `is_subscriber` est écrit par le serveur (CTO-003) mais n'est
+// JAMAIS lu par le contrôle d'accès : seules comptent l'habilitation serveur du
+// moment et `paid=true` recoupé pour l'email prouvé.
+// =============================================
+describe('CTO-005A — entrées Grande Salle historiques is_subscriber=true', () => {
+  // Reproduit gsHasPaidEntry (server/server.js) : il ne sélectionne que `paid`.
+  const legacyRow = { paid: false, is_subscriber: true, payment_id: null };
+  const hasPaidEntryFromRow = (row) => async () => row?.paid === true;
+
+  test("une ligne historique is_subscriber=true n'ouvre pas un tournoi payant", async () => {
+    const r = await resolveGrandeSalleAccess({
+      accessType: 'paid',
+      tournamentId: TOURNOI,
+      socket: authSocket('u-legacy', 'legacy@test.fr'),
+      checkEntitlement: freeEntitlement,
+      hasPaidEntry: hasPaidEntryFromRow(legacyRow),
+      env: ENV,
+    });
+
+    expect(r.allowed).toBe(false);
+    expect(r.reason).toBe('not_paid');
+  });
+
+  test("une ligne historique is_subscriber=true n'ouvre pas un tournoi abonnés", async () => {
+    const r = await resolveGrandeSalleAccess({
+      accessType: 'subscribers',
+      tournamentId: TOURNOI,
+      socket: authSocket('u-legacy', 'legacy@test.fr'),
+      checkEntitlement: freeEntitlement,
+      hasPaidEntry: hasPaidEntryFromRow(legacyRow),
+      env: ENV,
+    });
+
+    expect(r.allowed).toBe(false);
+    expect(r.reason).toBe('not_entitled');
+  });
+
+  test('un billet signé ne compense pas paid=false', async () => {
+    const ticket = issueTicket({ secret: SECRET, tournamentId: TOURNOI, email: 'legacy@test.fr' });
+    const r = await resolveGrandeSalleAccess({
+      accessType: 'paid',
+      tournamentId: TOURNOI,
+      socket: anonSocket(),
+      checkEntitlement: freeEntitlement,
+      hasPaidEntry: hasPaidEntryFromRow(legacyRow),
+      entryTicket: ticket,
+      env: ENV,
+    });
+
+    expect(r.allowed).toBe(false);
+    expect(r.reason).toBe('not_paid');
+  });
+});
