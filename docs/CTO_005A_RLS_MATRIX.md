@@ -37,19 +37,19 @@ Les fichiers sont numérotés et **doivent être appliqués dans l'ordre**. `010
 (fonctions d'aide) est une dépendance de `0200`, `0700`, `0800`.
 
 ```
-supabase/migrations/20260810_0100_cto005_helpers.sql
-supabase/migrations/20260810_0200_cto005_user_profiles_rls.sql
-supabase/migrations/20260810_0300_cto005_gs_entries.sql
-supabase/migrations/20260810_0400_cto005_webhook_events.sql
-supabase/migrations/20260810_0500_cto005_subscriptions_unique.sql
-supabase/migrations/20260810_0600_cto005_progress_training.sql
-supabase/migrations/20260810_0700_cto005_school_scope.sql
-supabase/migrations/20260810_0800_cto005_invitations.sql
-supabase/migrations/20260810_0900_cto005_devices_audit_content.sql
-supabase/migrations/20260810_1000_cto005_rpc_hardening.sql
-supabase/migrations/20260810_1100_cto005_consume_invitation.sql
-supabase/migrations/20260810_1200_cto005_role_constraints.sql
-supabase/migrations/20260810_1300_cto005_secdef_assertion.sql
+supabase/migrations/20260810010000_cto005_helpers.sql
+supabase/migrations/20260810020000_cto005_user_profiles_rls.sql
+supabase/migrations/20260810030000_cto005_gs_entries.sql
+supabase/migrations/20260810040000_cto005_webhook_events.sql
+supabase/migrations/20260810050000_cto005_subscriptions_unique.sql
+supabase/migrations/20260810060000_cto005_progress_training.sql
+supabase/migrations/20260810070000_cto005_school_scope.sql
+supabase/migrations/20260810080000_cto005_invitations.sql
+supabase/migrations/20260810090000_cto005_devices_audit_content.sql
+supabase/migrations/20260810100000_cto005_rpc_hardening.sql
+supabase/migrations/20260810110000_cto005_consume_invitation.sql
+supabase/migrations/20260810120000_cto005_role_constraints.sql
+supabase/migrations/20260810130000_cto005_secdef_assertion.sql
 ```
 
 `1300` est une **assertion fail-closed, sans effet de bord** : elle énumère
@@ -117,7 +117,7 @@ Elle est donc **vivante et nécessaire** : c'est elle qui crée la ligne
 `user_profiles` de chaque nouveau compte. Verdict CTO : ni suppression, ni
 fermeture seule → définition versionnée.
 
-`20260810_1400_cto005_ensure_profile.sql` :
+`20260810140000_cto005_ensure_profile.sql` :
 
 * `CREATE OR REPLACE FUNCTION` avec le **corps métier production à l'identique**
   (`insert into public.user_profiles (id, email) … on conflict (id) do nothing;
