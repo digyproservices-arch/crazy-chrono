@@ -5,6 +5,8 @@ const BUBBLE_MAIN_SIZE = 110; // px, plus grande pour meilleure visibilité en c
 const BUBBLE_DURATION_MS = 5200; // ms (durée jugée bonne)
 const TRAIL_COUNT = 0; // uniquement 2 bulles (pas de traînée)
 const TRAIL_DELAY_MS = 0; // sans effet car TRAIL_COUNT=0
+const TARGET_RETRY_DELAY_MS = 60;
+const TARGET_MAX_RETRIES = 8; // ~500ms d'attente max si la vignette n'est pas encore montée
 
 // ====== Helpers d'animation au niveau module (pas de dépendance à des refs React) ======
 // Cache simple des centres d'écran des zones pour limiter les querySelector/getBoundingClientRect
@@ -83,10 +85,13 @@ function pulseVignette(color = '#3b82f6') {
   } catch {}
 }
 
-export function animateBubbleToVignette(color = '#3b82f6') {
+export function animateBubbleToVignette(color = '#3b82f6', retry = 0) {
   try {
     const targetEl = getVignetteTargetEl();
-    if (!targetEl) { setTimeout(() => animateBubbleToVignette(color), 60); return; }
+    if (!targetEl) {
+      if (retry < TARGET_MAX_RETRIES) setTimeout(() => animateBubbleToVignette(color, retry + 1), TARGET_RETRY_DELAY_MS);
+      return;
+    }
     const rect = targetEl.getBoundingClientRect();
     const tx = rect.left + rect.width / 2;
     const ty = rect.top + rect.height / 2;
@@ -160,18 +165,26 @@ function spawnEmojiParticles(sx, sy) {
 
 let __lastBubbleSig = { sig: '', ts: 0 };
 
-export function animateBubblesFromZones(aId, bId, color = '#3b82f6', ZA = null, ZB = null, borderColor = null, label = '') {
-  try {
-    const ids = [aId, bId].filter(v => v !== undefined && v !== null).map(v => String(v));
-    const sig = ids.sort().join('-');
-    const now = Date.now();
-    if (sig && __lastBubbleSig.sig === sig && (now - __lastBubbleSig.ts) < 800) {
-      return; // ignore doublon rapproché
-    }
-    __lastBubbleSig = { sig, ts: now };
-  } catch {}
+export function animateBubblesFromZones(aId, bId, color = '#3b82f6', ZA = null, ZB = null, borderColor = null, label = '', retry = 0) {
+  if (retry === 0) {
+    try {
+      const ids = [aId, bId].filter(v => v !== undefined && v !== null).map(v => String(v));
+      const sig = ids.sort().join('-');
+      const now = Date.now();
+      if (sig && __lastBubbleSig.sig === sig && (now - __lastBubbleSig.ts) < 800) {
+        return; // ignore doublon rapproché
+      }
+      __lastBubbleSig = { sig, ts: now };
+    } catch {}
+  }
   const targetEl = getVignetteTargetEl();
-  if (!targetEl) { setTimeout(() => animateBubblesFromZones(aId, bId, color), 60); return; }
+  if (!targetEl) {
+    // Relance en conservant les données de la paire (zones, couleurs, initiales)
+    if (retry < TARGET_MAX_RETRIES) {
+      setTimeout(() => animateBubblesFromZones(aId, bId, color, ZA, ZB, borderColor, label, retry + 1), TARGET_RETRY_DELAY_MS);
+    }
+    return;
+  }
   const tRect = targetEl.getBoundingClientRect();
   const tx = tRect.left + tRect.width / 2;
   const ty = tRect.top + tRect.height / 2;
