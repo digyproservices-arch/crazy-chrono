@@ -24,6 +24,7 @@ import { playCorrectSound, playWrongSound } from '../utils/gameAudio';
 import { loadAssociationsData, norm, normType, getPairId, mulberry32, makeRngFromSeed, shuffleArray, fetchWithTimeout } from '../utils/gameHelpers';
 import { animateBubblesFromZones, invalidateZoneCenterCache } from '../utils/gameAnimation';
 import ArenaPauseOverlay from './ArenaPauseOverlay';
+import { shouldShowPrivateRoomLobby, computeHasSidebar, isRoomReadyToStart } from '../utils/privateRoomUi';
 
 // Instruments a socket with telemetry listeners (connect, disconnect, connect_error)
 function _instrSocket(s, mode, matchId) {
@@ -2416,6 +2417,7 @@ const Carte = () => {
             setScoresMP(scoreList);
             scoresRef.current = scoreList;
           }
+          if (typeof data.status === 'string' && data.status) setRoomStatus(data.status);
           if (Number.isFinite(data.roundsPerSession)) setRoundsPerSession(data.roundsPerSession);
           if (Number.isFinite(data.roundsPlayed)) setRoundsPlayed(data.roundsPlayed);
           if (typeof data.msg === 'string') setMpMsg(data.msg);
@@ -4882,10 +4884,17 @@ const handleEditGreenZone = (zone) => {
     fetchRecords();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Salle privée: les contrôles Prêt / Démarrer restent affichés tant que le serveur
+  // annonce un statut de salle 'lobby' ou 'countdown' (roomStatus est synchronisé depuis
+  // room:state — autorité serveur) et que la manche n'a pas démarré.
+  const showPrivateRoomLobby = shouldShowPrivateRoomLobby({
+    hasSocket: !!socket, isSoloMode, gsMode, arenaMatchId, trainingMatchId, roomStatus, countdownT, gameActive,
+  });
+
   // Affichage colonne latérale de jeu (même sans plein écran)
-  // ✅ FIX BLANC SALLE PRIVÉE: roomStatus reste 'lobby' (setRoomStatus('playing') jamais appelé)
-  // → ajouter (!isSoloMode && socketConnected) pour couvrir la salle privée dès la connexion socket
-  const hasSidebar = fullScreen || roomStatus === 'playing' || gameActive || !!arenaMatchId || !!trainingMatchId || (!isSoloMode && socketConnected);
+  const hasSidebar = computeHasSidebar({
+    fullScreen, roomStatus, gameActive, arenaMatchId, trainingMatchId, isSoloMode, socketConnected, showPrivateRoomLobby,
+  });
   const [sbc, setSbc] = useState(() => window.innerWidth <= 932 && window.innerWidth > window.innerHeight); // sidebar-compact flag for mobile landscape
   useEffect(() => {
     if (hasSidebar) {
@@ -9779,7 +9788,7 @@ setZones(dataWithRandomTexts);
       )}
       {/* Lobby / Multijoueur UI (masqué en mode solo ET en Grande Salle — un joueur GS
           dont la connexion tarde ne doit JAMAIS voir le panneau "Salle Privée") */}
-      {socket && !hasSidebar && !isSoloMode && !gsMode && (
+      {showPrivateRoomLobby && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', overflow: 'hidden' }}>
           <style>{`
             @keyframes lobbyFloat { 0%,100% { transform: translateY(0) scale(1); opacity: 0.15; } 50% { transform: translateY(-20px) scale(1.05); opacity: 0.3; } }
@@ -9956,7 +9965,7 @@ setZones(dataWithRandomTexts);
                 {/* Status banner */}
                 <div style={{ marginBottom: 16, padding: '10px 16px', borderRadius: 14, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', fontSize: 13, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>
                   {(() => {
-                    const allReady = roomPlayers.length >= 2 && roomPlayers.every(p => p.ready);
+                    const allReady = isRoomReadyToStart(roomPlayers);
                     if (roomPlayers.length < 2) return '⏳ En attente d\'autres joueurs...';
                     if (!myReady) return '👉 Appuyez sur "Je suis prêt" pour commencer';
                     if (!allReady) return '⏳ En attente que tous soient prêts...';
@@ -9980,7 +9989,7 @@ setZones(dataWithRandomTexts);
                     {myReady ? '✓ Prêt — annuler' : '✅ Je suis prêt'}
                   </button>
                   {isHost && (() => {
-                    const allReady = roomPlayers.length >= 2 && roomPlayers.every(p => p.ready);
+                    const allReady = isRoomReadyToStart(roomPlayers);
                     return (
                       <button onClick={handleStartRoom} disabled={!allReady}
                         style={{
