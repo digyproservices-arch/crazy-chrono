@@ -424,7 +424,7 @@ describe('CTO-005A — contraintes de rôle alignées sur la whitelist serveur',
   const { ASSIGNABLE_ROLES, PERSISTED_ROLES } = require('../access/roles');
   const migration = fs.readFileSync(
     path.join(__dirname, '..', '..', 'supabase', 'migrations',
-      '20260810_1200_cto005_role_constraints.sql'),
+      '20260810120000_cto005_role_constraints.sql'),
     'utf8'
   );
 
@@ -445,7 +445,7 @@ describe('CTO-005A — contraintes de rôle alignées sur la whitelist serveur',
   test('consume_invitation code exactement la même whitelist attribuable', () => {
     const rpc = fs.readFileSync(
       path.join(__dirname, '..', '..', 'supabase', 'migrations',
-        '20260810_1100_cto005_consume_invitation.sql'),
+        '20260810110000_cto005_consume_invitation.sql'),
       'utf8'
     );
     const block = rpc.split('v_inv.role NOT IN (')[1];

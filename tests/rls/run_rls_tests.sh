@@ -90,7 +90,7 @@ default_privileges_test() {
 # EXACTES. Une fonction `cc_*` inconnue, ou une surcharge inattendue d'un helper
 # allowlisté, doit faire ÉCHOUER 1300 en la nommant.
 secdef_allowlist_test() {
-  local m="$ROOT/supabase/migrations/20260810_1300_cto005_secdef_assertion.sql"
+  local m="$ROOT/supabase/migrations/20260810130000_cto005_secdef_assertion.sql"
   local out
 
   # État migré nominal : les 11 helpers exacts → 1300 passe.
@@ -394,7 +394,7 @@ INSERT INTO user_profiles (id, email, role) VALUES
 SQL
   local out
   out=$(docker exec -i "$CONTAINER" psql -v ON_ERROR_STOP=1 -q -U postgres -d postgres \
-        < "$ROOT/supabase/migrations/20260810_1200_cto005_role_constraints.sql" 2>&1)
+        < "$ROOT/supabase/migrations/20260810120000_cto005_role_constraints.sql" 2>&1)
   if grep -q 'hors whitelist' <<<"$out"; then
     echo "NOTICE:  PASS 1200 fail-closed sur un rôle hors whitelist : superadmin"
   else
