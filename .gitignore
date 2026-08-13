@@ -55,3 +55,13 @@ server/data/server_trace.json
 server/data/stripe_events.json
 server/data/payment_events.json
 server/data/online_players.json
+
+# Backups logiques de base (données personnelles) — ne jamais versionner
+/backup/
+/backups/
+*.dump
+/roles.sql
+/schema.sql
+/data.sql
+/schema_auth_storage.sql
+/data_auth_storage.sql
