@@ -168,10 +168,22 @@ body.cc-game #root {
 }
 
 .carte-container.game-with-sidebar {
+  /* Gabarit du plateau: le carré est calculé à partir de la place réellement
+     disponible (largeur de colonne ET hauteur de ligne). Sans ça, height:100%
+     + max-width:100% contraignent les deux axes et `aspect-ratio` est ignoré →
+     plateau rectangulaire → object-fit:cover et l'overlay SVG (slice) rognent
+     les zones satellites des bords. */
+  --cc-pad-x: 16px;
+  --cc-pad-y: 12px;
+  --cc-gap: 16px;
+  --cc-sidebar-w: 340px;
+  --cc-board-avail-w: calc(min(100vw, 1400px) - 2 * var(--cc-pad-x) - var(--cc-gap) - var(--cc-sidebar-w));
+  --cc-board-avail-h: calc(100dvh - 2 * var(--cc-pad-y));
+  --cc-board-size: min(var(--cc-board-avail-w), var(--cc-board-avail-h));
   display: grid;
-  grid-template-columns: 1fr 340px;
-  gap: 16px;
-  padding: 12px 16px;
+  grid-template-columns: minmax(0, 1fr) var(--cc-sidebar-w);
+  gap: var(--cc-gap);
+  padding: var(--cc-pad-y) var(--cc-pad-x);
   height: 100vh;
   max-width: 1400px;
   margin: 0 auto;
@@ -185,10 +197,12 @@ body.cc-game #root {
 .carte-container.game-with-sidebar .carte {
   grid-column: 1;
   grid-row: 1;
-  height: 100%;
-  width: auto;
+  width: var(--cc-board-size);
+  height: var(--cc-board-size);
   max-width: 100%;
+  aspect-ratio: 1 / 1;
   justify-self: center;
+  align-self: center;
   border-radius: 16px;
 }
 
@@ -463,12 +477,15 @@ h3 {
   }
   /* Reset grid to flex on mobile */
   .carte-container.game-with-sidebar {
+    /* réserve HUD mobile (~64px) + bandeau historique (~52px), tous deux en
+       position:fixed en haut: sans ça ils recouvrent le haut du plateau */
+    --cc-mobile-top-reserve: calc(env(safe-area-inset-top, 0px) + 116px);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     grid-template-columns: none;
-    padding: 70px 0 0 0;
+    padding: var(--cc-mobile-top-reserve) 0 0 0;
     height: 100dvh;
     min-height: 100dvh;
     max-width: none;
@@ -477,9 +494,9 @@ h3 {
     touch-action: none;
   }
   .carte-container.game-with-sidebar .carte {
-    width: 100%;
+    width: min(100vw, calc(100dvh - var(--cc-mobile-top-reserve)));
+    height: min(100vw, calc(100dvh - var(--cc-mobile-top-reserve)));
     max-width: 100vw;
-    max-height: calc(100dvh - 70px);
     aspect-ratio: 1 / 1;
     border-radius: 0;
   }
@@ -527,12 +544,47 @@ h3 {
    (dimensionné sur la plus petite dimension dispo) et un rendu "contain". */
 @media (max-width: 768px) and (orientation: portrait) {
   .carte {
-    width: min(100vw, calc(100dvh - 150px)) !important;
-    height: min(100vw, calc(100dvh - 150px)) !important;
+    width: min(100vw, calc(100dvh - var(--cc-mobile-top-reserve, 150px))) !important;
+    height: min(100vw, calc(100dvh - var(--cc-mobile-top-reserve, 150px))) !important;
     aspect-ratio: 1 / 1;
     margin: 0 auto !important;
   }
   .carte-bg { object-fit: contain !important; }
+}
+
+/* ========================================
+   TABLETTE PORTRAIT (769–1024px) — plateau au-dessus, colonne d'infos dessous
+   En grid 2 colonnes, la colonne du plateau devient plus étroite que haute:
+   le plateau restait lisible mais minuscule. On empile pour garder un plateau
+   large, entièrement visible, et une sidebar accessible sans chevauchement.
+   ======================================== */
+@media (min-width: 769px) and (max-width: 1024px) and (orientation: portrait) {
+  .carte-container.game-with-sidebar {
+    --cc-board-size: min(
+      calc(100vw - 2 * var(--cc-pad-x)),
+      calc(100dvh - 2 * var(--cc-pad-y) - var(--cc-gap) - 200px)
+    );
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    grid-template-columns: none;
+    height: 100dvh;
+  }
+
+  .carte-container.game-with-sidebar .carte {
+    order: 1; /* la sidebar précède le plateau dans le DOM */
+    flex: 0 0 auto;
+    max-width: 100%;
+  }
+
+  .carte-container.game-with-sidebar .game-sidebar-fixed {
+    order: 2;
+    display: flex !important;
+    width: min(100%, 720px);
+    flex: 1 1 auto;
+    min-height: 140px;
+  }
 }
 
 /* ========================================
@@ -546,10 +598,14 @@ h3 {
 
   /* Conteneur : reprendre le grid immersif */
   .carte-container.game-with-sidebar {
+    --cc-pad-x: 8px;
+    --cc-pad-y: 6px;
+    --cc-gap: 8px;
+    --cc-sidebar-w: 220px;
     display: grid !important;
-    grid-template-columns: 1fr 220px;
-    gap: 8px;
-    padding: 6px 8px !important;
+    grid-template-columns: minmax(0, 1fr) var(--cc-sidebar-w);
+    gap: var(--cc-gap);
+    padding: var(--cc-pad-y) var(--cc-pad-x) !important;
     height: 100dvh;
     min-height: 100dvh;
     max-width: none;
@@ -561,16 +617,16 @@ h3 {
     flex-direction: row;
   }
 
-  /* Carte : remplit la hauteur, reste carrée */
+  /* Carte : plus grand carré tenant dans la colonne ET dans la hauteur */
   .carte-container.game-with-sidebar .carte {
     grid-column: 1;
     grid-row: 1;
-    width: auto !important;
+    width: var(--cc-board-size) !important;
+    height: var(--cc-board-size) !important;
     max-width: 100%;
-    height: 100% !important;
-    max-height: calc(100dvh - 12px);
     aspect-ratio: 1 / 1;
     justify-self: center;
+    align-self: center;
     border-radius: 12px;
   }
 

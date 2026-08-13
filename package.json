@@ -36,6 +36,7 @@
     "setup-new-pc": "node setup-new-pc.js",
     "test:server": "npx jest server/__tests__/ --verbose --reporters=default --reporters=./server/jest-monitoring-reporter.js",
     "test:e2e": "npx playwright test --project=chromium",
+    "test:responsive": "npx playwright test --config=playwright.responsive.config.js",
     "test:e2e:headed": "npx playwright test --project=chromium --headed",
     "test:e2e:ui": "npx playwright test --ui",
     "test:e2e:report": "npx playwright show-report e2e-report"
