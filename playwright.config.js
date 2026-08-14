@@ -27,7 +27,16 @@ module.exports = defineConfig({
     ['json', { outputFile: 'e2e-report/results.json' }],
     ['./e2e/monitoring-reporter.js'],
   ],
-  timeout: 600000, // 10 min max par test (test 25 élèves est long)
+  // CTO-009 : 2 min par défaut. Le test le plus long observé en CI dure 33 s ;
+  // les tests réellement longs déclarent leur propre budget via test.setTimeout()
+  // (07-all-students, 02-auth, 10-multiplayer, 11-regression, 14-card-integrity).
+  // L'ancien défaut de 10 min laissait un test bloqué consommer 30 min de CI
+  // (10 min × 3 tentatives) et faisait annuler tout le job sans aucun rapport.
+  timeout: 120000,
+  // CTO-009 : borne l'exécution complète sous le timeout du job GitHub (60 min)
+  // pour que Playwright s'arrête lui-même et produise un rapport exploitable,
+  // au lieu d'être tué par le runner (cas des runs « cancelled » sans rapport).
+  globalTimeout: 45 * 60 * 1000,
   use: {
     baseURL: process.env.E2E_BASE_URL || 'https://app.crazy-chrono.com',
     trace: 'on-first-retry',
