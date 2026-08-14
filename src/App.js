@@ -230,6 +230,7 @@ function App() {
   const [showDeviceLimitModal, setShowDeviceLimitModal] = useState(false);
   const [deviceLimitMsg, setDeviceLimitMsg] = useState('');
   const sessionModalTimerRef = useRef(null);
+  const sessionPromptRef = useRef(null);
   const consoleOrigRef = useRef({ log: null, warn: null, error: null });
   const fetchOrigRef = useRef(null);
   const detachHandlersRef = useRef(() => {});
@@ -256,15 +257,19 @@ function App() {
       if (localStorage.getItem('cc_session_only') === '1') {
         const isRefresh = !!sessionStorage.getItem('cc_refresh_guard');
         if (isRefresh) {
-          // C'est un REFRESH → garder la session, afficher le modal pour proposer de rester connecté
-          console.log('[App] Session temporaire + REFRESH détecté — session maintenue, modal affiché');
+          // C'est un REFRESH → garder la session, proposer de rester connecté
+          const alreadyAnswered = !!sessionStorage.getItem('cc_session_stay');
+          console.log('[App] Session temporaire + REFRESH détecté — session maintenue, invite '
+            + (alreadyAnswered ? 'déjà acceptée dans cet onglet (pas de réaffichage)' : 'affichée'));
           // On garde cc_refresh_guard pour les prochains refreshes
-          // Le modal sera affiché via un useEffect après le render initial
+          // L'invite sera affichée via un useEffect après le render initial
           const parsed = JSON.parse(localStorage.getItem('cc_auth')) || null;
-          // Déclencher l'affichage du modal après le render (setTimeout car setState pas dispo dans init)
-          setTimeout(() => {
-            try { window.dispatchEvent(new CustomEvent('cc:showSessionModal')); } catch {}
-          }, 300);
+          // Déclencher l'affichage après le render (setTimeout car setState pas dispo dans init)
+          if (!alreadyAnswered) {
+            setTimeout(() => {
+              try { window.dispatchEvent(new CustomEvent('cc:showSessionModal')); } catch {}
+            }, 300);
+          }
           return parsed;
         }
         // C'est une FERMETURE d'onglet suivie d'une nouvelle ouverture → déconnexion immédiate
@@ -333,12 +338,31 @@ function App() {
     if (sessionModalTimerRef.current) clearInterval(sessionModalTimerRef.current);
     setShowSessionModal(false);
     if (rememberForever) {
-      // Supprimer cc_session_only → plus jamais ce modal
+      // Supprimer cc_session_only → plus jamais cette invite
       try { localStorage.removeItem('cc_session_only'); } catch {}
     }
     // Garder cc_refresh_guard pour les prochains refreshes
     try { sessionStorage.setItem('cc_refresh_guard', '1'); } catch {}
+    // Mémoriser la réponse pour cet onglet → pas de réaffichage à chaque rechargement
+    try { sessionStorage.setItem('cc_session_stay', '1'); } catch {}
   };
+  // Toute interaction avec l'app vaut « Rester connecté » : l'invite ne doit ni bloquer
+  // les clics/saisies attendus, ni déconnecter un utilisateur en train de travailler.
+  useEffect(() => {
+    if (!showSessionModal) return;
+    const onUserActivity = (e) => {
+      // Ignorer les événements issus de l'invite elle-même (ses boutons gèrent leur propre action)
+      if (sessionPromptRef.current && e.target instanceof Node && sessionPromptRef.current.contains(e.target)) return;
+      handleSessionModalStay(false);
+    };
+    window.addEventListener('pointerdown', onUserActivity, true);
+    window.addEventListener('keydown', onUserActivity, true);
+    return () => {
+      window.removeEventListener('pointerdown', onUserActivity, true);
+      window.removeEventListener('keydown', onUserActivity, true);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showSessionModal]);
   const handleSessionModalLogout = () => {
     if (sessionModalTimerRef.current) clearInterval(sessionModalTimerRef.current);
     setShowSessionModal(false);
@@ -361,6 +385,7 @@ function App() {
     try { localStorage.setItem('cc_forced_logout', '1'); } catch {}
     try { supabase?.auth?.signOut?.(); } catch {}
     try { sessionStorage.removeItem('cc_refresh_guard'); } catch {}
+    try { sessionStorage.removeItem('cc_session_stay'); } catch {}
     setAuth(null);
     try { window.dispatchEvent(new Event('cc:authChanged')); } catch {}
   };
@@ -943,35 +968,37 @@ function App() {
             ⚠️ Votre session a expiré. Déconnexion automatique en cours...
           </div>
         )}
-        {/* Modal "Rester connecté ?" après refresh avec session temporaire */}
+        {/* Invite "Rester connecté ?" après refresh avec session temporaire.
+            Non bloquante : pas de fond plein écran captant les clics, ancrée en bas à droite. */}
         {showSessionModal && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ background: '#fff', borderRadius: 16, padding: '32px 28px', maxWidth: 400, width: '90%', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🔄</div>
-              <h3 style={{ margin: '0 0 8px', fontSize: 18, color: '#111' }}>Page actualisée</h3>
-              <p style={{ margin: '0 0 16px', fontSize: 14, color: '#6b7280', lineHeight: 1.5 }}>
-                Vous n'avez pas coché « Se souvenir de moi ».<br />
-                Voulez-vous rester connecté ?
+          <div style={{ position: 'fixed', bottom: 16, right: 16, left: 'auto', zIndex: 99999, pointerEvents: 'none', display: 'flex', justifyContent: 'flex-end', maxWidth: 'calc(100vw - 32px)' }}>
+            <div ref={sessionPromptRef} data-testid="session-stay-prompt" style={{ pointerEvents: 'auto', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '12px 14px', maxWidth: 340, width: '100%', textAlign: 'left', boxShadow: '0 12px 32px rgba(0,0,0,0.22)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 18 }}>🔄</span>
+                <h3 style={{ margin: 0, fontSize: 15, color: '#111' }}>Page actualisée</h3>
+              </div>
+              <p style={{ margin: '0 0 4px', fontSize: 13, color: '#6b7280', lineHeight: 1.4 }}>
+                Vous n'avez pas coché « Se souvenir de moi ». Voulez-vous rester connecté ?
               </p>
-              <p style={{ margin: '0 0 20px', fontSize: 13, color: '#9ca3af' }}>
-                Déconnexion automatique dans <strong style={{ color: '#ef4444', fontSize: 16 }}>{sessionCountdown}s</strong>
+              <p style={{ margin: '0 0 10px', fontSize: 12, color: '#9ca3af' }}>
+                Déconnexion automatique dans <strong style={{ color: '#ef4444', fontSize: 14 }}>{sessionCountdown}s</strong>
               </p>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button
                   onClick={() => handleSessionModalStay(false)}
-                  style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: '#0D6A7A', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+                  style={{ padding: '8px 14px', borderRadius: 10, border: 'none', background: '#0D6A7A', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
                 >
                   Rester connecté
                 </button>
                 <button
                   onClick={() => handleSessionModalStay(true)}
-                  style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid #0D6A7A', background: '#f0f9ff', color: '#0D6A7A', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                  style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #0D6A7A', background: '#f0f9ff', color: '#0D6A7A', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
                 >
                   Rester + Se souvenir
                 </button>
                 <button
                   onClick={handleSessionModalLogout}
-                  style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid #d1d5db', background: '#f9fafb', color: '#6b7280', fontWeight: 500, fontSize: 13, cursor: 'pointer' }}
+                  style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid #d1d5db', background: '#f9fafb', color: '#6b7280', fontWeight: 500, fontSize: 12, cursor: 'pointer' }}
                 >
                   Se déconnecter
                 </button>
