@@ -20,8 +20,11 @@ const BACKEND_URL = process.env.TEST_BACKEND_URL || 'http://localhost:4000';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Skip si pas de connexion Supabase configurée
-const canRunIntegration = SUPABASE_URL && SUPABASE_SERVICE_KEY;
+// Cette suite écrit et supprime réellement des lignes dans la base ciblée : elle
+// exige un opt-in explicite (CC_RUN_SUPABASE_INTEGRATION=1) en plus des identifiants,
+// pour ne jamais s'exécuter par accident (CI, poste de dev) sur la base de production.
+const optedIn = process.env.CC_RUN_SUPABASE_INTEGRATION === '1';
+const canRunIntegration = Boolean(optedIn && SUPABASE_URL && SUPABASE_SERVICE_KEY);
 
 // Tests DB purs (pas besoin d'un backend actif)
 const describeIf = canRunIntegration ? describe : describe.skip;
