@@ -40,12 +40,20 @@ test.describe('Navigation (pages protégées)', () => {
   test.skip(!TEST_ACCOUNTS.admin.password, 'E2E_ADMIN_PASSWORD non défini');
 
   test('Page /modes affiche les modes après login', async ({ page }) => {
+    // L'URL /modes apparaît dès le navigate() de react-router : le contenu est
+    // rendu quelques centaines de ms plus tard (commit React + chunk lazy).
+    // On mesure ce délai et on attend un signal déterministe, sans délai fixe.
+    const t0 = Date.now();
     await loginWithEmail(page, TEST_ACCOUNTS.admin.email, TEST_ACCOUNTS.admin.password);
-    await expect(page.locator('body')).not.toBeEmpty();
-    // Au moins un mode de jeu visible
-    const hasSolo = await page.locator('text=Solo').first().isVisible().catch(() => false);
-    const hasTraining = await page.locator('text=Training, text=Entraînement').first().isVisible().catch(() => false);
-    expect(hasSolo || hasTraining).toBeTruthy();
+    const msToModes = Date.now() - t0;
+    console.log(`[/modes] contenu affiché ${msToModes}ms après le début du login`);
+
+    await expect(page.getByRole('heading', { name: /Choisissez/i }).first()).toBeVisible();
+    await expect(page.locator('text=/mode solo/i').first()).toBeVisible();
+    // Aucun écran de chargement résiduel
+    await expect(page.locator('text=Chargement')).toHaveCount(0);
+    // Un utilisateur réel ne doit pas attendre anormalement longtemps
+    expect(msToModes).toBeLessThan(20000);
   });
 
   test('Page /account se charge sans crash', async ({ page }) => {

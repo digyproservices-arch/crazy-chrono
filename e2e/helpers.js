@@ -30,6 +30,20 @@ async function bypassMaintenance(page) {
 }
 
 /**
+ * Attendre que la page /modes ait réellement rendu son contenu.
+ *
+ * `waitForURL('**\/modes')` ne garantit rien : l'URL change dès le `navigate()`
+ * de react-router, avant que React n'ait commité la nouvelle route et avant que
+ * le chunk lazy de ModeSelect ne soit chargé (Suspense affiche « Chargement… »).
+ * Le signal déterministe est donc le titre de la page + au moins une carte de mode.
+ */
+async function waitForModesReady(page, timeout = 20000) {
+  await page.getByRole('heading', { name: /Choisissez/i }).first()
+    .waitFor({ state: 'visible', timeout });
+  await page.locator('text=/mode solo/i').first().waitFor({ state: 'visible', timeout });
+}
+
+/**
  * Login via email/password et attendre la redirection vers /modes
  */
 async function loginWithEmail(page, email, password) {
@@ -50,8 +64,10 @@ async function loginWithEmail(page, email, password) {
   // Cliquer sur le bouton de connexion
   await page.click('button[type="submit"]');
 
-  // Attendre la redirection vers /modes (timeout 20s pour cold start Render)
+  // Attendre la redirection vers /modes (timeout 30s pour cold start Render)
   await page.waitForURL('**/modes', { timeout: 30000 });
+  // …puis le rendu effectif du contenu (l'URL change avant le rendu React)
+  await waitForModesReady(page);
 }
 
 /**
@@ -78,8 +94,9 @@ async function loginWithStudentCode(page, code) {
   // Le bouton élève est type="button" avec texte "Jouer" (PAS type="submit")
   await page.locator('button:has-text("Jouer")').first().click();
 
-  // Attendre la redirection
+  // Attendre la redirection puis le rendu effectif du contenu
   await page.waitForURL('**/modes', { timeout: 45000 });
+  await waitForModesReady(page);
 }
 
 /**
@@ -186,6 +203,7 @@ module.exports = {
   TEST_ACCOUNTS,
   BACKEND_URL,
   bypassMaintenance,
+  waitForModesReady,
   loginWithEmail,
   loginWithStudentCode,
   logout,
