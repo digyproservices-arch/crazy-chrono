@@ -28,10 +28,13 @@ jobs:
       - name: Install server dependencies
         run: cd server && npm ci
 
+      # CTO-012 : les suites de parité/persistance s'appuient sur le harnais de stubs
+      # (server/testUtils) et n'ont besoin d'aucun accès Supabase. Injecter
+      # SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY activait game-persistence.integration
+      # qui, sous jest-environment-node 27, casse au chargement (Headers absent) et
+      # écrirait/supprimerait des lignes dans la base de production.
       - name: Run server tests
         env:
           CI: true
           E2E_BACKEND_URL: https://crazy-chrono-backend.onrender.com
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node ./node_modules/jest/bin/jest.js server/__tests__/ --verbose --reporters=default --reporters=./server/jest-monitoring-reporter.js
