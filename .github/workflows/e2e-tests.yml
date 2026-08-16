@@ -11,11 +11,25 @@ on:
   # Possibilité de lancer manuellement depuis GitHub
   workflow_dispatch:
 
+# CTO-009 — Périmètre selon le déclencheur.
+# La suite complète (129 tests, 1 worker séquentiel contre la production) dure
+# ~33 min : elle dépassait systématiquement le timeout de 30 min et était
+# annulée, donc AUCUN résultat n'était exploitable.
+# Le compte de test étant unique (session unique + limite de devices côté app),
+# on ne peut pas paralléliser workers/shards sans que les jobs s'invalident
+# mutuellement la session. On segmente donc dans le temps :
+#   - PR / push main  → périmètre « critique » (~10 min) : santé, auth, navigation,
+#     solo, training, API, perf, apprendre, quotas, responsive, régression
+#     double-paires, modes multijoueurs ;
+#   - nuit (cron) / workflow_dispatch → suite complète (matrices exhaustives
+#     filtres, gameplay, intégrité cartes, tous les élèves).
+# Aucun test n'est supprimé : les matrices exhaustives tournent chaque nuit et
+# sont relançables à la demande sur n'importe quelle branche.
 jobs:
   e2e-tests:
     name: Tests E2E
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - name: Checkout code
@@ -43,8 +57,21 @@ jobs:
             if [ "$i" -lt 6 ]; then sleep 10; fi
           done
 
+      - name: Définir le périmètre des tests
+        id: scope
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "specs=" >> "$GITHUB_OUTPUT"
+            echo "label=complet (129 tests)" >> "$GITHUB_OUTPUT"
+          else
+            echo "specs=e2e/01-health.spec.js e2e/02-auth.spec.js e2e/03-navigation.spec.js e2e/04-solo-mode.spec.js e2e/05-training-mode.spec.js e2e/06-api-health.spec.js e2e/10-multiplayer-modes.spec.js e2e/11-regression-double-pairs.spec.js e2e/12-performance.spec.js e2e/13-learn-mode.spec.js e2e/15-session-limits.spec.js e2e/16-solo-responsive.spec.js" >> "$GITHUB_OUTPUT"
+            echo "label=critique (PR / push)" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run E2E tests
-        run: npx playwright test --project=chromium
+        run: |
+          echo "Périmètre : ${{ steps.scope.outputs.label }}"
+          npx playwright test --project=chromium ${{ steps.scope.outputs.specs }}
         env:
           E2E_BASE_URL: https://app.crazy-chrono.com
           E2E_BACKEND_URL: https://crazy-chrono-backend.onrender.com
